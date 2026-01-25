@@ -1,0 +1,549 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "selfTypePattern": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Self"
+        }
+      },
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "show"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Copyable"
+      },
+      "selfTypePattern": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Self"
+        }
+      },
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "clone"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Self"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Point"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Point"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "show"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Point"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringLiteral",
+                  "value": "point"
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Copyable"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Point"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "clone"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Point"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "Identifier",
+                  "name": "self"
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Point"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Wrapper"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        }
+      ],
+      "kind": "named",
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          },
+          "constraints": [
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Show"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "targetType": {
+        "type": "GenericTypeExpression",
+        "base": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "Wrapper"
+          }
+        },
+        "arguments": [
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        ]
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "show"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringLiteral",
+                  "value": "show"
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          },
+          "constraints": [
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Copyable"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "targetType": {
+        "type": "GenericTypeExpression",
+        "base": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "Wrapper"
+          }
+        },
+        "arguments": [
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        ]
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "show"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringLiteral",
+                  "value": "copy"
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "main"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "Identifier",
+              "name": "wrapped"
+            },
+            "right": {
+              "type": "StructLiteral",
+              "structType": {
+                "type": "Identifier",
+                "name": "Wrapper"
+              },
+              "fields": [
+                {
+                  "type": "StructFieldInitializer",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "value": {
+                    "type": "StructLiteral",
+                    "structType": {
+                      "type": "Identifier",
+                      "name": "Point"
+                    },
+                    "fields": [
+                      {
+                        "type": "StructFieldInitializer",
+                        "name": {
+                          "type": "Identifier",
+                          "name": "x"
+                        },
+                        "value": {
+                          "type": "IntegerLiteral",
+                          "value": 1
+                        },
+                        "isShorthand": false
+                      }
+                    ],
+                    "isPositional": false
+                  },
+                  "isShorthand": false
+                }
+              ],
+              "isPositional": false
+            }
+          },
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "wrapped"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "show"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+package structs
+
+struct Point {
+  x: i32,
+  y: i32
+}
+
+fn translate(point: Point, dx: i32, dy: i32) -> Point {
+  Point { x: point.x + dx, y: point.y + dy }
+}
+
+fn describe(point: Point) -> String {
+  Point { x::x, y::y } := point
+  `Point(${x}, ${y})`
+}
+
+fn main() {
+  start := Point { x: 2, y: 3 }
+  end := translate(start, -1, 4)
+  print(`start ${describe(start)}`)
+  print(`end ${describe(end)}`)
+}

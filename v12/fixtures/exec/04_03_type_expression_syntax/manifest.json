@@ -1,0 +1,11 @@
+{
+  "description": "nested type expressions with generic application and unions",
+  "expect": {
+    "stdout": [
+      "sum 3",
+      "int 3",
+      "text hi"
+    ],
+    "exit": 0
+  }
+}

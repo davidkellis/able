@@ -1,0 +1,26 @@
+package options
+import able.core.interfaces.{Error, Clone}
+
+## Canonical Option/Result unions used throughout the spec.
+union Option T = nil | T
+union Result T = Error | T
+
+## TODO: restore Option/Result helpers once method definitions on generic types are supported in the runtime/typechecker.
+
+impl Clone for nil {
+  fn clone(self: Self) -> nil { nil }
+}
+
+struct OptionUnwrapError {}
+
+impl Error for OptionUnwrapError {
+  fn message(self: Self) -> String { "called Option.unwrap() on nil" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct ResultUnwrapError { cause: Error }
+
+impl Error for ResultUnwrapError {
+  fn message(self: Self) -> String { "called Result.unwrap() on Error" }
+  fn cause(self: Self) -> ?Error { self.cause }
+}

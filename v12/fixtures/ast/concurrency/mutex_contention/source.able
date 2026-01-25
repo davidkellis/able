@@ -1,0 +1,29 @@
+mutex := __able_mutex_new();
+trace := "";
+__able_mutex_lock(mutex);
+trace = trace + "A";
+worker := spawn {
+  __able_mutex_lock(mutex);
+  trace = trace + "C";
+  __able_mutex_unlock(mutex);
+  nil;
+};
+future_flush();
+status_initial := (worker.status() match {
+  case Pending {  } => "Pending",
+  case Resolved {  } => "Resolved",
+  case Cancelled {  } => "Cancelled",
+  case Failed {  } => "Failed",
+  case _ => "Other"
+});
+trace = trace + "B";
+__able_mutex_unlock(mutex);
+worker.value();
+status_final := (worker.status() match {
+  case Pending {  } => "Pending",
+  case Resolved {  } => "Resolved",
+  case Cancelled {  } => "Cancelled",
+  case Failed {  } => "Failed",
+  case _ => "Other"
+});
+`${status_initial}:${status_final}:${trace}`;

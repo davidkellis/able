@@ -1,0 +1,11 @@
+package exec_04_05_02_struct_named_update_mutation_diag
+
+## Semantics: functional updates reject sources of a different struct type.
+
+struct Point { x: i32, y: i32 }
+struct Other { x: i32 }
+
+fn main() -> void {
+  other := Other { x: 1 }
+  Point { ...other, x: 2 }
+}

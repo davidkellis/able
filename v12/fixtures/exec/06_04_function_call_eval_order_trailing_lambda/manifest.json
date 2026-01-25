@@ -1,0 +1,20 @@
+{
+  "description": "function call argument order and trailing lambda equivalence",
+  "expect": {
+    "stdout": [
+      "arg1",
+      "arg2",
+      "lambda-1",
+      "first 3",
+      "arg3",
+      "arg4",
+      "lambda-2",
+      "second 12",
+      "lambda-3",
+      "third 10",
+      "lambda-4",
+      "fourth 6"
+    ],
+    "exit": 0
+  }
+}

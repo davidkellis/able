@@ -1,0 +1,12 @@
+{
+  "description": "patterns: identifier binding, wildcard ignore, typed guards",
+  "expect": {
+    "stdout": [
+      "str hi",
+      "middle 2",
+      "typed 9",
+      "int 9"
+    ],
+    "exit": 0
+  }
+}

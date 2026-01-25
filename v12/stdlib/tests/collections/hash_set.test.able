@@ -1,0 +1,78 @@
+package hash_set_specs
+
+import able.spec.*
+import able.collections.hash_set.{HashSet}
+
+describe("HashSet") { suite =>
+  suite.it("adds, removes, and checks membership") { _ctx =>
+    set := HashSet.new()
+    expect(set.is_empty()).to(be_truthy())
+    expect(set.add(1)).to(be_truthy())
+    expect(set.add(1)).to(be_false())
+    expect(set.contains(1)).to(be_truthy())
+    expect(set.remove(1)).to(be_truthy())
+    expect(set.contains(1)).to(be_false())
+    expect(set.size()).to(eq(0))
+  }
+
+  suite.it("unions and intersects") { _ctx =>
+    left := HashSet.new()
+    left.add("a")
+    left.add("b")
+    right := HashSet.new()
+    right.add("b")
+    right.add("c")
+
+    merged := left.union(right)
+    expect(merged.size()).to(eq(3))
+    expect(merged.contains("c")).to(be_truthy())
+    expect(left.size()).to(eq(2))
+
+    common := left.intersect(right)
+    expect(common.size()).to(eq(1))
+    expect(common.contains("b")).to(be_truthy())
+    expect(common.contains("a")).to(be_false())
+  }
+
+  suite.it("differences and symmetric differences") { _ctx =>
+    left := HashSet.new()
+    left.add(1)
+    left.add(2)
+    left.add(3)
+    right := HashSet.new()
+    right.add(3)
+    right.add(4)
+
+    diff := left.difference(right)
+    expect(diff.size()).to(eq(2))
+    expect(diff.contains(1)).to(be_truthy())
+    expect(diff.contains(3)).to(be_false())
+
+    sym := left.symmetric_difference(right)
+    expect(sym.size()).to(eq(3))
+    expect(sym.contains(1)).to(be_truthy())
+    expect(sym.contains(4)).to(be_truthy())
+    expect(sym.contains(3)).to(be_false())
+  }
+
+  suite.it("subset, superset, and disjoint checks") { _ctx =>
+    base := HashSet.new()
+    base.add(1)
+    base.add(2)
+    base.add(3)
+
+    subset := HashSet.new()
+    subset.add(1)
+    subset.add(2)
+
+    disjoint := HashSet.new()
+    disjoint.add(9)
+
+    expect(subset.is_subset(base)).to(be_truthy())
+    expect(base.is_superset(subset)).to(be_truthy())
+    expect(base.is_disjoint(disjoint)).to(be_truthy())
+
+    disjoint.add(3)
+    expect(base.is_disjoint(disjoint)).to(be_false())
+  }
+}

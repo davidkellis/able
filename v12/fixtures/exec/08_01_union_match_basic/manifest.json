@@ -1,0 +1,7 @@
+{
+  "description": "match expression with guards and wildcard fallback",
+  "expect": {
+    "stdout": ["zero", "num 3", "num 4"],
+    "exit": 0
+  }
+}

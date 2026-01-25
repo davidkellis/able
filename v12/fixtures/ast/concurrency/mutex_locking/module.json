@@ -1,0 +1,338 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Mutex"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "handle"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i64"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Mutex"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "new"
+          },
+          "params": [],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "AssignmentExpression",
+                "operator": ":=",
+                "left": {
+                  "type": "Identifier",
+                  "name": "handle"
+                },
+                "right": {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "Identifier",
+                    "name": "__able_mutex_new"
+                  },
+                  "arguments": [],
+                  "isTrailingLambda": false
+                }
+              },
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StructLiteral",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Mutex"
+                  },
+                  "fields": [
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      },
+                      "value": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      },
+                      "isShorthand": false
+                    }
+                  ],
+                  "isPositional": false
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Mutex"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "lock"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "Identifier",
+                  "name": "__able_mutex_lock"
+                },
+                "arguments": [
+                  {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "handle"
+                    }
+                  }
+                ],
+                "isTrailingLambda": false
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "unlock"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "Identifier",
+                  "name": "__able_mutex_unlock"
+                },
+                "arguments": [
+                  {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "handle"
+                    }
+                  }
+                ],
+                "isTrailingLambda": false
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "mutex"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "Mutex"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "new"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "trace"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": ""
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "mutex"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "lock"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": "=",
+      "left": {
+        "type": "Identifier",
+        "name": "trace"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "+",
+        "left": {
+          "type": "Identifier",
+          "name": "trace"
+        },
+        "right": {
+          "type": "StringLiteral",
+          "value": "A"
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "mutex"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "unlock"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "mutex"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "lock"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": "=",
+      "left": {
+        "type": "Identifier",
+        "name": "trace"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "+",
+        "left": {
+          "type": "Identifier",
+          "name": "trace"
+        },
+        "right": {
+          "type": "StringLiteral",
+          "value": "B"
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "mutex"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "unlock"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "Identifier",
+      "name": "trace"
+    }
+  ]
+}

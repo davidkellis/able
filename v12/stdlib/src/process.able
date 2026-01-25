@@ -1,0 +1,637 @@
+package process
+
+import able.kernel.{Array}
+import able.io.{IOError, unwrap, unwrap_void}
+
+prelude go {
+import (
+  "errors"
+  "os"
+  "os/exec"
+  "strconv"
+  "strings"
+  "sync"
+  "syscall"
+)
+
+func processErrorKind(err error) string {
+  if err == nil {
+    return "Other"
+  }
+  switch {
+  case os.IsPermission(err) || errors.Is(err, os.ErrPermission) || errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) || strings.Contains(strings.ToLower(err.Error()), "permission denied"):
+    return "PermissionDenied"
+  case errors.Is(err, os.ErrNotExist):
+    return "NotFound"
+  case errors.Is(err, os.ErrExist):
+    return "AlreadyExists"
+  case errors.Is(err, os.ErrInvalid):
+    return "InvalidInput"
+  case errors.Is(err, os.ErrClosed):
+    return "Closed"
+  case errors.Is(err, syscall.EPIPE):
+    return "BrokenPipe"
+  case errors.Is(err, syscall.ENOTTY):
+    return "Unsupported"
+  case os.IsTimeout(err):
+    return "TimedOut"
+  default:
+    return "Other"
+  }
+}
+
+func processErrorFrom(err error, path *string) map[string]any {
+  var pathVal any = nil
+  if path != nil {
+    pathVal = *path
+  }
+  return map[string]any{
+    "kind": processErrorKind(err),
+    "message": err.Error(),
+    "path": pathVal,
+  }
+}
+
+type processHandle struct {
+  cmd    *exec.Cmd
+  stdin  *os.File
+  stdout *os.File
+  stderr *os.File
+  mu     sync.Mutex
+  waited bool
+  status map[string]any
+  waitErr error
+}
+
+func normalizeSignalName(name string) string {
+  upper := strings.ToUpper(name)
+  switch upper {
+  case "TERMINATED":
+    return "TERM"
+  case "KILLED":
+    return "KILL"
+  case "INTERRUPT":
+    return "INT"
+  case "HANGUP":
+    return "HUP"
+  case "ABORTED":
+    return "ABRT"
+  case "BROKEN PIPE":
+    return "PIPE"
+  }
+  upper = strings.TrimPrefix(upper, "SIG")
+  upper = strings.ReplaceAll(upper, " ", "_")
+  return upper
+}
+
+func signalFromName(name string) (os.Signal, bool) {
+  upper := strings.ToUpper(name)
+  upper = strings.TrimPrefix(upper, "SIG")
+  switch upper {
+  case "TERM":
+    return syscall.SIGTERM, true
+  case "KILL":
+    return syscall.SIGKILL, true
+  case "INT":
+    return syscall.SIGINT, true
+  case "HUP":
+    return syscall.SIGHUP, true
+  case "QUIT":
+    return syscall.SIGQUIT, true
+  case "ABRT":
+    return syscall.SIGABRT, true
+  case "PIPE":
+    return syscall.SIGPIPE, true
+  }
+  if upper != "" {
+    if num, err := strconv.Atoi(upper); err == nil {
+      return syscall.Signal(num), true
+    }
+  }
+  return nil, false
+}
+
+func processStatusFromState(state *os.ProcessState) map[string]any {
+  code := int32(-1)
+  if state != nil {
+    code = int32(state.ExitCode())
+  }
+  var signal any = nil
+  if state != nil {
+    if status, ok := state.Sys().(syscall.WaitStatus); ok {
+      if status.Signaled() {
+        name := normalizeSignalName(status.Signal().String())
+        if name != "" {
+          signal = map[string]any{"name": name}
+        }
+      }
+    }
+  }
+  return map[string]any{
+    "code": code,
+    "signal": signal,
+  }
+}
+
+func (h *processHandle) waitStatus() (map[string]any, error) {
+  h.mu.Lock()
+  if h.waited {
+    status := h.status
+    err := h.waitErr
+    h.mu.Unlock()
+    return status, err
+  }
+  h.mu.Unlock()
+
+  err := h.cmd.Wait()
+  status := processStatusFromState(h.cmd.ProcessState)
+  if err != nil {
+    if _, ok := err.(*exec.ExitError); ok {
+      err = nil
+    } else if h.cmd.ProcessState != nil {
+      err = nil
+    }
+  }
+
+  h.mu.Lock()
+  h.waited = true
+  h.status = status
+  h.waitErr = err
+  h.mu.Unlock()
+  return status, err
+}
+
+func stringField(value map[string]any, name string) string {
+  if value == nil {
+    return ""
+  }
+  if raw, ok := value[name]; ok {
+    if s, ok := raw.(string); ok {
+      return s
+    }
+  }
+  return ""
+}
+
+func stringSlice(value any) []string {
+  switch v := value.(type) {
+  case []string:
+    return v
+  case []any:
+    out := make([]string, 0, len(v))
+    for _, entry := range v {
+      if s, ok := entry.(string); ok {
+        out = append(out, s)
+      }
+    }
+    return out
+  default:
+    return nil
+  }
+}
+
+func envSlice(value any) ([]string, bool) {
+  if value == nil {
+    return nil, false
+  }
+  out := []string{}
+  switch v := value.(type) {
+  case []any:
+    for _, entry := range v {
+      item, ok := entry.(map[string]any)
+      if !ok {
+        continue
+      }
+      name, _ := item["name"].(string)
+      value, _ := item["value"].(string)
+      if name == "" {
+        continue
+      }
+      out = append(out, name+"="+value)
+    }
+  case []map[string]any:
+    for _, item := range v {
+      name, _ := item["name"].(string)
+      value, _ := item["value"].(string)
+      if name == "" {
+        continue
+      }
+      out = append(out, name+"="+value)
+    }
+  }
+  return out, true
+}
+
+func fileField(value map[string]any, name string) *os.File {
+  if value == nil {
+    return nil
+  }
+  if raw, ok := value[name]; ok {
+    if raw == nil {
+      return nil
+    }
+    if file, ok := raw.(*os.File); ok {
+      return file
+    }
+  }
+  return nil
+}
+}
+
+prelude typescript {
+import { spawn } from "node:child_process";
+
+function processErrorKind(err) {
+  const code = err && err.code ? String(err.code) : "";
+  switch (code) {
+    case "ENOENT": return "NotFound";
+    case "EACCES": return "PermissionDenied";
+    case "EPERM": return "PermissionDenied";
+    case "EEXIST": return "AlreadyExists";
+    case "EINVAL": return "InvalidInput";
+    case "ETIMEDOUT": return "TimedOut";
+    case "EPIPE": return "BrokenPipe";
+    case "EBADF": return "Closed";
+    case "ENOTTY": return "Unsupported";
+    default: return "Other";
+  }
+}
+
+function processErrorFrom(err, pathValue) {
+  return {
+    kind: processErrorKind(err),
+    message: err && err.message ? String(err.message) : String(err),
+    path: pathValue ?? null,
+  };
+}
+
+function handleFromStream(stream) {
+  if (!stream) return null;
+  return { stream, fd: typeof stream.fd === "number" ? stream.fd : undefined };
+}
+
+function stdioFromHandle(handle) {
+  if (!handle) return "pipe";
+  if (handle.stream) return handle.stream;
+  if (typeof handle.fd === "number") return handle.fd;
+  return "pipe";
+}
+
+function normalizeSignalName(name) {
+  const raw = String(name ?? "").toUpperCase();
+  if (raw.startsWith("SIG")) return raw.slice(3);
+  return raw;
+}
+
+function toSignalName(signal) {
+  const raw = signal && signal.name ? String(signal.name) : "TERM";
+  const upper = raw.toUpperCase();
+  return upper.startsWith("SIG") ? upper : `SIG${upper}`;
+}
+}
+
+struct ProcessEnv {
+  name: String,
+  value: String
+}
+
+struct ProcessSpec {
+  command: String,
+  args: Array String,
+  cwd: ?String,
+  env: ?Array ProcessEnv,
+  stdin: ?IoHandle,
+  stdout: ?IoHandle,
+  stderr: ?IoHandle
+}
+
+struct ProcessSignal {
+  name: String
+}
+
+struct ProcessStatus {
+  code: i32,
+  signal: ?ProcessSignal
+}
+
+methods ProcessEnv {
+  fn new(name: String, value: String) -> ProcessEnv {
+    ProcessEnv { name, value }
+  }
+}
+
+methods ProcessSpec {
+  fn new(command: String, args: ?Array String) -> ProcessSpec {
+    spec_args := args match { case nil => Array.new(), case value: Array String => value }
+    ProcessSpec {
+      command,
+      args: spec_args,
+      cwd: nil,
+      env: nil,
+      stdin: nil,
+      stdout: nil,
+      stderr: nil
+    }
+  }
+
+  fn with_cwd(self: Self, cwd: String) -> ProcessSpec {
+    ProcessSpec { ...self, cwd }
+  }
+
+  fn with_env(self: Self, env: Array ProcessEnv) -> ProcessSpec {
+    ProcessSpec { ...self, env }
+  }
+
+  fn with_stdio(self: Self, stdin: ?IoHandle, stdout: ?IoHandle, stderr: ?IoHandle) -> ProcessSpec {
+    ProcessSpec { ...self, stdin, stdout, stderr }
+  }
+}
+
+methods ProcessSignal {
+  fn new(name: String) -> ProcessSignal {
+    ProcessSignal { name }
+  }
+}
+
+methods ProcessStatus {
+  fn success(self: Self) -> bool {
+    self.code == 0 && self.signal == nil
+  }
+}
+
+fn signal(name: String) -> ProcessSignal {
+  ProcessSignal { name }
+}
+
+fn sig_term() -> ProcessSignal { ProcessSignal { name: "TERM" } }
+fn sig_kill() -> ProcessSignal { ProcessSignal { name: "KILL" } }
+fn sig_int() -> ProcessSignal { ProcessSignal { name: "INT" } }
+
+extern typescript fn process_spawn(spec: ProcessSpec) -> IOError | ProcHandle {
+  return (async () => {
+    try {
+      if (!spec || !spec.command) {
+        throw new Error("invalid ProcessSpec");
+      }
+      const command = String(spec.command);
+      const args = Array.isArray(spec.args) ? spec.args.map((arg) => String(arg)) : [];
+      const cwd = spec.cwd == null ? undefined : String(spec.cwd);
+      let env = undefined;
+      if (Array.isArray(spec.env)) {
+        env = {};
+        for (const entry of spec.env) {
+          if (!entry || entry.name == null) continue;
+          env[String(entry.name)] = entry.value == null ? "" : String(entry.value);
+        }
+      }
+      const stdio = [stdioFromHandle(spec.stdin), stdioFromHandle(spec.stdout), stdioFromHandle(spec.stderr)];
+      const proc = spawn(command, args, { cwd, env, stdio });
+      return {
+        proc,
+        stdin: spec.stdin ?? handleFromStream(proc.stdin),
+        stdout: spec.stdout ?? handleFromStream(proc.stdout),
+        stderr: spec.stderr ?? handleFromStream(proc.stderr),
+        status: null,
+        waitPromise: null,
+      };
+    } catch (err) {
+      const pathValue = spec && spec.command ? String(spec.command) : null;
+      return processErrorFrom(err, pathValue);
+    }
+  })();
+}
+
+extern go fn process_spawn(spec: ProcessSpec) -> IOError | ProcHandle {
+  specMap, ok := spec.(map[string]any)
+  if !ok {
+    return processErrorFrom(errors.New("invalid ProcessSpec"), nil)
+  }
+  command := stringField(specMap, "command")
+  if command == "" {
+    return processErrorFrom(errors.New("missing command"), nil)
+  }
+  args := stringSlice(specMap["args"])
+  cmd := exec.Command(command, args...)
+
+  if cwd := stringField(specMap, "cwd"); cwd != "" {
+    cmd.Dir = cwd
+  }
+  if env, ok := envSlice(specMap["env"]); ok {
+    cmd.Env = env
+  }
+
+  stdin := fileField(specMap, "stdin")
+  stdout := fileField(specMap, "stdout")
+  stderr := fileField(specMap, "stderr")
+
+  var childStdin *os.File
+  var childStdout *os.File
+  var childStderr *os.File
+
+  if stdin == nil {
+    r, w, err := os.Pipe()
+    if err != nil {
+      return processErrorFrom(err, nil)
+    }
+    cmd.Stdin = r
+    childStdin = r
+    stdin = w
+  } else {
+    cmd.Stdin = stdin
+  }
+
+  if stdout == nil {
+    r, w, err := os.Pipe()
+    if err != nil {
+      return processErrorFrom(err, nil)
+    }
+    cmd.Stdout = w
+    childStdout = w
+    stdout = r
+  } else {
+    cmd.Stdout = stdout
+  }
+
+  if stderr == nil {
+    r, w, err := os.Pipe()
+    if err != nil {
+      return processErrorFrom(err, nil)
+    }
+    cmd.Stderr = w
+    childStderr = w
+    stderr = r
+  } else {
+    cmd.Stderr = stderr
+  }
+
+  if err := cmd.Start(); err != nil {
+    return processErrorFrom(err, &command)
+  }
+
+  if childStdin != nil { _ = childStdin.Close() }
+  if childStdout != nil { _ = childStdout.Close() }
+  if childStderr != nil { _ = childStderr.Close() }
+
+  return &processHandle{
+    cmd: cmd,
+    stdin: stdin,
+    stdout: stdout,
+    stderr: stderr,
+  }
+}
+
+extern typescript fn process_wait(handle: ProcHandle) -> IOError | ProcessStatus {
+  return (async () => {
+    try {
+      if (!handle || !handle.proc) {
+        throw new Error("invalid ProcHandle");
+      }
+      if (handle.status) return handle.status;
+      const proc = handle.proc;
+      if (proc.exitCode !== null || proc.signalCode !== null) {
+        const status = {
+          code: typeof proc.exitCode === "number" ? Math.trunc(proc.exitCode) : -1,
+          signal: proc.signalCode ? { name: normalizeSignalName(proc.signalCode) } : null,
+        };
+        handle.status = status;
+        return status;
+      }
+      if (!handle.waitPromise) {
+        handle.waitPromise = new Promise((resolve, reject) => {
+          proc.once("exit", (code, signal) => resolve({ code, signal }));
+          proc.once("error", reject);
+        });
+      }
+      const result = await handle.waitPromise;
+      const status = {
+        code: typeof result.code === "number" ? Math.trunc(result.code) : -1,
+        signal: result.signal ? { name: normalizeSignalName(result.signal) } : null,
+      };
+      handle.status = status;
+      return status;
+    } catch (err) {
+      return processErrorFrom(err, null);
+    }
+  })();
+}
+
+extern go fn process_wait(handle: ProcHandle) -> IOError | ProcessStatus {
+  proc, ok := handle.(*processHandle)
+  if !ok || proc == nil {
+    return processErrorFrom(errors.New("invalid ProcHandle"), nil)
+  }
+  status, err := proc.waitStatus()
+  if err != nil {
+    return processErrorFrom(err, nil)
+  }
+  return status
+}
+
+extern typescript fn process_kill(handle: ProcHandle, signal: ProcessSignal) -> IOError | void {
+  try {
+    if (!handle || !handle.proc) {
+      throw new Error("invalid ProcHandle");
+    }
+    const ok = handle.proc.kill(toSignalName(signal));
+    if (!ok) {
+      return processErrorFrom(new Error("process not running"), null);
+    }
+    return null;
+  } catch (err) {
+    return processErrorFrom(err, null);
+  }
+}
+
+extern go fn process_kill(handle: ProcHandle, signal: ProcessSignal) -> IOError | void {
+  proc, ok := handle.(*processHandle)
+  if !ok || proc == nil || proc.cmd == nil || proc.cmd.Process == nil {
+    return processErrorFrom(errors.New("invalid ProcHandle"), nil)
+  }
+  sigMap, _ := signal.(map[string]any)
+  sigName, _ := sigMap["name"].(string)
+  sig, ok := signalFromName(sigName)
+  if !ok {
+    return processErrorFrom(errors.New("unknown signal"), nil)
+  }
+  if err := proc.cmd.Process.Signal(sig); err != nil {
+    return processErrorFrom(err, nil)
+  }
+  return nil
+}
+
+extern typescript fn process_stdin(handle: ProcHandle) -> IoHandle {
+  if (!handle || !handle.stdin) {
+    throw new Error("invalid ProcHandle");
+  }
+  return handle.stdin;
+}
+
+extern go fn process_stdin(handle: ProcHandle) -> IoHandle {
+  proc, ok := handle.(*processHandle)
+  if !ok || proc == nil {
+    return nil
+  }
+  return proc.stdin
+}
+
+extern typescript fn process_stdout(handle: ProcHandle) -> IoHandle {
+  if (!handle || !handle.stdout) {
+    throw new Error("invalid ProcHandle");
+  }
+  return handle.stdout;
+}
+
+extern go fn process_stdout(handle: ProcHandle) -> IoHandle {
+  proc, ok := handle.(*processHandle)
+  if !ok || proc == nil {
+    return nil
+  }
+  return proc.stdout
+}
+
+extern typescript fn process_stderr(handle: ProcHandle) -> IoHandle {
+  if (!handle || !handle.stderr) {
+    throw new Error("invalid ProcHandle");
+  }
+  return handle.stderr;
+}
+
+extern go fn process_stderr(handle: ProcHandle) -> IoHandle {
+  proc, ok := handle.(*processHandle)
+  if !ok || proc == nil {
+    return nil
+  }
+  return proc.stderr
+}
+
+fn try_spawn(spec: ProcessSpec) -> IOError | ProcHandle {
+  process_spawn(spec)
+}
+
+fn spawn(spec: ProcessSpec) -> ProcHandle {
+  unwrap(process_spawn(spec))
+}
+
+fn try_wait(handle: ProcHandle) -> IOError | ProcessStatus {
+  process_wait(handle)
+}
+
+fn wait(handle: ProcHandle) -> ProcessStatus {
+  unwrap(process_wait(handle))
+}
+
+fn try_kill(handle: ProcHandle, signal: ProcessSignal) -> IOError | void {
+  process_kill(handle, signal)
+}
+
+fn kill(handle: ProcHandle, signal: ProcessSignal) -> void {
+  unwrap_void(process_kill(handle, signal))
+}
+
+fn terminate(handle: ProcHandle) -> void {
+  kill(handle, sig_term())
+}
+
+fn stdin(handle: ProcHandle) -> IoHandle { process_stdin(handle) }
+fn stdout(handle: ProcHandle) -> IoHandle { process_stdout(handle) }
+fn stderr(handle: ProcHandle) -> IoHandle { process_stderr(handle) }

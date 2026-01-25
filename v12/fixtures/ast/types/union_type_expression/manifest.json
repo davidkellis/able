@@ -1,0 +1,10 @@
+{
+  "description": "Function uses union type in parameter and return",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "hello"
+    }
+  },
+  "entry": "module.json"
+}

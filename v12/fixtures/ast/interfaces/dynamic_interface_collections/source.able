@@ -1,0 +1,55 @@
+interface Show
+{
+  fn describe (self: Self) -> String
+}
+struct Fancy {
+  label: String
+}
+struct Basic {
+  label: String
+}
+struct Counter {
+  value: i32
+}
+struct Entry {
+  key: String,
+  value: Show
+}
+impl Show for Fancy
+{
+  fn describe(self: Fancy) -> String {
+    return `fancy:${self.label}`
+  }
+}
+impl Show for Basic
+{
+  fn describe(self: Basic) -> String {
+    return `basic:${self.label}`
+  }
+}
+impl Show for Counter
+{
+  fn describe(self: Counter) -> String {
+    return `counter:${self.value}`
+  }
+}
+impl Show for Fancy | Basic | Counter
+{
+  fn describe(self) -> String {
+    return "union"
+  }
+}
+fancy_value: Show := Fancy { label: "f" };
+basic_value: Show := Basic { label: "b" };
+entries := [Entry { key: "f", value: fancy_value }, Entry { key: "b", value: basic_value }];
+range_result := "";
+map_result := "";
+for range_idx in 0 .. 1 {
+  counter := Counter { value: range_idx };
+  range_value: Show := counter;
+  range_result = range_result + range_value.describe();
+}
+for entry in entries {
+  map_result = map_result + entry.value.describe();
+}
+[range_result, map_result];

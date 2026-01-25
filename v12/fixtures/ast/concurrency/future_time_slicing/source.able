@@ -1,0 +1,31 @@
+iterations := 4096;
+counter := 0;
+fn status_name(status) -> String {
+  status match {
+    case Pending {  } => "Pending",
+    case Resolved {  } => "Resolved",
+    case Cancelled {  } => "Cancelled",
+    case Failed {  } => "Failed"
+  };
+}
+future := spawn {
+  i := 0;
+  while i < iterations {
+    counter = i;
+    i = i + 1;
+  }
+  123;
+};
+first_status := status_name(future.status());
+pending_observed := first_status == "Pending";
+flushes := 0;
+current_status := first_status;
+while current_status == "Pending" && flushes < 12 {
+  future_flush();
+  flushes += 1;
+  current_status = status_name(future.status());
+  pending_observed = pending_observed || current_status == "Pending";
+}
+final_status := current_status;
+value_result := future.value();
+[counter == iterations - 1, final_status == "Resolved", value_result == 123, pending_observed == flushes > 0];

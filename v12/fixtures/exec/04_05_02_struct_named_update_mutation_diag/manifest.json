@@ -1,0 +1,8 @@
+{
+  "description": "functional update rejects mismatched struct source",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/exec/04_05_02_struct_named_update_mutation_diag/main.able:10:14 typechecker: functional update expects struct Point, got Other"
+    ]
+  }
+}

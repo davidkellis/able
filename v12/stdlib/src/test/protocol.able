@@ -1,0 +1,86 @@
+package protocol
+
+import able.kernel.{Array}
+import able.collections.array
+
+## Optional source location metadata for test reporting.
+struct SourceLocation {
+  module_path: String,
+  line: i32,
+  column: i32
+}
+
+## Parameters provided by the CLI during discovery.
+struct DiscoveryRequest {
+  include_paths: Array String,
+  exclude_paths: Array String,
+  include_names: Array String,
+  exclude_names: Array String,
+  include_tags: Array String,
+  exclude_tags: Array String,
+  list_only: bool
+}
+
+## Runtime options supplied when executing test plans.
+struct RunOptions {
+  shuffle_seed: ?i64,
+  fail_fast: bool,
+  parallelism: i32,
+  repeat: i32
+}
+
+## Key-value metadata entry used for extensible descriptors.
+struct MetadataEntry {
+  key: String,
+  value: String
+}
+
+## Test descriptor emitted during discovery.
+struct TestDescriptor {
+  framework_id: String,
+  module_path: String,
+  test_id: String,
+  display_name: String,
+  location: ?SourceLocation,
+  tags: Array String,
+  metadata: Array MetadataEntry
+}
+
+## Aggregated plan containing the descriptors to execute.
+struct TestPlan {
+  descriptors: Array TestDescriptor
+}
+
+## Failure payload shared across discovery and execution.
+struct Failure {
+  message: String,
+  details: ?String,
+  location: ?SourceLocation
+}
+
+struct case_started { descriptor: TestDescriptor }
+struct case_passed { descriptor: TestDescriptor, duration_ms: i64 }
+struct case_failed { descriptor: TestDescriptor, duration_ms: i64, failure: Failure }
+struct case_skipped { descriptor: TestDescriptor, reason: ?String }
+struct framework_error { message: String }
+
+union TestEvent = case_started | case_passed | case_failed | case_skipped | framework_error
+
+interface Reporter {
+  fn emit(self: Self, event: TestEvent) -> void
+}
+
+interface Framework {
+  fn id(self: Self) -> String
+  fn discover(
+    self: Self,
+    request: DiscoveryRequest,
+    register: TestDescriptor -> void
+  ) -> ?Failure
+  fn run(
+    self: Self,
+    plan: TestPlan,
+    options: RunOptions,
+    reporter: Reporter
+  ) -> ?Failure
+}

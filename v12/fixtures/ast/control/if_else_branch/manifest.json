@@ -1,0 +1,13 @@
+{
+  "description": "Else branch executes when condition false",
+  "expect": {
+    "stdout": [
+      "false"
+    ],
+    "result": {
+      "kind": "String",
+      "value": "after"
+    }
+  },
+  "entry": "module.json"
+}

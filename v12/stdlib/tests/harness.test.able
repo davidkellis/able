@@ -1,0 +1,198 @@
+package testing_specs
+
+import able.kernel.{Array}
+import able.collections.array
+import able.spec.assertions.{AssertionError}
+import able.test.harness.{discover_all, run_all}
+import able.test.protocol.{
+  DiscoveryRequest,
+  RunOptions,
+  TestDescriptor,
+  Failure
+}
+import able.test.reporters.{DocReporter}
+import able.spec.*
+
+fn empty_filters() -> DiscoveryRequest {
+  DiscoveryRequest {
+    include_paths: Array.new(),
+    exclude_paths: Array.new(),
+    include_names: Array.new(),
+    exclude_names: Array.new(),
+    include_tags: Array.new(),
+    exclude_tags: Array.new(),
+    list_only: false
+  }
+}
+
+fn default_options() -> RunOptions {
+  RunOptions { shuffle_seed: nil, fail_fast: false, parallelism: 1, repeat: 1 }
+}
+
+fn make_emit_buffer(out: Array String) -> (String -> void) {
+  fn(message: String) -> void { out.push(message) }
+}
+
+describe("able.test harness") { suite =>
+  suite.module_path("testing/harness")
+  suite.it("discovers tests respecting tag filters") { _ctx =>
+    __clear_examples_for_tests()
+
+    describe("Filtering suite") { filter_suite =>
+      filter_suite.module_path("spec/filter")
+      filter_suite.tag("fast")
+      filter_suite.it("fast test") { _ctx => {} }
+      filter_suite.it_tags("slow test", array_with("slow")) { _ctx => {} }
+    }
+
+    request := empty_filters()
+    request.include_tags.push("fast")
+
+    discover_all(request) match {
+      case failure: Failure => { raise AssertionError { message: failure.message, details: nil, location: nil } },
+      case descriptors: Array TestDescriptor => {
+        expect(descriptors.len()).to(eq(1))
+        descriptors.get(0) match {
+          case nil => { raise "missing descriptor" },
+          case descriptor: TestDescriptor => {
+            expect(descriptor.display_name).to(eq("Filtering suite fast test"))
+          }
+        }
+      }
+    }
+  }
+
+  suite.it("runs discovered tests and reports output") { _ctx =>
+    __clear_examples_for_tests()
+
+    describe("Run suite") { rsuite =>
+      rsuite.module_path("spec/run")
+      rsuite.it("adds numbers") { _ctx =>
+        expect(1 + 1).to(eq(2))
+      }
+    }
+
+    request := empty_filters()
+    discover_all(request) match {
+      case failure: Failure => { raise AssertionError { message: failure.message, details: nil, location: nil } },
+      case descriptors: Array TestDescriptor => {
+        lines: Array String := Array.new()
+        reporter := DocReporter(make_emit_buffer(lines))
+        run_all(request, default_options(), reporter) match {
+          case nil => {},
+          case failure: Failure => { raise AssertionError { message: failure.message, details: nil, location: nil } }
+        }
+        expect(lines.len()).to(eq(1))
+      }
+    }
+  }
+
+  suite.it("filters by module path substring") { _ctx =>
+    __clear_examples_for_tests()
+
+    describe("Path suite") { psuite =>
+      psuite.module_path("spec/path")
+      psuite.it("first") { _ctx => {} }
+    }
+
+    request := empty_filters()
+    request.include_paths.push("spec/path")
+
+    discover_all(request) match {
+      case failure: Failure => { raise AssertionError { message: failure.message, details: nil, location: nil } },
+      case descriptors: Array TestDescriptor => {
+        expect(descriptors.len()).to(eq(1))
+      }
+    }
+  }
+
+  suite.it("respects focus tags") { _ctx =>
+    __clear_examples_for_tests()
+
+    describe("Focus suite") { fsuite =>
+      fsuite.module_path("spec/focus")
+      fsuite.it_only("focused example") { _ctx => {} }
+      fsuite.it("ignored example") { _ctx => { raise AssertionError { message: "should not run", details: nil, location: nil } } }
+    }
+
+    request := empty_filters()
+    discover_all(request) match {
+      case failure: Failure => { raise AssertionError { message: failure.message, details: nil, location: nil } },
+      case descriptors: Array TestDescriptor => {
+        lines: Array String := Array.new()
+        reporter := DocReporter(make_emit_buffer(lines))
+        run_all(request, default_options(), reporter) match {
+          case nil => {},
+          case err: Failure => { raise AssertionError { message: err.message, details: nil, location: nil } }
+        }
+        expect(lines.len()).to(eq(1))
+        lines.get(0) match {
+          case nil => { raise AssertionError { message: "missing focus output", details: nil, location: nil } },
+          case value: String => expect(value).to(eq("Focus suite focused example … ok"))
+        }
+      }
+    }
+  }
+
+  suite.it("marks skipped examples") { _ctx =>
+    __clear_examples_for_tests()
+
+    describe("Skip suite") { ssuite =>
+      ssuite.module_path("spec/skip")
+      ssuite.it_skip("pending feature") { _ctx => {} }
+    }
+
+    request := empty_filters()
+    discover_all(request) match {
+      case failure: Failure => { raise AssertionError { message: failure.message, details: nil, location: nil } },
+      case descriptors: Array TestDescriptor => {
+        lines: Array String := Array.new()
+        reporter := DocReporter(make_emit_buffer(lines))
+        run_all(request, default_options(), reporter) match {
+          case nil => {},
+          case err: Failure => { raise AssertionError { message: err.message, details: nil, location: nil } }
+        }
+        expect(lines.len()).to(eq(1))
+        lines.get(0) match {
+          case nil => { raise AssertionError { message: "missing skip output", details: nil, location: nil } },
+          case value: String => expect(value).to(eq("Skip suite pending feature … SKIP (skipped)"))
+        }
+      }
+    }
+  }
+
+  suite.it("honours example options") { _ctx =>
+    __clear_examples_for_tests()
+
+    describe("Options suite") { osuite =>
+      osuite.module_path("spec/options")
+      focus_opts := example_options().tag("fast").focus()
+      osuite.it_opts("focused option", focus_opts, { _ctx => {} })
+      osuite.it("ignored") { _ctx => { raise AssertionError { message: "should not run", details: nil, location: nil } } }
+    }
+
+    request := empty_filters()
+    discover_all(request) match {
+      case failure: Failure => { raise AssertionError { message: failure.message, details: nil, location: nil } },
+      case descriptors: Array TestDescriptor => {
+        lines: Array String := Array.new()
+        reporter := DocReporter(make_emit_buffer(lines))
+        run_all(request, default_options(), reporter) match {
+          case nil => {},
+          case err: Failure => { raise AssertionError { message: err.message, details: nil, location: nil } }
+        }
+        expect(lines.len()).to(eq(1))
+        lines.get(0) match {
+          case nil => { raise AssertionError { message: "missing options output", details: nil, location: nil } },
+          case value: String => expect(value).to(eq("Options suite focused option … ok"))
+        }
+      }
+    }
+  }
+}
+
+fn array_with(value: String) -> Array String {
+  arr: Array String := Array.new()
+  arr.push(value)
+  arr
+}

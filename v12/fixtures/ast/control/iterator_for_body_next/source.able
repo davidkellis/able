@@ -1,0 +1,10 @@
+iter := Iterator {
+  for item in [1, 2, 3] {
+    gen.yield(item);
+  }
+};
+first := iter.next();
+second := iter.next();
+third := iter.next();
+done := iter.next();
+[first, second, third, done];

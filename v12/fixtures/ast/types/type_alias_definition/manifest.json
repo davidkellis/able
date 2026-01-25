@@ -1,0 +1,10 @@
+{
+  "description": "Module can declare plain and generic type aliases",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "10"
+    }
+  },
+  "entry": "module.json"
+}

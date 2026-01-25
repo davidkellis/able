@@ -1,0 +1,10 @@
+{
+  "description": "default interface methods can call other defaults",
+  "expect": {
+    "stdout": [
+      "a:b",
+      "b"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "description": "Implicit generics remain available when functions are imported",
+  "setup": [
+    "package.json"
+  ],
+  "expect": {
+    "result": {
+      "kind": "nil"
+    }
+  },
+  "entry": "module.json"
+}

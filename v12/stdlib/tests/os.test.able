@@ -1,0 +1,116 @@
+package os_specs
+
+import able.spec.*
+import able.collections.array
+import able.core.interfaces.{Error}
+import able.fs
+import able.io.{IOError, NotFound}
+import able.io.path
+import able.io.path.{Path}
+import able.os
+
+OS_TEMP_SEQ := 0
+
+fn next_temp_path(label: String) -> String {
+  OS_TEMP_SEQ = OS_TEMP_SEQ + 1
+  base := path.parse(os.temp_dir())
+  temp_path := base.join(`able-${label}-${OS_TEMP_SEQ}`)
+  if fs.exists(temp_path) { fs.remove(temp_path, true) }
+  temp_path.to_string()
+}
+
+fn cleanup_path(path: String) -> void {
+  do {
+    fs.remove(path, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+describe("able.os") { suite =>
+  suite.it("provides command-line arguments") { _ctx =>
+    args := os.args()
+    expect(args.len()).to(eq(os.args().len()))
+    if args.len() > 0 {
+      args.get(0) match {
+        case value: String => expect(value != "").to(be_truthy()),
+        case nil => expect(false).to(be_truthy())
+      }
+    }
+  }
+
+  suite.it("reads and writes environment variables") { _ctx =>
+    name := "ABLE_TEST_ENV_SAMPLE"
+    prior := os.env(name)
+    os.set_env(name, "ok")
+    expect(os.env(name)).to(eq("ok"))
+    prior match {
+      case nil => {},
+      case value: String => os.set_env(name, value)
+    }
+  }
+
+  suite.it("changes and restores the current directory") { _ctx =>
+    original := os.cwd()
+    cwd_result := os.try_cwd()
+    cwd_from_try := ""
+    cwd_ok := false
+    cwd_result match {
+      case err: IOError => { raise err },
+      case value: String => {
+        cwd_from_try = value
+        cwd_ok = true
+      }
+    }
+    expect(cwd_ok).to(be_truthy())
+    expect(path.parse(cwd_from_try).to_string()).to(eq(path.parse(original).to_string()))
+    target := next_temp_path("os-cwd")
+    do {
+      fs.mkdir(target, true)
+      os.chdir(target)
+      current := os.cwd()
+      expect(path.parse(current).basename()).to(eq(path.parse(target).basename()))
+    } ensure {
+      os.chdir(original)
+      cleanup_path(target)
+    }
+  }
+
+  suite.it("returns temporary and home directories") { _ctx =>
+    temp := os.temp_dir()
+    expect(temp != "").to(be_truthy())
+    expect(fs.exists(temp)).to(be_truthy())
+    home := os.home_dir()
+    home match {
+      case nil => expect(true).to(be_truthy()),
+      case value: String => expect(fs.exists(value)).to(be_truthy())
+    }
+  }
+
+  suite.it("reports missing paths in try_chdir") { _ctx =>
+    missing := next_temp_path("os-missing")
+    cleanup_path(missing)
+    result := os.try_chdir(missing)
+    saw_not_found := false
+    result match {
+      case err: IOError => {
+        err.kind match {
+          case NotFound => { saw_not_found = true },
+          case _ => {}
+        }
+      },
+      case _ => {}
+    }
+    expect(saw_not_found).to(be_truthy())
+  }
+}

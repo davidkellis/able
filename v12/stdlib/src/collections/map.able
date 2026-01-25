@@ -1,0 +1,16 @@
+package map
+import able.core.interfaces.{Hash, Eq}
+
+struct MapEntry K V {
+  key: K,
+  value: V
+}
+
+interface Map K V for M where K: Hash + Eq {
+  fn get(self: Self, key: K) -> ?V;
+  fn set(self: Self, key: K, value: V) -> void;
+  fn remove(self: Self, key: K) -> ?V;
+  fn contains(self: Self, key: K) -> bool;
+  fn size(self: Self) -> i32;
+  fn is_empty(self: Self) -> bool { self.size() == 0 }
+}

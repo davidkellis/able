@@ -1,0 +1,10 @@
+{
+  "description": "Pipelines cover placeholder (@) callables, UFCS, and method steps",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "46"
+    }
+  },
+  "entry": "module.json"
+}

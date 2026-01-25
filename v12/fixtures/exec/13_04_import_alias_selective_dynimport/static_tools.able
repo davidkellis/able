@@ -1,0 +1,7 @@
+package static_tools
+
+## Semantics: symbols imported via package aliases and selective renames remain the same bindings.
+
+fn greet(msg: String) -> String { `hello ${msg}` }
+fn tag(msg: String) -> String { `tag ${msg}` }
+fn add(a: i32, b: i32) -> i32 { a + b }

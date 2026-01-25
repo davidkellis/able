@@ -1,0 +1,71 @@
+package numeric_specs
+
+import able.core.numeric.{NumericConversionError}
+import able.numbers.primitives
+import able.spec.*
+
+describe("Numeric primitives") { suite =>
+  suite.module_path("numbers/numeric")
+
+  suite.it("provides i32 helpers") { _ctx =>
+    expect((-5).abs()).to(eq(5))
+    expect(5.sign()).to(eq(1))
+    expect((-5).sign()).to(eq(-1))
+    expect(0.sign()).to(eq(0))
+
+    expect(10.min(3)).to(eq(3))
+    expect(10.max(3)).to(eq(10))
+    expect(5.clamp(0, 3)).to(eq(3))
+    expect((-2).clamp(0, 10)).to(eq(0))
+
+    result := 17.div_mod(5)
+    expect(result.quotient).to(eq(3))
+    expect(result.remainder).to(eq(2))
+
+    expect(15.bit_count()).to(eq(4))
+    expect(0.bit_length()).to(eq(0))
+    expect(16.bit_length()).to(eq(5))
+    expect(4.is_even()).to(be_truthy())
+    expect(5.is_odd()).to(be_truthy())
+  }
+
+  suite.it("converts i32 values safely") { _ctx =>
+    expect(12.to_u32()).to(eq(12_u32))
+    expect(fn() { (-1).to_u32() }).to(raise_error())
+  }
+
+  suite.it("supports i64 conversions") { _ctx =>
+    expect(200_i64.to_i32()).to(eq(200))
+    expect(fn() { 5000000000_i64.to_i32() }).to(raise_error())
+  }
+
+  suite.it("handles unsigned helpers") { _ctx =>
+    value: u32 = 8_u32
+    expect(value.bit_count()).to(eq(1))
+    expect(value.is_even()).to(be_truthy())
+    expect(value.leading_zeros()).to(eq(28))
+  }
+
+  suite.it("exposes f64 helpers and conversions") { _ctx =>
+    expect((-5.25).abs()).to(eq(5.25))
+    expect(5.5.clamp(0.0, 5.0)).to(eq(5.0))
+    expect(fn() { 1.0.clamp(2.0, 0.0) }).to(raise_error())
+    expect(12.0.to_i32()).to(eq(12))
+    expect(fn() { 1.5.to_i32() }).to(raise_error())
+    expect(fn() { 1e20.to_i32() }).to(raise_error())
+  }
+
+  suite.it("covers f64 fractional helpers") { _ctx =>
+    expect(3.75.floor()).to(eq(3.0))
+    expect((-3.2).floor()).to(eq(-4.0))
+    expect(3.25.ceil()).to(eq(4.0))
+    expect((-3.25).ceil()).to(eq(-3.0))
+    expect(3.6.round()).to(eq(4.0))
+    expect((-3.6).round()).to(eq(-4.0))
+    expect((-3.4).round()).to(eq(-3.0))
+    expect(10.0.reciprocal()).to(be_within(1e-12, 0.1))
+    expect(fn() { 0.0.reciprocal() }).to(raise_error())
+    expect(2.75.fract()).to(be_within(1e-12, 0.75))
+    expect((-2.25).fract()).to(be_within(1e-12, 0.75))
+  }
+}

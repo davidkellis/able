@@ -1,0 +1,13 @@
+{
+  "description": "regex compile/match/find_all/scan report matches with byte spans",
+  "expect": {
+    "stdout": [
+      "is_match true",
+      "match aaa 1-4",
+      "find_all",
+      "- aaa 1-4",
+      "scan",
+      "- aaa 1-4"
+    ]
+  }
+}

@@ -1,0 +1,123 @@
+package iteration_specs
+
+import able.spec.*
+import able.core.interfaces.{Default, Extend}
+import able.core.iteration.{Iterable, Iterator}
+import able.collections.array.{Array}
+import able.collections.hash_set.{HashSet}
+import able.text.ascii
+import able.text.string
+
+fn sum(values: Iterable i32) -> i32 {
+  total := 0
+  for value in values {
+    total = total + value
+  }
+  total
+}
+
+fn even_tens(value: i32) -> ?i32 {
+  if value % 2 == 0 { return value * 10 }
+  nil
+}
+
+struct Counter {
+  total: i32,
+}
+
+impl Default for Counter {
+  fn default() -> Counter { Counter { total: 0 } }
+}
+
+impl Extend i32 for Counter {
+  fn extend(self: Self, value: i32) -> Self {
+    Counter { total: self.total + value }
+  }
+}
+
+describe("Iteration") { suite =>
+  suite.it("iterators satisfy Iterable") { _ctx =>
+    iter := Iterator i32 { gen =>
+      gen.yield(1)
+      gen.yield(2)
+    }
+    expect(sum(iter)).to(eq(3))
+  }
+
+  suite.it("maps iterator values in order") { _ctx =>
+    iter := Iterator i32 { gen =>
+      gen.yield(1)
+      gen.yield(2)
+      gen.yield(3)
+    }
+    mapped := iter.map(fn(value: i32) -> i32 { value * 2 })
+    expect(sum(mapped)).to(eq(12))
+  }
+
+  suite.it("filters iterator values") { _ctx =>
+    iter := Iterator i32 { gen =>
+      gen.yield(1)
+      gen.yield(2)
+      gen.yield(3)
+      gen.yield(4)
+    }
+    filtered := iter.filter(fn(value: i32) -> bool { value % 2 == 0 })
+    expect(sum(filtered)).to(eq(6))
+  }
+
+  suite.it("filter_maps iterator values") { _ctx =>
+    iter := Iterator i32 { gen =>
+      gen.yield(1)
+      gen.yield(2)
+      gen.yield(3)
+      gen.yield(4)
+    }
+    mapped := iter.filter_map(even_tens)
+    expect(sum(mapped)).to(eq(60))
+  }
+
+  suite.it("collects iterator values into an array") { _ctx =>
+    iter := Iterator i32 { gen =>
+      gen.yield(1)
+      gen.yield(2)
+      gen.yield(3)
+    }
+    collected := iter.collect<Array i32>()
+    expect(sum(collected)).to(eq(6))
+  }
+
+  suite.it("collects iterator values into a hash set") { _ctx =>
+    iter := Iterator i32 { gen =>
+      gen.yield(1)
+      gen.yield(2)
+      gen.yield(2)
+      gen.yield(3)
+    }
+    collected := iter.collect<HashSet i32>()
+    expect(collected.size()).to(eq(3))
+    expect(collected.contains(2)).to(eq(true))
+  }
+
+  suite.it("collect uses Default and Extend") { _ctx =>
+    iter := Iterator i32 { gen =>
+      gen.yield(1)
+      gen.yield(2)
+      gen.yield(3)
+    }
+    collected := iter.collect<Counter>()
+    expect(collected.total).to(eq(6))
+  }
+
+  suite.it("package-qualified functions are first-class values") { _ctx =>
+    text := "AbC123"
+    collected := text
+      .bytes()
+      .filter(ascii.is_ascii_alpha)
+      .map(ascii.to_ascii_lower)
+      .collect<HashSet u8>()
+    expect(collected.size()).to(eq(3))
+    expect(collected.contains(97_u8)).to(eq(true))
+    expect(collected.contains(98_u8)).to(eq(true))
+    expect(collected.contains(99_u8)).to(eq(true))
+  }
+}

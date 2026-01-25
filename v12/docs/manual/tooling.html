@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v11 Manual — Stdlib, Interop, Tooling</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v11 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html" class="active">Stdlib, Interop, Tooling</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>12. Standard Library, Interop, Tooling</h1>
+        <h2 id="stdlib">12.1 Standard Library Essentials</h2>
+        <ul>
+          <li><strong>Strings:</strong> UTF-8 helpers <code>len_bytes</code>, <code>len_chars</code>, <code>len_graphemes</code>, <code>substring</code>, <code>split</code>, <code>replace</code>, <code>starts_with</code>, <code>ends_with</code>; iterators over bytes/chars/graphemes.</li>
+          <li><strong>Arrays:</strong> <code>size</code>, <code>push</code>, <code>pop</code>, <code>get</code>, <code>set</code>, <code>clear</code>; raise <code>IndexError</code> on invalid indices; arrays satisfy <code>Iterable</code>.</li>
+          <li><strong>Regex:</strong> <code>able.text.regex</code> is planned as a pure-stdlib RE2-style engine; current helpers raise <code>RegexUnsupportedFeature</code> until the implementation lands.</li>
+          <li><strong>Interfaces:</strong> language-facing catalogue includes Index/IndexMut, Iterable/Iterator/Range, Apply, arithmetic/bitwise, comparison/hash, Display, Error, Clone, Default, concurrency types (Future/FutureError/Awaitable). Operator sugar routes through these.</li>
+          <li><strong>Numeric helpers:</strong> math constants and helpers (<code>abs</code>, <code>min/max</code>, <code>clamp</code>, <code>pow</code>, <code>sqrt</code>, rounding), rational and 128-bit integers, and numeric interface implementations under <code>able.*</code>.</li>
+        </ul>
+        <p>
+          <code>able.*</code> is reserved; override the bundled stdlib via
+          <code>ABLE_MODULE_PATHS</code> or lockfile pins (no stdlib-specific env knob).
+        </p>
+        <h2 id="dynamic">12.2 Dynamic Metaprogramming</h2>
+        <p>
+          Interpreted execution can create/extend dynamic packages and import
+          them with <code>dynimport</code>. Names are late-bound; use
+          <code>dyn.as_interface</code> when adapting to static APIs.
+        </p>
+        <h2 id="interop">12.3 Host Interop</h2>
+        <p>
+          Embed host-language code with <code>prelude &lt;target&gt; { ... }</code>
+          at package scope and <code>extern &lt;target&gt; fn ... { ... }</code>
+          bodies (Go, Crystal, TypeScript, Python, Ruby). Supported mappings
+          cover primitives, <code>String</code>, arrays (copy-in/copy-out),
+          <code>?T</code>, and <code>!T</code>. Use <code>host_error(msg)</code>
+          to convert host failures to Able <code>Error</code>s. Dynamic packages
+          cannot contain extern bodies.
+        </p>
+        <h2 id="testing">12.4 Tooling &amp; Tests</h2>
+        <p>
+          Able has two unrelated testing concerns: language implementation tests
+          (fixtures and parity harnesses) and the user-facing testing framework
+          intended for Able programs. They are intentionally separate.
+        </p>
+        <p>Language implementation tests (interpreter/spec work):</p>
+        <ul>
+          <li><code>bun test</code> in <code>v11/interpreters/ts</code></li>
+          <li><code>go test ./...</code> in <code>v11/interpreters/go</code></li>
+          <li>Fixtures: edit under <code>v11/fixtures</code>, export via <code>bun run scripts/export-fixtures.ts</code>, run with <code>bun run scripts/run-fixtures.ts</code> and <code>go test ./pkg/interpreter</code>.</li>
+          <li>Full suite: <code>./run_all_tests.sh --version=v11</code></li>
+        </ul>
+        <p>User-facing testing framework (Able program tests):</p>
+        <ul>
+          <li><code>able test</code> (planned; see <code>v11/design/testing-cli-design.md</code>)</li>
+          <li>Matchers and DSL live under <code>able.spec</code>; the CLI contract and harness live under <code>able.test.*</code>.</li>
+        </ul>
+        <p>
+          When semantics are uncertain, consult <code>spec/full_spec_v11.md</code>,
+          add fixtures, and compare both interpreters before landing changes.
+        </p>
+        <footer class="manual-footer">
+          Able v11 manual · Stdlib, Interop, Tooling
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

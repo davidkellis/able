@@ -1,0 +1,78 @@
+import able.core.interfaces.{Error}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+import able.kernel.{Channel::KernelChannel, send, receive, try_receive, await_receive, await_send, close, is_closed}
+
+struct ChannelClosed {}
+struct ChannelNil {}
+struct ChannelSendOnClosed {}
+struct ChannelTimeout {}
+
+struct ChannelIterator T {
+  channel: Channel T
+}
+
+## Re-export kernel Channel under the stdlib namespace.
+type Channel T = KernelChannel T;
+Channel := KernelChannel
+
+impl Error for ChannelClosed {
+  fn message(self: Self) -> String { "channel already closed" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ChannelNil {
+  fn message(self: Self) -> String { "nil channel" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ChannelSendOnClosed {
+  fn message(self: Self) -> String { "send on closed channel" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ChannelTimeout {
+  fn message(self: Self) -> String { "channel operation timed out" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+private fn channel_each<T>(channel: Channel T, visit: T -> void) -> void {
+  loop {
+    received := channel.receive()
+    if received == nil { break }
+    visit(received)
+  }
+}
+
+private fn channel_iterator<T>(channel: Channel T) -> ChannelIterator T {
+  ChannelIterator T { channel: channel }
+}
+
+methods Channel T {
+  fn each(self: Self, visit: T -> void) -> void {
+    channel_each(self, visit)
+  }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    channel_iterator(self)
+  }
+}
+
+impl Iterable T for Channel T {
+  fn each(self: Self, visit: T -> void) -> void {
+    channel_each(self, visit)
+  }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    channel_iterator(self)
+  }
+}
+
+impl Iterator T for ChannelIterator T {
+  fn next(self: Self) -> T | IteratorEnd {
+    received := self.channel.try_receive()
+    received match {
+      case nil => IteratorEnd {},
+      case value: T => value
+    }
+  }
+}

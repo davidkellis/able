@@ -1,0 +1,619 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "status_name"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "status"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "MatchExpression",
+            "subject": {
+              "type": "Identifier",
+              "name": "status"
+            },
+            "clauses": [
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Pending"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "StringLiteral",
+                  "value": "Pending"
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Resolved"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "StringLiteral",
+                  "value": "Resolved"
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Cancelled"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "StringLiteral",
+                  "value": "Cancelled"
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Failed"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "StringLiteral",
+                  "value": "Failed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "String"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "iterations"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 2048
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future_started"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future_iteration"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future_completed"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer_waited"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer_summary"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": ""
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "future_started"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": true
+              }
+            },
+            {
+              "type": "WhileLoop",
+              "condition": {
+                "type": "BinaryExpression",
+                "operator": "<",
+                "left": {
+                  "type": "Identifier",
+                  "name": "future_iteration"
+                },
+                "right": {
+                  "type": "Identifier",
+                  "name": "iterations"
+                }
+              },
+              "body": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "future_iteration"
+                    },
+                    "right": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "future_iteration"
+                      },
+                      "right": {
+                        "type": "IntegerLiteral",
+                        "value": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "FunctionCall",
+                    "callee": {
+                      "type": "Identifier",
+                      "name": "future_yield"
+                    },
+                    "arguments": [],
+                    "isTrailingLambda": false
+                  }
+                ]
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "future_completed"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": true
+              }
+            },
+            {
+              "type": "StringLiteral",
+              "value": "done"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "future_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "status_before"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "status_name"
+        },
+        "arguments": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "future"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "status"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "future"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "cancel"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "future_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "status_after"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "status_name"
+        },
+        "arguments": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "future"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "status"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "outer_waited"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": true
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "right": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "future"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
+                },
+                "arguments": [],
+                "isTrailingLambda": false
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "summary"
+              },
+              "right": {
+                "type": "MatchExpression",
+                "subject": {
+                  "type": "Identifier",
+                  "name": "value"
+                },
+                "clauses": [
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "TypedPattern",
+                      "pattern": {
+                        "type": "Identifier",
+                        "name": "err"
+                      },
+                      "typeAnnotation": {
+                        "type": "SimpleTypeExpression",
+                        "name": {
+                          "type": "Identifier",
+                          "name": "Error"
+                        }
+                      }
+                    },
+                    "body": {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "err"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "message"
+                        }
+                      },
+                      "arguments": [],
+                      "isTrailingLambda": false
+                    }
+                  },
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "Identifier",
+                      "name": "other"
+                    },
+                    "body": {
+                      "type": "StringInterpolation",
+                      "parts": [
+                        {
+                          "type": "StringLiteral",
+                          "value": "ok:"
+                        },
+                        {
+                          "type": "Identifier",
+                          "name": "other"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "outer_summary"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "summary"
+              }
+            },
+            {
+              "type": "Identifier",
+              "name": "summary"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer_result"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "outer"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "future_started"
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": ">",
+          "left": {
+            "type": "Identifier",
+            "name": "future_iteration"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
+        },
+        {
+          "type": "UnaryExpression",
+          "operator": "!",
+          "operand": {
+            "type": "Identifier",
+            "name": "future_completed"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "status_before"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Pending"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "status_after"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Cancelled"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "outer_result"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Future cancelled"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "outer_summary"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Future cancelled"
+          }
+        },
+        {
+          "type": "Identifier",
+          "name": "outer_waited"
+        }
+      ]
+    }
+  ]
+}

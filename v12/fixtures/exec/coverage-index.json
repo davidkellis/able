@@ -1,0 +1,1070 @@
+[
+  {
+    "id": "exec/15_01_program_entry_hello_world",
+    "status": "seeded",
+    "spec_sections": [
+      "15.1",
+      "15.6",
+      "6.6"
+    ],
+    "focus": "program entry, print output, implicit void main"
+  },
+  {
+    "id": "exec/15_02_entry_args_signature",
+    "status": "seeded",
+    "spec_sections": [
+      "15.2"
+    ],
+    "focus": "main signature with explicit void and os.args access"
+  },
+  {
+    "id": "exec/15_03_exit_status_return_value",
+    "status": "seeded",
+    "spec_sections": [
+      "15.3"
+    ],
+    "focus": "os.exit sets exit status and stops execution"
+  },
+  {
+    "id": "exec/15_04_background_work_flush",
+    "status": "seeded",
+    "spec_sections": [
+      "15.4"
+    ],
+    "focus": "background tasks are not awaited at program exit"
+  },
+  {
+    "id": "exec/16_01_host_interop_inline_extern",
+    "status": "seeded",
+    "spec_sections": [
+      "16"
+    ],
+    "focus": "extern host function bodies bind to native handlers"
+  },
+  {
+    "id": "exec/08_02_numeric_sum_loop",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1",
+      "6.3",
+      "8.2.2"
+    ],
+    "focus": "integer literals, arithmetic, accumulation in for-range loop"
+  },
+  {
+    "id": "exec/08_02_while_continue_break",
+    "status": "seeded",
+    "spec_sections": [
+      "8.2.1",
+      "8.2.4"
+    ],
+    "focus": "while loop condition checks with continue skipping and break exiting"
+  },
+  {
+    "id": "exec/08_02_loop_expression_break_value",
+    "status": "seeded",
+    "spec_sections": [
+      "8.2.3",
+      "8.3.5"
+    ],
+    "focus": "loop expression yields break payloads or nil for bare breaks"
+  },
+  {
+    "id": "exec/08_02_range_inclusive_exclusive",
+    "status": "seeded",
+    "spec_sections": [
+      "8.2.5"
+    ],
+    "focus": "inclusive/exclusive range iteration with ascending and descending bounds"
+  },
+  {
+    "id": "exec/08_03_breakpoint_nonlocal_jump",
+    "status": "seeded",
+    "spec_sections": [
+      "8.3"
+    ],
+    "focus": "breakpoint returns labeled break payloads from nested blocks"
+  },
+  {
+    "id": "exec/06_07_iterator_pipeline",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.8",
+      "6.3",
+      "6.4"
+    ],
+    "focus": "generator literal yield/next protocol and pipeline operator"
+  },
+  {
+    "id": "exec/08_01_union_match_basic",
+    "status": "seeded",
+    "spec_sections": [
+      "6.6",
+      "4.6",
+      "8.1.2"
+    ],
+    "focus": "union match ordering with wildcard fallback"
+  },
+  {
+    "id": "exec/08_01_control_flow_fizzbuzz",
+    "status": "seeded",
+    "spec_sections": [
+      "8.1.1",
+      "8.2.2",
+      "6.3"
+    ],
+    "focus": "if/elsif/else branching with inclusive range iteration"
+  },
+  {
+    "id": "exec/08_01_if_truthiness_value",
+    "status": "seeded",
+    "spec_sections": [
+      "8.1.1",
+      "6.11"
+    ],
+    "focus": "if/elsif truthiness evaluation, branch values, and nil when no else"
+  },
+  {
+    "id": "exec/08_01_match_guards_exhaustiveness",
+    "status": "seeded",
+    "spec_sections": [
+      "8.1.2"
+    ],
+    "focus": "match guards fall through to defaults and error on non-exhaustive coverage"
+  },
+  {
+    "id": "exec/11_03_raise_exit_unhandled",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "uncaught raise terminates with non-zero exit"
+  },
+  {
+    "id": "exec/11_03_rescue_ensure",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "rescue before ensure with side effects preserved"
+  },
+  {
+    "id": "exec/11_03_rescue_rethrow_standard_errors",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "standard arithmetic/index errors rescued, rethrown, and ensured"
+  },
+  {
+    "id": "exec/12_05_concurrency_channel_ping_pong",
+    "status": "seeded",
+    "spec_sections": [
+      "12.5"
+    ],
+    "focus": "channel send/receive, close returning nil to consumer"
+  },
+  {
+    "id": "exec/12_02_async_spawn_combo",
+    "status": "seeded",
+    "spec_sections": [
+      "12.2",
+      "12.3",
+      "12.6"
+    ],
+    "focus": "spawn task scheduling, cancellation, fairness, and await integration"
+  },
+  {
+    "id": "exec/12_02_future_fairness_cancellation",
+    "status": "seeded",
+    "spec_sections": [
+      "12.2.5"
+    ],
+    "focus": "future_yield fairness, future_cancelled, and future_flush draining"
+  },
+  {
+    "id": "exec/12_03_spawn_future_status_error",
+    "status": "seeded",
+    "spec_sections": [
+      "12.3"
+    ],
+    "focus": "future status/value memoization and error propagation"
+  },
+  {
+    "id": "exec/12_04_future_handle_value_view",
+    "status": "seeded",
+    "spec_sections": [
+      "12.4"
+    ],
+    "focus": "future handle vs value view, error propagation, and cancellation"
+  },
+  {
+    "id": "exec/12_05_mutex_lock_unlock",
+    "status": "seeded",
+    "spec_sections": [
+      "12.5"
+    ],
+    "focus": "mutex lock/unlock and helper usage"
+  },
+  {
+    "id": "exec/12_06_await_fairness_cancellation",
+    "status": "seeded",
+    "spec_sections": [
+      "12.6"
+    ],
+    "focus": "await fairness, default arm, and cancellation"
+  },
+  {
+    "id": "exec/12_07_channel_mutex_error_types",
+    "status": "seeded",
+    "spec_sections": [
+      "12.7"
+    ],
+    "focus": "channel/mutex error structs surfaced via err.value"
+  },
+  {
+    "id": "exec/12_08_blocking_io_concurrency",
+    "status": "seeded",
+    "spec_sections": [
+      "12.2.5",
+      "16.4"
+    ],
+    "focus": "blocking io reads suspend only the current task while peers continue"
+  },
+  {
+    "id": "exec/09_04_methods_ufcs_basics",
+    "status": "seeded",
+    "spec_sections": [
+      "7.4",
+      "9",
+      "10"
+    ],
+    "focus": "method call syntax, UFCS, inherent vs interface dispatch"
+  },
+  {
+    "id": "exec/09_05_method_set_generics_where",
+    "status": "seeded",
+    "spec_sections": [
+      "9.5"
+    ],
+    "focus": "method-set generic parameters and where-clause enforcement on instance and UFCS calls"
+  },
+  {
+    "id": "exec/10_01_interface_defaults_composites",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1"
+    ],
+    "focus": "interface defaults, implicit vs explicit Self, and composite aliases"
+  },
+  {
+    "id": "exec/10_02_impl_specificity_named_overrides",
+    "status": "seeded",
+    "spec_sections": [
+      "10.2.1-10.2.5"
+    ],
+    "focus": "impl specificity ordering, named impl disambiguation, and HKT target dispatch"
+  },
+  {
+    "id": "exec/10_02_impl_where_clause",
+    "status": "seeded",
+    "spec_sections": [
+      "10.2.1",
+      "4.1.5"
+    ],
+    "focus": "impl-level where clauses apply to method bodies without duplicating method constraints"
+  },
+  {
+    "id": "exec/13_02_packages_visibility_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "13.2-13.5"
+    ],
+    "focus": "package imports, private type/impl visibility errors"
+  },
+  {
+    "id": "exec/13_03_package_config_prelude",
+    "status": "seeded",
+    "spec_sections": [
+      "13.3"
+    ],
+    "focus": "package.yml root name selection and package-scope preludes"
+  },
+  {
+    "id": "exec/13_04_import_alias_selective_dynimport",
+    "status": "seeded",
+    "spec_sections": [
+      "13.4"
+    ],
+    "focus": "import aliases, selective renames, and dynimport package bindings"
+  },
+  {
+    "id": "exec/13_05_dynimport_interface_dispatch",
+    "status": "seeded",
+    "spec_sections": [
+      "13.4",
+      "10.3.4"
+    ],
+    "focus": "dynimported packages return interface-typed values with working dispatch"
+  },
+  {
+    "id": "exec/13_06_stdlib_package_resolution",
+    "status": "seeded",
+    "spec_sections": [
+      "13.6"
+    ],
+    "focus": "stdlib able.* packages resolve via bundled roots without extra search paths"
+  },
+  {
+    "id": "exec/13_07_search_path_env_override",
+    "status": "seeded",
+    "spec_sections": [
+      "13.7"
+    ],
+    "focus": "ABLE_MODULE_PATHS injects roots for static imports and dynimport"
+  },
+  {
+    "id": "exec/04_07_02_alias_generic_substitution",
+    "status": "seeded",
+    "spec_sections": [
+      "4.7.2"
+    ],
+    "focus": "generic alias substitution/inference through chains and nested arguments"
+  },
+  {
+    "id": "exec/04_07_03_alias_scope_visibility_imports",
+    "status": "seeded",
+    "spec_sections": [
+      "4.7.3",
+      "13.4"
+    ],
+    "focus": "alias export/import visibility with selective vs qualified access"
+  },
+  {
+    "id": "exec/04_07_04_alias_methods_impls_interaction",
+    "status": "seeded",
+    "spec_sections": [
+      "4.7.4",
+      "9",
+      "14.1.6"
+    ],
+    "focus": "alias-attached methods and impls dispatching via the underlying type"
+  },
+  {
+    "id": "exec/04_07_05_alias_recursion_termination",
+    "status": "seeded",
+    "spec_sections": [
+      "4.7.5"
+    ],
+    "focus": "recursive alias allowed through nominal indirection; direct cycles rejected"
+  },
+  {
+    "id": "exec/04_07_06_alias_reexport_methods_impls",
+    "status": "seeded",
+    "spec_sections": [
+      "4.7.4",
+      "13.4"
+    ],
+    "focus": "private alias methods/impls remain visible when the underlying type is re-exported"
+  },
+  {
+    "id": "exec/05_00_mutability_declaration_vs_assignment",
+    "status": "seeded",
+    "spec_sections": [
+      "5.0",
+      "5.1"
+    ],
+    "focus": "declaring vs reassigning bindings and shared mutation across aliases"
+  },
+  {
+    "id": "exec/05_02_identifier_wildcard_typed_patterns",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.1",
+      "5.2.2",
+      "5.2.7"
+    ],
+    "focus": "identifier vs wildcard patterns with inline type annotations in destructuring"
+  },
+  {
+    "id": "exec/05_02_struct_pattern_rename_typed",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.3"
+    ],
+    "focus": "struct pattern rename operator with inline type annotations and nesting"
+  },
+  {
+    "id": "exec/05_02_array_nested_patterns",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.5",
+      "5.2.6"
+    ],
+    "focus": "array and nested destructuring with rest bindings"
+  },
+  {
+    "id": "exec/05_03_assignment_evaluation_order",
+    "status": "seeded",
+    "spec_sections": [
+      "5.3",
+      "5.3.1"
+    ],
+    "focus": "assignment evaluates RHS once before binding compound patterns"
+  },
+  {
+    "id": "exec/06_01_literals_array_map_inference",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.7",
+      "6.1.8"
+    ],
+    "focus": "array literal inference with nested arrays maintaining element typing"
+  },
+  {
+    "id": "exec/06_02_block_expression_value_scope",
+    "status": "seeded",
+    "spec_sections": [
+      "6.2"
+    ],
+    "focus": "block expression value equals last expression; inner bindings stay scoped"
+  },
+  {
+    "id": "exec/06_03_operator_precedence_associativity",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.1"
+    ],
+    "focus": "operator precedence/associativity across arithmetic and boolean chains"
+  },
+  {
+    "id": "exec/06_03_operator_overloading_interfaces",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2",
+      "6.3.3",
+      "14.1.1",
+      "14.1.4"
+    ],
+    "focus": "operator dispatch via Add/Index/IndexMut interfaces on custom structs"
+  },
+  {
+    "id": "exec/14_01_language_interfaces_index_apply_iterable",
+    "status": "seeded",
+    "spec_sections": [
+      "14.1.1-14.1.3"
+    ],
+    "focus": "Index/IndexMut, Iterable/Iterator, and Apply interfaces driving [], for/each, and call syntax"
+  },
+  {
+    "id": "exec/14_01_operator_interfaces_arithmetic_comparison",
+    "status": "seeded",
+    "spec_sections": [
+      "14.1.4-14.1.7"
+    ],
+    "focus": "operator interfaces for arithmetic/comparison plus display/clone/default helpers"
+  },
+  {
+    "id": "exec/14_02_hash_eq_float",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2",
+      "14.1.5"
+    ],
+    "focus": "IEEE float equality/ordering edge cases and HashMap key constraints"
+  },
+  {
+    "id": "exec/14_02_hash_eq_primitives",
+    "status": "seeded",
+    "spec_sections": [
+      "14.1.5"
+    ],
+    "focus": "primitive hashing and kernel hasher availability"
+  },
+  {
+    "id": "exec/14_02_hash_eq_custom",
+    "status": "seeded",
+    "spec_sections": [
+      "14.1.5"
+    ],
+    "focus": "custom Hash/Eq implementations and collision handling in HashMap"
+  },
+  {
+    "id": "exec/14_02_regex_core_match_streaming",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex compile/match/find_all and streaming scanner spans"
+  },
+  {
+    "id": "exec/06_03_safe_navigation_nil_short_circuit",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.4"
+    ],
+    "focus": "safe navigation short-circuits on nil and skips argument evaluation"
+  },
+  {
+    "id": "exec/06_04_function_call_eval_order_trailing_lambda",
+    "status": "seeded",
+    "spec_sections": [
+      "6.4",
+      "7.4.1",
+      "7.4.2"
+    ],
+    "focus": "call argument evaluation order and trailing lambda equivalence"
+  },
+  {
+    "id": "exec/06_06_string_interpolation",
+    "status": "seeded",
+    "spec_sections": [
+      "6.6"
+    ],
+    "focus": "string interpolation with escapes and multiline literals"
+  },
+  {
+    "id": "exec/06_07_generator_yield_iterator_end",
+    "status": "seeded",
+    "spec_sections": [
+      "6.7"
+    ],
+    "focus": "generator yield/stop and IteratorEnd exhaustion"
+  },
+  {
+    "id": "exec/06_08_array_ops_mutability",
+    "status": "seeded",
+    "spec_sections": [
+      "6.8"
+    ],
+    "focus": "array mutation, bounds checks, and iteration semantics"
+  },
+  {
+    "id": "exec/06_09_lexical_trailing_commas_line_join",
+    "status": "seeded",
+    "spec_sections": [
+      "6.9"
+    ],
+    "focus": "line joining within delimiters and trailing commas in literals/imports"
+  },
+  {
+    "id": "exec/06_10_dynamic_metaprogramming_package_object",
+    "status": "seeded",
+    "spec_sections": [
+      "6.10"
+    ],
+    "focus": "dynamic packages, runtime definitions, and late-bound dynimport"
+  },
+  {
+    "id": "exec/06_11_truthiness_boolean_context",
+    "status": "seeded",
+    "spec_sections": [
+      "6.11",
+      "6.3.2"
+    ],
+    "focus": "truthiness in boolean contexts, logical operators, and unary not"
+  },
+  {
+    "id": "exec/06_12_01_stdlib_string_helpers",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.1"
+    ],
+    "focus": "string helper lengths, substring bounds, split/replace, and prefix/suffix checks"
+  },
+  {
+    "id": "exec/06_12_02_stdlib_array_helpers",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.2"
+    ],
+    "focus": "array helper size, push/pop, get/set, and clear behaviors"
+  },
+  {
+    "id": "exec/06_12_03_stdlib_numeric_ratio_divmod",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.3"
+    ],
+    "focus": "Ratio normalization and divmod quotient/remainder semantics"
+  },
+  {
+    "id": "exec/04_07_types_alias_union_generic_combo",
+    "status": "seeded",
+    "spec_sections": [
+      "4.7",
+      "4.6",
+      "7.1"
+    ],
+    "focus": "type aliases/unions with generic function calls and inference"
+  },
+  {
+    "id": "exec/11_02_option_result_propagation",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2"
+    ],
+    "focus": "option/result propagation with ! and or handling"
+  },
+  {
+    "id": "exec/11_02_option_result_or_handlers",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2.3"
+    ],
+    "focus": "or handlers for Option/Result with error binding and Error-implementer unions"
+  },
+  {
+    "id": "exec/11_01_return_statement_type_enforcement",
+    "status": "seeded",
+    "spec_sections": [
+      "11.1"
+    ],
+    "focus": "return statements enforce declared return types and skip unreachable tails"
+  },
+  {
+    "id": "exec/02_lexical_comments_identifiers",
+    "status": "seeded",
+    "spec_sections": [
+      "2",
+      "6.9"
+    ],
+    "focus": "identifiers vs placeholder tokens, comments ignored, trailing commas, delimiter-based line joining"
+  },
+  {
+    "id": "exec/03_blocks_expr_separation",
+    "status": "seeded",
+    "spec_sections": [
+      "3",
+      "6.2"
+    ],
+    "focus": "block expression separation via newline/semicolon with last expression value and scoped bindings"
+  },
+  {
+    "id": "exec/04_01_type_inference_constraints",
+    "status": "seeded",
+    "spec_sections": [
+      "4.1.4-4.1.6"
+    ],
+    "focus": "generic inference via combine helper with Display-backed to_string output"
+  },
+  {
+    "id": "exec/04_02_primitives_truthiness_numeric",
+    "status": "seeded",
+    "spec_sections": [
+      "4.2",
+      "6.1.1-6.1.3",
+      "6.3.2",
+      "6.11"
+    ],
+    "focus": "primitive literal forms, Euclidean div/mod, and truthiness for nil/false/error"
+  },
+  {
+    "id": "exec/04_02_primitives_truthiness_numeric_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2",
+      "11.3.3"
+    ],
+    "focus": "division by zero raises a runtime error"
+  },
+  {
+    "id": "exec/04_03_type_expression_syntax",
+    "status": "seeded",
+    "spec_sections": [
+      "4.3"
+    ],
+    "focus": "nested type expressions with generic application and unions"
+  },
+  {
+    "id": "exec/04_03_type_expression_arity_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "4.3"
+    ],
+    "focus": "generic application arity rejects extra space-delimited arguments"
+  },
+  {
+    "id": "exec/04_03_type_expression_associativity_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "4.3"
+    ],
+    "focus": "unparenthesized type application does not group right-associatively"
+  },
+  {
+    "id": "exec/04_04_reserved_underscore_types",
+    "status": "seeded",
+    "spec_sections": [
+      "4.4"
+    ],
+    "focus": "underscore placeholder for unbound type parameters in type expressions"
+  },
+  {
+    "id": "exec/04_05_01_struct_singleton_usage",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.1"
+    ],
+    "focus": "singleton structs as enum-style tags used directly in expressions and patterns"
+  },
+  {
+    "id": "exec/04_05_02_struct_named_update_mutation",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.2"
+    ],
+    "focus": "named struct literals with functional update vs in-place mutation"
+  },
+  {
+    "id": "exec/04_05_02_struct_named_update_mutation_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.2"
+    ],
+    "focus": "functional update rejects mismatched struct sources"
+  },
+  {
+    "id": "exec/04_05_03_struct_positional_named_tuple",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.3",
+      "5.2.4"
+    ],
+    "focus": "positional struct literals, indexed access/mutation, and positional destructuring"
+  },
+  {
+    "id": "exec/04_05_04_struct_literal_generic_inference",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.2",
+      "6.1.8",
+      "7.1.5"
+    ],
+    "focus": "generic struct literal inference from contextual return types"
+  },
+  {
+    "id": "exec/06_01_literals_numeric_contextual",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.1",
+      "6.1.2"
+    ],
+    "focus": "contextual numeric literal adoption for integer and float targets"
+  },
+  {
+    "id": "exec/06_01_literals_numeric_contextual_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.1",
+      "6.1.2"
+    ],
+    "focus": "out-of-range numeric literal in typed context raises an error"
+  },
+  {
+    "id": "exec/06_01_literals_string_char_escape",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.4",
+      "6.1.5"
+    ],
+    "focus": "string/char escapes and non-interpolated double-quoted literals"
+  },
+  {
+    "id": "exec/06_05_control_flow_expr_value",
+    "status": "seeded",
+    "spec_sections": [
+      "6.5",
+      "8.1"
+    ],
+    "focus": "if/match expressions evaluate to the selected branch value"
+  },
+  {
+    "id": "exec/07_01_function_definition_generics_inference",
+    "status": "seeded",
+    "spec_sections": [
+      "7.1.3-7.1.5"
+    ],
+    "focus": "implicit/explicit generics in function definitions with inferred return types"
+  },
+  {
+    "id": "exec/07_08_return_context_generic_call_inference",
+    "status": "seeded",
+    "spec_sections": [
+      "7.1.4",
+      "7.4.1"
+    ],
+    "focus": "return-context expected types drive generic call inference (collect without explicit type args)"
+  },
+  {
+    "id": "exec/07_03_explicit_return_flow",
+    "status": "seeded",
+    "spec_sections": [
+      "7.3",
+      "11.1"
+    ],
+    "focus": "explicit return exits the function from nested blocks and supports void returns"
+  },
+  {
+    "id": "exec/07_04_trailing_lambda_method_syntax",
+    "status": "seeded",
+    "spec_sections": [
+      "7.4.1-7.4.3"
+    ],
+    "focus": "method call syntax with trailing lambdas matches UFCS and explicit call forms"
+  },
+  {
+    "id": "exec/07_04_apply_callable_interface",
+    "status": "seeded",
+    "spec_sections": [
+      "7.4.4"
+    ],
+    "focus": "Apply implementors behave as callables, including interface-typed values"
+  },
+  {
+    "id": "exec/07_05_partial_application",
+    "status": "seeded",
+    "spec_sections": [
+      "7.5"
+    ],
+    "focus": "placeholder partial application with numbered placeholders and evaluation order"
+  },
+  {
+    "id": "exec/07_06_shorthand_member_placeholder_lambdas",
+    "status": "seeded",
+    "spec_sections": [
+      "7.6"
+    ],
+    "focus": "implicit member shorthand and placeholder lambdas within nested callables"
+  },
+  {
+    "id": "exec/07_07_overload_resolution_runtime",
+    "status": "seeded",
+    "spec_sections": [
+      "7.7"
+    ],
+    "focus": "overload selection, nullable tail omission, and ambiguity diagnostics at runtime"
+  },
+  {
+    "id": "exec/07_02_01_verbose_anonymous_fn",
+    "status": "seeded",
+    "spec_sections": [
+      "7.2.1"
+    ],
+    "focus": "verbose anonymous function syntax with generics and where clauses"
+  },
+  {
+    "id": "exec/07_02_lambdas_closures_capture",
+    "status": "seeded",
+    "spec_sections": [
+      "7.2",
+      "7.3"
+    ],
+    "focus": "lambda closures capture outer bindings with explicit return"
+  },
+  {
+    "id": "exec/04_06_01_union_payload_patterns",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6.1",
+      "4.6.3",
+      "4.6.4",
+      "8.1.2",
+      "4.7.2"
+    ],
+    "focus": "payload-bearing union variants matched via struct patterns with generic alias expansion"
+  },
+  {
+    "id": "exec/04_06_02_nullable_truthiness",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6.2",
+      "6.11"
+    ],
+    "focus": "nullable sugar maps to nil | T and truthiness treats nil as falsy"
+  },
+  {
+    "id": "exec/04_06_03_union_construction_result_option",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6.3"
+    ],
+    "focus": "construct Option/Result unions directly and consume via match without propagation"
+  },
+  {
+    "id": "exec/04_06_04_union_guarded_match_exhaustive",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6.4",
+      "8.1.2"
+    ],
+    "focus": "union match ordering with guards and exhaustive coverage"
+  },
+  {
+    "id": "exec/04_06_04_union_guarded_match_exhaustive_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6.4",
+      "8.1.2"
+    ],
+    "focus": "non-exhaustive match over union raises a runtime error"
+  },
+  {
+    "id": "exec/09_02_methods_instance_vs_static",
+    "status": "seeded",
+    "spec_sections": [
+      "7.4.3",
+      "9.1-9.3",
+      "13.4"
+    ],
+    "focus": "instance vs static methods across imports with UFCS to free functions"
+  },
+  {
+    "id": "exec/10_03_interface_type_dynamic_dispatch",
+    "status": "seeded",
+    "spec_sections": [
+      "10.3"
+    ],
+    "focus": "interface-typed values dispatch to concrete impl methods"
+  },
+  {
+    "id": "exec/10_04_interface_dispatch_defaults_generics",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "interface-typed values dispatch default + generic methods across packages"
+  },
+  {
+    "id": "exec/10_05_interface_named_impl_defaults",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.3"
+    ],
+    "focus": "named impl disambiguation across packages using default interface methods"
+  },
+  {
+    "id": "exec/10_06_interface_generic_param_dispatch",
+    "status": "seeded",
+    "spec_sections": [
+      "10.2.1",
+      "10.3.4"
+    ],
+    "focus": "generic constraints and interface-typed parameters dispatch across packages"
+  },
+  {
+    "id": "exec/10_07_interface_default_chain",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "default methods can call other defaults through interface-typed values"
+  },
+  {
+    "id": "exec/10_08_interface_default_override",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "default methods dispatch to overridden impl methods"
+  },
+  {
+    "id": "exec/10_09_interface_named_impl_inherent",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.3",
+      "9.1"
+    ],
+    "focus": "named impl defaults can call inherent methods on the receiver"
+  },
+  {
+    "id": "exec/10_10_interface_inheritance_defaults",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "child interface values inherit base interface defaults"
+  },
+  {
+    "id": "exec/10_11_interface_generic_args_dispatch",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.1",
+      "10.3.4"
+    ],
+    "focus": "interface-typed values choose impls based on interface arguments"
+  },
+  {
+    "id": "exec/10_12_interface_union_target_dispatch",
+    "status": "seeded",
+    "spec_sections": [
+      "10.2.1",
+      "10.3.4",
+      "4.6"
+    ],
+    "focus": "union-target impls dispatch via interface dictionaries"
+  },
+  {
+    "id": "exec/10_13_interface_param_generic_args",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.1",
+      "10.3.4"
+    ],
+    "focus": "interface-typed parameters select impls using interface arguments"
+  },
+  {
+    "id": "exec/10_14_interface_return_generic_args",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.1",
+      "10.3.4"
+    ],
+    "focus": "interface-typed return values preserve interface arguments"
+  },
+  {
+    "id": "exec/13_01_package_structure_modules",
+    "status": "seeded",
+    "spec_sections": [
+      "13.1",
+      "13.2",
+      "13.4"
+    ],
+    "focus": "directory-derived package paths, hyphen normalization, and package-segment imports"
+  },
+  {
+    "id": "exec/09_00_methods_generics_imports_combo",
+    "status": "seeded",
+    "spec_sections": [
+      "7.1",
+      "7.4",
+      "9",
+      "13.4"
+    ],
+    "focus": "composition of generic helpers, inherent methods, and cross-package imports"
+  },
+  {
+    "id": "exec/11_00_errors_match_loop_combo",
+    "status": "seeded",
+    "spec_sections": [
+      "8.1.2",
+      "8.2.2",
+      "11.3"
+    ],
+    "focus": "match-driven control flow with raise/rescue inside a loop"
+  },
+  {
+    "id": "exec/11_01_return_statement_typecheck_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "7.3"
+    ],
+    "focus": "typechecker flags return type mismatches that would surface at runtime"
+  }
+]

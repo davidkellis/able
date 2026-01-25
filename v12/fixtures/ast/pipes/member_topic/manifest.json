@@ -1,0 +1,10 @@
+{
+  "description": "Pipe uses pipe/apply to call implicit methods without topic placeholder",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "6,10"
+    }
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,12 @@
+{
+  "description": "struct patterns: rename, typed bindings, and nested destructuring",
+  "expect": {
+    "stdout": [
+      "who Ada",
+      "street Main",
+      "code 90210",
+      "rename Grace"
+    ],
+    "exit": 0
+  }
+}

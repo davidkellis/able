@@ -1,0 +1,38 @@
+interface Apply <Args, Result>
+{
+  fn apply (self: Self, idx: Args) -> Result
+}
+interface Index <Idx, Val>
+{
+  fn get (self: Self, idx: Idx) -> Val
+}
+interface IndexMut <Idx, Val>
+{
+  fn set (self: Self, idx: Idx, value: Val) -> void
+}
+struct Pair {
+  values: Array i32
+}
+impl Index i32 i32 for Pair
+{
+  fn get(self: Self, idx: i32) -> i32 {
+    return self.values[idx]
+  }
+}
+impl IndexMut i32 i32 for Pair
+{
+  fn set(self: Self, idx: i32, value: i32) -> void {
+    self.values[idx] = value;
+    return nil
+  }
+}
+impl Apply i32 i32 for Pair
+{
+  fn apply(self: Self, idx: i32) -> i32 {
+    return self.get(idx)
+  }
+}
+pair := Pair { values: [2, 5] };
+pair[0] = pair(1) + 3;
+pair[1] = pair[0]! + pair(1);
+pair[0]! + pair(1);

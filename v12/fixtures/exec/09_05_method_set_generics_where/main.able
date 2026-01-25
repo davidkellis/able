@@ -1,0 +1,30 @@
+package exec_09_05_method_set_generics_where
+
+## Semantics: method-set generics/where constraints gate instance + UFCS calls.
+
+interface Show {
+  fn show(self: Self) -> String
+}
+
+impl Show for i32 {
+  fn show(self: Self) -> String { `i32 ${self}` }
+}
+
+struct Box T {
+  value: T
+}
+
+methods Box T where T: Show {
+  fn describe(self: Self) -> String {
+    self.value.show()
+  }
+}
+
+fn main() -> void {
+  good := Box i32 { value: 7 }
+  print(good.describe())
+  print(describe(good))
+
+  bad := Box bool { value: true }
+  describe(bad)
+}

@@ -1,0 +1,62 @@
+package string_methods_specs
+
+import able.spec.*
+import able.core.interfaces.{Error}
+import able.core.errors.{RangeError}
+import able.text.string.{String}
+
+fn s(value: String) -> String {
+  String.from_builtin(value) match {
+    case ok: String => ok,
+    case err: Error => { raise err }
+  }
+}
+
+describe("String methods") { suite =>
+  suite.it("reports lengths and prefixes/suffixes") { _ctx =>
+    value := s("hello")
+    expect(value.len_bytes()).to(eq(5))
+    expect(value.len_chars()).to(eq(5))
+    expect(value.len_graphemes()).to(eq(5))
+    expect(value.starts_with(s("he"))).to(eq(true))
+    expect(value.ends_with(s("lo"))).to(eq(true))
+  }
+
+  suite.it("slices substrings with bounds checking") { _ctx =>
+    word := s("hello")
+    word.substring(1, 3) match {
+      case result: String => expect(result).to(eq("ell")),
+      case err: Error => { raise err }
+    }
+    word.substring(10) match {
+      case err: RangeError => expect(err.message()).to(eq("substring start out of range")),
+      case other => { raise other as Error }
+    }
+  }
+
+  suite.it("replaces all occurrences") { _ctx =>
+    text := s("abcabc")
+    replaced := text.replace(s("ab"), s("X"))
+    expect(replaced).to(eq("XcXc"))
+  }
+
+  suite.it("splits on empty delimiter into graphemes") { _ctx =>
+    parts := s("ab").split(s(""))
+    expect(parts.len()).to(eq(2))
+    expect(parts.get(0)!).to(eq("a"))
+    expect(parts.get(1)!).to(eq("b"))
+  }
+
+  suite.it("maps and filters characters eagerly") { _ctx =>
+    value := s("abC")
+    upper := value.map(fn(ch: char) -> char {
+      if ch == 'a' { return 'A' }
+      if ch == 'b' { return 'B' }
+      ch
+    })
+    expect(upper).to(eq("ABC"))
+
+    filtered := value.filter(fn(ch: char) -> bool { ch != 'b' })
+    expect(filtered).to(eq("aC"))
+  }
+}

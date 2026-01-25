@@ -1,0 +1,107 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "items"
+      },
+      "right": {
+        "type": "ArrayLiteral",
+        "elements": [
+          {
+            "type": "IntegerLiteral",
+            "value": 1
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 2
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "Identifier",
+        "name": "n"
+      },
+      "iterable": {
+        "type": "Identifier",
+        "name": "items"
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "IfExpression",
+            "ifCondition": {
+              "type": "BinaryExpression",
+              "operator": "==",
+              "left": {
+                "type": "Identifier",
+                "name": "n"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 2
+              }
+            },
+            "ifBody": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "ContinueStatement"
+                }
+              ]
+            },
+            "elseIfClauses": []
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "sum"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "sum"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "n"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "sum"
+    }
+  ]
+}

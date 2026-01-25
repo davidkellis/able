@@ -1,0 +1,88 @@
+package testing_specs
+
+import able.spec.*
+import able.core.interfaces.{Error}
+import able.text.string.{String}
+import able.text.automata.{
+  NFABuilder,
+  NFA,
+  DFA,
+  NFAChar,
+  NFAEpsilon
+}
+import able.text.automata_dsl.{AutomataDSL, AutomataExpr}
+
+fn make_string(value: String) -> String {
+  String.from_builtin(value) match {
+    case err: Error => { raise err },
+    case created: String => created
+  }
+}
+
+describe("able.text.automata") { suite =>
+  suite.module_path("text/automata")
+
+  suite.it("matches literal sequences with loops") { _ctx =>
+    builder := NFABuilder.new()
+    start := builder.add_state()
+    accept := builder.add_state()
+
+    builder.set_start(start)
+    builder.add_accept(accept)
+
+    builder.add_transition(start, accept, NFAChar { value: 'a' })
+    builder.add_transition(accept, accept, NFAChar { value: 'b' })
+
+    nfa := builder.build()
+
+    expect(nfa.matches(make_string("a"))).to(be_truthy())
+    expect(nfa.matches(make_string("abbb"))).to(be_truthy())
+    expect(nfa.matches(make_string("b"))).to(be_false())
+  }
+
+  suite.it("supports epsilon transitions and determinisation") { _ctx =>
+    builder := NFABuilder.new()
+    start := builder.add_state()
+    mid := builder.add_state()
+    accept := builder.add_state()
+
+    builder.set_start(start)
+    builder.add_accept(accept)
+
+    builder.add_transition(start, accept, NFAEpsilon {})
+    builder.add_transition(start, mid, NFAChar { value: 'a' })
+    builder.add_transition(mid, accept, NFAChar { value: 'b' })
+
+    nfa := builder.build()
+    dfa := nfa.to_dfa()
+
+    expect(nfa.matches(make_string(""))).to(be_truthy())
+    expect(nfa.matches(make_string("ab"))).to(be_truthy())
+    expect(nfa.matches(make_string("a"))).to(be_false())
+
+    expect(dfa.matches(make_string(""))).to(be_truthy())
+    expect(dfa.matches(make_string("ab"))).to(be_truthy())
+    expect(dfa.matches(make_string("a"))).to(be_false())
+  }
+
+  suite.it("builds NFAs via the DSL") { _ctx =>
+    expr := AutomataDSL.literal_string(make_string("ab")).concat(AutomataDSL.literal_char('c').star())
+    nfa := expr.to_nfa()
+    expect(nfa.matches(make_string("ab"))).to(be_truthy())
+    expect(nfa.matches(make_string("abccc"))).to(be_truthy())
+    expect(nfa.matches(make_string("a"))).to(be_false())
+    expect(expr.to_dfa().matches(make_string("abccc"))).to(be_truthy())
+  }
+
+  suite.it("supports union and optional helpers") { _ctx =>
+    expr := AutomataDSL.union(
+      AutomataDSL.literal_char('x'),
+      AutomataDSL.literal_char('y')
+    ).optional()
+    nfa := expr.to_nfa()
+    expect(nfa.matches(make_string(""))).to(be_truthy())
+    expect(nfa.matches(make_string("x"))).to(be_truthy())
+    expect(nfa.matches(make_string("y"))).to(be_truthy())
+    expect(nfa.matches(make_string("xy"))).to(be_false())
+  }
+}

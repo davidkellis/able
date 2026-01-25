@@ -1,0 +1,13 @@
+{
+  "description": "ABLE_MODULE_PATHS injects roots for static imports and dynimport",
+  "env": {
+    "ABLE_MODULE_PATHS": "../13_07_search_path_env_override_env_root"
+  },
+  "expect": {
+    "stdout": [
+      "env module",
+      "dyn path"
+    ],
+    "exit": 0
+  }
+}

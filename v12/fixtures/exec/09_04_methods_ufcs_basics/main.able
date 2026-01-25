@@ -1,0 +1,34 @@
+package exec_09_04_methods_ufcs_basics
+
+## Semantics: method-call sugar for inherent methods, UFCS resolution for a free function with receiver-compatible first param, and type-qualified static function (non-UFCS).
+
+struct Point { x: i32, y: i32 }
+
+methods Point {
+  fn translate(self: Self, dx: i32, dy: i32) -> Point {
+    return Point { x: self.x + dx, y: self.y + dy }
+  }
+
+  fn norm_sq(self: Self) -> i32 {
+    return self.x * self.x + self.y * self.y
+  }
+
+  fn from_origin(dx: i32, dy: i32) -> Point {
+    return Point { x: dx, y: dy }
+  }
+}
+
+fn shift(p: Point, dx: i32, dy: i32) -> Point {
+  return Point { x: p.x + dx, y: p.y + dy }
+}
+
+fn main() -> void {
+  base := Point { x: 1, y: 2 }
+  moved := base.translate(3, 4)         ## method-call sugar for inherent method
+  ufcs := base.shift(-1, 2)             ## UFCS dispatch to free function shift(Point, ...)
+  static := Point.from_origin(0, -1)    ## type-qualified static function (not UFCS-eligible)
+
+  print(`moved ${moved.x},${moved.y} norm ${moved.norm_sq()}`)
+  print(`ufcs ${ufcs.x},${ufcs.y}`)
+  print(`static ${static.x},${static.y}`)
+}

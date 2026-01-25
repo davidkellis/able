@@ -1,0 +1,62 @@
+import { describe, expect, test } from "bun:test";
+import * as AST from "../../src/ast";
+import { Interpreter } from "../../src/interpreter";
+import { RaiseSignal } from "../../src/interpreter/signals";
+
+const expectDivisionByZero = (fn: () => unknown) => {
+  try {
+    fn();
+    throw new Error("expected division by zero");
+  } catch (err) {
+    expect(err).toBeInstanceOf(RaiseSignal);
+    if (err instanceof RaiseSignal && err.value.kind === "error") {
+      expect(err.value.message).toMatch(/division by zero/i);
+    }
+  }
+};
+
+describe("v11 interpreter - division operators", () => {
+  test("/ promotes integer operands to f64", () => {
+    const I = new Interpreter();
+    const expr = AST.binaryExpression("/", AST.integerLiteral(5), AST.integerLiteral(2));
+    expect(I.evaluate(expr)).toEqual({ kind: "f64", value: 2.5 });
+  });
+
+  test("// and % follow Euclidean semantics for integers", () => {
+    const I = new Interpreter();
+    const quotient = AST.binaryExpression("//", AST.integerLiteral(-5), AST.integerLiteral(3));
+    const remainder = AST.binaryExpression("%", AST.integerLiteral(-5), AST.integerLiteral(3));
+    expect(I.evaluate(quotient)).toEqual({ kind: "i32", value: -2n });
+    expect(I.evaluate(remainder)).toEqual({ kind: "i32", value: 1n });
+  });
+
+  test("/% returns DivMod struct with quotient and remainder", () => {
+    const I = new Interpreter();
+    const expr = AST.binaryExpression("/%", AST.integerLiteral(7), AST.integerLiteral(3));
+    const value = I.evaluate(expr);
+    expect(value.kind).toBe("struct_instance");
+    if (value.kind !== "struct_instance" || !(value.values instanceof Map)) {
+      throw new Error("expected named struct instance");
+    }
+    expect(value.def.id.name).toBe("DivMod");
+    expect(value.typeArguments?.[0]).toEqual(AST.simpleTypeExpression("i32"));
+    expect(value.values.get("quotient")).toEqual({ kind: "i32", value: 2n });
+    expect(value.values.get("remainder")).toEqual({ kind: "i32", value: 1n });
+  });
+
+  test("division family rejects zero divisors", () => {
+    const I = new Interpreter();
+    expectDivisionByZero(() =>
+      I.evaluate(AST.binaryExpression("%", AST.integerLiteral(4), AST.integerLiteral(0))),
+    );
+    expectDivisionByZero(() =>
+      I.evaluate(AST.binaryExpression("//", AST.integerLiteral(4), AST.integerLiteral(0))),
+    );
+    expectDivisionByZero(() =>
+      I.evaluate(AST.binaryExpression("/%", AST.integerLiteral(4), AST.integerLiteral(0))),
+    );
+    expectDivisionByZero(() =>
+      I.evaluate(AST.binaryExpression("/", AST.integerLiteral(4), AST.integerLiteral(0))),
+    );
+  });
+});

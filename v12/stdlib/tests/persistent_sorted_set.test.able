@@ -1,0 +1,48 @@
+package persistent_sorted_set_specs
+
+import able.spec.*
+import able.collections.persistent_sorted_set.{PersistentSortedSet}
+import able.kernel.{Array}
+import able.collections.array
+
+describe("PersistentSortedSet") { suite =>
+  suite.it("keeps values ordered and unique") { _ctx =>
+    set: PersistentSortedSet i32 := PersistentSortedSet.empty()
+    set = set.insert(2).insert(1).insert(3).insert(2)
+
+    expect(set.len()).to(eq(3))
+    expect(set.first()).to(eq(1))
+    expect(set.last()).to(eq(3))
+
+    values: Array i32 := Array.new()
+    set.each(fn(value: i32) -> void { values.push(value) })
+    expect(values.get(0)).to(eq(1))
+    expect(values.get(1)).to(eq(2))
+    expect(values.get(2)).to(eq(3))
+  }
+
+  suite.it("removes values without mutating previous versions") { _ctx =>
+    set: PersistentSortedSet String := PersistentSortedSet.empty()
+    set = set.insert("alpha").insert("beta").insert("gamma")
+    trimmed := set.remove("beta")
+
+    expect(trimmed.contains("beta")).to(be_false())
+    expect(set.contains("beta")).to(be_truthy())
+    expect(trimmed.len()).to(eq(2))
+  }
+
+  suite.it("supports range queries") { _ctx =>
+    set: PersistentSortedSet i32 := PersistentSortedSet.empty()
+    i := 0
+    loop {
+      if i >= 10 { break }
+      set = set.insert(i)
+      i = i + 1
+    }
+
+    slice := set.range(3, 6)
+    expect(slice.len()).to(eq(4))
+    expect(slice.get(0)).to(eq(3))
+    expect(slice.get(3)).to(eq(6))
+  }
+}

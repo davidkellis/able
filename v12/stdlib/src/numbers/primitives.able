@@ -1,0 +1,514 @@
+package primitives
+
+import able.core.errors.{DivisionByZeroError, OverflowError}
+import able.core.numeric.{
+  Numeric,
+  Integral,
+  Signed,
+  Unsigned,
+  Fractional,
+  NumericConversions,
+  NumericConversionError,
+  DivModResult
+}
+import able.core.options.{Result}
+
+fn numeric_error(message: String) -> NumericConversionError {
+  raise NumericConversionError { message }
+}
+
+I32_MIN: i32 := (-2147483647_i32) - 1
+I64_MIN: i64 := (-9223372036854775807_i64) - 1
+
+fn __f64_abs(value: f64) -> f64 {
+  if value < 0.0 { -value } else { value }
+}
+
+fn __f64_is_nan(value: f64) -> bool {
+  value != value
+}
+
+fn __f64_is_truncatable(value: f64) -> bool {
+  max := (9223372036854775807_i64 as f64)
+  min := (I64_MIN as f64)
+  value <= max && value >= min
+}
+
+fn __f64_trunc(value: f64) -> f64 {
+  if __f64_is_nan(value) || !__f64_is_truncatable(value) {
+    return value
+  }
+  (value as i64) as f64
+}
+
+fn __f64_floor(value: f64) -> f64 {
+  if __f64_is_nan(value) { return value }
+  truncated := __f64_trunc(value)
+  if value >= 0.0 || truncated == value {
+    truncated
+  } else {
+    truncated + (-1.0)
+  }
+}
+
+fn __f64_ceil(value: f64) -> f64 {
+  if __f64_is_nan(value) { return value }
+  truncated := __f64_trunc(value)
+  if value <= 0.0 || truncated == value {
+    truncated
+  } else {
+    truncated + 1.0
+  }
+}
+
+fn __f64_round(value: f64) -> f64 {
+  if __f64_is_nan(value) { return value }
+  if value >= 0.0 {
+    __f64_floor(value + 0.5)
+  } else {
+    __f64_ceil(value - 0.5)
+  }
+}
+
+fn __f64_fract(value: f64) -> f64 {
+  if __f64_is_nan(value) { return value }
+  floor_value := __f64_floor(value)
+  result := value - floor_value
+  result
+}
+
+## i32 implementations -------------------------------------------------------
+
+impl Numeric for i32 {
+  fn zero() -> i32 { 0 }
+  fn one() -> i32 { 1 }
+
+  fn abs(self: Self) -> Self {
+    min_value := I32_MIN
+    if self == min_value {
+      raise OverflowError { operation: "abs(i32)" }
+    }
+    if self < 0 { -self } else { self }
+  }
+
+  fn sign(self: Self) -> i32 {
+    if self > 0 { 1 }
+    elsif self < 0 { -1 }
+    else { 0 }
+  }
+
+  fn min(self: Self, other: Self) -> Self {
+    if self <= other { self } else { other }
+  }
+
+  fn max(self: Self, other: Self) -> Self {
+    if self >= other { self } else { other }
+  }
+
+  fn clamp(self: Self, min_value: Self, max_value: Self) -> Self {
+    if min_value > max_value {
+      raise numeric_error("clamp bounds must satisfy min <= max")
+    }
+    if self < min_value { return min_value }
+    if self > max_value { return max_value }
+    self
+  }
+}
+
+impl Signed for i32 {
+  fn is_positive(self: Self) -> bool { self > 0 }
+  fn is_negative(self: Self) -> bool { self < 0 }
+}
+
+impl Integral for i32 {
+  fn div_mod(self: Self, other: Self) -> DivModResult i32 {
+    if other == 0 { raise DivisionByZeroError {} }
+    DivModResult i32 { quotient: self // other, remainder: self % other }
+  }
+
+  fn bit_length(self: Self) -> i32 {
+    if self == 0 { return 0 }
+    value: i64 = if self < 0 {
+      if self == I32_MIN { 2147483648_i64 } else { (-self) as i64 }
+    } else {
+      (self as i64)
+    }
+    count := 0
+    loop {
+      if value == 0 { break }
+      value = value .>> 1_i64
+      count = count + 1
+    }
+    count
+  }
+
+  fn bit_count(self: Self) -> i32 {
+    bits := (self as u32)
+    count := 0
+    loop {
+      if bits == 0 { break }
+      bits = bits .& (bits - 1)
+      count = count + 1
+    }
+    count
+  }
+
+  fn is_even(self: Self) -> bool { self % 2 == 0 }
+  fn is_odd(self: Self) -> bool { self % 2 != 0 }
+}
+
+impl NumericConversions for i32 {
+  fn to_i32(self: Self) -> Result i32 { self }
+
+  fn to_u32(self: Self) -> Result u32 {
+    if self < 0 { numeric_error(`cannot convert negative value ${self} to u32`) }
+    else { self as u32 }
+  }
+
+  fn to_i64(self: Self) -> Result i64 { self as i64 }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if self < 0 { numeric_error(`cannot convert negative value ${self} to u64`) }
+    else { self as u64 }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+}
+
+## i64 implementations -------------------------------------------------------
+
+impl Numeric for i64 {
+  fn zero() -> i64 { 0 }
+  fn one() -> i64 { 1 }
+
+  fn abs(self: Self) -> Self {
+    min_value := I64_MIN
+    if self == min_value {
+      raise OverflowError { operation: "abs(i64)" }
+    }
+    if self < 0 { -self } else { self }
+  }
+
+  fn sign(self: Self) -> i32 {
+    if self > 0 { 1 }
+    elsif self < 0 { -1 }
+    else { 0 }
+  }
+
+  fn min(self: Self, other: Self) -> Self {
+    if self <= other { self } else { other }
+  }
+
+  fn max(self: Self, other: Self) -> Self {
+    if self >= other { self } else { other }
+  }
+
+  fn clamp(self: Self, min_value: Self, max_value: Self) -> Self {
+    if min_value > max_value {
+      raise numeric_error("clamp bounds must satisfy min <= max")
+    }
+    if self < min_value { return min_value }
+    if self > max_value { return max_value }
+    self
+  }
+}
+
+impl Signed for i64 {
+  fn is_positive(self: Self) -> bool { self > 0 }
+  fn is_negative(self: Self) -> bool { self < 0 }
+}
+
+impl Integral for i64 {
+  fn div_mod(self: Self, other: Self) -> DivModResult i64 {
+    if other == 0 { raise DivisionByZeroError {} }
+    DivModResult i64 { quotient: self // other, remainder: self % other }
+  }
+
+  fn bit_length(self: Self) -> i32 {
+    if self == 0 { return 0 }
+    value: u64 = if self < 0 {
+      if self == I64_MIN { 9223372036854775808_u64 } else { (-self) as u64 }
+    } else {
+      (self as u64)
+    }
+    count := 0
+    loop {
+      if value == 0 { break }
+      value = value .>> 1_u64
+      count = count + 1
+    }
+    count
+  }
+
+  fn bit_count(self: Self) -> i32 {
+    bits := (self as u64)
+    count := 0
+    loop {
+      if bits == 0 { break }
+      bits = bits .& (bits - 1)
+      count = count + 1
+    }
+    count
+  }
+
+  fn is_even(self: Self) -> bool { self % 2 == 0 }
+  fn is_odd(self: Self) -> bool { self % 2 != 0 }
+}
+
+impl NumericConversions for i64 {
+  fn to_i32(self: Self) -> Result i32 {
+    min := -2147483648_i64
+    max := 2147483647_i64
+    if self < min || self > max {
+      numeric_error(`value ${self} is out of range for i32`)
+    } else {
+      (self as i32)
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    if self < 0 || self > 4294967295_i64 {
+      numeric_error(`value ${self} is out of range for u32`)
+    } else {
+      (self as u32)
+    }
+  }
+
+  fn to_i64(self: Self) -> Result i64 { self }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if self < 0 { numeric_error(`cannot convert negative value ${self} to u64`) }
+    else { self as u64 }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+}
+
+## u32 implementations -------------------------------------------------------
+
+impl Numeric for u32 {
+  fn zero() -> u32 { 0_u32 }
+  fn one() -> u32 { 1_u32 }
+
+  fn abs(self: Self) -> Self { self }
+
+  fn sign(self: Self) -> i32 {
+    if self == 0_u32 { 0 } else { 1 }
+  }
+
+  fn min(self: Self, other: Self) -> Self {
+    if self <= other { self } else { other }
+  }
+
+  fn max(self: Self, other: Self) -> Self {
+    if self >= other { self } else { other }
+  }
+
+  fn clamp(self: Self, min_value: Self, max_value: Self) -> Self {
+    if min_value > max_value {
+      raise numeric_error("clamp bounds must satisfy min <= max")
+    }
+    if self < min_value { return min_value }
+    if self > max_value { return max_value }
+    self
+  }
+}
+
+impl Unsigned for u32 {
+  fn leading_zeros(self: Self) -> i32 {
+    if self == 0_u32 { return 32 }
+    count := 0
+    bit := 31
+    loop {
+      if bit < 0 { break }
+      mask := 1_u32 .<< (bit as u32)
+      if (self .& mask) != 0_u32 { break }
+      count = count + 1
+      bit = bit - 1
+    }
+    count
+  }
+
+  fn trailing_zeros(self: Self) -> i32 {
+    if self == 0_u32 { return 32 }
+    count := 0
+    value := self
+    loop {
+      if (value .& 1_u32) != 0_u32 { break }
+      count = count + 1
+      value = value .>> 1_u32
+    }
+    count
+  }
+}
+
+impl Integral for u32 {
+  fn div_mod(self: Self, other: Self) -> DivModResult u32 {
+    if other == 0_u32 { raise DivisionByZeroError {} }
+    DivModResult u32 { quotient: self // other, remainder: self % other }
+  }
+
+  fn bit_length(self: Self) -> i32 {
+    if self == 0_u32 { return 0 }
+    value := self
+    count := 0
+    loop {
+      if value == 0_u32 { break }
+      value = value .>> 1_u32
+      count = count + 1
+    }
+    count
+  }
+
+  fn bit_count(self: Self) -> i32 {
+    bits := self
+    count := 0
+    loop {
+      if bits == 0_u32 { break }
+      bits = bits .& (bits - 1_u32)
+      count = count + 1
+    }
+    count
+  }
+
+  fn is_even(self: Self) -> bool { self % 2_u32 == 0_u32 }
+  fn is_odd(self: Self) -> bool { self % 2_u32 != 0_u32 }
+}
+
+impl NumericConversions for u32 {
+  fn to_i32(self: Self) -> Result i32 {
+    if self > 2147483647_u32 {
+      numeric_error(`value ${self} is out of range for i32`)
+    } else {
+      (self as i32)
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 { self }
+
+  fn to_i64(self: Self) -> Result i64 { self as i64 }
+
+  fn to_u64(self: Self) -> Result u64 { self as u64 }
+
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+}
+
+## f64 implementations -------------------------------------------------------
+
+impl Numeric for f64 {
+  fn zero() -> f64 { 0.0 }
+  fn one() -> f64 { 1.0 }
+
+  fn abs(self: Self) -> Self {
+    if self < 0.0 { -self } else { self }
+  }
+
+  fn sign(self: Self) -> i32 {
+    if self > 0.0 { 1 }
+    elsif self < 0.0 { -1 }
+    else { 0 }
+  }
+
+  fn min(self: Self, other: Self) -> Self {
+    if self <= other { self } else { other }
+  }
+
+  fn max(self: Self, other: Self) -> Self {
+    if self >= other { self } else { other }
+  }
+
+  fn clamp(self: Self, min_value: Self, max_value: Self) -> Self {
+    if min_value > max_value {
+      raise numeric_error("clamp bounds must satisfy min <= max")
+    }
+    if self < min_value { return min_value }
+    if self > max_value { return max_value }
+    self
+  }
+}
+
+impl Signed for f64 {
+  fn is_positive(self: Self) -> bool { self > 0.0 }
+  fn is_negative(self: Self) -> bool { self < 0.0 }
+}
+
+impl Fractional for f64 {
+  fn floor(self: Self) -> Self { __f64_floor(self) }
+
+  fn ceil(self: Self) -> Self { __f64_ceil(self) }
+
+  fn round(self: Self) -> Self { __f64_round(self) }
+
+  fn reciprocal(self: Self) -> Self {
+    if self == 0.0 {
+      raise DivisionByZeroError {}
+    }
+    1.0 / self
+  }
+
+  fn fract(self: Self) -> Self { __f64_fract(self) }
+}
+
+impl NumericConversions for f64 {
+  fn to_i32(self: Self) -> Result i32 {
+    min := -2147483648.0
+    max := 2147483647.0
+    if self < min || self > max {
+      numeric_error(`value ${self} is out of range for i32`)
+    } else {
+      cast := (self as i32)
+      if (cast as f64) != self {
+        numeric_error(`value ${self} cannot be represented exactly as i32`)
+      } else {
+        cast
+      }
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    min := 0.0
+    max := 4294967295.0
+    if self < min || self > max {
+      numeric_error(`value ${self} is out of range for u32`)
+    } else {
+      cast := (self as u32)
+      if (cast as f64) != self {
+        numeric_error(`value ${self} cannot be represented exactly as u32`)
+      } else {
+        cast
+      }
+    }
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    min := -9223372036854775808.0
+    max := 9223372036854775807.0
+    if self < min || self > max {
+      numeric_error(`value ${self} is out of range for i64`)
+    } else {
+      cast := (self as i64)
+      if (cast as f64) != self {
+        numeric_error(`value ${self} cannot be represented exactly as i64`)
+      } else {
+        cast
+      }
+    }
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    min := 0.0
+    max := 18446744073709551615.0
+    if self < min || self > max {
+      numeric_error(`value ${self} is out of range for u64`)
+    } else {
+      cast := (self as u64)
+      if (cast as f64) != self {
+        numeric_error(`value ${self} cannot be represented exactly as u64`)
+      } else {
+        cast
+      }
+    }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { self }
+}

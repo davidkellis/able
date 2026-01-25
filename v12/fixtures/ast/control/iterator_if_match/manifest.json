@@ -1,0 +1,27 @@
+{
+  "description": "Iterator literal preserves single evaluation of if conditions and match guards",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "100"
+        },
+        {
+          "kind": "i32",
+          "value": "1"
+        },
+        {
+          "kind": "i32",
+          "value": "1"
+        },
+        {
+          "kind": "i32",
+          "value": "1"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

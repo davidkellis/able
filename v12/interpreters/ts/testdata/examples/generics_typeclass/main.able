@@ -1,0 +1,14 @@
+package generics
+
+fn identity<T>(value: T) -> T {
+  value
+}
+
+fn wrap<T>(value: T) -> String {
+  `wrapped ${value}`
+}
+
+fn main() {
+  print(identity<i32>(21))
+  print(wrap(identity<String>("Able")))
+}

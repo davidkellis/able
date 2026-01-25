@@ -1,0 +1,6 @@
+package rosettacode_hello_world
+
+## Rosetta Code — Hello World (https://rosettacode.org/wiki/Hello_world/Text)
+fn main() -> void {
+  print("Hello, World!")
+}

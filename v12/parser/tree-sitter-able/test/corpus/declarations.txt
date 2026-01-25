@@ -1,0 +1,815 @@
+==================
+Top-Level Declarations
+==================
+
+package demo;
+
+import std.io;
+dynimport dyn.tools::toolset;
+
+struct Point T {
+  x: T,
+  y: T,
+}
+
+union MaybeNumber = nil | i64
+
+interface Display for T {
+  fn to_string(self: Self) -> String;
+}
+
+Sum = impl Monoid for i32 {
+  fn id() -> i32 { 0 }
+}
+
+impl Display for Point i32 {
+  fn to_string(self: Self) -> String {
+    "Point"
+  }
+}
+
+methods Point i32 {
+  fn magnitude(self: Self) -> i32 {
+    self.x * self.x + self.y * self.y
+  }
+}
+
+---
+
+(source_file
+  (package_statement
+    (identifier))
+  (import_statement
+    (import_path
+      (identifier)
+      (identifier)))
+  (import_statement
+    (import_path
+      (identifier)
+      (identifier))
+    (identifier))
+  (struct_definition
+    (identifier)
+    (declaration_type_parameters
+      (generic_parameter_list
+        (generic_parameter
+          (identifier))))
+    (struct_record
+      (struct_field
+        (identifier)
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier)))))))))
+      (struct_field
+        (identifier)
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier)))))))))))
+  (union_definition
+    (identifier)
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier)))))
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))))))
+  (interface_definition
+    (identifier)
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier))))))))
+    (interface_member
+      (function_signature
+        (identifier)
+        (parameter_list
+          (parameter
+            (typed_pattern
+              (pattern_base
+                (identifier))
+              (type_union
+                (type_arrow
+                  (type_suffix
+                    (type_prefix
+                      (type_atom
+                        (type_identifier)))))))))
+        (return_type
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier))))))))))))
+  (named_implementation_definition
+    (identifier)
+    (implementation_definition
+      (qualified_identifier
+        (identifier))
+      (type_union
+        (type_arrow
+          (type_suffix
+            (type_prefix
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier))))))))
+      (method_member
+        (function_definition
+          (identifier)
+          (parameter_list)
+          (return_type
+            (type_union
+              (type_arrow
+                (type_suffix
+                  (type_prefix
+                    (type_atom
+                      (type_identifier
+                        (qualified_identifier
+                          (identifier)))))))))
+          (block
+            (expression_statement
+              (low_precedence_pipe_expression
+                (assignment_expression
+                  (pipe_expression
+                    (matchable_expression
+                      (pipe_operand_base
+                        (range_expression
+                          (logical_or_expression
+                            (logical_and_expression
+                              (bitwise_or_expression
+                                (bitwise_xor_expression
+                                  (bitwise_and_expression
+                                    (equality_expression
+                                      (comparison_expression
+                                        (shift_expression
+                                          (additive_expression
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (number_literal)))))))))))))))))))))))))))
+  (implementation_definition
+    (qualified_identifier
+      (identifier))
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier))))))))
+    (method_member
+      (function_definition
+        (identifier)
+        (parameter_list
+          (parameter
+            (typed_pattern
+              (pattern_base
+                (identifier))
+              (type_union
+                (type_arrow
+                  (type_suffix
+                    (type_prefix
+                      (type_atom
+                        (type_identifier)))))))))
+        (return_type
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))
+        (block
+          (expression_statement
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (pipe_expression
+                  (matchable_expression
+                    (pipe_operand_base
+                      (range_expression
+                        (logical_or_expression
+                          (logical_and_expression
+                            (bitwise_or_expression
+                              (bitwise_xor_expression
+                                (bitwise_and_expression
+                                  (equality_expression
+                                    (comparison_expression
+                                      (shift_expression
+                                        (additive_expression
+                                          (multiplicative_expression
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (string_literal))))))))))))))))))))))))))
+  (methods_definition
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier))))))))
+    (method_member
+      (function_definition
+        (identifier)
+        (parameter_list
+          (parameter
+            (typed_pattern
+              (pattern_base
+                (identifier))
+              (type_union
+                (type_arrow
+                  (type_suffix
+                    (type_prefix
+                      (type_atom
+                        (type_identifier)))))))))
+        (return_type
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))
+        (block
+          (expression_statement
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (pipe_expression
+                  (matchable_expression
+                    (pipe_operand_base
+                      (range_expression
+                        (logical_or_expression
+                          (logical_and_expression
+                            (bitwise_or_expression
+                              (bitwise_xor_expression
+                                (bitwise_and_expression
+                                  (equality_expression
+                                    (comparison_expression
+                                      (shift_expression
+                                        (additive_expression
+                                          (multiplicative_expression
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (identifier))
+                                                  (member_access
+                                                    (identifier)))))
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (identifier))
+                                                  (member_access
+                                                    (identifier))))))
+                                          (multiplicative_expression
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (identifier))
+                                                  (member_access
+                                                    (identifier)))))
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (identifier))
+                                                  (member_access
+                                                    (identifier)))))))))))))))))))))))))))
+
+==================
+Implicit Method Definitions
+==================
+
+struct Counter {
+  value: i32,
+}
+
+methods Counter {
+  fn #increment() {
+    #value = #value + 1
+  }
+
+  fn #add(amount: i32) {
+    #value = #value + amount
+  }
+}
+
+impl Display for Counter {
+  fn #to_string() -> String {
+    `Counter(${#value})`
+  }
+}
+
+---
+
+(source_file
+  (struct_definition
+    (identifier)
+    (struct_record
+      (struct_field
+        (identifier)
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier)))))))))))
+  (methods_definition
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier))))))))
+    (method_member
+      (function_definition
+        (identifier)
+        (parameter_list)
+        (block
+          (expression_statement
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (assignment_target
+                  (postfix_expression
+                    (primary_expression
+                      (implicit_member_expression
+                        (identifier)))))
+                (assignment_operator)
+                (assignment_expression
+                  (pipe_expression
+                    (matchable_expression
+                      (pipe_operand_base
+                        (range_expression
+                          (logical_or_expression
+                            (logical_and_expression
+                              (bitwise_or_expression
+                                (bitwise_xor_expression
+                                  (bitwise_and_expression
+                                    (equality_expression
+                                      (comparison_expression
+                                        (shift_expression
+                                          (additive_expression
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (implicit_member_expression
+                                                        (identifier)))))))
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (number_literal))))))))))))))))))))))))))
+    (method_member
+      (function_definition
+        (identifier)
+        (parameter_list
+          (parameter
+            (typed_pattern
+              (pattern_base
+                (identifier))
+              (type_union
+                (type_arrow
+                  (type_suffix
+                    (type_prefix
+                      (type_atom
+                        (type_identifier
+                          (qualified_identifier
+                            (identifier)))))))))))
+        (block
+          (expression_statement
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (assignment_target
+                  (postfix_expression
+                    (primary_expression
+                      (implicit_member_expression
+                        (identifier)))))
+                (assignment_operator)
+                (assignment_expression
+                  (pipe_expression
+                    (matchable_expression
+                      (pipe_operand_base
+                        (range_expression
+                          (logical_or_expression
+                            (logical_and_expression
+                              (bitwise_or_expression
+                                (bitwise_xor_expression
+                                  (bitwise_and_expression
+                                    (equality_expression
+                                      (comparison_expression
+                                        (shift_expression
+                                          (additive_expression
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (implicit_member_expression
+                                                        (identifier)))))))
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (identifier)))))))))))))))))))))))))))
+  (implementation_definition
+    (qualified_identifier
+      (identifier))
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier))))))))
+    (method_member
+      (function_definition
+        (identifier)
+        (parameter_list)
+        (return_type
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))
+        (block
+          (expression_statement
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (pipe_expression
+                  (matchable_expression
+                    (pipe_operand_base
+                      (range_expression
+                        (logical_or_expression
+                          (logical_and_expression
+                            (bitwise_or_expression
+                              (bitwise_xor_expression
+                                (bitwise_and_expression
+                                  (equality_expression
+                                    (comparison_expression
+                                      (shift_expression
+                                        (additive_expression
+                                          (multiplicative_expression
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (interpolated_string
+                                                      (interpolation_text)
+                                                      (string_interpolation
+                                                        (low_precedence_pipe_expression
+                                                          (assignment_expression
+                                                            (pipe_expression
+                                                              (matchable_expression
+                                                                (pipe_operand_base
+                                                                  (range_expression
+                                                                    (logical_or_expression
+                                                                      (logical_and_expression
+                                                                        (bitwise_or_expression
+                                                                          (bitwise_xor_expression
+                                                                            (bitwise_and_expression
+                                                                              (equality_expression
+                                                                                (comparison_expression
+                                                                                  (shift_expression
+                                                                                    (additive_expression
+                                                                                      (multiplicative_expression
+                                                                                        (unary_expression
+                                                                                          (exponent_expression
+                                                                                            (postfix_expression
+                                                                                              (primary_expression
+                                                                                                (implicit_member_expression
+                                                                                                  (identifier)))))))))))))))))))))))
+                                                      (interpolation_text))))))))))))))))))))))))))))
+
+==================
+Type Alias Definitions
+==================
+
+type UserID = u64
+
+type Box T where T: Display = Array T
+
+private type ResultValue E T where E: Error + Display = E | T
+
+---
+
+(source_file
+  (type_alias_definition
+    (identifier)
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))))))
+  (type_alias_definition
+    (identifier)
+    (generic_parameter_list
+      (generic_parameter
+        (identifier)))
+    (where_clause
+      (where_constraint
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier))))))))
+        (type_bound_list
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))))
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))))))
+  (type_alias_definition
+    (identifier)
+    (generic_parameter_list
+      (generic_parameter
+        (identifier))
+      (generic_parameter
+        (identifier)))
+    (where_clause
+      (where_constraint
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier))))))))
+        (type_bound_list
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier))))))))
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))))
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))))
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier))))))))))
+
+==================
+Interface Bases and Applied Where
+==================
+
+interface Eq for Self : PartialEq Self {
+  fn eq(self: Self, other: Self) -> bool;
+}
+
+fn build<C, B>(value: C B) -> C B where C B: Default + Extend B {
+  value
+}
+
+---
+
+(source_file
+  (interface_definition
+    (identifier)
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier))))))
+    (interface_composition
+      (type_bound_list
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier)))))
+              (type_prefix
+                (type_atom
+                  (type_identifier))))))))
+    (interface_member
+      (function_signature
+        (identifier)
+        (parameter_list
+          (parameter
+            (typed_pattern
+              (pattern_base
+                (identifier))
+              (type_union
+                (type_arrow
+                  (type_suffix
+                    (type_prefix
+                      (type_atom
+                        (type_identifier))))))))
+          (parameter
+            (typed_pattern
+              (pattern_base
+                (identifier))
+              (type_union
+                (type_arrow
+                  (type_suffix
+                    (type_prefix
+                      (type_atom
+                        (type_identifier)))))))))
+        (return_type
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier))))))))))))
+  (function_definition
+    (identifier)
+    (type_parameter_list
+      (type_parameter
+        (identifier))
+      (type_parameter
+        (identifier)))
+    (parameter_list
+      (parameter
+        (typed_pattern
+          (pattern_base
+            (identifier))
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))))
+    (return_type
+      (type_union
+        (type_arrow
+          (type_suffix
+            (type_prefix
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier)))))
+            (type_prefix
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier)))))))))
+    (where_clause
+      (where_constraint
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier)))))
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier))))))))
+        (type_bound_list
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier))))))))
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))))
+    (block
+      (expression_statement
+        (low_precedence_pipe_expression
+          (assignment_expression
+            (pipe_expression
+              (matchable_expression
+                (pipe_operand_base
+                  (range_expression
+                    (logical_or_expression
+                      (logical_and_expression
+                        (bitwise_or_expression
+                          (bitwise_xor_expression
+                            (bitwise_and_expression
+                              (equality_expression
+                                (comparison_expression
+                                  (shift_expression
+                                    (additive_expression
+                                      (multiplicative_expression
+                                        (unary_expression
+                                          (exponent_expression
+                                            (postfix_expression
+                                              (primary_expression
+                                                (identifier)))))))))))))))))))))))))

@@ -1,0 +1,12 @@
+{
+  "description": "await fairness and cancellation",
+  "expect": {
+    "stdout": [
+      "trace A1B1A2B2",
+      "default idle",
+      "cancel hits 0",
+      "cancel status Cancelled"
+    ],
+    "exit": 0
+  }
+}

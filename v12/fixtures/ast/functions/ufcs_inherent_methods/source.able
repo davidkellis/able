@@ -1,0 +1,16 @@
+struct Point {
+  x: i32,
+  y: i32
+}
+methods Point {
+  fn norm(self: Point) -> i32 {
+    self.x * self.x + self.y * self.y;
+  }
+  fn scale(self: Point, factor: i32) -> Point {
+    Point { x: self.x * factor, y: self.y * factor };
+  }
+}
+p := Point { x: 3, y: 4 };
+scaled := p.scale(2);
+pipeScaled := p.scale(3);
+[p.norm(), scaled.x, scaled.y, p |> #norm, pipeScaled.x, pipeScaled.y];

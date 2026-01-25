@@ -1,0 +1,15 @@
+package exec_04_07_03_alias_scope_visibility_imports
+
+import exec_04_07_03_alias_scope_visibility_imports.aliases::aliases
+import exec_04_07_03_alias_scope_visibility_imports.aliases.{PublicListAlias, tag, wrap}
+
+## Semantics: alias visibility follows package exports; selective value/type imports pair with qualified lookups.
+
+fn main() -> void {
+  first := tag("able")
+  group: PublicListAlias = [first, tag("lang")]
+  merged := wrap(group)
+
+  print(`first ${merged[0]!}`)
+  print(aliases.describe(merged[1]!))
+}

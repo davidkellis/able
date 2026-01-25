@@ -1,0 +1,6 @@
+do {
+  raise "boom"
+}! or {
+  err =>
+  "handled";
+};

@@ -1,0 +1,5 @@
+do {
+  "body";
+} ensure {
+  print("ensure");
+};

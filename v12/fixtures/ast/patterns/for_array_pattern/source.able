@@ -1,0 +1,9 @@
+pairs := [[1, 2], [3, 4]];
+sum := 0;
+for [x, y] in pairs {
+  do {
+    sum = sum + x;
+    sum = sum + y;
+  };
+}
+sum;

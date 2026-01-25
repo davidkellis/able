@@ -1,0 +1,83 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "TypeAliasDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "UserID"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "u64"
+        }
+      }
+    },
+    {
+      "type": "TypeAliasDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Box"
+      },
+      "targetType": {
+        "type": "GenericTypeExpression",
+        "base": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "Array"
+          }
+        },
+        "arguments": [
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        ]
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
+      "whereClause": [
+        {
+          "type": "WhereClauseConstraint",
+          "typeParam": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          },
+          "constraints": [
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Display"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "IntegerLiteral",
+      "value": 10
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+package exec_14_02_regex_core_match_streaming
+
+import able.text.regex.{Regex, RegexScanner, Match, regex_is_match}
+
+## Semantics: regex compile/match/find_all/scan yield consistent matches and spans.
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.matched} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn main() -> void {
+  regex_is_match("a+", "caaad") match {
+    case true => print("is_match true"),
+    case false => print("is_match false"),
+    case _ => print("is_match error")
+  }
+
+  Regex.compile("a+") match {
+    case regex: Regex => {
+      show_match("match", regex.match("caaad"))
+
+      print("find_all")
+      iter := regex.find_all("caaad")
+      loop {
+        next := iter.next()
+        next match {
+          case m: Match => print(`- ${m.matched} ${m.span.start}-${m.span.end}`),
+          case _ => { break }
+        }
+      }
+
+      scanner := regex.scan("")
+      scanner.feed("ca")
+      scanner.feed("aad")
+      print("scan")
+      loop {
+        next := scanner.next()
+        next match {
+          case m: Match => print(`- ${m.matched} ${m.span.start}-${m.span.end}`),
+          case _ => { break }
+        }
+      }
+    },
+    case _ => print("compile error")
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "description": "Dyn import selector and alias return callable references",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "22"
+    }
+  },
+  "entry": "module.json",
+  "setup": [
+    "package.json"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "description": "sums a range and prints the total",
+  "expect": {
+    "stdout": ["total 15"],
+    "exit": 0
+  }
+}

@@ -1,0 +1,8 @@
+package range
+import able.kernel.{Range::KernelRange, RangeFactory::KernelRangeFactory}
+
+## Re-export kernel Range types under the stdlib namespace.
+type Range = KernelRange;
+type RangeFactory = KernelRangeFactory;
+Range := KernelRange
+RangeFactory := KernelRangeFactory

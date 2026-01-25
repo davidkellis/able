@@ -1,0 +1,131 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "pairs"
+      },
+      "right": {
+        "type": "ArrayLiteral",
+        "elements": [
+          {
+            "type": "ArrayLiteral",
+            "elements": [
+              {
+                "type": "IntegerLiteral",
+                "value": 1
+              },
+              {
+                "type": "IntegerLiteral",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "type": "ArrayLiteral",
+            "elements": [
+              {
+                "type": "IntegerLiteral",
+                "value": 3
+              },
+              {
+                "type": "IntegerLiteral",
+                "value": 4
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "ArrayPattern",
+        "elements": [
+          {
+            "type": "Identifier",
+            "name": "x"
+          },
+          {
+            "type": "Identifier",
+            "name": "y"
+          }
+        ]
+      },
+      "iterable": {
+        "type": "Identifier",
+        "name": "pairs"
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                  "type": "Identifier",
+                  "name": "sum"
+                },
+                "right": {
+                  "type": "BinaryExpression",
+                  "operator": "+",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "sum"
+                  },
+                  "right": {
+                    "type": "Identifier",
+                    "name": "x"
+                  }
+                }
+              },
+              {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                  "type": "Identifier",
+                  "name": "sum"
+                },
+                "right": {
+                  "type": "BinaryExpression",
+                  "operator": "+",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "sum"
+                  },
+                  "right": {
+                    "type": "Identifier",
+                    "name": "y"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "sum"
+    }
+  ]
+}

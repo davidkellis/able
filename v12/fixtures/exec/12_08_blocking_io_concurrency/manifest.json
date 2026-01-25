@@ -1,0 +1,8 @@
+{
+  "description": "blocking io read yields so other tasks can write to stream-backed handles",
+  "executor": "goroutine",
+  "expect": {
+    "stdout": ["RWwrpong"],
+    "exit": 0
+  }
+}

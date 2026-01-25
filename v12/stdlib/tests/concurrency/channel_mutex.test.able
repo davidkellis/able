@@ -1,0 +1,78 @@
+package channel_mutex_specs
+
+import able.spec.assertions.{AssertionError}
+import able.spec.*
+import able.kernel.{Channel, Mutex}
+import able.concurrency
+import able.concurrency.{with_lock}
+
+describe("Channel") { suite =>
+  suite.it("supports send/receive/close operations") { _ctx =>
+    channel: Channel String := Channel.new(1)
+    channel.send("hello")
+
+    channel.receive() match {
+      case value: String => expect(value).to(eq("hello")),
+      case nil => { raise AssertionError { message: "expected channel value", details: nil, location: nil } }
+    }
+
+    expect(channel.try_send("world")).to(be_truthy())
+    channel.try_receive() match {
+      case value: String => expect(value).to(eq("world")),
+      case nil => { raise AssertionError { message: "expected try_receive value", details: nil, location: nil } }
+    }
+
+    channel.close()
+    expect(channel.is_closed()).to(be_truthy())
+    channel.receive() match {
+      case nil => {},
+      case _ => { raise AssertionError { message: "expected nil after close", details: nil, location: nil } }
+    }
+    expect(channel.try_receive()).to(eq(nil))
+    expect(fn() { channel.send("fail") }).to(raise_error())
+  }
+
+  suite.it("iterates buffered values until closed") { _ctx => {
+    channel: Channel i32 := Channel.new(4)
+    channel.send(1)
+    channel.send(2)
+    channel.send(3)
+    channel.close()
+
+    sum := 0
+    for value in channel {
+      sum += value
+    }
+    expect(sum).to(eq(6))
+  } }
+}
+
+describe("Mutex") { suite =>
+  suite.it("guards shared state via with_lock") { _ctx =>
+    mutex := Mutex.new()
+    counter := 0
+    with_lock(mutex, fn() {
+      counter += 1
+      counter
+    })
+    expect(counter).to(eq(1))
+
+    expect(fn() {
+      with_lock(mutex, fn() {
+        raise AssertionError { message: "boom", details: nil, location: nil }
+      })
+    }).to(raise_error())
+
+    result := with_lock(mutex, fn() { 42 })
+    expect(result).to(eq(42))
+  }
+
+  suite.it("allows manual lock/unlock") { _ctx =>
+    mutex := Mutex.new()
+    mutex.lock()
+    mutex.unlock()
+
+    value := with_lock(mutex, fn() { "ok" })
+    expect(value).to(eq("ok"))
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "Identifier",
+        "name": "n"
+      },
+      "iterable": {
+        "type": "RangeExpression",
+        "start": {
+          "type": "IntegerLiteral",
+          "value": 0
+        },
+        "end": {
+          "type": "IntegerLiteral",
+          "value": 5
+        },
+        "inclusive": true
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "sum"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "sum"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "n"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "sum"
+    }
+  ]
+}

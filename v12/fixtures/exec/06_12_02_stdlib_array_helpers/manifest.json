@@ -1,0 +1,16 @@
+{
+  "description": "stdlib array helpers for size, push/pop, get/set, and clear",
+  "expect": {
+    "stdout": [
+      "size 2",
+      "set 5",
+      "push 3 3",
+      "pop 3 size 2",
+      "get nil",
+      "set error",
+      "clear 0",
+      "pop nil"
+    ],
+    "exit": 0
+  }
+}

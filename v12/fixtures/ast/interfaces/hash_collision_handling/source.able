@@ -1,0 +1,44 @@
+import able.kernel.{HashMap, Hash, Eq, Hasher}
+
+struct CollisionKey {
+  id: i32
+}
+impl Hash for CollisionKey
+{
+  fn hash(self: Self, hasher: Hasher) -> void {
+    hasher.write_u64(1_u64);
+    return nil
+  }
+}
+impl Eq for CollisionKey
+{
+  fn eq(self: Self, other: Self) -> bool {
+    return self.id == other.id
+  }
+}
+map: HashMap CollisionKey String := HashMap.new();
+map.raw_set(CollisionKey { id: 1 }, "first");
+map.raw_set(CollisionKey { id: 2 }, "second");
+score := 0;
+if map.raw_size() == 2 {
+  score = score + 1;
+};
+map.raw_get(CollisionKey { id: 1 }) match {
+  case value: String => {
+    if value == "first" {
+      score = score + 1;
+    };
+  },
+  case _ => {
+  }
+};
+map.raw_get(CollisionKey { id: 2 }) match {
+  case value: String => {
+    if value == "second" {
+      score = score + 1;
+    };
+  },
+  case _ => {
+  }
+};
+score == 3;

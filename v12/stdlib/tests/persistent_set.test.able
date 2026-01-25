@@ -1,0 +1,43 @@
+package persistent_set_specs
+
+import able.spec.*
+import able.collections.persistent_map.{PersistentSet, PersistentSetBuilder}
+
+describe("PersistentSet") { suite =>
+  suite.it("inserts, removes, and preserves structural sharing") { _ctx =>
+    set: PersistentSet i32 := PersistentSet.empty()
+    set = set.insert(1)
+    set = set.insert(2)
+
+    expect(set.len()).to(eq(2))
+    expect(set.contains(1)).to(be_truthy())
+    expect(set.contains(3)).to(be_false())
+
+    trimmed := set.remove(1)
+    expect(trimmed.contains(1)).to(be_false())
+    expect(set.contains(1)).to(be_truthy())
+  }
+
+  suite.it("unions and intersects") { _ctx =>
+    left: PersistentSet String := PersistentSet.empty().insert("a").insert("b")
+    right: PersistentSet String := PersistentSet.empty().insert("b").insert("c")
+
+    union := left.union(right)
+    expect(union.len()).to(eq(3))
+    expect(union.contains("c")).to(be_truthy())
+
+    intersection := left.intersect(right)
+    expect(intersection.len()).to(eq(1))
+    expect(intersection.contains("b")).to(be_truthy())
+    expect(intersection.contains("a")).to(be_false())
+  }
+
+  suite.it("builds sets via builder") { _ctx =>
+    builder := PersistentSetBuilder.new<String>()
+    builder.insert("alpha")
+    builder.insert("beta")
+    set := builder.finish()
+    expect(set.len()).to(eq(2))
+    expect(set.contains("alpha")).to(be_truthy())
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "await rotates ready channel arms round-robin instead of preferring the first entry",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "A1B1A2B2"
+    }
+  },
+  "entry": "module.json"
+}

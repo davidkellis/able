@@ -1,0 +1,10 @@
+{
+  "description": "Evaluates an integer literal with an i64 suffix",
+  "expect": {
+    "result": {
+      "kind": "i64",
+      "value": "42"
+    }
+  },
+  "entry": "module.json"
+}

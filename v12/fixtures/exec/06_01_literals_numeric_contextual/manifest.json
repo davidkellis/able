@@ -1,0 +1,12 @@
+{
+  "description": "contextual numeric literal adoption for integer and float targets",
+  "expect": {
+    "stdout": [
+      "u8 200",
+      "i8 -5",
+      "f32-int 10",
+      "f32-round true"
+    ],
+    "exit": 0
+  }
+}

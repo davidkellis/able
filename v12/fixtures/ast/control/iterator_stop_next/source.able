@@ -1,0 +1,9 @@
+iter := Iterator {
+  gen.yield(1);
+  gen.stop();
+  gen.yield(99);
+};
+first := iter.next();
+second := iter.next();
+third := iter.next();
+[first, second, third];

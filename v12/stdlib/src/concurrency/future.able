@@ -1,0 +1,20 @@
+import able.core.interfaces.{Error}
+
+struct Pending {}
+struct Resolved {}
+struct Cancelled {}
+struct Failed { error: FutureError }
+union FutureStatus = Pending | Resolved | Cancelled | Failed
+
+struct FutureError { details: String }
+
+impl Error for FutureError {
+  fn message(self: Self) -> String { self.details }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+interface Future T for Handle {
+  fn status(self: Self) -> FutureStatus;
+  fn value(self: Self) -> !T;
+  fn cancel(self: Self) -> void;
+}

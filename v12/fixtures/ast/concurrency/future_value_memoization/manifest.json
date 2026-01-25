@@ -1,0 +1,24 @@
+{
+  "description": "Future handle value() memoises successful results",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "length": 3,
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "21"
+        },
+        {
+          "kind": "i32",
+          "value": "21"
+        },
+        {
+          "kind": "i32",
+          "value": "1"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Negates an integer literal",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "-5"
+    }
+  },
+  "entry": "module.json"
+}

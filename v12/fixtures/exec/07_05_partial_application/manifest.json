@@ -1,0 +1,15 @@
+{
+  "description": "placeholder-based partial application and evaluation order",
+  "expect": {
+    "stdout": [
+      "add 15",
+      "square 36",
+      "mixed 879",
+      "method 7",
+      "first",
+      "second",
+      "order 123"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,137 @@
+package iteration
+import able.core.interfaces.{Default, Extend}
+import able.kernel.{Range::KernelRange, RangeFactory}
+## Sentinel returned by Iterator.next() to signal completion.
+struct IteratorEnd {}
+
+## Stateful iterator protocol.
+interface Iterator T for Self {
+  fn next(self: Self) -> T | IteratorEnd;
+
+  fn filter(self: Self, visit: T -> bool) -> Iterator T {
+    Iterator T { gen =>
+      iter := self
+      loop {
+        iter.next() match {
+          case IteratorEnd {} => { break },
+          case value: T => {
+            if visit(value) {
+              gen.yield(value)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  fn map<U>(self: Self, visit: T -> U) -> Iterator U {
+    Iterator U { gen =>
+      iter := self
+      loop {
+        iter.next() match {
+          case IteratorEnd {} => { break },
+          case value: T => { gen.yield(visit(value)) }
+        }
+      }
+    }
+  }
+
+  fn filter_map<U>(self: Self, visit: T -> ?U) -> Iterator U {
+    Iterator U { gen =>
+      iter := self
+      loop {
+        iter.next() match {
+          case IteratorEnd {} => { break },
+          case value: T => {
+            u := visit(value)
+            if u {
+              gen.yield(u)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  fn collect<C>(self: Self) -> C where C: Default + Extend T {
+    acc: C := C.default();
+    iter := self
+    loop {
+      iter.next() match {
+        case IteratorEnd {} => { break },
+        case value: T => { acc = acc.extend(value) }
+      }
+    }
+    acc
+  }
+}
+
+## Types that can produce iterators (for loops, comprehensions).
+## Implement either each() or iterator(); the other is derived by default.
+interface Iterable T for Self {
+  fn each(self: Self, visit: T -> void) -> void {
+    it := self.iterator();
+    loop {
+      nxt := it.next();
+      nxt match {
+        case IteratorEnd {} => { break },
+        case value => visit(value)
+      }
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    Iterator T { gen => self.each(gen.yield) }
+  }
+}
+
+## Iterators are iterable by returning themselves as the iterator source.
+impl Iterable T for Iterator T {
+  fn iterator(self: Self) -> (Iterator T) { self }
+}
+
+## Range construction invoked via `..` and `...` operators.
+interface Range Start End Out {
+  fn inclusive_range(start: Start, finish: End) -> Iterable Out;
+  fn exclusive_range(start: Start, finish: End) -> Iterable Out;
+}
+
+impl Iterable i32 for KernelRange {
+  fn iterator(self: Self) -> (Iterator i32) {
+    Iterator i32 { gen =>
+      step := 1
+      if self.end < self.start { step = -1 }
+
+      current := self.start
+      limit := self.end
+      loop {
+        if step > 0 {
+          if self.inclusive {
+            if current > limit { gen.stop(); break }
+          } else {
+            if current >= limit { gen.stop(); break }
+          }
+        } else {
+          if self.inclusive {
+            if current < limit { gen.stop(); break }
+          } else {
+            if current <= limit { gen.stop(); break }
+          }
+        }
+
+        gen.yield(current)
+        current = current + step
+      }
+    }
+  }
+}
+
+impl Range i32 i32 i32 for RangeFactory {
+  fn inclusive_range(start: i32, finish: i32) -> Iterable i32 {
+    KernelRange { start: start, end: finish, inclusive: true }
+  }
+
+  fn exclusive_range(start: i32, finish: i32) -> Iterable i32 {
+    KernelRange { start: start, end: finish, inclusive: false }
+  }
+}

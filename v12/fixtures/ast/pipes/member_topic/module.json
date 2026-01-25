@@ -1,0 +1,215 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Box"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "increment"
+          },
+          "params": [],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "BinaryExpression",
+                  "operator": "+",
+                  "left": {
+                    "type": "ImplicitMemberExpression",
+                    "member": {
+                      "type": "Identifier",
+                      "name": "value"
+                    }
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "isMethodShorthand": true,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "double"
+          },
+          "params": [],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "BinaryExpression",
+                  "operator": "*",
+                  "left": {
+                    "type": "ImplicitMemberExpression",
+                    "member": {
+                      "type": "Identifier",
+                      "name": "value"
+                    }
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "isMethodShorthand": true,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "box"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Box"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "value"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 5
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "first"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "Identifier",
+          "name": "box"
+        },
+        "right": {
+          "type": "ImplicitMemberExpression",
+          "member": {
+            "type": "Identifier",
+            "name": "increment"
+          }
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "second"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "Identifier",
+          "name": "box"
+        },
+        "right": {
+          "type": "ImplicitMemberExpression",
+          "member": {
+            "type": "Identifier",
+            "name": "double"
+          }
+        }
+      }
+    },
+    {
+      "type": "StringInterpolation",
+      "parts": [
+        {
+          "type": "Identifier",
+          "name": "first"
+        },
+        {
+          "type": "StringLiteral",
+          "value": ","
+        },
+        {
+          "type": "Identifier",
+          "name": "second"
+        }
+      ]
+    }
+  ]
+}

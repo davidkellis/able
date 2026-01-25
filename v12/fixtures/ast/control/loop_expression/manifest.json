@@ -1,0 +1,10 @@
+{
+  "description": "Loop expression returns break payload",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "3"
+    }
+  },
+  "entry": "module.json"
+}

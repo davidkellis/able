@@ -1,0 +1,10 @@
+{
+  "description": "For loop drives iterator literal lazily",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "6"
+    }
+  },
+  "entry": "module.json"
+}

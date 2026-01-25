@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v11 Manual — Bindings &amp; Patterns</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v11 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html" class="active">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>3. Bindings &amp; Patterns</h1>
+        <p>
+          Able separates declaration (<code>:=</code>) from reassignment
+          (<code>=</code>). Bindings are mutable by default and patterns are a
+          first-class part of binding, matching, and control flow.
+        </p>
+        <h2 id="declarations">3.1 Declarations &amp; Assignment</h2>
+        <pre><code class="language-able">x := 5           ## declare + initialise
+y := x * 2
+x = 8           ## reassign existing binding
+
+user := User { id: 1, name: "Ada", email: nil }
+user.email = "ada@example.com"</code></pre>
+        <p>
+          Type annotations go on the left (<code>name: Type := expr</code>).
+          Reassignment fails if the binding does not exist.
+        </p>
+        <h2 id="patterns">3.2 Patterns</h2>
+        <p>Patterns are allowed in <code>:=</code>, <code>=</code>, parameters, <code>for</code>, <code>match</code>, and <code>else</code> handlers.</p>
+        <ul>
+          <li>Identifiers: <code>x</code></li>
+          <li>Wildcard: <code>_</code> (ignores a position)</li>
+          <li>Typed identifier: <code>count: i32</code></li>
+          <li>Struct (named fields): <code>Point { x, y }</code></li>
+          <li>Struct (positional): <code>{ x, y }</code></li>
+          <li>Array: <code>[first, ...rest]</code></li>
+          <li>Nested/typed: <code>Err { msg: String }</code></li>
+        </ul>
+        <pre><code class="language-able">Point { x, y } := point
+{ x, y } = { x + 1, y * 2 }
+
+[head, ...tail] := scores
+Container { items: [Data { id, ... }, ...others] } := payload</code></pre>
+        <p>
+          Pattern mismatches yield <code>Error</code> (falsy). Typed patterns act
+          as guards: the match fails if the runtime type is incompatible.
+        </p>
+        <h2 id="functional-update">3.3 Functional Updates</h2>
+        <p>
+          Use spread-with-overrides to copy structs:
+        </p>
+        <pre><code class="language-able">user = User { ...user, email: "new@example.com" }</code></pre>
+        <p>
+          Arrays and maps update via their helper methods (see stdlib).
+        </p>
+        <footer class="manual-footer">
+          Able v11 manual · Bindings &amp; Patterns
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

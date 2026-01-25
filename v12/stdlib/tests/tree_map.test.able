@@ -1,0 +1,46 @@
+package tree_map_specs
+
+import able.spec.*
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.tree_map.{TreeMap, TreeEntry}
+
+describe("TreeMap") { suite =>
+  suite.it("inserts, updates, and retrieves entries") { _ctx =>
+    map: TreeMap String i32 := TreeMap.new()
+    map.set("beta", 2)
+    map.set("alpha", 1)
+    map.set("gamma", 3)
+
+    expect(map.len()).to(eq(3))
+    expect(map.get("alpha")).to(eq(1))
+
+    map.set("alpha", 10)
+    expect(map.get("alpha")).to(eq(10))
+  }
+
+  suite.it("removes entries and reports existence") { _ctx =>
+    map: TreeMap i32 String := TreeMap.new()
+    map.set(1, "one")
+    map.set(2, "two")
+    map.set(3, "three")
+
+    expect(map.remove(2)).to(be_truthy())
+    expect(map.len()).to(eq(2))
+    expect(map.get(2)).to(eq(nil))
+    expect(map.remove(4)).to(be_false())
+  }
+
+  suite.it("iterates in sorted order") { _ctx =>
+    map: TreeMap i32 String := TreeMap.new()
+    map.set(5, "e")
+    map.set(1, "a")
+    map.set(3, "c")
+
+    acc: Array String := Array.new()
+    map.each(fn(entry: TreeEntry i32 String) -> void { acc.push(entry.value) })
+    expect(acc.get(0)).to(eq("a"))
+    expect(acc.get(1)).to(eq("c"))
+    expect(acc.get(2)).to(eq("e"))
+  }
+}

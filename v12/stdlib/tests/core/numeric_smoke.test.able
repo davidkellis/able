@@ -1,0 +1,56 @@
+package numeric_tests
+
+import able.kernel.{Ratio}
+import able.core.numeric
+import able.core.numeric.{NumericConversionError}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn assert_raises(thunk: () -> void, message: String) -> void {
+  raised := false
+  do { thunk() } rescue {
+    case _ => { raised = true }
+  }
+  assert(raised, message)
+}
+
+fn check_numeric_conversion_error() -> void {
+  err := NumericConversionError { message: "cannot convert" }
+  assert(err.message == "cannot convert", "expected NumericConversionError.message to echo input")
+}
+
+fn check_ratio_normalization() -> void {
+  reduced := Ratio.new(6, -8)
+  assert(reduced.numerator() == -3, "Ratio.new should reduce numerator")
+  assert(reduced.denominator() == 4, "Ratio.new should keep positive denominator")
+}
+
+fn check_to_r_helpers() -> void {
+  whole := 7_i64.to_r()
+  assert(whole.numerator() == 7 && whole.denominator() == 1, "i64.to_r should build whole Ratio")
+
+  half := 0.5.to_r()
+  assert(half.numerator() == 1 && half.denominator() == 2, "f64.to_r should preserve exact fraction")
+}
+
+fn check_ratio_result_conversions() -> void {
+  int_ok := Ratio.new(9, 3).to_i32()
+  assert(int_ok == 3, "Ratio.to_i32 should return integer component when denominator == 1")
+
+  assert_raises(
+    fn() { Ratio.new(1, 2).to_i32() },
+    "Ratio.to_i32 should raise when denominator != 1",
+  )
+}
+
+fn main() -> void {
+  check_numeric_conversion_error()
+  check_ratio_normalization()
+  check_to_r_helpers()
+  check_ratio_result_conversions()
+}
+
+main()

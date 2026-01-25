@@ -1,0 +1,38 @@
+package methods
+
+struct Counter { value: i32, label: String }
+
+methods Counter {
+  fn new(label: String) -> Counter { Counter { value: 0, label: label } }
+
+  fn increment(self: Self) -> void { self.value = self.value + 1 }
+
+  fn add(self: Self, amount: i32) -> i32 {
+    self.value = self.value + amount
+    self.value
+  }
+
+  fn rename(self: Self, to: String) -> Counter {
+    Counter { value: self.value, label: to }
+  }
+
+  fn describe(self: Self) -> String {
+    `${self.label}: ${self.value}`
+  }
+}
+
+fn tag(counter: Counter, prefix: String) -> String {
+  `${prefix} ${counter.describe()}`
+}
+
+fn main() -> void {
+  c := Counter.new("requests")
+  c.increment()
+  c.add(4)
+  print(c.describe())
+
+  renamed := c.rename("retry counter")
+  print(renamed.describe())
+
+  print(tag(c, "UFCS call"))
+}

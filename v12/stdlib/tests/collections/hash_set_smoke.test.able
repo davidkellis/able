@@ -1,0 +1,103 @@
+package hash_set_tests
+
+import able.collections.hash_set.{HashSet}
+import able.core.iteration.{IteratorEnd}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn check_add_contains() -> void {
+  set := HashSet.new()
+  assert(set.is_empty(), "new hash set should be empty")
+  assert(set.add(1), "first insert returns true")
+  assert(!set.add(1), "duplicate insert returns false")
+  assert(set.contains(1), "contains returns true for present value")
+  assert(!set.contains(9), "contains returns false for missing value")
+  assert(set.size() == 1, "size counts unique values")
+}
+
+fn check_remove_clear() -> void {
+  set := HashSet.new()
+  set.add(3)
+  set.add(4)
+  assert(set.size() == 2, "size tracks inserts")
+  assert(set.remove(3), "remove returns true for present value")
+  assert(!set.remove(3), "remove returns false when value already missing")
+  assert(!set.contains(3), "removed value no longer present")
+  set.clear()
+  assert(set.is_empty(), "clear empties the set")
+}
+
+fn check_iteration() -> void {
+  set := HashSet.new()
+  set.add(2)
+  set.add(5)
+  set.add(7)
+
+  sum := 0
+  count := 0
+  iter := set.iterator()
+  loop {
+    iter.next() match {
+      case IteratorEnd {} => { break },
+      case value: i32 => {
+        sum = sum + value
+        count = count + 1
+      }
+    }
+  }
+
+  assert(count == 3, "iterator should visit each member once")
+  assert(sum == 14, "iterator yields all inserted values")
+}
+
+fn check_set_ops() -> void {
+  left := HashSet.new()
+  left.add(1)
+  left.add(2)
+  left.add(3)
+
+  right := HashSet.new()
+  right.add(3)
+  right.add(4)
+
+  merged := left.union(right)
+  assert(merged.size() == 4, "union merges unique values")
+  assert(merged.contains(4), "union includes values from the other set")
+  assert(left.size() == 3, "union does not mutate the receiver")
+
+  intersection := left.intersect(right)
+  assert(intersection.size() == 1, "intersect keeps common values")
+  assert(intersection.contains(3), "intersect keeps shared values")
+
+  difference := left.difference(right)
+  assert(difference.size() == 2, "difference removes values in the other set")
+  assert(difference.contains(1), "difference keeps left-only values")
+  assert(!difference.contains(3), "difference removes shared values")
+
+  symmetric := left.symmetric_difference(right)
+  assert(symmetric.size() == 3, "symmetric difference keeps non-overlapping values")
+  assert(symmetric.contains(1), "symmetric difference keeps left-only values")
+  assert(symmetric.contains(4), "symmetric difference keeps right-only values")
+  assert(!symmetric.contains(3), "symmetric difference removes shared values")
+
+  assert(left.is_subset(merged), "subset detects containment")
+  assert(merged.is_superset(left), "superset detects containment")
+
+  disjoint := HashSet.new()
+  disjoint.add(9)
+  assert(left.is_disjoint(disjoint), "disjoint returns true when no overlap")
+  disjoint.add(2)
+  assert(!left.is_disjoint(disjoint), "disjoint returns false on overlap")
+}
+
+fn main() -> void {
+  check_add_contains()
+  check_remove_clear()
+  check_iteration()
+  check_set_ops()
+}
+
+main()

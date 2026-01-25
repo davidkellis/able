@@ -1,0 +1,263 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "inc"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "x"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 1
+              }
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "bool_to_int"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "bool"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    }
+                  }
+                ]
+              },
+              "elseIfClauses": [],
+              "elseBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "IntegerLiteral",
+                      "value": 0
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "a"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "b"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "|>>",
+      "left": {
+        "type": "AssignmentExpression",
+        "operator": ":=",
+        "left": {
+          "type": "Identifier",
+          "name": "res1"
+        },
+        "right": {
+          "type": "AssignmentExpression",
+          "operator": "=",
+          "left": {
+            "type": "Identifier",
+            "name": "a"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 5
+          }
+        }
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "inc"
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "res2"
+      },
+      "right": {
+        "type": "AssignmentExpression",
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "name": "b"
+        },
+        "right": {
+          "type": "BinaryExpression",
+          "operator": "|>",
+          "left": {
+            "type": "IntegerLiteral",
+            "value": 1
+          },
+          "right": {
+            "type": "Identifier",
+            "name": "inc"
+          }
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "flag"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "BinaryExpression",
+          "operator": "||",
+          "left": {
+            "type": "BooleanLiteral",
+            "value": false
+          },
+          "right": {
+            "type": "BooleanLiteral",
+            "value": true
+          }
+        },
+        "right": {
+          "type": "Identifier",
+          "name": "bool_to_int"
+        }
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "res1"
+        },
+        {
+          "type": "Identifier",
+          "name": "a"
+        },
+        {
+          "type": "Identifier",
+          "name": "res2"
+        },
+        {
+          "type": "Identifier",
+          "name": "b"
+        },
+        {
+          "type": "Identifier",
+          "name": "flag"
+        }
+      ]
+    }
+  ]
+}

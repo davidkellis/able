@@ -1,0 +1,8 @@
+package iface_defs
+
+## Semantics: default interface methods remain available to named impls across packages.
+
+interface Describer for Self {
+  fn name(self: Self) -> String
+  fn describe(self: Self) -> String { `desc:${self.name()}` }
+}

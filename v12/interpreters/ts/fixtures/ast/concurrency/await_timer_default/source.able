@@ -1,0 +1,54 @@
+struct CancelReg {
+
+}
+methods CancelReg {
+  fn cancel(self) -> void {
+    nil
+  }
+}
+struct Timer {
+  ready: bool
+}
+methods Timer {
+  fn is_ready(self) -> bool {
+    self.ready
+  }
+  fn register(self, _waker) -> CancelReg {
+    CancelReg {  }
+  }
+  fn commit(self) -> String {
+    "timer"
+  }
+  fn is_default(self) -> bool {
+    false
+  }
+}
+struct DefaultArm {
+  value: String
+}
+methods DefaultArm {
+  fn is_ready(self) -> bool {
+    false
+  }
+  fn register(self, _waker) -> CancelReg {
+    CancelReg {  }
+  }
+  fn commit(self) -> String {
+    self.value
+  }
+  fn is_default(self) -> bool {
+    true
+  }
+}
+fn default_arm(value: String) -> DefaultArm {
+  DefaultArm { value: value }
+}
+timer := Timer { ready: true }
+runner := spawn {
+  first := await [default_arm("fallback")]
+  second := await [timer]
+  third := await [timer]
+  [first == "fallback", second == "timer", third == "timer"]
+}
+future_flush()
+runner.value()

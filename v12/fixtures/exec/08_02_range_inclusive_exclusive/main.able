@@ -1,0 +1,39 @@
+package exec_08_02_range_inclusive_exclusive
+
+## Semantics: inclusive/exclusive ranges iterate in ascending and descending order.
+
+fn append(acc: String, value: i32) -> String {
+  if acc == "" { `${value}` } else { `${acc} ${value}` }
+}
+
+fn main() -> void {
+  inclusive := ""
+  for v in 1..3 {
+    inclusive = append(inclusive, v)
+  }
+  print(`inc ${inclusive}`)
+
+  exclusive := ""
+  for v in 1...3 {
+    exclusive = append(exclusive, v)
+  }
+  print(`exc ${exclusive}`)
+
+  descending := ""
+  for v in 3..1 {
+    descending = append(descending, v)
+  }
+  print(`desc ${descending}`)
+
+  descending_ex := ""
+  for v in 3...1 {
+    descending_ex = append(descending_ex, v)
+  }
+  print(`desc_ex ${descending_ex}`)
+
+  negative := ""
+  for v in -2..1 {
+    negative = append(negative, v)
+  }
+  print(`neg ${negative}`)
+}

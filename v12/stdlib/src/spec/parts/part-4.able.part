@@ -1,0 +1,138 @@
+fn clone_string_array(source: Array String) -> Array String {
+  result: Array String := Array.new()
+  idx := 0
+  loop {
+    if idx >= source.len() { break }
+    source.get(idx) match {
+      case nil => {},
+      case value: String => result.push(value)
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn clone_hook_array(source: Array (ExampleContext -> void)) -> Array (ExampleContext -> void) {
+  result: Array (ExampleContext -> void) := Array.new()
+  idx := 0
+  loop {
+    if idx >= source.len() { break }
+    source.get(idx) match {
+      case nil => {},
+      case hook: (ExampleContext -> void) => result.push(hook)
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn merge_tags(base: Array String, extra: Array String) -> Array String {
+  result := clone_string_array(base)
+  idx := 0
+  loop {
+    if idx >= extra.len() { break }
+    extra.get(idx) match {
+      case nil => {},
+      case value: String => result.push(value)
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn empty_string_array() -> Array String { Array.new() }
+
+fn contains_substring(target: String, needles: Array String) -> bool {
+  if needles.len() == 0 { return false }
+  idx := 0
+  loop {
+    if idx >= needles.len() { break }
+    needles.get(idx) match {
+      case nil => {},
+      case needle: String => {
+        if needle == "" { return true }
+        if target == needle { return true }
+      }
+    }
+    idx = idx + 1
+  }
+  false
+}
+
+fn array_contains(array: Array String, value: String) -> bool {
+  idx := 0
+  loop {
+    if idx >= array.len() { break }
+    array.get(idx) match {
+      case nil => {},
+      case element: String => {
+        if element == value { return true }
+      }
+    }
+    idx = idx + 1
+  }
+  false
+}
+
+fn matches_tags(tags: Array String, include: Array String, exclude: Array String) -> bool {
+  idx := 0
+  loop {
+    if idx >= include.len() { break }
+    include.get(idx) match {
+      case nil => {},
+      case tag: String => {
+        if !array_contains(tags, tag) { return false }
+      }
+    }
+    idx = idx + 1
+  }
+
+  idx = 0
+  loop {
+    if idx >= exclude.len() { break }
+    exclude.get(idx) match {
+      case nil => {},
+      case tag: String => {
+        if array_contains(tags, tag) { return false }
+      }
+    }
+    idx = idx + 1
+  }
+  true
+}
+
+fn matches_names(example: ExampleDefinition, include: Array String, exclude: Array String) -> bool {
+  id := example.id
+  name := example.display_name
+  if include.len() > 0 {
+    if !contains_substring(id, include) && !contains_substring(name, include) {
+      return false
+    }
+  }
+  if contains_substring(id, exclude) || contains_substring(name, exclude) {
+    return false
+  }
+  true
+}
+
+fn matches_paths(module_path: String, include: Array String, exclude: Array String) -> bool {
+  if include.len() > 0 {
+    if module_path == "" { return false }
+    if !contains_substring(module_path, include) { return false }
+  }
+  if module_path != "" && contains_substring(module_path, exclude) { return false }
+  true
+}
+
+fn matches_filters(example: ExampleDefinition, request: DiscoveryRequest) -> bool {
+  if !matches_tags(example.tags, request.include_tags, request.exclude_tags) {
+    return false
+  }
+  if !matches_names(example, request.include_names, request.exclude_names) {
+    return false
+  }
+  if !matches_paths(example.module_path, request.include_paths, request.exclude_paths) {
+    return false
+  }
+  true
+}

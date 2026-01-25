@@ -1,0 +1,9 @@
+{
+  "description": "Missing interface methods surface via generic constraints",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/ast/errors/interface_missing_method/source.able:13:3 typechecker: fn use constraint on T is not satisfied: Widget does not implement Greeter"
+    ]
+  },
+  "entry": "module.json"
+}

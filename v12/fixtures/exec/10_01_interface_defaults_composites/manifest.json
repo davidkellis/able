@@ -1,0 +1,12 @@
+{
+  "description": "default methods, implicit/explicit Self, and composite interfaces",
+  "expect": {
+    "stdout": [
+      "tag:core",
+      "core",
+      "tag:core",
+      "hello"
+    ],
+    "exit": 0
+  }
+}

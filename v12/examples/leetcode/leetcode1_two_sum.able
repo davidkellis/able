@@ -1,0 +1,43 @@
+package leetcode1
+
+import able.kernel.{Array}
+import able.collections.array
+
+## Brute-force two sum for arrays of integers.
+## Returns the first pair of indices whose values add to the target,
+## or an empty array when no pair exists.
+fn two_sum(nums: Array i32, target: i32) -> Array i32 {
+  i := 0
+  count := nums.size()
+
+  while i < count {
+    j := i + 1
+    while j < count {
+      if nums[i] + nums[j] == target {
+        return [i, j]
+      }
+      j = j + 1
+    }
+    i = i + 1
+  }
+
+  []
+}
+
+fn show_result(nums: Array i32, target: i32) -> void {
+  result := two_sum(nums, target)
+  print(`Input: ${nums}, target ${target}`)
+  if result.size() == 2 {
+    print(`Found indices: ${result}`)
+    print(`Values: ${nums[result[0]]} + ${nums[result[1]]}`)
+  } else {
+    print("No solution found.")
+  }
+  print("")
+}
+
+fn main() -> void {
+  show_result([2, 7, 11, 15], 9)
+  show_result([3, 2, 4], 6)
+  show_result([3, 3], 6)
+}

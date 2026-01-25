@@ -1,0 +1,30 @@
+{
+  "description": "Iterator.next drives generator lazily and returns IteratorEnd when exhausted",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "0"
+        },
+        {
+          "kind": "i32",
+          "value": "1"
+        },
+        {
+          "kind": "i32",
+          "value": "2"
+        },
+        {
+          "kind": "iterator_end"
+        },
+        {
+          "kind": "i32",
+          "value": "2"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

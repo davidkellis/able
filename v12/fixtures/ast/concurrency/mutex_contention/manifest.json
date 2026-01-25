@@ -1,0 +1,10 @@
+{
+  "description": "Mutex contention ensures the waiting task resumes only after unlock",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "Pending:Resolved:ABC"
+    }
+  },
+  "entry": "module.json"
+}

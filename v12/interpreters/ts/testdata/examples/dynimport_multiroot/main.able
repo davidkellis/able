@@ -1,0 +1,16 @@
+package app
+
+dynimport extras.catalog::catalog
+dynimport extras.pricing.{ price_for }
+
+fn describe(item: String) -> String {
+  `  ${item}: ${price_for(item)}`
+}
+
+fn main() {
+  print("multi-root menu")
+  for item in catalog.list_items() {
+    print(describe(item))
+  }
+  print(`featured ${catalog.featured()}`)
+}

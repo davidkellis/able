@@ -1,0 +1,27 @@
+package exec_14_02_hash_eq_float
+
+import able.collections.hash_map.*
+
+## Semantics: float equality follows IEEE (NaN != NaN, +0 == -0), and HashMap keys require Hash/Eq.
+
+fn main() -> void {
+  nan := 0.0 / 0.0
+  pos_zero := 0.0
+  neg_zero := -0.0
+
+  print(`nan_eq ${nan == nan} ${nan != nan}`)
+  print(`zero_eq ${pos_zero == neg_zero} ${pos_zero != neg_zero}`)
+  print(`nan_cmp ${nan < 1.0} ${nan <= 1.0} ${nan > 1.0} ${nan >= 1.0}`)
+  print(`nan_cmp_rev ${1.0 < nan} ${1.0 <= nan} ${1.0 > nan} ${1.0 >= nan}`)
+  print(`mix_eq ${0 == 0.0} ${0 == -0.0}`)
+
+  message := ""
+  do {
+    map := HashMap.new()
+    map.set(0.0, 1)
+    message = "no error"
+  } rescue {
+    case err => { message = err.message() }
+  }
+  print(`map_err ${message}`)
+}

@@ -1,0 +1,10 @@
+{
+  "description": "method call syntax and trailing lambdas match UFCS and explicit call forms",
+  "expect": {
+    "stdout": [
+      "map 10 10 10",
+      "combine 12 12 12"
+    ],
+    "exit": 0
+  }
+}

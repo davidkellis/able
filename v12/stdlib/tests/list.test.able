@@ -1,0 +1,63 @@
+package list_specs
+
+import able.spec.assertions.{AssertionError}
+import able.spec.*
+import able.collections.list.{List}
+
+describe("List") { suite =>
+  suite.it("supports prepend/head/tail with structural sharing") { _ctx =>
+    empty: List i32 := List.empty()
+    l1 := empty.prepend(1)
+    l2 := l1.prepend(2)
+
+    expect(empty.len()).to(eq(0))
+    expect(l1.len()).to(eq(1))
+    expect(l2.len()).to(eq(2))
+
+    l2.head() match {
+      case nil => { raise AssertionError { message: "expected head value", details: nil, location: nil } },
+      case value: i32 => expect(value).to(eq(2))
+    }
+
+    tail := l2.tail()
+    tail.head() match {
+      case nil => { raise AssertionError { message: "expected tail head", details: nil, location: nil } },
+      case value: i32 => expect(value).to(eq(1))
+    }
+
+    expect(l1.head()).to(eq(1))
+  }
+
+  suite.it("concats and appends without mutating inputs") { _ctx =>
+    left := List.empty().prepend("b").prepend("a") ## List: ["a", "b"]
+    right := List.empty().prepend("d").prepend("c") ## List: ["c", "d"]
+    combined := left.concat(right)
+
+    expect(combined.len()).to(eq(4))
+    expect(left.len()).to(eq(2))
+    expect(right.len()).to(eq(2))
+
+    expect(combined.nth(0)).to(eq("a"))
+    expect(combined.nth(1)).to(eq("b"))
+    expect(combined.nth(2)).to(eq("c"))
+    expect(combined.nth(3)).to(eq("d"))
+
+    ## Original lists remain unchanged.
+    expect(left.nth(1)).to(eq("b"))
+    expect(right.nth(0)).to(eq("c"))
+  }
+
+  suite.it("reverses and converts to arrays") { _ctx =>
+    list := List.empty().prepend(3).prepend(2).prepend(1) ## [1,2,3]
+    reversed := list.reverse()
+
+    expect(reversed.nth(0)).to(eq(3))
+    expect(reversed.nth(1)).to(eq(2))
+    expect(reversed.nth(2)).to(eq(1))
+
+    arr := reversed.to_array()
+    expect(arr.len()).to(eq(3))
+    expect(arr.get(0)).to(eq(3))
+    expect(arr.get(2)).to(eq(1))
+  }
+}

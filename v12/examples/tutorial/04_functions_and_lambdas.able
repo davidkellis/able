@@ -1,0 +1,58 @@
+package functions
+
+import able.kernel.{Array}
+import able.collections.array
+
+fn add(a: i32, b: i32) -> i32 { a + b }
+
+fn scale_and_shift(value: i32, scale: i32, offset: i32) -> i32 {
+  value * scale + offset
+}
+
+fn greet_with(prefix: String, name: String) -> String {
+  `${prefix}, ${name}!`
+}
+
+fn my_map(values: Array i32, f: (i32 -> i32)) -> Array i32 {
+  result := []
+  for v in values { result.push(f(v)) }
+  result
+}
+
+fn square(x: i32) -> i32 { x * x }
+
+fn apply_twice(x: i32, f: (i32 -> i32)) -> i32 { f(f(x)) }
+
+fn main() -> void {
+  numbers := [1, 2, 3, 4]
+
+  doubled := my_map(numbers, { n => n * 2 })
+  print(`Doubled: ${doubled}`)
+
+  doubled1 := my_map(numbers) { n => n * 2 }
+  print(`Doubled: ${doubled1}`)
+
+  doubled1 = numbers.my_map({ n => n * 2 })
+  print(`Doubled: ${doubled1}`)
+
+  doubled2 = numbers.my_map { n => n * 2 }
+  print(`Doubled: ${doubled2}`)
+
+  add_five = { x => add(x, 5) }
+  print(`7 + 5 = ${add_five(7)}`)
+
+  reorder := { first, second => scale_and_shift(second, 11, first) }
+  print(`reorder(8, 3) = scale_and_shift(3, 11, 8) = ${reorder(8, 3)}`)
+
+  greeting := "Able"
+  piped := greeting |> greet_with("Hello", @)
+  print(piped)
+
+  print(`Square of 5 -> ${square(5)}`)
+
+  delta := 3
+  plus_delta = { value => value + delta }
+  print(`8 plus delta -> ${plus_delta(8)}`)
+
+  print(`apply_twice inc -> ${apply_twice(1, { v => v + 1 })}`)
+}

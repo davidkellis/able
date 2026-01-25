@@ -1,0 +1,3 @@
+package helpers
+
+fn greet(msg: String) -> String { `env ${msg}` }

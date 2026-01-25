@@ -1,0 +1,29 @@
+package patterns
+
+struct Point { x: i32, y: i32 }
+struct Dimensions { i32, i32 }
+struct Person { name: String, favorite: Point }
+
+fn main() -> void {
+  origin := Point { x: 1, y: 5 }
+  Point { x::x1, y::y1 } := origin
+  print(`Origin -> x=${x1}, y=${y1}`)
+
+  dims := Dimensions { 640, 480 }
+  Dimensions { width, height } := dims
+  print(`Dimensions: ${width}x${height}`)
+
+  person := Person { name: "Avery", favorite: Point { x: 2, y: 3 } }
+  Person { name, favorite: Point { x::fx, y::fy } } := person
+  print(`Favorite point for ${name} is (${fx}, ${fy})`)
+
+  rgb := [0, 128, 255]
+  [r, _, b] := rgb
+  print(`Gradient endpoints ${r} and ${b}`)
+
+  new_x := 0
+  new_y := 0
+  target := Point { x: 9, y: 4 }
+  Point { x::new_x, y::new_y } = target
+  print(`Reassigned coords -> (${new_x}, ${new_y})`)
+}

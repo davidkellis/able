@@ -1,0 +1,244 @@
+package map
+
+## map.able - Map interface and HashMap implementation for Able language.
+##
+## This file defines a Map interface with basic operations and
+## a HashMap struct that implements the Map interface using open addressing
+## with linear probing, similar to Crystal's Hash implementation.
+
+## Standard library interfaces assumed to be available:
+## interface Hash for T { fn hash(self: Self) -> u64; }
+## interface Eq for T { fn #==(other: T) -> bool; }
+## Assume Array T provides:
+## - fn make(size: i32, default: T) -> Array T ## Creates pre-sized array
+## - fn length(self: Self) -> i32
+## - Index access: self[index] -> T
+## - Index mutation: self[index] = value -> void (if Array implements IndexMut T)
+
+## Represents the state of a slot in the HashMap's internal entries array.
+struct EntryStateUnused;
+struct EntryStateUsed;
+struct EntryStateDeleted;
+union EntryState = EntryStateUnused | EntryStateUsed | EntryStateDeleted;
+
+## Represents a single slot in the HashMap's internal entries array.
+## Using ?K and ?V allows storing nil for unused/deleted slots without
+## requiring K and V themselves to be nullable.
+struct Entry K V {
+  state: EntryState,
+  key: ?K,
+  value: ?V
+}
+
+## Default initial capacity for a new HashMap.
+INITIAL_CAPACITY: i32 = 16; ## Power of 2 recommended
+
+## Load factor threshold for resizing.
+MAX_LOAD_FACTOR: f64 = 0.75;
+
+## The Map interface defining key-value store operations.
+## Requires Key type K to be Hashable and Equatable.
+interface Map K V for T where K: Hash + Eq {
+  ## Retrieves the value associated with 'key'. Returns nil if key is not found.
+  fn #get(key: K) -> ?V
+
+  ## Associates 'value' with 'key'. If the key already exists, updates its value.
+  fn #set(key: K, value: V) -> void
+
+  ## Removes the entry for 'key'. Returns the removed value, or nil if key was not present.
+  fn #remove(key: K) -> ?V
+
+  ## Checks if the map contains the given key.
+  fn #contains(key: K) -> bool
+
+  ## Returns the number of key-value pairs in the map.
+  fn #size() -> i32
+}
+
+## HashMap implementation using open addressing with linear probing.
+struct HashMap K V {
+  entries: Array (Entry K V), ## Internal storage array
+  size: i32,                  ## Number of active key-value pairs
+  capacity: i32,              ## Total number of slots in entries
+  used_count: i32             ## Number of used + deleted slots (for load factor)
+}
+
+## Helper function to create a new HashMap instance.
+methods HashMap K V where K: Hash + Eq {
+  fn new() -> HashMap K V {
+    capacity := INITIAL_CAPACITY
+    entries := Array.make(capacity, Entry K V { state: EntryStateUnused, key: nil, value: nil })
+    return HashMap K V {
+      entries: entries,
+      size: 0,
+      capacity: capacity,
+      used_count: 0
+    }
+  }
+}
+
+## Implementation of the Map interface for HashMap.
+## Requires Key type K to be Hashable and Equatable.
+impl Map K V for HashMap K V where K: Hash + Eq {
+
+  ## Internal helper to find the index for a key.
+  ## Returns the index if found (used or deleted), or the index where it should be inserted.
+  ## Also returns a boolean indicating if the key was found (in a USED state).
+  fn #find_index(key: K) -> (i32, bool) {
+    hash_val := key.hash()
+    index := (hash_val % self.capacity) as i32 ## Assuming capacity is power of 2, could use bitwise AND later
+    first_deleted_index := -1
+
+    loop {
+      entry := self.entries[index]
+      entry_state := entry.state
+
+      if entry_state == EntryStateUnused {
+        ## Found an unused slot. Key is not present.
+        ## If we passed a deleted slot, return that index for insertion.
+        return (if first_deleted_index != -1 { first_deleted_index } or { index }, false)
+      } or entry_state == EntryStateDeleted {
+        ## Found a deleted slot. Remember the first one encountered.
+        if first_deleted_index == -1 {
+          first_deleted_index = index
+        }
+        ## Continue probing
+      } or { ## EntryStateUsed
+        ## Found a used slot. Check if keys match.
+        ## Need to handle potential nil key in entry if K is nullable, but
+        ## assuming keys stored are never nil based on set logic.
+        ## The `unwrap_or_else` is conceptual; Able needs a way to handle this.
+        ## Let's assume `entry.key` is guaranteed non-nil if state is Used.
+        if entry.key! == key { ## Assuming ! operator or similar for non-nil assertion/unwrap
+            return (index, true) ## Key found
+        }
+        ## Key mismatch, continue probing
+      }
+
+      ## Linear probing: move to the next index, wrap around if necessary.
+      index = (index + 1) % self.capacity
+    }
+    ## Should not be reached if capacity > 0 and load factor < 1
+    panic("Infinite loop detected in find_index - should not happen")
+  }
+
+  ## Internal helper to resize the hash map.
+  fn #resize(new_capacity: i32) -> void {
+    old_entries := self.entries
+    new_entries := Array.make(new_capacity, Entry K V { state: EntryStateUnused, key: nil, value: nil })
+
+    ## Update fields before re-inserting
+    self.entries = new_entries
+    self.capacity = new_capacity
+    self.size = 0       ## Reset size, will be recounted during re-insertion
+    self.used_count = 0 ## Reset used_count
+
+    ## Re-insert all *used* entries from the old array into the new one
+    for entry in old_entries {
+      if entry.state == EntryStateUsed {
+        ## Use the set logic which handles finding the correct slot in the new array
+        ## and updates size/used_count correctly.
+        ## Assume non-nil key/value here based on state.
+        self.set(entry.key!, entry.value!)
+      }
+    }
+  }
+
+  ## Internal helper to check load factor and trigger resize if needed.
+  fn #check_resize() -> void {
+    load_factor := (self.used_count as f64) / (self.capacity as f64)
+    if load_factor >= MAX_LOAD_FACTOR {
+      new_capacity := self.capacity * 2
+      self.#resize(new_capacity)
+    }
+  }
+
+  ## Retrieves the value associated with 'key'. Returns nil if key is not found.
+  fn #get(key: K) -> ?V {
+    if self.capacity == 0 { return nil } ## Or handle empty map case appropriately
+
+    (index, found) := self.#find_index(key)
+
+    if found {
+      ## Key found in a USED slot. Return its value.
+      ## Assume value is non-nil if state is Used.
+      return self.entries[index].value!
+    } or {
+      ## Key not found (hit an UNUSED slot during probing).
+      return nil
+    }
+  }
+
+  ## Associates 'value' with 'key'. If the key already exists, updates its value.
+  fn #set(key: K, value: V) -> void {
+    self.#check_resize() ## Resize *before* finding index, as capacity might change
+
+    (index, found) := self.#find_index(key)
+    entry_ref := &self.entries[index] ## Conceptual reference/pointer needed for mutation
+
+    if found {
+      ## Key already exists in a USED slot. Update the value.
+      entry_ref.value = value
+    } or {
+      ## Key not found. Insert new entry at the determined index (could be unused or first deleted).
+      is_new_insertion := entry_ref.state != EntryStateDeleted ## Check if we are overwriting a tombstone
+
+      entry_ref.state = EntryStateUsed
+      entry_ref.key = key
+      entry_ref.value = value
+      self.size += 1
+
+      ## Only increment used_count if we are filling a previously UNUSED slot.
+      ## If we are reusing a DELETED slot, used_count doesn't change.
+      if is_new_insertion {
+          self.used_count += 1
+      }
+    }
+  }
+
+  ## Removes the entry for 'key'. Returns the removed value, or nil if key was not present.
+  fn #remove(key: K) -> ?V {
+    if self.size == 0 { return nil } ## Nothing to remove
+
+    (index, found) := self.#find_index(key)
+
+    if found {
+      ## Key found in a USED slot. Mark as deleted (tombstone).
+      entry_ref := &self.entries[index] ## Conceptual reference
+      old_value := entry_ref.value
+
+      entry_ref.state = EntryStateDeleted
+      entry_ref.key = nil   ## Clear key/value for GC potentially
+      entry_ref.value = nil
+      self.size -= 1
+      ## Note: used_count remains the same, as DELETED counts towards load factor.
+
+      return old_value! ## Return the removed value (assumed non-nil)
+    } or {
+      ## Key not found.
+      return nil
+    }
+  }
+
+  ## Checks if the map contains the given key.
+  fn #contains(key: K) -> bool {
+    if self.size == 0 { return false }
+    (_, found) := self.#find_index(key)
+    return found
+  }
+
+  ## Returns the number of key-value pairs in the map.
+  fn #size() -> i32 {
+    return self.size
+  }
+}
+
+## Example Usage (Conceptual - requires Array/Hash/Eq stdlib support)
+##
+## hm := HashMap.new<String, i32>()
+## hm.set("apple", 1)
+## hm.set("banana", 2)
+## print(hm.get("apple"))  ## Output: ?1 (or similar representation)
+## print(hm.contains("orange")) ## Output: false
+## hm.remove("apple")
+## print(hm.size()) ## Output: 1

@@ -1,0 +1,46 @@
+struct Channel {
+  capacity: i32,
+  handle: i64
+}
+methods Channel {
+  fn new() -> Channel {
+    handle := __able_channel_new(0);
+    return Channel { capacity: 0, handle: handle }
+  }
+}
+struct Mutex {
+  handle: i64
+}
+methods Mutex {
+  fn new() -> Mutex {
+    handle := __able_mutex_new();
+    return Mutex { handle: handle }
+  }
+}
+fn channel_handle(capacity: i32) -> i64 {
+  return __able_channel_new(capacity)
+}
+fn mutex_handle() -> i64 {
+  return __able_mutex_new()
+}
+channel_handle_value := channel_handle(0);
+channel_instance := Channel.new();
+mutex_instance := Mutex.new();
+mutex_handle_value := mutex_handle();
+score := 0;
+if channel_instance.handle != 0 {
+  score += 1;
+};
+if channel_instance.capacity == 0 {
+  score += 1;
+};
+if channel_handle_value != 0 {
+  score += 1;
+};
+if mutex_instance.handle != 0 {
+  score += 1;
+};
+if mutex_handle_value != 0 {
+  score += 1;
+};
+score == 5;

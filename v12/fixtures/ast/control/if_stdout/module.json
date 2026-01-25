@@ -1,0 +1,37 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BooleanLiteral",
+        "value": true
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "print"
+            },
+            "arguments": [
+              {
+                "type": "StringLiteral",
+                "value": "branch"
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "StringLiteral",
+      "value": "done"
+    }
+  ]
+}

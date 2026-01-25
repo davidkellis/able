@@ -1,0 +1,106 @@
+package repl
+
+import able.core.errors.{ParseError}
+import able.core.interfaces.{Error}
+import able.io.{stdin, stdout, write_all, string_to_bytes}
+import able.term
+
+fn print_prompt(out: IoHandle, continued: bool) -> void {
+  prompt := if continued { "... " } else { "> " }
+  write_all(out, string_to_bytes(prompt))
+}
+
+fn repl_write_line(out: IoHandle, line: String) -> void {
+  write_all(out, string_to_bytes(line))
+  write_all(out, [10_u8])
+}
+
+fn print_help(out: IoHandle) -> void {
+  repl_write_line(out, "Able REPL commands:")
+  repl_write_line(out, "  :help  show this help")
+  repl_write_line(out, "  :quit  exit the REPL")
+}
+
+fn line_is_command(line: String, cmd_bytes: Array u8) -> bool {
+  line_bytes := string_to_bytes(line)
+  start := 0
+  end := line_bytes.len()
+  fn is_trim_byte(value: u8) -> bool {
+    value <= 32_u8 || value == 127_u8
+  }
+  loop {
+    if start >= end { break }
+    byte := line_bytes.read_slot(start)
+    if !is_trim_byte(byte) { break }
+    start = start + 1
+  }
+  if start >= end { return false }
+  if line_bytes.read_slot(start) != 58_u8 { return false }
+  start = start + 1
+  if end - start < cmd_bytes.len() { return false }
+  idx := 0
+  loop {
+    if idx >= cmd_bytes.len() { break }
+    if line_bytes.read_slot(start + idx) != cmd_bytes.read_slot(idx) { return false }
+    idx = idx + 1
+  }
+  offset := start + cmd_bytes.len()
+  loop {
+    if offset >= end { break }
+    byte := line_bytes.read_slot(offset)
+    if !is_trim_byte(byte) { return false }
+    offset = offset + 1
+  }
+  true
+}
+
+fn main() -> void {
+  out := stdout()
+  input := stdin()
+  session := dyn.def_package("repl.session") match {
+    case err: Error => { repl_write_line(out, err.message()); return },
+    case pkg => pkg,
+  }
+  buffer := ""
+
+  loop {
+    print_prompt(out, buffer != "")
+    term.read_line_from(input, out) match {
+      case nil => { repl_write_line(out, ""); break },
+      case line: String => {
+        if buffer == "" && line == "" { continue }
+        if buffer == "" && line_is_command(line, [104_u8, 101_u8, 108_u8, 112_u8]) { print_help(out); continue }
+        if buffer == "" && line_is_command(line, [113_u8, 117_u8, 105_u8, 116_u8]) { break }
+
+        if buffer == "" {
+          buffer = line
+        } else {
+          buffer = buffer + "\n" + line
+        }
+
+        incomplete := false
+        result := session.eval(buffer)
+        result match {
+          case err: Error => {
+            err.value match {
+              case parse: ParseError => {
+                if parse.is_incomplete { incomplete = true }
+              },
+              case _ => {},
+            }
+            if !incomplete {
+              repl_write_line(out, err.message())
+              buffer = ""
+            }
+          },
+          case _: void => { buffer = "" },
+          case _ => {
+            repl_write_line(out, `${result}`)
+            buffer = ""
+          },
+        }
+        if incomplete { continue }
+      },
+    }
+  }
+}

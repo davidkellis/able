@@ -1,0 +1,27 @@
+package exec_05_02_struct_pattern_rename_typed
+
+## Semantics: struct patterns allow renames (`::`), typed bindings, and nested destructuring.
+
+struct Address { street: String, zip: i32 }
+struct Person { name: String, age: i32, address: Address }
+
+fn main() -> void {
+  person := Person {
+    name: "Ada",
+    age: 36,
+    address: Address { street: "Main", zip: 90210 }
+  }
+
+  Person { name::who, address::addr: Address { street, zip::code: i32 } } := person
+
+  print(`who ${who}`)
+  print(`street ${street}`)
+  print(`code ${code}`)
+
+  Person { name::who } = Person {
+    name: "Grace",
+    age: 50,
+    address: Address { street: "Oak", zip: 1 }
+  }
+  print(`rename ${who}`)
+}

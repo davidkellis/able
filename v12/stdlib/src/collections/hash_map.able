@@ -1,0 +1,68 @@
+package hash_map
+import able.kernel.{HashMap::KernelHashMap, raw_get, raw_set, raw_remove, raw_contains, raw_size, raw_clear, raw_for_each, raw_clone}
+import able.collections.map.{Map}
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Clone, Default, Index, IndexMut}
+import able.core.iteration.{Iterable}
+import able.core.errors.{IndexError}
+
+## Re-export kernel HashMap under the stdlib namespace.
+type HashMap K V = KernelHashMap K V;
+HashMap := KernelHashMap
+
+methods HashMap K V {
+  fn get(self: Self, key: K) -> ?V { self.raw_get(key) }
+  fn set(self: Self, key: K, value: V) -> void { self.raw_set(key, value) }
+  fn remove(self: Self, key: K) -> ?V { self.raw_remove(key) }
+  fn contains(self: Self, key: K) -> bool { self.raw_contains(key) }
+  fn size(self: Self) -> i32 { self.raw_size() }
+  fn is_empty(self: Self) -> bool { self.raw_size() == 0 }
+  fn clear(self: Self) -> void { self.raw_clear() }
+  fn for_each(self: Self, visit: (K, V) -> void) -> void { self.raw_for_each(visit) }
+  fn clone_shallow(self: Self) -> HashMap K V { self.raw_clone() }
+
+  fn map<B>(self: Self, f: V -> B) -> HashMap K B {
+    result := HashMap.with_capacity(self.size())
+    self.for_each(fn(key: K, value: V) -> void {
+      result.set(key, f(value))
+    })
+    result
+  }
+}
+
+impl Map K V for HashMap K V {
+  fn get(self: Self, key: K) -> ?V { self.raw_get(key) }
+  fn set(self: Self, key: K, value: V) -> void { self.raw_set(key, value) }
+  fn remove(self: Self, key: K) -> ?V { self.raw_remove(key) }
+  fn contains(self: Self, key: K) -> bool { self.raw_contains(key) }
+  fn size(self: Self) -> i32 { self.raw_size() }
+}
+
+impl Index K V for HashMap K V {
+  fn get(self: Self, key: K) -> !V {
+    self.raw_get(key) match {
+      case nil => IndexError { index: -1, length: self.raw_size() },
+      case value: V => value
+    }
+  }
+}
+
+impl IndexMut K V for HashMap K V {
+  fn set(self: Self, key: K, value: V) -> !void {
+    self.raw_set(key, value)
+  }
+}
+
+impl Default for HashMap K V {
+  fn default() -> HashMap K V { HashMap.new() }
+}
+
+impl Enumerable V for HashMap K {
+  fn each(self: Self, visit: V -> void) -> void {
+    self.for_each(fn(_key: K, value: V) -> void { visit(value) })
+  }
+}
+
+impl Clone for HashMap K V {
+  fn clone(self: Self) -> HashMap K V { self.clone_shallow() }
+}

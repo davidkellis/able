@@ -1,0 +1,5 @@
+package helloworld
+
+fn main() {
+  print("Hello, World!")
+}

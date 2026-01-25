@@ -1,0 +1,31 @@
+package leetcode7
+
+fn reverse(x: i64) -> i64 {
+  if x == 0 { return 0 }
+
+  sign := if x < 0 { -1_i64 } else { 1_i64 }
+  value := if x < 0 { -x } else { x }
+
+  reversed: i64 = 0
+  while value > 0 {
+    pair := value /% 10_i64
+    digit := pair.remainder
+    value = pair.quotient
+
+    if reversed > 214748364_i64 || (reversed == 214748364_i64 && digit > 7_i64) { return 0 }
+    reversed = reversed * 10_i64 + digit
+  }
+
+  result := sign * reversed
+  if result < -2147483648_i64 || result > 2147483647_i64 { 0 } else { result }
+}
+
+fn show_reverse(value: i64) -> void {
+  print(`reverse(${value}) = ${reverse(value)}`)
+}
+
+fn main() -> void {
+  show_reverse(123)
+  show_reverse(-123)
+  show_reverse(120)
+}

@@ -1,0 +1,11 @@
+package util_static
+
+fn foo() {
+  return 3;
+}
+
+private fn hidden() {
+  return 1;
+}
+
+struct Thing {}

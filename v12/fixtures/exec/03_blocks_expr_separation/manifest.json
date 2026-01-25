@@ -1,0 +1,13 @@
+{
+  "description": "blocks: newline/semicolon separation, last-expression value, scoped bindings",
+  "expect": {
+    "stdout": [
+      "newlines 8",
+      "shadowed 8",
+      "outer 50",
+      "semicolons 5",
+      "semicolons_else 15"
+    ],
+    "exit": 0
+  }
+}
