@@ -1,0 +1,53 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "RescueExpression",
+      "monitoredExpression": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "RaiseStatement",
+            "expression": {
+              "type": "StringLiteral",
+              "value": "boom"
+            }
+          }
+        ]
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "Identifier",
+            "name": "err"
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "Identifier",
+                  "name": "print"
+                },
+                "arguments": [
+                  {
+                    "type": "Identifier",
+                    "name": "err"
+                  }
+                ],
+                "isTrailingLambda": false
+              },
+              {
+                "type": "StringLiteral",
+                "value": "handled"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

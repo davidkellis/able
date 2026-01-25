@@ -1,0 +1,9 @@
+{
+  "description": "Fixture raises error",
+  "expect": {
+    "errors": [
+      "boom"
+    ]
+  },
+  "entry": "module.json"
+}

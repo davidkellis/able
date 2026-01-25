@@ -1,0 +1,13 @@
+{
+  "description": "Ensure block executes regardless of rescue",
+  "expect": {
+    "stdout": [
+      "ensure"
+    ],
+    "result": {
+      "kind": "String",
+      "value": "rescued"
+    }
+  },
+  "entry": "module.json"
+}

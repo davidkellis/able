@@ -1,0 +1,9 @@
+package alias_reexport_method_ambiguity_b
+
+import alias_reexport_method_ambiguity_base.{Widget}
+
+private type Local = Widget
+
+methods Local {
+  fn tag(self: Self) -> String { "b" }
+}

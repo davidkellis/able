@@ -1,0 +1,9 @@
+sum := 0;
+iter := Iterator i32 {
+  driver =>
+  driver.yield(2);
+};
+for value in iter {
+  sum = sum + value;
+}
+sum;

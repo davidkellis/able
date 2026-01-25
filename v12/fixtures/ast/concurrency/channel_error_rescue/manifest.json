@@ -1,0 +1,10 @@
+{
+  "description": "Able code can rescue channel errors and inspect the struct payloads",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "ChannelNil,ChannelClosed,ChannelSendOnClosed"
+    }
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,11 @@
+interface Show for Self
+{
+  fn render (self: Self) -> String
+}
+struct Point {
+  x: i32,
+  y: i32
+}
+fn format_point(value: Point) -> Point where Point: Show {
+  value;
+}

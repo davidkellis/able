@@ -1,0 +1,23 @@
+package exec_06_03_operator_precedence_associativity
+
+## Semantics: operators follow the specified precedence/associativity (arithmetic, exponentiation, boolean, pipe).
+
+fn add1(x: i32) -> i32 { x + 1 }
+
+fn main() -> void {
+  add_mul := 1 + 2 * 3
+  grouped := (1 + 2) * 3
+  left_sub := 10 - 2 - 1
+  power := 2 ^ 3 ^ 2
+  neg_power := -2 ^ 2
+  bools := 1 + 2 > 2 && 3 > 1 || false
+  pipe := 2 |> add1 |> add1
+
+  print(`add_mul ${add_mul}`)
+  print(`grouped ${grouped}`)
+  print(`left_sub ${left_sub}`)
+  print(`power ${power}`)
+  print(`neg_power ${neg_power}`)
+  print(`bools ${bools}`)
+  print(`pipe ${pipe}`)
+}

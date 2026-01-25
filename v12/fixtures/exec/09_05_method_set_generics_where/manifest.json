@@ -1,0 +1,13 @@
+{
+  "description": "method-set generics/where constraints enforced on instance + UFCS calls",
+  "expect": {
+    "stdout": [
+      "i32 7",
+      "i32 7"
+    ],
+    "stderr": [
+      "runtime: v11/fixtures/exec/09_05_method_set_generics_where/main.able:29:3 Type 'bool' does not satisfy interface 'Show': missing method 'show'"
+    ],
+    "exit": 1
+  }
+}

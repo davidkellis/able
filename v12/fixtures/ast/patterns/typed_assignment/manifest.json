@@ -1,0 +1,10 @@
+{
+  "description": "Typed pattern enforces simple type on assignment",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "42"
+    }
+  },
+  "entry": "module.json"
+}

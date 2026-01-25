@@ -1,0 +1,128 @@
+import type * as AST from "../../ast";
+import type { TypeInfo } from "../types";
+import { inferExpression as inferExpressionHelper, inferExpressionWithExpected as inferExpressionWithExpectedHelper } from "./expressions";
+import type { StatementContext } from "./expression-context";
+import { checkStatement as checkStatementHelper } from "./statements";
+import type { InterfaceCheckResult } from "./types";
+
+export type CheckerContextHost = {
+  resolveStructDefinitionForPattern: StatementContext["resolveStructDefinitionForPattern"];
+  getIdentifierName: StatementContext["getIdentifierName"];
+  getIdentifierNameFromTypeExpression: StatementContext["getIdentifierNameFromTypeExpression"];
+  getInterfaceNameFromConstraint: StatementContext["getInterfaceNameFromConstraint"];
+  getInterfaceNameFromTypeExpression: StatementContext["getInterfaceNameFromTypeExpression"];
+  report: StatementContext["report"];
+  reportWarning: StatementContext["reportWarning"];
+  describeTypeExpression: StatementContext["describeTypeExpression"];
+  isKnownTypeName: (name: string) => boolean;
+  hasTypeDefinition: (name: string) => boolean;
+  typeInfosEquivalent: StatementContext["typeInfosEquivalent"];
+  isTypeAssignable: StatementContext["isTypeAssignable"];
+  describeLiteralMismatch: StatementContext["describeLiteralMismatch"];
+  resolveTypeExpression: StatementContext["resolveTypeExpression"];
+  normalizeUnionType: StatementContext["normalizeUnionType"];
+  getStructDefinition: (name: string) => AST.StructDefinition | undefined;
+  getInterfaceDefinition: (name: string) => AST.InterfaceDefinition | undefined;
+  hasInterfaceDefinition: (name: string) => boolean;
+  handlePackageMemberAccess: StatementContext["handlePackageMemberAccess"];
+  pushAsyncContext: () => void;
+  popAsyncContext: () => void;
+  checkReturnStatement: (statement: AST.ReturnStatement) => void;
+  checkFunctionCall: (call: AST.FunctionCall, expectedReturn?: TypeInfo) => void;
+  inferFunctionCallReturnType: (call: AST.FunctionCall, expectedReturn?: TypeInfo) => TypeInfo;
+  checkFunctionDefinition: (definition: AST.FunctionDefinition) => void;
+  pushLoopContext: () => void;
+  popLoopContext: () => TypeInfo;
+  inLoopContext: () => boolean;
+  pushScope: () => void;
+  popScope: () => void;
+  withForkedEnv<T>(fn: () => T): T;
+  lookupIdentifier: (name: string) => TypeInfo | undefined;
+  isTypeParamInScope: (name: string) => boolean;
+  isTypeNameInScope: (name: string) => boolean;
+  getTypeParamConstraints: (name: string) => AST.TypeExpression[];
+  defineValue: (name: string, valueType: TypeInfo) => void;
+  assignValue: (name: string, valueType: TypeInfo) => void;
+  hasBinding: (name: string) => boolean;
+  hasBindingInCurrentScope: (name: string) => boolean;
+  allowDynamicLookup: () => boolean;
+  getCurrentPackageName?: () => string;
+  registerSymbolOrigin?: (name: string, packageName: string) => void;
+  getFunctionInfos: (key: string) => any[];
+  addFunctionInfo: (key: string, info: any) => void;
+  isExpression: (node: AST.Node | undefined | null) => node is AST.Expression;
+  handleTypeDeclaration: (node: AST.StructDefinition | AST.UnionDefinition | AST.InterfaceDefinition | AST.TypeAliasDefinition) => void;
+  pushBreakpointLabel: (label: string | null | undefined) => void;
+  popBreakpointLabel: () => void;
+  hasBreakpointLabel: (label: string | null | undefined) => boolean;
+  handleBreakStatement: (statement: AST.BreakStatement) => void;
+  handleContinueStatement: (statement: AST.ContinueStatement) => void;
+  typeImplementsInterface?: (
+    type: TypeInfo,
+    interfaceName: string,
+    expectedArgs?: string[],
+  ) => InterfaceCheckResult;
+};
+
+export function createCheckerContext(host: CheckerContextHost): StatementContext {
+  const ctx: Partial<StatementContext> = {};
+  ctx.resolveStructDefinitionForPattern = host.resolveStructDefinitionForPattern;
+  ctx.getIdentifierName = host.getIdentifierName;
+  ctx.getIdentifierNameFromTypeExpression = host.getIdentifierNameFromTypeExpression;
+  ctx.getInterfaceNameFromConstraint = host.getInterfaceNameFromConstraint;
+  ctx.getInterfaceNameFromTypeExpression = host.getInterfaceNameFromTypeExpression;
+  ctx.report = host.report;
+  ctx.reportWarning = host.reportWarning;
+  ctx.describeTypeExpression = host.describeTypeExpression;
+  ctx.isKnownTypeName = (name: string) => host.isKnownTypeName(name);
+  ctx.hasTypeDefinition = (name: string) => host.hasTypeDefinition(name);
+  ctx.typeInfosEquivalent = host.typeInfosEquivalent;
+  ctx.isTypeAssignable = host.isTypeAssignable;
+  ctx.describeLiteralMismatch = host.describeLiteralMismatch;
+  ctx.resolveTypeExpression = host.resolveTypeExpression;
+  ctx.normalizeUnionType = host.normalizeUnionType;
+  ctx.getStructDefinition = host.getStructDefinition;
+  ctx.getInterfaceDefinition = host.getInterfaceDefinition;
+  ctx.hasInterfaceDefinition = host.hasInterfaceDefinition;
+  ctx.handlePackageMemberAccess = host.handlePackageMemberAccess;
+  ctx.pushAsyncContext = host.pushAsyncContext;
+  ctx.popAsyncContext = host.popAsyncContext;
+  ctx.checkReturnStatement = host.checkReturnStatement;
+  ctx.checkFunctionCall = host.checkFunctionCall;
+  ctx.inferFunctionCallReturnType = host.inferFunctionCallReturnType;
+  ctx.checkFunctionDefinition = host.checkFunctionDefinition;
+  ctx.pushLoopContext = host.pushLoopContext;
+  ctx.popLoopContext = () => host.popLoopContext();
+  ctx.inLoopContext = () => host.inLoopContext();
+  ctx.pushScope = host.pushScope;
+  ctx.popScope = host.popScope;
+  ctx.withForkedEnv = <T>(fn: () => T) => host.withForkedEnv(fn);
+  ctx.lookupIdentifier = host.lookupIdentifier;
+  ctx.isTypeParamInScope = host.isTypeParamInScope;
+  ctx.isTypeNameInScope = host.isTypeNameInScope;
+  ctx.getTypeParamConstraints = host.getTypeParamConstraints;
+  ctx.defineValue = host.defineValue;
+  ctx.assignValue = host.assignValue;
+  ctx.hasBinding = host.hasBinding;
+  ctx.hasBindingInCurrentScope = host.hasBindingInCurrentScope;
+  ctx.allowDynamicLookup = host.allowDynamicLookup;
+  ctx.getCurrentPackageName = host.getCurrentPackageName;
+  ctx.registerSymbolOrigin = host.registerSymbolOrigin;
+  ctx.getFunctionInfos = host.getFunctionInfos;
+  ctx.addFunctionInfo = host.addFunctionInfo;
+  ctx.isExpression = host.isExpression;
+  ctx.handleTypeDeclaration = host.handleTypeDeclaration;
+  ctx.pushBreakpointLabel = host.pushBreakpointLabel;
+  ctx.popBreakpointLabel = host.popBreakpointLabel;
+  ctx.hasBreakpointLabel = host.hasBreakpointLabel;
+  ctx.handleBreakStatement = host.handleBreakStatement;
+  ctx.handleContinueStatement = host.handleContinueStatement;
+  ctx.typeImplementsInterface = host.typeImplementsInterface;
+
+  const expressionCtx = ctx as StatementContext;
+  ctx.inferExpression = (expression) => inferExpressionHelper(expressionCtx, expression);
+  ctx.inferExpressionWithExpected = (expression, expected) =>
+    inferExpressionWithExpectedHelper(expressionCtx, expression, expected);
+  ctx.checkStatement = (node) => checkStatementHelper(expressionCtx, node);
+  return expressionCtx;
+}

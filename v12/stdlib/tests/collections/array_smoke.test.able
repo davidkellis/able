@@ -1,0 +1,148 @@
+package array_tests
+
+import able.kernel.{Array}
+import able.collections.array
+import able.core.errors.{IndexError}
+import able.core.iteration.{IteratorEnd}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn double(value: i32) -> i32 { value * 2 }
+fn is_even(value: i32) -> bool { value % 2 == 0 }
+
+fn check_basic_ops() -> void {
+  arr := Array.new()
+  assert(arr.size() == 0, "new array should start empty")
+
+  arr.push(1)
+  arr.push(2)
+  assert(arr.size() == 2, "push should grow size")
+
+  idx0: i32 = 0
+  arr.get(idx0) match {
+    case value: i32 => assert(value == 1, "get should return first element"),
+    case nil => { raise "expected value at index 0" }
+  }
+
+  idx_out: i32 = 5
+  arr.get(idx_out) match {
+    case nil => {},
+    case _ => { raise "get should return nil for out-of-bounds index" }
+  }
+
+  arr.set(idx_out, 9) match {
+    case _: IndexError => {},
+    case nil => { raise "set should return IndexError when out of bounds" }
+  }
+
+  idx1: i32 = 1
+  arr.set(idx1, 7) match {
+    case nil => {},
+    case _: IndexError => { raise "set within bounds should return nil" }
+  }
+
+  arr.get(idx1) match {
+    case value: i32 => assert(value == 7, "set should write updated value"),
+    case nil => { raise "expected value at index 1 after set" }
+  }
+
+  popped := arr.pop()
+  popped match {
+    case value: i32 => assert(value == 7, "pop should return last element"),
+    case nil => { raise "pop should return value when not empty" }
+  }
+  arr.pop()
+  assert(arr.size() == 0, "pop should shrink size")
+
+  arr.clear()
+  assert(arr.size() == 0, "clear should empty the array")
+  arr.pop() match {
+    case nil => {},
+    case _ => { raise "pop on empty array should return nil" }
+  }
+}
+
+fn check_first_last_and_empty() -> void {
+  arr := Array.new()
+  assert(arr.is_empty(), "is_empty should report true on a new array")
+
+  arr.first() match {
+    case nil => {},
+    case _ => { raise "first should be nil on an empty array" }
+  }
+  arr.last() match {
+    case nil => {},
+    case _ => { raise "last should be nil on an empty array" }
+  }
+
+  arr.push(3)
+  arr.push(4)
+  assert(!arr.is_empty(), "is_empty should report false after push")
+
+  arr.first() match {
+    case value: i32 => assert(value == 3, "first should return the first element"),
+    case nil => { raise "expected first to return a value" }
+  }
+  arr.last() match {
+    case value: i32 => assert(value == 4, "last should return the last element"),
+    case nil => { raise "expected last to return a value" }
+  }
+
+  arr.clear()
+  assert(arr.is_empty(), "clear should reset is_empty")
+}
+
+fn check_push_all_and_iteration() -> void {
+  source := Array.new()
+  source.push(5)
+  source.push(6)
+
+  target := Array.with_capacity(1)
+  target.push(4)
+  target.push_all(source)
+  assert(target.size() == 3, "push_all should append all elements in order")
+
+  sum := 0
+  iter := target.iterator()
+  loop {
+    iter.next() match {
+      case value: i32 => sum = sum + value,
+      case IteratorEnd {} => { break }
+    }
+  }
+  assert(sum == 15, "iterator should traverse all elements appended via push_all")
+}
+
+fn check_map_and_filter() -> void {
+  values := Array.new()
+  values.push(1)
+  values.push(2)
+  values.push(3)
+
+  doubled := values.map(double)
+  assert(doubled.size() == values.size(), "map should preserve length")
+  first: i32 = 0
+  doubled.get(first) match {
+    case value: i32 => assert(value == 2, "map should apply the transform in order"),
+    case nil => { raise "expected mapped value at index 0" }
+  }
+
+  even := values.filter(is_even)
+  assert(even.size() == 1, "filter should keep only matching elements")
+  even.get(first) match {
+    case value: i32 => assert(value == 2, "filter should retain matching values"),
+    case nil => { raise "expected filtered value at index 0" }
+  }
+}
+
+fn main() -> void {
+  check_basic_ops()
+  check_first_last_and_empty()
+  check_push_all_and_iteration()
+  check_map_and_filter()
+}
+
+main()

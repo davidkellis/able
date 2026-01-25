@@ -1,0 +1,15 @@
+{
+  "description": "Option/Result or handlers with error binding and Error-implementer unions",
+  "expect": {
+    "stdout": [
+      "good_opt 7",
+      "bad_opt 42",
+      "counter 1",
+      "good_res ok",
+      "bad_res handled bad",
+      "union_good union_ok",
+      "union_bad union union_bad"
+    ],
+    "exit": 0
+  }
+}

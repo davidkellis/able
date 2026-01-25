@@ -1,0 +1,190 @@
+package path_specs
+
+import able.spec.*
+import able.core.interfaces.{Div, Error}
+import able.fs
+import able.io.{IOError, NotFound}
+import able.io.path
+import able.io.path.{Path}
+import able.os
+
+PATH_TEMP_SEQ := 0
+
+fn next_temp_path(label: String) -> Path {
+  PATH_TEMP_SEQ = PATH_TEMP_SEQ + 1
+  base := path.parse(os.temp_dir())
+  temp_path := base.join(`able-path-${label}-${PATH_TEMP_SEQ}`)
+  if fs.exists(temp_path) { fs.remove(temp_path, true) }
+  temp_path
+}
+
+fn cleanup_path(path: Path) -> void {
+  do {
+    fs.remove(path, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+describe("able.io Path") { suite =>
+  suite.it("parses unix paths") { _ctx =>
+    parsed := path.parse("/usr/local/bin")
+    expect(parsed.is_absolute()).to(be_truthy())
+    expect(parsed.to_string()).to(eq("/usr/local/bin"))
+    expect(parsed.basename()).to(eq("bin"))
+    expect(parsed.parent().to_string()).to(eq("/usr/local"))
+  }
+
+  suite.it("normalizes empty and redundant separators") { _ctx =>
+    expect(path.parse("").to_string()).to(eq("."))
+    expect(path.parse("foo//bar/").to_string()).to(eq("foo/bar"))
+  }
+
+  suite.it("joins relative segments") { _ctx =>
+    base := path.parse("/home/user")
+    joined := base.join("projects/able")
+    expect(joined.to_string()).to(eq("/home/user/projects/able"))
+  }
+
+  suite.it("normalizes dot segments") { _ctx =>
+    parsed := path.parse("/var/./log/../tmp")
+    expect(parsed.to_string()).to(eq("/var/tmp"))
+  }
+
+  suite.it("normalizes mixed separators and dot segments") { _ctx =>
+    parsed := path.parse("foo\\bar/../baz")
+    expect(parsed.to_string()).to(eq("foo/baz"))
+  }
+
+  suite.it("handles windows drive prefixes") { _ctx =>
+    parsed := path.parse("C:\\Users\\Admin")
+    expect(parsed.root()).to(eq("C:"))
+    expect(parsed.to_string()).to(eq("C:/Users/Admin"))
+    expect(parsed.is_absolute()).to(be_truthy())
+  }
+
+  suite.it("handles UNC-style roots") { _ctx =>
+    parsed := path.parse("//server/share/dir")
+    expect(parsed.root()).to(eq("//server"))
+    expect(parsed.to_string()).to(eq("//server/share/dir"))
+  }
+
+  suite.it("computes relative paths") { _ctx =>
+    target := path.parse("/home/user/projects/app/src")
+    base := path.parse("/home/user")
+    expect(target.relative_to(base).to_string()).to(eq("projects/app/src"))
+  }
+
+  suite.it("keeps different roots unchanged in relative_to") { _ctx =>
+    target := path.parse("C:/data/logs")
+    base := path.parse("/var")
+    expect(target.relative_to(base).to_string()).to(eq("C:/data/logs"))
+  }
+
+  suite.it("manages extensions") { _ctx =>
+    parsed := path.parse("/tmp/archive.tar.gz")
+    expect(parsed.extension()).to(eq("gz"))
+    expect(parsed.basename_without_extension()).to(eq("archive.tar"))
+    expect(parsed.with_extension("zip").to_string()).to(eq("/tmp/archive.tar.zip"))
+  }
+
+  suite.it("uses cwd for path.current") { _ctx =>
+    root := next_temp_path("cwd")
+    original := os.cwd()
+    do {
+      fs.mkdir(root, true)
+      os.chdir(root.to_native())
+      expect(path.current().to_string()).to(eq(root.to_string()))
+    } ensure {
+      os.chdir(original)
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("resolves path.home when available") { _ctx =>
+    os.home_dir() match {
+      case nil => expect(path.home()).to(eq(nil)),
+      case home: String => {
+        path.home() match {
+          case nil => expect(false).to(be_truthy()),
+          case value: Path => {
+            expect(value.to_string()).to(eq(path.parse(home).to_string()))
+          }
+        }
+      },
+    }
+  }
+
+  suite.it("resolves relative paths via path.absolute") { _ctx =>
+    root := next_temp_path("absolute")
+    original := os.cwd()
+    do {
+      fs.mkdir(root, true)
+      os.chdir(root.to_native())
+      relative := path.parse("nested/dir/../file.txt")
+      expected := root.join("nested/file.txt")
+      expect(relative.absolute().to_string()).to(eq(expected.to_string()))
+    } ensure {
+      os.chdir(original)
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("keeps absolute paths unchanged") { _ctx =>
+    absolute := path.parse(os.temp_dir())
+    expect(absolute.absolute().to_string()).to(eq(absolute.clean().to_string()))
+  }
+
+  suite.it("expands home paths") { _ctx =>
+    os.home_dir() match {
+      case nil => {},
+      case home: String => {
+        expanded := path.parse("~/projects/able").expand_home()
+        expected := path.parse(home).join("projects/able")
+        expect(expanded.to_string()).to(eq(expected.to_string()))
+      }
+    }
+  }
+
+  suite.it("normalizes via alias") { _ctx =>
+    parsed := path.parse("/var/./log/../tmp")
+    expect(parsed.normalize().to_string()).to(eq("/var/tmp"))
+  }
+
+  suite.it("joins with / sugar") { _ctx =>
+    base := path.parse("/home/user")
+    joined := base / "projects"
+    expect(joined.to_string()).to(eq("/home/user/projects"))
+  }
+
+  suite.it("exposes filesystem helpers") { _ctx =>
+    root := next_temp_path("helpers")
+    file := root.join("file.txt")
+    dir := root.join("nested")
+    do {
+      file.write_text("hello", true)
+      fs.mkdir(dir, true)
+      expect(file.exists()).to(be_truthy())
+      expect(file.is_file()).to(be_truthy())
+      expect(file.is_dir()).to(be_false())
+      expect(dir.exists()).to(be_truthy())
+      expect(dir.is_dir()).to(be_truthy())
+      stat := file.stat()
+      expect(stat.is_file).to(be_truthy())
+      expect(file.read_text()).to(eq("hello"))
+      expect(root.join("missing.txt").exists()).to(be_false())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+}

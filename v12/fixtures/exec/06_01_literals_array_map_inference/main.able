@@ -1,0 +1,35 @@
+package exec_06_01_literals_array_map_inference
+
+## Semantics: array/map literals infer types, preserve evaluation order, and later map entries overwrite earlier ones.
+import able.collections.array.*
+import able.collections.hash_map.*
+
+fn main() -> void {
+  numbers := [1, 2, 3]
+  nested := [[1], [2, 3]]
+
+  mixed := [1, true]
+  first := (mixed[0]!) match {
+    case n: i32 => n + 1,
+    case _ => 0
+  }
+  second := (mixed[1]!) match {
+    case b: bool => if b { 1 } else { 0 },
+    case _ => 0
+  }
+
+  print(`array ${numbers[0]!} ${numbers[2]!}`)
+  print(`nested ${nested[0]![0]!} ${nested[1]![1]!}`)
+  print(`mixed ${first} ${second}`)
+
+  base := #{ "a": 1, "b": 2 }
+  override := #{ "b": 20, "c": 30 }
+  merged := #{
+    ...base,
+    "b": 3,
+    ...override,
+    "d": 4
+  }
+
+  print(`map ${merged["a"]!} ${merged["b"]!} ${merged["c"]!} ${merged["d"]!}`)
+}

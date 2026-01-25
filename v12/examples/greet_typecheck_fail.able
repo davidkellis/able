@@ -1,0 +1,10 @@
+package greet_typecheck_fail
+
+fn greet(name: String) -> String {
+  `Hello ${name}`
+}
+
+fn main() {
+  print(greet(4))
+}
+

@@ -1,0 +1,10 @@
+package concurrency
+
+## Opaque handle representing a memoised asynchronous computation.
+struct Future T {
+  handle: i64
+}
+
+methods Future T {
+  fn poll(mut self: Self) -> ?T { ... }
+}

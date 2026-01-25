@@ -1,0 +1,7 @@
+package iface_defs
+
+## Semantics: interface-typed values returned from dynimported packages dispatch correctly.
+
+interface Greeter for Self {
+  fn greet(self: Self) -> String
+}

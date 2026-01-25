@@ -1,0 +1,12 @@
+{
+  "description": "Functional update source must match struct type",
+  "expect": {
+    "errors": [
+      "Functional update source must be same struct type"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/ast/errors/struct_functional_update_type/source.able:10:24 typechecker: functional update expects struct Vector, got Point"
+    ]
+  },
+  "entry": "module.json"
+}

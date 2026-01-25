@@ -1,0 +1,13 @@
+{
+  "description": "Method-set where clause rejects Self when required interface is missing",
+  "expect": {
+    "errors": [
+      "Type 'Wrapper' does not satisfy interface 'CustomDisplay': missing method 'show'",
+      "typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/ast/errors/method_set_where_constraint/source.able:16:9 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
+    ]
+  },
+  "entry": "source.able"
+}

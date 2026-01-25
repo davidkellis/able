@@ -1,0 +1,25 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "DynImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "dynp"
+        }
+      ],
+      "isWildcard": false,
+      "selectors": [
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "hidden"
+          }
+        }
+      ]
+    }
+  ]
+}

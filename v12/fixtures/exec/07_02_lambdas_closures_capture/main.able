@@ -1,0 +1,25 @@
+package exec_07_02_lambdas_closures_capture
+
+## Semantics: lambda expressions create closures that capture outer bindings; explicit return exits the function body.
+
+fn apply_twice(x: i32, f: (i32 -> i32)) -> i32 { f(f(x)) }
+
+fn make_adder(amount: i32) -> (i32 -> i32) {
+  adder := { value => value + amount }
+  return adder
+}
+
+fn main() -> void {
+  offset := 2
+  closure := { v => v + offset }
+  print(`closure ${closure(3)}`)
+
+  factory := make_adder(5)
+  print(`factory ${factory(7)}`)
+
+  verbose := { x => x * 3 }
+  print(`verbose ${verbose(4)}`)
+
+  applied := apply_twice(2, { value => value + 10 })
+  print(`apply ${applied}`)
+}

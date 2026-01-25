@@ -1,0 +1,817 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "describe"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Fancy"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "label"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Basic"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "label"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Counter"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Entry"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "key"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Show"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Fancy"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "describe"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Fancy"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringInterpolation",
+                  "parts": [
+                    {
+                      "type": "StringLiteral",
+                      "value": "fancy:"
+                    },
+                    {
+                      "type": "MemberAccessExpression",
+                      "object": {
+                        "type": "Identifier",
+                        "name": "self"
+                      },
+                      "member": {
+                        "type": "Identifier",
+                        "name": "label"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Basic"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "describe"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Basic"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringInterpolation",
+                  "parts": [
+                    {
+                      "type": "StringLiteral",
+                      "value": "basic:"
+                    },
+                    {
+                      "type": "MemberAccessExpression",
+                      "object": {
+                        "type": "Identifier",
+                        "name": "self"
+                      },
+                      "member": {
+                        "type": "Identifier",
+                        "name": "label"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Counter"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "describe"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Counter"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringInterpolation",
+                  "parts": [
+                    {
+                      "type": "StringLiteral",
+                      "value": "counter:"
+                    },
+                    {
+                      "type": "MemberAccessExpression",
+                      "object": {
+                        "type": "Identifier",
+                        "name": "self"
+                      },
+                      "member": {
+                        "type": "Identifier",
+                        "name": "value"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Show"
+      },
+      "targetType": {
+        "type": "UnionTypeExpression",
+        "members": [
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Fancy"
+            }
+          },
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Basic"
+            }
+          },
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Counter"
+            }
+          }
+        ]
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "describe"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringLiteral",
+                  "value": "union"
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "TypedPattern",
+        "pattern": {
+          "type": "Identifier",
+          "name": "fancy_value"
+        },
+        "typeAnnotation": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "Show"
+          }
+        }
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Fancy"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "label"
+            },
+            "value": {
+              "type": "StringLiteral",
+              "value": "f"
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "TypedPattern",
+        "pattern": {
+          "type": "Identifier",
+          "name": "basic_value"
+        },
+        "typeAnnotation": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "Show"
+          }
+        }
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Basic"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "label"
+            },
+            "value": {
+              "type": "StringLiteral",
+              "value": "b"
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "entries"
+      },
+      "right": {
+        "type": "ArrayLiteral",
+        "elements": [
+          {
+            "type": "StructLiteral",
+            "structType": {
+              "type": "Identifier",
+              "name": "Entry"
+            },
+            "fields": [
+              {
+                "type": "StructFieldInitializer",
+                "name": {
+                  "type": "Identifier",
+                  "name": "key"
+                },
+                "value": {
+                  "type": "StringLiteral",
+                  "value": "f"
+                },
+                "isShorthand": false
+              },
+              {
+                "type": "StructFieldInitializer",
+                "name": {
+                  "type": "Identifier",
+                  "name": "value"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "name": "fancy_value"
+                },
+                "isShorthand": false
+              }
+            ],
+            "isPositional": false
+          },
+          {
+            "type": "StructLiteral",
+            "structType": {
+              "type": "Identifier",
+              "name": "Entry"
+            },
+            "fields": [
+              {
+                "type": "StructFieldInitializer",
+                "name": {
+                  "type": "Identifier",
+                  "name": "key"
+                },
+                "value": {
+                  "type": "StringLiteral",
+                  "value": "b"
+                },
+                "isShorthand": false
+              },
+              {
+                "type": "StructFieldInitializer",
+                "name": {
+                  "type": "Identifier",
+                  "name": "value"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "name": "basic_value"
+                },
+                "isShorthand": false
+              }
+            ],
+            "isPositional": false
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "range_result"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": ""
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "map_result"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": ""
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "Identifier",
+        "name": "range_idx"
+      },
+      "iterable": {
+        "type": "RangeExpression",
+        "start": {
+          "type": "IntegerLiteral",
+          "value": 0
+        },
+        "end": {
+          "type": "IntegerLiteral",
+          "value": 1
+        },
+        "inclusive": true
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "Identifier",
+              "name": "counter"
+            },
+            "right": {
+              "type": "StructLiteral",
+              "structType": {
+                "type": "Identifier",
+                "name": "Counter"
+              },
+              "fields": [
+                {
+                  "type": "StructFieldInitializer",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "value": {
+                    "type": "Identifier",
+                    "name": "range_idx"
+                  },
+                  "isShorthand": false
+                }
+              ],
+              "isPositional": false
+            }
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "TypedPattern",
+              "pattern": {
+                "type": "Identifier",
+                "name": "range_value"
+              },
+              "typeAnnotation": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Show"
+                }
+              }
+            },
+            "right": {
+              "type": "Identifier",
+              "name": "counter"
+            }
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "range_result"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "range_result"
+              },
+              "right": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "range_value"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "describe"
+                  }
+                },
+                "arguments": [],
+                "isTrailingLambda": false
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "Identifier",
+        "name": "entry"
+      },
+      "iterable": {
+        "type": "Identifier",
+        "name": "entries"
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "map_result"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "map_result"
+              },
+              "right": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "entry"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "value"
+                    }
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "describe"
+                  }
+                },
+                "arguments": [],
+                "isTrailingLambda": false
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "range_result"
+        },
+        {
+          "type": "Identifier",
+          "name": "map_result"
+        }
+      ]
+    }
+  ]
+}

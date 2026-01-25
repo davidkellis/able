@@ -1,0 +1,164 @@
+package linked_list
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Default, Extend}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+
+struct ListNode T {
+  value: T,
+  prev: ?ListNode T,
+  next: ?ListNode T
+}
+
+struct LinkedListIterator T {
+  current: ?ListNode T
+}
+
+struct LinkedList T {
+  head: ?ListNode T,
+  tail: ?ListNode T,
+  length: i32
+}
+
+methods LinkedList T {
+  fn new() -> LinkedList T {
+    LinkedList { head: nil, tail: nil, length: 0 }
+  }
+
+  fn len(self: Self) -> i32 { self.length }
+
+  fn is_empty(self: Self) -> bool { self.length == 0 }
+
+  fn head_node(self: Self) -> ?ListNode T { self.head }
+
+  fn tail_node(self: Self) -> ?ListNode T { self.tail }
+
+  fn push_front(self: Self, value: T) -> ListNode T {
+    new_node := ListNode { value: value, prev: nil, next: self.head }
+    self.head match {
+      case nil => self.tail = new_node,
+      case node: ListNode T => node.prev = new_node
+    }
+    self.head = new_node
+    self.length = self.length + 1
+    new_node
+  }
+
+  fn push_back(self: Self, value: T) -> ListNode T {
+    new_node := ListNode { value: value, prev: self.tail, next: nil }
+    self.tail match {
+      case nil => self.head = new_node,
+      case node: ListNode T => node.next = new_node
+    }
+    self.tail = new_node
+    self.length = self.length + 1
+    new_node
+  }
+
+  fn pop_front(self: Self) -> ?T {
+    self.head match {
+      case nil => nil,
+      case node: ListNode T => {
+        self.head = node.next
+        node.next match {
+          case nil => self.tail = nil,
+          case next_node: ListNode T => next_node.prev = nil
+        }
+        self.length = self.length - 1
+        node.value
+      }
+    }
+  }
+
+  fn pop_back(self: Self) -> ?T {
+    self.tail match {
+      case nil => nil,
+      case node: ListNode T => {
+        self.tail = node.prev
+        node.prev match {
+          case nil => self.head = nil,
+          case prev_node: ListNode T => prev_node.next = nil
+        }
+        self.length = self.length - 1
+        node.value
+      }
+    }
+  }
+
+  fn insert_after(self: Self, node: ListNode T, value: T) -> ListNode T {
+    new_node := ListNode { value: value, prev: node, next: node.next }
+    node.next match {
+      case nil => self.tail = new_node,
+      case next_node: ListNode T => next_node.prev = new_node
+    }
+    node.next = new_node
+    self.length = self.length + 1
+    new_node
+  }
+
+  fn remove_node(self: Self, node: ListNode T) -> T {
+    node.prev match {
+      case nil => self.head = node.next,
+      case prev_node: ListNode T => prev_node.next = node.next
+    }
+    node.next match {
+      case nil => self.tail = node.prev,
+      case next_node: ListNode T => next_node.prev = node.prev
+    }
+    self.length = self.length - 1
+    node.value
+  }
+
+  fn clear(self: Self) -> void {
+    self.head = nil
+    self.tail = nil
+    self.length = 0
+  }
+
+  fn for_each(self: Self, visit: T -> void) -> void {
+    current := self.head
+    loop {
+      current match {
+        case nil => { break },
+        case node: ListNode T => {
+          visit(node.value)
+          current = node.next
+        }
+      }
+    }
+  }
+}
+
+impl Default for LinkedList T {
+  fn default() -> LinkedList T { LinkedList.new() }
+}
+
+impl Extend T for LinkedList T {
+  fn extend(self: Self, value: T) -> Self {
+    self.push_back(value)
+    self
+  }
+}
+
+impl Iterator T for LinkedListIterator T {
+  fn next(self: Self) -> T | IteratorEnd {
+    self.current match {
+      case nil => IteratorEnd {},
+      case node: ListNode T => {
+        self.current = node.next
+        node.value
+      }
+    }
+  }
+}
+
+impl Enumerable A for LinkedList {
+  fn each(self: Self, visit: A -> void) -> void {
+    self.for_each(visit)
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
+    LinkedListIterator { current: self.head }
+  }
+}

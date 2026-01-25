@@ -1,0 +1,12 @@
+{
+  "description": "union match ordering with guards and exhaustive coverage",
+  "expect": {
+    "stdout": [
+      "ok 3",
+      "zero 0",
+      "retry",
+      "err oops"
+    ],
+    "exit": 0
+  }
+}

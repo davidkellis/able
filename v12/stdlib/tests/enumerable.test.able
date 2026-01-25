@@ -1,0 +1,151 @@
+package collections_specs
+
+import able.spec.assertions.{AssertionError}
+import able.spec.*
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Indexed}
+import able.collections.hash_set.{HashSet}
+import able.core.iteration.{IteratorEnd}
+import able.text.string.{String}
+
+describe("Enumerable helpers") { suite =>
+  suite.it("maps and filters arrays") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(1)
+    values.push(2)
+    values.push(3)
+
+    doubled := values.map(fn(value: i32) -> i32 { value * 2 })
+    sum := doubled.reduce(0, fn(acc: i32, value: i32) -> i32 { acc + value })
+    expect(sum).to(eq(12))
+
+    evens := values.filter(fn(value: i32) -> bool { value % 2 == 0 })
+    expect(evens.count()).to(eq(1))
+    evens.first() match {
+      case nil => { raise AssertionError { message: "expected even element", details: nil, location: nil } },
+      case value: i32 => expect(value).to(eq(2))
+    }
+  }
+
+  suite.it("computes predicates") { _ctx =>
+    values: Array String := Array.new()
+    values.push("a")
+    values.push("bb")
+    values.push("ccc")
+
+    expect(values.any(fn(value: String) -> bool { value.len_chars() == 2 })).to(be_truthy())
+    expect(values.all(fn(value: String) -> bool { value.len_chars() >= 1 })).to(be_truthy())
+    expect(values.none(fn(value: String) -> bool { value == "zzz" })).to(be_truthy())
+  }
+
+  suite.it("finds elements") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(1)
+    values.push(3)
+    values.push(5)
+    values.push(8)
+    found := values.find(fn(value: i32) -> bool { value % 2 == 0 })
+    found match {
+      case nil => { raise AssertionError { message: "expected even value", details: nil, location: nil } },
+      case value: i32 => expect(value).to(eq(8))
+    }
+    expect(values.find(fn(value: i32) -> bool { value > 10 })).to(eq(nil))
+  }
+
+  suite.it("reduces values") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(1)
+    values.push(2)
+    values.push(3)
+    values.push(4)
+    sum := values.reduce(0, fn(acc: i32, value: i32) -> i32 { acc + value })
+    expect(sum).to(eq(10))
+  }
+
+  suite.it("handles first/is_empty") { _ctx =>
+    empty: Array i32 := Array.new()
+    filled: Array i32 := Array.new()
+    filled.push(42)
+
+    expect(empty.first()).to(eq(nil))
+    expect(empty.is_empty()).to(be_truthy())
+
+    expect(filled.first()).to(eq(42))
+    expect(filled.is_empty()).to(be_false())
+  }
+
+  suite.it("supports take/drop") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(1)
+    values.push(2)
+    values.push(3)
+    expect(values.take(2).len()).to(eq(2))
+    expect(values.drop(2).len()).to(eq(1))
+  }
+
+  suite.it("zips with index") { _ctx =>
+    values: Array String := Array.new()
+    values.push("a")
+    values.push("b")
+    zipped := values.zip_with_index()
+    zipped.get(0) match {
+      case nil => { raise AssertionError { message: "expected first zipped value", details: nil, location: nil } },
+      case entry: Indexed String => {
+        expect(entry.value).to(eq("a"))
+        expect(entry.index).to(eq(0))
+      }
+    }
+    zipped.get(1) match {
+      case nil => { raise AssertionError { message: "expected second zipped value", details: nil, location: nil } },
+      case entry: Indexed String => {
+        expect(entry.value).to(eq("b"))
+        expect(entry.index).to(eq(1))
+      }
+    }
+  }
+
+  suite.it("distinguishes eager and lazy mapping") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(1)
+    values.push(2)
+
+    counter := 0
+    eager := values.map(fn(value: i32) -> i32 {
+      counter = counter + 1
+      value * 2
+    })
+    expect(counter).to(eq(2))
+    expect(eager.len()).to(eq(2))
+
+    counter = 0
+    lazy := values.lazy().map(fn(value: i32) -> i32 {
+      counter = counter + 1
+      value * 2
+    })
+    expect(counter).to(eq(0))
+    lazy.next() match {
+      case _: i32 => {},
+      case _ => { raise AssertionError { message: "expected first lazy value", details: nil, location: nil } }
+    }
+    expect(counter).to(eq(1))
+    lazy.next() match {
+      case _: i32 => {},
+      case _ => { raise AssertionError { message: "expected second lazy value", details: nil, location: nil } }
+    }
+    expect(counter).to(eq(2))
+    lazy.next() match {
+      case IteratorEnd {} => {},
+      case _ => { raise AssertionError { message: "expected lazy iterator to end", details: nil, location: nil } }
+    }
+  }
+
+  suite.it("preserves collection type for eager map") { _ctx =>
+    set: HashSet i32 := HashSet.new()
+    set.add(1)
+    set.add(2)
+    mapped := set.map(fn(value: i32) -> i32 { value + 1 })
+    expect(mapped.contains(2)).to(be_truthy())
+    expect(mapped.contains(3)).to(be_truthy())
+  }
+}

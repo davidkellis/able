@@ -1,0 +1,45 @@
+package channel_mutex_tests
+
+import able.kernel.{Channel, Mutex}
+import able.concurrency
+import able.concurrency.{with_lock}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn check_channel_iteration() -> void {
+  ch: Channel i32 := Channel.new(3)
+  ch.send(1)
+  ch.send(2)
+  ch.close()
+
+  total := 0
+  for value in ch { total = total + value }
+
+  assert(total == 3, "channel iteration should yield sent values before close")
+  assert(ch.is_closed(), "channel should report closed after close()")
+  assert(ch.receive() == nil, "closed channel receive returns nil")
+}
+
+fn check_mutex_helpers() -> void {
+  mutex := Mutex.new()
+  counter := 0
+
+  with_lock(mutex, fn() {
+    counter = counter + 1
+    counter
+  })
+  assert(counter == 1, "with_lock should run callback while holding the mutex")
+
+  mutex.lock()
+  mutex.unlock()
+}
+
+fn main() -> void {
+  check_channel_iteration()
+  check_mutex_helpers()
+}
+
+main()

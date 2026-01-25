@@ -1,0 +1,10 @@
+{
+  "description": "Logical operators use truthiness and return an operand",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "source.able"
+}

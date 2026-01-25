@@ -1,0 +1,13 @@
+{
+  "description": "generator yield/stop and IteratorEnd exhaustion",
+  "expect": {
+    "stdout": [
+      "gen-start",
+      "next1 value 1",
+      "gen-after-yield",
+      "next2 end",
+      "next3 end"
+    ],
+    "exit": 0
+  }
+}

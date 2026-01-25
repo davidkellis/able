@@ -1,0 +1,10 @@
+{
+  "description": "Bitwise xor operator is supported and returns integer result",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "6"
+    }
+  },
+  "entry": "module.json"
+}

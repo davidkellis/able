@@ -1,0 +1,14 @@
+ch := __able_channel_new(0);
+hits := 0;
+runner := spawn {
+  result = await [__able_channel_await_try_recv(ch, { v => {
+    hits = hits + 1;
+    v;
+  }})];
+  result;
+};
+future_flush();
+runner.cancel();
+future_flush();
+late_send := __able_channel_try_send(ch, "late");
+[hits == 0, late_send == false];

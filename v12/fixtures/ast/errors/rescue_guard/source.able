@@ -1,0 +1,10 @@
+do {
+  raise "boom"
+} rescue {
+  case "ignore" => "ignored",
+  case msg => {
+    if msg == "boom" {
+      "handled";
+    };
+  }
+};

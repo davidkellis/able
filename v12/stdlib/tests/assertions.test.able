@@ -1,0 +1,149 @@
+package testing_specs
+
+import able.kernel.{Array}
+import able.collections.array
+import able.spec.*
+import able.test.registry.{framework_by_id}
+import able.core.interfaces.{Error}
+
+struct SampleError {
+  label: String
+}
+
+impl Error for SampleError {
+  fn message(self: Self) -> String { self.label }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn raise_sample(label: String) -> void {
+  raise SampleError { label }
+}
+
+describe("able.spec assertions") { suite =>
+  suite.module_path("testing/assertions")
+  suite.it("registers the spec framework on import") { _ctx =>
+    expect(framework_by_id("able.spec")).not_to(be_nil())
+  }
+
+  suite.it("passes equality matcher") { _ctx =>
+    expect(2 + 2).to(eq(4))
+  }
+
+  suite.it("supports negative equality") { _ctx =>
+    expect(10).not_to(eq(2))
+  }
+
+  suite.it("checks nil values") { _ctx =>
+    maybe: ?i32 = nil
+    expect(maybe).to(be_nil())
+  }
+
+  suite.it("matches string prefixes/suffixes") { _ctx =>
+    expect("testing").to(start_with("test"))
+    expect("testing").to(end_with("ing"))
+    expect("testing").to(include_substring("sti"))
+  }
+
+  suite.it("captures truthy/falsey expectations") { _ctx =>
+    expect(true).to(be_truthy())
+    expect(false).to(be_false())
+  }
+
+  suite.it("compares strings with diff details") { _ctx =>
+    expect("hi").to(eq_string("hi"))
+  }
+
+  suite.it("detects empty arrays") { _ctx =>
+    values: Array i32 := Array.new()
+    expect(values).to(be_empty_array())
+  }
+
+  suite.it("asserts array containment") { _ctx =>
+    values: Array String := Array.new()
+    values.push("a")
+    values.push("b")
+    expect(values).to(contain("b"))
+  }
+
+  suite.it("fails array containment when missing") { _ctx =>
+    values: Array String := Array.new()
+    expect(fn() { expect(values).to(contain("missing")) }).to(raise_error())
+  }
+
+  suite.it("checks multiple containment") { _ctx =>
+    values: Array String := Array.new()
+    values.push("a")
+    values.push("b")
+    expected: Array String := Array.new()
+    expected.push("a")
+    expect(values).to(contain_all(expected))
+  }
+
+  suite.it("checks numeric range within tolerance") { _ctx =>
+    expect(3.14).to(be_within(0.01, 3.14))
+  }
+
+  suite.it("asserts numeric comparisons") { _ctx =>
+    five: i64 := 5
+    one: i64 := 1
+    two: i64 := 2
+    three: i64 := 3
+    expect(five).to(be_greater_than(two))
+    expect(one).to(be_less_than(three))
+  }
+
+  suite.it("verifies numeric range bounds") { _ctx =>
+    expect(5).to(be_between(1, 10))
+    expect(fn() { expect(0).to(be_between(1, 10)) }).to(raise_error())
+  }
+
+  suite.it("matches regex patterns") { _ctx =>
+    expect("abc").to(match_regex("abc"))
+    expect("zabc").to(match_regex("abc"))
+    expect(fn() { expect("def").to(match_regex("abc")) }).to(raise_error())
+  }
+
+  suite.it("builds custom matchers") { _ctx =>
+    even := matcher("expected value to be even", "expected value to be odd", fn(value: i64) -> bool { value % 2 == 0 })
+    expect(4).to(even)
+    expect(fn() { expect(3).to(even) }).to(raise_error())
+
+    even_with_details := matcher_with_details(
+      "expected value to be even",
+      "expected value to be odd",
+      fn(value: i64) -> bool { value % 2 == 0 },
+      fn(value: i64) -> ?String { `actual ${value}` }
+    )
+    expect(fn() { expect(5).to(even_with_details) }).to(raise_error())
+  }
+
+  suite.it("observes raised errors") { _ctx =>
+    expect(fn() { raise_sample("boom") }).to(raise_error())
+  }
+
+  suite.it("matches specific error message") { _ctx =>
+    expect(fn() { raise_sample("boom") }).to(raise_error_with_message("boom"))
+  }
+}
+
+describe("able.spec hooks") { suite =>
+  suite.module_path("testing/hooks")
+  before_each_count := 0
+  before_all_count := 0
+  suite.before_all { _ctx =>
+    before_all_count = before_all_count + 1
+  }
+  suite.before_each { _ctx =>
+    before_each_count = before_each_count + 1
+  }
+
+  suite.it("runs before_each and before_all for first example") { _ctx =>
+    expect(before_each_count).to(eq(1))
+    expect(before_all_count).to(eq(1))
+  }
+
+  suite.it("reuses before_all but increments before_each") { _ctx =>
+    expect(before_each_count).to(eq(2))
+    expect(before_all_count).to(eq(1))
+  }
+}

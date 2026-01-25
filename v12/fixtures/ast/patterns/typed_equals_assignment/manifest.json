@@ -1,0 +1,10 @@
+{
+  "description": "Typed pattern annotations work with '=' fallback declarations",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 1
+    }
+  },
+  "entry": "module.json"
+}

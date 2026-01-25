@@ -1,0 +1,229 @@
+import * as AST from "../ast";
+import { Environment } from "./environment";
+import type { Interpreter } from "./index";
+import { callCallableValue } from "./functions";
+import { GeneratorYieldSignal, ProcYieldSignal, RaiseSignal } from "./signals";
+import { memberAccessOnValue } from "./structs";
+import type { ContinuationContext } from "./continuations";
+import type { RuntimeValue } from "./values";
+
+export function evaluateRaiseStatement(ctx: Interpreter, node: AST.RaiseStatement, env: Environment): never {
+  const val = ctx.evaluate(node.expression, env);
+  const err: RuntimeValue = coerceToErrorValue(ctx, val, env) ?? ctx.makeRuntimeError(ctx.valueToString(val), val);
+  ctx.raiseStack.push(err);
+  try {
+    throw new RaiseSignal(err);
+  } finally {
+    ctx.raiseStack.pop();
+  }
+}
+
+export function evaluateRescueExpression(ctx: Interpreter, node: AST.RescueExpression, env: Environment): RuntimeValue {
+  try {
+    return ctx.evaluate(node.monitoredExpression, env);
+  } catch (e) {
+    if (e instanceof RaiseSignal) {
+      ctx.raiseStack.push(e.value);
+      for (const clause of node.clauses) {
+        const matchEnv = ctx.tryMatchPattern(clause.pattern, e.value, env);
+        if (matchEnv) {
+          if (clause.guard) {
+            const g = ctx.evaluate(clause.guard, matchEnv);
+            if (!ctx.isTruthy(g)) continue;
+          }
+          try {
+            return ctx.evaluate(clause.body, matchEnv);
+          } finally {
+            ctx.raiseStack.pop();
+          }
+        }
+      }
+      ctx.raiseStack.pop();
+      throw e;
+    }
+    throw e;
+  }
+}
+
+export function evaluateOrElseExpression(ctx: Interpreter, node: AST.OrElseExpression, env: Environment): RuntimeValue {
+  try {
+    const value = ctx.evaluate(node.expression, env);
+    const failure = classifyOptionOrResultFailure(ctx, value);
+    if (!failure) {
+      return value;
+    }
+    const handlerEnv = new Environment(env);
+    if (failure.kind === "error" && node.errorBinding) {
+      handlerEnv.define(node.errorBinding.name, failure.value);
+    }
+    return ctx.evaluate(node.handler, handlerEnv);
+  } catch (e) {
+    if (e instanceof RaiseSignal) {
+      const handlerEnv = new Environment(env);
+      if (node.errorBinding) handlerEnv.define(node.errorBinding.name, e.value);
+      ctx.raiseStack.push(e.value);
+      try {
+        return ctx.evaluate(node.handler, handlerEnv);
+      } finally {
+        ctx.raiseStack.pop();
+      }
+    }
+    throw e;
+  }
+}
+
+type FailureKind = { kind: "nil" } | { kind: "error"; value: RuntimeValue };
+
+function classifyOptionOrResultFailure(ctx: Interpreter, value: RuntimeValue): FailureKind | null {
+  if (value.kind === "nil") return { kind: "nil" };
+  if (value.kind === "error") return { kind: "error", value };
+  if (value.kind === "interface_value" && value.interfaceName === "Error") {
+    return { kind: "error", value: value.value };
+  }
+  const typeName = ctx.getTypeNameForValue(value);
+  if (!typeName) return null;
+  const typeArgs = value.kind === "struct_instance" ? value.typeArguments : undefined;
+  if (ctx.typeImplementsInterface(typeName, "Error", typeArgs)) {
+    return { kind: "error", value };
+  }
+  return null;
+}
+
+export function evaluatePropagationExpression(ctx: Interpreter, node: AST.PropagationExpression, env: Environment): RuntimeValue {
+  try {
+    const val = ctx.evaluate(node.expression, env);
+    const errVal = coerceToErrorValue(ctx, val, env);
+    if (errVal) throw new RaiseSignal(errVal);
+    return val;
+  } catch (e) {
+    if (e instanceof RaiseSignal) throw e;
+    throw e;
+  }
+}
+
+export function evaluateEnsureExpression(ctx: Interpreter, node: AST.EnsureExpression, env: Environment): RuntimeValue {
+  const generator = ctx.currentGeneratorContext();
+  if (generator) {
+    return evaluateEnsureExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateEnsureExpressionWithContinuation(ctx, node, env, procContext);
+  }
+  let result: RuntimeValue | null = null;
+  let caught: RaiseSignal | null = null;
+  try {
+    result = ctx.evaluate(node.tryExpression, env);
+  } catch (e) {
+    if (e instanceof RaiseSignal) caught = e; else throw e;
+  } finally {
+    ctx.evaluate(node.ensureBlock, env);
+  }
+  if (caught) throw caught;
+  return result ?? { kind: "nil", value: null };
+}
+
+function evaluateEnsureExpressionWithContinuation(
+  ctx: Interpreter,
+  node: AST.EnsureExpression,
+  env: Environment,
+  continuation: ContinuationContext,
+): RuntimeValue {
+  let state = continuation.getEnsureState(node);
+  if (!state || state.env !== env) {
+    state = { env, stage: "try" };
+    continuation.setEnsureState(node, state);
+  }
+
+  if (state.stage === "try") {
+    try {
+      state.result = ctx.evaluate(node.tryExpression, env);
+      state.caught = undefined;
+      state.stage = "ensure";
+    } catch (err) {
+      if (isContinuationYield(continuation, err)) {
+        continuation.markStatementIncomplete();
+        throw err;
+      }
+      state.caught = err;
+      state.result = undefined;
+      state.stage = "ensure";
+    }
+    continuation.setEnsureState(node, state);
+  }
+
+  if (state.stage === "ensure") {
+    try {
+      ctx.evaluate(node.ensureBlock, env);
+    } catch (err) {
+      if (isContinuationYield(continuation, err)) {
+        continuation.markStatementIncomplete();
+        throw err;
+      }
+      continuation.clearEnsureState(node);
+      throw err;
+    }
+    continuation.clearEnsureState(node);
+    if (state.caught) {
+      throw state.caught;
+    }
+    return state.result ?? { kind: "nil", value: null };
+  }
+
+  continuation.clearEnsureState(node);
+  return { kind: "nil", value: null };
+}
+
+function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
+  if (context.kind === "generator") {
+    return err instanceof GeneratorYieldSignal || err instanceof ProcYieldSignal;
+  }
+  return err instanceof ProcYieldSignal;
+}
+
+export function evaluateRethrowStatement(ctx: Interpreter, _node: AST.RethrowStatement): never {
+  const err = ctx.raiseStack[ctx.raiseStack.length - 1] || { kind: "error", message: "Unknown rethrow" } as RuntimeValue;
+  throw new RaiseSignal(err);
+}
+
+function coerceToErrorValue(ctx: Interpreter, val: RuntimeValue, env: Environment): Extract<RuntimeValue, { kind: "error" }> | null {
+  if (val.kind === "error") return val;
+  if (val.kind === "interface_value" && val.interfaceName === "Error" && val.value.kind === "error") {
+    return val.value;
+  }
+  const typeName = ctx.getTypeNameForValue(val);
+  const implementsError = typeName
+    ? ctx.typeImplementsInterface(typeName, "Error", val.kind === "struct_instance" ? val.typeArguments : undefined)
+    : val.kind === "interface_value" && val.interfaceName === "Error";
+  if (!implementsError) return null;
+
+  let errorIface: RuntimeValue = val;
+  if (val.kind !== "interface_value" || val.interfaceName !== "Error") {
+    errorIface = ctx.toInterfaceValue("Error", val);
+  }
+
+  let message = ctx.valueToString(val);
+  try {
+    const msgMember = memberAccessOnValue(ctx, errorIface, AST.identifier("message"), env);
+    const msgVal = callCallableValue(ctx, msgMember, [], env);
+    if (msgVal.kind === "String") {
+      message = msgVal.value;
+    }
+  } catch {
+    // fall back to valueToString
+  }
+
+  let cause: RuntimeValue | undefined;
+  try {
+    const causeMember = memberAccessOnValue(ctx, errorIface, AST.identifier("cause"), env);
+    const causeVal = callCallableValue(ctx, causeMember, [], env);
+    if (causeVal.kind !== "nil") {
+      cause = causeVal;
+    }
+  } catch {
+    // ignore cause lookup failures
+  }
+
+  const underlying = val.kind === "interface_value" ? val.value : val;
+  return ctx.makeRuntimeError(message, underlying, cause);
+}

@@ -1,0 +1,425 @@
+package term
+
+import able.kernel.{Array, pop}
+import able.io.{BufferedReader, IOError, unwrap, unwrap_void, read, write_all, bytes_to_string, string_to_bytes, stdin, stdout}
+
+prelude go {
+import (
+  "errors"
+  "os"
+  "runtime"
+  "strings"
+  "sync"
+  "syscall"
+  "unsafe"
+)
+
+const (
+  linuxAmd64SysIoctl     = 16
+  linuxIoctlGetTermios   = 0x5401
+  linuxIoctlSetTermios   = 0x5402
+  linuxIoctlGetWinSize   = 0x5413
+  linuxIgnBrk            = 0x1
+  linuxBrkInt            = 0x2
+  linuxParMrk            = 0x8
+  linuxIStrip            = 0x20
+  linuxInLcr             = 0x40
+  linuxIgnCr             = 0x80
+  linuxICrNl             = 0x100
+  linuxIXon              = 0x400
+  linuxOpost             = 0x1
+  linuxEcho              = 0x8
+  linuxEchoNl            = 0x40
+  linuxICanon            = 0x2
+  linuxISig              = 0x1
+  linuxIExten            = 0x8000
+  linuxCsize             = 0x30
+  linuxPARENB            = 0x100
+  linuxCS8               = 0x30
+  linuxVtime             = 0x5
+  linuxVmin              = 0x6
+)
+
+type linuxTermios struct {
+  Iflag     uint32
+  Oflag     uint32
+  Cflag     uint32
+  Lflag     uint32
+  Line      uint8
+  Cc        [32]uint8
+  Pad_cgo_0 [3]byte
+  Ispeed    uint32
+  Ospeed    uint32
+}
+
+type linuxWinSize struct {
+  Row    uint16
+  Col    uint16
+  Xpixel uint16
+  Ypixel uint16
+}
+
+var termStateMu sync.Mutex
+var termStates = map[uintptr]*linuxTermios{}
+
+func termErrorKind(err error) string {
+  if err == nil {
+    return "Other"
+  }
+  switch {
+  case os.IsPermission(err) || errors.Is(err, os.ErrPermission) || errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) || strings.Contains(strings.ToLower(err.Error()), "permission denied"):
+    return "PermissionDenied"
+  case errors.Is(err, os.ErrNotExist):
+    return "NotFound"
+  case errors.Is(err, os.ErrExist):
+    return "AlreadyExists"
+  case errors.Is(err, os.ErrInvalid):
+    return "InvalidInput"
+  case errors.Is(err, os.ErrClosed):
+    return "Closed"
+  case errors.Is(err, syscall.EPIPE):
+    return "BrokenPipe"
+  case errors.Is(err, syscall.ENOTTY):
+    return "Unsupported"
+  case os.IsTimeout(err):
+    return "TimedOut"
+  default:
+    return "Other"
+  }
+}
+
+func termErrorFrom(err error, path *string) map[string]any {
+  var pathVal any = nil
+  if path != nil {
+    pathVal = *path
+  }
+  return map[string]any{
+    "kind": termErrorKind(err),
+    "message": err.Error(),
+    "path": pathVal,
+  }
+}
+
+func supportsLinuxAmd64Termios() bool {
+  return runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
+}
+
+func isTTY(file *os.File) bool {
+  if file == nil {
+    return false
+  }
+  info, err := file.Stat()
+  if err != nil {
+    return false
+  }
+  return (info.Mode() & os.ModeCharDevice) != 0
+}
+
+func linuxIoctlTermios(fd uintptr, req uintptr, termios *linuxTermios) error {
+  _, _, errno := syscall.Syscall6(linuxAmd64SysIoctl, fd, req, uintptr(unsafe.Pointer(termios)), 0, 0, 0)
+  if errno != 0 {
+    return errno
+  }
+  return nil
+}
+
+func linuxIoctlWinSize(fd uintptr, req uintptr, ws *linuxWinSize) error {
+  _, _, errno := syscall.Syscall6(linuxAmd64SysIoctl, fd, req, uintptr(unsafe.Pointer(ws)), 0, 0, 0)
+  if errno != 0 {
+    return errno
+  }
+  return nil
+}
+
+func makeRawTermios(input linuxTermios) linuxTermios {
+  t := input
+  t.Iflag &^= (linuxIgnBrk | linuxBrkInt | linuxParMrk | linuxIStrip | linuxInLcr | linuxIgnCr | linuxICrNl | linuxIXon)
+  t.Oflag &^= linuxOpost
+  t.Lflag &^= (linuxEcho | linuxEchoNl | linuxICanon | linuxISig | linuxIExten)
+  t.Cflag &^= (linuxCsize | linuxPARENB)
+  t.Cflag |= linuxCS8
+  t.Cc[linuxVmin] = 1
+  t.Cc[linuxVtime] = 0
+  return t
+}
+}
+
+prelude typescript {
+import * as tty from "node:tty";
+import process from "node:process";
+
+function termErrorKind(err) {
+  const code = err && err.code ? String(err.code) : "";
+  switch (code) {
+    case "ENOENT": return "NotFound";
+    case "EACCES": return "PermissionDenied";
+    case "EPERM": return "PermissionDenied";
+    case "EEXIST": return "AlreadyExists";
+    case "EINVAL": return "InvalidInput";
+    case "ETIMEDOUT": return "TimedOut";
+    case "EPIPE": return "BrokenPipe";
+    case "EBADF": return "Closed";
+    case "ENOTTY": return "Unsupported";
+    default: return "Other";
+  }
+}
+
+function termErrorFrom(err, pathValue) {
+  return {
+    kind: termErrorKind(err),
+    message: err && err.message ? String(err.message) : String(err),
+    path: pathValue ?? null,
+  };
+}
+
+function termHandleFd(handle) {
+  if (handle && typeof handle.fd === "number") return handle.fd;
+  if (handle && handle.stream && typeof handle.stream.fd === "number") return handle.stream.fd;
+  return null;
+}
+
+function termHandleStream(handle) {
+  if (handle && handle.stream) return handle.stream;
+  return null;
+}
+
+function termSizeFromStream(stream) {
+  if (!stream) return null;
+  if (typeof stream.columns === "number" && typeof stream.rows === "number") {
+    return { rows: Math.trunc(stream.rows), cols: Math.trunc(stream.columns) };
+  }
+  if (typeof stream.getWindowSize === "function") {
+    const [cols, rows] = stream.getWindowSize();
+    return { rows: Math.trunc(rows), cols: Math.trunc(cols) };
+  }
+  return null;
+}
+}
+
+struct TermSize {
+  rows: i32,
+  cols: i32
+}
+
+extern typescript fn term_is_tty(handle: IoHandle) -> bool {
+  const stream = termHandleStream(handle);
+  if (stream && typeof stream.isTTY === "boolean") return stream.isTTY;
+  const fd = termHandleFd(handle);
+  if (fd === null) return false;
+  return tty.isatty(fd);
+}
+
+extern go fn term_is_tty(handle: IoHandle) -> bool {
+  file, ok := handle.(*os.File)
+  if !ok { return false }
+  return isTTY(file)
+}
+
+extern typescript fn term_set_raw_mode(handle: IoHandle, enabled: bool) -> IOError | void {
+  try {
+    if (process && process.versions && process.versions.bun) {
+      return termErrorFrom({ code: "ENOTTY", message: "raw mode unsupported" }, null);
+    }
+    const stream = termHandleStream(handle);
+    if (stream && typeof stream.setRawMode === "function") {
+      stream.setRawMode(Boolean(enabled));
+      if (typeof stream.isRaw === "boolean" && stream.isRaw !== Boolean(enabled)) {
+        return termErrorFrom({ code: "ENOTTY", message: "raw mode unsupported" }, null);
+      }
+      return null;
+    }
+    const fd = termHandleFd(handle);
+    if (fd !== null && process.stdin && typeof process.stdin.setRawMode === "function" && process.stdin.fd === fd) {
+      process.stdin.setRawMode(Boolean(enabled));
+      return null;
+    }
+    return termErrorFrom({ code: "ENOTTY", message: "raw mode unsupported" }, null);
+  } catch (err) {
+    return termErrorFrom(err, null);
+  }
+}
+
+extern typescript fn term_is_raw_mode(handle: IoHandle) -> bool {
+  const stream = termHandleStream(handle);
+  if (stream && typeof stream.isRaw === "boolean") return stream.isRaw;
+  const fd = termHandleFd(handle);
+  if (fd !== null && process.stdin && typeof process.stdin.isRaw === "boolean" && process.stdin.fd === fd) {
+    return process.stdin.isRaw;
+  }
+  return false;
+}
+
+extern go fn term_set_raw_mode(handle: IoHandle, enabled: bool) -> IOError | void {
+  file, ok := handle.(*os.File)
+  if !ok { return termErrorFrom(errors.New("invalid IoHandle"), nil) }
+  if !isTTY(file) { return termErrorFrom(syscall.ENOTTY, nil) }
+  if !supportsLinuxAmd64Termios() { return termErrorFrom(syscall.ENOTTY, nil) }
+  fd := file.Fd()
+
+  termStateMu.Lock()
+  defer termStateMu.Unlock()
+
+  if enabled {
+    if _, ok := termStates[fd]; ok {
+      return nil
+    }
+    var original linuxTermios
+    if err := linuxIoctlTermios(fd, linuxIoctlGetTermios, &original); err != nil {
+      return termErrorFrom(err, nil)
+    }
+    termStates[fd] = &original
+    raw := makeRawTermios(original)
+    if err := linuxIoctlTermios(fd, linuxIoctlSetTermios, &raw); err != nil {
+      delete(termStates, fd)
+      return termErrorFrom(err, nil)
+    }
+    return nil
+  }
+
+  if state, ok := termStates[fd]; ok && state != nil {
+    if err := linuxIoctlTermios(fd, linuxIoctlSetTermios, state); err != nil {
+      return termErrorFrom(err, nil)
+    }
+    delete(termStates, fd)
+  }
+  return nil
+}
+
+extern go fn term_is_raw_mode(handle: IoHandle) -> bool {
+  file, ok := handle.(*os.File)
+  if !ok { return false }
+  if !isTTY(file) { return false }
+  fd := file.Fd()
+  termStateMu.Lock()
+  defer termStateMu.Unlock()
+  _, ok = termStates[fd]
+  return ok
+}
+
+extern typescript fn term_get_size(handle: IoHandle) -> IOError | TermSize {
+  try {
+    const stream = termHandleStream(handle);
+    let size = termSizeFromStream(stream);
+    if (!size) {
+      const fd = termHandleFd(handle);
+      if (fd !== null) {
+        if (process.stdout && process.stdout.fd === fd) {
+          size = termSizeFromStream(process.stdout);
+        } else if (process.stderr && process.stderr.fd === fd) {
+          size = termSizeFromStream(process.stderr);
+        }
+      }
+    }
+    if (!size) {
+      return termErrorFrom({ code: "ENOTTY", message: "not a tty" }, null);
+    }
+    return size;
+  } catch (err) {
+    return termErrorFrom(err, null);
+  }
+}
+
+extern go fn term_get_size(handle: IoHandle) -> IOError | TermSize {
+  file, ok := handle.(*os.File)
+  if !ok { return termErrorFrom(errors.New("invalid IoHandle"), nil) }
+  if !isTTY(file) { return termErrorFrom(syscall.ENOTTY, nil) }
+  if !supportsLinuxAmd64Termios() { return termErrorFrom(syscall.ENOTTY, nil) }
+  var ws linuxWinSize
+  if err := linuxIoctlWinSize(file.Fd(), linuxIoctlGetWinSize, &ws); err != nil {
+    return termErrorFrom(err, nil)
+  }
+  return map[string]any{
+    "rows": int32(ws.Row),
+    "cols": int32(ws.Col),
+  }
+}
+
+fn is_tty(handle: IoHandle) -> bool {
+  term_is_tty(handle)
+}
+
+fn try_set_raw_mode(handle: IoHandle, enabled: bool) -> IOError | void {
+  term_set_raw_mode(handle, enabled)
+}
+
+fn set_raw_mode(handle: IoHandle, enabled: bool) -> void {
+  unwrap_void(term_set_raw_mode(handle, enabled))
+}
+
+fn try_size(handle: IoHandle) -> IOError | TermSize {
+  term_get_size(handle)
+}
+
+fn size(handle: IoHandle) -> TermSize {
+  unwrap(term_get_size(handle))
+}
+
+fn read_line() -> ?String {
+  read_line_from(stdin(), stdout())
+}
+
+fn read_line_from(input: IoHandle, output: IoHandle) -> ?String {
+  if !is_tty(input) { return BufferedReader.new(input, nil).read_line() }
+  raw_enabled := false
+  raw_attempted := false
+  try_set_raw_mode(input, true) match {
+    case _: void => {
+      raw_attempted = true
+      raw_enabled = term_is_raw_mode(input)
+    },
+    case _: IOError => raw_enabled = false
+  }
+  if !raw_enabled {
+    if raw_attempted { try_set_raw_mode(input, false) }
+    return BufferedReader.new(input, nil).read_line()
+  }
+  result := do {
+    buffer := Array.new()
+    eof := false
+    done := false
+    loop {
+      if done { break }
+      read(input, 1) match {
+        case nil => { eof = true; break },
+        case data: Array u8 => {
+          if data.len() == 0 { continue }
+          idx := 0
+          loop {
+            if idx >= data.len() { break }
+            data.get(idx) match {
+              case nil => {},
+              case byte: u8 => {
+                if byte == 10_u8 || byte == 13_u8 {
+                  if byte == 13_u8 {
+                    data.get(idx + 1) match {
+                      case next: u8 => { if next == 10_u8 { idx = idx + 1 } },
+                      case nil => {},
+                    }
+                  }
+                  write_all(output, [13_u8, 10_u8])
+                  done = true
+                  break
+                }
+                if byte == 8_u8 || byte == 127_u8 {
+                  if buffer.len() > 0 {
+                    pop(buffer)
+                    write_all(output, string_to_bytes("\b \b"))
+                  }
+                  idx = idx + 1
+                  continue
+                }
+                buffer.push(byte)
+                write_all(output, [byte])
+              }
+            }
+            idx = idx + 1
+          }
+        }
+      }
+    }
+    if eof && buffer.len() == 0 { nil } else { bytes_to_string(buffer) }
+  } ensure {
+    if raw_enabled { set_raw_mode(input, false) }
+  }
+  result
+}

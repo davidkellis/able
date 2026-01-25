@@ -1,0 +1,70 @@
+package bit_set_tests
+
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.bit_set.{BitSet}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise message }
+  }
+}
+
+fn check_set_and_reset() -> void {
+  bits := BitSet.new()
+  bits.set(0)
+  bits.set(5)
+  bits.set(70)
+
+  assert(bits.contains(0), "bit 0 should be set")
+  assert(bits.contains(5), "bit 5 should be set")
+  assert(bits.contains(70), "bit 70 should be set")
+  assert(!bits.contains(2), "bit 2 should be clear")
+
+  bits.reset(5)
+  assert(!bits.contains(5), "reset should clear a bit")
+
+  bits.flip(5)
+  assert(bits.contains(5), "flip should toggle a cleared bit to set")
+  bits.flip(5)
+  assert(!bits.contains(5), "flip should toggle a set bit to clear")
+}
+
+fn check_iteration_order() -> void {
+  bits := BitSet.new()
+  bits.set(3)
+  bits.set(1)
+  bits.set(65)
+
+  values: Array i32 := Array.new();
+  for bit in bits {
+    values.push(bit)
+  }
+
+  assert(values.len() == 3, "iteration should yield every set bit exactly once")
+  expect_i32(values.get(0), 1, "iteration should start with the lowest set bit")
+  expect_i32(values.get(1), 3, "iteration should visit set bits in ascending order")
+  expect_i32(values.get(2), 65, "iteration should include higher-order set bits")
+}
+
+fn check_clear() -> void {
+  bits := BitSet.new()
+  bits.set(1)
+  bits.set(10)
+  bits.clear()
+  assert(!bits.contains(1) && !bits.contains(10), "clear should remove every set bit")
+}
+
+fn main() -> void {
+  check_set_and_reset()
+  check_iteration_order()
+  check_clear()
+}
+
+main()

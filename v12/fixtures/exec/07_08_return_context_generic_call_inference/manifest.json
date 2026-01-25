@@ -1,0 +1,9 @@
+{
+  "description": "return-context expected types drive generic call inference",
+  "expect": {
+    "stdout": [
+      "sizes 0 0"
+    ],
+    "exit": 0
+  }
+}

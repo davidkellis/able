@@ -1,0 +1,9 @@
+{
+  "description": "Ambiguous impls with incomparable generic constraints on the same target",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/ast/errors/ambiguous_impl_generic_concrete/source.able:41:3 typechecker: ambiguous implementations of Show for Wrapper Unknown: impl Show for Wrapper T"
+    ]
+  },
+  "entry": "module.json"
+}

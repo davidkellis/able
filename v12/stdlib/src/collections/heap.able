@@ -1,0 +1,96 @@
+package heap
+import able.kernel.{Array}
+import able.collections.array
+import able.core.interfaces.{Ord, Less, Greater}
+
+struct Heap T {
+  data: Array T
+}
+
+methods Heap T where T: Ord {
+  fn new() -> Heap T {
+    Heap { data: Array.new() }
+  }
+
+  fn len(self: Self) -> i32 { self.data.len() }
+
+  fn is_empty(self: Self) -> bool { self.data.len() == 0 }
+
+  fn peek(self: Self) -> ?T {
+    self.data.get(0)
+  }
+
+  fn push(self: Self, value: T) -> void {
+    self.data.push(value)
+    self.bubble_up(self.data.len() - 1)
+  }
+
+  fn pop(self: Self) -> ?T {
+    if self.data.len() == 0 { return nil }
+    result := self.data.get(0)
+    tail_index := self.data.len() - 1
+    last := self.data.get(tail_index)
+    self.data.pop()
+    if self.data.len() > 0 {
+      self.data.write_slot(0, last!)
+      self.bubble_down(0)
+    }
+    result
+  }
+
+  fn bubble_up(self: Self, index: i32) -> void {
+    position := index
+    loop {
+      if position == 0 { break }
+      parent := (position - 1) // 2
+      current := self.data.get(position)!
+      parent_value := self.data.get(parent)!
+      if Heap.compare_values(current, parent_value) >= 0 { break }
+      self.data.write_slot(position, parent_value)
+      self.data.write_slot(parent, current)
+      position = parent
+    }
+  }
+
+  fn bubble_down(self: Self, index: i32) -> void {
+    position := index
+    size := self.data.len()
+    loop {
+      left := (position * 2) + 1
+      right := left + 1
+      smallest := position
+
+      if left < size {
+        left_value := self.data.get(left)!
+        smallest_value := self.data.get(smallest)!
+        if Heap.compare_values(left_value, smallest_value) < 0 {
+          smallest = left
+        }
+      }
+
+      if right < size {
+        right_value := self.data.get(right)!
+        smallest_value := self.data.get(smallest)!
+        if Heap.compare_values(right_value, smallest_value) < 0 {
+          smallest = right
+        }
+      }
+
+      if smallest == position { break }
+
+      index_value := self.data.get(position)!
+      smallest_value := self.data.get(smallest)!
+      self.data.write_slot(position, smallest_value)
+      self.data.write_slot(smallest, index_value)
+      position = smallest
+    }
+  }
+
+  fn compare_values(a: T, b: T) -> i32 {
+    a.cmp(b) match {
+      case _: Less => -1,
+      case _: Greater => 1,
+      case _ => 0
+    }
+  }
+}

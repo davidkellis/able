@@ -1,0 +1,146 @@
+package linked_list
+
+import able.collections.{Iterable, Iterator}
+
+## Doubly Linked List implementation for Able language.
+##
+## This file defines a LinkedList struct with basic operations and
+## implements the Iterable and Iterator interfaces.
+
+## Represents a single node in the linked list.
+struct Node T {
+  value: T,
+  next: ?Node T,
+  prev: ?Node T
+}
+
+## Represents the Doubly Linked List.
+struct LinkedList T {
+  head: ?Node T,
+  tail: ?Node T,
+  size: i32
+}
+
+
+## LinkedList Iterator implementation
+struct LinkedListIterator T {
+  current: ?Node T
+}
+
+## Implementation of the Iterable interface for LinkedList
+impl Iterable T for LinkedList T {
+  fn #iterator() -> Iterator T {
+    LinkedListIterator T {
+      current: #head
+    }
+  }
+}
+
+## Implementation of the Iterator interface for LinkedListIterator
+impl Iterator T for LinkedListIterator T {
+  fn #next() -> ?T {
+    if self.has_next() {
+      current_node := self.current!
+      self.current = current_node.next
+      return current_node.value
+    } or {
+      nil
+    }
+  }
+
+  fn #has_next() -> bool {
+    self.current != nil
+  }
+}
+
+methods LinkedList T {
+  fn new() -> LinkedList T {
+    LinkedList T {
+      head: nil,
+      tail: nil,
+      size: 0
+    }
+  }
+
+  fn append(self: Self, value: T) -> void {
+    new_node := Node T {
+      value: value,
+      next: nil,
+      prev: self.tail
+    }
+
+    if self.isEmpty() {
+      self.head = new_node
+      self.tail = new_node
+    } or {
+      self.tail!.next = new_node
+      self.tail = new_node
+    }
+
+    self.size += 1
+  }
+
+  fn prepend(self: Self, value: T) -> void {
+    new_node := Node T {
+      value: value,
+      next: self.head,
+      prev: nil
+    }
+
+    if self.isEmpty() {
+      self.head = new_node
+      self.tail = new_node
+    } or {
+      self.head!.prev = new_node
+      self.head = new_node
+    }
+
+    self.size += 1
+  }
+
+  fn isEmpty(self: Self) -> bool {
+    self.size == 0
+  }
+
+  fn head(self: Self) -> ?T {
+    if self.isEmpty() {
+      nil
+    } or {
+      self.head!.value
+    }
+  }
+
+  fn tail(self: Self) -> ?T {
+    if self.isEmpty() {
+      nil
+    } or {
+      self.tail!.value
+    }
+  }
+
+  ## TODO: Implement insert and remove methods
+  ## fn insert(self: Self, index: i32, value: T) -> void { }
+  ## fn remove(self: Self, index: i32) -> ?T { }
+}
+
+## Example Usage
+## fn main() {
+##   list := LinkedList.new<String>()
+##   list.append("apple")
+##   list.prepend("banana")
+##
+##   print(`List size: ${list.size}`)  ## Output: List size: 2
+##   print(`Head: ${list.head()}`)     ## Output: Head: banana
+##   print(`Tail: ${list.tail()}`)     ## Output: Tail: apple
+##
+##   print("Iterating over the list:")
+##   iterator := list.iterator()
+##   while iterator.has_next() {
+##     value := iterator.next()!
+##     print(value)
+##   }
+##   ## Output:
+##   ## Iterating over the list:
+##   ## banana
+##   ## apple
+## }

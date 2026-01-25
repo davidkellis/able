@@ -1,0 +1,24 @@
+struct Mutex {
+  handle: i64
+}
+methods Mutex {
+  fn new() -> Mutex {
+    handle := __able_mutex_new();
+    return Mutex { handle: handle }
+  }
+  fn lock(self) {
+    __able_mutex_lock(self.handle);
+  }
+  fn unlock(self) {
+    __able_mutex_unlock(self.handle);
+  }
+}
+mutex := Mutex.new();
+trace := "";
+mutex.lock();
+trace = trace + "A";
+mutex.unlock();
+mutex.lock();
+trace = trace + "B";
+mutex.unlock();
+trace;

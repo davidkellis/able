@@ -1,0 +1,15 @@
+{
+  "description": "singleton struct usage as enum-style tags with direct identifiers",
+  "expect": {
+    "stdout": [
+      "green",
+      "red",
+      "ready",
+      "waiting",
+      "status ready",
+      "tag1 waiting",
+      "tag2 waiting"
+    ],
+    "exit": 0
+  }
+}

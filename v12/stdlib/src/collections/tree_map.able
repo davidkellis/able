@@ -1,0 +1,205 @@
+package tree_map
+import able.kernel.{Array}
+import able.collections.array
+import able.core.interfaces.{Ord, Clone, Less, Equal}
+
+struct TreeEntry K V {
+  key: K,
+  value: V
+}
+
+struct TreeMap K V {
+  entries: Array (TreeEntry K V)
+}
+
+methods TreeMap K V where K: Ord + Clone, V: Clone {
+  fn new() -> TreeMap K V {
+    entries: Array (TreeEntry K V) := Array.new();
+    TreeMap { entries: entries }
+  }
+
+  fn len(self: Self) -> i32 { self.entries.len() }
+
+  fn is_empty(self: Self) -> bool { self.len() == 0 }
+
+  fn find_index(self: Self, key: K) -> ?i32 {
+    idx := 0
+    total := self.entries.len()
+    while idx < total {
+      self.entries.get(idx) match {
+        case nil => {},
+        case entry => {
+          cmp := key.cmp(entry.key)
+          if cmp == Equal { return idx }
+          if cmp == Less { return nil }
+        }
+      }
+      idx = idx + 1
+    }
+    nil
+  }
+
+  fn insertion_index(self: Self, key: K) -> i32 {
+    idx := 0
+    total := self.entries.len()
+    while idx < total {
+      self.entries.get(idx) match {
+        case nil => {},
+        case entry => {
+          cmp := key.cmp(entry.key)
+          if cmp == Less { return idx }
+          if cmp == Equal { return idx }
+        }
+      }
+      idx = idx + 1
+    }
+    idx
+  }
+
+  fn get(self: Self, key: K) -> ?V {
+    self.find_index(key) match {
+      case nil => nil,
+      case idx => {
+        self.entries.get(idx) match {
+          case nil => nil,
+          case entry => entry.value
+        }
+      }
+    }
+  }
+
+  fn contains(self: Self, key: K) -> bool { self.get(key) != nil }
+
+  fn set(self: Self, key: K, value: V) -> void {
+    self.find_index(key) match {
+      case nil => {
+        insert_at := self.insertion_index(key)
+        new_entries := Array.new();
+        idx := 0
+        total := self.entries.len()
+        inserted := false
+        while idx < total {
+          if !inserted && idx == insert_at {
+            new_entries.push(TreeEntry { key: key, value: value })
+            inserted = true
+          }
+          self.entries.get(idx) match {
+            case nil => {},
+            case entry => new_entries.push(entry)
+          }
+          idx = idx + 1
+        }
+        if !inserted {
+          new_entries.push(TreeEntry { key: key, value: value })
+        }
+        self.entries = new_entries
+      },
+      case idx => {
+        self.entries.write_slot(idx, TreeEntry { key: key, value: value })
+      }
+    }
+  }
+
+  fn remove(self: Self, key: K) -> bool {
+    self.find_index(key) match {
+      case nil => false,
+      case idx => {
+        new_entries := Array.new();
+        total := self.entries.len()
+        current := 0
+        while current < total {
+          if current != idx {
+            self.entries.get(current) match {
+              case nil => {},
+              case entry => new_entries.push(entry)
+            }
+          }
+          current = current + 1
+        }
+        self.entries = new_entries
+        true
+      }
+    }
+  }
+
+  fn first(self: Self) -> ?TreeEntry K V {
+    if self.is_empty() { return nil }
+    self.entries.get(0)
+  }
+
+  fn last(self: Self) -> ?TreeEntry K V {
+    len := self.len()
+    if len == 0 { return nil }
+    self.entries.get(len - 1)
+  }
+
+  fn each(self: Self, visit: TreeEntry K V -> void) -> void {
+    idx := 0
+    total := self.len()
+    while idx < total {
+      self.entries.get(idx) match {
+        case nil => {},
+        case entry => visit(entry)
+      }
+      idx = idx + 1
+    }
+  }
+
+  fn to_array(self: Self) -> Array (TreeEntry K V) {
+    result: Array (TreeEntry K V) := Array.new();
+    idx := 0
+    total := self.len()
+    while idx < total {
+      self.entries.get(idx) match {
+        case nil => {},
+        case entry => result.push(entry)
+      }
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn keys(self: Self) -> Array K {
+    result: Array K := Array.new();
+    idx := 0
+    total := self.len()
+    while idx < total {
+      self.entries.get(idx) match {
+        case nil => {},
+        case entry => result.push(entry.key)
+      }
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn values(self: Self) -> Array V {
+    result: Array V := Array.new();
+    idx := 0
+    total := self.len()
+    while idx < total {
+      self.entries.get(idx) match {
+        case nil => {},
+        case entry => result.push(entry.value)
+      }
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn each_key(self: Self, visit: K -> void) -> void {
+    idx := 0
+    total := self.len()
+    while idx < total {
+      self.entries.get(idx) match {
+        case nil => {},
+        case entry => visit(entry.key)
+      }
+      idx = idx + 1
+    }
+  }
+
+  fn clear(self: Self) -> void {
+    self.entries = Array.new()
+  }
+}

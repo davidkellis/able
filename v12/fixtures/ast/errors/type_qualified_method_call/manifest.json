@@ -1,0 +1,12 @@
+{
+  "description": "Type-qualified functions stay out of UFCS/method lookup even when imported",
+  "setup": [
+    "package.json"
+  ],
+  "expect": {
+    "errors": [
+      "No field or method named 'augment'"
+    ]
+  },
+  "entry": "module.json"
+}

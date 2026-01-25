@@ -1,0 +1,176 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Point"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "y"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Point"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "to_string"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringInterpolation",
+                  "parts": [
+                    {
+                      "type": "StringLiteral",
+                      "value": "Point("
+                    },
+                    {
+                      "type": "MemberAccessExpression",
+                      "object": {
+                        "type": "Identifier",
+                        "name": "self"
+                      },
+                      "member": {
+                        "type": "Identifier",
+                        "name": "x"
+                      }
+                    },
+                    {
+                      "type": "StringLiteral",
+                      "value": ","
+                    },
+                    {
+                      "type": "MemberAccessExpression",
+                      "object": {
+                        "type": "Identifier",
+                        "name": "self"
+                      },
+                      "member": {
+                        "type": "Identifier",
+                        "name": "y"
+                      }
+                    },
+                    {
+                      "type": "StringLiteral",
+                      "value": ")"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "p"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Point"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "y"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 2
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "StringInterpolation",
+      "parts": [
+        {
+          "type": "StringLiteral",
+          "value": "P= "
+        },
+        {
+          "type": "Identifier",
+          "name": "p"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "description": "Wildcard import exposes only public symbols",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 7
+    }
+  },
+  "entry": "module.json",
+  "setup": [
+    "package.json"
+  ]
+}

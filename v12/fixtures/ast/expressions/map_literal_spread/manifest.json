@@ -1,0 +1,41 @@
+{
+  "description": "Map literal supports spreads and overrides",
+  "expect": {
+    "result": {
+      "kind": "struct_instance",
+      "entries": [
+        {
+          "key": {
+            "kind": "String",
+            "value": "content-type"
+          },
+          "value": {
+            "kind": "String",
+            "value": "application/json"
+          }
+        },
+        {
+          "key": {
+            "kind": "String",
+            "value": "accept"
+          },
+          "value": {
+            "kind": "String",
+            "value": "application/json"
+          }
+        },
+        {
+          "key": {
+            "kind": "String",
+            "value": "authorization"
+          },
+          "value": {
+            "kind": "String",
+            "value": "Bearer abc"
+          }
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

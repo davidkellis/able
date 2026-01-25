@@ -1,0 +1,10 @@
+import able.concurrency.{Await}
+
+runner := spawn {
+  first := await [Await.default({ => "fallback"})];
+  second := await [Await.sleep(0.seconds(), { => "timer"})];
+  third := await [Await.sleep_ms(0, { => "timer"})];
+  [first == "fallback", second == "timer", third == "timer"];
+};
+future_flush();
+runner.value();

@@ -1,0 +1,7 @@
+package exec_15_01_program_entry_hello_world
+
+## Semantics: `main` may omit the return type (defaults to void) and `print` writes a line to stdout.
+
+fn main() {
+  print("Hello, Able!")
+}

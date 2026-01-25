@@ -1,0 +1,5 @@
+dynimport dynp.{f::ff}
+dynimport dynp::D
+x := ff();
+y := D.f();
+x + y;

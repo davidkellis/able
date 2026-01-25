@@ -1,0 +1,106 @@
+package list_tests
+
+import able.collections.list.{List}
+import able.collections.array.{Array}
+import able.core.iteration.{IteratorEnd}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise message }
+  }
+}
+
+fn expect_string(value: ?String, expected: String, message: String) -> void {
+  value match {
+    case actual: String => assert(actual == expected, message),
+    case nil => { raise message }
+  }
+}
+
+fn check_prepend_and_tail() -> void {
+  list := List.empty()
+  assert(list.is_empty(), "new list should start empty")
+  assert(list.len() == 0, "len should be zero on an empty list")
+
+  list = list.prepend(2)
+  list = list.prepend(1)
+  assert(!list.is_empty(), "prepend should produce a non-empty list")
+  expect_i32(list.head(), 1, "head should return the first element")
+
+  tail := list.tail()
+  expect_i32(tail.head(), 2, "tail should drop the first element")
+  expect_i32(list.last(), 2, "last should return the final element")
+}
+
+fn check_concat_and_append() -> void {
+  left := List.empty()
+  left = left.prepend("b")
+  left = left.prepend("a")
+
+  right := List.empty()
+  right = right.prepend("d")
+  right = right.prepend("c")
+
+  combined := left.concat(right)
+  assert(combined.len() == 4, "concat should merge lists without mutation")
+  expect_string(combined.nth(0), "a", "concat should preserve order of left")
+  expect_string(combined.nth(1), "b", "concat should include all of left")
+  expect_string(combined.nth(2), "c", "concat should append right elements")
+  expect_string(combined.nth(3), "d", "concat should keep right order")
+
+  ## Original lists remain unchanged.
+  expect_string(left.nth(1), "b", "left should remain intact after concat")
+  expect_string(right.nth(0), "c", "right should remain intact after concat")
+
+  appended := left.append("c")
+  assert(appended.len() == 3, "append should add one element")
+  expect_string(appended.last(), "c", "append should place new element at the tail")
+  expect_string(left.last(), "b", "append should not mutate the source list")
+}
+
+fn check_reverse_and_iteration() -> void {
+  list := List.empty()
+  list = list.prepend(3)
+  list = list.prepend(2)
+  list = list.prepend(1) ## [1,2,3]
+
+  reversed := list.reverse()
+  expect_i32(reversed.nth(0), 3, "reverse should flip ordering")
+  expect_i32(reversed.nth(1), 2, "reverse should keep middle element")
+  expect_i32(reversed.nth(2), 1, "reverse should place original head last")
+
+  arr := reversed.to_array()
+  assert(arr.len() == 3, "to_array should allocate the full list length")
+  expect_i32(arr.get(0), 3, "to_array should write elements in order")
+  expect_i32(arr.get(2), 1, "to_array should include the final element")
+
+  sum := 0
+  iter := reversed.iterator()
+  loop {
+    iter.next() match {
+      case value: i32 => sum = sum + value,
+      case IteratorEnd {} => { break }
+    }
+  }
+  assert(sum == 6, "iterator should traverse each value once")
+
+  counted := 0
+  for value in reversed {
+    counted = counted + value
+  }
+  assert(counted == 6, "Enumerable.each should drive for-in loops")
+}
+
+fn main() -> void {
+  check_prepend_and_tail()
+  check_concat_and_append()
+  check_reverse_and_iteration()
+}
+
+main()

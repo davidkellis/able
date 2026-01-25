@@ -1,0 +1,9 @@
+sum := 0;
+items := [1, 2, 3];
+for n in items {
+  if n == 2 {
+    continue
+  };
+  sum = sum + n;
+}
+sum;

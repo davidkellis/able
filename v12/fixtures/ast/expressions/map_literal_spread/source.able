@@ -1,0 +1,5 @@
+import able.collections.hash_map.*
+
+defaults := #{"accept": "application/json"};
+headers := #{"content-type": "application/json", ...defaults, "authorization": "Bearer abc"};
+headers;

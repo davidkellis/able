@@ -1,0 +1,19 @@
+package exec_10_08_interface_default_override
+
+## Semantics: default methods should use overridden impl methods.
+
+interface Namer for Self {
+  fn name(self: Self) -> String
+  fn describe(self: Self) -> String { `desc:${self.name()}` }
+}
+
+struct Widget { label: String }
+
+impl Namer for Widget {
+  fn name(self: Self) -> String { self.label }
+}
+
+fn main() -> void {
+  value: Namer = Widget { label: "neo" }
+  print(value.describe())
+}

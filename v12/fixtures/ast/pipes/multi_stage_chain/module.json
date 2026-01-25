@@ -1,0 +1,527 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "add"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "left"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "right"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "left"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "right"
+              }
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "toBox"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "StructLiteral",
+              "structType": {
+                "type": "Identifier",
+                "name": "Box"
+              },
+              "fields": [
+                {
+                  "type": "StructFieldInitializer",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "value": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "isShorthand": false
+                }
+              ],
+              "isPositional": false
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Box"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "augment"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Box"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "delta"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StructLiteral",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Box"
+                  },
+                  "fields": [
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "value"
+                      },
+                      "value": {
+                        "type": "BinaryExpression",
+                        "operator": "+",
+                        "left": {
+                          "type": "MemberAccessExpression",
+                          "object": {
+                            "type": "Identifier",
+                            "name": "self"
+                          },
+                          "member": {
+                            "type": "Identifier",
+                            "name": "value"
+                          }
+                        },
+                        "right": {
+                          "type": "Identifier",
+                          "name": "delta"
+                        }
+                      },
+                      "isShorthand": false
+                    }
+                  ],
+                  "isPositional": false
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Self"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "double"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Box"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "BinaryExpression",
+                  "operator": "*",
+                  "left": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "value"
+                    }
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "augmentBy4"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "box"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Box"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "box"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "augment"
+                }
+              },
+              "arguments": [
+                {
+                  "type": "IntegerLiteral",
+                  "value": 4
+                }
+              ],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "doubleBox"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "box"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Box"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "box"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "double"
+                }
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "start"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 5
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "result"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "BinaryExpression",
+          "operator": "|>",
+          "left": {
+            "type": "BinaryExpression",
+            "operator": "|>",
+            "left": {
+              "type": "BinaryExpression",
+              "operator": "|>",
+              "left": {
+                "type": "BinaryExpression",
+                "operator": "|>",
+                "left": {
+                  "type": "Identifier",
+                  "name": "start"
+                },
+                "right": {
+                  "type": "BinaryExpression",
+                  "operator": "*",
+                  "left": {
+                    "type": "PlaceholderExpression",
+                    "index": 1
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 2
+                  }
+                }
+              },
+              "right": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "Identifier",
+                  "name": "add"
+                },
+                "arguments": [
+                  {
+                    "type": "PlaceholderExpression",
+                    "index": 1
+                  },
+                  {
+                    "type": "IntegerLiteral",
+                    "value": 3
+                  }
+                ],
+                "isTrailingLambda": false
+              }
+            },
+            "right": {
+              "type": "Identifier",
+              "name": "toBox"
+            }
+          },
+          "right": {
+            "type": "Identifier",
+            "name": "augmentBy4"
+          }
+        },
+        "right": {
+          "type": "Identifier",
+          "name": "doubleBox"
+        }
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "result"
+    }
+  ]
+}

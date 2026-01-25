@@ -1,0 +1,41 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "result"
+      },
+      "right": {
+        "type": "BreakpointExpression",
+        "label": {
+          "type": "Identifier",
+          "name": "exit"
+        },
+        "body": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "BreakStatement",
+              "label": {
+                "type": "Identifier",
+                "name": "exit"
+              },
+              "value": {
+                "type": "IntegerLiteral",
+                "value": 42
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "result"
+    }
+  ]
+}

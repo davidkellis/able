@@ -1,0 +1,7 @@
+package tutorial13_strings
+
+private fn suffix() -> String { "!" }
+
+fn shout(text: String) -> String { `${text}${suffix()}` }
+
+fn make_label(prefix: String, n: i32) -> String { `${prefix}-${n}` }

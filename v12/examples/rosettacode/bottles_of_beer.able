@@ -1,0 +1,40 @@
+package rosettacode_bottles_of_beer
+
+## Rosetta Code — 99 Bottles of Beer (https://rosettacode.org/wiki/99_Bottles_of_Beer)
+fn bottle_phrase(count: i32) -> String {
+  if count == 0 { "no more bottles" }
+  elsif count == 1 { "1 bottle" }
+  else { `${count} bottles` }
+}
+
+fn max_i32(a: i32, b: i32) -> i32 {
+  if a > b { a } else { b }
+}
+
+fn verse(count: i32) -> String {
+  current := bottle_phrase(count)
+  next := bottle_phrase(max_i32(count - 1, 0))
+
+  line1 := `${current} of beer on the wall, ${current} of beer.`
+  if count == 0 {
+    `${line1}\nGo to the store and buy some more, 99 bottles of beer on the wall.\n`
+  }
+  elsif count == 1 {
+    `${line1}\nTake it down and pass it around, ${next} of beer on the wall.\n`
+  }
+  else {
+    `${line1}\nTake one down and pass it around, ${next} of beer on the wall.\n`
+  }
+}
+
+fn sing(start: i32, end: i32) -> void {
+  bottles := start
+  while bottles >= end {
+    print(verse(bottles))
+    bottles = bottles - 1
+  }
+}
+
+fn main() -> void {
+  sing(5, 0) ## Shorter run so tests stay readable; adjust to 99 for the full song.
+}

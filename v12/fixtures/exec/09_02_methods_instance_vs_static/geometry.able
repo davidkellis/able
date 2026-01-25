@@ -1,0 +1,23 @@
+package geometry
+
+## Semantics: methods provide instance + static behavior; free functions imported into scope enable UFCS call syntax.
+
+struct Point { x: i32, y: i32 }
+
+methods Point {
+  fn translate(self: Self, dx: i32, dy: i32) -> Point {
+    Point { x: self.x + dx, y: self.y + dy }
+  }
+
+  fn sum(self: Self) -> i32 {
+    self.x + self.y
+  }
+
+  fn origin() -> Point {
+    Point { x: 0, y: 0 }
+  }
+}
+
+fn shift(p: Point, dx: i32, dy: i32) -> Point {
+  Point { x: p.x + dx, y: p.y + dy }
+}

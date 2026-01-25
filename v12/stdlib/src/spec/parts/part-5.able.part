@@ -1,0 +1,288 @@
+fn suite_prefix_keys(path: Array String) -> Array String {
+  keys: Array String := Array.new()
+  idx := 0
+  loop {
+    if idx >= path.len() { break }
+    prefix: Array String := Array.new()
+    inner := 0
+    loop {
+      if inner > idx { break }
+      path.get(inner) match {
+        case nil => {},
+        case segment: String => prefix.push(segment)
+      }
+      inner = inner + 1
+    }
+    keys.push(build_suite_key(prefix))
+    idx = idx + 1
+  }
+  keys
+}
+
+fn contains_string(array: Array String, needle: String) -> bool {
+  idx := 0
+  loop {
+    if idx >= array.len() { break }
+    array.get(idx) match {
+      case nil => {},
+      case value: String => {
+        if value == needle { return true }
+      }
+    }
+    idx = idx + 1
+  }
+  false
+}
+
+fn run_hook_sequence(hooks: Array (ExampleContext -> void), ctx: ExampleContext) -> ?Failure {
+  idx := 0
+  loop {
+    if idx >= hooks.len() { break }
+    hooks.get(idx) match {
+      case nil => {},
+      case hook: (ExampleContext -> void) => {
+        failure: ?Failure := nil
+        do { hook(ctx) } rescue {
+          case err: Error => {
+            err.value match {
+              case assertion: AssertionError => { failure = failure_from_assertion(assertion) },
+              case _ => { failure = Failure { message: err.message(), details: nil, location: nil } }
+            }
+            nil
+          }
+        }
+        failure match {
+          case nil => {},
+          case _ => { return failure }
+        }
+      }
+    }
+    idx = idx + 1
+  }
+  nil
+}
+
+fn run_hook_sequence_reverse(hooks: Array (ExampleContext -> void), ctx: ExampleContext) -> ?Failure {
+  idx := hooks.len() - 1
+  loop {
+    if idx < 0 { break }
+    hooks.get(idx) match {
+      case nil => {},
+      case hook: (ExampleContext -> void) => {
+        failure: ?Failure := nil
+        do { hook(ctx) } rescue {
+          case err: Error => {
+            err.value match {
+              case assertion: AssertionError => { failure = failure_from_assertion(assertion) },
+              case _ => { failure = Failure { message: err.message(), details: nil, location: nil } }
+            }
+            nil
+          }
+        }
+        failure match {
+          case nil => {},
+          case _ => { return failure }
+        }
+      }
+    }
+    idx = idx - 1
+  }
+  nil
+}
+
+fn run_before_all_for_suite(key: String, executed: Array String) -> ?Failure {
+  find_suite(key) match {
+    case nil => nil,
+    case suite: SuiteDefinition => {
+      if contains_string(executed, key) { return nil }
+      ctx := ExampleContext {}
+      failure := run_hook_sequence(suite.before_all, ctx)
+      failure match {
+        case nil => {},
+        case _ => { return failure }
+      }
+      nil
+    }
+  }
+}
+
+fn run_after_all_for_suites(keys: Array String, reporter: Reporter) -> void {
+  idx := keys.len() - 1
+  loop {
+    if idx < 0 { break }
+    keys.get(idx) match {
+      case nil => {},
+      case key: String => {
+        find_suite(key) match {
+          case nil => {},
+          case suite: SuiteDefinition => {
+            ctx := ExampleContext {}
+            run_hook_sequence_reverse(suite.after_all, ctx) match {
+              case nil => {},
+              case failure: Failure => reporter.emit(framework_error { message: failure.message })
+            }
+          }
+        }
+      }
+    }
+    idx = idx - 1
+  }
+}
+
+impl Framework for SpecFramework {
+  fn id(self: Self) -> String { FRAMEWORK_ID }
+
+  fn discover(
+    self: Self,
+    request: DiscoveryRequest,
+    register: TestDescriptor -> void
+  ) -> ?Failure {
+    idx := 0
+    loop {
+      if idx >= EXAMPLES.len() { break }
+      EXAMPLES.get(idx) match {
+        case nil => {},
+        case example: ExampleDefinition => {
+          if !matches_filters(example, request) {
+            idx = idx + 1
+            continue
+          }
+
+          metadata: Array MetadataEntry := Array.new()
+          metadata.push(MetadataEntry { key: "suite_path", value: build_suite_key(example.suite_path) })
+          if example.module_path != "" {
+            metadata.push(MetadataEntry { key: "module_path", value: example.module_path })
+          }
+          if example.tags.len() > 0 {
+            metadata.push(MetadataEntry { key: "tags", value: join_segments(example.tags, ",") })
+          }
+
+          register(TestDescriptor {
+            framework_id: FRAMEWORK_ID,
+            module_path: example.module_path,
+            test_id: example.id,
+            display_name: example.display_name,
+            location: nil,
+            tags: clone_string_array(example.tags),
+            metadata
+          })
+        }
+      }
+      idx = idx + 1
+    }
+  }
+
+  fn run(
+    self: Self,
+    plan: TestPlan,
+    options: RunOptions,
+    reporter: Reporter
+  ) -> ?Failure {
+    executed_suite_keys: Array String := Array.new()
+    idx := 0
+    loop {
+      if idx >= plan.descriptors.len() { break }
+      plan.descriptors.get(idx) match {
+        case nil => {},
+        case descriptor: TestDescriptor => {
+          find_example(descriptor.test_id) match {
+            case nil => {
+              run_after_all_for_suites(executed_suite_keys, reporter)
+              return Failure {
+                message: `unknown test id ${descriptor.test_id}`,
+                details: nil,
+                location: nil
+              }
+            },
+            case example: ExampleDefinition => {
+              if tag_list_contains(descriptor.tags, "skip") {
+                reporter.emit(case_skipped { descriptor, reason: "skipped" })
+                idx = idx + 1
+                continue
+              } else {
+                reporter.emit(case_started { descriptor })
+
+              prefix_keys := suite_prefix_keys(example.suite_path)
+              prefix_idx := 0
+              loop {
+                if prefix_idx >= prefix_keys.len() { break }
+                prefix_keys.get(prefix_idx) match {
+                  case nil => {},
+                  case key: String => {
+                    run_before_all_for_suite(key, executed_suite_keys) match {
+                      case nil => {
+                        if !contains_string(executed_suite_keys, key) {
+                          executed_suite_keys.push(key)
+                        }
+                      },
+                      case failure: Failure => {
+                        reporter.emit(case_failed {
+                          descriptor,
+                          duration_ms: 0,
+                          failure
+                        })
+                        run_after_all_for_suites(executed_suite_keys, reporter)
+                        return nil
+                      }
+                    }
+                  }
+                }
+                prefix_idx = prefix_idx + 1
+              }
+
+              ctx := ExampleContext {}
+              before_failure := run_hook_sequence(example.before_each, ctx)
+              failure: ?Failure := before_failure
+
+              if failure == nil {
+                body_failure: ?Failure := nil
+                do { example.body(ctx) } rescue {
+                  case err: Error => {
+                    err.value match {
+                      case assertion: AssertionError => { body_failure = failure_from_assertion(assertion) },
+                      case _ => { body_failure = Failure { message: err.message(), details: nil, location: nil } }
+                    }
+                    nil
+                  }
+                }
+                body_failure match {
+                  case nil => {},
+                  case _ => { failure = body_failure }
+                }
+              }
+
+              after_failure := run_hook_sequence_reverse(example.after_each, ctx)
+              if failure == nil {
+                failure = after_failure
+              }
+
+                failure match {
+                  case nil => reporter.emit(case_passed { descriptor, duration_ms: 0 }),
+                  case fail: Failure => reporter.emit(case_failed {
+                    descriptor,
+                    duration_ms: 0,
+                    failure: fail
+                  })
+                }
+
+                if options.fail_fast {
+                  failure match {
+                    case nil => {},
+                    case _ => {
+                      run_after_all_for_suites(executed_suite_keys, reporter)
+                      return nil
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      idx = idx + 1
+    }
+
+    run_after_all_for_suites(executed_suite_keys, reporter)
+    nil
+  }
+}

@@ -1,0 +1,88 @@
+package persistent_map_specs
+
+import able.spec.assertions.{AssertionError}
+import able.spec.*
+import able.collections.persistent_map.{PersistentMap, PersistentMapBuilder}
+import able.core.interfaces.{Hash, Hasher, Eq, Clone}
+
+struct BadKey {
+  label: String
+}
+
+impl Clone for BadKey {
+  fn clone(self: Self) -> BadKey { BadKey { label: self.label } }
+}
+
+impl Eq for BadKey {
+  fn eq(self: Self, other: BadKey) -> bool { self.label == other.label }
+}
+
+impl Hash for BadKey {
+  fn hash(self: Self, hasher: Hasher) -> void {
+    hasher.write_string("collision")
+  }
+}
+
+describe("PersistentMap") { suite =>
+  suite.it("stores, reads, and updates entries") { _ctx =>
+    map: PersistentMap String i32 := PersistentMap.empty()
+    map = map.set("a", 1)
+    map = map.set("b", 2)
+
+    expect(map.len()).to(eq(2))
+    expect(map.get("a")).to(eq(1))
+    expect(map.get("b")).to(eq(2))
+    expect(map.get("missing")).to(eq(nil))
+
+    updated := map.set("b", 20)
+    expect(updated.get("b")).to(eq(20))
+    expect(map.get("b")).to(eq(2)) ## structural sharing
+  }
+
+  suite.it("handles hash collisions without losing data") { _ctx =>
+    map: PersistentMap BadKey String := PersistentMap.empty()
+    key1 := BadKey { label: "x" }
+    key2 := BadKey { label: "y" }
+    map = map.set(key1, "first")
+    map = map.set(key2, "second")
+
+    expect(map.get(key1)).to(eq("first"))
+    expect(map.get(key2)).to(eq("second"))
+
+    map = map.set(key1, "updated")
+    expect(map.get(key1)).to(eq("updated"))
+    expect(map.get(key2)).to(eq("second"))
+  }
+
+  suite.it("removes entries and preserves older versions") { _ctx =>
+    map: PersistentMap String i32 := PersistentMap.empty()
+    map = map.set("keep", 1)
+    map = map.set("drop", 2)
+
+    smaller := map.remove("drop")
+    expect(smaller.len()).to(eq(1))
+    expect(smaller.get("drop")).to(eq(nil))
+    expect(map.get("drop")).to(eq(2))
+
+    same := map.remove("missing")
+    expect(same.len()).to(eq(map.len()))
+  }
+
+  suite.it("iterates entries via Enumerable") { _ctx =>
+    map: PersistentMap String i32 := PersistentMap.empty()
+    map = map.set("a", 1)
+    map = map.set("b", 2)
+    total := 0
+    map.each(fn(entry) -> void { total = total + entry.value })
+    expect(total == 3).to(be_truthy())
+  }
+
+  suite.it("builds maps via builder") { _ctx =>
+    builder := PersistentMapBuilder.new<String, i32>()
+    builder.insert("x", 10)
+    builder.insert("y", 20)
+    map := builder.finish()
+    expect(map.len()).to(eq(2))
+    expect(map.get("y")).to(eq(20))
+  }
+}

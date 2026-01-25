@@ -1,0 +1,46 @@
+package exec_12_03_spawn_future_status_error
+
+## Semantics: Future.status/value expose resolved/failed state, memoized values, and error propagation via `!`.
+
+fn status_name(status) -> String {
+  status match {
+    case Pending { } => "Pending",
+    case Resolved { } => "Resolved",
+    case Cancelled { } => "Cancelled",
+    case Failed { } => "Failed",
+    case _ => "Unknown"
+  }
+}
+
+fn main() -> void {
+  counter := 0
+
+  ok_future := spawn {
+    counter = counter + 1
+    21
+  }
+
+  err_future := spawn {
+    raise "boom"
+  }
+
+  future_flush()
+
+  ok_value_first := ok_future.value()
+  ok_value_second := ok_future.value()
+  err_value := err_future.value()
+  err_message := err_value.message()
+  err_rethrow := (do {
+    err_future.value()!
+    "no"
+  } rescue {
+    case err => err.message()
+  })
+
+  print(`ok status ${status_name(ok_future.status())}`)
+  print(`ok values ${ok_value_first} ${ok_value_second}`)
+  print(`counter ${counter}`)
+  print(`err status ${status_name(err_future.status())}`)
+  print(`err message ${err_message}`)
+  print(`err rethrow ${err_rethrow}`)
+}

@@ -1,0 +1,34 @@
+{
+  "description": "Wildcard import surfaces method sugar and type-qualified exports (including via package alias)",
+  "setup": [
+    "package.json"
+  ],
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "10"
+        },
+        {
+          "kind": "i32",
+          "value": "13"
+        },
+        {
+          "kind": "i32",
+          "value": "12"
+        },
+        {
+          "kind": "i32",
+          "value": "4"
+        },
+        {
+          "kind": "i32",
+          "value": "5"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

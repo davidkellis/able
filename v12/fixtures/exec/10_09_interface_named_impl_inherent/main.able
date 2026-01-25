@@ -1,0 +1,20 @@
+package exec_10_09_interface_named_impl_inherent
+
+## Semantics: named impl defaults can call inherent methods.
+
+interface Describer for Self {
+  fn describe(self: Self) -> String { self.inherent() }
+}
+
+struct Widget { id: i32 }
+
+methods Widget {
+  fn inherent(self: Self) -> String { `inherent-${self.id}` }
+}
+
+Fancy = impl Describer for Widget {}
+
+fn main() -> void {
+  widget := Widget { id: 9 }
+  print(Fancy.describe(widget))
+}

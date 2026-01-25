@@ -1,0 +1,423 @@
+package path
+
+import able.kernel.{Array}
+import able.collections.array
+import able.core.interfaces.{Div, Error}
+import able.os
+import able.text.string
+
+## Immutable, normalized representation of filesystem paths.
+struct Path {
+  root: String,
+  segments: Array String
+}
+
+private struct PathSplit {
+  root: String,
+  remainder: String
+}
+
+fn new(parts: Path | String | Array String) -> Path {
+  parts match {
+    case value: Path => value,
+    case value: String => parse(value),
+    case value: Array String => from_segments(value),
+  }
+}
+
+fn current() -> Path {
+  parse(os.cwd())
+}
+
+fn home() -> ?Path {
+  os.home_dir() match {
+    case nil => nil,
+    case value: String => parse(value),
+  }
+}
+
+fn parse(input: String) -> Path {
+  normalize_path(input)
+}
+
+fn from_segments(segments: Array String) -> Path {
+  Path { root: "", segments: normalize_segments(segments, false) }
+}
+
+methods Path {
+  fn root(self: Self) -> String { self.root }
+  fn segments(self: Self) -> Array String { clone_segments(self.segments) }
+
+  fn join(self: Self, other: Path | String) -> Path {
+    rhs := new(other)
+    if rhs.root != "" {
+      rhs
+    } else {
+      Path {
+        root: self.root,
+        segments: normalize_segments(concat_segments(self.segments, rhs.segments), self.is_absolute())
+      }
+    }
+  }
+
+  fn parent(self: Self) -> Path {
+    if self.segments.len() == 0 { return self }
+    segments := clone_segments(self.segments)
+    segments.pop();
+    return Path { root: self.root, segments }
+  }
+
+  fn basename(self: Self) -> String {
+    if self.segments.len() == 0 {
+      if self.root == "" { return "" }
+      return trim_trailing_separator(self.root)
+    }
+    self.segments.get(self.segments.len() - 1) match {
+      case nil => "",
+      case value: String => value,
+    }
+  }
+
+  fn basename_without_extension(self: Self) -> String {
+    name := self.basename()
+    self.extension() match {
+      case nil => name,
+      case ext: String => {
+        name_len := string_len(name)
+        ext_len := string_len(ext)
+        substring_unchecked(name, 0, name_len - ext_len - 1)
+      },
+    }
+  }
+
+  fn extension(self: Self) -> ?String {
+    name := self.basename()
+    name_len := string_len(name)
+    idx := name_len - 1
+    loop {
+      if idx < 0 { break }
+      char_at(name, idx) match {
+        case nil => { break },
+        case ch: String => {
+          if ch == "." {
+            if idx == 0 { return nil }
+            return substring_unchecked(name, idx + 1, name_len - (idx + 1))
+          }
+          if ch == "/" || ch == "\\" { break }
+        }
+      }
+      idx = idx - 1
+    }
+    nil
+  }
+
+  fn with_extension(self: Self, ext: String) -> Path {
+    segments := clone_segments(self.segments)
+    base := self.basename_without_extension()
+    if segments.len() == 0 {
+      segments.push(if ext == "" { base } else { `${base}.${ext}` })
+    } else {
+      segments.set(segments.len() - 1, if ext == "" { base } else { `${base}.${ext}` })
+    }
+    Path { root: self.root, segments }
+  }
+
+  fn is_absolute(self: Self) -> bool {
+    self.root != ""
+  }
+
+  fn is_relative(self: Self) -> bool {
+    !self.is_absolute()
+  }
+
+  fn absolute(self: Self) -> Path {
+    if self.is_absolute() { return self.clean() }
+    current().join(self).clean()
+  }
+
+  fn expand_home(self: Self) -> Path {
+    if self.root != "" { return self }
+    if self.segments.len() == 0 { return self }
+    self.segments.get(0) match {
+      case "~" => {
+        home() match {
+          case nil => self,
+          case home: Path => {
+            suffix := slice_segments(self.segments, 1)
+            if suffix.len() == 0 { home } else { home.join(from_segments(suffix)) }
+          }
+        }
+      },
+      case _ => self,
+    }
+  }
+
+  fn to_string(self: Self) -> String {
+    build_unix_string(self.root, self.segments)
+  }
+
+  fn to_native(self: Self) -> String {
+    unified := self.to_string()
+    if os_separator() == "/" { unified } else { unified.replace("/", os_separator()) }
+  }
+
+  fn relative_to(self: Self, base: Path) -> Path {
+    relative_components(self.clean(), base.clean())
+  }
+
+  fn normalize(self: Self) -> Path { self.clean() }
+
+  fn clean(self: Self) -> Path {
+    Path { root: self.root, segments: normalize_segments(self.segments, self.is_absolute()) }
+  }
+
+}
+
+impl Div String Path for Path {
+  fn div(self: Self, rhs: String) -> Path {
+    self.join(rhs)
+  }
+}
+
+## ----- Helpers -----
+
+fn trim_trailing_separator(value: String) -> String {
+  if value == "/" || value == "" { return value }
+  if value.ends_with("/") || value.ends_with("\\") {
+    value_len := string_len(value)
+    substring_unchecked(value, 0, value_len - 1)
+  } else {
+    value
+  }
+}
+
+fn substring_unchecked(value: String, start: i32, length: i32) -> String {
+  value.substring(start, length) match {
+    case err: Error => { raise err },
+    case result: String => result
+  }
+}
+
+fn normalize_path(input: String) -> Path {
+  if input == "" { return Path { root: "", segments: Array.new() } }
+  cleaned := input.replace("\\", "/")
+  split := split_root(cleaned)
+  raw_segments := split.remainder.split("/")
+  segments := normalize_segments(raw_segments, split.root != "")
+  Path { root: split.root, segments }
+}
+
+fn split_root(path: String) -> PathSplit {
+  path_len := string_len(path)
+  if path.starts_with("//") {
+    without := substring_unchecked(path, 2, path_len - 2)
+    segments := without.split("/")
+    segments.get(0) match {
+      case nil => PathSplit { root: `//${without}`, remainder: "" },
+      case share: String => {
+        if segments.len() <= 1 {
+          PathSplit { root: `//${share}`, remainder: "" }
+        } else {
+          PathSplit { root: `//${share}`, remainder: join_segments_from(segments, 1) }
+        }
+      }
+    }
+  } elsif is_drive_prefix(path, path_len) {
+    drive := substring_unchecked(path, 0, 2)
+    rest := if path_len > 2 {
+      char_at(path, 2) match {
+        case next: String => {
+          if next == "/" {
+            substring_unchecked(path, 3, path_len - 3)
+          } else {
+            substring_unchecked(path, 2, path_len - 2)
+          }
+        },
+        case _ => substring_unchecked(path, 2, path_len - 2)
+      }
+    } else {
+      ""
+    }
+    PathSplit { root: drive, remainder: rest }
+  } elsif path.starts_with("/") {
+    PathSplit { root: "/", remainder: substring_unchecked(path, 1, path_len - 1) }
+  } else {
+    PathSplit { root: "", remainder: path }
+  }
+}
+
+fn string_len(value: String) -> i32 {
+  value.len_chars() as i32
+}
+
+fn char_at(value: String, idx: i32) -> ?String {
+  value.substring(idx, 1) match {
+    case ch: String => ch,
+    case _ => nil
+  }
+}
+
+fn join_segments_from(segments: Array String, start: i32) -> String {
+  result := ""
+  idx := start
+  loop {
+    if idx >= segments.len() { break }
+    segments.get(idx) match {
+      case nil => {},
+      case value: String => {
+        if result == "" { result = value } else { result = `${result}/${value}` }
+      }
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn is_drive_prefix(path: String, path_len: i32) -> bool {
+  if path_len < 2 { return false }
+  char_at(path, 1) match {
+    case nil => false,
+    case ch: String => ch == ":"
+  }
+}
+
+fn normalize_segments(source: Array String, absolute: bool) -> Array String {
+  result: Array String := Array.new()
+  idx := 0
+  loop {
+    if idx >= source.len() { break }
+    source.get(idx) match {
+      case nil => {},
+      case segment: String => {
+        if segment == "" || segment == "." { idx = idx + 1; continue }
+        if segment == ".." {
+          if result.len() > 0 && result.get(result.len() - 1) != ".." {
+            result.pop()
+          } elsif !absolute {
+            result.push("..")
+          }
+        } else {
+          result.push(segment)
+        }
+      }
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn concat_segments(left: Array String, right: Array String) -> Array String {
+  result := clone_segments(left)
+  idx := 0
+  loop {
+    if idx >= right.len() { break }
+    right.get(idx) match {
+      case nil => {},
+      case value: String => result.push(value),
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn clone_segments(source: Array String) -> Array String {
+  result: Array String := Array.new()
+  idx := 0
+  loop {
+    if idx >= source.len() { break }
+    source.get(idx) match {
+      case nil => {},
+      case value: String => result.push(value),
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn slice_segments(source: Array String, start: i32) -> Array String {
+  result: Array String := Array.new()
+  idx := start
+  loop {
+    if idx >= source.len() { break }
+    source.get(idx) match {
+      case nil => {},
+      case value: String => result.push(value),
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn build_unix_string(root: String, segments: Array String) -> String {
+  result := root
+  idx := 0
+  first := root == ""
+  loop {
+    if idx >= segments.len() { break }
+    segments.get(idx) match {
+      case nil => {},
+      case segment: String => {
+        if result == "" {
+          result = segment
+        } elsif result.ends_with("/") {
+          result = `${result}${segment}`
+        } elsif first {
+          result = `${result}${segment}`
+        } else {
+          result = `${result}/${segment}`
+        }
+        first = false
+      }
+    }
+    idx = idx + 1
+  }
+  if result == "" && root == "" { return "." }
+  result
+}
+
+fn relative_components(target: Path, base: Path) -> Path {
+  if target.root != base.root {
+    return target
+  }
+  shared := 0
+  idx := 0
+  loop {
+    if idx >= target.segments.len() || idx >= base.segments.len() { break }
+    target.segments.get(idx) match {
+      case nil => { break },
+      case tseg: String => {
+        base.segments.get(idx) match {
+          case nil => { break },
+          case bseg: String => {
+            if tseg == bseg { shared = shared + 1; idx = idx + 1; continue }
+            else { break }
+          },
+        }
+      },
+    }
+  }
+
+  segments: Array String := Array.new()
+  idx = shared
+  loop {
+    if idx >= base.segments.len() { break }
+    segments.push("..")
+    idx = idx + 1
+  }
+
+  idx = shared
+  loop {
+    if idx >= target.segments.len() { break }
+    target.segments.get(idx) match {
+      case nil => {},
+      case seg: String => segments.push(seg),
+    }
+    idx = idx + 1
+  }
+  Path { root: "", segments }
+}
+
+fn os_separator() -> String {
+  ## Placeholder: future runtime hook can override.
+  "/"
+}

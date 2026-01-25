@@ -1,0 +1,10 @@
+{
+  "description": "Generic function application returns argument",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 5
+    }
+  },
+  "entry": "module.json"
+}

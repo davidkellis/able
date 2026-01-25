@@ -1,0 +1,5 @@
+## Semantics: generic helper returns one of two values with inferred type.
+
+fn pick<T>(left: T, right: T, take_left: bool) -> T {
+  if take_left { left } else { right }
+}

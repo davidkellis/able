@@ -1,0 +1,10 @@
+{
+  "description": "Functional update on named struct returns updated instance",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 7
+    }
+  },
+  "entry": "module.json"
+}

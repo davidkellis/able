@@ -1,0 +1,56 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BooleanLiteral",
+        "value": false
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "print"
+            },
+            "arguments": [
+              {
+                "type": "StringLiteral",
+                "value": "true"
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        ]
+      },
+      "elseIfClauses": [],
+      "elseBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "print"
+            },
+            "arguments": [
+              {
+                "type": "StringLiteral",
+                "value": "false"
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        ]
+      }
+    },
+    {
+      "type": "StringLiteral",
+      "value": "after"
+    }
+  ]
+}

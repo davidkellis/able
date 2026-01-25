@@ -1,0 +1,9 @@
+package greet
+
+fn greet(name: String) -> String {
+  `Hello ${name}`
+}
+
+fn main() {
+  print(greet("Tim"))
+}

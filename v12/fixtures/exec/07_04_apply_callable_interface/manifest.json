@@ -1,0 +1,10 @@
+{
+  "description": "values implementing Apply are callable via function-call syntax",
+  "expect": {
+    "stdout": [
+      "direct 12",
+      "hi-able"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "OrElseExpression",
+      "expression": {
+        "type": "PropagationExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "RaiseStatement",
+              "expression": {
+                "type": "StringLiteral",
+                "value": "boom"
+              }
+            }
+          ]
+        }
+      },
+      "handler": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "StringLiteral",
+            "value": "handled"
+          }
+        ]
+      },
+      "errorBinding": {
+        "type": "Identifier",
+        "name": "err"
+      }
+    }
+  ]
+}

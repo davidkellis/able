@@ -1,0 +1,22 @@
+{
+  "description": "impl specificity, named impl disambiguation, and HKT targets",
+  "expect": {
+    "stdout": [
+      "array<i32>",
+      "array<T>",
+      "alpha+beta",
+      "alpha",
+      "narrow",
+      "wide",
+      "pair<T,i32>",
+      "crate",
+      "array",
+      "42",
+      "0",
+      "7",
+      "1",
+      "10"
+    ],
+    "exit": 0
+  }
+}

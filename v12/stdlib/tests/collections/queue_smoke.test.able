@@ -1,0 +1,71 @@
+package queue_tests
+
+import able.collections.queue.{Queue}
+import able.core.iteration.{IteratorEnd}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise message }
+  }
+}
+
+fn check_enqueue_dequeue() -> void {
+  queue := Queue.new()
+  assert(queue.is_empty(), "new queue should start empty")
+
+  queue.enqueue(1)
+  queue.enqueue(2)
+  queue.enqueue(3)
+
+  expect_i32(queue.peek(), 1, "peek should return the front element without removal")
+  expect_i32(queue.dequeue(), 1, "dequeue should remove the head")
+  expect_i32(queue.dequeue(), 2, "dequeue should preserve FIFO ordering")
+  expect_i32(queue.peek(), 3, "peek should update after removals")
+  expect_i32(queue.dequeue(), 3, "final dequeue should empty the queue")
+
+  queue.dequeue() match {
+    case nil => {},
+    case _ => { raise "dequeue on an empty queue should return nil" }
+  }
+  assert(queue.is_empty(), "all items removed should leave the queue empty")
+
+  queue.enqueue(42)
+  queue.clear()
+  assert(queue.is_empty(), "clear should reset the queue")
+}
+
+fn check_iteration() -> void {
+  queue := Queue.new()
+  queue.enqueue(5)
+  queue.enqueue(7)
+  queue.enqueue(9)
+
+  iter := queue.iterator()
+  sum := 0
+  loop {
+    iter.next() match {
+      case value: i32 => sum = sum + value,
+      case IteratorEnd {} => { break }
+    }
+  }
+  assert(sum == 21, "iterator should traverse items in enqueue order")
+
+  iteration_sum := 0
+  for value in queue {
+    iteration_sum = iteration_sum + value
+  }
+  assert(iteration_sum == 21, "for-in loop should be powered by Enumerable.each")
+}
+
+fn main() -> void {
+  check_enqueue_dequeue()
+  check_iteration()
+}
+
+main()

@@ -1,0 +1,206 @@
+package lazy_seq
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Default, Extend}
+import able.core.iteration.{Iterator, IteratorEnd, Iterable}
+
+struct LazySeq T {
+  source: ?(Iterator T),
+  cache: Array T,
+  exhausted: bool
+}
+
+fn lazy_seq_from_array<T>(values: Array T) -> LazySeq T {
+  LazySeq T { source: nil, cache: values, exhausted: true }
+}
+
+methods LazySeq T {
+  fn from_iterator(iterator: Iterator T) -> LazySeq T {
+    LazySeq T {
+      source: iterator,
+      cache: Array.new(),
+      exhausted: false
+    }
+  }
+
+  fn from_iterable(iterable: Iterable T) -> LazySeq T {
+    LazySeq.from_iterator(iterable.iterator())
+  }
+
+  fn len(self: Self) -> i32 {
+    self.ensure_all()
+    self.cache.len()
+  }
+
+  fn is_empty(self: Self) -> bool {
+    self.peek(0) == nil
+  }
+
+  fn get(self: Self, index: i32) -> ?T {
+    if index < 0 { return nil }
+    self.ensure_index(index)
+    self.cache.get(index)
+  }
+
+  fn head(self: Self) -> ?T {
+    self.get(0)
+  }
+
+  fn tail(self: Self) -> LazySeq T {
+    self.ensure_index(0) match {
+      case nil => self,
+      case _ => {
+        new_cache: Array T := Array.new();
+        idx := 1
+        loop {
+          self.cache.get(idx) match {
+            case nil => { break },
+            case value: T => new_cache.push(value)
+          }
+          idx = idx + 1
+        }
+        LazySeq T {
+          source: self.source,
+          cache: new_cache,
+          exhausted: self.exhausted
+        }
+      }
+    }
+  }
+
+  fn to_array(self: Self) -> Array T {
+    self.ensure_all()
+    result := Array.with_capacity(self.cache.len())
+    idx := 0
+    loop {
+      self.cache.get(idx) match {
+        case nil => { break },
+        case value: T => result.push(value)
+      }
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn take(self: Self, count: i32) -> Array T {
+    if count <= 0 { return Array.new() }
+    self.ensure_index(count - 1)
+    result := Array.new();
+    idx := 0
+    loop {
+      if idx >= count { break }
+      self.cache.get(idx) match {
+        case nil => { break },
+        case value: T => result.push(value)
+      }
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn for_each(self: Self, visit: T -> void) -> void {
+    idx := 0
+    loop {
+      self.cache.get(idx) match {
+        case nil => {
+          if self.exhausted {
+            return
+          }
+          self.pull_next() match {
+            case nil => { return },
+            case _ => {}
+          }
+          continue
+        },
+        case value: T => {
+          visit(value)
+        }
+      }
+      idx = idx + 1
+    }
+  }
+
+  fn each(self: Self, visit: T -> void) -> void {
+    self.for_each(visit)
+  }
+
+  fn ensure_all(self: Self) -> void {
+    loop {
+      if self.exhausted { break }
+      value := self.pull_next()
+      if value == nil { break }
+    }
+  }
+
+  fn ensure_index(self: Self, index: i32) -> ?T {
+    if index < self.cache.len() {
+      return self.cache.get(index)
+    }
+    loop {
+      if self.exhausted { break }
+      value := self.pull_next()
+      value match {
+        case nil => { break },
+        case _ => {}
+      }
+      if self.cache.len() - 1 >= index {
+        break
+      }
+    }
+    self.cache.get(index)
+  }
+
+  fn pull_next(self: Self) -> ?T {
+    self.source match {
+      case nil => {
+        self.exhausted = true
+        nil
+      },
+      case iterator => {
+        mut_iter := iterator
+        next_value := mut_iter.next()
+        self.source = mut_iter
+        next_value match {
+          case _: IteratorEnd => {
+            self.source = nil
+            self.exhausted = true
+            nil
+          },
+          case value: T => {
+            self.cache.push(value)
+            value
+          }
+        }
+      }
+    }
+  }
+}
+
+impl Default for LazySeq T {
+  fn default() -> LazySeq T {
+    LazySeq T { source: nil, cache: Array.new(), exhausted: true }
+  }
+}
+
+impl Extend T for LazySeq T {
+  fn extend(self: Self, value: T) -> Self {
+    self.ensure_all()
+    self.cache.push(value)
+    self.exhausted = true
+    self.source = nil
+    self
+  }
+}
+
+impl Enumerable A for LazySeq {
+  fn each(self: Self, visit: A -> void) -> void {
+    mut_copy := self
+    mut_copy.for_each(visit)
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
+    mut_copy := self
+    Iterator { gen => mut_copy.for_each(gen.yield) }
+  }
+}

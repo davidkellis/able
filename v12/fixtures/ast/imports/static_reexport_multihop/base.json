@@ -1,0 +1,28 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      { "type": "Identifier", "name": "static_base_multihop" }
+    ]
+  },
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": { "type": "Identifier", "name": "base_value" },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": { "type": "IntegerLiteral", "value": 40 }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

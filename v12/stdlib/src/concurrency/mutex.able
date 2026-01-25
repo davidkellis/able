@@ -1,0 +1,24 @@
+import able.core.interfaces.{Error}
+import able.kernel.{Mutex::KernelMutex, lock, unlock, await_lock}
+
+struct MutexUnlocked {}
+struct MutexPoisoned {}
+
+## Re-export kernel Mutex under the stdlib namespace.
+type Mutex = KernelMutex;
+Mutex := KernelMutex
+
+impl Error for MutexUnlocked {
+  fn message(self: Self) -> String { "unlock of unlocked mutex" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for MutexPoisoned {
+  fn message(self: Self) -> String { "mutex poisoned" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn with_lock<T>(m: Mutex, f: fn() -> T) -> T {
+  m.lock();
+  do { f() } ensure { m.unlock() }
+}

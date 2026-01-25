@@ -1,0 +1,4 @@
+fn choose_first<T, U>(first: T, second: U) -> T where T: Display + Clone, U: Display {
+  first;
+}
+choose_first<String, i32>("winner", 1);

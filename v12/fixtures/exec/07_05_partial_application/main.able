@@ -1,0 +1,37 @@
+package exec_07_05_partial_application
+
+## Semantics: placeholder arguments create partial applications; numbered placeholders
+## set arity, and evaluation order is left-to-right when invoked.
+
+fn add(a: i32, b: i32) -> i32 { a + b }
+
+fn combine(a: i32, b: i32, c: i32) -> i32 { a * 100 + b * 10 + c }
+
+fn mark(label: String, value: i32) -> i32 {
+  print(label)
+  value
+}
+
+struct Box { value: i32 }
+
+methods Box {
+  fn #add(delta: i32) -> i32 { #value + delta }
+}
+
+fn main() -> void {
+  add_10 := add(@, 10)
+  print(`add ${add_10(5)}`)
+
+  square := @ * @
+  print(`square ${square(6)}`)
+
+  mixed := combine(@2, @, @3)
+  print(`mixed ${mixed(7, 8, 9)}`)
+
+  box := Box { value: 4 }
+  plus := box.add(@)
+  print(`method ${plus(3)}`)
+
+  order := combine(mark("first", @1), mark("second", @2), @3)
+  print(`order ${order(1, 2, 3)}`)
+}

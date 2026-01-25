@@ -1,0 +1,7 @@
+fn list_items() -> Array String {
+  ["espresso", "tonic", "cocoa"]
+}
+
+fn featured() -> String {
+  "espresso"
+}

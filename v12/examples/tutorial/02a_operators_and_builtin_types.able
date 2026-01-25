@@ -1,0 +1,61 @@
+package operators
+
+## Built-in scalar types: integers, floats, bool, char, String, nil, void.
+fn scalar_showcase() -> void {
+  lang := "Able"
+  major_version: i32 := 11
+  release: f64 := 11.0
+  initial: char := 'A'
+  is_stable := true
+  nothing: ?String := nil
+
+  print(`Language: ${lang} v${release}`)
+  print(`Major version as i32: ${major_version}`)
+  print(`Char literal: ${initial}`)
+  print(`Booleans drive control flow: ${if is_stable { "stable" } else { "nightly" }}`)
+  print(`Optional unwrap with else: ${nothing or { "unset" }}`)
+}
+
+## Arithmetic and comparison operators.
+fn numeric_operators(a: i32, b: i32) -> void {
+  print(`a = ${a}, b = ${b}`)
+  print(`sum (+): ${a + b}`)
+  print(`difference (-): ${a - b}`)
+  print(`product (*): ${a * b}`)
+  print(`float division (/): ${a / b}`) ## integer / integer promotes to f64
+  print(`floor division (//): ${a // b}`)
+  print(`modulo (%): ${a % b}`)
+
+  pair := a /% b
+  print(`div + mod (/%): q=${pair.quotient}, r=${pair.remainder}`)
+
+  print(`== comparison: ${a == b}`)
+  print(`!= comparison: ${a != b}`)
+  print(`>= comparison: ${a >= b}`)
+}
+
+## Bitwise and shift operators on integers.
+fn bitwise_operators() -> void {
+  mask_a := 0b1010_i32
+  mask_b := 0b1100_i32
+  anded := mask_a .& mask_b
+  ored := mask_a .| mask_b
+  xored := mask_a .^ mask_b
+  shifted := 1_i32 .<< 3
+  print(`bitwise AND: ${anded}, OR: ${ored}, XOR: ${xored}, shift: ${shifted}`)
+}
+
+## Logical operators use bool operands and short-circuit.
+fn logical_truthiness() -> void {
+  left := false
+  right := true
+  print(`|| picks first true: ${left || right}`)
+  print(`&& evaluates both when first is true: ${right && left}`)
+}
+
+fn main() -> void {
+  scalar_showcase()
+  numeric_operators(7, 3)
+  bitwise_operators()
+  logical_truthiness()
+}

@@ -1,0 +1,9 @@
+{
+  "description": "Interface composition with generic base interfaces",
+  "expect": {
+    "result": {
+      "kind": "nil"
+    }
+  },
+  "entry": "module.json"
+}

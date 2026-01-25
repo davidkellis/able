@@ -1,0 +1,150 @@
+package array
+import able.core.interfaces.{Default, Extend, Clone, Index, IndexMut}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+import able.core.errors.{IndexError}
+import able.kernel.{Array::KernelArray}
+
+struct ArrayIterator T {
+  array: Array T,
+  index: i32,
+  length: i32,
+}
+
+## Re-export kernel Array under the stdlib namespace.
+type Array T = KernelArray T;
+Array := KernelArray
+
+## Stdlib extensions layered on the kernel-backed Array.
+methods Array T {
+  fn get(self: Self, idx: i32) -> ?T {
+    arr := self
+    arr.refresh_metadata()
+    count := arr.len()
+    if idx < 0 || idx >= count { return nil }
+    arr.read_slot(idx)
+  }
+
+  fn set(self: Self, idx: i32, value: T) -> !nil {
+    arr := self
+    arr.refresh_metadata()
+    count := arr.len()
+    if idx < 0 || idx >= count { return IndexError { index: idx, length: count } }
+    arr.write_slot(idx, value)
+    nil
+  }
+
+  fn first(self: Self) -> ?T {
+    self.get(0)
+  }
+
+  fn last(self: Self) -> ?T {
+    count := self.len()
+    if count == 0 { return nil }
+    self.get(count - 1)
+  }
+
+  fn push_all(self: Self, values: Array T) -> void {
+    i := 0
+    loop {
+      if i >= values.len() { break }
+      values.get(i) match {
+        case nil => {},
+        case value: T => self.push(value)
+      }
+      i = i + 1
+    }
+  }
+
+  fn map<U>(self: Self, f: T -> U) -> Array U {
+    count := self.len()
+    result: Array U := Array.with_capacity(count)
+    i := 0
+    loop {
+      if i >= count { break }
+      self.get(i) match {
+        case nil => {},
+        case item: T => result.push(f(item))
+      }
+      i = i + 1
+    }
+    result
+  }
+}
+
+methods Array T where T: Clone {
+  fn filter(self: Self, predicate: T -> bool) -> Array T {
+    count := self.len()
+    result: Array T := Array.with_capacity(count)
+    i := 0
+    loop {
+      if i >= count { break }
+      self.get(i) match {
+        case nil => {},
+        case item: T => {
+          if predicate(item.clone()) {
+            result.push(item)
+          }
+        }
+      }
+      i = i + 1
+    }
+    result
+  }
+}
+
+impl Default for Array T {
+  fn default() -> Array T { Array.new() }
+}
+
+impl Extend T for Array T {
+  fn extend(self: Self, value: T) -> Self {
+    self.push(value)
+    self
+  }
+}
+
+impl Clone for Array T {
+  fn clone(self: Self) -> Array T {
+    self.clone_shallow()
+  }
+}
+
+impl Iterable T for Array T {
+  fn each(self: Self, visit: T -> void) -> void {
+    snapshot := self
+    snapshot.refresh_metadata()
+    i := 0
+    loop {
+      if i >= snapshot.length { break }
+      visit(snapshot.read_slot(i))
+      i = i + 1
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    snapshot := self;
+    snapshot.refresh_metadata();
+    ArrayIterator { array: snapshot, index: 0, length: snapshot.length }
+  }
+}
+
+impl Iterator T for ArrayIterator T {
+  fn next(self: Self) -> T | IteratorEnd {
+    if self.index >= self.length { return IteratorEnd {} }
+    value := self.array.read_slot(self.index)
+    self.index = self.index + 1
+    value
+  }
+}
+
+impl Index i32 T for Array T {
+  fn get(self: Self, idx: i32) -> !T {
+    if idx < 0 || idx >= self.len() { IndexError { index: idx, length: self.len() } } else { self.read_slot(idx) }
+  }
+}
+
+impl IndexMut i32 T for Array T {
+  fn set(self: Self, idx: i32, value: T) -> !void {
+    if idx < 0 || idx >= self.len() { IndexError { index: idx, length: self.len() } } else { self.write_slot(idx, value) }
+  }
+}

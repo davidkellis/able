@@ -1,0 +1,10 @@
+{
+  "description": "Multi-stage pipeline mixing placeholder-built callables and bound methods",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "34"
+    }
+  },
+  "entry": "module.json"
+}

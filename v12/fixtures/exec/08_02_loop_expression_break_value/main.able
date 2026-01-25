@@ -1,0 +1,25 @@
+package exec_08_02_loop_expression_break_value
+
+## Semantics: loop expressions return the break payload or nil when breaking without a value.
+
+fn main() -> void {
+  count := 0
+  result := loop {
+    count = count + 1
+    if count < 3 {
+      continue
+    }
+    if count == 3 {
+      break count
+    }
+    break -1
+  }
+
+  print(`result ${result}`)
+  print(`count ${count}`)
+
+  nil_result := loop {
+    break
+  }
+  print(`nil ${nil_result}`)
+}

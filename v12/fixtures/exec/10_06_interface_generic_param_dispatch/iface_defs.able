@@ -1,0 +1,7 @@
+package iface_defs
+
+## Semantics: interface constraints provide method dispatch across packages.
+
+interface Show for Self {
+  fn show(self: Self) -> String
+}

@@ -1,0 +1,318 @@
+package persistent_sorted_set
+
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Enumerable}
+import able.core.iteration.{Iterable}
+import able.core.interfaces.{Ord, Clone, Less, Greater, Equal, Default, Extend}
+
+struct TreeEmpty {}
+struct TreeNode T {
+  value: T,
+  left: Tree T,
+  right: Tree T,
+  height: i32,
+  size: i32
+}
+
+union Tree T = TreeEmpty | TreeNode T
+
+struct TreeInsertResult T {
+  tree: Tree T,
+  added: bool
+}
+
+struct TreeRemoveResult T {
+  tree: Tree T,
+  removed: bool
+}
+
+struct MinRemoveResult T {
+  tree: Tree T,
+  value: T
+}
+
+struct PersistentSortedSet T {
+  root: Tree T,
+  size: i32
+} where T: Ord + Clone
+
+fn tree_height<T>(tree: Tree T) -> i32 {
+  tree match {
+    case TreeEmpty {} => 0,
+    case TreeNode { height } => height,
+  }
+}
+
+fn tree_size<T>(tree: Tree T) -> i32 {
+  tree match {
+    case TreeEmpty {} => 0,
+    case TreeNode { size } => size,
+  }
+}
+
+fn make_node<T>(value: T, left: Tree T, right: Tree T) -> Tree T where T: Ord + Clone {
+  lh := tree_height(left)
+  rh := tree_height(right)
+  height := (if lh > rh { lh } else { rh }) + 1
+  TreeNode {
+    value: value,
+    left: left,
+    right: right,
+    height: height,
+    size: tree_size(left) + tree_size(right) + 1
+  }
+}
+
+fn rotate_left<T>(tree: Tree T) -> Tree T where T: Ord + Clone {
+  tree match {
+    case TreeEmpty {} => tree,
+    case TreeNode { value, left, right } => {
+      right match {
+        case TreeEmpty {} => tree,
+        case TreeNode { value::rv, left::rl, right::rr } => {
+          new_left := make_node(value.clone(), left, rl)
+          make_node(rv.clone(), new_left, rr)
+        },
+      }
+    },
+  }
+}
+
+fn rotate_right<T>(tree: Tree T) -> Tree T where T: Ord + Clone {
+  tree match {
+    case TreeEmpty {} => tree,
+    case TreeNode { value, left, right } => {
+      left match {
+        case TreeEmpty {} => tree,
+        case TreeNode { value::lv, left::ll, right::lr } => {
+          new_right := make_node(value.clone(), lr, right)
+          make_node(lv.clone(), ll, new_right)
+        },
+      }
+    },
+  }
+}
+
+fn balance_tree<T>(tree: Tree T) -> Tree T where T: Ord + Clone {
+  tree match {
+    case TreeEmpty {} => tree,
+    case TreeNode { value, left, right } => {
+      factor := tree_height(left) - tree_height(right)
+      if factor > 1 {
+        left match {
+          case TreeEmpty {} => tree,
+          case TreeNode { left::ll, right::lr, value } => {
+            if tree_height(ll) >= tree_height(lr) {
+              rotate_right(tree)
+            } else {
+              rotated_left := rotate_left(left)
+              rotate_right(make_node(value.clone(), rotated_left, right))
+            }
+          },
+        }
+      } elsif factor < -1 {
+        right match {
+          case TreeEmpty {} => tree,
+          case TreeNode { left::rl, right::rr, value } => {
+            if tree_height(rr) >= tree_height(rl) {
+              rotate_left(tree)
+            } else {
+              rotated_right := rotate_right(right)
+              rotate_left(make_node(value.clone(), left, rotated_right))
+            }
+          },
+        }
+      } else {
+        make_node(value, left, right)
+      }
+    },
+  }
+}
+
+fn insert_tree<T>(tree: Tree T, value: T) -> TreeInsertResult T where T: Ord + Clone {
+  tree match {
+    case TreeEmpty {} => TreeInsertResult { tree: make_node(value, TreeEmpty {}, TreeEmpty {}), added: true },
+    case TreeNode { value::node_value, left, right } => {
+      cmp := value.cmp(node_value)
+      if cmp == Equal {
+        TreeInsertResult { tree: tree, added: false }
+      } elsif cmp == Less {
+        res := insert_tree(left, value)
+        if !res.added {
+          TreeInsertResult { tree: tree, added: false }
+        } else {
+          TreeInsertResult { tree: balance_tree(make_node(node_value.clone(), res.tree, right)), added: true }
+        }
+      } else {
+        res := insert_tree(right, value)
+        if !res.added {
+          TreeInsertResult { tree: tree, added: false }
+        } else {
+          TreeInsertResult { tree: balance_tree(make_node(node_value.clone(), left, res.tree)), added: true }
+        }
+      }
+    },
+  }
+}
+
+fn remove_min_node<T>(node: TreeNode T) -> MinRemoveResult T where T: Ord + Clone {
+  node.left match {
+    case TreeEmpty {} => MinRemoveResult { tree: node.right, value: node.value },
+    case left_child: TreeNode T => {
+      res := remove_min_node(left_child)
+      updated := balance_tree(make_node(node.value.clone(), res.tree, node.right))
+      MinRemoveResult { tree: updated, value: res.value }
+    },
+  }
+}
+
+fn remove_tree<T>(tree: Tree T, target: T) -> TreeRemoveResult T where T: Ord + Clone {
+  tree match {
+    case TreeEmpty {} => TreeRemoveResult { tree: tree, removed: false },
+    case TreeNode { value::node_value, left, right } => {
+      cmp := target.cmp(node_value)
+      if cmp == Less {
+        res := remove_tree(left, target)
+        if !res.removed {
+          TreeRemoveResult { tree: tree, removed: false }
+        } else {
+          TreeRemoveResult { tree: balance_tree(make_node(node_value.clone(), res.tree, right)), removed: true }
+        }
+      } elsif cmp == Greater {
+        res := remove_tree(right, target)
+        if !res.removed {
+          TreeRemoveResult { tree: tree, removed: false }
+        } else {
+          TreeRemoveResult { tree: balance_tree(make_node(node_value.clone(), left, res.tree)), removed: true }
+        }
+      } else {
+        left match {
+          case TreeEmpty {} => {
+            right match {
+              case TreeEmpty {} => TreeRemoveResult { tree: TreeEmpty {}, removed: true },
+              case _ => TreeRemoveResult { tree: right, removed: true },
+            }
+          },
+          case _ => {
+            right match {
+              case TreeEmpty {} => TreeRemoveResult { tree: left, removed: true },
+              case right_node: TreeNode T => {
+                successor := remove_min_node(right_node)
+                TreeRemoveResult {
+                  tree: balance_tree(make_node(successor.value.clone(), left, successor.tree)),
+                  removed: true
+                }
+              },
+            }
+          },
+        }
+      }
+    },
+  }
+}
+
+methods PersistentSortedSet T where T: Ord + Clone {
+  fn empty() -> PersistentSortedSet T {
+    PersistentSortedSet { root: TreeEmpty {}, size: 0 }
+  }
+
+  fn len(self: Self) -> i32 { self.size }
+
+  fn contains(self: Self, value: T) -> bool {
+    current := self.root
+    loop {
+      current match {
+        case TreeEmpty {} => { return false },
+        case TreeNode { value::node_value, left, right } => {
+          cmp := value.cmp(node_value)
+          if cmp == Equal { return true }
+          current = if cmp == Less { left } else { right }
+        },
+      }
+    }
+  }
+
+  fn insert(self: Self, value: T) -> PersistentSortedSet T {
+    res := insert_tree(self.root, value)
+    size_delta := if res.added { 1 } else { 0 }
+    PersistentSortedSet { root: res.tree, size: self.size + size_delta }
+  }
+
+  fn remove(self: Self, value: T) -> PersistentSortedSet T {
+    res := remove_tree(self.root, value)
+    if !res.removed { return self }
+    PersistentSortedSet { root: res.tree, size: self.size - 1 }
+  }
+
+  fn first(self: Self) -> ?T {
+    current := self.root
+    result: ?T := nil
+    loop {
+      current match {
+        case TreeEmpty {} => { break },
+        case TreeNode { value, left } => {
+          result = value
+          current = left
+        },
+      }
+    }
+    result
+  }
+
+  fn last(self: Self) -> ?T {
+    current := self.root
+    result: ?T := nil
+    loop {
+      current match {
+        case TreeEmpty {} => { break },
+        case TreeNode { value, left, right } => {
+          result = value
+          current = right
+        },
+      }
+    }
+    result
+  }
+
+  fn range(self: Self, start: T, end: T) -> Array T {
+    result := Array.new()
+    self.for_each(fn(value: T) -> void {
+      if value.cmp(start) != Less && value.cmp(end) != Greater {
+        result.push(value)
+      }
+    })
+    result
+  }
+
+  fn for_each(self: Self, visit: T -> void) -> void {
+    traverse(self.root, visit)
+  }
+}
+
+fn traverse<T>(tree: Tree T, visit: T -> void) -> void {
+  tree match {
+    case TreeEmpty {} => {},
+    case TreeNode { value, left, right } => {
+      traverse(left, visit)
+      visit(value)
+      traverse(right, visit)
+    },
+  }
+}
+
+impl Default for PersistentSortedSet T where T: Ord + Clone {
+  fn default() -> PersistentSortedSet T { PersistentSortedSet.empty() }
+}
+
+impl Extend T for PersistentSortedSet T where T: Ord + Clone {
+  fn extend(self: Self, value: T) -> Self {
+    self.insert(value)
+  }
+}
+
+impl Enumerable A for PersistentSortedSet where A: Ord + Clone {
+  fn each(self: Self, visit: A -> void) -> void {
+    self.for_each(visit)
+  }
+}

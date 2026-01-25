@@ -1,0 +1,12 @@
+package simple_specs
+
+import able.spec.*
+
+describe("simple suite") { suite =>
+  suite.it("verifies string equality") { _ctx =>
+    expect("hello world").to(eq("hello world"))
+  }
+  suite.it("verifies addition works") { _ctx =>
+    expect(1 + 2).to(eq(3))
+  }
+}

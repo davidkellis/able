@@ -1,0 +1,10 @@
+{
+  "description": "For loop continue skips matching elements",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "4"
+    }
+  },
+  "entry": "module.json"
+}

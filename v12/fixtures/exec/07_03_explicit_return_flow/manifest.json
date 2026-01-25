@@ -1,0 +1,14 @@
+{
+  "description": "explicit return exits the function from nested blocks and void returns are allowed",
+  "expect": {
+    "stdout": [
+      "do before",
+      "early",
+      "after",
+      "late",
+      "log before",
+      "log after"
+    ],
+    "exit": 0
+  }
+}

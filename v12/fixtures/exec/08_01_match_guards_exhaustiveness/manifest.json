@@ -1,0 +1,10 @@
+{
+  "description": "match guards fall through and require exhaustive coverage",
+  "expect": {
+    "stdout": ["guard zero"],
+    "stderr": [
+      "runtime: v11/fixtures/exec/08_01_match_guards_exhaustiveness/main.able:15:3 Non-exhaustive match"
+    ],
+    "exit": 1
+  }
+}

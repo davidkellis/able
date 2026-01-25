@@ -1,0 +1,78 @@
+package string_builder_specs
+
+import able.spec.*
+import able.core.interfaces.{Error}
+import able.text.string.{String, StringBuilder}
+import able.kernel.{Array}
+import able.collections.array
+
+fn make_string(value: String) -> String {
+  String.from_builtin(value) match {
+    case s: String => s,
+    case err: Error => { raise err }
+  }
+}
+
+describe("StringBuilder") { suite =>
+  suite.it("pushes strings and finishes") { _ctx =>
+    builder := StringBuilder.new()
+    builder.push_string(make_string("Hello"))
+    builder.push_string(make_string(" World"))
+    builder.finish() match {
+      case result: String => expect(result).to(eq("Hello World")),
+      case err: Error => { raise err }
+    }
+  }
+
+  suite.it("supports push_bytes and len") { _ctx =>
+    bytes: Array u8 := (Array).new();
+    bytes.push(33_u8)
+    builder := StringBuilder.with_capacity(4)
+    builder.push_string(make_string("Hi"))
+    builder.push_bytes(bytes)
+    expect(builder.len_bytes()).to(eq(3))
+  }
+
+  suite.it("pushes chars, clears, and appends builders") { _ctx =>
+    builder := StringBuilder.new()
+    builder.push_char('A')
+    builder.push_char('B')
+    other := StringBuilder.new()
+    other.push_string(make_string("C"))
+    builder.append_builder(other)
+    builder.finish() match {
+      case s: String => expect(s).to(eq("ABC")),
+      case err: Error => { raise err }
+    }
+
+    cleared := StringBuilder.new()
+    cleared.push_char('Z')
+    cleared.clear()
+    cleared.push_char('Y')
+    cleared.finish() match {
+      case s: String => expect(s).to(eq("Y")),
+      case err: Error => { raise err }
+    }
+  }
+
+  suite.it("maps and filters builder chars eagerly") { _ctx =>
+    builder := StringBuilder.new()
+    builder.push_string(make_string("abC"))
+
+    mapped := builder.map(fn(ch: char) -> char {
+      if ch == 'a' { return 'A' }
+      if ch == 'b' { return 'B' }
+      ch
+    })
+    mapped.finish() match {
+      case s: String => expect(s).to(eq("ABC")),
+      case err: Error => { raise err }
+    }
+
+    filtered := builder.filter(fn(ch: char) -> bool { ch != 'b' })
+    filtered.finish() match {
+      case s: String => expect(s).to(eq("aC")),
+      case err: Error => { raise err }
+    }
+  }
+}

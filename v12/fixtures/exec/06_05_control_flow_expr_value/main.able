@@ -1,0 +1,25 @@
+package exec_06_05_control_flow_expr_value
+
+## Semantics: `if`/`match` are expressions that evaluate to the value of their selected branch.
+
+fn main() -> void {
+  flag := true
+  picked := if flag {
+    base := 3
+    base + 4
+  } else {
+    0
+  }
+
+  label := 2 match {
+    case 1 => "one",
+    case 2 => "two",
+    case _ => "other"
+  }
+
+  fallback := if false { "yes" } else { "no" }
+
+  print(`if ${picked}`)
+  print(`match ${label}`)
+  print(`if_else ${fallback}`)
+}

@@ -1,0 +1,167 @@
+package hash_set
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.hash_map.*
+import able.collections.set.{Set}
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Clone, Default, Extend, Hash, Eq}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+
+struct HashSet T {
+  map: HashMap T bool
+}
+
+struct HashSetIterator T {
+  keys: Array T,
+  index: i32
+}
+
+fn collect_keys<T>(source: HashMap T bool) -> HashSetIterator T where T: Hash + Eq {
+  keys: Array T := Array.with_capacity(source.size())
+  source.for_each({ key, _value => keys.push(key) })
+  HashSetIterator { keys: keys, index: 0 }
+}
+
+fn visit_keys<T>(source: HashMap T bool, visit: T -> void) -> void where T: Hash + Eq {
+  source.for_each({ key, _value => visit(key) })
+}
+
+methods HashSet T where T: Hash + Eq {
+  fn new() -> HashSet T {
+    HashSet { map: HashMap.new() }
+  }
+
+  fn with_capacity(capacity: i32) -> HashSet T {
+    HashSet { map: HashMap.with_capacity(capacity) }
+  }
+
+  fn add(self: Self, value: T) -> bool {
+    existed := self.map.contains(value)
+    self.map.set(value, true)
+    !existed
+  }
+
+  fn remove(self: Self, value: T) -> bool { self.map.remove(value) != nil }
+
+  fn contains(self: Self, value: T) -> bool { self.map.contains(value) }
+  fn size(self: Self) -> i32 { self.map.size() }
+  fn clear(self: Self) -> void { self.map.clear() }
+  fn is_empty(self: Self) -> bool { self.map.size() == 0 }
+
+  fn union(self: Self, other: HashSet T) -> HashSet T {
+    result := self.clone()
+    visit_keys(other.map, fn(value: T) -> void { result.add(value) })
+    result
+  }
+
+  fn intersect(self: Self, other: HashSet T) -> HashSet T {
+    result := HashSet.new()
+    visit_keys(self.map, fn(value: T) -> void {
+      if other.contains(value) { result.add(value) }
+    })
+    result
+  }
+
+  fn difference(self: Self, other: HashSet T) -> HashSet T {
+    result := self.clone()
+    visit_keys(other.map, fn(value: T) -> void { result.remove(value) })
+    result
+  }
+
+  fn symmetric_difference(self: Self, other: HashSet T) -> HashSet T {
+    result := HashSet.new()
+    visit_keys(self.map, fn(value: T) -> void {
+      if !other.contains(value) { result.add(value) }
+    })
+    visit_keys(other.map, fn(value: T) -> void {
+      if !self.contains(value) { result.add(value) }
+    })
+    result
+  }
+
+  fn map<B>(self: Self, f: T -> B) -> HashSet B where B: Hash + Eq {
+    result: HashSet B := HashSet.new()
+    self.each(fn(value: T) -> void {
+      result.add(f(value))
+    })
+    result
+  }
+
+  fn filter(self: Self, predicate: T -> bool) -> HashSet T {
+    result: HashSet T := HashSet.new()
+    self.each(fn(value: T) -> void {
+      if predicate(value) { result.add(value) }
+    })
+    result
+  }
+
+  fn is_subset(self: Self, other: HashSet T) -> bool {
+    if self.size() > other.size() { return false }
+    ok := true
+    visit_keys(self.map, fn(value: T) -> void {
+      if !other.contains(value) { ok = false }
+    })
+    ok
+  }
+
+  fn is_superset(self: Self, other: HashSet T) -> bool {
+    other.is_subset(self)
+  }
+
+  fn is_disjoint(self: Self, other: HashSet T) -> bool {
+    ok := true
+    visit_keys(self.map, fn(value: T) -> void {
+      if other.contains(value) { ok = false }
+    })
+    ok
+  }
+}
+
+impl Default for HashSet T where T: Hash + Eq {
+  fn default() -> HashSet T { HashSet.new() }
+}
+
+impl Extend T for HashSet T where T: Hash + Eq {
+  fn extend(self: Self, value: T) -> Self {
+    self.add(value)
+    self
+  }
+}
+
+impl Clone for HashSet T where T: Hash + Eq {
+  fn clone(self: Self) -> HashSet T { HashSet { map: self.map.clone() } }
+}
+
+impl Set T for HashSet T where T: Hash + Eq {
+  fn add(self: Self, value: T) -> bool {
+    existed := self.map.contains(value)
+    self.map.set(value, true)
+    !existed
+  }
+
+  fn remove(self: Self, value: T) -> bool { self.map.remove(value) != nil }
+
+  fn contains(self: Self, value: T) -> bool { self.map.contains(value) }
+  fn size(self: Self) -> i32 { self.map.size() }
+  fn clear(self: Self) -> void { self.map.clear() }
+  fn is_empty(self: Self) -> bool { self.map.size() == 0 }
+}
+
+impl Enumerable A for HashSet where A: Hash + Eq {
+  fn iterator(self: Self) -> (Iterator A) {
+    collect_keys(self.map)
+  }
+
+  fn each(self: Self, visit: A -> void) -> void {
+    visit_keys(self.map, visit)
+  }
+}
+
+impl Iterator T for HashSetIterator T {
+  fn next(self: Self) -> T | IteratorEnd {
+    if self.index >= self.keys.len() { return IteratorEnd {} }
+    value := self.keys.read_slot(self.index)
+    self.index = self.index + 1
+    value
+  }
+}

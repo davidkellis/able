@@ -1,0 +1,12 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "BinaryExpression",
+      "operator": "&&",
+      "left": { "type": "StringLiteral", "value": "oops" },
+      "right": { "type": "BooleanLiteral", "value": true }
+    }
+  ]
+}

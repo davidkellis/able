@@ -1,0 +1,10 @@
+{
+  "description": "Future value memoises results and runs the task only once",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "1"
+    }
+  },
+  "entry": "module.json"
+}

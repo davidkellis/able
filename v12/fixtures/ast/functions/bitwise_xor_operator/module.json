@@ -1,0 +1,54 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "lhs"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 10
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "rhs"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 12
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "mask"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": ".^",
+        "left": {
+          "type": "Identifier",
+          "name": "lhs"
+        },
+        "right": {
+          "type": "Identifier",
+          "name": "rhs"
+        }
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "mask"
+    }
+  ]
+}

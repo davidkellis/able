@@ -1,0 +1,256 @@
+package spec
+
+import able.collections.array.{Array}
+import able.core.interfaces.{Error}
+import able.text.string.{String}
+import able.spec.assertions.{
+  AssertionError,
+  BeFalseMatcher,
+  BeNilMatcher,
+  BeTruthyMatcher,
+  BeEmptyArrayMatcher,
+  BeWithinMatcher,
+  ContainMatcher,
+  ContainAllMatcher,
+  BeGreaterThanMatcher,
+  BeLessThanMatcher,
+  BeBetweenMatcher,
+  StartsWithMatcher,
+  EndsWithMatcher,
+  IncludeSubstringMatcher,
+  MatchRegexMatcher,
+  CustomMatcher,
+  EqMatcher,
+  Expectation,
+  RaiseErrorMatcher,
+  StringEqMatcher,
+  be_false::assertions_be_false,
+  be_nil::assertions_be_nil,
+  be_truthy::assertions_be_truthy,
+  be_empty_array::assertions_be_empty_array,
+  be_within::assertions_be_within,
+  contain::assertions_contain,
+  contain_all::assertions_contain_all,
+  be_greater_than::assertions_be_greater_than,
+  be_less_than::assertions_be_less_than,
+  be_between::assertions_be_between,
+  start_with::assertions_start_with,
+  end_with::assertions_end_with,
+  include_substring::assertions_include_substring,
+  match_regex::assertions_match_regex,
+  matcher::assertions_matcher,
+  matcher_with_details::assertions_matcher_with_details,
+  eq::assertions_eq,
+  eq_string::assertions_eq_string,
+  expect::assertions_expect,
+  to::assertions_to,
+  not_to::assertions_not_to,
+  failure_from_assertion,
+  raise_error::assertions_raise_error,
+  raise_error_with_message::assertions_raise_error_with_message
+}
+import able.test.protocol.{
+  DiscoveryRequest,
+  Failure,
+  Framework,
+  MetadataEntry,
+  Reporter,
+  RunOptions,
+  TestDescriptor,
+  TestEvent,
+  TestPlan,
+  case_started,
+  case_passed,
+  case_failed,
+  case_skipped,
+  framework_error
+}
+import able.test.registry.{register_framework}
+
+FRAMEWORK_ID := "able.spec"
+to := assertions_to
+not_to := assertions_not_to
+
+struct SpecFramework {}
+
+struct SuiteConfig {
+  allow_parallel: bool
+}
+
+struct SuiteState {
+  key: String,
+  path: Array String,
+  module_path: String,
+  tags: Array String,
+  before_each: Array (ExampleContext -> void),
+  after_each: Array (ExampleContext -> void),
+  before_all: Array (ExampleContext -> void),
+  after_all: Array (ExampleContext -> void),
+  config: SuiteConfig
+}
+
+struct SuiteDefinition {
+  key: String,
+  path: Array String,
+  before_all: Array (ExampleContext -> void),
+  after_all: Array (ExampleContext -> void)
+}
+
+struct SuiteBuilder {
+  state_index: i32
+}
+
+struct ExampleContext {}
+
+struct ExampleDefinition {
+  id: String,
+  display_name: String,
+  suite_key: String,
+  suite_path: Array String,
+  tags: Array String,
+  before_each: Array (ExampleContext -> void),
+  after_each: Array (ExampleContext -> void),
+  body: ExampleContext -> void,
+  module_path: String,
+  skip: bool,
+  focus: bool
+}
+
+SUITE_STACK: Array SuiteState := Array.new()
+SUITES: Array SuiteDefinition := Array.new()
+SUITES_ARCHIVE: Array SuiteDefinition := Array.new()
+EXAMPLES: Array ExampleDefinition := Array.new()
+EXAMPLES_ARCHIVE: Array ExampleDefinition := Array.new()
+
+struct ExampleOptions {
+  tags: Array String,
+  skip: bool,
+  focus: bool
+}
+
+fn example_options() -> ExampleOptions {
+  ExampleOptions { tags: Array.new(), skip: false, focus: false }
+}
+
+methods ExampleOptions {
+  fn tag(self: ExampleOptions, tag: String) -> ExampleOptions {
+    self.tags.push(tag)
+    self
+  }
+
+  fn tags(self: ExampleOptions, tags: Array String) -> ExampleOptions {
+    idx := 0
+    loop {
+      if idx >= tags.len() { break }
+      tags.get(idx) match {
+        case nil => {},
+        case value: String => self.tags.push(value)
+      }
+      idx = idx + 1
+    }
+    self
+  }
+
+  fn skip(self: ExampleOptions) -> ExampleOptions {
+    self.skip = true
+    self
+  }
+
+  fn focus(self: ExampleOptions) -> ExampleOptions {
+    self.focus = true
+    self
+  }
+}
+
+fn expect<T>(value: T) -> Expectation T {
+  assertions_expect(value)
+}
+
+fn eq<T>(expected: T) -> EqMatcher T {
+  assertions_eq(expected)
+}
+
+fn eq_string(expected: String) -> StringEqMatcher {
+  assertions_eq_string(expected)
+}
+
+fn be_nil() -> BeNilMatcher {
+  assertions_be_nil()
+}
+
+fn be_truthy() -> BeTruthyMatcher {
+  assertions_be_truthy()
+}
+
+fn be_false() -> BeFalseMatcher {
+  assertions_be_false()
+}
+
+fn be_empty_array<T>() -> BeEmptyArrayMatcher T {
+  assertions_be_empty_array()
+}
+
+fn contain<T>(value: T) -> ContainMatcher T {
+  assertions_contain(value)
+}
+
+fn be_within(delta: f64, target: f64) -> BeWithinMatcher {
+  assertions_be_within(delta, target)
+}
+
+fn contain_all<T>(values: Array T) -> ContainAllMatcher T {
+  assertions_contain_all(values)
+}
+
+fn be_greater_than(value: i64) -> BeGreaterThanMatcher i64 {
+  assertions_be_greater_than(value)
+}
+
+fn be_less_than(value: i64) -> BeLessThanMatcher i64 {
+  assertions_be_less_than(value)
+}
+
+fn match_regex(pattern: String) -> MatchRegexMatcher {
+  assertions_match_regex(pattern)
+}
+
+fn be_between(lower: i64, upper: i64) -> BeBetweenMatcher i64 {
+  assertions_be_between(lower, upper)
+}
+
+fn start_with(prefix: String) -> StartsWithMatcher {
+  assertions_start_with(prefix)
+}
+
+fn end_with(suffix: String) -> EndsWithMatcher {
+  assertions_end_with(suffix)
+}
+
+fn include_substring(substring: String) -> IncludeSubstringMatcher {
+  assertions_include_substring(substring)
+}
+
+fn matcher<T>(
+  message: String,
+  negated_message: String,
+  predicate: T -> bool
+) -> CustomMatcher T {
+  assertions_matcher(message, negated_message, predicate)
+}
+
+fn matcher_with_details<T>(
+  message: String,
+  negated_message: String,
+  predicate: T -> bool,
+  detail: T -> ?String
+) -> CustomMatcher T {
+  assertions_matcher_with_details(message, negated_message, predicate, detail)
+}
+
+fn raise_error() -> RaiseErrorMatcher {
+  assertions_raise_error()
+}
+
+fn raise_error_with_message(message: String) -> RaiseErrorMatcher {
+  assertions_raise_error_with_message(message)
+}

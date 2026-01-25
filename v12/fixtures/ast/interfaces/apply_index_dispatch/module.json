@@ -1,0 +1,762 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Apply"
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "Args"
+          }
+        },
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "Result"
+          }
+        }
+      ],
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "apply"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "idx"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Args"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Result"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Index"
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "Idx"
+          }
+        },
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "Val"
+          }
+        }
+      ],
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "get"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "idx"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Idx"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Val"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "IndexMut"
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "Idx"
+          }
+        },
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "Val"
+          }
+        }
+      ],
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "set"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "idx"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Idx"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Val"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "void"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Pair"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "values"
+          },
+          "fieldType": {
+            "type": "GenericTypeExpression",
+            "base": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Array"
+              }
+            },
+            "arguments": [
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Index"
+      },
+      "interfaceArgs": [
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        },
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        }
+      ],
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Pair"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "get"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "idx"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "IndexExpression",
+                  "object": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "values"
+                    }
+                  },
+                  "index": {
+                    "type": "Identifier",
+                    "name": "idx"
+                  }
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "IndexMut"
+      },
+      "interfaceArgs": [
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        },
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        }
+      ],
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Pair"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "set"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "idx"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                  "type": "IndexExpression",
+                  "object": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "values"
+                    }
+                  },
+                  "index": {
+                    "type": "Identifier",
+                    "name": "idx"
+                  }
+                },
+                "right": {
+                  "type": "Identifier",
+                  "name": "value"
+                }
+              },
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "NilLiteral",
+                  "value": null
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "void"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Apply"
+      },
+      "interfaceArgs": [
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        },
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        }
+      ],
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Pair"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "apply"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "idx"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "get"
+                    }
+                  },
+                  "arguments": [
+                    {
+                      "type": "Identifier",
+                      "name": "idx"
+                    }
+                  ],
+                  "isTrailingLambda": false
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "pair"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Pair"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "values"
+            },
+            "value": {
+              "type": "ArrayLiteral",
+              "elements": [
+                {
+                  "type": "IntegerLiteral",
+                  "value": 2
+                },
+                {
+                  "type": "IntegerLiteral",
+                  "value": 5
+                }
+              ]
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": "=",
+      "left": {
+        "type": "IndexExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "pair"
+        },
+        "index": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "+",
+        "left": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "pair"
+          },
+          "arguments": [
+            {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 3
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": "=",
+      "left": {
+        "type": "IndexExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "pair"
+        },
+        "index": {
+          "type": "IntegerLiteral",
+          "value": 1
+        }
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "+",
+        "left": {
+          "type": "PropagationExpression",
+          "expression": {
+            "type": "IndexExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "pair"
+            },
+            "index": {
+              "type": "IntegerLiteral",
+              "value": 0
+            }
+          }
+        },
+        "right": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "pair"
+          },
+          "arguments": [
+            {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          ],
+          "isTrailingLambda": false
+        }
+      }
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "+",
+      "left": {
+        "type": "PropagationExpression",
+        "expression": {
+          "type": "IndexExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "pair"
+          },
+          "index": {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
+        }
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "pair"
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 1
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    }
+  ]
+}

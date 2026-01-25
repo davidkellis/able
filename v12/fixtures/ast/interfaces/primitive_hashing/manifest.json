@@ -1,0 +1,10 @@
+{
+  "description": "Hashes primitive values via KernelHasher and Hash impls",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "module.json"
+}

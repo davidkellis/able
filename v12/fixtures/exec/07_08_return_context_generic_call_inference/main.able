@@ -1,0 +1,23 @@
+package exec_07_08_return_context_generic_call_inference
+
+## Semantics: return-context expected types drive generic call inference.
+
+struct HashSet T { items: Array T }
+
+fn collect<T>(items: Array T) -> HashSet T {
+  HashSet T { items: items }
+}
+
+fn make_empty() -> HashSet u8 {
+  return collect([])
+}
+
+fn make_empty_implicit() -> HashSet u8 {
+  collect([])
+}
+
+fn main() -> void {
+  set1 := make_empty()
+  set2 := make_empty_implicit()
+  print(`sizes ${set1.items.len()} ${set2.items.len()}`)
+}

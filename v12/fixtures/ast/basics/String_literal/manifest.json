@@ -1,0 +1,10 @@
+{
+  "description": "Evaluates a simple String literal module",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "hello"
+    }
+  },
+  "entry": "module.json"
+}

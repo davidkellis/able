@@ -1,0 +1,75 @@
+package int128_specs
+
+import able.numbers.int128.{Int128}
+import able.core.interfaces.{Greater, Less}
+import able.spec.*
+
+describe("Int128") { suite =>
+  suite.module_path("numbers/int128")
+
+  suite.it("constructs from primitives and preserves parts") { _ctx =>
+    zero := Int128.zero()
+    expect(zero.is_zero()).to(be_truthy())
+
+    negative := Int128.from_i64(-5)
+    expect(negative.to_i128()).to(eq(-5_i128))
+
+    big := Int128.from_i128(170141183460469231731687303715884105727_i128) ## i128::MAX
+    expect(big.to_string()).to(eq("170141183460469231731687303715884105727"))
+  }
+
+  suite.it("performs addition and subtraction") { _ctx =>
+    a := Int128.from_i128(9223372036854775808_i128) ## i64::MAX + 1
+    b := Int128.from_i128(5_i128)
+    sum := a.add(b)
+    expect(sum.to_i128()).to(eq(9223372036854775813_i128))
+
+    diff := sum.sub(b)
+    expect(diff.to_i128()).to(eq(a.to_i128()))
+
+    expect(a.negate().add(a).is_zero()).to(be_truthy())
+  }
+
+  suite.it("supports multiplication, division, and remainder") { _ctx =>
+    x := Int128.from_i128(-12345678901234567890_i128)
+    y := Int128.from_i128(987654321_i128)
+
+    product := x.mul(y)
+    expect(product.to_i128()).to(eq(-12193263112482853211126352690_i128))
+
+    quotient := product.div(x)
+    expect(quotient.to_i128()).to(eq(y.to_i128()))
+
+    remainder := product.rem(x)
+    expect(remainder.is_zero()).to(be_truthy())
+
+    expect(fn() { x.div(Int128.zero()) }).to(raise_error())
+  }
+
+  suite.it("compares and clamps values") { _ctx =>
+    low := Int128.from_i128(-200_i128)
+    mid := Int128.from_i128(0_i128)
+    high := Int128.from_i128(200_i128)
+
+    expect(mid.compare(low)).to(eq(Greater))
+    expect(mid.compare(high)).to(eq(Less))
+    expect(high.min(low)).to(eq(low))
+    expect(low.max(high)).to(eq(high))
+
+    expect(high.clamp(low, mid)).to(eq(mid))
+    expect(mid.clamp(low, high)).to(eq(mid))
+  }
+
+  suite.it("converts to native numeric ranges when possible") { _ctx =>
+    value := Int128.from_i128(42_i128)
+    expect(value.to_i32()).to(eq(42))
+    expect(value.to_u32()).to(eq(42_u32))
+    expect(value.to_i64()).to(eq(42))
+    expect(value.to_u64()).to(eq(42_u64))
+    expect(value.to_f64()).to(be_within(1e-12, 42.0))
+
+    too_large := Int128.from_i128(9223372036854775808_i128)
+    expect(fn() { too_large.to_i64() }).to(raise_error())
+    expect(fn() { Int128.from_i128(-1_i128).to_u64() }).to(raise_error())
+  }
+}

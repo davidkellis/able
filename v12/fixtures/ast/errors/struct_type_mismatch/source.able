@@ -1,0 +1,10 @@
+struct Point {
+  x: i32
+}
+
+struct Vector {
+  dx: i32
+}
+
+p := Point { x: 1 }
+Vector { dx } := p

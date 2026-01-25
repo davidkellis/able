@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v11 Manual — Modules &amp; Packages</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v11 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html" class="active">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>11. Modules &amp; Packages</h1>
+        <p>
+          Packages follow directory layout (hyphen → underscore). A
+          <code>package.yml</code> at the root provides the package name; files
+          under that root inherit segments from their directories unless they
+          declare an explicit <code>package</code>.
+        </p>
+        <h2 id="imports">11.1 Imports</h2>
+<pre><code class="language-able">import math
+import math.{sqrt, pow}
+import io::console
+import io.{print::println}
+import math.*              ## use selectively to avoid collisions</code></pre>
+        <p>
+          Imports may appear at any scope. Aliasing is available for packages
+          and members. Unqualified names are added to the current scope;
+          conflicts follow normal shadowing rules.
+        </p>
+        <h2 id="visibility">11.2 Visibility</h2>
+        <ul>
+          <li>Top-level items are public unless prefixed <code>private</code>.</li>
+          <li><code>impl</code> visibility matches other top-level items; an impl participates only if it is in scope.</li>
+          <li>Interface-typed values carry their impl dictionaries for dynamic dispatch, even when the impl is not imported.</li>
+        </ul>
+        <h2 id="dynimport">11.3 Dynamic Imports</h2>
+        <p>
+          <code>dynimport</code> binds names from runtime-defined packages
+          (interpreter builds):
+        </p>
+<pre><code class="language-able">dynimport widgets
+dynimport widgets.{Button, make_layout}
+dynimport widgets::w</code></pre>
+        <p>
+          Resolution occurs at runtime; missing packages/names raise
+          <code>Error</code>. Static code may adapt dynamic values to interface
+          types explicitly when needed.
+        </p>
+        <h2 id="search">11.4 Module Search Order</h2>
+        <p>Before loading modules, Able builds a deduplicated search list:</p>
+        <ol>
+          <li>Workspace roots (entry manifest directory and ancestors)</li>
+          <li>Current working directory and CLI-provided roots</li>
+          <li><code>ABLE_PATH</code> entries (legacy)</li>
+          <li><code>ABLE_MODULE_PATHS</code> entries (preferred overrides for fixtures/REPL)</li>
+          <li>Bundled kernel/stdlib roots discovered near the workspace/executable (or resolver pins)</li>
+        </ol>
+        <p>
+          Duplicate package paths across roots are errors. The
+          <code>able.*</code> namespace is reserved for the stdlib chosen by the
+          resolver; use <code>ABLE_MODULE_PATHS</code> or lockfile pins for
+          overrides (no stdlib-specific env knob).
+        </p>
+        <h2 id="entry">11.5 Entry Points</h2>
+        <p>
+          Any package with a public <code>fn main() -&gt; void</code> produces a
+          binary named after its package path. <code>os.args()</code> supplies
+          CLI args; return to exit 0, or call <code>os.exit(code)</code> for a
+          custom status. Background async work is not awaited automatically.
+        </p>
+        <footer class="manual-footer">
+          Able v11 manual · Modules &amp; Packages
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+struct Pair { i32, i32 }
+pair := Pair { 7, 9 };
+pair.1;

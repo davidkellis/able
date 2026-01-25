@@ -1,0 +1,71 @@
+package tree_map_tests
+
+import able.collections.tree_map.{TreeMap, TreeEntry}
+import able.kernel.{Array}
+import able.collections.array
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise(message) }
+  }
+}
+
+fn expect_string(value: ?String, expected: String, message: String) -> void {
+  value match {
+    case actual: String => assert(actual == expected, message),
+    case nil => { raise(message) }
+  }
+}
+
+fn check_insert_and_update() -> void {
+  map := TreeMap.new()
+  map.set("beta", 2)
+  map.set("alpha", 1)
+  map.set("gamma", 3)
+
+  assert(map.len() == 3, "len should track inserted keys")
+  expect_i32(map.get("alpha"), 1, "get should return inserted value")
+
+  map.set("alpha", 10)
+  expect_i32(map.get("alpha"), 10, "set should update existing values")
+  assert(map.contains("gamma"), "contains should find present keys")
+  assert(!map.contains("missing"), "contains should report absent keys")
+}
+
+fn check_remove_and_contains() -> void {
+  map: TreeMap i32 String := TreeMap.new()
+  map.set(1, "one")
+  map.set(2, "two")
+  map.set(3, "three")
+
+  assert(map.remove(2), "remove should return true for present keys")
+  assert(map.len() == 2, "len should drop after removal")
+  assert(map.get(2) == nil, "get should return nil for removed keys")
+  assert(!map.remove(9), "remove should return false for missing keys")
+}
+
+fn check_sorted_iteration() -> void {
+  map: TreeMap i32 String := TreeMap.new()
+  map.set(5, "e")
+  map.set(1, "a")
+  map.set(3, "c")
+
+  values := map.values()
+  expect_string(values.get(0), "a", "iteration should visit entries in key order")
+  expect_string(values.get(1), "c", "iteration should be in-order traversal")
+  expect_string(values.get(2), "e", "iteration should include all keys")
+}
+
+fn main() -> void {
+  check_insert_and_update()
+  check_remove_and_contains()
+  check_sorted_iteration()
+}
+
+main()

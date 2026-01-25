@@ -1,0 +1,11 @@
+package tutorial13_math
+
+struct Pair { left: i32, right: i32 }
+
+private fn bias() -> i32 { 1 }
+
+fn add(a: i32, b: i32) -> i32 { a + b + bias() }
+
+fn pair_sum(pair: Pair) -> i32 {
+  add(pair.left, pair.right)
+}

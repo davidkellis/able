@@ -1,0 +1,19 @@
+package exec_04_05_02_struct_named_update_mutation
+
+## Semantics: named struct literals allocate fresh values; functional updates copy from a base without mutating it; field assignment mutates in place.
+
+struct User { name: String, visits: i32, active: bool }
+
+fn main() -> void {
+  user := User { name: "Ada", visits: 1, active: true }
+  updated := User { ...user, visits: user.visits + 1 }
+
+  print(`base ${user.name} ${user.visits} ${user.active}`)
+  print(`updated ${updated.name} ${updated.visits} ${updated.active}`)
+
+  user.visits = user.visits + 10
+  user.active = false
+
+  print(`mutated ${user.name} ${user.visits} ${user.active}`)
+  print(`updated_still ${updated.name} ${updated.visits} ${updated.active}`)
+}

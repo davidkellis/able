@@ -1,0 +1,8 @@
+{
+  "description": "generic struct literal infers type arguments from context",
+  "expect": {
+    "stdout": ["boxed 41"],
+    "exit": 0,
+    "typecheckDiagnostics": []
+  }
+}

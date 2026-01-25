@@ -1,0 +1,42 @@
+package exec_12_05_mutex_lock_unlock
+
+## Semantics: mutex lock/unlock and helper ensures unlock on exit.
+
+struct LocalMutex { handle: i32 }
+struct MutexUnlocked {}
+
+fn make_mutex() -> LocalMutex {
+  handle := __able_mutex_new()
+  LocalMutex { handle: handle }
+}
+
+fn lock(m: LocalMutex) -> void { __able_mutex_lock(m.handle) }
+fn unlock(m: LocalMutex) -> void { __able_mutex_unlock(m.handle) }
+
+fn with_lock<T>(m: LocalMutex, f: fn() -> T) -> T {
+  lock(m)
+  do { f() } ensure { unlock(m) }
+}
+
+fn main() -> void {
+  m := make_mutex()
+  shared := 0
+
+  lock(m)
+  shared = shared + 1
+  unlock(m)
+
+  result := with_lock(m, { => do { shared = shared + 2; 99 } })
+  print(`with_lock result ${result}`)
+  print(`shared ${shared}`)
+
+  unlock_msg := (do { unlock(m); "no" } rescue {
+    case err => {
+      err.value match {
+        case MutexUnlocked {} => "unlock error",
+        case _ => "other"
+      }
+    }
+  })
+  print(`unlock ${unlock_msg}`)
+}

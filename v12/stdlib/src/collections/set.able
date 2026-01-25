@@ -1,0 +1,11 @@
+package set
+import able.core.interfaces.{Eq}
+
+interface Set T for S {
+  fn add(self: Self, value: T) -> bool;
+  fn remove(self: Self, value: T) -> bool;
+  fn contains(self: Self, value: T) -> bool;
+  fn size(self: Self) -> i32;
+  fn clear(self: Self) -> void;
+  fn is_empty(self: Self) -> bool { self.size() == 0 }
+}

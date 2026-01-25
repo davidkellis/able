@@ -1,0 +1,29 @@
+package exec_05_02_identifier_wildcard_typed_patterns
+
+## Semantics: identifier patterns bind, `_` ignores, typed patterns guard matches and assignments.
+
+union Val = i32 | String
+
+fn main() -> void {
+  value: Val := "hi"
+  tag := value match {
+    case s: String => `str ${s}`,
+    case n: i32 => `int ${n}`
+  }
+
+  [_, middle, _] := [1, 2, 3]
+  typed_middle: i32 := middle
+
+  other: Val := 9
+  other_num: i32 := other
+
+  label := other match {
+    case _: String => "string",
+    case n: i32 => `int ${n}`
+  }
+
+  print(tag)
+  print(`middle ${typed_middle}`)
+  print(`typed ${other_num}`)
+  print(label)
+}

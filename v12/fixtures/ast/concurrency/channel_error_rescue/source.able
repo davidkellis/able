@@ -1,0 +1,39 @@
+struct ChannelClosed {
+
+}
+struct ChannelNil {
+
+}
+struct ChannelSendOnClosed {
+
+}
+fn capture(action: () -> void) -> String {
+  do {
+    action();
+    "ok";
+  } rescue {
+    case err: Error => {
+      payload := err.value;
+      payload match {
+        case ChannelNil {  } => "ChannelNil",
+        case ChannelClosed {  } => "ChannelClosed",
+        case ChannelSendOnClosed {  } => "ChannelSendOnClosed",
+        case _ => "Unknown"
+      };
+    }
+  };
+}
+nil_result := capture({ => {
+  __able_channel_close(0);
+}});
+closed_result := capture({ => {
+  handle := __able_channel_new(0);
+  __able_channel_close(handle);
+  __able_channel_close(handle);
+}});
+send_closed_result := capture({ => {
+  handle := __able_channel_new(0);
+  __able_channel_close(handle);
+  __able_channel_send(handle, 1);
+}});
+`${nil_result},${closed_result},${send_closed_result}`;

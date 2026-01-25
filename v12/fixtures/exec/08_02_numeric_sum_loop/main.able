@@ -1,0 +1,11 @@
+package exec_08_02_numeric_sum_loop
+
+## Semantics: inclusive `1..5` range in a `for` loop with mutable accumulator updated via reassignment.
+
+fn main() -> void {
+  total := 0
+  for value in 1..5 {
+    total = total + value
+  }
+  print(`total ${total}`)
+}

@@ -1,0 +1,15 @@
+{
+  "description": "safe navigation short-circuits on nil and avoids argument evaluation",
+  "expect": {
+    "stdout": [
+      "make a",
+      "tick arg-a 1",
+      "some 6",
+      "make b",
+      "nil",
+      "make c",
+      "some 9"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,22 @@
+package exec_06_01_literals_string_char_escape
+
+## Semantics: string/char escapes are interpreted in literals; interpolation is only for backtick strings.
+import able.text.string.*
+
+fn main() -> void {
+  linebreak := "\n"
+  tabbed := "a\tb"
+  quoted := "\"ok\""
+  literal := "${1+2}"
+  backslash := "\\"
+
+  print(`lens ${linebreak.len_bytes()} ${tabbed.len_bytes()} ${quoted.len_bytes()} ${literal.len_bytes()} ${backslash.len_bytes()}`)
+  print(`literal ${literal}`)
+  print(`quoted ${quoted}`)
+
+  single := '\''
+  double := '\"'
+  slash := '\\'
+
+  print(`chars ${single} ${double} ${slash} end`)
+}

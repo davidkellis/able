@@ -1,0 +1,19 @@
+package rosettacode_fizzbuzz
+
+## Rosetta Code — FizzBuzz (https://rosettacode.org/wiki/FizzBuzz)
+fn fizzbuzz_label(value: i32) -> String {
+  if value % 15 == 0 { "FizzBuzz" }
+  elsif value % 3 == 0 { "Fizz" }
+  elsif value % 5 == 0 { "Buzz" }
+  else { `${value}` }
+}
+
+fn fizzbuzz(limit: i32) -> void {
+  for n in 1..limit {
+    print(fizzbuzz_label(n))
+  }
+}
+
+fn main() -> void {
+  fizzbuzz(100)
+}

@@ -1,0 +1,26 @@
+package exec_08_02_while_continue_break
+
+## Semantics: while loops re-check conditions, continue skips the body tail, and break exits early.
+
+fn main() -> void {
+  i := 0
+  total := 0
+  steps := 0
+
+  while i < 6 {
+    i = i + 1;
+    if i == 2 {
+      continue;
+    };
+    if i == 5 {
+      break;
+    };
+
+    total = total + i;
+    steps = steps + 1;
+  }
+
+  print(`i ${i}`)
+  print(`total ${total}`)
+  print(`steps ${steps}`)
+}

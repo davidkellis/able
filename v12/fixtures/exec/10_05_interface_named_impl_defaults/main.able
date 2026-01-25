@@ -1,0 +1,16 @@
+package exec_10_05_interface_named_impl_defaults
+
+import exec_10_05_interface_named_impl_defaults.iface_defs.{Describer}
+import exec_10_05_interface_named_impl_defaults.types.{Widget}
+import exec_10_05_interface_named_impl_defaults.impls_fancy.{Fancy}
+import exec_10_05_interface_named_impl_defaults.impls_plain.{Plain}
+
+## Semantics: named impls select defaults from the interface package across imports.
+
+fn main() -> void {
+  widget := Widget { id: 7 }
+  print(Fancy.describe(widget))
+  print(Plain.describe(widget))
+  print(Fancy.name(widget))
+  print(Plain.name(widget))
+}

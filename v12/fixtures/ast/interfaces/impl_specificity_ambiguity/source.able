@@ -1,0 +1,21 @@
+interface TraitA for T {}
+interface TraitB for T {}
+
+interface Ambig for T {
+  fn tag(self: Self) -> String
+}
+
+struct Named {}
+
+impl TraitA for Named {}
+impl TraitB for Named {}
+
+impl<T: TraitA> Ambig for T {
+  fn tag(self: Self) -> String { "A" }
+}
+impl<T: TraitB> Ambig for T {
+  fn tag(self: Self) -> String { "B" }
+}
+
+value := Named {}
+value.tag()

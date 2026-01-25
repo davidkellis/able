@@ -1,0 +1,105 @@
+package vector_tests
+
+import able.collections.vector.{Vector}
+import able.core.iteration.{IteratorEnd}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise message }
+  }
+}
+
+fn check_push_and_indexing() -> void {
+  vec := Vector.new()
+  assert(vec.is_empty(), "new vector should start empty")
+
+  vec = vec.push(1)
+  vec = vec.push(2)
+  vec = vec.push(3)
+
+  assert(vec.len() == 3, "push should grow vector length")
+  expect_i32(vec.first(), 1, "first should fetch the front element")
+  expect_i32(vec.last(), 3, "last should fetch the tail element")
+  expect_i32(vec.get(1), 2, "get should retrieve middle elements")
+
+  vec.get(-1) match {
+    case nil => {},
+    case _ => { raise "negative indices should return nil" }
+  }
+  vec.get(99) match {
+    case nil => {},
+    case _ => { raise "out-of-bounds indices should return nil" }
+  }
+}
+
+fn check_set_and_persistence() -> void {
+  vec := Vector.new()
+  vec = vec.push(4)
+  vec = vec.push(5)
+  vec = vec.push(6)
+
+  updated := vec.set(1, 42)
+  expect_i32(updated.get(1), 42, "set should rewrite the requested index")
+  expect_i32(vec.get(1), 5, "set should not mutate the original vector")
+
+  unchanged := vec.set(10, 99)
+  expect_i32(unchanged.last(), 6, "set out of bounds should return the same persistent shape")
+}
+
+fn check_pop_and_tail_rebalancing() -> void {
+  vec := Vector.new()
+  i := 0
+  loop {
+    if i >= 40 { break }
+    vec = vec.push(i)
+    i = i + 1
+  }
+  assert(vec.len() == 40, "push should place all values across multiple chunks")
+  expect_i32(vec.last(), 39, "last should reflect the final pushed value")
+
+  vec = vec.pop()
+  vec = vec.pop()
+  assert(vec.len() == 38, "pop should remove items from the tail")
+  expect_i32(vec.last(), 37, "pop should update the final element")
+
+  empty := Vector.new().pop()
+  assert(empty.is_empty(), "pop on an empty vector should remain empty")
+}
+
+fn check_iteration() -> void {
+  vec := Vector.new()
+  vec = vec.push(2)
+  vec = vec.push(4)
+  vec = vec.push(6)
+
+  iter := vec.iterator()
+  sum := 0
+  loop {
+    iter.next() match {
+      case value: i32 => sum = sum + value,
+      case IteratorEnd {} => { break }
+    }
+  }
+  assert(sum == 12, "iterator should traverse each element once")
+
+  for_sum := 0
+  for value in vec {
+    for_sum = for_sum + value
+  }
+  assert(for_sum == 12, "Enumerable.each should power for-in loops")
+}
+
+fn main() -> void {
+  check_push_and_indexing()
+  check_set_and_persistence()
+  check_pop_and_tail_rebalancing()
+  check_iteration()
+}
+
+main()

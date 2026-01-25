@@ -1,0 +1,44 @@
+import able.kernel.{HashMap, Hash, Eq, Hasher}
+
+struct Key {
+  id: i32
+}
+impl Hash for Key
+{
+  fn hash(self: Self, hasher: Hasher) -> void {
+    hasher.write_i32(self.id);
+    return nil
+  }
+}
+impl Eq for Key
+{
+  fn eq(self: Self, other: Self) -> bool {
+    return self.id == other.id
+  }
+}
+map: HashMap Key i32 := HashMap.new();
+map.raw_set(Key { id: 1 }, 10);
+map.raw_set(Key { id: 2 }, 20);
+sum := 0;
+map.raw_get(Key { id: 1 }) match {
+  case value: i32 => {
+    sum = sum + value;
+  },
+  case _ => {
+  }
+};
+map.raw_get(Key { id: 2 }) match {
+  case value: i32 => {
+    sum = sum + value;
+  },
+  case _ => {
+  }
+};
+map.raw_get(Key { id: 3 }) match {
+  case nil => {
+    sum = sum + 1;
+  },
+  case _ => {
+  }
+};
+sum == 31;

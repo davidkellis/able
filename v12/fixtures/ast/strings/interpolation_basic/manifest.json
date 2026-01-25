@@ -1,0 +1,10 @@
+{
+  "description": "Interpolates literals and expressions",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "x = 2, sum = 7"
+    }
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,142 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "add"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "a"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "b"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "a"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "b"
+              }
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "run_checks"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "Identifier",
+              "name": "inc"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "add"
+              },
+              "arguments": [
+                {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                }
+              ],
+              "isTrailingLambda": false
+            }
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "Identifier",
+              "name": "bad"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "inc"
+              },
+              "arguments": [
+                {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                },
+                {
+                  "type": "IntegerLiteral",
+                  "value": 2
+                }
+              ],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

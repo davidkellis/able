@@ -1,0 +1,453 @@
+package automata_dsl
+
+import able.kernel.{Array}
+import able.collections.array
+import able.core.interfaces.{Error, Clone}
+import able.core.iteration.{Iterator, IteratorEnd}
+import able.text.string.{String}
+import able.text.automata.{
+  NFABuilder,
+  NFA,
+  DFA,
+  NFAChar,
+  NFAEpsilon
+}
+
+struct AutomataExpr {
+  node: AutomataNode
+}
+
+struct AutomataNodeEmpty {}
+struct AutomataNodeEpsilon {}
+struct AutomataNodeLiteral { value: char }
+struct AutomataNodeCharSet { chars: Array char }
+struct AutomataNodeConcat { parts: Array AutomataExpr }
+struct AutomataNodeAppend { first: AutomataExpr, second: AutomataExpr }
+struct AutomataNodeAlternate { choices: Array AutomataExpr }
+struct AutomataNodeRepeat { expr: AutomataExpr, kind: AutomataRepeatKind }
+
+union AutomataNode =
+  AutomataNodeEmpty |
+  AutomataNodeEpsilon |
+  AutomataNodeLiteral |
+  AutomataNodeCharSet |
+  AutomataNodeConcat |
+  AutomataNodeAppend |
+  AutomataNodeAlternate |
+  AutomataNodeRepeat
+
+struct AutomataRepeatZeroOrMore {}
+struct AutomataRepeatOneOrMore {}
+struct AutomataRepeatOptional {}
+
+union AutomataRepeatKind =
+  AutomataRepeatZeroOrMore |
+  AutomataRepeatOneOrMore |
+  AutomataRepeatOptional
+
+struct AutomataFragment {
+  start: i32,
+  accepts: Array i32
+}
+
+impl Clone for AutomataExpr {
+  fn clone(self: Self) -> AutomataExpr {
+    AutomataExpr { node: clone_node(self.node) }
+  }
+}
+
+fn clone_node(node: AutomataNode) -> AutomataNode {
+  node match {
+    case AutomataNodeEmpty {} => AutomataNodeEmpty {},
+    case AutomataNodeEpsilon {} => AutomataNodeEpsilon {},
+    case AutomataNodeLiteral { value } => AutomataNodeLiteral { value },
+    case AutomataNodeCharSet { chars } => AutomataNodeCharSet { chars: clone_char_array(chars) },
+    case AutomataNodeConcat { parts } => AutomataNodeConcat { parts: clone_expr_array(parts) },
+    case AutomataNodeAppend { first, second } => AutomataNodeAppend { first: first.clone(), second: second.clone() },
+    case AutomataNodeAlternate { choices } => AutomataNodeAlternate { choices: clone_expr_array(choices) },
+    case AutomataNodeRepeat { expr, kind } => AutomataNodeRepeat { expr: expr.clone(), kind }
+  }
+}
+
+fn clone_expr_array(values: Array AutomataExpr) -> Array AutomataExpr {
+  result: Array AutomataExpr := Array.with_capacity(values.len())
+  idx := 0
+  loop {
+    if idx >= values.len() { break }
+    values.get(idx) match {
+      case nil => {},
+      case value: AutomataExpr => result.push(value.clone())
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn clone_char_array(values: Array char) -> Array char {
+  result: Array char := Array.with_capacity(values.len())
+  idx := 0
+  loop {
+    if idx >= values.len() { break }
+    values.get(idx) match {
+      case nil => {},
+      case ch: char => result.push(ch)
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+methods AutomataExpr {
+  fn to_nfa(self: Self) -> NFA {
+    builder := NFABuilder.new()
+    fragment := build_expr(self, builder)
+    builder.set_start(fragment.start)
+    idx := 0
+    loop {
+      if idx >= fragment.accepts.len() { break }
+      fragment.accepts.get(idx) match {
+        case nil => {},
+        case accept_state: i32 => builder.add_accept(accept_state)
+      }
+      idx = idx + 1
+    }
+    builder.build()
+  }
+
+  fn to_dfa(self: Self) -> DFA {
+    self.to_nfa().to_dfa()
+  }
+
+  fn concat(self: Self, other: AutomataExpr) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeConcat { parts: array_of(self, other) } }
+  }
+
+  fn or(self: Self, other: AutomataExpr) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeAlternate { choices: array_of(self, other) } }
+  }
+
+  fn append(self: Self, other: AutomataExpr) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeAppend { first: self, second: other } }
+  }
+
+  fn star(self: Self) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeRepeat { expr: self, kind: AutomataRepeatZeroOrMore {} } }
+  }
+
+  fn plus(self: Self) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeRepeat { expr: self, kind: AutomataRepeatOneOrMore {} } }
+  }
+
+  fn optional(self: Self) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeRepeat { expr: self, kind: AutomataRepeatOptional {} } }
+  }
+}
+
+struct AutomataDSL {}
+
+methods AutomataDSL {
+  fn literal(value: String) -> AutomataExpr | Error {
+    String.from_builtin(value) match {
+      case err: Error => err,
+      case string_value: String => AutomataDSL.literal_string(string_value)
+    }
+  }
+
+  fn literal_string(value: String) -> AutomataExpr {
+    iter := value.chars().iterator()
+    parts: Array AutomataExpr := Array.with_capacity(value.len_bytes())
+    loop {
+      iter.next() match {
+        case _: IteratorEnd => { break },
+        case ch: char => parts.push(AutomataDSL.literal_char(ch))
+      }
+    }
+    if parts.len() == 0 {
+      AutomataDSL.epsilon()
+    } elsif parts.len() == 1 {
+      parts.get(0) match {
+        case nil => AutomataDSL.epsilon(),
+        case expr: AutomataExpr => expr
+      }
+    } else {
+      AutomataExpr { node: AutomataNodeConcat { parts } }
+    }
+  }
+
+  fn literal_char(ch: char) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeLiteral { value: ch } }
+  }
+
+  fn epsilon() -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeEpsilon {} }
+  }
+
+  fn empty() -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeEmpty {} }
+  }
+
+  fn any(chars: Array char) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeCharSet { chars } }
+  }
+
+  fn any_ascii() -> AutomataExpr {
+    chars: Array char := Array.with_capacity(128)
+    code := 0
+    loop {
+      if code >= 128 { break }
+      chars.push((code as i32) as char)
+      code = code + 1
+    }
+    AutomataDSL.any(chars)
+  }
+
+  fn dot() -> AutomataExpr {
+    AutomataDSL.any_ascii()
+  }
+
+  fn range(start: char, finish: char) -> AutomataExpr {
+    start_code := (start as i32)
+    finish_code := (finish as i32)
+    if finish_code < start_code {
+      return AutomataExpr { node: AutomataNodeCharSet { chars: Array.with_capacity(0) } }
+    }
+    chars: Array char := Array.with_capacity((finish_code - start_code) + 1)
+    current := start_code
+    loop {
+      if current > finish_code { break }
+      chars.push((current as i32) as char)
+      current = current + 1
+    }
+    AutomataDSL.any(chars)
+  }
+
+  fn seq(exprs: Array AutomataExpr) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeConcat { parts: exprs } }
+  }
+
+  fn seq(first: AutomataExpr, second: AutomataExpr) -> AutomataExpr {
+    AutomataDSL.seq(array_of(first, second))
+  }
+
+  fn union(exprs: Array AutomataExpr) -> AutomataExpr {
+    AutomataExpr { node: AutomataNodeAlternate { choices: exprs } }
+  }
+
+  fn union(first: AutomataExpr, second: AutomataExpr) -> AutomataExpr {
+    AutomataDSL.union(array_of(first, second))
+  }
+
+  fn append(a: AutomataExpr, b: AutomataExpr) -> AutomataExpr {
+    a.append(b)
+  }
+
+  fn kleene(expr: AutomataExpr) -> AutomataExpr {
+    expr.star()
+  }
+
+  fn plus(expr: AutomataExpr) -> AutomataExpr {
+    expr.plus()
+  }
+
+  fn optional(expr: AutomataExpr) -> AutomataExpr {
+    expr.optional()
+  }
+}
+
+fn array_of(first: AutomataExpr, second: AutomataExpr) -> Array AutomataExpr {
+  parts: Array AutomataExpr := Array.with_capacity(2)
+  parts.push(first)
+  parts.push(second)
+  parts
+}
+
+fn build_expr(expr: AutomataExpr, builder: NFABuilder) -> AutomataFragment {
+  expr.node match {
+    case AutomataNodeEmpty {} => build_empty(builder),
+    case AutomataNodeEpsilon {} => build_epsilon(builder),
+    case AutomataNodeLiteral { value } => build_literal(builder, value),
+    case AutomataNodeCharSet { chars } => build_char_set(builder, chars),
+    case AutomataNodeConcat { parts } => build_concat(builder, parts),
+    case AutomataNodeAppend { first, second } => build_append(builder, first, second),
+    case AutomataNodeAlternate { choices } => build_alternate(builder, choices),
+    case AutomataNodeRepeat { expr, kind } => build_repeat(builder, expr, kind)
+  }
+}
+
+fn build_empty(builder: NFABuilder) -> AutomataFragment {
+  start := builder.add_state()
+  accepts: Array i32 := Array.with_capacity(1)
+  accepts.push(start);
+  AutomataFragment { start, accepts }
+}
+
+fn build_epsilon(builder: NFABuilder) -> AutomataFragment {
+  start := builder.add_state()
+  accept := builder.add_state()
+  builder.add_transition(start, accept, NFAEpsilon {})
+  accepts: Array i32 := Array.with_capacity(1)
+  accepts.push(accept);
+  AutomataFragment { start, accepts }
+}
+
+fn build_literal(builder: NFABuilder, value: char) -> AutomataFragment {
+  start := builder.add_state()
+  accept := builder.add_state()
+  builder.add_transition(start, accept, NFAChar { value })
+  accepts: Array i32 := Array.with_capacity(1)
+  accepts.push(accept);
+  AutomataFragment { start, accepts }
+}
+
+fn build_char_set(builder: NFABuilder, chars: Array char) -> AutomataFragment {
+  start := builder.add_state()
+  accept := builder.add_state()
+  idx := 0
+  loop {
+    if idx >= chars.len() { break }
+    chars.get(idx) match {
+      case nil => {},
+      case ch: char => builder.add_transition(start, accept, NFAChar { value: ch })
+    }
+    idx = idx + 1
+  }
+  accepts: Array i32 := Array.with_capacity(1)
+  accepts.push(accept);
+  AutomataFragment { start, accepts }
+}
+
+fn build_concat(builder: NFABuilder, parts: Array AutomataExpr) -> AutomataFragment {
+  if parts.len() == 0 {
+    return build_epsilon(builder)
+  }
+
+  first_expr := parts.get(0) match {
+    case nil => AutomataDSL.epsilon(),
+    case expr: AutomataExpr => expr
+  }
+
+  start_fragment := build_expr(first_expr, builder)
+  current_accepts := start_fragment.accepts
+  start := start_fragment.start
+
+  idx := 1
+  loop {
+    if idx >= parts.len() { break }
+    next_expr := parts.get(idx) match {
+      case nil => AutomataDSL.epsilon(),
+      case expr: AutomataExpr => expr
+    }
+    next_fragment := build_expr(next_expr, builder)
+    connect_accepts(builder, current_accepts, next_fragment.start)
+    current_accepts = next_fragment.accepts
+    idx = idx + 1
+  }
+
+  AutomataFragment { start, accepts: current_accepts }
+}
+
+fn build_append(builder: NFABuilder, first: AutomataExpr, second: AutomataExpr) -> AutomataFragment {
+  first_fragment := build_expr(first, builder)
+  second_fragment := build_expr(second, builder)
+  connect_accepts(builder, first_fragment.accepts, second_fragment.start)
+
+  accepts: Array i32 := Array.with_capacity(first_fragment.accepts.len() + second_fragment.accepts.len())
+  copy_states(first_fragment.accepts, accepts)
+  copy_states(second_fragment.accepts, accepts)
+  AutomataFragment { start: first_fragment.start, accepts }
+}
+
+fn build_alternate(builder: NFABuilder, choices: Array AutomataExpr) -> AutomataFragment {
+  start := builder.add_state()
+  accepts: Array i32 := Array.with_capacity(choices.len())
+
+  idx := 0
+  loop {
+    if idx >= choices.len() { break }
+    choices.get(idx) match {
+      case nil => {},
+      case choice: AutomataExpr => {
+        fragment := build_expr(choice, builder)
+        builder.add_transition(start, fragment.start, NFAEpsilon {})
+        copy_states(fragment.accepts, accepts)
+      }
+    }
+    idx = idx + 1
+  }
+
+  AutomataFragment { start, accepts }
+}
+
+fn build_repeat(builder: NFABuilder, expr: AutomataExpr, kind: AutomataRepeatKind) -> AutomataFragment {
+  fragment := build_expr(expr, builder)
+  start := builder.add_state()
+  accept := builder.add_state()
+
+  kind match {
+    case AutomataRepeatZeroOrMore {} => {
+      builder.add_transition(start, fragment.start, NFAEpsilon {})
+      builder.add_transition(start, accept, NFAEpsilon {})
+      connect_accepts(builder, fragment.accepts, fragment.start)
+      connect_accepts(builder, fragment.accepts, accept)
+    },
+    case AutomataRepeatOneOrMore {} => {
+      builder.add_transition(start, fragment.start, NFAEpsilon {})
+      connect_accepts(builder, fragment.accepts, fragment.start)
+      connect_accepts(builder, fragment.accepts, accept)
+    },
+    case AutomataRepeatOptional {} => {
+      builder.add_transition(start, fragment.start, NFAEpsilon {})
+      builder.add_transition(start, accept, NFAEpsilon {})
+      connect_accepts(builder, fragment.accepts, accept)
+    }
+  }
+
+  accepts: Array i32 := Array.with_capacity(1)
+  accepts.push(accept);
+  AutomataFragment { start, accepts }
+}
+
+fn copy_states(source: Array i32, target: Array i32) -> void {
+  idx := 0
+  loop {
+    if idx >= source.len() { break }
+    source.get(idx) match {
+      case nil => {},
+      case state: i32 => {
+        if !contains_state(target, state) {
+          target.push(state)
+        }
+      }
+    }
+    idx = idx + 1
+  }
+}
+
+fn contains_state(states: Array i32, candidate: i32) -> bool {
+  idx := 0
+  loop {
+    if idx >= states.len() { break }
+    states.get(idx) match {
+      case nil => {},
+      case state: i32 => {
+        if state == candidate {
+          return true
+        }
+      }
+    }
+    idx = idx + 1
+  }
+  false
+}
+
+fn connect_accepts(builder: NFABuilder, accepts: Array i32, target: i32) -> void {
+  idx := 0
+  loop {
+    if idx >= accepts.len() { break }
+    accepts.get(idx) match {
+      case nil => {},
+      case state: i32 => builder.add_transition(state, target, NFAEpsilon {})
+    }
+    idx = idx + 1
+  }
+}

@@ -1,0 +1,233 @@
+package io_specs
+
+import able.spec.*
+import able.collections.array
+import able.core.interfaces.{Error}
+import able.fs
+import able.io
+import able.io.{BufferedReader, BufferedWriter, IOError, NotFound}
+import able.io.path
+import able.io.path.{Path}
+import able.io.temp
+import able.kernel.{Array}
+import able.os
+
+IO_TEMP_SEQ := 0
+
+fn next_temp_path(label: String) -> String {
+  IO_TEMP_SEQ = IO_TEMP_SEQ + 1
+  base := path.parse(os.temp_dir())
+  temp_path := base.join(`able-${label}-${IO_TEMP_SEQ}`)
+  if fs.exists(temp_path) { fs.remove(temp_path, true) }
+  temp_path.to_string()
+}
+
+fn cleanup_path(path: String) -> void {
+  do {
+    fs.remove(path, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+fn read_text_from(value: IOError | ?Array u8) -> String {
+  value match {
+    case err: IOError => { raise err },
+    case nil => "",
+    case data: Array u8 => io.bytes_to_string(data)
+  }
+}
+
+describe("able.io") { suite =>
+  suite.it("converts strings to bytes and back") { _ctx =>
+    bytes := io.string_to_bytes("hello")
+    expect(bytes.len()).to(eq(5))
+    expect(io.bytes_to_string(bytes)).to(eq("hello"))
+  }
+
+  suite.it("reads and writes using io handles") { _ctx =>
+    root := next_temp_path("io-basic")
+    file := path.parse(root).join("data.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      handle := fs.open(file, fs.write_only(true, true), nil)
+      write_result := io.try_write(handle, io.string_to_bytes("abcdef"))
+      written := 0
+      write_result match {
+        case err: IOError => { raise err },
+        case count: i32 => { written = count }
+      }
+      expect(written).to(eq(6))
+      io.try_flush(handle) match {
+        case err: IOError => { raise err },
+        case _ => {}
+      }
+      io.try_close(handle) match {
+        case err: IOError => { raise err },
+        case _ => {}
+      }
+
+      handle = fs.open(file, fs.read_only(), nil)
+      io.read(handle, 0) match {
+        case data: Array u8 => expect(data.len()).to(eq(0)),
+        case nil => expect(false).to(be_truthy())
+      }
+      first := io.try_read(handle, 2)
+      second := io.try_read(handle, 2)
+      third := io.try_read(handle, 10)
+      first_text := read_text_from(first)
+      second_text := read_text_from(second)
+      third_text := read_text_from(third)
+      expect(first_text).to(eq("ab"))
+      expect(second_text).to(eq("cd"))
+      expect(third_text).to(eq("ef"))
+      eof := io.read(handle, 1)
+      saw_eof := false
+      eof match {
+        case nil => { saw_eof = true },
+        case _ => {}
+      }
+      expect(saw_eof).to(be_truthy())
+      io.close(handle)
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("reads with non-positive sizes without consuming data") { _ctx =>
+    root := next_temp_path("io-read-size")
+    file := path.parse(root).join("data.txt").to_string()
+    do {
+      fs.write_text(file, "abc", true)
+      handle := fs.open(file, fs.read_only(), nil)
+      io.read(handle, -5) match {
+        case data: Array u8 => expect(data.len()).to(eq(0)),
+        case nil => expect(false).to(be_truthy())
+      }
+      io.read(handle, 3) match {
+        case data: Array u8 => expect(io.bytes_to_string(data)).to(eq("abc")),
+        case nil => expect(false).to(be_truthy())
+      }
+      io.close(handle)
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("reads and writes all bytes") { _ctx =>
+    root := next_temp_path("io-all")
+    file := path.parse(root).join("bytes.bin").to_string()
+    do {
+      fs.mkdir(root, true)
+      handle := fs.open(file, fs.write_only(true, true), nil)
+      io.write_all(handle, io.string_to_bytes("stream"))
+      io.close(handle)
+      handle = fs.open(file, fs.read_only(), nil)
+      bytes := io.read_all(handle, 2)
+      io.close(handle)
+      expect(io.bytes_to_string(bytes)).to(eq("stream"))
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("writes and reads lines") { _ctx =>
+    root := next_temp_path("io-lines")
+    file := path.parse(root).join("lines.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      handle := fs.open(file, fs.write_only(true, true), nil)
+      io.write_line(handle, "first")
+      io.write_line(handle, "second")
+      io.close(handle)
+      handle = fs.open(file, fs.read_only(), nil)
+      line1 := io.read_line(handle)
+      line2 := io.read_line(handle)
+      line3 := io.read_line(handle)
+      io.close(handle)
+      line1 match {
+        case value: String => expect(value).to(eq("first")),
+        case nil => expect(false).to(be_truthy())
+      }
+      line2 match {
+        case value: String => expect(value).to(eq("second")),
+        case nil => expect(false).to(be_truthy())
+      }
+      expect(line3 == nil).to(be_truthy())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("buffered reader handles mixed newlines") { _ctx =>
+    root := next_temp_path("io-buffered-reader")
+    file := path.parse(root).join("mixed.txt").to_string()
+    do {
+      fs.write_text(file, "alpha\r\nbeta\nfinal", true)
+      handle := fs.open(file, fs.read_only(), nil)
+      reader := io.BufferedReader.new(handle, 4)
+      line1 := reader.read_line()
+      line2 := reader.read_line()
+      line3 := reader.read_line()
+      line4 := reader.read_line()
+      io.close(handle)
+      line1 match {
+        case value: String => expect(value).to(eq("alpha")),
+        case nil => expect(false).to(be_truthy())
+      }
+      line2 match {
+        case value: String => expect(value).to(eq("beta")),
+        case nil => expect(false).to(be_truthy())
+      }
+      line3 match {
+        case value: String => expect(value).to(eq("final")),
+        case nil => expect(false).to(be_truthy())
+      }
+      expect(line4 == nil).to(be_truthy())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("buffered writer flushes data") { _ctx =>
+    root := next_temp_path("io-buffered-writer")
+    file := path.parse(root).join("out.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      handle := fs.open(file, fs.write_only(true, true), nil)
+      writer := io.BufferedWriter.new(handle, 3)
+      writer.write_bytes(io.string_to_bytes("abcd"))
+      writer.flush()
+      io.close(handle)
+      expect(fs.read_text(file)).to(eq("abcd"))
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("creates temp directories") { _ctx =>
+    dir := temp.dir("able-io-temp-dir-")
+    expect(fs.exists(dir.path)).to(be_truthy())
+    temp.cleanup(dir)
+    expect(fs.exists(dir.path)).to(be_false())
+  }
+
+  suite.it("creates temp files") { _ctx =>
+    temp_file := temp.file("able-io-temp-file-")
+    io.write_all(temp_file.handle, io.string_to_bytes("temp data"))
+    io.close(temp_file.handle)
+    expect(fs.read_text(temp_file.path)).to(eq("temp data"))
+    temp.cleanup(temp_file)
+    expect(fs.exists(temp_file.path)).to(be_false())
+  }
+}
