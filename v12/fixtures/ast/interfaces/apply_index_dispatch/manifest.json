@@ -1,0 +1,10 @@
+{
+  "description": "Callable values dispatch to Apply.apply and []/[]= dispatch to Index/IndexMut implementations",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "21"
+    }
+  },
+  "entry": "module.json"
+}

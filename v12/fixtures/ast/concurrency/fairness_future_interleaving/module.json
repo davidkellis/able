@@ -1,0 +1,682 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "stage_proc"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "stage_future"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "worker_stage2_safe"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "worker_stage3_safe"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future_stage2_safe"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "worker"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "stage_proc"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 0
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_proc"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "type": "FunctionCall",
+                    "callee": {
+                      "type": "Identifier",
+                      "name": "future_yield"
+                    },
+                    "arguments": [],
+                    "isTrailingLambda": false
+                  }
+                ]
+              },
+              "elseIfClauses": []
+            },
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "stage_proc"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "worker_stage2_safe"
+                    },
+                    "right": {
+                      "type": "BinaryExpression",
+                      "operator": ">=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "stage_future"
+                      },
+                      "right": {
+                        "type": "IntegerLiteral",
+                        "value": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_proc"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "type": "FunctionCall",
+                    "callee": {
+                      "type": "Identifier",
+                      "name": "future_yield"
+                    },
+                    "arguments": [],
+                    "isTrailingLambda": false
+                  }
+                ]
+              },
+              "elseIfClauses": []
+            },
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "stage_proc"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 2
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "worker_stage3_safe"
+                    },
+                    "right": {
+                      "type": "BinaryExpression",
+                      "operator": ">=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "stage_future"
+                      },
+                      "right": {
+                        "type": "IntegerLiteral",
+                        "value": 2
+                      }
+                    }
+                  },
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_proc"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 3
+                    }
+                  }
+                ]
+              },
+              "elseIfClauses": []
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "stage_future"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 0
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_future"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "type": "FunctionCall",
+                    "callee": {
+                      "type": "Identifier",
+                      "name": "future_yield"
+                    },
+                    "arguments": [],
+                    "isTrailingLambda": false
+                  },
+                  {
+                    "type": "IntegerLiteral",
+                    "value": 0
+                  }
+                ]
+              },
+              "elseIfClauses": [
+                {
+                  "type": "ElseIfClause",
+                  "condition": {
+                    "type": "BinaryExpression",
+                    "operator": "==",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_future"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    }
+                  },
+                  "body": {
+                    "type": "BlockExpression",
+                    "body": [
+                      {
+                        "type": "AssignmentExpression",
+                        "operator": "=",
+                        "left": {
+                          "type": "Identifier",
+                          "name": "future_stage2_safe"
+                        },
+                        "right": {
+                          "type": "BinaryExpression",
+                          "operator": ">=",
+                          "left": {
+                            "type": "Identifier",
+                            "name": "stage_proc"
+                          },
+                          "right": {
+                            "type": "IntegerLiteral",
+                            "value": 2
+                          }
+                        }
+                      },
+                      {
+                        "type": "IntegerLiteral",
+                        "value": 0
+                      },
+                      {
+                        "type": "AssignmentExpression",
+                        "operator": "=",
+                        "left": {
+                          "type": "Identifier",
+                          "name": "stage_future"
+                        },
+                        "right": {
+                          "type": "IntegerLiteral",
+                          "value": 2
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "future_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "worker_status"
+      },
+      "right": {
+        "type": "MatchExpression",
+        "subject": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "worker"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "status"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        "clauses": [
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Pending"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Pending"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Resolved"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Resolved"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Cancelled"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Cancelled"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Failed"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Failed"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "WildcardPattern"
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Other"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future_status"
+      },
+      "right": {
+        "type": "MatchExpression",
+        "subject": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "future"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "status"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        "clauses": [
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Pending"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Pending"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Resolved"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Resolved"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Cancelled"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Cancelled"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Failed"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Failed"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "WildcardPattern"
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Other"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future_result"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "future"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "stage_proc"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 3
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "stage_future"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 2
+          }
+        },
+        {
+          "type": "Identifier",
+          "name": "worker_stage2_safe"
+        },
+        {
+          "type": "Identifier",
+          "name": "future_stage2_safe"
+        },
+        {
+          "type": "Identifier",
+          "name": "worker_stage3_safe"
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "worker_status"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Resolved"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "future_status"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Resolved"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "future_result"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
+        }
+      ]
+    }
+  ]
+}

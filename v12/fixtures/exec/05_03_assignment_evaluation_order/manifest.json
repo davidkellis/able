@@ -1,0 +1,14 @@
+{
+  "description": "assignment evaluation order and destructuring reassignment semantics",
+  "expect": {
+    "stdout": [
+      "counter 1",
+      "pair 1+11",
+      "counter2 2",
+      "pair2 2+12",
+      "assign_value 7",
+      "a 7"
+    ],
+    "exit": 0
+  }
+}

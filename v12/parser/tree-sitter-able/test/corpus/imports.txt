@@ -1,0 +1,32 @@
+==================
+Import Clauses
+==================
+
+import alpha.beta.{Foo, Bar::B};
+import gamma.delta.*;
+dynimport host.bindings::host;
+
+---
+
+(source_file
+  (import_statement
+    (import_path
+      (identifier)
+      (identifier))
+    (import_clause
+      (import_selector
+        (identifier))
+      (import_selector
+        (identifier)
+        (identifier))))
+  (import_statement
+    (import_path
+      (identifier)
+      (identifier))
+    (import_clause
+      (import_wildcard_clause)))
+  (import_statement
+    (import_path
+      (identifier)
+      (identifier))
+    (identifier)))

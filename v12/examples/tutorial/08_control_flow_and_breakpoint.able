@@ -1,0 +1,36 @@
+package control
+
+fn classify(score: i32) -> String {
+  if score > 90 { "excellent" }
+  elsif score > 70 { "solid" }
+  else { "keep practicing" }
+}
+
+fn find_first_even(values: Array i32) -> ?i32 {
+  breakpoint 'first {
+    for value in values {
+      if value % 2 != 0 { continue }
+      break 'first value
+    }
+    nil
+  }
+}
+
+fn repeat_until(limit: i32) -> i32 {
+  count := 0
+  result := loop {
+    count = count + 1
+    if count >= limit { break count }
+  }
+  result
+}
+
+fn main() -> void {
+  print(`Score 88 is ${classify(88)}`)
+  print(`Score 50 is ${classify(50)}`)
+
+  values := [3, 5, 7, 8, 9]
+  print(`First even => ${find_first_even(values)}`)
+
+  print(`repeat_until(4) => ${repeat_until(4)}`)
+}

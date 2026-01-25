@@ -1,0 +1,11 @@
+{
+  "description": "dynamic package objects, definitions, and late-bound dynimport",
+  "expect": {
+    "stdout": [
+      "first 42",
+      "second 7",
+      "extra 3"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,114 @@
+package interfaces
+import able.kernel.{
+  Less::KernelLess,
+  Equal::KernelEqual,
+  Greater::KernelGreater,
+  Ordering::KernelOrdering,
+  Display::KernelDisplay,
+  Clone::KernelClone,
+  Default::KernelDefault,
+  PartialEq::KernelPartialEq,
+  Eq::KernelEq,
+  PartialOrd::KernelPartialOrd,
+  Ord::KernelOrd,
+  Hash::KernelHash,
+  Hasher::KernelHasherInterface
+}
+
+## Kernel-resident comparison + hashing types.
+type Less = KernelLess;
+type Equal = KernelEqual;
+type Greater = KernelGreater;
+type Ordering = KernelOrdering;
+Less := KernelLess
+Equal := KernelEqual
+Greater := KernelGreater
+Ordering := KernelOrdering
+
+type Display = KernelDisplay;
+type Clone = KernelClone;
+type Default = KernelDefault;
+type PartialEq Rhs = KernelPartialEq Rhs;
+type Eq = KernelEq;
+type PartialOrd Rhs = KernelPartialOrd Rhs;
+type Ord = KernelOrd;
+type Hash = KernelHash;
+type Hasher = KernelHasherInterface;
+Eq := KernelEq
+
+## Default constructor helper.
+fn default<T: Default>() -> T { T.default() }
+
+## Types that can absorb elements (used by Iterator.collect).
+interface Extend T for Self {
+  fn extend(self: Self, value: T) -> Self;
+}
+
+## Error values participate in raise/rescue.
+interface Error for T {
+  fn message(self: Self) -> String;
+  fn cause(self: Self) -> ?Error;
+}
+
+## Operator families.
+interface Add Rhs Output for T {
+  fn add(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Sub Rhs Output for T {
+  fn sub(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Mul Rhs Output for T {
+  fn mul(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Div Rhs Output for T {
+  fn div(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Rem Rhs Output for T {
+  fn rem(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Neg Output for T {
+  fn neg(self: Self) -> Output;
+}
+
+interface BitAnd Rhs Output for T {
+  fn bit_and(self: Self, rhs: Rhs) -> Output;
+}
+
+interface BitOr Rhs Output for T {
+  fn bit_or(self: Self, rhs: Rhs) -> Output;
+}
+
+interface BitXor Rhs Output for T {
+  fn bit_xor(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Shl Rhs Output for T {
+  fn shl(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Shr Rhs Output for T {
+  fn shr(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Not Output for T {
+  fn not(self: Self) -> Output;
+}
+
+## Callable values implement Apply (function call operator).
+interface Apply Args Result for T {
+  fn apply(self: Self, args: Args) -> Result;
+}
+
+## Indexing protocol used by [] (bounds errors raise IndexError).
+interface Index Idx Output for T {
+  fn get(self: Self, idx: Idx) -> !Output;
+}
+
+interface IndexMut Idx Output for T {
+  fn set(self: Self, idx: Idx, value: Output) -> !void;
+}

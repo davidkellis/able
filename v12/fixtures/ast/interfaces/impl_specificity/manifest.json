@@ -1,0 +1,18 @@
+{
+  "description": "Impl specificity chooses concrete targets, constraint supersets, narrower unions, and more-instantiated generics; named impls remain explicit",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        { "kind": "String", "value": "box-i32" },
+        { "kind": "String", "value": "box-generic" },
+        { "kind": "String", "value": "box-named" },
+        { "kind": "String", "value": "constraints-ab" },
+        { "kind": "String", "value": "union-narrow" },
+        { "kind": "String", "value": "pair-tail" },
+        { "kind": "String", "value": "box-i32" }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

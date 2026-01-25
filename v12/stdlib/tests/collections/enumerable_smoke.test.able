@@ -1,0 +1,76 @@
+package enumerable_tests
+
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Indexed}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn is_two(value: i32) -> bool { value == 2 }
+fn greater_than_zero(value: i32) -> bool { value > 0 }
+fn less_than_zero(value: i32) -> bool { value < 0 }
+fn sum_i32(acc: i32, value: i32) -> i32 { acc + value }
+fn is_double_char(value: String) -> bool { value == "bb" }
+
+fn check_count_and_predicates() -> void {
+  values := Array.new()
+  values.push(1)
+  values.push(2)
+  values.push(3)
+
+  assert(values.count() == 3, "count should return the number of elements")
+  assert(values.any(is_two), "any should detect matching element")
+  assert(values.all(greater_than_zero), "all should confirm predicate across elements")
+  assert(values.none(less_than_zero), "none should reject missing predicate matches")
+
+  sum := values.reduce(0, sum_i32)
+  assert(sum == 6, "reduce should accumulate values")
+}
+
+fn check_find_take_drop_zip() -> void {
+  values := Array.new()
+  values.push("a")
+  values.push("bb")
+  values.push("ccc")
+
+  values.find(is_double_char) match {
+    case nil => { raise "expected to find a two-character string" },
+    case value: String => assert(value == "bb", "find should return the first matching element")
+  }
+
+  taken := values.take(2)
+  assert(taken.len() == 2, "take should include the requested prefix")
+
+  dropped := values.drop(2)
+  assert(dropped.len() == 1, "drop should skip the requested prefix")
+  dropped.get(0) match {
+    case value: String => assert(value == "ccc", "drop should preserve the tail values"),
+    case nil => { raise "expected a value after dropping prefix" }
+  }
+
+  zipped := values.zip_with_index()
+  zipped.get(0) match {
+    case entry: Indexed String => {
+      assert(entry.value == "a", "zip_with_index should start at zero")
+      assert(entry.index == 0, "zip_with_index should assign zero-based indices")
+    },
+    case nil => { raise "expected first zipped element" }
+  }
+  zipped.get(1) match {
+    case entry: Indexed String => {
+      assert(entry.value == "bb", "zip_with_index should increment the index")
+      assert(entry.index == 1, "zip_with_index should increment the index")
+    },
+    case nil => { raise "expected second zipped element" }
+  }
+}
+
+fn main() -> void {
+  check_count_and_predicates()
+  check_find_take_drop_zip()
+}
+
+main()

@@ -1,0 +1,147 @@
+package enumerable
+import able.kernel.{Array}
+import able.collections.array
+import able.core.interfaces.{Default, Extend}
+import able.core.iteration.{Iterable, Iterator}
+
+struct Indexed T {
+  value: T,
+  index: i32
+}
+
+interface Enumerable A for C _ : Iterable A {
+  fn lazy(self: C A) -> (Iterator A) { self.iterator() }
+
+  fn map<B>(self: C A, f: A -> B) -> C B
+    where C B: Default + Extend B {
+    acc: C B := C.default();
+    for value in self.lazy() {
+      acc = acc.extend(f(value))
+    }
+    acc
+  }
+
+  fn filter(self: C A, predicate: A -> bool) -> C A
+    where C A: Default + Extend A {
+    acc: C A := C.default();
+    for value in self.lazy() {
+      if predicate(value) {
+        acc = acc.extend(value)
+      }
+    }
+    acc
+  }
+
+  fn to_array(self: C A) -> Array A {
+    result: Array A := Array.new()
+    for value in self {
+      result.push(value)
+    }
+    result
+  }
+
+  fn count(self: C A) -> i32 {
+    total := 0
+    for _value in self {
+      total = total + 1
+    }
+    total
+  }
+
+  fn any(self: C A, predicate: A -> bool) -> bool {
+    found := false
+    for value in self {
+      if predicate(value) { found = true }
+    }
+    found
+  }
+
+  fn all(self: C A, predicate: A -> bool) -> bool {
+    ok := true
+    for value in self {
+      if !predicate(value) { ok = false }
+    }
+    ok
+  }
+
+  fn none(self: C A, predicate: A -> bool) -> bool {
+    !self.any(predicate)
+  }
+
+  fn find(self: C A, predicate: A -> bool) -> ?A {
+    result: ?A := nil
+    for value in self {
+      if predicate(value) {
+        result = value
+        break
+      }
+    }
+    result
+  }
+
+  fn reduce<B>(self: C A, initial: B, f: (B, A) -> B) -> B {
+    acc := initial
+    for value in self {
+      acc = f(acc, value)
+    }
+    acc
+  }
+
+  fn fold<B>(self: C A, initial: B, f: (B, A) -> B) -> B {
+    self.reduce(initial, f)
+  }
+
+  fn first(self: C A) -> ?A {
+    result: ?A := nil
+    for value in self {
+      result = value
+      break
+    }
+    result
+  }
+
+  fn is_empty(self: C A) -> bool {
+    self.first() == nil
+  }
+
+  fn take(self: C A, count: i32) -> Array A {
+    result: Array A := Array.new();
+    if count <= 0 { return result }
+    remaining := count
+    for value in self {
+      if remaining <= 0 { break }
+      result.push(value)
+      remaining = remaining - 1
+    }
+    result
+  }
+
+  fn drop(self: C A, count: i32) -> Array A {
+    result: Array A := Array.new();
+    if count <= 0 {
+      return self.to_array()
+    }
+    skipped := 0
+    for value in self {
+      if skipped < count {
+        skipped = skipped + 1
+      } else {
+        result.push(value)
+      }
+    }
+    result
+  }
+
+  fn zip_with_index(self: C A) -> Array (Indexed A) {
+    result: Array (Indexed A) := Array.new();
+    idx := 0
+    for value in self {
+      result.push(Indexed { value: value, index: idx })
+      idx = idx + 1
+    }
+    result
+  }
+}
+
+impl Enumerable A for Array {
+}

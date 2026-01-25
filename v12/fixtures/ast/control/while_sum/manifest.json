@@ -1,0 +1,10 @@
+{
+  "description": "Sums integers using a while loop",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "3"
+    }
+  },
+  "entry": "module.json"
+}

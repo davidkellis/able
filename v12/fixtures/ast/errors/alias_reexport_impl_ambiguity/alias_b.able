@@ -1,0 +1,9 @@
+package alias_reexport_impl_ambiguity_b
+
+import alias_reexport_impl_ambiguity_base.{Taggable, Widget}
+
+private type AliasB = Widget
+
+impl Taggable for AliasB {
+  fn tag(self: Self) -> String { "b" }
+}

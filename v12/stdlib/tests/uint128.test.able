@@ -1,0 +1,87 @@
+package uint128_specs
+
+import able.numbers.uint128.{UInt128}
+import able.core.interfaces.{Less, Greater}
+import able.spec.*
+
+describe("UInt128") { suite =>
+  suite.module_path("numbers/uint128")
+
+  suite.it("constructs from primitives and converts back") { _ctx =>
+    zero := UInt128.zero()
+    expect(zero.is_zero()).to(be_truthy())
+
+    from_u64 := UInt128.from_u64(42_u64)
+    expect(from_u64.to_u64()).to(eq(42_u64))
+    expect(from_u64.to_string()).to(eq("42"))
+
+    expect(fn() { UInt128.from_i64(-1) }).to(raise_error())
+  }
+
+  suite.it("performs addition, subtraction, and detects overflow") { _ctx =>
+    a := UInt128.from_u128(18446744073709551615_u128) ## 2^64 - 1
+    b := UInt128.from_u128(1_u128)
+    sum := a.add(b)
+    expect(sum.to_string()).to(eq("18446744073709551616"))
+
+    expect(sum.sub(b)).to(eq(a))
+    expect(fn() { b.sub(sum) }).to(raise_error())
+
+    max := UInt128.from_u128(340282366920938463463374607431768211455_u128)
+    expect(fn() { max.add(UInt128.one()) }).to(raise_error())
+  }
+
+  suite.it("handles multiplication, division, and remainder") { _ctx =>
+    x := UInt128.from_u128(340282366920938463463374607431768211_u128)
+    y := UInt128.from_u128(10_u128)
+    product := x.mul(y)
+    expect(product.to_string()).to(eq("3402823669209384634633746074317682110"))
+
+    quotient := product.div(y)
+    expect(quotient).to(eq(x))
+
+    remainder := product.rem(y)
+    expect(remainder.is_zero()).to(be_truthy())
+
+    expect(fn() { x.mul(UInt128.from_u128(340282366920938463463374607431768211456_u128)) }).to(raise_error())
+    expect(fn() { x.div(UInt128.zero()) }).to(raise_error())
+  }
+
+  suite.it("compares and clamps safely") { _ctx =>
+    low := UInt128.from_u128(100_u128)
+    mid := UInt128.from_u128(200_u128)
+    high := UInt128.from_u128(300_u128)
+
+    expect(low.compare(high)).to(eq(Less))
+    expect(high.compare(low)).to(eq(Greater))
+    expect(mid.min(high)).to(eq(mid))
+    expect(mid.max(high)).to(eq(high))
+
+    expect(high.clamp(low, mid)).to(eq(mid))
+    expect(mid.clamp(low, high)).to(eq(mid))
+  }
+
+  suite.it("reports bit-oriented helpers") { _ctx =>
+    value := UInt128.new(0x0000000000000001_u64, 0_u64)
+    expect(value.leading_zeros()).to(eq(63))
+    expect(value.trailing_zeros()).to(eq(64))
+
+    low := UInt128.from_u128(16_u128)
+    expect(low.leading_zeros()).to(eq(128 - 5))
+    expect(low.trailing_zeros()).to(eq(4))
+  }
+
+  suite.it("converts to native ranges") { _ctx =>
+    big := UInt128.from_u128(4294967295_u128)
+    expect(big.to_u32()).to(eq(4294967295_u32))
+    expect(fn() { big.to_i32() }).to(raise_error())
+
+    fits_i64 := UInt128.from_u128(9223372036854775807_u128)
+    expect(fits_i64.to_i64()).to(eq(9223372036854775807_i64))
+
+    too_large := UInt128.from_u128(9223372036854775808_u128)
+    expect(fn() { too_large.to_i64() }).to(raise_error())
+
+    expect(big.to_f64()).to(be_within(1e-6, 4294967295.0))
+  }
+}

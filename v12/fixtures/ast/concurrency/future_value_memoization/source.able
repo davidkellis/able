@@ -1,0 +1,8 @@
+count := 0;
+handle := spawn {
+  count += 1;
+  21;
+};
+first := handle.value();
+second := handle.value();
+[first, second, count];

@@ -1,0 +1,75 @@
+package lazy_seq_specs
+
+import able.spec.*
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.lazy_seq.{LazySeq}
+import able.core.iteration.{Iterator, IteratorEnd}
+
+struct RecordingIterator {
+  values: Array i32,
+  index: i32,
+  pulls: Array i32
+}
+
+impl Iterator i32 for RecordingIterator {
+  fn next(self: Self) -> i32 | IteratorEnd {
+    if self.index >= self.values.len() {
+      return IteratorEnd {}
+    }
+    self.pulls.push(self.index)
+    value := self.values.read_slot(self.index)
+    self.index = self.index + 1
+    value
+  }
+}
+
+fn make_iterator(values: Array i32, pulls: Array i32) -> RecordingIterator {
+  RecordingIterator { values: values, index: 0, pulls: pulls }
+}
+
+describe("LazySeq") { suite =>
+  suite.it("defers pulling values until needed") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(1)
+    values.push(2)
+    values.push(3)
+    pulls: Array i32 := Array.new()
+    iter := make_iterator(values, pulls)
+
+    seq := LazySeq.from_iterator(iter)
+    first := seq.get(0)
+    expect(first).to(eq(1))
+    expect(pulls.len()).to(eq(1))
+
+    again := seq.get(0)
+    expect(again).to(eq(1))
+    expect(pulls.len()).to(eq(1)) ## cached
+
+    second := seq.get(1)
+    expect(second).to(eq(2))
+    expect(pulls.len()).to(eq(2))
+  }
+
+  suite.it("iterates with caching and produces arrays") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(10)
+    values.push(20)
+    values.push(30)
+    pulls: Array i32 := Array.new()
+    seq := LazySeq.from_iterator(make_iterator(values, pulls))
+
+    taken := seq.take(2)
+    expect(taken.len()).to(eq(2))
+    expect(pulls.len()).to(eq(2))
+
+    total := 0
+    seq.each(fn(value: i32) -> void { total = total + value })
+    expect(total).to(eq(60))
+    expect(pulls.len()).to(eq(3)) ## only one additional pull for third element
+
+    arr := seq.to_array()
+    expect(arr.len()).to(eq(3))
+    expect(pulls.len()).to(eq(3)) ## no extra pulls when fully cached
+  }
+}

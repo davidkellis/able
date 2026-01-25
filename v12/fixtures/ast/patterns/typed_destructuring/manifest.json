@@ -1,0 +1,10 @@
+{
+  "description": "Typed struct and array destructuring with annotations",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 2
+    }
+  },
+  "entry": "module.json"
+}

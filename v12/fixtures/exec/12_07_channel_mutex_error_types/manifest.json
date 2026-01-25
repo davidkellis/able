@@ -1,0 +1,12 @@
+{
+  "description": "channel/mutex error payloads expose standard structs",
+  "expect": {
+    "stdout": [
+      "channel nil ChannelNil",
+      "channel closed ChannelClosed",
+      "channel send ChannelSendOnClosed",
+      "mutex unlock MutexUnlocked"
+    ],
+    "exit": 0
+  }
+}

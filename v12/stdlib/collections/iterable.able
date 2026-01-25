@@ -1,0 +1,10 @@
+## Interface for Iterating over a collection
+interface Iterable T for Self {
+  fn #iterator() -> Iterator T
+}
+
+## Interface for providing values in a sequence
+interface Iterator T for Self {
+  fn #next() -> T | IteratorEnd;
+  fn #has_next() -> bool
+}

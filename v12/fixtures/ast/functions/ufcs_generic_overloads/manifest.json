@@ -1,0 +1,39 @@
+{
+  "description": "UFCS resolves overloaded and generic free functions, matching pipe and method-style calls",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "6"
+        },
+        {
+          "kind": "i32",
+          "value": "1"
+        },
+        {
+          "kind": "i32",
+          "value": "6"
+        },
+        {
+          "kind": "i32",
+          "value": "7"
+        },
+        {
+          "kind": "i32",
+          "value": "8"
+        },
+        {
+          "kind": "i32",
+          "value": "9"
+        },
+        {
+          "kind": "i32",
+          "value": "1"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

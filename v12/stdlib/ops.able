@@ -1,0 +1,69 @@
+package able;
+
+import able.{Ordering, Less, Equal, Greater}; ## Import Ordering enum
+
+## Comparison Interfaces
+
+## Eq
+## Checks for equality (==, !=).
+interface Eq B {
+  fn #eq(other: B) -> bool {
+    !#ne(other)
+  }
+
+  ## Default implementation for !=
+  fn #ne(other: B) -> bool {
+    !#eq(other)
+  }
+}
+
+## Ord
+## Defines inequality operators (<, <=, >, >=).
+interface Ord Rhs {
+  ## Returns Less, Equal, Greater wrapped in an Option (?Ordering),
+  ## or nil if the values are not comparable, like NaN, even though NaN is in the set of f32 and f64
+  fn #cmp(other: Rhs) -> ?Ordering;
+
+  ## Default implementations for comparison operators based on cmp
+  fn #lt(other: Rhs) -> bool {
+    match #cmp(other) {
+      case Less => true,
+      _ => false ## Includes Equal, Greater, and nil cases
+    }
+  }
+
+  fn #le(other: Rhs) -> bool {
+     match #cmp(other) {
+      case Less | Equal => true,
+      _ => false ## Includes Greater and nil cases
+    }
+  }
+
+  fn #gt(other: Rhs) -> bool {
+     match #cmp(other) {
+      case Greater => true,
+      _ => false ## Includes Less, Equal, and nil cases
+    }
+  }
+
+  fn #ge(other: Rhs) -> bool {
+     match #cmp(other) {
+      case Greater | Equal => true,
+      _ => false ## Includes Less and nil cases
+    }
+  }
+}
+
+
+## Operator Interfaces (Example: Add)
+## Defines behavior for operators like +, -, *, etc.
+
+## Add
+## Defines behavior for the '+' operator.
+interface Add Rhs Output for T {
+  fn #add(rhs: Rhs) -> Output;
+}
+
+## Note: Similar interfaces would be defined for:
+## Sub, Mul, Div, Rem (Remainder/Modulo), Neg (Unary Minus),
+## Not (Bitwise ~), BitAnd (&), BitOr (|), BitXor (^), Shl (<<), Shr (>>)

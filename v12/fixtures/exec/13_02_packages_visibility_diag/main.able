@@ -1,0 +1,14 @@
+package exec_13_02_packages_visibility_diag
+
+import exec_13_02_packages_visibility_diag.pkg_visibility::pkg_visibility
+import exec_13_02_packages_visibility_diag.pkg_visibility.{make_visible, Visible}
+
+## Semantics: alias-only import requires qualification, selective import brings names into scope, and private helpers in the imported package stay encapsulated.
+
+fn main() -> void {
+  via_alias := pkg_visibility.make_visible("alias")    ## accessed through package alias
+  via_selective := make_visible("selective")           ## accessed through selective import
+
+  print(pkg_visibility.describe(via_alias))
+  print(pkg_visibility.describe(via_selective))
+}

@@ -1,0 +1,10 @@
+{
+  "description": "union-target impls dispatch for interface-typed values",
+  "expect": {
+    "stdout": [
+      "alpha",
+      "beta"
+    ],
+    "exit": 0
+  }
+}

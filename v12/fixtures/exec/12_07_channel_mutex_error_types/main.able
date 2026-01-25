@@ -1,0 +1,48 @@
+package exec_12_07_channel_mutex_error_types
+
+## Semantics: channel/mutex errors surface standardized payload structs via err.value.
+
+struct ChannelClosed {}
+struct ChannelNil {}
+struct ChannelSendOnClosed {}
+struct MutexUnlocked {}
+
+fn capture(action: fn() -> String) -> String {
+  do { action(); "ok" } rescue {
+    case err => {
+      err.value match {
+        case ChannelNil {} => "ChannelNil",
+        case ChannelClosed {} => "ChannelClosed",
+        case ChannelSendOnClosed {} => "ChannelSendOnClosed",
+        case MutexUnlocked {} => "MutexUnlocked",
+        case _ => "Other"
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  nil_result := capture({ => do { __able_channel_close(0); "ok" } })
+  closed_result := capture({ => do {
+    handle := __able_channel_new(0)
+    __able_channel_close(handle)
+    __able_channel_close(handle)
+    "ok"
+  } })
+  send_result := capture({ => do {
+    handle := __able_channel_new(0)
+    __able_channel_close(handle)
+    __able_channel_send(handle, 1)
+    "ok"
+  } })
+  unlock_result := capture({ => do {
+    handle := __able_mutex_new()
+    __able_mutex_unlock(handle)
+    "ok"
+  } })
+
+  print(`channel nil ${nil_result}`)
+  print(`channel closed ${closed_result}`)
+  print(`channel send ${send_result}`)
+  print(`mutex unlock ${unlock_result}`)
+}

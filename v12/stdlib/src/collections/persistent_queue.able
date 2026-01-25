@@ -1,0 +1,90 @@
+package persistent_queue
+
+import able.collections.list.{List}
+import able.collections.enumerable.{Enumerable}
+import able.core.iteration.{Iterable}
+import able.core.interfaces.{Default, Extend}
+
+struct PersistentQueue T {
+  front: List T,
+  back: List T,
+  size: i32
+}
+
+fn queue_normalize<T>(queue: PersistentQueue T) -> PersistentQueue T {
+  front := (queue).front
+  if !front.is_empty() {
+    return queue
+  }
+  back := (queue).back
+  PersistentQueue {
+    front: (back).reverse(),
+    back: List.empty(),
+    size: queue.size
+  }
+}
+
+methods PersistentQueue T {
+  fn empty() -> PersistentQueue T {
+    PersistentQueue { front: List.empty(), back: List.empty(), size: 0_i32 }
+  }
+
+  fn len(self: Self) -> i32 { self.size }
+
+  fn is_empty(self: Self) -> bool { self.size == 0 }
+
+  fn enqueue(self: Self, value: T) -> PersistentQueue T {
+    PersistentQueue {
+      front: self.front,
+      back: self.back.prepend(value),
+      size: self.size + 1_i32
+    }
+  }
+
+  fn peek(self: Self) -> ?T {
+    normalized := queue_normalize(self)
+    front := (normalized).front
+    (front).head()
+  }
+
+  fn dequeue(self: Self) -> PersistentQueue T {
+    if self.size == 0 { return self }
+    normalized := queue_normalize(self)
+    front := (normalized).front
+    new_front := (front).tail()
+    PersistentQueue {
+      front: new_front,
+      back: (normalized).back,
+      size: self.size + (-1_i32)
+    }
+  }
+
+  fn for_each(self: Self, visit: T -> void) -> void {
+    normalized := queue_normalize(self)
+    front := (normalized).front
+    back := (normalized).back
+    for value in front {
+      visit(value)
+    }
+    reversed := (back).reverse()
+    for value in reversed {
+      visit(value)
+    }
+  }
+}
+
+impl Default for PersistentQueue T {
+  fn default() -> PersistentQueue T { PersistentQueue.empty() }
+}
+
+impl Extend T for PersistentQueue T {
+  fn extend(self: Self, value: T) -> Self {
+    self.enqueue(value)
+  }
+}
+
+impl Enumerable A for PersistentQueue {
+  fn each(self: Self, visit: A -> void) -> void {
+    self.for_each(visit)
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "type": "Module",
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "pkgmethods"
+        }
+      ],
+      "isWildcard": false
+    }
+  ],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "inst"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "pkgmethods"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "Widget"
+            }
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "make"
+          }
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 3
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "inst"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "bump"
+        }
+      },
+      "arguments": [
+        {
+          "type": "IntegerLiteral",
+          "value": 1
+        }
+      ],
+      "isTrailingLambda": false
+    }
+  ]
+}

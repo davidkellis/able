@@ -1,0 +1,152 @@
+import { AST } from "../../context";
+import type { Fixture } from "../../types";
+
+const stringsFixtures: Fixture[] = [
+  {
+      name: "strings/interpolation_basic",
+      module: AST.module([
+        AST.assign("x", AST.int(2)),
+        AST.stringInterpolation([
+          AST.stringLiteral("x = "),
+          AST.identifier("x"),
+          AST.stringLiteral(", sum = "),
+          AST.binaryExpression("+", AST.integerLiteral(3), AST.integerLiteral(4)),
+        ]),
+      ]),
+      manifest: {
+        description: "Interpolates literals and expressions",
+        expect: {
+          result: { kind: "String", value: "x = 2, sum = 7" },
+        },
+      },
+    },
+
+  {
+      name: "strings/interpolation_struct_to_String",
+      module: AST.module([
+        AST.structDefinition(
+          "Point",
+          [
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y"),
+          ],
+          "named",
+        ),
+        AST.methodsDefinition(
+          AST.simpleTypeExpression("Point"),
+          [
+            AST.functionDefinition(
+              "to_string",
+              [AST.functionParameter("self")],
+              AST.blockExpression([
+                AST.returnStatement(
+                  AST.stringInterpolation([
+                    AST.stringLiteral("Point("),
+                    AST.memberAccessExpression(AST.identifier("self"), "x"),
+                    AST.stringLiteral(","),
+                    AST.memberAccessExpression(AST.identifier("self"), "y"),
+                    AST.stringLiteral(")"),
+                  ]),
+                ),
+              ]),
+            ),
+          ],
+        ),
+        AST.assign(
+          "p",
+          AST.structLiteral(
+            [
+              AST.structFieldInitializer(AST.integerLiteral(1), "x"),
+        AST.structFieldInitializer(AST.integerLiteral(2), "y"),
+            ],
+            false,
+            "Point",
+          ),
+        ),
+        AST.stringInterpolation([
+          AST.stringLiteral("P= "),
+          AST.identifier("p"),
+        ]),
+      ]),
+      manifest: {
+        description: "Uses to_String method when interpolating struct instances",
+        expect: {
+          result: { kind: "String", value: "P= Point(1,2)" },
+        },
+      },
+    },
+
+  {
+      name: "strings/String_methods",
+      module: AST.module(
+        [
+          AST.assign("s", AST.stringLiteral("héllo")),
+          AST.arr(
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_bytes"), []),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_chars"), []),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_graphemes"), []),
+            AST.propagationExpression(
+              AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "subString"), [
+                AST.integerLiteral(1),
+                AST.integerLiteral(3),
+              ]),
+            ),
+            AST.propagationExpression(
+              AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "subString"), [
+                AST.integerLiteral(2),
+                AST.nil(),
+              ]),
+            ),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "split"), [AST.stringLiteral("l")]),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "split"), [AST.stringLiteral("")]),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("s"), "replace"),
+              [AST.stringLiteral("l"), AST.stringLiteral("L")],
+            ),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "starts_with"), [AST.stringLiteral("hé")]),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "ends_with"), [AST.stringLiteral("lo")]),
+          ),
+        ],
+        [AST.importStatement(["able", "text", "string"])],
+      ),
+      manifest: {
+        description: "String helpers cover length, subString, split, replace, and prefix/suffix checks",
+        skipTargets: ["ts"],
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "u64", value: "6" },
+              { kind: "u64", value: "5" },
+              { kind: "u64", value: "5" },
+              { kind: "String", value: "éll" },
+              { kind: "String", value: "llo" },
+              {
+                kind: "array",
+                elements: [
+                  { kind: "String", value: "hé" },
+                  { kind: "String", value: "" },
+                  { kind: "String", value: "o" },
+                ],
+              },
+              {
+                kind: "array",
+                elements: [
+                  { kind: "String", value: "h" },
+                  { kind: "String", value: "é" },
+                  { kind: "String", value: "l" },
+                  { kind: "String", value: "l" },
+                  { kind: "String", value: "o" },
+                ],
+              },
+              { kind: "String", value: "héLLo" },
+              { kind: "bool", value: true },
+              { kind: "bool", value: true },
+            ],
+          },
+        },
+      },
+    },
+];
+
+export default stringsFixtures;

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v11 Manual — Getting Started</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v11 Manual</span>
+        <ul>
+          <li><a href="index.html" class="active">Getting Started</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>1. Getting Started</h1>
+        <p>
+          Able programs live inside packages. Any package with a public
+          <code>fn main() -&gt; void</code> produces a runnable binary named
+          after its package path.
+        </p>
+        <pre><code class="language-able">package helloworld
+
+fn main() {
+  print("Hello, Able!")
+}</code></pre>
+        <p>
+          Blocks are expressions; the last expression is the value. Braces
+          delimit blocks&mdash;indentation is cosmetic.
+        </p>
+        <h2 id="resources">1.1 Resources</h2>
+        <ul>
+          <li>Specification (authoritative): <code>spec/full_spec_v11.md</code></li>
+          <li>Roadmap/status: <code>PLAN.md</code></li>
+          <li>Interpreters: <code>v11/interpreters/ts</code> (Bun) and <code>v11/interpreters/go</code></li>
+          <li>Fixtures/examples: <code>v11/fixtures</code>, <code>v11/interpreters/ts/testdata/examples</code></li>
+          <li>Design notes: <code>design/</code> (parity, regex, typechecker plans)</li>
+        </ul>
+        <h2 id="setup">1.2 Toolchain Setup</h2>
+        <pre><code class="language-bash"># TypeScript interpreter
+cd v11/interpreters/ts
+bun install
+bun test
+
+# Go interpreter
+cd ../go
+go test ./...</code></pre>
+        <p>Use Bun ≥ 1.2 and Go ≥ 1.22.</p>
+        <h2 id="running">1.3 Running Able Code</h2>
+        <pre><code class="language-bash"># Execute fixtures with the TS interpreter
+bun run scripts/run-fixtures.ts [--filter name]
+
+# Export fixtures after edits
+bun run scripts/export-fixtures.ts
+
+# Go parity (runs fixtures &amp; typechecks)
+go test ./pkg/interpreter</code></pre>
+        <p>
+          Run both suites together via
+          <code>./run_all_tests.sh --version=v11</code>. Add ad-hoc
+          <code>.able</code> files under a package or <code>examples/</code> and
+          execute them with the interpreter CLIs.
+        </p>
+        <h2 id="layout">1.4 Project Layout</h2>
+        <ul>
+          <li><code>v11/</code>: active workspace (interpreters, parser, stdlib, fixtures)</li>
+          <li><code>spec/</code>: specs v1&ndash;v11; rely on v11 for behaviour</li>
+          <li>Archived workspace at the repo root: frozen reference (do not modify)</li>
+          <li><code>able.*</code>: reserved stdlib namespace (auto-detected; override via lockfile or <code>ABLE_MODULE_PATHS</code>)</li>
+        </ul>
+        <footer class="manual-footer">
+          Able v11 manual · Derived from spec/full_spec_v11.md
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

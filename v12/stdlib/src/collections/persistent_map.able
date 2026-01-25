@@ -1,0 +1,585 @@
+package persistent_map
+
+import able.kernel.{Array, KernelHasher}
+import able.collections.array
+import able.collections.map.{MapEntry}
+import able.collections.enumerable.{Enumerable}
+import able.core.iteration.{Iterable}
+import able.core.interfaces.{Hash, Eq, Clone, Default, Extend}
+
+HAMT_BITS: i32 := 5
+HAMT_MASK: i32 := ((1_i32 .<< HAMT_BITS) + (-1_i32))
+
+struct HamtSlotEmpty {}
+struct HamtLeaf K V {
+  key: K,
+  value: V,
+  hash: u64
+}
+struct HamtSlotNode K V {
+  node: HamtNode K V
+}
+struct HamtSlotCollision K V {
+  hash: u64,
+  entries: Array (HamtLeaf K V)
+}
+
+union HamtSlot K V = HamtSlotEmpty | HamtLeaf<K, V> | HamtSlotNode<K, V> | HamtSlotCollision<K, V>
+
+struct HamtNode K V {
+  bitmap: i32,
+  children: Array (HamtSlot K V)
+}
+
+struct HamtAssocResult K V {
+  slot: HamtSlot K V,
+  added: bool
+}
+
+struct HamtDissocResult K V {
+  slot: HamtSlot K V,
+  removed: bool
+}
+
+fn empty_node_like<K, V>(_sample: HamtSlot K V) -> HamtNode K V {
+  HamtNode { bitmap: 0_i32, children: Array.with_capacity(0) }
+}
+
+fn hash_key<K>(key: K) -> u64 where K: Hash {
+  hasher := KernelHasher.new()
+  key.hash(hasher)
+  hasher.finish()
+}
+
+fn eq_key<K>(left: K, right: K) -> bool where K: Eq {
+  left == right
+}
+
+fn bitpos(hash: u64, shift: i32) -> i32 {
+  bit := ((hash .>> (shift as u64)) .& (HAMT_MASK as u64)) as i32
+  1_i32 .<< bit
+}
+
+fn bitcount(value: i32) -> i32 {
+  count := 0_i32
+  v := value
+  loop {
+    if v == 0 { break }
+    count = count + (v .& 1_i32)
+    v = v .>> 1_i32
+  }
+  count
+}
+
+fn bitmap_index(bitmap: i32, bit: i32) -> i32 {
+  bitcount(bitmap .& (bit + (-1_i32)))
+}
+
+fn empty_slot<K, V>() -> HamtSlot K V {
+  HamtSlotEmpty {}
+}
+
+fn node_children_clone<K, V>(children: Array (HamtSlot K V)) -> Array (HamtSlot K V) {
+  count := children.len()
+  cloned := Array.with_capacity(count)
+  idx := 0
+  loop {
+    if idx >= count { break }
+    cloned.push(children.read_slot(idx))
+    idx = idx + 1
+  }
+  cloned
+}
+
+methods HamtNode K V {
+  fn with_child(self: Self, bit: i32, child: HamtSlot K V) -> HamtNode K V {
+    if (self.bitmap .& bit) != 0 {
+      idx := bitmap_index(self.bitmap, bit)
+      cloned := node_children_clone(self.children)
+      (cloned).write_slot(idx, child)
+      HamtNode { bitmap: self.bitmap, children: cloned }
+    } else {
+      idx := bitmap_index(self.bitmap, bit)
+      len := self.children.len()
+      new_children := Array.with_capacity(len + 1)
+      i := 0
+      loop {
+        if i >= len { break }
+        if i == idx {
+          new_children.push(child)
+        }
+        new_children.push(self.children.read_slot(i))
+        i = i + 1
+      }
+      if idx == len {
+        new_children.push(child)
+      }
+      HamtNode { bitmap: self.bitmap .| bit, children: new_children }
+    }
+  }
+}
+
+fn node_without_child<K, V>(node: HamtNode K V, bit: i32, idx: i32) -> HamtNode K V {
+  len := node.children.len()
+  new_children := Array.with_capacity(len + (-1_i32))
+  i := 0
+  loop {
+    if i >= len { break }
+    if i != idx {
+      new_children.push(node.children.read_slot(i))
+    }
+    i = i + 1
+  }
+  HamtNode { bitmap: node.bitmap .& (.~bit), children: new_children }
+}
+
+fn create_collision<K, V>(hash: u64, leaf: HamtLeaf K V, other: HamtLeaf K V) -> HamtSlot K V where K: Clone, V: Clone {
+  entries := Array.with_capacity(2)
+  (entries).push(leaf)
+  (entries).push(other)
+  HamtSlotCollision { hash: hash, entries: entries }
+}
+
+fn create_branching_node<K, V>(shift: i32, leaf: HamtLeaf K V, other: HamtLeaf K V) -> HamtSlot K V where K: Clone, V: Clone {
+  bit1 := bitpos(leaf.hash, shift)
+  bit2 := bitpos(other.hash, shift)
+  if bit1 == bit2 {
+    child: HamtSlot K V := create_branching_node(shift + HAMT_BITS, leaf, other)
+    node := empty_node_like(child)
+    node = (node).with_child(bit1, child)
+    HamtSlotNode { node }
+  } else {
+    leaf_slot: HamtSlot K V := leaf
+    other_slot: HamtSlot K V := other
+    node := empty_node_like(leaf_slot)
+    if bit1 < bit2 {
+      node = (node).with_child(bit1, leaf_slot)
+      node = (node).with_child(bit2, other_slot)
+    } else {
+      node = (node).with_child(bit2, other_slot)
+      node = (node).with_child(bit1, leaf_slot)
+    }
+    HamtSlotNode { node }
+  }
+}
+
+fn assoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, value: V, shift: i32) -> HamtAssocResult K V where K: Hash + Eq + Clone, V: Clone {
+  slot match {
+    case HamtSlotEmpty {} => {
+      HamtAssocResult {
+        slot: HamtLeaf { key: key, value: value, hash: hash },
+        added: true
+      }
+    },
+    case HamtLeaf { key::existing_key, value::existing_value, hash::existing_hash } => {
+      if eq_key(existing_key, key) {
+        new_leaf := HamtLeaf { key: key, value: value, hash: hash }
+        HamtAssocResult { slot: new_leaf, added: false }
+      } elsif existing_hash == hash {
+        collision := create_collision(hash, HamtLeaf { key: existing_key, value: existing_value, hash: existing_hash }, HamtLeaf { key: key, value: value, hash: hash })
+        HamtAssocResult { slot: collision, added: true }
+      } else {
+        branch := create_branching_node(shift, HamtLeaf { key: existing_key, value: existing_value, hash: existing_hash }, HamtLeaf { key: key, value: value, hash: hash })
+        HamtAssocResult { slot: branch, added: true }
+      }
+    },
+    case HamtSlotCollision { hash::existing_hash, entries } => {
+      if existing_hash != hash {
+        first_entry := entries.read_slot(0)
+        branch := create_branching_node(shift, HamtLeaf { key: key, value: value, hash: hash }, first_entry)
+        ## fold entries into new branch
+        i := 1
+        current := branch
+        loop {
+          if i >= entries.len() { break }
+          entry := entries.read_slot(i)
+          res := assoc_slot(current, entry.hash, entry.key, entry.value, shift)
+          current = res.slot
+          i = i + 1
+        }
+        res_new := assoc_slot(current, hash, key, value, shift)
+        HamtAssocResult { slot: res_new.slot, added: res_new.added }
+      } else {
+        idx := 0
+        len := entries.len()
+        loop {
+          if idx >= len { break }
+          entry := entries.read_slot(idx)
+          if eq_key(entry.key, key) {
+            new_entries := Array.with_capacity(len)
+            j := 0
+            loop {
+              if j >= len { break }
+              if j == idx {
+                new_entries.push(HamtLeaf { key: key, value: value, hash: hash })
+              } else {
+                new_entries.push(entries.read_slot(j))
+              }
+              j = j + 1
+            }
+            return HamtAssocResult { slot: HamtSlotCollision { hash: hash, entries: new_entries }, added: false }
+          }
+          idx = idx + 1
+        }
+        new_entries := Array.with_capacity(len + 1)
+        i := 0
+        loop {
+          if i >= len { break }
+          new_entries.push(entries.read_slot(i))
+          i = i + 1
+        }
+        new_entries.push(HamtLeaf { key: key, value: value, hash: hash })
+        HamtAssocResult { slot: HamtSlotCollision { hash: hash, entries: new_entries }, added: true }
+      }
+    },
+    case HamtSlotNode { node } => {
+      bit := bitpos(hash, shift)
+      if (node.bitmap .& bit) == 0 {
+        new_children := Array.with_capacity(node.children.len())
+        i := 0
+        loop {
+          if i >= node.children.len() { break }
+          new_children.push(node.children.read_slot(i))
+          i = i + 1
+        }
+        child_result := assoc_slot(HamtSlotEmpty {}, hash, key, value, shift + HAMT_BITS)
+        idx := bitmap_index(node.bitmap, bit)
+        insert_children := Array.with_capacity(new_children.len() + 1)
+        i = 0
+        loop {
+          if i >= new_children.len() { break }
+          if i == idx {
+        insert_children.push(child_result.slot)
+          }
+          insert_children.push(new_children.read_slot(i))
+          i = i + 1
+        }
+        if idx == new_children.len() {
+          insert_children.push(child_result.slot)
+        }
+        new_node := HamtNode { bitmap: node.bitmap .| bit, children: insert_children }
+        HamtAssocResult { slot: HamtSlotNode { node: new_node }, added: child_result.added }
+      } else {
+        idx := bitmap_index(node.bitmap, bit)
+        existing_child := node.children.read_slot(idx)
+        child_result := assoc_slot(existing_child, hash, key, value, shift + HAMT_BITS)
+        cloned := node_children_clone(node.children)
+        (cloned).write_slot(idx, child_result.slot)
+        HamtAssocResult { slot: HamtSlotNode { node: HamtNode { bitmap: node.bitmap, children: cloned } }, added: child_result.added }
+      }
+    }
+  }
+}
+
+fn dissoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> HamtDissocResult K V where K: Hash + Eq + Clone, V: Clone {
+  slot match {
+    case HamtSlotEmpty {} => HamtDissocResult { slot: slot, removed: false },
+    case HamtLeaf { key::existing_key, value, hash::existing_hash } => {
+      if existing_hash == hash && eq_key(existing_key, key) {
+        HamtDissocResult { slot: HamtSlotEmpty {}, removed: true }
+      } else {
+        HamtDissocResult { slot: slot, removed: false }
+      }
+    },
+    case HamtSlotCollision { hash::existing_hash, entries } => {
+      if existing_hash != hash {
+        return HamtDissocResult { slot: slot, removed: false }
+      }
+      len := entries.len()
+      idx := 0
+      loop {
+        if idx >= len { break }
+        entry := entries.read_slot(idx)
+        if eq_key(entry.key, key) {
+          if len == 1 {
+            return HamtDissocResult { slot: HamtSlotEmpty {}, removed: true }
+          } elsif len == 2 {
+            other := entries.read_slot(1_i32 + (-idx))
+            return HamtDissocResult { slot: HamtLeaf { key: other.key, value: other.value, hash: other.hash }, removed: true }
+          } else {
+            new_entries := Array.with_capacity(len + (-1_i32))
+            i := 0
+            loop {
+              if i >= len { break }
+              if i != idx { new_entries.push(entries.read_slot(i)) }
+              i = i + 1
+            }
+            return HamtDissocResult { slot: HamtSlotCollision { hash: existing_hash, entries: new_entries }, removed: true }
+          }
+        }
+        idx = idx + 1
+      }
+      HamtDissocResult { slot: slot, removed: false }
+    },
+    case HamtSlotNode { node } => {
+      bit := bitpos(hash, shift)
+      if (node.bitmap .& bit) == 0 {
+        return HamtDissocResult { slot: slot, removed: false }
+      }
+      idx := bitmap_index(node.bitmap, bit)
+      child := node.children.read_slot(idx)
+      result := dissoc_slot(child, hash, key, shift + HAMT_BITS)
+      if !result.removed {
+        return HamtDissocResult { slot: slot, removed: false }
+      }
+      result.slot match {
+        case HamtSlotEmpty {} => {
+          new_node := node_without_child(node, bit, idx)
+          if new_node.bitmap == 0 {
+            HamtDissocResult { slot: HamtSlotEmpty {}, removed: true }
+          } elsif new_node.children.len() == 1 {
+            sole := new_node.children.read_slot(0)
+            HamtDissocResult { slot: sole, removed: true }
+          } else {
+            HamtDissocResult { slot: HamtSlotNode { node: new_node }, removed: true }
+          }
+        },
+        case _ => {
+          cloned := node_children_clone(node.children)
+          (cloned).write_slot(idx, result.slot)
+          HamtDissocResult { slot: HamtSlotNode { node: HamtNode { bitmap: node.bitmap, children: cloned } }, removed: true }
+        }
+      }
+    }
+  }
+}
+
+fn hamt_get<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> ?V where K: Hash + Eq + Clone, V: Clone {
+  slot match {
+    case HamtSlotEmpty {} => nil,
+    case HamtLeaf { key::existing_key, value, hash::existing_hash } => {
+      if existing_hash == hash && eq_key(existing_key, key) { value } else { nil }
+    },
+    case HamtSlotCollision { hash::existing_hash, entries } => {
+      if existing_hash != hash { return nil }
+      idx := 0
+      loop {
+        if idx >= entries.len() { break }
+        entry := entries.read_slot(idx)
+        if eq_key(entry.key, key) { return entry.value }
+        idx = idx + 1
+      }
+      nil
+    },
+    case HamtSlotNode { node } => {
+      bit := bitpos(hash, shift)
+      if (node.bitmap .& bit) == 0 { return nil }
+      idx := bitmap_index(node.bitmap, bit)
+      hamt_get(node.children.read_slot(idx), hash, key, shift + HAMT_BITS)
+    }
+  }
+}
+
+fn hamt_contains<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> bool where K: Hash + Eq + Clone, V: Clone {
+  slot match {
+    case HamtSlotEmpty {} => false,
+    case HamtLeaf { key::existing_key, hash::existing_hash } => existing_hash == hash && eq_key(existing_key, key),
+    case HamtSlotCollision { hash::existing_hash, entries } => {
+      if existing_hash != hash { return false }
+      idx := 0
+      loop {
+        if idx >= entries.len() { break }
+        entry := entries.read_slot(idx)
+        if eq_key(entry.key, key) { return true }
+        idx = idx + 1
+      }
+      false
+    },
+    case HamtSlotNode { node } => {
+      bit := bitpos(hash, shift)
+      if (node.bitmap .& bit) == 0 { return false }
+      idx := bitmap_index(node.bitmap, bit)
+      hamt_contains(node.children.read_slot(idx), hash, key, shift + HAMT_BITS)
+    }
+  }
+}
+
+fn hamt_each<K, V>(slot: HamtSlot K V, visit: MapEntry K V -> void) -> void where K: Clone, V: Clone {
+  slot match {
+    case HamtSlotEmpty {} => {},
+    case HamtLeaf { key, value } => visit(MapEntry { key: key, value: value }),
+    case HamtSlotCollision { entries } => {
+      idx := 0
+      loop {
+        if idx >= entries.len() { break }
+        entry := entries.read_slot(idx)
+        visit(MapEntry { key: entry.key, value: entry.value })
+        idx = idx + 1
+      }
+    },
+    case HamtSlotNode { node } => {
+      idx := 0
+      loop {
+        if idx >= node.children.len() { break }
+        hamt_each(node.children.read_slot(idx), visit)
+        idx = idx + 1
+      }
+    }
+  }
+}
+
+struct PersistentMap K V {
+  root: HamtSlot K V,
+  count: i32
+} where K: Hash + Eq + Clone, V: Clone
+
+struct PersistentMapBuilder K V {
+  entries: Array (MapEntry K V)
+} where K: Hash + Eq + Clone, V: Clone
+
+methods PersistentMap K V where K: Hash + Eq + Clone, V: Clone {
+  fn empty() -> PersistentMap K V {
+    PersistentMap { root: HamtSlotEmpty {}, count: 0_i32 }
+  }
+
+  fn len(self: Self) -> i32 { self.count }
+
+  fn is_empty(self: Self) -> bool { self.count == 0 }
+
+  fn get(self: Self, key: K) -> ?V {
+    hash := hash_key(key)
+    hamt_get(self.root, hash, key, 0)
+  }
+
+  fn contains(self: Self, key: K) -> bool {
+    hash := hash_key(key)
+    hamt_contains(self.root, hash, key, 0)
+  }
+
+  fn set(self: Self, key: K, value: V) -> PersistentMap K V {
+    hash := hash_key(key)
+    result := assoc_slot(self.root, hash, key, value, 0)
+    new_count := if result.added { self.count + 1_i32 } else { self.count }
+    PersistentMap { root: result.slot, count: new_count }
+  }
+
+  fn remove(self: Self, key: K) -> PersistentMap K V {
+    hash := hash_key(key)
+    result := dissoc_slot(self.root, hash, key, 0)
+    new_count := if result.removed { self.count + (-1_i32) } else { self.count }
+    PersistentMap { root: result.slot, count: new_count }
+  }
+
+  fn for_each(self: Self, visit: MapEntry K V -> void) -> void {
+    hamt_each(self.root, visit)
+  }
+}
+
+impl Iterable (MapEntry K V) for PersistentMap K V where K: Hash + Eq + Clone, V: Clone {
+  fn each(self: Self, visit: MapEntry K V -> void) -> void {
+    self.for_each(visit)
+  }
+}
+
+methods PersistentMapBuilder K V where K: Hash + Eq + Clone, V: Clone {
+  fn new() -> PersistentMapBuilder K V {
+    PersistentMapBuilder { entries: Array.new() }
+  }
+
+  fn insert(self: Self, key: K, value: V) -> void {
+    self.entries.push(MapEntry { key: key, value: value })
+  }
+
+  fn extend(self: Self, entries: Iterable (MapEntry K V)) -> void {
+    entries.each(fn(entry: MapEntry K V) -> void { self.entries.push(entry) })
+  }
+
+  fn finish(self: Self) -> PersistentMap K V {
+    map := PersistentMap.empty<K, V>()
+    idx := 0
+    loop {
+      self.entries.get(idx) match {
+        case nil => { break },
+        case entry: MapEntry K V => map = map.set(entry.key, entry.value),
+      }
+      idx = idx + 1
+    }
+    map
+  }
+}
+
+struct PersistentSet T {
+  map: PersistentMap T nil
+} where T: Hash + Eq + Clone
+
+struct PersistentSetBuilder T {
+  builder: PersistentMapBuilder T nil
+} where T: Hash + Eq + Clone
+
+methods PersistentSet T where T: Hash + Eq + Clone {
+  fn empty() -> PersistentSet T {
+    PersistentSet { map: PersistentMap.empty() }
+  }
+
+  fn len(self: Self) -> i32 { self.map.len() }
+
+  fn is_empty(self: Self) -> bool { self.map.is_empty() }
+
+  fn contains(self: Self, value: T) -> bool {
+    self.map.contains(value)
+  }
+
+  fn insert(self: Self, value: T) -> PersistentSet T {
+    PersistentSet { map: self.map.set(value, nil) }
+  }
+
+  fn remove(self: Self, value: T) -> PersistentSet T {
+    PersistentSet { map: self.map.remove(value) }
+  }
+
+  fn union(self: Self, other: PersistentSet T) -> PersistentSet T {
+    result := self
+    other.map.each(fn(entry: MapEntry T nil) -> void {
+      result = result.insert(entry.key)
+    })
+    result
+  }
+
+  fn intersect(self: Self, other: PersistentSet T) -> PersistentSet T {
+    result := PersistentSet.empty()
+    self.map.each(fn(entry: MapEntry T nil) -> void {
+      if other.contains(entry.key) {
+        result = result.insert(entry.key)
+      }
+    })
+    result
+  }
+
+  fn for_each(self: Self, visit: T -> void) -> void {
+    self.map.for_each(fn(entry: MapEntry T nil) -> void { visit(entry.key) })
+  }
+}
+
+impl Default for PersistentSet T where T: Hash + Eq + Clone {
+  fn default() -> PersistentSet T { PersistentSet.empty() }
+}
+
+impl Extend T for PersistentSet T where T: Hash + Eq + Clone {
+  fn extend(self: Self, value: T) -> Self {
+    self.insert(value)
+  }
+}
+
+impl Enumerable A for PersistentSet where A: Hash + Eq + Clone {
+  fn each(self: Self, visit: A -> void) -> void {
+    self.for_each(visit)
+  }
+}
+
+methods PersistentSetBuilder T where T: Hash + Eq + Clone {
+  fn new() -> PersistentSetBuilder T {
+    PersistentSetBuilder { builder: PersistentMapBuilder.new() }
+  }
+
+  fn insert(self: Self, value: T) -> void {
+    self.builder.insert(value, nil)
+  }
+
+  fn extend(self: Self, values: Iterable T) -> void {
+    values.each(fn(value: T) -> void { self.builder.insert(value, nil) })
+  }
+
+  fn finish(self: Self) -> PersistentSet T {
+    PersistentSet { map: self.builder.finish() }
+  }
+}

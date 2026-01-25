@@ -1,0 +1,50 @@
+import { describe, expect, test } from "bun:test";
+import * as AST from "../../src/ast";
+import { Interpreter } from "../../src/interpreter";
+
+describe("v11 interpreter - primitives", () => {
+  const I = new Interpreter();
+
+  test("String, bool, char, nil", () => {
+    expect(I.evaluate(AST.stringLiteral("hi")).kind).toBe("String");
+    expect(I.evaluate(AST.booleanLiteral(true))).toEqual({ kind: "bool", value: true });
+    expect(I.evaluate(AST.charLiteral("x"))).toEqual({ kind: "char", value: "x" });
+    expect(I.evaluate(AST.nilLiteral())).toEqual({ kind: "nil", value: null });
+  });
+
+  test("int defaults to i32 and float to f64", () => {
+    expect(I.evaluate(AST.integerLiteral(123))).toEqual({ kind: "i32", value: 123n });
+    expect(I.evaluate(AST.floatLiteral(1.5))).toEqual({ kind: "f64", value: 1.5 });
+  });
+
+  test("array literal evaluates elements", () => {
+    const arr = AST.arrayLiteral([AST.integerLiteral(1), AST.stringLiteral("a")]);
+    expect(I.evaluate(arr)).toEqual({ kind: "array", elements: [{ kind: "i32", value: 1n }, { kind: "String", value: "a" }] });
+  });
+
+  test("explicit integer suffix preserved", () => {
+    const literal = AST.integerLiteral(9_007_199_254_740_993n, "i64");
+    expect(I.evaluate(literal)).toEqual({ kind: "i64", value: 9_007_199_254_740_993n });
+  });
+
+  test("integer arithmetic promotes widths", () => {
+    const expr = AST.binaryExpression("+", AST.integerLiteral(1, "i16"), AST.integerLiteral(2, "u16"));
+    expect(I.evaluate(expr)).toEqual({ kind: "i32", value: 3n });
+  });
+
+  test("float suffix produces correct kind", () => {
+    const literal = AST.floatLiteral(1.25, "f32");
+    expect(I.evaluate(literal)).toEqual({ kind: "f32", value: Math.fround(1.25) });
+  });
+
+  test("identifier and assignment (:= and =)", () => {
+    const env = I.globals;
+    // declare x := 1
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(1)), env);
+    expect(env.get("x")).toEqual({ kind: "i32", value: 1n });
+    // reassign x = 2
+    I.evaluate(AST.assignmentExpression("=", AST.identifier("x"), AST.integerLiteral(2)), env);
+    expect(env.get("x")).toEqual({ kind: "i32", value: 2n });
+  });
+});
+

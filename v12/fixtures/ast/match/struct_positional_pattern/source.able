@@ -1,0 +1,5 @@
+struct Pair { i32, i32 }
+Pair { 4, 8 } match {
+  case Pair { first, second } => first + second,
+  case _ => 0
+};

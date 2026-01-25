@@ -1,0 +1,189 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Pair"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "y"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "p"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Pair"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "y"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 2
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "StructPattern",
+        "structType": {
+          "type": "Identifier",
+          "name": "Pair"
+        },
+        "fields": [
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "pattern": {
+              "type": "Identifier",
+              "name": "head"
+            },
+            "typeAnnotation": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "i32"
+              }
+            }
+          },
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "y"
+            },
+            "pattern": {
+              "type": "Identifier",
+              "name": "tail"
+            }
+          }
+        ],
+        "isPositional": false
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "p"
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "ArrayPattern",
+        "elements": [
+          {
+            "type": "TypedPattern",
+            "pattern": {
+              "type": "Identifier",
+              "name": "first_elem"
+            },
+            "typeAnnotation": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "i32"
+              }
+            }
+          }
+        ],
+        "restPattern": {
+          "type": "Identifier",
+          "name": "rest"
+        }
+      },
+      "right": {
+        "type": "ArrayLiteral",
+        "elements": [
+          {
+            "type": "IntegerLiteral",
+            "value": 1
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 2
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "+",
+      "left": {
+        "type": "Identifier",
+        "name": "head"
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "first_elem"
+      }
+    }
+  ]
+}

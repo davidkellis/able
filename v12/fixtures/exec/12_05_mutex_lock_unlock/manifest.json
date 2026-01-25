@@ -1,0 +1,11 @@
+{
+  "description": "mutex lock/unlock and helper usage",
+  "expect": {
+    "stdout": [
+      "with_lock result 99",
+      "shared 3",
+      "unlock unlock error"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,192 @@
+package list
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Default, Extend}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+
+struct ListNode T {
+  value: T,
+  next: ?ListNode T
+}
+
+## Persistent singly linked list with structural sharing.
+struct List T {
+  head: ?ListNode T,
+  size: i32
+}
+
+struct ListIterator T {
+  current: ?ListNode T
+}
+
+fn list_empty_node<T>() -> ?ListNode T { nil }
+
+methods List T {
+  fn empty() -> List T { List { head: list_empty_node(), size: 0 } }
+
+  fn len(self: Self) -> i32 { self.size }
+
+  fn is_empty(self: Self) -> bool { self.size == 0 }
+
+  fn prepend(self: Self, value: T) -> List T {
+    node := ListNode { value: value, next: self.head }
+    List { head: node, size: self.size + 1 }
+  }
+
+  fn head(self: Self) -> ?T {
+    self.head match {
+      case nil => nil,
+      case node => node.value
+    }
+  }
+
+  fn tail(self: Self) -> List T {
+    self.head match {
+      case nil => self,
+      case node => {
+        next_head := node.next
+        next_size := if self.size <= 0 { 0 } else { self.size - 1 }
+        List { head: next_head, size: next_size }
+      }
+    }
+  }
+
+  fn first(self: Self) -> ?T { self.head() }
+
+  fn last(self: Self) -> ?T {
+    current := self.head
+    result: ?T := nil
+    loop {
+      current match {
+        case nil => { break },
+        case node => {
+          result = node.value
+          current = node.next
+        }
+      }
+    }
+    result
+  }
+
+  fn nth(self: Self, index: i32) -> ?T {
+    if index < 0 || index >= self.size { return nil }
+    current := self.head
+    i := 0
+    loop {
+      current match {
+        case nil => { break },
+        case node => {
+          if i == index { return node.value }
+          current = node.next
+          i = i + 1
+        }
+      }
+    }
+    nil
+  }
+
+  fn concat(self: Self, other: List T) -> List T {
+    if self.is_empty() { return other }
+    current := self.head
+    reversed := List.empty()
+    loop {
+      current match {
+        case nil => { break },
+        case node => {
+          reversed = reversed.prepend(node.value)
+          current = node.next
+        }
+      }
+    }
+    result := other
+    current = reversed.head
+    loop {
+      current match {
+        case nil => { break },
+        case node => {
+          result = result.prepend(node.value)
+          current = node.next
+        }
+      }
+    }
+    result
+  }
+
+  fn append(self: Self, value: T) -> List T {
+    self.concat(List.empty().prepend(value))
+  }
+
+  fn reverse(self: Self) -> List T {
+    current := self.head
+    result := List.empty()
+    loop {
+      current match {
+        case nil => { break },
+        case node => {
+          result = result.prepend(node.value)
+          current = node.next
+        }
+      }
+    }
+    result
+  }
+
+  fn to_array(self: Self) -> Array T {
+    result: Array T := Array.with_capacity(self.size)
+    idx := 0
+    current := self.head
+    loop {
+      current match {
+        case nil => { break },
+        case node => {
+          result.write_slot(idx, node.value)
+          idx = idx + 1
+          current = node.next
+        }
+      }
+    }
+    result
+  }
+}
+
+impl Default for List T {
+  fn default() -> List T { List.empty() }
+}
+
+impl Extend T for List T {
+  fn extend(self: Self, value: T) -> Self {
+    self.append(value)
+  }
+}
+
+impl Iterator T for ListIterator T {
+  fn next(self: Self) -> T | IteratorEnd {
+    self.current match {
+      case nil => IteratorEnd {},
+      case node => {
+        self.current = node.next
+        node.value
+      }
+    }
+  }
+}
+
+impl Enumerable A for List {
+  fn each(self: Self, visit: A -> void) -> void {
+    current := self.head
+    loop {
+      current match {
+        case nil => { break },
+        case node => {
+          visit(node.value)
+          current = node.next
+        }
+      }
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
+    ListIterator { current: self.head }
+  }
+}

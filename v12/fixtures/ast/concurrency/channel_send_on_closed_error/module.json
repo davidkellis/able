@@ -1,0 +1,60 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "handle"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "__able_channel_new"
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_channel_close"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "handle"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_channel_send"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "handle"
+        },
+        {
+          "type": "IntegerLiteral",
+          "value": 1
+        }
+      ],
+      "isTrailingLambda": false
+    }
+  ]
+}

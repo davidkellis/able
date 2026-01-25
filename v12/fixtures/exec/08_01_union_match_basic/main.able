@@ -1,0 +1,16 @@
+package exec_08_01_union_match_basic
+
+## Semantics: `match` selects the first matching case with a wildcard fallback; string interpolation reflects the matched branch.
+
+fn describe(n: i32) -> String {
+  n match {
+    case 0 => "zero",
+    case _ => `num ${n}`
+  }
+}
+
+fn main() -> void {
+  print(describe(0))
+  print(describe(3))
+  print(describe(4))
+}

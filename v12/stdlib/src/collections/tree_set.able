@@ -1,0 +1,79 @@
+package tree_set
+import able.collections.tree_map.*
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Enumerable}
+import able.core.iteration.{Iterable}
+import able.core.interfaces.{Ord, Clone, Default, Extend}
+
+struct TreeSet T {
+  map: TreeMap T bool
+}
+
+methods TreeSet T where T: Ord + Clone {
+  fn new() -> TreeSet T {
+    map: TreeMap T bool := TreeMap.new();
+    TreeSet { map: map }
+  }
+
+  fn len(self: Self) -> i32 { self.map.len() }
+
+  fn is_empty(self: Self) -> bool { self.map.is_empty() }
+
+  fn insert(self: Self, value: T) -> bool {
+    existed := self.map.contains(value)
+    self.map.set(value, true)
+    !existed
+  }
+
+  fn remove(self: Self, value: T) -> bool {
+    self.map.remove(value)
+  }
+
+  fn contains(self: Self, value: T) -> bool {
+    self.map.contains(value)
+  }
+
+  fn first(self: Self) -> ?T {
+    self.map.first() match {
+      case nil => nil,
+      case entry => entry.key
+    }
+  }
+
+  fn last(self: Self) -> ?T {
+    self.map.last() match {
+      case nil => nil,
+      case entry => entry.key
+    }
+  }
+
+  fn to_array(self: Self) -> Array T {
+    self.map.keys()
+  }
+
+  fn each(self: Self, visit: T -> void) -> void {
+    self.map.each_key(visit)
+  }
+
+  fn clear(self: Self) -> void {
+    self.map.clear()
+  }
+}
+
+impl Default for TreeSet T where T: Ord + Clone {
+  fn default() -> TreeSet T { TreeSet.new() }
+}
+
+impl Extend T for TreeSet T where T: Ord + Clone {
+  fn extend(self: Self, value: T) -> Self {
+    self.insert(value)
+    self
+  }
+}
+
+impl Enumerable A for TreeSet where A: Ord + Clone {
+  fn each(self: Self, visit: A -> void) -> void {
+    self.map.each_key(visit)
+  }
+}

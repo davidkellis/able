@@ -1,0 +1,63 @@
+struct Channel {
+  capacity: i32,
+  handle: i64
+}
+methods Channel {
+  fn new(capacity: i32) -> Channel {
+    handle := __able_channel_new(capacity);
+    return Channel { capacity: capacity, handle: handle }
+  }
+  fn send(self, value) {
+    __able_channel_send(self.handle, value);
+  }
+  fn receive(self) {
+    return __able_channel_receive(self.handle)
+  }
+  fn close(self) {
+    __able_channel_close(self.handle);
+  }
+  fn iterator(self) {
+    return Iterator i32 {
+      while true {
+        received := self.receive();
+        received match {
+          case value: i32 => {
+            gen.yield(value);
+          },
+          case nil => {
+            gen.stop();
+          }
+        };
+      }
+    }
+  }
+}
+channel := Channel.new(2);
+channel.send(10);
+channel.send(20);
+channel.close();
+iter := channel.iterator();
+sum := 0;
+current := iter.next();
+while true {
+  current match {
+    case IteratorEnd {  } => {
+      break
+    },
+    case value: i32 => {
+      sum += value;
+      current = iter.next();
+    },
+    case _ => {
+      break
+    }
+  };
+}
+second_channel := Channel.new(1);
+second_channel.send(42);
+second_channel.close();
+iter_single := second_channel.iterator();
+first := iter_single.next();
+second := iter_single.next();
+third := iter_single.next();
+[sum, first, second, third];

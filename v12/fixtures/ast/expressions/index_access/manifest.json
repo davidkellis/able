@@ -1,0 +1,10 @@
+{
+  "description": "Index expression reads array element by position",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "2"
+    }
+  },
+  "entry": "module.json"
+}

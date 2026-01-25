@@ -1,0 +1,11 @@
+{
+  "description": "package import visibility with alias vs selective imports; private helpers remain encapsulated",
+  "setup": ["pkg_visibility.able"],
+  "expect": {
+    "stdout": [
+      "visible alias",
+      "visible selective"
+    ],
+    "exit": 0
+  }
+}

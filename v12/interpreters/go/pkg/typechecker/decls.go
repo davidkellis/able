@@ -1,0 +1,352 @@
+package typechecker
+
+import (
+	"fmt"
+
+	"able/interpreter-go/pkg/ast"
+)
+
+// declarationCollector walks statements to populate the global environment.
+type declarationCollector struct {
+	env            *Environment
+	origins        map[ast.Node]string
+	declNodes      map[string]ast.Node
+	diags          []Diagnostic
+	impls          []ImplementationSpec
+	methodSets     []MethodSetSpec
+	obligations    []ConstraintObligation
+	exports        []exportRecord
+	duplicates     map[*ast.FunctionDefinition]struct{}
+	functionDecls  map[*ast.FunctionDefinition]FunctionType
+	localTypeNames map[string]struct{}
+}
+
+func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
+	builtinEnv := NewEnvironment(nil)
+	registerBuiltins(builtinEnv)
+	rootEnv := NewEnvironment(builtinEnv)
+	if c.preludeEnv != nil {
+		c.preludeEnv.ForEach(func(name string, typ Type) {
+			rootEnv.Define(name, typ)
+		})
+	}
+	collector := &declarationCollector{
+		env:            rootEnv,
+		origins:        c.nodeOrigins,
+		declNodes:      make(map[string]ast.Node),
+		duplicates:     make(map[*ast.FunctionDefinition]struct{}),
+		functionDecls:  make(map[*ast.FunctionDefinition]FunctionType),
+		localTypeNames: make(map[string]struct{}),
+	}
+	// Register built-in primitives in the global scope for convenience.
+	collector.env.Define("true", PrimitiveType{Kind: PrimitiveBool})
+	collector.env.Define("false", PrimitiveType{Kind: PrimitiveBool})
+
+	collector.predeclareTypeNames(module.Body)
+	for _, stmt := range module.Body {
+		collector.registerTypeDeclaration(stmt)
+	}
+	for _, stmt := range module.Body {
+		collector.visitStatement(stmt)
+	}
+
+	// Store the global environment for later lookups.
+	c.global = collector.env
+	c.implementations = collector.impls
+	c.methodSets = collector.methodSets
+	c.obligations = collector.obligations
+	c.publicDeclarations = collector.exports
+	c.duplicateFunctions = collector.duplicates
+	c.functionDecls = collector.functionDecls
+	c.localTypeNames = collector.localTypeNames
+	return collector.diags
+}
+
+func (c *declarationCollector) predeclareTypeNames(stmts []ast.Statement) {
+	if c == nil || c.env == nil {
+		return
+	}
+	for _, stmt := range stmts {
+		switch def := stmt.(type) {
+		case *ast.StructDefinition:
+			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
+				continue
+			}
+			if c.localTypeNames != nil {
+				c.localTypeNames[def.ID.Name] = struct{}{}
+			}
+			c.env.Define(def.ID.Name, StructType{StructName: def.ID.Name})
+		case *ast.UnionDefinition:
+			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
+				continue
+			}
+			if c.localTypeNames != nil {
+				c.localTypeNames[def.ID.Name] = struct{}{}
+			}
+			c.env.Define(def.ID.Name, UnionType{UnionName: def.ID.Name})
+		case *ast.InterfaceDefinition:
+			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
+				continue
+			}
+			if c.localTypeNames != nil {
+				c.localTypeNames[def.ID.Name] = struct{}{}
+			}
+			c.env.Define(def.ID.Name, InterfaceType{InterfaceName: def.ID.Name})
+		case *ast.TypeAliasDefinition:
+			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
+				continue
+			}
+			if c.localTypeNames != nil {
+				c.localTypeNames[def.ID.Name] = struct{}{}
+			}
+			c.env.Define(def.ID.Name, AliasType{AliasName: def.ID.Name})
+		}
+	}
+}
+
+func (c *declarationCollector) warnRedundantUnionMember(t Type, node ast.Node) {
+	if c == nil {
+		return
+	}
+	message := fmt.Sprintf("typechecker: redundant union member %s", typeName(t))
+	c.diags = append(c.diags, Diagnostic{
+		Severity: SeverityWarning,
+		Message:  message,
+		Node:     node,
+	})
+}
+
+func (c *declarationCollector) registerExternFunction(def *ast.ExternFunctionBody) {
+	if def == nil || def.Signature == nil || def.Signature.ID == nil {
+		return
+	}
+	sig := def.Signature
+	name := sig.ID.Name
+	owner := fmt.Sprintf("extern fn %s", functionName(sig))
+	fnType := c.functionTypeFromDefinition(sig, nil, owner, sig)
+	if prev, exists := c.declNodes[name]; exists {
+		if existing, ok := c.env.Lookup(name); ok {
+			if hasExactFunctionSignature(existing, fnType) {
+				return
+			}
+			if merged, okMerge, duplicate := mergeFunctionOverload(existing, fnType); okMerge {
+				if duplicate {
+					location := formatNodeLocation(prev, c.origins)
+					msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
+					c.diags = append(c.diags, Diagnostic{Message: msg, Node: def})
+					if c.duplicates != nil && def.Signature != nil {
+						c.duplicates[def.Signature] = struct{}{}
+					}
+				} else {
+					c.env.Define(name, merged)
+				}
+				return
+			}
+		}
+		location := formatNodeLocation(prev, c.origins)
+		msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
+		c.diags = append(c.diags, Diagnostic{Message: msg, Node: def})
+		if c.duplicates != nil && def.Signature != nil {
+			c.duplicates[def.Signature] = struct{}{}
+		}
+		return
+	}
+	c.env.Define(name, fnType)
+	c.declNodes[name] = sig
+	if shouldExportTopLevel(sig) {
+		c.exports = append(c.exports, exportRecord{name: name, node: sig})
+	}
+}
+
+func (c *declarationCollector) registerTypeDeclaration(stmt ast.Statement) {
+	switch s := stmt.(type) {
+	case *ast.StructDefinition:
+		if s.ID != nil {
+			params, paramScope := c.convertGenericParams(s.GenericParams)
+			where := c.convertWhereClause(s.WhereClause, paramScope)
+			fields, positional := c.collectStructFields(s, paramScope)
+			structType := StructType{
+				StructName: s.ID.Name,
+				TypeParams: params,
+				Fields:     fields,
+				Positional: positional,
+				Where:      where,
+			}
+			c.declare(s.ID.Name, structType, s)
+		}
+	case *ast.UnionDefinition:
+		if s.ID != nil {
+			params, paramScope := c.convertGenericParams(s.GenericParams)
+			where := c.convertWhereClause(s.WhereClause, paramScope)
+			unionType := UnionType{
+				UnionName:  s.ID.Name,
+				TypeParams: params,
+				Where:      where,
+				Variants:   make([]Type, 0, len(s.Variants)),
+			}
+			if len(s.Variants) > 0 {
+				if paramScope == nil {
+					paramScope = make(map[string]Type)
+				}
+				entries := make([]unionMember, 0, len(s.Variants))
+				for _, variant := range s.Variants {
+					if variant == nil {
+						continue
+					}
+					entries = append(entries, unionMember{
+						typ:  c.resolveTypeExpression(variant, paramScope),
+						node: variant,
+					})
+				}
+				normalized := normalizeUnionMembers(entries, unionNormalizationOptions{
+					warnRedundant: c.warnRedundantUnionMember,
+				})
+				unionType.Variants = unionVariantsFromType(normalized)
+			}
+			c.declare(s.ID.Name, unionType, s)
+		}
+	case *ast.InterfaceDefinition:
+		if s.ID != nil {
+			params, paramScope := c.convertGenericParams(s.GenericParams)
+			if paramScope == nil {
+				paramScope = make(map[string]Type)
+			}
+			if _, exists := paramScope[s.ID.Name]; !exists {
+				paramScope[s.ID.Name] = InterfaceType{InterfaceName: s.ID.Name}
+			}
+			if _, exists := paramScope["Self"]; !exists {
+				paramScope["Self"] = TypeParameterType{ParameterName: "Self"}
+			}
+			c.addSelfPatternParamsToScope(s, paramScope)
+			where := c.convertWhereClause(s.WhereClause, paramScope)
+			methods, defaults := c.collectInterfaceMethods(s, paramScope)
+			ifaceType := InterfaceType{
+				InterfaceName:   s.ID.Name,
+				TypeParams:      params,
+				Where:           where,
+				Methods:         methods,
+				DefaultMethods:  defaults,
+				SelfTypePattern: s.SelfTypePattern,
+			}
+			c.declare(s.ID.Name, ifaceType, s)
+		}
+	case *ast.TypeAliasDefinition:
+		c.collectTypeAliasDefinition(s)
+	}
+}
+
+func (c *declarationCollector) visitStatement(stmt ast.Statement) {
+	switch s := stmt.(type) {
+	case *ast.FunctionDefinition:
+		if s.ID != nil {
+			owner := fmt.Sprintf("fn %s", functionName(s))
+			sig := c.functionTypeFromDefinition(s, nil, owner, s)
+			if c.functionDecls != nil {
+				c.functionDecls[s] = sig
+			}
+			c.declare(s.ID.Name, sig, s)
+		}
+	case *ast.ExternFunctionBody:
+		c.registerExternFunction(s)
+	case *ast.ImplementationDefinition:
+		spec, diags := c.collectImplementationDefinition(s)
+		c.diags = append(c.diags, diags...)
+		if spec != nil {
+			c.impls = append(c.impls, *spec)
+		}
+	case *ast.MethodsDefinition:
+		spec, diags := c.collectMethodsDefinition(s)
+		c.diags = append(c.diags, diags...)
+		if spec != nil {
+			c.methodSets = append(c.methodSets, *spec)
+		}
+	}
+}
+
+func (c *declarationCollector) declare(name string, typ Type, node ast.Node) {
+	if name == "" || node == nil {
+		return
+	}
+	if prev, exists := c.declNodes[name]; exists {
+		if fn, ok := typ.(FunctionType); ok {
+			switch prev.(type) {
+			case *ast.FunctionDefinition, *ast.FunctionSignature:
+				if existing, ok := c.env.Lookup(name); ok {
+					if merged, okMerge, duplicate := mergeFunctionOverload(existing, fn); okMerge {
+						if duplicate {
+							location := formatNodeLocation(prev, c.origins)
+							msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
+							c.diags = append(c.diags, Diagnostic{Message: msg, Node: node})
+							if fnNode, ok := node.(*ast.FunctionDefinition); ok {
+								if c.duplicates != nil {
+									c.duplicates[fnNode] = struct{}{}
+								}
+							}
+						} else {
+							c.env.Define(name, merged)
+						}
+						return
+					}
+				}
+			}
+		}
+		location := formatNodeLocation(prev, c.origins)
+		msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
+		c.diags = append(c.diags, Diagnostic{Message: msg, Node: node})
+		if fn, ok := node.(*ast.FunctionDefinition); ok {
+			if c.duplicates != nil {
+				c.duplicates[fn] = struct{}{}
+			}
+		}
+		return
+	}
+	c.env.Define(name, typ)
+	c.declNodes[name] = node
+	if shouldExportTopLevel(node) {
+		c.exports = append(c.exports, exportRecord{name: name, node: node})
+	}
+}
+
+func shouldExportTopLevel(node ast.Node) bool {
+	switch def := node.(type) {
+	case *ast.StructDefinition:
+		return def != nil && def.ID != nil && !def.IsPrivate
+	case *ast.UnionDefinition:
+		return def != nil && def.ID != nil && !def.IsPrivate
+	case *ast.InterfaceDefinition:
+		return def != nil && def.ID != nil && !def.IsPrivate
+	case *ast.FunctionDefinition:
+		if def == nil || def.ID == nil {
+			return false
+		}
+		return !def.IsPrivate
+	case *ast.TypeAliasDefinition:
+		return def != nil && def.ID != nil && !def.IsPrivate
+	case *ast.ImplementationDefinition:
+		return def != nil && def.ImplName != nil && def.ImplName.Name != "" && !def.IsPrivate
+	default:
+		return false
+	}
+}
+
+func formatNodeLocation(node ast.Node, origins map[ast.Node]string) string {
+	if node == nil {
+		return "<unknown location>"
+	}
+	path := "<unknown file>"
+	if origins != nil {
+		if origin, ok := origins[node]; ok && origin != "" {
+			path = normalizeDiagnosticPath(origin)
+		}
+	}
+	span := node.Span()
+	line := span.Start.Line
+	column := span.Start.Column
+	if line <= 0 {
+		line = 0
+	}
+	if column <= 0 {
+		column = 0
+	}
+	return fmt.Sprintf("%s:%d:%d", path, line, column)
+}

@@ -1,0 +1,40 @@
+package exec_04_06_01_union_payload_patterns
+
+## Semantics: union values are constructed from payload-bearing struct variants and matched by struct patterns; generic unions and aliases expand to the underlying variants.
+
+struct Add { a: i32, b: i32 }
+struct Neg { value: i32 }
+union Op = Add | Neg
+
+struct None {}
+struct Some T { value: T }
+union Option T = None | Some T
+
+type Maybe T = Option T
+
+fn eval(op: Op) -> i32 {
+  op match {
+    case Add { a, b } => a + b,
+    case Neg { value } => 0 - value
+  }
+}
+
+fn unwrap_or<T>(value: Maybe T, fallback: T) -> T {
+  value match {
+    case None => fallback,
+    case Some { value } => value
+  }
+}
+
+fn main() -> void {
+  first: Op = Add { a: 4, b: 3 }
+  second: Op = Neg { value: 5 }
+
+  print(`sum ${eval(first)}`)
+  print(`neg ${eval(second)}`)
+
+  present: Maybe i32 = Some { value: 9 }
+  missing: Maybe i32 = None
+  print(`some ${unwrap_or(present, 0)}`)
+  print(`none ${unwrap_or(missing, 0)}`)
+}

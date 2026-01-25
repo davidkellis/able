@@ -1,0 +1,43 @@
+package exec_06_12_01_stdlib_string_helpers
+
+import able.text.string.*
+import able.collections.array.*
+import able.core.errors.{RangeError}
+
+## Semantics: String helpers cover byte/char/grapheme lengths, substring bounds, split/replace, and prefix/suffix tests.
+
+fn main() -> void {
+  sample := "a\u{03A9}b"
+
+  ## Lengths are computed by bytes, code points, and grapheme clusters.
+  print(`lens ${sample.len_bytes()} ${sample.len_chars()} ${sample.len_graphemes()}`)
+
+  ## substring counts in code points and returns a new String.
+  sample.substring(1, 1) match {
+    case mid: String => print(`substring ${mid.len_bytes()} ${mid.len_chars()}`),
+    case _ => print("substring error")
+  }
+
+  ## Out-of-range substring returns a RangeError.
+  sample.substring(4, nil) match {
+    case _: RangeError => print("substring range error"),
+    case _ => print("substring ok")
+  }
+
+  ## Prefix/suffix checks are byte-based.
+  print(`prefix ${sample.starts_with("a")} ${sample.starts_with("\u{03A9}")}`)
+  print(`suffix ${sample.ends_with("b")} ${sample.ends_with("\u{03A9}")}`)
+
+  ## Empty delimiter splits into grapheme-sized segments.
+  parts := sample.split("")
+  print(`split ${parts.size()} ${parts[0]!.len_bytes()} ${parts[1]!.len_bytes()} ${parts[2]!.len_bytes()}`)
+
+  ## Delimiter split preserves empty segments.
+  chain := "a::b:c"
+  segments := chain.split(":")
+  print(`split2 ${segments.size()} ${segments[0]!.len_bytes()} ${segments[1]!.len_bytes()} ${segments[2]!.len_bytes()} ${segments[3]!.len_bytes()}`)
+
+  ## replace applies non-overlapping substitutions.
+  replaced := "ababa".replace("aba", "x")
+  print(`replace ${replaced}`)
+}

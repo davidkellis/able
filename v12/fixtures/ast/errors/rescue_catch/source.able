@@ -1,0 +1,8 @@
+do {
+  raise "boom"
+} rescue {
+  case err => {
+    print(err);
+    "handled";
+  }
+};

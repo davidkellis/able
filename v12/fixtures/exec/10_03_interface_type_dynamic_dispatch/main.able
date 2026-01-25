@@ -1,0 +1,31 @@
+package exec_10_03_interface_type_dynamic_dispatch
+
+## Semantics: interface-typed values dispatch to the concrete impl method at runtime.
+
+interface Speaker {
+  fn label(self: Self) -> String
+}
+
+struct Robot { id: i32 }
+struct Human { name: String }
+
+impl Speaker for Robot {
+  fn label(self: Robot) -> String { `robot-${self.id}` }
+}
+
+impl Speaker for Human {
+  fn label(self: Human) -> String { `human-${self.name}` }
+}
+
+fn announce(s: Speaker) -> String {
+  s.label()
+}
+
+fn main() -> void {
+  bot: Speaker = Robot { id: 7 }
+  dev: Speaker = Human { name: "Ada" }
+
+  print(announce(bot))
+  print(announce(dev))
+  print(bot.label())
+}

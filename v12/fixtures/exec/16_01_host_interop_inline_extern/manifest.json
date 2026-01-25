@@ -1,0 +1,7 @@
+{
+  "description": "extern host function bodies execute via the host engine",
+  "expect": {
+    "stdout": ["0"],
+    "exit": 0
+  }
+}

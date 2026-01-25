@@ -1,0 +1,10 @@
+{
+  "description": "If-or chain picks first matching clause with default fallback",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "B"
+    }
+  },
+  "entry": "module.json"
+}

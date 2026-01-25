@@ -1,0 +1,10 @@
+{
+  "description": "alias methods/impls dispatch on underlying type",
+  "expect": {
+    "stdout": [
+      "count 5 -> count 7",
+      "alias count 6"
+    ],
+    "exit": 0
+  }
+}

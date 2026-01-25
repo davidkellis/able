@@ -1,0 +1,41 @@
+package concurrent_queue
+
+import able.concurrency.{Channel}
+
+struct ConcurrentQueue T {
+  channel: Channel T
+}
+
+methods ConcurrentQueue T {
+  fn new(capacity: i32) -> ConcurrentQueue T {
+    ConcurrentQueue { channel: Channel.new(capacity) }
+  }
+
+  fn unbuffered() -> ConcurrentQueue T {
+    ConcurrentQueue.new(0)
+  }
+
+  fn enqueue(self: Self, value: T) -> void {
+    self.channel.send(value)
+  }
+
+  fn try_enqueue(self: Self, value: T) -> bool {
+    self.channel.try_send(value)
+  }
+
+  fn dequeue(self: Self) -> ?T {
+    self.channel.receive()
+  }
+
+  fn try_dequeue(self: Self) -> ?T {
+    self.channel.try_receive()
+  }
+
+  fn close(self: Self) -> void {
+    self.channel.close()
+  }
+
+  fn is_closed(self: Self) -> bool {
+    self.channel.is_closed()
+  }
+}

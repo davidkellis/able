@@ -1,0 +1,10 @@
+{
+  "description": "Kernel Hasher interface and KernelHasher are available for dispatch",
+  "expect": {
+    "result": {
+      "kind": "u64",
+      "value": "592598317564770290"
+    }
+  },
+  "entry": "module.json"
+}

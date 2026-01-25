@@ -1,0 +1,7 @@
+{
+  "description": "raise/rescue/ensure prints rescue result then ensure",
+  "expect": {
+    "stdout": ["rescued: boom", "ensured"],
+    "exit": 0
+  }
+}

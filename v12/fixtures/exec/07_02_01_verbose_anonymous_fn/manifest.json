@@ -1,0 +1,12 @@
+{
+  "description": "verbose anonymous functions mirror named fn syntax with generics and where clauses",
+  "expect": {
+    "stdout": [
+      "adder 5",
+      "mul 12",
+      "show 12",
+      "where 7"
+    ],
+    "exit": 0
+  }
+}

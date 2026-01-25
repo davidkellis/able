@@ -1,0 +1,11 @@
+{
+  "description": "generic constraints and interface-typed params dispatch methods across packages",
+  "setup": ["iface_defs.able", "impls.able", "helpers.able"],
+  "expect": {
+    "stdout": [
+      "show:alpha",
+      "show:alpha"
+    ],
+    "exit": 0
+  }
+}

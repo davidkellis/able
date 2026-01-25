@@ -1,0 +1,27 @@
+package exec_05_03_assignment_evaluation_order
+
+## Semantics: RHS evaluates once before binding; destructuring reassignment updates existing bindings; assignment yields RHS value.
+
+struct Counter { value: i32 }
+
+fn next_pair(counter: Counter) -> Array i32 {
+  counter.value = counter.value + 1
+  [counter.value, counter.value + 10]
+}
+
+fn main() -> void {
+  counter := Counter { value: 0 }
+  [a, b] := next_pair(counter)
+  print(`counter ${counter.value}`)
+  print(`pair ${a}+${b}`)
+
+  a = 0
+  b = 0
+  [a, b] = next_pair(counter)
+  print(`counter2 ${counter.value}`)
+  print(`pair2 ${a}+${b}`)
+
+  value := (a = 7)
+  print(`assign_value ${value}`)
+  print(`a ${a}`)
+}

@@ -1,0 +1,26 @@
+package exec_08_01_if_truthiness_value
+import able.core.errors.{DivisionByZeroError}
+
+## Semantics: `if`/`elsif` uses truthiness rules, yields the selected branch value,
+## and returns nil when no branch matches and there is no else.
+
+fn main() -> void {
+  err := DivisionByZeroError {}
+
+  chain := if nil { "nil" }
+           elsif false { "false" }
+           elsif err { "error" }
+           elsif 0 { "zero" }
+           else { "fallback" }
+  print(`chain ${chain}`)
+
+  no_else := if false { 123 }
+  print(`no_else ${no_else}`)
+
+  void_value := do { }
+  void_result := if void_value { "void truthy" } else { "void falsy" }
+  print(void_result)
+
+  err_result := if err { "err truthy" } else { "err falsy" }
+  print(err_result)
+}

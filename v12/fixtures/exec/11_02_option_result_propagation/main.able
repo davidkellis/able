@@ -1,0 +1,21 @@
+package exec_11_02_option_result_propagation
+
+## Semantics: `or {}` handles nil Option results, `!` unwraps a present value, and `! or { err => ... }` handles a raised error via propagation.
+
+fn maybe_id(ok: bool) {
+  if ok { 10 } else { nil }
+}
+
+fn fallible(ok: bool) {
+  if ok { "ok" } else { raise "boom" }
+}
+
+fn main() -> void {
+  present := maybe_id(true)!             ## unwraps non-nil Option
+  missing := maybe_id(false) or { -1 }   ## fallback on nil Option
+  error_handled := fallible(false)! or { err => err.message() } ## handler sees raised error
+
+  print(`present ${present}`)
+  print(`missing ${missing}`)
+  print(`error ${error_handled}`)
+}

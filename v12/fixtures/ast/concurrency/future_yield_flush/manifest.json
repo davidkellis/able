@@ -1,0 +1,10 @@
+{
+  "description": "future_yield cooperates with future_flush to resume the task",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "Pending:Resolved:Resolved:AB:done"
+    }
+  },
+  "entry": "module.json"
+}

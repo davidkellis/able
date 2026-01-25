@@ -1,0 +1,7 @@
+{
+  "description": "underscore placeholder in type expressions for unbound parameters",
+  "expect": {
+    "stdout": ["10"],
+    "exit": 0
+  }
+}

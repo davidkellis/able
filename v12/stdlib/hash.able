@@ -1,0 +1,19 @@
+package able
+
+interface Hasher {
+  fn #finish() -> u64
+  fn #write(bytes: array u8)
+
+  ## Provided methods – runtimes override with efficient implementations.
+  fn #write_u8(i: u8) { ... }
+  fn #write_u16(i: u16) { ... }
+  fn #write_u32(i: u32) { ... }
+  fn #write_u64(i: u64) { ... }
+  fn #write_u128(i: u128) { ... }
+  fn #write_i8(i: i8) { ... }
+  fn #write_i16(i: i16) { ... }
+  fn #write_i32(i: i32) { ... }
+  fn #write_i64(i: i64) { ... }
+  fn #write_i128(i: i128) { ... }
+  fn #write_str(s: String) { ... }
+}

@@ -1,0 +1,14 @@
+package exec_10_06_interface_generic_param_dispatch
+
+import exec_10_06_interface_generic_param_dispatch.iface_defs.{Show}
+import exec_10_06_interface_generic_param_dispatch.impls.{Thing}
+import exec_10_06_interface_generic_param_dispatch.helpers.{render, render_dyn}
+
+## Semantics: generic constraints and interface-typed parameters dispatch across packages.
+
+fn main() -> void {
+  thing := Thing { label: "alpha" }
+  boxed: Show = thing
+  print(render(thing))
+  print(render_dyn(boxed))
+}

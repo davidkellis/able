@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v11 Manual — Syntax &amp; Expressions</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v11 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html" class="active">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>2. Syntax &amp; Expressions</h1>
+        <p>
+          Able uses braces for blocks, double-quoted strings, backtick strings
+          with interpolation, and a small set of punctuation tokens. Blocks are
+          expressions; the last expression produces the value.
+        </p>
+        <h2 id="lexical">2.1 Lexical Basics</h2>
+        <ul>
+          <li>Line comments start with <code>##</code>. Block comment syntax is TBD.</li>
+          <li>Identifiers use ASCII letters/digits/<code>_</code> (not starting with a digit).</li>
+          <li>Statements end at newline or <code>;</code>. Trailing commas are allowed in lists/params.</li>
+        </ul>
+        <h2 id="literals">2.2 Literals</h2>
+        <ul>
+          <li>Numbers: <code>123</code>, <code>1_000</code>, <code>3.14</code>, <code>0xff</code>, <code>0b1010</code>.</li>
+          <li>Booleans: <code>true</code>, <code>false</code>; Nil: <code>nil</code>; <code>void</code> represents “no value”.</li>
+          <li>Characters: <code>'a'</code>, <code>'\\n'</code>.</li>
+          <li>
+            Strings: double quotes for literals, backticks with interpolation
+            <code>`Hello ${name}`</code>.
+          </li>
+          <li>Arrays: <code>[1, 2, 3]</code>. Structs: <code>Point { x: 1, y: 2 }</code>.</li>
+        </ul>
+        <h2 id="strings">2.3 Strings &amp; Interpolation</h2>
+        <p>
+          Backtick strings interpolate any expression with <code>${expr}</code>.
+          Escape a backtick as <code>`\\`</code> and the interpolation opener as
+          <code>${"&lcub;"} </code>. Length APIs expose bytes/chars/graphemes
+          (see stdlib).
+        </p>
+        <h2 id="blocks">2.4 Blocks as Expressions</h2>
+        <pre><code class="language-able">total_label := do {
+  total := compute()
+  `Total: ${total}`
+}</code></pre>
+        <p>
+          A block with no final expression yields <code>void</code> (truthy).
+        </p>
+        <h2 id="operators">2.5 Operators &amp; Topics</h2>
+        <ul>
+          <li>Declarations use <code>:=</code>; reassignment uses <code>=</code>.</li>
+          <li>Range: <code>a..b</code> inclusive, <code>a...b</code> exclusive.</li>
+          <li>Safe navigation: <code>value?.field</code>, <code>value?.fn()</code> short-circuit to <code>nil</code>.</li>
+          <li>
+            Pipe forward <code>|></code> expects a callable on the RHS:
+            <code>value |&gt; normalize</code> or <code>value |&gt; (@ + 1)</code>.
+            Use <code>|>></code> for low-precedence piping after assignment.
+          </li>
+          <li>Placeholders <code>@, @2</code> build lambdas for callables.</li>
+        </ul>
+        <h2 id="truthiness">2.6 Truthiness</h2>
+        <p>
+          Only <code>false</code>, <code>nil</code>, and values of type
+          <code>Error</code> are falsy. Everything else (including
+          <code>void</code>) is truthy.
+        </p>
+        <footer class="manual-footer">
+          Able v11 manual · Syntax &amp; Expressions
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

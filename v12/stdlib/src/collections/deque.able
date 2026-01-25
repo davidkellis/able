@@ -1,0 +1,177 @@
+package deque
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Clone, Default, Extend}
+import able.core.iteration.{Iterable, Iterator}
+
+struct Deque T {
+  data: Array T,
+  head: i32,
+  tail: i32,
+  count: i32
+}
+
+fn wrap_index(value: i32, capacity: i32) -> i32 {
+  if capacity <= 0 { return 0 }
+  adjusted := value
+  if adjusted >= capacity { adjusted = adjusted - capacity }
+  if adjusted < 0 { adjusted = adjusted + capacity }
+  adjusted
+}
+
+methods Deque T {
+  fn new() -> Deque T {
+    Deque.with_capacity(8)
+  }
+
+  fn with_capacity(capacity: i32) -> Deque T {
+    cap := if capacity < 1 { 1 } else { capacity }
+    Deque {
+      data: Array.with_capacity(cap),
+      head: 0,
+      tail: 0,
+      count: 0
+    }
+  }
+
+  fn len(self: Self) -> i32 { self.count }
+  fn is_empty(self: Self) -> bool { self.count == 0 }
+  fn capacity(self: Self) -> i32 { self.data.capacity() }
+
+  fn push_back(self: Self, value: T) -> void {
+    if self.count == self.capacity() {
+      self.grow()
+    }
+    cap := self.capacity()
+    self.data.write_slot(self.tail, value)
+    self.tail = wrap_index(self.tail + 1, cap)
+    self.count = self.count + 1
+  }
+
+  fn push_front(self: Self, value: T) -> void {
+    if self.count == self.capacity() {
+      self.grow()
+    }
+    cap := self.capacity()
+    self.head = wrap_index(self.head - 1, cap)
+    self.data.write_slot(self.head, value)
+    self.count = self.count + 1
+  }
+
+  fn pop_back(self: Self) -> ?T {
+    if self.is_empty() { return nil }
+    cap := self.capacity()
+    idx := wrap_index(self.tail - 1, cap)
+    value := self.data.read_slot(idx)
+    self.tail = idx
+    self.count = self.count - 1
+    value
+  }
+
+  fn pop_front(self: Self) -> ?T {
+    if self.is_empty() { return nil }
+    value := self.data.read_slot(self.head)
+    cap := self.capacity()
+    self.head = wrap_index(self.head + 1, cap)
+    self.count = self.count - 1
+    value
+  }
+
+  fn front(self: Self) -> ?T {
+    if self.is_empty() { return nil }
+    value := self.data.read_slot(self.head)
+    value
+  }
+
+  fn back(self: Self) -> ?T {
+    if self.is_empty() { return nil }
+    cap := self.capacity()
+    idx := wrap_index(self.tail - 1, cap)
+    value := self.data.read_slot(idx)
+    value
+  }
+
+  fn clear(self: Self) -> void {
+    self.head = 0
+    self.tail = 0
+    self.count = 0
+  }
+
+  fn grow(self: Self) -> void {
+    old_capacity := self.capacity()
+    new_capacity := old_capacity * 2
+    new_data := Array.with_capacity(new_capacity)
+
+    i := 0
+    loop {
+      if i >= self.count { break }
+      idx := wrap_index(self.head + i, old_capacity)
+      value := self.data.read_slot(idx)
+      new_data.write_slot(i, value)
+      i = i + 1
+    }
+
+    self.data = new_data
+    self.head = 0
+    self.tail = self.count
+  }
+}
+
+impl Default for Deque T {
+  fn default() -> Deque T { Deque.new() }
+}
+
+impl Extend T for Deque T {
+  fn extend(self: Self, value: T) -> Self {
+    self.push_back(value)
+    self
+  }
+}
+
+impl Clone for Deque T {
+  fn clone(self: Self) -> Deque T {
+    result := Deque.with_capacity(self.capacity())
+    i := 0
+    loop {
+      if i >= self.count { break }
+      idx := wrap_index(self.head + i, self.capacity())
+      val := self.data.read_slot(idx)
+      result.push_back(val)
+      i = i + 1
+    }
+    result
+  }
+}
+
+impl Enumerable A for Deque {
+  fn each(self: Self, visit: A -> void) -> void {
+    count := self.count
+    capacity := self.capacity()
+    i := 0
+    loop {
+      if i >= count { break }
+      idx := wrap_index(self.head + i, capacity)
+      value := self.data.read_slot(idx)
+      visit(value)
+      i = i + 1
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
+    start_head := self.head
+    start_count := self.count
+    start_capacity := self.capacity()
+    backing := self.data
+    Iterator { gen =>
+      i := 0
+      loop {
+        if i >= start_count { break }
+        idx := wrap_index(start_head + i, start_capacity)
+        value := backing.read_slot(idx)
+        gen.yield(value)
+        i = i + 1
+      }
+    }
+  }
+}

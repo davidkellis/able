@@ -1,0 +1,23 @@
+{
+  "description": "primitive literals, division/modulo semantics, and truthiness rules",
+  "expect": {
+    "stdout": [
+      "1000000",
+      "255",
+      "175",
+      "5 // 3 = 1",
+      "-5 // 3 = -2",
+      "5 % 3 = 2",
+      "-5 % 3 = 1",
+      "5 / 2 = 2.5",
+      "6 / 3 = 2",
+      "true truthy",
+      "false falsy",
+      "nil falsy",
+      "zero truthy",
+      "void truthy",
+      "error falsy"
+    ],
+    "exit": 0
+  }
+}

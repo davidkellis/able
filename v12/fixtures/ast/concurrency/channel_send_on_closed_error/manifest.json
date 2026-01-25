@@ -1,0 +1,9 @@
+{
+  "description": "Sending on a closed channel raises an error",
+  "expect": {
+    "errors": [
+      "send on closed channel"
+    ]
+  },
+  "entry": "module.json"
+}

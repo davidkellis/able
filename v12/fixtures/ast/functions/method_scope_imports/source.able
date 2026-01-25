@@ -1,0 +1,9 @@
+import pkgmethods
+import pkgmethods.*
+
+first := Widget.make(10);
+bumped := first.bump(3);
+second := pkgmethods.Widget.make(4);
+qualified := Widget.augment(first, 2);
+aliased := pkgmethods.Widget.augment(second, 1);
+[first.value, bumped, qualified, second.value, aliased];

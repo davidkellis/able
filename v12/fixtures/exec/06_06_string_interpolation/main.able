@@ -1,0 +1,31 @@
+package exec_06_06_string_interpolation
+
+## Semantics: backtick interpolation evaluates expressions, supports escaping, and multiline strings preserve newlines.
+import able.text.string.*
+
+struct Point { x: i32, y: i32 }
+
+methods Point {
+  fn to_string(self: Self) -> String { `P(${self.x},${self.y})` }
+}
+
+fn main() -> void {
+  price := 3
+  msg := `cost \$${price}`
+  print(msg)
+
+  tick := `back \` tick`
+  print(tick)
+
+  raw := `raw \${price}`
+  print(raw)
+
+  point := Point { x: 1, y: 2 }
+  print(`point ${point}`)
+
+  multi_back := `line1
+line2`
+  multi_double := "row1
+row2"
+  print(`lens ${multi_back.len_bytes()} ${multi_double.len_bytes()}`)
+}

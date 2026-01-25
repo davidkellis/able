@@ -1,0 +1,421 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "calls"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "tick"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "calls"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "calls"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 1
+              }
+            }
+          },
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "BooleanLiteral",
+              "value": true
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "bool"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "subject_calls"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "guard_calls"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "get_subject"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "subject_calls"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "subject_calls"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 1
+              }
+            }
+          },
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "guard_check"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "guard_calls"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "guard_calls"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 1
+              }
+            }
+          },
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "BooleanLiteral",
+              "value": true
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "bool"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "right": {
+        "type": "IteratorLiteral",
+        "body": [
+          {
+            "type": "IfExpression",
+            "ifCondition": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "tick"
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            },
+            "ifBody": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "gen"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "yield"
+                    }
+                  },
+                  "arguments": [
+                    {
+                      "type": "IntegerLiteral",
+                      "value": 10
+                    }
+                  ],
+                  "isTrailingLambda": false
+                },
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "gen"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "yield"
+                    }
+                  },
+                  "arguments": [
+                    {
+                      "type": "IntegerLiteral",
+                      "value": 20
+                    }
+                  ],
+                  "isTrailingLambda": false
+                }
+              ]
+            },
+            "elseIfClauses": []
+          },
+          {
+            "type": "MatchExpression",
+            "subject": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "get_subject"
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            },
+            "clauses": [
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "LiteralPattern",
+                  "literal": {
+                    "type": "IntegerLiteral",
+                    "value": 1
+                  }
+                },
+                "guard": {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "Identifier",
+                    "name": "guard_check"
+                  },
+                  "arguments": [
+                    {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    }
+                  ],
+                  "isTrailingLambda": false
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "gen"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "yield"
+                        }
+                      },
+                      "arguments": [
+                        {
+                          "type": "IntegerLiteral",
+                          "value": 30
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    },
+                    {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "gen"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "yield"
+                        }
+                      },
+                      "arguments": [
+                        {
+                          "type": "IntegerLiteral",
+                          "value": 40
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    },
+                    {
+                      "type": "IntegerLiteral",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "total"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "Identifier",
+        "name": "value"
+      },
+      "iterable": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "total"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "total"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "value"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "total"
+        },
+        {
+          "type": "Identifier",
+          "name": "calls"
+        },
+        {
+          "type": "Identifier",
+          "name": "subject_calls"
+        },
+        {
+          "type": "Identifier",
+          "name": "guard_calls"
+        }
+      ]
+    }
+  ]
+}

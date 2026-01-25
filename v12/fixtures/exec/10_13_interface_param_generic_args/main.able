@@ -1,0 +1,31 @@
+package exec_10_13_interface_param_generic_args
+
+## Semantics: interface-typed parameters dispatch using interface arguments.
+
+interface Formatter <T> for Self {
+  fn format(self: Self, value: T) -> String
+}
+
+struct Printer { tag: String }
+
+impl Formatter String for Printer {
+  fn format(self: Self, value: String) -> String { `S:${self.tag}:${value}` }
+}
+
+impl Formatter i32 for Printer {
+  fn format(self: Self, value: i32) -> String { `I:${self.tag}:${value}` }
+}
+
+fn show_string(fmt: Formatter String, value: String) -> String {
+  fmt.format(value)
+}
+
+fn show_int(fmt: Formatter i32, value: i32) -> String {
+  fmt.format(value)
+}
+
+fn main() -> void {
+  printer := Printer { tag: "p" }
+  print(show_string(printer, "hi"))
+  print(show_int(printer, 9))
+}

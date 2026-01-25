@@ -1,0 +1,10 @@
+{
+  "description": "Uses to_String method when interpolating struct instances",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "P= Point(1,2)"
+    }
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,208 @@
+package os
+
+import able.kernel.{Array, __able_os_args, __able_os_exit}
+import able.io.{IOError, unwrap, unwrap_void}
+
+prelude go {
+import (
+  "errors"
+  "os"
+  "strings"
+  "syscall"
+)
+
+func osErrorKind(err error) string {
+  if err == nil {
+    return "Other"
+  }
+  switch {
+  case os.IsPermission(err) || errors.Is(err, os.ErrPermission) || errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) || strings.Contains(strings.ToLower(err.Error()), "permission denied"):
+    return "PermissionDenied"
+  case errors.Is(err, os.ErrNotExist):
+    return "NotFound"
+  case errors.Is(err, os.ErrExist):
+    return "AlreadyExists"
+  case errors.Is(err, os.ErrInvalid):
+    return "InvalidInput"
+  case errors.Is(err, os.ErrClosed):
+    return "Closed"
+  case errors.Is(err, syscall.EPIPE):
+    return "BrokenPipe"
+  case errors.Is(err, syscall.ENOTTY):
+    return "Unsupported"
+  case os.IsTimeout(err):
+    return "TimedOut"
+  default:
+    return "Other"
+  }
+}
+
+func osErrorFrom(err error, path *string) map[string]any {
+  var pathVal any = nil
+  if path != nil {
+    pathVal = *path
+  }
+  return map[string]any{
+    "kind": osErrorKind(err),
+    "message": err.Error(),
+    "path": pathVal,
+  }
+}
+}
+
+prelude typescript {
+import * as os from "node:os";
+import process from "node:process";
+
+function osErrorKind(err) {
+  const code = err && err.code ? String(err.code) : "";
+  switch (code) {
+    case "ENOENT": return "NotFound";
+    case "EACCES": return "PermissionDenied";
+    case "EPERM": return "PermissionDenied";
+    case "EEXIST": return "AlreadyExists";
+    case "EINVAL": return "InvalidInput";
+    case "ETIMEDOUT": return "TimedOut";
+    case "EPIPE": return "BrokenPipe";
+    case "EBADF": return "Closed";
+    case "ENOTTY": return "Unsupported";
+    default: return "Other";
+  }
+}
+
+function osErrorFrom(err, pathValue) {
+  return {
+    kind: osErrorKind(err),
+    message: err && err.message ? String(err.message) : String(err),
+    path: pathValue ?? null,
+  };
+}
+}
+
+## Returns command-line arguments passed to the program.
+fn args() -> Array String {
+  __able_os_args()
+}
+
+## Terminates the program with the provided exit code.
+fn exit(code: i32) -> void {
+  __able_os_exit(code)
+}
+
+## Returns the environment variable value when present.
+fn env(name: String) -> ?String {
+  os_env(name)
+}
+
+fn try_set_env(name: String, value: String) -> IOError | void {
+  os_set_env(name, value)
+}
+
+fn set_env(name: String, value: String) -> void {
+  unwrap_void(os_set_env(name, value))
+}
+
+fn try_cwd() -> IOError | String {
+  os_cwd()
+}
+
+fn cwd() -> String {
+  unwrap(os_cwd())
+}
+
+fn try_chdir(path: String) -> IOError | void {
+  os_chdir(path)
+}
+
+fn chdir(path: String) -> void {
+  unwrap_void(os_chdir(path))
+}
+
+fn home_dir() -> ?String {
+  os_home_dir()
+}
+
+fn temp_dir() -> String {
+  os_temp_dir()
+}
+
+extern typescript fn os_env(name: String) -> ?String {
+  const value = process.env[String(name)];
+  return value === undefined ? null : String(value);
+}
+
+extern go fn os_env(name: String) -> ?String {
+  if value, ok := os.LookupEnv(name); ok {
+    return &value
+  }
+  return nil
+}
+
+extern typescript fn os_set_env(name: String, value: String) -> IOError | void {
+  try {
+    process.env[String(name)] = String(value);
+    return null;
+  } catch (err) {
+    return osErrorFrom(err, name);
+  }
+}
+
+extern go fn os_set_env(name: String, value: String) -> IOError | void {
+  if err := os.Setenv(name, value); err != nil {
+    return osErrorFrom(err, &name)
+  }
+  return nil
+}
+
+extern typescript fn os_cwd() -> IOError | String {
+  try {
+    return process.cwd();
+  } catch (err) {
+    return osErrorFrom(err, null);
+  }
+}
+
+extern go fn os_cwd() -> IOError | String {
+  dir, err := os.Getwd()
+  if err != nil {
+    return osErrorFrom(err, nil)
+  }
+  return dir
+}
+
+extern typescript fn os_chdir(path: String) -> IOError | void {
+  try {
+    process.chdir(String(path));
+    return null;
+  } catch (err) {
+    return osErrorFrom(err, path);
+  }
+}
+
+extern go fn os_chdir(path: String) -> IOError | void {
+  if err := os.Chdir(path); err != nil {
+    return osErrorFrom(err, &path)
+  }
+  return nil
+}
+
+extern typescript fn os_home_dir() -> ?String {
+  const value = os.homedir();
+  if (!value || value.length === 0) return null;
+  return value;
+}
+
+extern go fn os_home_dir() -> ?String {
+  if value, err := os.UserHomeDir(); err == nil {
+    return &value
+  }
+  return nil
+}
+
+extern typescript fn os_temp_dir() -> String {
+  return os.tmpdir();
+}
+
+extern go fn os_temp_dir() -> String {
+  return os.TempDir()
+}

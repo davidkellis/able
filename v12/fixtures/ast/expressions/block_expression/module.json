@@ -1,0 +1,27 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "BlockExpression",
+      "body": [
+        {
+          "type": "AssignmentExpression",
+          "operator": ":=",
+          "left": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 1
+          }
+        },
+        {
+          "type": "Identifier",
+          "name": "x"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+package loop_reassignment
+
+fn main() {
+  a = 5
+  loop {
+    print(a)
+    if a <= 0 { break }
+    a = a - 1
+  }
+}
+

@@ -1,0 +1,234 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "count"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "right": {
+        "type": "IteratorLiteral",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "count"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "count"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 1
+              }
+            }
+          },
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "gen"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "yield"
+              }
+            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "name": "count"
+              }
+            ],
+            "isTrailingLambda": false
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "count"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "count"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 1
+              }
+            }
+          },
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "gen"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "yield"
+              }
+            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "name": "count"
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "before"
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "count"
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "first"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "second"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "third"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "after"
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "count"
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "before"
+        },
+        {
+          "type": "Identifier",
+          "name": "first"
+        },
+        {
+          "type": "Identifier",
+          "name": "second"
+        },
+        {
+          "type": "Identifier",
+          "name": "third"
+        },
+        {
+          "type": "Identifier",
+          "name": "after"
+        }
+      ]
+    }
+  ]
+}

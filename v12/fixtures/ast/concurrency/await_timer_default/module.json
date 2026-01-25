@@ -1,0 +1,258 @@
+{
+  "type": "Module",
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "able"
+        },
+        {
+          "type": "Identifier",
+          "name": "concurrency"
+        }
+      ],
+      "isWildcard": false,
+      "selectors": [
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "Await"
+          }
+        }
+      ]
+    }
+  ],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "runner"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "first"
+              },
+              "right": {
+                "type": "AwaitExpression",
+                "expression": {
+                  "type": "ArrayLiteral",
+                  "elements": [
+                    {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "Await"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "default"
+                        }
+                      },
+                      "arguments": [
+                        {
+                          "type": "LambdaExpression",
+                          "params": [],
+                          "body": {
+                            "type": "StringLiteral",
+                            "value": "fallback"
+                          },
+                          "isVerboseSyntax": false
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "second"
+              },
+              "right": {
+                "type": "AwaitExpression",
+                "expression": {
+                  "type": "ArrayLiteral",
+                  "elements": [
+                    {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "Await"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "sleep"
+                        }
+                      },
+                      "arguments": [
+                        {
+                          "type": "FunctionCall",
+                          "callee": {
+                            "type": "MemberAccessExpression",
+                            "object": {
+                              "type": "IntegerLiteral",
+                              "value": 0
+                            },
+                            "member": {
+                              "type": "Identifier",
+                              "name": "seconds"
+                            }
+                          },
+                          "arguments": [],
+                          "isTrailingLambda": false
+                        },
+                        {
+                          "type": "LambdaExpression",
+                          "params": [],
+                          "body": {
+                            "type": "StringLiteral",
+                            "value": "timer"
+                          },
+                          "isVerboseSyntax": false
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "third"
+              },
+              "right": {
+                "type": "AwaitExpression",
+                "expression": {
+                  "type": "ArrayLiteral",
+                  "elements": [
+                    {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "Await"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "sleep_ms"
+                        }
+                      },
+                      "arguments": [
+                        {
+                          "type": "IntegerLiteral",
+                          "value": 0
+                        },
+                        {
+                          "type": "LambdaExpression",
+                          "params": [],
+                          "body": {
+                            "type": "StringLiteral",
+                            "value": "timer"
+                          },
+                          "isVerboseSyntax": false
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "ArrayLiteral",
+              "elements": [
+                {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "first"
+                  },
+                  "right": {
+                    "type": "StringLiteral",
+                    "value": "fallback"
+                  }
+                },
+                {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "second"
+                  },
+                  "right": {
+                    "type": "StringLiteral",
+                    "value": "timer"
+                  }
+                },
+                {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "third"
+                  },
+                  "right": {
+                    "type": "StringLiteral",
+                    "value": "timer"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "future_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "runner"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "value"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    }
+  ]
+}

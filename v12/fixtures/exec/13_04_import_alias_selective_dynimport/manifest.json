@@ -1,0 +1,14 @@
+{
+  "description": "package aliasing, selective import renames, and dynimport package bindings",
+  "expect": {
+    "stdout": [
+      "hello alias",
+      "hello rename",
+      "tag selective",
+      "sum 9",
+      "dyn alias",
+      "dyn selective"
+    ],
+    "exit": 0
+  }
+}

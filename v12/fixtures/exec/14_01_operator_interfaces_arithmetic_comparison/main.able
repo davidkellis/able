@@ -1,0 +1,77 @@
+package exec_14_01_operator_interfaces_arithmetic_comparison
+
+import able.core.interfaces.{Add, Sub, Mul, Div, Rem, Neg, Eq, Ord, Ordering, Less, Equal, Greater, Display, Clone, Default}
+
+## Semantics: arithmetic and comparison operators dispatch via standard interfaces.
+
+struct Box { value: i32 }
+
+impl Add Box Box for Box {
+  fn add(self: Self, rhs: Box) -> Box { Box { value: self.value + rhs.value } }
+}
+
+impl Sub Box Box for Box {
+  fn sub(self: Self, rhs: Box) -> Box { Box { value: self.value - rhs.value } }
+}
+
+impl Mul Box Box for Box {
+  fn mul(self: Self, rhs: Box) -> Box { Box { value: self.value * rhs.value } }
+}
+
+impl Div Box Box for Box {
+  fn div(self: Self, rhs: Box) -> Box { Box { value: self.value // rhs.value } }
+}
+
+impl Rem Box Box for Box {
+  fn rem(self: Self, rhs: Box) -> Box { Box { value: self.value % rhs.value } }
+}
+
+impl Neg Box for Box {
+  fn neg(self: Self) -> Box { Box { value: -self.value } }
+}
+
+impl Eq for Box {
+  fn eq(self: Self, other: Self) -> bool { self.value == other.value }
+}
+
+impl Ord for Box {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self.value < other.value { return Less {} }
+    if self.value > other.value { return Greater {} }
+    Equal {}
+  }
+}
+
+impl Display for Box {
+  fn to_string(self: Self) -> String { `Box(${self.value})` }
+}
+
+impl Clone for Box {
+  fn clone(self: Self) -> Self { Box { value: self.value } }
+}
+
+impl Default for Box {
+  fn default() -> Self { Box { value: 0 } }
+}
+
+fn main() -> void {
+  left := Box { value: 10 }
+  right := Box { value: 3 }
+
+  sum := left + right
+  diff := left - right
+  prod := left * right
+  quo := left / right
+  rem := left % right
+  neg := -right
+  print(`arith ${sum.value} ${diff.value} ${prod.value} ${quo.value} ${rem.value} ${neg.value}`)
+
+  print(`cmp ${left > right} ${left >= right} ${left < right} ${left <= right}`)
+  print(`eq ${left == right} ${left != right} ${left == Box { value: 10 }}`)
+
+  cloned := right.clone()
+  zeroed := Box.default()
+  print(`helpers ${cloned.value} ${zeroed.value}`)
+  print(`display ${sum}`)
+}

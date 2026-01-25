@@ -1,0 +1,11 @@
+package pkg_visibility
+
+## Semantics: private declarations stay scoped to the package; exported structs and helpers form the public surface.
+
+private struct Hidden { value: String }
+struct Visible { value: String }
+
+fn make_visible(msg: String) -> Visible { Visible { value: msg } }
+fn describe(v: Visible) -> String { `visible ${v.value}` }
+
+private fn hidden_msg() -> String { "secret" }

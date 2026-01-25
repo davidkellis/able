@@ -1,0 +1,3 @@
+package types
+
+struct Widget { id: i32 }

@@ -1,0 +1,793 @@
+## Minimal host bridge surface loaded ahead of workspace code.
+
+type ArrayHandle = i64
+type HashMapHandle = i64
+type ChannelHandle = i64
+type MutexHandle = i64
+
+## Core language structs. Stdlib layers richer APIs on top of these shapes.
+struct Array T {
+  length: i32,
+  capacity: i32,
+  storage_handle: ArrayHandle
+}
+
+struct HashMap K V {
+  handle: HashMapHandle
+}
+
+struct Ratio {
+  num: i64,
+  den: i64
+}
+
+struct Range {
+  start: i32,
+  end: i32,
+  inclusive: bool
+}
+
+struct RangeFactory {}
+
+struct Channel T {
+  capacity: i32,
+  handle: ChannelHandle
+}
+
+struct Mutex {
+  handle: MutexHandle
+}
+
+struct AwaitWaker { wake: fn() -> void }
+
+struct AwaitRegistration { cancel: fn() -> void }
+
+## Core comparison + hashing primitives (kernel-owned).
+struct Less {}
+struct Equal {}
+struct Greater {}
+union Ordering = Less | Equal | Greater
+
+interface Display for T {
+  fn to_string(self: Self) -> String;
+}
+
+interface Clone for T {
+  fn clone(self: Self) -> Self;
+}
+
+interface Default for T {
+  fn default() -> Self;
+}
+
+interface PartialEq Rhs for T {
+  fn eq(self: Self, other: Rhs) -> bool;
+  fn ne(self: Self, other: Rhs) -> bool { !self.eq(other) }
+}
+
+interface Eq for T : PartialEq T {
+  fn eq(self: Self, other: Self) -> bool;
+  fn ne(self: Self, other: Self) -> bool { !self.eq(other) }
+}
+
+interface PartialOrd Rhs for T {
+  fn partial_cmp(self: Self, other: Rhs) -> Ordering;
+}
+
+interface Ord for T : PartialOrd T {
+  fn cmp(self: Self, other: Self) -> Ordering;
+}
+
+## Default hash sink interface implemented in Able code (FNV-1a).
+interface Hasher for T {
+  fn finish(self: Self) -> u64;
+  fn write_u8(self: Self, value: u8) -> void;
+
+  fn write_bool(self: Self, value: bool) -> void {
+    if value { self.write_u8(1_u8) } else { self.write_u8(0_u8) }
+  }
+
+  fn write_u16(self: Self, value: u16) -> void {
+    self.write_u8((value .>> 8) as u8)
+    self.write_u8(value as u8)
+  }
+
+  fn write_u32(self: Self, value: u32) -> void {
+    self.write_u8((value .>> 24) as u8)
+    self.write_u8((value .>> 16) as u8)
+    self.write_u8((value .>> 8) as u8)
+    self.write_u8(value as u8)
+  }
+
+  fn write_u64(self: Self, value: u64) -> void {
+    self.write_u8((value .>> 56) as u8)
+    self.write_u8((value .>> 48) as u8)
+    self.write_u8((value .>> 40) as u8)
+    self.write_u8((value .>> 32) as u8)
+    self.write_u8((value .>> 24) as u8)
+    self.write_u8((value .>> 16) as u8)
+    self.write_u8((value .>> 8) as u8)
+    self.write_u8(value as u8)
+  }
+
+  fn write_i8(self: Self, value: i8) -> void { self.write_u8(value as u8) }
+  fn write_i16(self: Self, value: i16) -> void { self.write_u16(value as u16) }
+  fn write_i32(self: Self, value: i32) -> void { self.write_u32(value as u32) }
+  fn write_i64(self: Self, value: i64) -> void { self.write_u64(value as u64) }
+
+  fn write_char(self: Self, value: char) -> void {
+    self.write_u32(__able_char_to_codepoint(value) as u32)
+  }
+
+  fn write_f32(self: Self, value: f32) -> void {
+    self.write_u32(__able_f32_bits(value))
+  }
+
+  fn write_f64(self: Self, value: f64) -> void {
+    self.write_u64(__able_f64_bits(value))
+  }
+
+  fn write_bytes(self: Self, bytes: Array u8) -> void {
+    idx := 0
+    count := bytes.len()
+    loop {
+      if idx >= count { break }
+      self.write_u8(bytes.read_slot(idx))
+      idx = idx + 1
+    }
+  }
+
+  fn write_string(self: Self, value: String) -> void {
+    self.write_bytes(__able_String_from_builtin(value))
+  }
+}
+
+interface Hash for T {
+  fn hash(self: Self, hasher: Hasher) -> void;
+}
+
+## Primitive Eq/Ord/Hash implementations (floats only PartialEq/PartialOrd by default).
+## Non-float primitives implement PartialEq/PartialOrd explicitly to satisfy base interfaces.
+impl PartialEq bool for bool {
+  fn eq(self: Self, other: Self) -> bool { self == other }
+}
+
+impl Eq for bool {
+  fn eq(self: Self, other: Self) -> bool {
+    if self { other } else { !other }
+  }
+}
+
+impl PartialOrd bool for bool {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self {
+      if other { return Equal {} }
+      return Greater {}
+    }
+    if other { return Less {} }
+    Equal {}
+  }
+}
+
+impl Ord for bool {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self {
+      if other { return Equal {} }
+      return Greater {}
+    }
+    if other { return Less {} }
+    Equal {}
+  }
+}
+
+impl Hash for bool {
+  fn hash(self: Self, hasher: Hasher) -> void { hasher.write_bool(self) }
+}
+
+impl PartialEq char for char {
+  fn eq(self: Self, other: Self) -> bool {
+    __able_char_to_codepoint(self) == __able_char_to_codepoint(other)
+  }
+}
+
+impl Eq for char {
+  fn eq(self: Self, other: Self) -> bool {
+    __able_char_to_codepoint(self) == __able_char_to_codepoint(other)
+  }
+}
+
+impl PartialOrd char for char {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if __able_char_to_codepoint(self) < __able_char_to_codepoint(other) { return Less {} }
+    if __able_char_to_codepoint(self) > __able_char_to_codepoint(other) { return Greater {} }
+    Equal {}
+  }
+}
+
+impl Ord for char {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if __able_char_to_codepoint(self) < __able_char_to_codepoint(other) { return Less {} }
+    if __able_char_to_codepoint(self) > __able_char_to_codepoint(other) { return Greater {} }
+    Equal {}
+  }
+}
+
+impl Hash for char {
+  fn hash(self: Self, hasher: Hasher) -> void { hasher.write_char(self) }
+}
+
+fn string_bytes_equal(left: Array u8, right: Array u8) -> bool {
+  if left.len() != right.len() { return false }
+  idx := 0
+  loop {
+    if idx >= left.len() { break }
+    if left.read_slot(idx) != right.read_slot(idx) { return false }
+    idx = idx + 1
+  }
+  true
+}
+
+impl PartialEq String for String {
+  fn eq(self: Self, other: Self) -> bool {
+    string_bytes_equal(__able_String_from_builtin(self), __able_String_from_builtin(other))
+  }
+}
+
+impl Eq for String {
+  fn eq(self: Self, other: Self) -> bool {
+    string_bytes_equal(__able_String_from_builtin(self), __able_String_from_builtin(other))
+  }
+}
+
+impl PartialOrd String for String {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+
+impl Ord for String {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+
+impl Hash for String {
+  fn hash(self: Self, hasher: Hasher) -> void { hasher.write_string(self) }
+}
+
+impl PartialEq i8 for i8 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq i16 for i16 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq i32 for i32 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq i64 for i64 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq i128 for i128 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq u8 for u8 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq u16 for u16 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq u32 for u32 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq u64 for u64 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl PartialEq u128 for u128 { fn eq(self: Self, other: Self) -> bool { self == other } }
+
+impl Eq for i8 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for i16 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for i32 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for i64 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for i128 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for u8 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for u16 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for u32 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for u64 { fn eq(self: Self, other: Self) -> bool { self == other } }
+impl Eq for u128 { fn eq(self: Self, other: Self) -> bool { self == other } }
+
+impl PartialOrd i8 for i8 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for i8 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd i16 for i16 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for i16 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd i32 for i32 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for i32 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd i64 for i64 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for i64 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd i128 for i128 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for i128 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd u8 for u8 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for u8 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd u16 for u16 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for u16 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd u32 for u32 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for u32 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd u64 for u64 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for u64 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd u128 for u128 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl Ord for u128 {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
+  fn cmp(self: Self, other: Self) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+
+impl Hash for i8 { fn hash(self: Self, hasher: Hasher) -> void { hasher.write_i8(self) } }
+impl Hash for i16 { fn hash(self: Self, hasher: Hasher) -> void { hasher.write_i16(self) } }
+impl Hash for i32 { fn hash(self: Self, hasher: Hasher) -> void { hasher.write_i32(self) } }
+impl Hash for i64 { fn hash(self: Self, hasher: Hasher) -> void { hasher.write_i64(self) } }
+impl Hash for i128 {
+  fn hash(self: Self, hasher: Hasher) -> void {
+    bits := self as u128
+    hasher.write_u64((bits .>> 64) as u64)
+    hasher.write_u64(bits as u64)
+  }
+}
+impl Hash for u8 { fn hash(self: Self, hasher: Hasher) -> void { hasher.write_u8(self) } }
+impl Hash for u16 { fn hash(self: Self, hasher: Hasher) -> void { hasher.write_u16(self) } }
+impl Hash for u32 { fn hash(self: Self, hasher: Hasher) -> void { hasher.write_u32(self) } }
+impl Hash for u64 { fn hash(self: Self, hasher: Hasher) -> void { hasher.write_u64(self) } }
+impl Hash for u128 {
+  fn hash(self: Self, hasher: Hasher) -> void {
+    hasher.write_u64((self .>> 64) as u64)
+    hasher.write_u64(self as u64)
+  }
+}
+
+impl PartialEq f32 for f32 {
+  fn eq(self: Self, other: f32) -> bool { self == other }
+}
+impl PartialEq f64 for f64 {
+  fn eq(self: Self, other: f64) -> bool { self == other }
+}
+impl PartialOrd f32 for f32 {
+  fn partial_cmp(self: Self, other: f32) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+impl PartialOrd f64 for f64 {
+  fn partial_cmp(self: Self, other: f64) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+
+FNV_OFFSET: u64 := 14695981039346656037_u64
+FNV_PRIME: u64 := 1099511628211_u64
+
+struct KernelHasher { state: u64 }
+
+methods KernelHasher {
+  fn new() -> KernelHasher { KernelHasher { state: FNV_OFFSET } }
+}
+
+impl Hasher for KernelHasher {
+  fn finish(self: Self) -> u64 { self.state }
+
+  fn write_u8(self: Self, value: u8) -> void {
+    mixed := self.state .^ (value as u64)
+    self.state = __able_u64_mul(mixed, FNV_PRIME)
+  }
+}
+
+interface Awaitable Output for Self {
+  fn is_ready(self: Self) -> bool;
+  fn register(self: Self, waker: AwaitWaker) -> AwaitRegistration;
+  fn commit(self: Self) -> Output;
+  fn is_default(self: Self) -> bool { false }
+}
+
+## Base Array operations backed by host bridges.
+methods Array T {
+  fn new() -> Array T {
+    handle := __able_array_new()
+    arr := Array { length: 0, capacity: 0, storage_handle: handle }
+    arr.refresh_metadata()
+    arr
+  }
+
+  fn with_capacity(capacity: i32) -> Array T {
+    handle := __able_array_with_capacity(capacity)
+    arr := Array { length: 0, capacity: capacity, storage_handle: handle }
+    arr.refresh_metadata()
+    arr
+  }
+
+  fn size(self: Self) -> u64 {
+    len := self.len()
+    if len <= 0 { 0 } else { len }
+  }
+
+  fn len(self: Self) -> i32 {
+    self.length = __able_array_size(self.storage_handle)
+    self.length
+  }
+
+  fn capacity(self: Self) -> i32 {
+    self.capacity = __able_array_capacity(self.storage_handle)
+    self.capacity
+  }
+
+  fn is_empty(self: Self) -> bool { self.len() == 0 }
+
+  fn push(self: Self, value: T) -> void {
+    self.refresh_metadata()
+    __able_array_write(self.storage_handle, self.length, value)
+    self.refresh_metadata()
+  }
+
+  fn pop(self: Self) -> ?T {
+    self.refresh_metadata()
+    if self.length <= 0 { return nil }
+    idx := self.length - 1
+    value := __able_array_read(self.storage_handle, idx)
+    __able_array_set_len(self.storage_handle, idx)
+    self.refresh_metadata()
+    value
+  }
+
+  fn clear(self: Self) -> void {
+    __able_array_set_len(self.storage_handle, 0)
+    self.refresh_metadata()
+  }
+
+  fn read_slot(self: Self, idx: i32) -> T {
+    __able_array_read(self.storage_handle, idx)
+  }
+
+  fn write_slot(self: Self, idx: i32, value: T) -> void {
+    __able_array_write(self.storage_handle, idx, value)
+  }
+
+  fn reserve(self: Self, capacity: i32) -> void {
+    handle := __able_array_reserve(self.storage_handle, capacity)
+    self.storage_handle = handle
+    self.refresh_metadata()
+  }
+
+  fn clone_shallow(self: Self) -> Array T {
+    handle := __able_array_clone(self.storage_handle)
+    cloned := Array { length: self.length, capacity: self.capacity, storage_handle: handle }
+    cloned.refresh_metadata()
+    cloned
+  }
+
+  fn refresh_metadata(self: Self) -> void {
+    self.length = __able_array_size(self.storage_handle)
+    self.capacity = __able_array_capacity(self.storage_handle)
+  }
+}
+
+## Kernel-backed HashMap operations.
+methods HashMap K V {
+  fn new() -> HashMap K V {
+    HashMap { handle: __able_hash_map_new() }
+  }
+
+  fn with_capacity(capacity: i32) -> HashMap K V {
+    HashMap { handle: __able_hash_map_with_capacity(capacity) }
+  }
+
+  fn raw_get(self: Self, key: K) -> ?V { __able_hash_map_get(self.handle, key) }
+  fn raw_set(self: Self, key: K, value: V) -> void { __able_hash_map_set(self.handle, key, value) }
+  fn raw_remove(self: Self, key: K) -> ?V { __able_hash_map_remove(self.handle, key) }
+  fn raw_contains(self: Self, key: K) -> bool { __able_hash_map_contains(self.handle, key) }
+  fn raw_size(self: Self) -> i32 { __able_hash_map_size(self.handle) }
+  fn raw_clear(self: Self) -> void { __able_hash_map_clear(self.handle) }
+  fn raw_for_each(self: Self, visit: (K, V) -> void) -> void { __able_hash_map_for_each(self.handle, visit) }
+  fn raw_clone(self: Self) -> HashMap K V { HashMap { handle: __able_hash_map_clone(self.handle) } }
+}
+
+## Array buffer hooks
+extern typescript fn __able_array_new() -> ArrayHandle {}
+extern typescript fn __able_array_with_capacity(capacity: i32) -> ArrayHandle {}
+extern typescript fn __able_array_size(handle: ArrayHandle) -> i32 {}
+extern typescript fn __able_array_capacity(handle: ArrayHandle) -> i32 {}
+extern typescript fn __able_array_set_len(handle: ArrayHandle, length: i32) -> void {}
+extern typescript fn __able_array_read(handle: ArrayHandle, idx: i32) -> _ {}
+extern typescript fn __able_array_write(handle: ArrayHandle, idx: i32, value: _) -> void {}
+extern typescript fn __able_array_reserve(handle: ArrayHandle, capacity: i32) -> ArrayHandle {}
+extern typescript fn __able_array_clone(handle: ArrayHandle) -> ArrayHandle {}
+extern go fn __able_array_new() -> ArrayHandle {}
+extern go fn __able_array_with_capacity(capacity: i32) -> ArrayHandle {}
+extern go fn __able_array_size(handle: ArrayHandle) -> i32 {}
+extern go fn __able_array_capacity(handle: ArrayHandle) -> i32 {}
+extern go fn __able_array_set_len(handle: ArrayHandle, length: i32) -> void {}
+extern go fn __able_array_read(handle: ArrayHandle, idx: i32) -> _ {}
+extern go fn __able_array_write(handle: ArrayHandle, idx: i32, value: _) -> void {}
+extern go fn __able_array_reserve(handle: ArrayHandle, capacity: i32) -> ArrayHandle {}
+extern go fn __able_array_clone(handle: ArrayHandle) -> ArrayHandle {}
+
+## HashMap hooks
+extern typescript fn __able_hash_map_new() -> HashMapHandle {}
+extern typescript fn __able_hash_map_with_capacity(capacity: i32) -> HashMapHandle {}
+extern typescript fn __able_hash_map_get(handle: HashMapHandle, key: _) -> ?_ {}
+extern typescript fn __able_hash_map_set(handle: HashMapHandle, key: _, value: _) -> void {}
+extern typescript fn __able_hash_map_remove(handle: HashMapHandle, key: _) -> ?_ {}
+extern typescript fn __able_hash_map_contains(handle: HashMapHandle, key: _) -> bool {}
+extern typescript fn __able_hash_map_size(handle: HashMapHandle) -> i32 {}
+extern typescript fn __able_hash_map_clear(handle: HashMapHandle) -> void {}
+extern typescript fn __able_hash_map_for_each(handle: HashMapHandle, visit: (_, _) -> void) -> void {}
+extern typescript fn __able_hash_map_clone(handle: HashMapHandle) -> HashMapHandle {}
+extern go fn __able_hash_map_new() -> HashMapHandle {}
+extern go fn __able_hash_map_with_capacity(capacity: i32) -> HashMapHandle {}
+extern go fn __able_hash_map_get(handle: HashMapHandle, key: _) -> ?_ {}
+extern go fn __able_hash_map_set(handle: HashMapHandle, key: _, value: _) -> void {}
+extern go fn __able_hash_map_remove(handle: HashMapHandle, key: _) -> ?_ {}
+extern go fn __able_hash_map_contains(handle: HashMapHandle, key: _) -> bool {}
+extern go fn __able_hash_map_size(handle: HashMapHandle) -> i32 {}
+extern go fn __able_hash_map_clear(handle: HashMapHandle) -> void {}
+extern go fn __able_hash_map_for_each(handle: HashMapHandle, visit: (_, _) -> void) -> void {}
+extern go fn __able_hash_map_clone(handle: HashMapHandle) -> HashMapHandle {}
+
+## String encoding bridges (byte-level)
+extern typescript fn __able_String_from_builtin(value: String) -> _ {}
+extern typescript fn __able_String_to_builtin(bytes: _) -> String {}
+extern typescript fn __able_char_from_codepoint(value: i32) -> char {}
+extern typescript fn __able_char_to_codepoint(value: char) -> i32 {}
+extern go fn __able_String_from_builtin(value: String) -> _ {}
+extern go fn __able_String_to_builtin(bytes: _) -> String {}
+extern go fn __able_char_from_codepoint(value: i32) -> char {}
+extern go fn __able_char_to_codepoint(value: char) -> i32 {}
+
+## Numeric bridges
+extern typescript fn __able_ratio_from_float(value: f64) -> _ {}
+extern typescript fn __able_f32_bits(value: f32) -> u32 {}
+extern typescript fn __able_f64_bits(value: f64) -> u64 {}
+extern typescript fn __able_u64_mul(lhs: u64, rhs: u64) -> u64 {}
+extern go fn __able_ratio_from_float(value: f64) -> _ {}
+extern go fn __able_f32_bits(value: f32) -> u32 {}
+extern go fn __able_f64_bits(value: f64) -> u64 {}
+extern go fn __able_u64_mul(lhs: u64, rhs: u64) -> u64 {}
+
+## Channel primitives
+methods Channel T {
+  fn new(capacity: i32) -> Channel T {
+    handle := __able_channel_new(capacity)
+    Channel { capacity: capacity, handle: handle }
+  }
+
+  fn send(self: Self, value: T) -> void {
+    __able_channel_send(self.handle, value)
+  }
+
+  fn receive(self: Self) -> ?T {
+    __able_channel_receive(self.handle)
+  }
+
+  fn try_send(self: Self, value: T) -> bool {
+    __able_channel_try_send(self.handle, value)
+  }
+
+  fn try_receive(self: Self) -> ?T {
+    __able_channel_try_receive(self.handle)
+  }
+
+  fn await_receive<R>(self: Self, callback: fn(?T) -> R) -> (Awaitable R) {
+    __able_channel_await_try_recv(self.handle, callback)
+  }
+
+  fn await_send<R>(self: Self, value: T, callback: fn() -> R) -> (Awaitable R) {
+    __able_channel_await_try_send(self.handle, value, callback)
+  }
+
+  fn close(self: Self) -> void {
+    __able_channel_close(self.handle)
+  }
+
+  fn is_closed(self: Self) -> bool {
+    __able_channel_is_closed(self.handle)
+  }
+}
+
+## Mutex primitives
+methods Mutex {
+  fn new() -> Mutex {
+    Mutex { handle: __able_mutex_new() }
+  }
+
+  fn lock(self: Self) -> void {
+    __able_mutex_lock(self.handle)
+  }
+
+  fn unlock(self: Self) -> void {
+    __able_mutex_unlock(self.handle)
+  }
+
+  fn await_lock<R>(self: Self, callback: fn() -> R) -> (Awaitable R) {
+    __able_mutex_await_lock(self.handle, callback)
+  }
+}
+
+## Channel bridges
+extern typescript fn __able_channel_new(capacity: i32) -> ChannelHandle {}
+extern typescript fn __able_channel_send(handle: ChannelHandle, value: _) -> void {}
+extern typescript fn __able_channel_receive(handle: ChannelHandle) -> ?_ {}
+extern typescript fn __able_channel_try_send(handle: ChannelHandle, value: _) -> bool {}
+extern typescript fn __able_channel_try_receive(handle: ChannelHandle) -> ?_ {}
+extern typescript fn __able_channel_await_try_recv(handle: ChannelHandle, callback: fn(?_) -> _) -> (Awaitable _) {}
+extern typescript fn __able_channel_await_try_send(handle: ChannelHandle, value: _, callback: fn() -> _) -> (Awaitable _) {}
+extern typescript fn __able_channel_close(handle: ChannelHandle) -> void {}
+extern typescript fn __able_channel_is_closed(handle: ChannelHandle) -> bool {}
+extern go fn __able_channel_new(capacity: i32) -> ChannelHandle {}
+extern go fn __able_channel_send(handle: ChannelHandle, value: _) -> void {}
+extern go fn __able_channel_receive(handle: ChannelHandle) -> ?_ {}
+extern go fn __able_channel_try_send(handle: ChannelHandle, value: _) -> bool {}
+extern go fn __able_channel_try_receive(handle: ChannelHandle) -> ?_ {}
+extern go fn __able_channel_await_try_recv(handle: ChannelHandle, callback: fn(?_) -> _) -> (Awaitable _) {}
+extern go fn __able_channel_await_try_send(handle: ChannelHandle, value: _, callback: fn() -> _) -> (Awaitable _) {}
+extern go fn __able_channel_close(handle: ChannelHandle) -> void {}
+extern go fn __able_channel_is_closed(handle: ChannelHandle) -> bool {}
+
+## Mutex bridges
+extern typescript fn __able_mutex_new() -> MutexHandle {}
+extern typescript fn __able_mutex_lock(handle: MutexHandle) -> void {}
+extern typescript fn __able_mutex_unlock(handle: MutexHandle) -> void {}
+extern typescript fn __able_mutex_await_lock(handle: MutexHandle, callback: fn() -> _) -> (Awaitable _) {}
+extern go fn __able_mutex_new() -> MutexHandle {}
+extern go fn __able_mutex_lock(handle: MutexHandle) -> void {}
+extern go fn __able_mutex_unlock(handle: MutexHandle) -> void {}
+extern go fn __able_mutex_await_lock(handle: MutexHandle, callback: fn() -> _) -> (Awaitable _) {}
+
+## Range primitives
+methods RangeFactory {
+  fn inclusive_range(start: i32, finish: i32) -> Range {
+    Range { start: start, end: finish, inclusive: true }
+  }
+
+  fn exclusive_range(start: i32, finish: i32) -> Range {
+    Range { start: start, end: finish, inclusive: false }
+  }
+}
+
+methods Range {
+  fn is_inclusive(self: Self) -> bool { self.inclusive }
+}
+
+## Await helpers
+extern typescript fn __able_await_default(callback: fn() -> _) -> (Awaitable _) {}
+extern typescript fn __able_await_sleep_ms(duration: i64, callback: fn() -> _) -> (Awaitable _) {}
+extern go fn __able_await_default(callback: fn() -> _) -> (Awaitable _) {}
+extern go fn __able_await_sleep_ms(duration: i64, callback: fn() -> _) -> (Awaitable _) {}
+
+## Ratio primitives
+fn ratio_from_float(value: f64) -> Ratio {
+  __able_ratio_from_float(value)
+}
+
+methods Ratio {
+  fn numerator(self: Self) -> i64 { self.num }
+  fn denominator(self: Self) -> i64 { self.den }
+}
+
+## OS bridges
+extern typescript fn __able_os_args() -> Array String {}
+extern typescript fn __able_os_exit(code: i32) -> void {}
+extern go fn __able_os_args() -> Array String {}
+extern go fn __able_os_exit(code: i32) -> void {}

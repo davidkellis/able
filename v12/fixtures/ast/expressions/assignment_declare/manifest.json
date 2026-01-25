@@ -1,0 +1,10 @@
+{
+  "description": "Declaration assignment binds a new identifier",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "1"
+    }
+  },
+  "entry": "module.json"
+}

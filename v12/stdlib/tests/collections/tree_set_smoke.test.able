@@ -1,0 +1,66 @@
+package tree_set_tests
+
+import able.collections.tree_set.{TreeSet}
+import able.kernel.{Array}
+import able.collections.array
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise(message) }
+  }
+}
+
+fn expect_string(value: ?String, expected: String, message: String) -> void {
+  value match {
+    case actual: String => assert(actual == expected, message),
+    case nil => { raise(message) }
+  }
+}
+
+fn check_inserts_and_iteration() -> void {
+  set: TreeSet i32 := TreeSet.new()
+  set.insert(2)
+  set.insert(1)
+  set.insert(2) ## duplicate insert should be ignored
+  set.insert(3)
+
+  assert(set.len() == 3, "len should count unique entries")
+  assert(set.contains(1), "contains should find inserted values")
+
+  acc: Array i32 := Array.new()
+  values := set.to_array()
+  idx := 0
+  while idx < values.len() {
+    values.get(idx) match {
+      case nil => {},
+      case value => acc.push(value)
+    }
+    idx = idx + 1
+  }
+  expect_i32(acc.get(0), 1, "iteration should yield values in order")
+  expect_i32(acc.get(1), 2, "iteration should not drop middle values")
+  expect_i32(acc.get(2), 3, "iteration should include the largest value")
+}
+
+fn check_removals() -> void {
+  set: TreeSet String := TreeSet.new()
+  set.insert("a")
+  set.insert("b")
+  assert(set.remove("a"), "remove should succeed for present values")
+  assert(!set.contains("a"), "removed values should not be contained")
+  set.remove("b")
+  assert(set.is_empty(), "set should report empty after clearing")
+}
+
+fn main() -> void {
+  check_inserts_and_iteration()
+  check_removals()
+}
+
+main()

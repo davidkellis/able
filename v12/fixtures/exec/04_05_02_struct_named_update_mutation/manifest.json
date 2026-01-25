@@ -1,0 +1,12 @@
+{
+  "description": "named struct literals with functional update vs in-place mutation",
+  "expect": {
+    "stdout": [
+      "base Ada 1 true",
+      "updated Ada 2 true",
+      "mutated Ada 11 false",
+      "updated_still Ada 2 true"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "description": "prints hello world via main",
+  "expect": {
+    "stdout": ["Hello, Able!"],
+    "exit": 0
+  }
+}

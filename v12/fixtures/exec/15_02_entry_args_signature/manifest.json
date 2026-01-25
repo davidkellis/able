@@ -1,0 +1,7 @@
+{
+  "description": "main signature uses explicit void and os.args returns CLI args",
+  "expect": {
+    "stdout": ["args 0"],
+    "exit": 0
+  }
+}

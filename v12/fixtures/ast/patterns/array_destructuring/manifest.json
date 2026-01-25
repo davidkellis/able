@@ -1,0 +1,10 @@
+{
+  "description": "Array destructuring assignment extracts prefix and rest",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "6"
+    }
+  },
+  "entry": "module.json"
+}

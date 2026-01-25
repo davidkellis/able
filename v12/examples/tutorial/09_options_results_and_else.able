@@ -1,0 +1,40 @@
+package results
+
+import able.kernel.{Array}
+import able.collections.array
+import able.core.interfaces.{Error}
+
+struct MathError { message: String }
+
+impl Error for MathError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn safe_div(num: i32, den: i32) -> MathError | i32 {
+  if den == 0 { return MathError { message: "division by zero" } }
+  num // den
+}
+
+fn ratio_sum(values: Array i32) -> MathError | i32 {
+  first := values.get(0) or { return MathError { message: "need two numbers" } }
+  second := values.get(1) or { return MathError { message: "need two numbers" } }
+  safe_div(first + second, second)!
+}
+
+fn greet(name: ?String) -> String {
+  actual := name or { "friend" }
+  `Hi, ${actual}`
+}
+
+fn main() -> void {
+  print(greet(nil))
+  print(greet("Able"))
+
+  numbers := [10, 2]
+  print(`ratio_sum => ${ratio_sum(numbers)}`)
+
+  missing: Array i32 := []
+  handled := ratio_sum(missing) or { err => `Handled error: ${err.message()}` }
+  print(handled)
+}

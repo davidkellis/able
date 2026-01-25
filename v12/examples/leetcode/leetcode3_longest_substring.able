@@ -1,0 +1,55 @@
+package leetcode3
+
+import able.kernel.{Array}
+import able.collections.array
+
+## Computes the length of the longest sequence of unique characters.
+## The input is an array of characters to avoid relying on String indexing.
+fn longest_unique_span(chars: Array char) -> i32 {
+  best := 0
+  size := chars.size()
+
+  start := 0
+  while start < size {
+    end := start
+    while end < size {
+      if has_duplicate(chars, start, end) {
+        break
+      }
+      length := end - start + 1
+      if length > best {
+        best = length
+      }
+      end = end + 1
+    }
+    start = start + 1
+  }
+
+  best
+}
+
+fn has_duplicate(chars: Array char, start: i32, end: i32) -> bool {
+  i := start
+  while i < end {
+    j := i + 1
+    while j <= end {
+      if chars[i] == chars[j] {
+        return true
+      }
+      j = j + 1
+    }
+    i = i + 1
+  }
+  false
+}
+
+fn show_span(chars: Array char) -> void {
+  length := longest_unique_span(chars)
+  print(`Input: ${chars} -> longest unique span length ${length}`)
+}
+
+fn main() -> void {
+  show_span(['a', 'b', 'c', 'a', 'b', 'c', 'b', 'b'])
+  show_span(['p', 'w', 'w', 'k', 'e', 'w'])
+  show_span(['a', 'b', 'a', 'b', 'b'])
+}

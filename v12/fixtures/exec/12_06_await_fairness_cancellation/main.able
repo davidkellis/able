@@ -1,0 +1,72 @@
+package exec_12_06_await_fairness_cancellation
+
+import able.concurrency.{Await}
+
+## Semantics: await selects ready arms fairly and cancellation aborts blocked awaits.
+
+struct Channel { handle: i32 }
+
+methods Channel {
+  fn send(self: Self, value) -> void { __able_channel_send(self.handle, value) }
+}
+
+fn make_channel(capacity: i32) -> Channel {
+  handle := __able_channel_new(capacity)
+  Channel { handle: handle }
+}
+
+fn await_recv(ch: Channel, cb) {
+  __able_channel_await_try_recv(ch.handle, cb)
+}
+
+fn status_name(status) -> String {
+  status match {
+    case Pending { } => "Pending",
+    case Resolved { } => "Resolved",
+    case Cancelled { } => "Cancelled",
+    case Failed { } => "Failed",
+    case _ => "Unknown"
+  }
+}
+
+fn main() -> void {
+  ch1 := make_channel(2)
+  ch2 := make_channel(2)
+  ch1.send("A1")
+  ch2.send("B1")
+  ch1.send("A2")
+  ch2.send("B2")
+
+  runner := spawn {
+    trace := ""
+    trace = trace + await [await_recv(ch1, { v => v }), await_recv(ch2, { v => v })]
+    trace = trace + await [await_recv(ch1, { v => v }), await_recv(ch2, { v => v })]
+    trace = trace + await [await_recv(ch1, { v => v }), await_recv(ch2, { v => v })]
+    trace = trace + await [await_recv(ch1, { v => v }), await_recv(ch2, { v => v })]
+    trace
+  }
+
+  default_runner := spawn {
+    await [Await.default({ => "idle" })]
+  }
+
+  future_flush()
+
+  trace := runner.value()
+  default_value := default_runner.value()
+  print(`trace ${trace}`)
+  print(`default ${default_value}`)
+
+  hits := 0
+  block_ch := make_channel(0)
+  blocker := spawn {
+    await [await_recv(block_ch, { v => do { hits = hits + 1; v } })]
+  }
+
+  future_flush()
+  blocker.cancel()
+  future_flush()
+
+  print(`cancel hits ${hits}`)
+  print(`cancel status ${status_name(blocker.status())}`)
+}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v11 Manual — Concurrency &amp; Async</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v11 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html" class="active">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>10. Concurrency &amp; Async</h1>
+        <p>
+          Able mirrors Go-style semantics with <code>spawn</code> futures,
+          channel/mutex primitives, and an <code>await</code> expression that
+          multiplexes <code>Awaitable</code>s (channels, timers, futures, sockets,
+          custom callbacks).
+        </p>
+        <h2 id="spawn">10.1 <code>spawn</code> (futures)</h2>
+        <pre><code class="language-able">handle: Future String = spawn fetch_data(url)
+
+future_flush(32) ## advance cooperative scheduler (TS runtime helper)
+
+handle.status() match {
+  case Pending =&gt; log("still fetching..."),
+  case Failed { error } =&gt; log(`fetch failed: ${error.message()}`),
+  case Cancelled =&gt; log("cancelled"),
+  case Resolved =&gt; void
+}
+
+body = handle.value() else { "fallback" }</code></pre>
+        <p>
+          <code>Future</code> exposes <code>status()</code>,
+          <code>value() -&gt; !T</code>, and <code>cancel()</code>. Inside async
+          bodies, use <code>future_yield()</code>, <code>future_cancelled()</code>,
+          <code>future_flush(limit?)</code>, and <code>future_pending_tasks()</code>
+          (diagnostic). Blocking operations must notice cancellation; nested
+          <code>value()</code> calls are re-entrant.
+        </p>
+        <h2 id="future">10.2 Future handle vs value view</h2>
+        <pre><code class="language-able">future_total: Future i64 = spawn sum_big_array(data)
+
+print("Computing...")
+total = future_total               ## blocks, re-raises task errors
+print(`Total: ${total}`)</code></pre>
+        <p>
+          Evaluating a <code>Future T</code> blocks and yields <code>T</code>.
+          Results are memoised; a handle also offers <code>status()</code> and
+          <code>value()</code>.
+        </p>
+        <h2 id="await">10.3 <code>await</code> &amp; <code>Awaitable</code></h2>
+        <p>
+          <code>await [arms...]</code> probes all arms, commits to a ready one,
+          and invokes its callback. Arms expose <code>is_ready</code>/<code>register</code>/<code>commit</code>; runtimes must choose fairly when multiple arms are ready and wake on cancellation.
+        </p>
+        <pre><code class="language-able">result = await [
+  ch.try_recv { msg =&gt; handle_msg(msg) },
+  ch2.try_send(packet) { true },
+  Await.sleep(2.seconds) { "timeout" },
+  Await.default { "idle" }
+]</code></pre>
+        <h2 id="channels">10.4 Channels &amp; Mutexes</h2>
+        <pre><code class="language-able">ch: Channel String = Channel.new(0)
+
+producer = spawn do {
+  for name in names { ch.send(name) }
+  ch.close()
+}
+
+for value in ch { print(`hello ${value}`) }</code></pre>
+        <ul>
+          <li>Channels block on send/receive, support <code>try_send</code>/<code>try_receive</code>, and return <code>nil</code> when closed and drained.</li>
+          <li>Await arms <code>try_recv</code>/<code>try_send</code> integrate with <code>await</code>.</li>
+          <li>Mutexes are non-reentrant; lock/unlock explicitly or wrap helpers to guarantee unlock. Errors include <code>MutexUnlocked</code> (and reserved <code>MutexPoisoned</code>), plus channel-specific errors (<code>ChannelClosed</code>, <code>ChannelNil</code>, <code>ChannelSendOnClosed</code>, <code>ChannelTimeout</code>).</li>
+        </ul>
+        <footer class="manual-footer">
+          Able v11 manual · Concurrency &amp; Async
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

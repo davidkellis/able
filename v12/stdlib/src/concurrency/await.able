@@ -1,0 +1,35 @@
+## Duration unit used by Await helpers (milliseconds).
+import able.kernel.{Awaitable::KernelAwaitable, AwaitWaker::KernelAwaitWaker, AwaitRegistration::KernelAwaitRegistration, __able_await_default, __able_await_sleep_ms}
+
+type Milliseconds = i64;
+
+## Re-export kernel await primitives under the stdlib namespace.
+type Awaitable Output = KernelAwaitable Output;
+type AwaitWaker = KernelAwaitWaker;
+type AwaitRegistration = KernelAwaitRegistration;
+
+struct Await {}
+
+methods Await {
+  fn default<R>(callback: fn() -> R) -> (Awaitable R) {
+    __able_await_default(callback)
+  }
+
+  fn sleep_ms<R>(duration: i64, callback: fn() -> R) -> (Awaitable R) {
+    __able_await_sleep_ms(duration, callback)
+  }
+
+  fn sleep<R>(duration: i64, callback: fn() -> R) -> (Awaitable R) {
+    Await.sleep_ms(duration, callback)
+  }
+}
+
+methods i64 {
+  fn milliseconds(self: Self) -> Milliseconds { self }
+  fn seconds(self: Self) -> Milliseconds { self * 1000 }
+}
+
+methods i32 {
+  fn milliseconds(self: Self) -> Milliseconds { self }
+  fn seconds(self: Self) -> Milliseconds { self * 1000 }
+}

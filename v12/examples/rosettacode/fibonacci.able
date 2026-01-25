@@ -1,0 +1,41 @@
+package rosettacode_fibonacci
+
+import able.kernel.{Array}
+import able.collections.array
+
+## Rosetta Code — Fibonacci sequence (https://rosettacode.org/wiki/Fibonacci_sequence)
+fn fib_sequence(count: i32) -> Array i32 {
+  seq: Array i32 = []
+
+  if count <= 0 {
+    return seq
+  }
+
+  seq.push(0)
+  if count == 1 {
+    return seq
+  }
+
+  seq.push(1)
+  i := 2
+  while i < count {
+    next_value := seq[i - 1] + seq[i - 2]
+    seq.push(next_value)
+    i = i + 1
+  }
+
+  seq
+}
+
+fn show_sequence(count: i32) -> void {
+  seq := fib_sequence(count)
+  print(`First ${count} Fibonacci numbers:`)
+  print(seq)
+  print("")
+}
+
+fn main() -> void {
+  show_sequence(15)
+  show_sequence(1)
+  show_sequence(0)
+}

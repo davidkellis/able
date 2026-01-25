@@ -1,0 +1,14 @@
+interface Mapper <T> for F _
+{
+  fn wrap (self: Self T, value: T) -> Self T
+}
+struct Array <T> {
+
+}
+impl Mapper i32 for Array i32
+{
+  fn wrap(self: Array i32, value: i32) -> Array i32 {
+    self;
+  }
+}
+nil;

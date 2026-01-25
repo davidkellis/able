@@ -1,0 +1,9 @@
+{
+  "description": "package.yml name controls root package; preludes parse at package scope",
+  "expect": {
+    "stdout": [
+      "banner ok"
+    ],
+    "exit": 0
+  }
+}

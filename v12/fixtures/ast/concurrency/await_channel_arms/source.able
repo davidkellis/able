@@ -1,0 +1,13 @@
+ch := __able_channel_new(0);
+receiver_result := "pending";
+sender_result := "pending";
+receiver := spawn {
+  receiver_result = await [__able_channel_await_try_recv(ch, { v => v})];
+  receiver_result;
+};
+sender := spawn {
+  sender_result = await [__able_channel_await_try_send(ch, "payload", { => "sent"})];
+  sender_result;
+};
+future_flush();
+[receiver_result, sender_result, receiver.value(), sender.value()];

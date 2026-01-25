@@ -1,0 +1,10 @@
+{
+  "description": "future_pending_tasks exposes cooperative executor queue state",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "module.json"
+}

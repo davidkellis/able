@@ -1,0 +1,43 @@
+package able
+
+## Core Standard Library Interfaces
+
+## Error Handling (`Error`)
+## Essential for !Type shorthand (T | Error) and raise/rescue.
+interface Error for T {
+  fn #message() -> String
+
+  ## Optional: fn cause(self: Self) -> ?Error;
+  ## Optional: fn stacktrace(self: Self) -> ?Stacktrace; ## Requires Stacktrace type
+}
+
+## Display (`Display`)
+## Used for String conversion, especially in interpolation `${...}`.
+interface Display for T {
+  fn #to_string() -> String
+}
+
+## Cloning (`Clone`)
+## For creating copies of values.
+interface Clone for T {
+  fn #clone() -> Self
+}
+
+## Hashing (`Hash`)
+## Required for keys in hash maps/sets. Requires Eq.
+interface Hash for T {
+  fn #hash(hasher: Hasher) -> u64;
+}
+
+## Default Values (`Default`)
+## For creating a default instance of a type.
+interface Default for T {
+  fn default() -> Self;
+}
+
+## Ordering Enum (Used by Comparison Interfaces)
+## Represents the result of a comparison.
+struct Less;
+struct Equal;
+struct Greater;
+union Ordering = Less | Equal | Greater;

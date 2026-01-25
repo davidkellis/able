@@ -1,0 +1,14 @@
+package exec_04_06_04_union_guarded_match_exhaustive_diag
+
+## Semantics: match without a clause for every union variant is a runtime error.
+
+struct Alpha {}
+struct Beta {}
+union Choice = Alpha | Beta
+
+fn main() -> void {
+  value: Choice = Beta
+  value match {
+    case Alpha => "a"
+  }
+}

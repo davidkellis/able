@@ -1,0 +1,32 @@
+package exec_07_01_function_definition_generics_inference
+
+## Semantics: function definitions infer generics from signatures when omitted, and return
+## types come from the final expression if no annotation is provided.
+
+struct Pair A B { left: A, right: B }
+
+fn choose_first(first: T, second: U) -> T { first }
+
+fn choose_second(first: T, second: U) { second }
+
+fn swap<T, U>(first: T, second: U) -> Pair U T {
+  Pair U T { left: second, right: first }
+}
+
+fn wrap<T>(value: T) -> Pair T T { Pair T T { left: value, right: value } }
+
+fn make_pair(left: A, right: B) { Pair A B { left: left, right: right } }
+
+fn main() -> void {
+  first := choose_first(1, "two")
+  second := choose_second(1, "two")
+  swapped := swap<i32, String>(first, "hi")
+  wrapped := wrap(second)
+  pair := make_pair(true, 42)
+
+  print(`first ${first}`)
+  print(`second ${second}`)
+  print(`swap ${swapped.left} ${swapped.right}`)
+  print(`wrap ${wrapped.left} ${wrapped.right}`)
+  print(`pair ${pair.left} ${pair.right}`)
+}

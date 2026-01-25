@@ -1,0 +1,9 @@
+{
+  "description": "Typed pattern mismatch raises error",
+  "expect": {
+    "errors": [
+      "Typed pattern mismatch in assignment: expected i32, got String"
+    ]
+  },
+  "entry": "module.json"
+}

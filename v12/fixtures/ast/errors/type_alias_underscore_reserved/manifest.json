@@ -1,0 +1,12 @@
+{
+  "description": "Type alias name '_' is reserved",
+  "expect": {
+    "errors": [
+      "type alias name '_' is reserved"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/ast/errors/type_alias_underscore_reserved/source.able:1:1 typechecker: type alias name '_' is reserved"
+    ]
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,9 @@
+{
+  "description": "named impl defaults can call inherent methods",
+  "expect": {
+    "stdout": [
+      "inherent-9"
+    ],
+    "exit": 0
+  }
+}

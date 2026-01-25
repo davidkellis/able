@@ -1,0 +1,38 @@
+package persistent_queue_specs
+
+import able.spec.*
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.persistent_queue.{PersistentQueue}
+
+describe("PersistentQueue") { suite =>
+  suite.it("enqueues and peeks") { _ctx =>
+    queue: PersistentQueue i32 := PersistentQueue.empty()
+    queue = queue.enqueue(1)
+    queue = queue.enqueue(2)
+    queue = queue.enqueue(3)
+
+    expect(queue.len()).to(eq(3))
+    expect(queue.peek()).to(eq(1))
+  }
+
+  suite.it("dequeues without mutating previous versions") { _ctx =>
+    queue: PersistentQueue String := PersistentQueue.empty()
+    queue = queue.enqueue("a").enqueue("b").enqueue("c")
+    next := queue.dequeue()
+
+    expect(next.len()).to(eq(2))
+    expect(next.peek()).to(eq("b"))
+    expect(queue.peek()).to(eq("a"))
+  }
+
+  suite.it("iterates values in FIFO order") { _ctx =>
+    queue: PersistentQueue i32 := PersistentQueue.empty()
+    queue = queue.enqueue(10).enqueue(20).enqueue(30)
+
+    acc: Array i32 := Array.new()
+    queue.each(fn(value: i32) -> void { acc.push(value) })
+    expect(acc.get(0)).to(eq(10))
+    expect(acc.get(2)).to(eq(30))
+  }
+}

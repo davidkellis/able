@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v11 Manual — Pattern Matching &amp; Unions</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v11 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="pattern-matching.html" class="active">Pattern Matching &amp; Unions</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>7. Pattern Matching &amp; Unions</h1>
+        <p>
+          <code>union</code> introduces algebraic data types. Shorthands:
+          <code>?T</code> equals <code>nil | T</code>; <code>!T</code> is
+          <code>Error | T</code> (or nested with <code>nil</code> when combined).
+        </p>
+        <pre><code class="language-able">union Shape =
+    Circle { radius: f64 }
+  | Rectangle { width: f64, height: f64 }
+  | Triangle { a: f64, b: f64, c: f64 }
+
+area = shape match {
+  case Circle { radius } =&gt; 3.141592653589793 * radius * radius,
+  case Rectangle { width, height } =&gt; width * height,
+  case Triangle { a, b, c } =&gt; {
+    s = (a + b + c) / 2.0
+    (s * (s - a) * (s - b) * (s - c)).sqrt()
+  }
+}</code></pre>
+        <h2 id="patterns">7.1 Match Semantics</h2>
+        <ul>
+          <li>Patterns can bind fields, destructure arrays, and assert types.</li>
+          <li>Guards: <code>case v: i32 if v &gt; 0 =&gt; ...</code>.</li>
+          <li>Matching on interface types uses the runtime impl dictionary.</li>
+          <li>Non-exhaustive matches raise at runtime; cover every variant or add a catch-all.</li>
+        </ul>
+        <h2 id="option-result">7.2 Options &amp; Results in Matches</h2>
+        <p>
+          Use <code>else</code> to handle <code>nil</code>/<code>Error</code>
+          without a full <code>match</code> (see Error Handling):
+        </p>
+        <pre><code class="language-able">username = maybe_name else { "guest" }
+
+config = load_config() else { |err|
+  log(`using anonymous mode: ${err.message()}`)
+  default_config()
+}</code></pre>
+        <footer class="manual-footer">
+          Able v11 manual · Pattern Matching &amp; Unions
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

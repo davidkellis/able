@@ -1,0 +1,101 @@
+{
+  "type": "Module",
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "alias_reexport_method_ambiguity_base"
+        }
+      ],
+      "selectors": [
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "Widget"
+          }
+        }
+      ],
+      "isWildcard": false
+    },
+  {
+    "type": "ImportStatement",
+    "packagePath": [
+      {
+        "type": "Identifier",
+        "name": "alias_reexport_method_ambiguity_a"
+      }
+    ],
+    "isWildcard": true
+  },
+  {
+    "type": "ImportStatement",
+    "packagePath": [
+      {
+        "type": "Identifier",
+        "name": "alias_reexport_method_ambiguity_b"
+      }
+    ],
+    "isWildcard": true
+  }
+  ],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "left": {
+        "type": "Identifier",
+        "name": "w"
+      },
+      "operator": ":=",
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Widget"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "value"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "w"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "tag"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    }
+  ],
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      {
+        "type": "Identifier",
+        "name": "alias_reexport_method_ambiguity_main"
+      }
+    ],
+    "isPrivate": false
+  }
+}

@@ -1,0 +1,41 @@
+package exec_04_01_type_inference_constraints
+
+## Semantics: call-site inference binds generic parameters; constraints via inline or where clauses are enforced.
+
+interface Describable {
+  fn describe(self: Self) -> String
+}
+
+struct Item { label: String }
+
+impl Describable for Item {
+  fn describe(self: Item) -> String { `Item:${self.label}` }
+}
+
+struct Count { n: i32 }
+
+impl Describable for Count {
+  fn describe(self: Count) -> String { `Count:${self.n}` }
+}
+
+struct Pair T { left: T, right: T }
+
+fn make_pair<T>(left: T, right: T) -> Pair T {
+  Pair T { left: left, right: right }
+}
+
+fn describe_pair<T>(pair: Pair T) -> String
+  where T: Describable {
+  `${pair.left.describe()} & ${pair.right.describe()}`
+}
+
+fn identity<T>(value: T) -> T { value }
+
+fn main() -> void {
+  items := make_pair(Item { label: "a" }, Item { label: "b" })
+  counts := make_pair(Count { n: 3 }, Count { n: 4 })
+
+  print(describe_pair(items))
+  print(describe_pair(counts))
+  print(`id ${identity<i32>(42)}`)
+}

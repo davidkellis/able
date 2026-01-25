@@ -1,0 +1,88 @@
+package lazy_seq_tests
+
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.lazy_seq.{LazySeq}
+import able.core.iteration.{Iterator, IteratorEnd}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise message }
+  }
+}
+
+struct LazySeqSmokeIterator {
+  values: Array i32,
+  index: i32,
+  pulls: Array i32
+}
+
+impl Iterator i32 for LazySeqSmokeIterator {
+  fn next(self: Self) -> i32 | IteratorEnd {
+    if self.index >= self.values.len() {
+      return IteratorEnd {}
+    }
+    self.pulls.push(self.index)
+    value := self.values.read_slot(self.index)
+    self.index = self.index + 1
+    value
+  }
+}
+
+fn make_iterator(values: Array i32, pulls: Array i32) -> LazySeqSmokeIterator {
+  LazySeqSmokeIterator { values: values, index: 0, pulls: pulls }
+}
+
+fn check_lazy_pulls() -> void {
+  values := Array.new()
+  values.push(1)
+  values.push(2)
+  values.push(3)
+  pulls := Array.new()
+
+  seq := LazySeq.from_iterator(make_iterator(values, pulls))
+  expect_i32(seq.get(0), 1, "first pull yields the head value")
+  assert(pulls.len() == 1, "first access pulls one element")
+
+  expect_i32(seq.get(0), 1, "cached value is reused")
+  assert(pulls.len() == 1, "cached fetch does not pull again")
+
+  expect_i32(seq.get(1), 2, "second pull yields the next value")
+  assert(pulls.len() == 2, "second access pulls once more")
+}
+
+fn check_iteration_and_arrays() -> void {
+  values := Array.new()
+  values.push(10)
+  values.push(20)
+  values.push(30)
+  pulls := Array.new()
+
+  seq := LazySeq.from_iterator(make_iterator(values, pulls))
+  taken := seq.take(2)
+  assert(taken.len() == 2, "take returns the requested slice length")
+  assert(pulls.len() == 2, "take pulls only requested elements")
+
+  arr := seq.to_array()
+  assert(arr.len() == 3, "to_array preserves cached elements")
+  assert(pulls.len() == 3, "to_array pulls remaining elements once")
+
+  total := 0
+  for value in arr {
+    total = total + value
+  }
+  assert(total == 60, "array preserves every value")
+}
+
+fn main() -> void {
+  check_lazy_pulls()
+  check_iteration_and_arrays()
+}
+
+main()

@@ -1,0 +1,8 @@
+package exec_15_02_entry_args_signature
+import able.os::os
+
+## Semantics: `main` is zero-arg/void and CLI args are accessed via os.args().
+fn main() -> void {
+  args := os.args()
+  print(`args ${args.len()}`)
+}

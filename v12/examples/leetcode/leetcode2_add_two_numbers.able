@@ -1,0 +1,39 @@
+package leetcode2
+
+import able.kernel.{Array}
+import able.collections.array
+
+## Adds two numbers encoded as reversed digit arrays.
+## Each array stores the least-significant digit first.
+fn add_digits(lhs: Array i32, rhs: Array i32) -> Array i32 {
+  result := []
+  carry := 0
+
+  i := 0
+  left_len := lhs.size()
+  right_len := rhs.size()
+
+  while i < left_len || i < right_len || carry > 0 {
+    left_digit := if i < left_len { lhs[i] } else { 0 }
+    right_digit := if i < right_len { rhs[i] } else { 0 }
+
+    sum := left_digit + right_digit + carry
+    result.push(sum % 10)
+    carry = sum // 10
+
+    i = i + 1
+  }
+
+  result
+}
+
+fn show_sum(lhs: Array i32, rhs: Array i32) -> void {
+  total := add_digits(lhs, rhs)
+  print(`lhs: ${lhs}, rhs: ${rhs} -> ${total}`)
+}
+
+fn main() -> void {
+  show_sum([2, 4, 3], [5, 6, 4])    ## 342 + 465 = 807 -> [7,0,8]
+  show_sum([0], [0])                ## 0 + 0
+  show_sum([9, 9, 9], [9, 9, 9])    ## 999 + 999
+}

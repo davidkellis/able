@@ -1,0 +1,64 @@
+package exec_14_02_hash_eq_custom
+
+import able.kernel.{HashMap, Hash, Eq, Hasher}
+
+struct Key { id: i32 }
+
+impl Hash for Key {
+  fn hash(self: Self, hasher: Hasher) -> void {
+    hasher.write_i32(self.id)
+  }
+}
+
+impl Eq for Key {
+  fn eq(self: Self, other: Self) -> bool { self.id == other.id }
+}
+
+struct CollisionKey { id: i32 }
+
+impl Hash for CollisionKey {
+  fn hash(self: Self, hasher: Hasher) -> void {
+    hasher.write_u64(1_u64)
+  }
+}
+
+impl Eq for CollisionKey {
+  fn eq(self: Self, other: Self) -> bool { self.id == other.id }
+}
+
+fn main() -> void {
+  map: HashMap Key i32 := HashMap.new()
+  map.raw_set(Key { id: 1 }, 10)
+  map.raw_set(Key { id: 2 }, 20)
+
+  sum := 0
+  map.raw_get(Key { id: 1 }) match {
+    case value: i32 => { sum = sum + value },
+    case _ => {}
+  }
+  map.raw_get(Key { id: 2 }) match {
+    case value: i32 => { sum = sum + value },
+    case _ => {}
+  }
+  print(`custom_hash ${sum == 30}`)
+
+  collisions: HashMap CollisionKey String := HashMap.new()
+  collisions.raw_set(CollisionKey { id: 1 }, "first")
+  collisions.raw_set(CollisionKey { id: 2 }, "second")
+
+  score := 0
+  if collisions.raw_size() == 2 { score = score + 1 }
+  collisions.raw_get(CollisionKey { id: 1 }) match {
+    case value: String => {
+      if value == "first" { score = score + 1 }
+    },
+    case _ => {}
+  }
+  collisions.raw_get(CollisionKey { id: 2 }) match {
+    case value: String => {
+      if value == "second" { score = score + 1 }
+    },
+    case _ => {}
+  }
+  print(`collision ${score == 3}`)
+}

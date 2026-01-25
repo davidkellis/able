@@ -1,0 +1,351 @@
+package vector
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Default, Extend}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+
+private fn branch_bits() -> i32 { 5 }
+private fn branch_size() -> i32 { 32 }
+private fn branch_mask() -> i32 { 31 }
+
+struct VectorSlotEmpty {}
+struct VectorSlotNode T { node: VectorNode T }
+struct VectorSlotLeaf T { values: Array T }
+
+union VectorSlot T = VectorSlotEmpty | VectorSlotNode T | VectorSlotLeaf T
+
+struct VectorNode T {
+  slots: Array (VectorSlot T)
+}
+
+struct Vector T {
+  count: i32,
+  shift: i32,
+  root: VectorNode T,
+  tail: Array T,
+  tail_len: i32
+}
+
+struct VectorIterator T {
+  vector: Vector T,
+  index: i32
+}
+
+fn vector_slot_empty<T>() -> VectorSlot T { VectorSlotEmpty {} }
+fn vector_slot_node<T>(node: VectorNode T) -> VectorSlot T { VectorSlotNode { node: node } }
+fn vector_slot_leaf<T>(values: Array T) -> VectorSlot T { VectorSlotLeaf { values: values } }
+
+fn vector_node_new<T>() -> VectorNode T {
+  slots := Array.with_capacity(branch_size())
+  idx := 0
+  loop {
+    if idx >= branch_size() { break }
+    slots.write_slot(idx, vector_slot_empty())
+    idx = idx + 1
+  }
+  VectorNode { slots: slots }
+}
+
+fn vector_node_clone<T>(node: VectorNode T) -> VectorNode T {
+  cloned := Array.with_capacity(branch_size())
+  idx := 0
+  loop {
+    if idx >= branch_size() { break }
+    cloned.write_slot(idx, node.slots.read_slot(idx))
+    idx = idx + 1
+  }
+  VectorNode { slots: cloned }
+}
+
+fn vector_node_is_empty<T>(node: VectorNode T) -> bool {
+  idx := 0
+  loop {
+    if idx >= branch_size() { break }
+    slot := node.slots.read_slot(idx)
+    if !(slot match { case _: VectorSlotEmpty => true, case _ => false }) { return false }
+    idx = idx + 1
+  }
+  true
+}
+
+fn vector_node_population<T>(node: VectorNode T) -> i32 {
+  total := 0
+  idx := 0
+  loop {
+    if idx >= branch_size() { break }
+    slot := node.slots.read_slot(idx)
+    slot match {
+      case _: VectorSlotEmpty => {},
+      case _ => total = total + 1
+    }
+    idx = idx + 1
+  }
+  total
+}
+
+fn tail_offset_for(count: i32) -> i32 {
+  if count < branch_size() { 0 } else { ((count - 1) .>> branch_bits()) .<< branch_bits() }
+}
+
+fn tail_length_for(count: i32) -> i32 {
+  if count <= 0 { 0 } else { count - tail_offset_for(count) }
+}
+
+fn copy_values<T>(source: Array T, length: i32) -> Array T {
+  dest := Array.with_capacity(branch_size())
+  idx := 0
+  loop {
+    if idx >= length { break }
+    dest.write_slot(idx, source.read_slot(idx))
+    idx = idx + 1
+  }
+  dest
+}
+
+fn vector_array_for_node<T>(node: VectorNode T, level: i32, index: i32) -> Array T {
+  shift_amount := if level <= 0 { 0 } else { level }
+  slot_idx := (index .>> shift_amount) .& branch_mask()
+  slot := node.slots.read_slot(slot_idx)
+  if level <= branch_bits() {
+    slot match {
+      case leaf: VectorSlotLeaf T => leaf.values,
+      case child_slot: VectorSlotNode T => vector_array_for_node(child_slot.node, level - branch_bits(), index),
+      case _: VectorSlotEmpty => Array.with_capacity(0)
+    }
+  } else {
+    slot match {
+      case child_slot: VectorSlotNode T => vector_array_for_node(child_slot.node, level - branch_bits(), index),
+      case leaf: VectorSlotLeaf T => leaf.values,
+      case _: VectorSlotEmpty => Array.with_capacity(0)
+    }
+  }
+}
+
+fn vector_array_for<T>(vector: Vector T, index: i32) -> Array T {
+  if index >= vector.count || index < 0 {
+    return Array.with_capacity(0)
+  }
+  if index >= tail_offset_for(vector.count) {
+    vector.tail
+  } else {
+    vector_array_for_node(vector.root, vector.shift, index)
+  }
+}
+
+fn new_vector_path<T>(level: i32, leaf: Array T) -> VectorNode T {
+  if level == branch_bits() {
+    node := vector_node_new()
+    node.slots.write_slot(0, vector_slot_leaf(leaf))
+    node
+  } else {
+    child := new_vector_path(level - branch_bits(), leaf)
+    node := vector_node_new()
+    node.slots.write_slot(0, vector_slot_node(child))
+    node
+  }
+}
+
+fn push_tail_recursive<T>(level: i32, parent: VectorNode T, count: i32, tail_node: Array T) -> VectorNode T {
+  idx := ((count .>> level) .& branch_mask())
+  cloned := vector_node_clone(parent)
+  if level == branch_bits() {
+    cloned.slots.write_slot(idx, vector_slot_leaf(tail_node))
+    cloned
+  } else {
+    slot := parent.slots.read_slot(idx)
+    child := slot match {
+      case node_slot: VectorSlotNode T => node_slot.node,
+      case _ => new_vector_path(level - branch_bits(), tail_node)
+    }
+    updated := push_tail_recursive(level - branch_bits(), child, count, tail_node)
+    cloned.slots.write_slot(idx, vector_slot_node(updated))
+    cloned
+  }
+}
+
+fn assoc_node<T>(level: i32, node: VectorNode T, index: i32, value: T) -> VectorNode T {
+  cloned := vector_node_clone(node)
+  slot_idx := (index .>> level) .& branch_mask()
+  slot := node.slots.read_slot(slot_idx)
+  if level == branch_bits() {
+    leaf := slot match {
+      case leaf_slot: VectorSlotLeaf T => leaf_slot.values,
+      case _ => Array.with_capacity(branch_size())
+    }
+    new_leaf := copy_values(leaf, branch_size())
+    new_leaf.write_slot(index .& branch_mask(), value)
+    cloned.slots.write_slot(slot_idx, vector_slot_leaf(new_leaf))
+  } else {
+    child := slot match {
+      case node_slot: VectorSlotNode T => node_slot.node,
+      case _ => vector_node_new()
+    }
+    updated_child := assoc_node(level - branch_bits(), child, index, value)
+    cloned.slots.write_slot(slot_idx, vector_slot_node(updated_child))
+  }
+  cloned
+}
+
+fn pop_tail_recursive<T>(level: i32, node: VectorNode T, count: i32) -> VectorNode T {
+  idx := ((count .>> level) .& branch_mask())
+  cloned := vector_node_clone(node)
+  if level > branch_bits() {
+    slot := node.slots.read_slot(idx)
+    slot match {
+      case child_slot: VectorSlotNode T => {
+        new_child := pop_tail_recursive(level - branch_bits(), child_slot.node, count)
+        if vector_node_is_empty(new_child) {
+          cloned.slots.write_slot(idx, vector_slot_empty())
+        } else {
+          cloned.slots.write_slot(idx, vector_slot_node(new_child))
+        }
+      },
+      case _ => cloned.slots.write_slot(idx, vector_slot_empty())
+    }
+  } else {
+    cloned.slots.write_slot(idx, vector_slot_empty())
+  }
+  cloned
+}
+
+fn vector_empty<T>() -> Vector T {
+  Vector {
+    count: 0,
+    shift: branch_bits(),
+    root: vector_node_new(),
+    tail: Array.with_capacity(branch_size()),
+    tail_len: 0
+  }
+}
+
+methods Vector T {
+  fn new() -> Vector T { vector_empty() }
+
+  fn len(self: Self) -> i32 { self.count }
+
+  fn is_empty(self: Self) -> bool { self.count == 0 }
+
+  fn tail_offset(self: Self) -> i32 { tail_offset_for(self.count) }
+
+  fn get(self: Self, index: i32) -> ?T {
+    if index < 0 || index >= self.count { return nil }
+    if index >= self.tail_offset() {
+      return self.tail.read_slot(index .& branch_mask())
+    } else {
+      chunk := vector_array_for(self, index)
+      return chunk.read_slot(index .& branch_mask())
+    }
+  }
+
+  fn first(self: Self) -> ?T { self.get(0) }
+
+  fn last(self: Self) -> ?T {
+    if self.count == 0 { nil } else { self.get(self.count - 1) }
+  }
+
+  fn set(self: Self, index: i32, value: T) -> Vector T {
+    if index < 0 || index >= self.count { return self }
+    if index >= self.tail_offset() {
+      new_tail := copy_values(self.tail, self.tail_len);
+      new_tail.write_slot(index .& branch_mask(), value);
+      Vector { count: self.count, shift: self.shift, root: self.root, tail: new_tail, tail_len: self.tail_len }
+    } else {
+      new_root := assoc_node(self.shift, self.root, index, value);
+      Vector { count: self.count, shift: self.shift, root: new_root, tail: self.tail, tail_len: self.tail_len }
+    }
+  }
+
+  fn push(self: Self, value: T) -> Vector T {
+    if self.tail_len < branch_size() {
+      new_tail := copy_values(self.tail, self.tail_len);
+      new_tail.write_slot(self.tail_len, value);
+      Vector { count: self.count + 1, shift: self.shift, root: self.root, tail: new_tail, tail_len: self.tail_len + 1 }
+    } else {
+      tail_node := copy_values(self.tail, branch_size());
+      new_shift := self.shift
+      new_root := self.root
+      if ((self.count .>> branch_bits()) > (1 .<< self.shift)) {
+        elevated := vector_node_new()
+        elevated.slots.write_slot(0, vector_slot_node(self.root))
+        elevated.slots.write_slot(1, vector_slot_node(new_vector_path(self.shift, tail_node)))
+        new_root = elevated
+        new_shift = self.shift + branch_bits()
+      } else {
+        new_root = push_tail_recursive(self.shift, self.root, self.count - 1, tail_node)
+      }
+      fresh_tail := Array.with_capacity(branch_size());
+      fresh_tail.write_slot(0, value);
+      Vector { count: self.count + 1, shift: new_shift, root: new_root, tail: fresh_tail, tail_len: 1 }
+    }
+  }
+
+  fn pop(self: Self) -> Vector T {
+    if self.count == 0 { return self }
+    if self.count == 1 { return vector_empty() }
+    if self.tail_len > 1 {
+      new_tail := copy_values(self.tail, self.tail_len - 1)
+      return Vector { count: self.count - 1, shift: self.shift, root: self.root, tail: new_tail, tail_len: self.tail_len - 1 }
+    }
+
+    new_count := self.count - 1
+    new_tail_len := tail_length_for(new_count)
+    new_tail_chunk := vector_array_for(self, new_count - 1)
+    new_tail := copy_values(new_tail_chunk, new_tail_len)
+
+    new_root := pop_tail_recursive(self.shift, self.root, new_count - 1)
+    new_shift := self.shift
+    if self.shift > branch_bits() && vector_node_population(new_root) == 1 {
+      first_slot := new_root.slots.read_slot(0)
+      first_slot match {
+        case child_slot: VectorSlotNode T => {
+          new_root = child_slot.node
+          new_shift = self.shift - branch_bits()
+        },
+        case _ => {}
+      }
+    }
+    Vector { count: new_count, shift: new_shift, root: new_root, tail: new_tail, tail_len: new_tail_len }
+  }
+}
+
+impl Default for Vector T {
+  fn default() -> Vector T { Vector.new() }
+}
+
+impl Extend T for Vector T {
+  fn extend(self: Self, value: T) -> Self {
+    self.push(value)
+  }
+}
+
+impl Iterator T for VectorIterator T {
+  fn next(self: Self) -> T | IteratorEnd {
+    if self.index >= self.vector.count { return IteratorEnd {} }
+    self.vector.get(self.index) match {
+      case nil => IteratorEnd {},
+      case v: T => {
+        self.index = self.index + 1
+        v
+      }
+    }
+  }
+}
+
+impl Enumerable A for Vector {
+  fn each(self: Self, visit: A -> void) -> void {
+    idx := 0
+    loop {
+      if idx >= self.count { break }
+      self.get(idx) match {
+        case nil => {},
+        case value: A => visit(value)
+      }
+      idx = idx + 1
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
+    VectorIterator { vector: self, index: 0 }
+  }
+}

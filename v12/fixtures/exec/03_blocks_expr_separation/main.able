@@ -1,0 +1,34 @@
+package exec_03_blocks_expr_separation
+
+## Semantics: newlines/semicolons separate expressions, last expression is block value, inner bindings are scoped.
+
+fn choose(flag: bool) -> i32 {
+  do {
+    left := 2
+    right := 3; sum := left + right
+    if flag { sum } else { sum + 10 }
+  }
+}
+
+fn main() -> void {
+  outer := 50
+
+  from_newlines := do {
+    base := 4
+    base * 2
+  }
+
+  shadowed := do {
+    outer := 7
+    outer + 1
+  }
+
+  res_true := choose(true)
+  res_false := choose(false)
+
+  print(`newlines ${from_newlines}`)
+  print(`shadowed ${shadowed}`)
+  print(`outer ${outer}`)
+  print(`semicolons ${res_true}`)
+  print(`semicolons_else ${res_false}`)
+}

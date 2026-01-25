@@ -1,0 +1,236 @@
+{
+  "basics/bool_literal": [],
+  "basics/char_literal": [],
+  "basics/nil_literal": [],
+  "basics/String_literal": [],
+  "concurrency/await_channel_arms": [],
+  "concurrency/await_channel_fairness": [],
+  "concurrency/await_channel_receive_cancel": [],
+  "concurrency/await_channel_send_cancel": [],
+  "concurrency/await_mutex_cancel": [],
+  "concurrency/await_timer_default": [],
+  "concurrency/channel_basic_ops": [],
+  "concurrency/channel_error_rescue": [],
+  "concurrency/channel_nil_receive_cancel": [],
+  "concurrency/channel_nil_send_cancel": [],
+  "concurrency/channel_receive_loop": [],
+  "concurrency/channel_send_on_closed_error": [],
+  "concurrency/channel_send_receive_progress": [],
+  "concurrency/fairness_future_interleaving": [],
+  "concurrency/fairness_future_round_robin": [],
+  "concurrency/future_cancel_value": [],
+  "concurrency/future_cancelled_helper": [],
+  "concurrency/future_cancelled_outside_error": [],
+  "concurrency/future_cancel_nested": [],
+  "concurrency/future_error_cause": [],
+  "concurrency/future_executor_diagnostics": [],
+  "concurrency/future_flush_fairness": [],
+  "concurrency/future_memoization": [],
+  "concurrency/future_time_slicing": [],
+  "concurrency/future_value_cancel_memoization": [],
+  "concurrency/future_value_memoization": [],
+  "concurrency/future_value_reentrancy": [],
+  "concurrency/future_yield_flush": [],
+  "concurrency/mutex_contention": [],
+  "concurrency/mutex_locking": [],
+  "control/for_continue": [],
+  "control/for_range_break": [],
+  "control/for_sum": [],
+  "control/if_else_branch": [],
+  "control/if_or_else": [],
+  "control/if_stdout": [],
+  "control/iterator_annotation_binding": [],
+  "control/iterator_for_body_next": [],
+  "control/iterator_for_loop": [],
+  "control/iterator_if_match": [],
+  "control/iterator_lazy_next": [],
+  "control/iterator_stop_next": [],
+  "control/iterator_while_loop": [],
+  "control/loop_expression": [],
+  "control/range_inclusive": [],
+  "control/while_sum": [],
+  "errors/alias_reexport_impl_ambiguity": [
+    "typechecker: v11/fixtures/ast/errors/alias_reexport_impl_ambiguity/source.able:8:1 typechecker: ambiguous implementations of Taggable for Widget: impl Taggable for Widget"
+  ],
+  "errors/alias_reexport_method_ambiguity": [
+    "typechecker: v11/fixtures/ast/errors/alias_reexport_method_ambiguity/source.able:8:1 typechecker: ambiguous overload for tag"
+  ],
+  "errors/ambiguous_impl_generic_concrete": [
+    "typechecker: v11/fixtures/ast/errors/ambiguous_impl_generic_concrete/source.able:41:3 typechecker: ambiguous implementations of Show for Wrapper Unknown: impl Show for Wrapper T"
+  ],
+  "errors/array_destructure_mismatch": [],
+  "errors/array_destructure_short": [],
+  "errors/bitshift_out_of_range": [],
+  "errors/builtin_type_arity": [
+    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:1:21 typechecker: type 'Array' expects 1 type argument(s), got 0",
+    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:3:19 typechecker: type 'Map' expects 2 type argument(s), got 1",
+    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:5:21 typechecker: type 'Mutex' expects 0 type argument(s), got 1"
+  ],
+  "errors/constraint_interface_arity": [
+    "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:15 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
+    "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:16 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1"
+  ],
+  "errors/ensure_runs": [],
+  "errors/generic_constraint_unsatisfied": [
+    "typechecker: v11/fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+  ],
+  "errors/generic_type_mismatch": [
+    "typechecker: v11/fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
+  ],
+  "errors/implicit_generic_redeclaration": [
+    "typechecker: v11/fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at v11/fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)"
+  ],
+  "errors/implicit_generic_where_ambiguity": [
+    "typechecker: v11/fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:53 typechecker: fn format_point constraint on Point is not satisfied: Point does not implement Show"
+  ],
+  "errors/interface_hkt_constructor_mismatch": [
+    "typechecker: v11/fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
+  ],
+  "errors/interface_missing_method": [
+    "typechecker: v11/fixtures/ast/errors/interface_missing_method/source.able:13:3 typechecker: fn use constraint on T is not satisfied: Widget does not implement Greeter"
+  ],
+  "errors/interface_self_pattern_mismatch": [
+    "typechecker: v11/fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
+  ],
+  "errors/logic_operand_type": [],
+  "errors/method_scope_missing_import": [],
+  "errors/method_set_where_constraint": [
+    "typechecker: v11/fixtures/ast/errors/method_set_where_constraint/source.able:16:1 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
+  ],
+  "errors/or_else_handler": [],
+  "errors/partial_application_arity": [
+    "typechecker: v11/fixtures/ast/errors/partial_application_arity/source.able:6:10 typechecker: function expects 1 arguments, got 2"
+  ],
+  "errors/raise_manifest": [],
+  "errors/range_non_numeric": [
+    "typechecker: v11/fixtures/ast/errors/range_non_numeric/source.able:1:1 typechecker: range start must be numeric"
+  ],
+  "errors/rescue_catch": [],
+  "errors/rescue_guard": [],
+  "errors/rescue_typed_pattern": [],
+  "errors/result_error_accessors": [],
+  "errors/struct_destructure_mismatch": [],
+  "errors/struct_functional_update_positional": [
+    "typechecker: v11/fixtures/ast/errors/struct_functional_update_positional/source.able:3:25 typechecker: struct 'Pair' has no field 'x'"
+  ],
+  "errors/struct_functional_update_source": [
+    "typechecker: v11/fixtures/ast/errors/struct_functional_update_source/source.able:5:23 typechecker: functional update expects struct Point, got Array i32"
+  ],
+  "errors/struct_functional_update_type": [
+    "typechecker: v11/fixtures/ast/errors/struct_functional_update_type/source.able:10:24 typechecker: functional update expects struct Vector, got Point"
+  ],
+  "errors/struct_named_missing_field": [
+    "typechecker: v11/fixtures/ast/errors/struct_named_missing_field/source.able:7:12 typechecker: struct pattern field 'z' not found"
+  ],
+  "errors/struct_type_mismatch": [
+    "typechecker: v11/fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
+  ],
+  "errors/type_alias_underscore_reserved": [
+    "typechecker: v11/fixtures/ast/errors/type_alias_underscore_reserved/source.able:1:1 typechecker: type alias name '_' is reserved"
+  ],
+  "errors/type_qualified_method_call": [],
+  "errors/ufcs_overload_ambiguity": [
+    "typechecker: v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:11:1 typechecker: no overloads of tag match provided arguments"
+  ],
+  "errors/ufcs_static_method_not_found": [
+    "typechecker: v11/fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:22 typechecker: argument 1 has type Counter, expected i32"
+  ],
+  "expressions/array_literal_empty": [],
+  "expressions/assignment_declare": [],
+  "expressions/block_expression": [],
+  "expressions/breakpoint_value": [],
+  "expressions/compound_assignment": [],
+  "expressions/ensure_success": [],
+  "expressions/float_suffix": [],
+  "expressions/index_access": [],
+  "expressions/int_addition": [],
+  "expressions/integer_suffix": [],
+  "expressions/map_literal_spread": [],
+  "expressions/mixed_numeric_arithmetic": [],
+  "expressions/mixed_numeric_comparison": [],
+  "expressions/or_else_success": [],
+  "expressions/reassignment": [],
+  "expressions/rescue_success": [],
+  "expressions/unary_negation": [],
+  "functions/bitwise_xor_operator": [],
+  "functions/generic_application": [],
+  "functions/hkt_interface_impl_ok": [],
+  "functions/implicit_generic_inference": [],
+  "functions/lambda_expression": [],
+  "functions/method_scope_imports": [],
+  "functions/method_set_where_constraint_ok": [],
+  "functions/overload_function_ambiguity": [
+    "typechecker: v11/fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at v11/fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
+  ],
+  "functions/overload_method_ambiguity": [],
+  "functions/overload_resolution_success": [],
+  "functions/trailing_lambda_call": [],
+  "functions/ufcs_generic_overloads": [],
+  "functions/ufcs_inherent_methods": [],
+  "imports/dynimport_private_selector_error": [],
+  "imports/dynimport_selector_alias": [],
+  "imports/dynimport_wildcard": [],
+  "imports/implicit_generic_import": [],
+  "imports/static_alias_private_error": [
+    "typechecker: v11/fixtures/ast/imports/static_alias_private_error/source.able:3:3 typechecker: package 'util_static' has no symbol 'hidden'"
+  ],
+  "imports/static_alias_public": [],
+  "imports/static_reexport": [],
+  "imports/static_reexport_multihop": [],
+  "imports/static_wildcard": [],
+  "imports/static_wildcard_private_error": [
+    "typechecker: v11/fixtures/ast/imports/static_wildcard_private_error/source.able:3:1 typechecker: undefined identifier 'priv_fn'"
+  ],
+  "interfaces/apply_index_dispatch": [],
+  "interfaces/apply_index_missing_impls": [
+    "typechecker: v11/fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
+    "typechecker: v11/fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:3 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32"
+  ],
+  "interfaces/composite_generic": [],
+  "interfaces/custom_hash_eq": [],
+  "interfaces/dynamic_interface_collections": [],
+  "interfaces/hash_collision_handling": [],
+  "interfaces/impl_specificity": [],
+  "interfaces/impl_specificity_ambiguity": [
+    "typechecker: v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able:21:1 typechecker: ambiguous implementations of Ambig for Named: impl Ambig for T"
+  ],
+  "interfaces/imported_impl_dispatch": [],
+  "interfaces/kernel_interface_availability": [],
+  "interfaces/primitive_hashing": [],
+  "match/guard_clause": [],
+  "match/identifier_literal": [],
+  "match/struct_guard": [],
+  "match/struct_positional_pattern": [],
+  "match/wildcard_pattern": [],
+  "patterns/array_destructuring": [],
+  "patterns/for_array_pattern": [],
+  "patterns/named_struct_destructuring": [],
+  "patterns/nested_struct_destructuring": [],
+  "patterns/struct_pattern_rename": [],
+  "patterns/struct_positional_destructuring": [],
+  "patterns/typed_assignment": [],
+  "patterns/typed_assignment_error": [],
+  "patterns/typed_destructuring": [],
+  "patterns/typed_equals_assignment": [],
+  "pipes/low_precedence_pipe": [],
+  "pipes/member_topic": [],
+  "pipes/multi_stage_chain": [],
+  "pipes/topic_placeholder": [],
+  "privacy/private_static_method": [],
+  "stdlib/channel_iterator": [],
+  "stdlib/channel_mutex_helpers": [],
+  "stdlib/range_iterator": [],
+  "strings/interpolation_basic": [],
+  "strings/interpolation_struct_to_String": [],
+  "strings/String_methods": [],
+  "structs/functional_update": [],
+  "structs/named_literal": [],
+  "structs/positional_literal": [],
+  "types/function_type_expression": [],
+  "types/generic_type_expression": [],
+  "types/generic_where_constraint": [],
+  "types/nullable_type_expression": [],
+  "types/result_type_expression": [],
+  "types/type_alias_definition": [],
+  "types/union_type_expression": []
+}

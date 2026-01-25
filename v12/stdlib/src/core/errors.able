@@ -1,0 +1,45 @@
+package errors
+import able.core.interfaces.{Error}
+
+## Arithmetic errors.
+struct DivisionByZeroError {}
+struct OverflowError { operation: String }
+struct ShiftOutOfRangeError { shift: i32 }
+struct RangeError { message: String }
+struct Span { start: u64, end: u64 }
+struct ParseError { message: String, span: Span, is_incomplete: bool }
+
+impl Error for DivisionByZeroError {
+  fn message(self: Self) -> String { "division by zero" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for OverflowError {
+  fn message(self: Self) -> String { self.operation }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ShiftOutOfRangeError {
+  fn message(self: Self) -> String { `shift ${self.shift} out of range` }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for RangeError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ParseError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+## Indexing error used by Array/HashMap bounds checks.
+struct IndexError { index: i64, length: i64 }
+
+impl Error for IndexError {
+  fn message(self: Self) -> String {
+    `index ${self.index} out of bounds for length ${self.length}`
+  }
+  fn cause(self: Self) -> ?Error { nil }
+}

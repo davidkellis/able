@@ -1,0 +1,622 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Channel"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "capacity"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "handle"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i64"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Channel"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "new"
+          },
+          "params": [],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "AssignmentExpression",
+                "operator": ":=",
+                "left": {
+                  "type": "Identifier",
+                  "name": "handle"
+                },
+                "right": {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "Identifier",
+                    "name": "__able_channel_new"
+                  },
+                  "arguments": [
+                    {
+                      "type": "IntegerLiteral",
+                      "value": 0
+                    }
+                  ],
+                  "isTrailingLambda": false
+                }
+              },
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StructLiteral",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Channel"
+                  },
+                  "fields": [
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "capacity"
+                      },
+                      "value": {
+                        "type": "IntegerLiteral",
+                        "value": 0
+                      },
+                      "isShorthand": false
+                    },
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      },
+                      "value": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      },
+                      "isShorthand": false
+                    }
+                  ],
+                  "isPositional": false
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Channel"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Mutex"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "handle"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i64"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Mutex"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "new"
+          },
+          "params": [],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "AssignmentExpression",
+                "operator": ":=",
+                "left": {
+                  "type": "Identifier",
+                  "name": "handle"
+                },
+                "right": {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "Identifier",
+                    "name": "__able_mutex_new"
+                  },
+                  "arguments": [],
+                  "isTrailingLambda": false
+                }
+              },
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StructLiteral",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Mutex"
+                  },
+                  "fields": [
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      },
+                      "value": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      },
+                      "isShorthand": false
+                    }
+                  ],
+                  "isPositional": false
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Mutex"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "channel_handle"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "capacity"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "__able_channel_new"
+              },
+              "arguments": [
+                {
+                  "type": "Identifier",
+                  "name": "capacity"
+                }
+              ],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i64"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "mutex_handle"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "__able_mutex_new"
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i64"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "channel_handle_value"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "channel_handle"
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "channel_instance"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "Channel"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "new"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "mutex_instance"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "Mutex"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "new"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "mutex_handle_value"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "mutex_handle"
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "score"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "channel_instance"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "handle"
+          }
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "+=",
+            "left": {
+              "type": "Identifier",
+              "name": "score"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "==",
+        "left": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "channel_instance"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "capacity"
+          }
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "+=",
+            "left": {
+              "type": "Identifier",
+              "name": "score"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "Identifier",
+          "name": "channel_handle_value"
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "+=",
+            "left": {
+              "type": "Identifier",
+              "name": "score"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "mutex_instance"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "handle"
+          }
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "+=",
+            "left": {
+              "type": "Identifier",
+              "name": "score"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "Identifier",
+          "name": "mutex_handle_value"
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "+=",
+            "left": {
+              "type": "Identifier",
+              "name": "score"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "==",
+      "left": {
+        "type": "Identifier",
+        "name": "score"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 5
+      }
+    }
+  ]
+}

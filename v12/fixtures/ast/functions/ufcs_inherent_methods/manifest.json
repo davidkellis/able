@@ -1,0 +1,35 @@
+{
+  "description": "UFCS resolves inherent instance methods (including pipeline usage)",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "25"
+        },
+        {
+          "kind": "i32",
+          "value": "6"
+        },
+        {
+          "kind": "i32",
+          "value": "8"
+        },
+        {
+          "kind": "i32",
+          "value": "25"
+        },
+        {
+          "kind": "i32",
+          "value": "9"
+        },
+        {
+          "kind": "i32",
+          "value": "12"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

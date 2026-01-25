@@ -1,0 +1,27 @@
+package exec_04_05_03_struct_positional_named_tuple
+
+## Semantics: positional structs use ordered literals, indexed access/mutation, and positional destructuring patterns.
+
+struct IntPair { i32, i32 }
+struct Triple { i32, i32, i32 }
+
+fn main() -> void {
+  pair := IntPair { 3, 4 }
+  print(`pair ${pair.0},${pair.1}`)
+
+  pair.0 = pair.0 + 7
+  pair.1 = pair.1 + 1
+  print(`mut ${pair.0},${pair.1}`)
+
+  IntPair { left, right } := pair
+  print(`bind ${left},${right}`)
+
+  a = 0
+  b = 0
+  { a, b } = pair
+  print(`assign ${a},${b}`)
+
+  triple := Triple { 5, -2, 9 }
+  { _, mid, last } := triple
+  print(`triple ${mid},${last}`)
+}

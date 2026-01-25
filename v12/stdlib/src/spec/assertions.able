@@ -1,0 +1,637 @@
+package assertions
+
+import able.kernel.{Array}
+import able.collections.array
+import able.core.interfaces.{Error, Eq}
+import able.text.regex.{regex_is_match}
+import able.text.string
+import able.test.protocol.{Failure, SourceLocation}
+
+## Error raised when an expectation does not hold.
+struct AssertionError {
+  message: String,
+  details: ?String,
+  location: ?SourceLocation
+}
+
+impl Error for AssertionError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+## Result returned by matchers to communicate assertion state.
+struct MatcherResult {
+  passed: bool,
+  message: String,
+  negated_message: String,
+  details: ?String
+}
+
+interface Matcher T for M {
+  fn matches(self: Self, actual: T) -> MatcherResult
+}
+
+struct Expectation T {
+  actual: T
+}
+
+fn expect<T>(value: T) -> Expectation T {
+  Expectation T { actual: value }
+}
+
+methods Expectation T {
+  fn to(self: Self, matcher: Matcher T) -> void {
+    result := matcher.matches(self.actual)
+    if result.passed { return }
+    raise AssertionError { message: result.message, details: result.details, location: nil }
+  }
+
+  fn not_to(self: Self, matcher: Matcher T) -> void {
+    result := matcher.matches(self.actual)
+    if !result.passed { return }
+    raise AssertionError {
+      message: result.negated_message,
+      details: result.details,
+      location: nil
+    }
+  }
+}
+
+fn failure_from_assertion(error: AssertionError) -> Failure {
+  Failure { message: error.message, details: error.details, location: error.location }
+}
+
+## Equality matcher mirroring expect(...).to(eq(expected)).
+struct EqMatcher T {
+  expected: T
+}
+
+fn eq<T>(expected: T) -> EqMatcher T {
+  EqMatcher T { expected }
+}
+
+impl Matcher T for EqMatcher T {
+  fn matches(self: Self, actual: T) -> MatcherResult {
+    if actual == self.expected {
+      MatcherResult {
+        passed: true,
+        message: "expected values to be equal",
+        negated_message: "expected values not to be equal",
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: "expected values to be equal",
+        negated_message: "expected values not to be equal",
+        details: "values differed"
+      }
+    }
+  }
+}
+
+struct BeNilMatcher {}
+
+fn be_nil() -> BeNilMatcher { BeNilMatcher }
+
+impl Matcher (?Value) for BeNilMatcher {
+  fn matches(self: Self, actual: ?Value) -> MatcherResult {
+    actual match {
+      case nil => MatcherResult {
+        passed: true,
+        message: "expected value to be nil",
+        negated_message: "expected value not to be nil",
+        details: nil
+      },
+      case _ => MatcherResult {
+        passed: false,
+        message: "expected value to be nil",
+        negated_message: "expected value not to be nil",
+        details: nil
+      }
+    }
+  }
+}
+
+struct BeTruthyMatcher {}
+
+fn be_truthy() -> BeTruthyMatcher { BeTruthyMatcher }
+
+impl Matcher bool for BeTruthyMatcher {
+  fn matches(self: Self, actual: bool) -> MatcherResult {
+    if actual {
+      MatcherResult {
+        passed: true,
+        message: "expected value to be truthy",
+        negated_message: "expected value not to be truthy",
+        details: "actual value: true"
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: "expected value to be truthy",
+        negated_message: "expected value not to be truthy",
+        details: "actual value: false"
+      }
+    }
+  }
+}
+
+struct BeFalseMatcher {}
+
+fn be_false() -> BeFalseMatcher { BeFalseMatcher }
+
+impl Matcher bool for BeFalseMatcher {
+  fn matches(self: Self, actual: bool) -> MatcherResult {
+    if !actual {
+      MatcherResult {
+        passed: true,
+        message: "expected value to be false",
+        negated_message: "expected value not to be false",
+        details: "actual value: false"
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: "expected value to be false",
+        negated_message: "expected value not to be false",
+        details: "actual value: true"
+      }
+    }
+  }
+}
+
+struct RaiseErrorMatcher {
+  expected_message: ?String
+}
+
+fn raise_error() -> RaiseErrorMatcher {
+  RaiseErrorMatcher { expected_message: nil }
+}
+
+fn raise_error_with_message(message: String) -> RaiseErrorMatcher {
+  RaiseErrorMatcher { expected_message: message }
+}
+
+impl Matcher (() -> void) for RaiseErrorMatcher {
+  fn matches(self: Self, invocation: () -> void) -> MatcherResult {
+    captured: ?Error := nil
+    do { invocation() } rescue {
+      case err: Error => {
+        captured = err
+        nil
+      }
+    }
+
+    captured match {
+      case nil => MatcherResult {
+        passed: false,
+        message: "expected block to raise an error",
+        negated_message: "expected block not to raise an error",
+        details: "block executed without raising an error"
+      },
+      case err: Error => {
+        self.expected_message match {
+          case nil => MatcherResult {
+            passed: true,
+            message: "expected block to raise an error",
+            negated_message: "expected block not to raise an error",
+            details: nil
+          },
+          case expected: String => {
+            matches_message := err.message() == expected
+            detail := `expected error message ${expected}, got ${err.message()}`
+            MatcherResult {
+              passed: matches_message,
+              message: detail,
+              negated_message: `expected block not to raise an error with message ${expected}`,
+              details: detail
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+struct StringEqMatcher {
+  expected: String
+}
+
+fn eq_string(expected: String) -> StringEqMatcher {
+  StringEqMatcher { expected }
+}
+
+impl Matcher String for StringEqMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
+    if actual == self.expected {
+      MatcherResult {
+        passed: true,
+        message: "expected string to equal expected value",
+        negated_message: "expected string not to equal expected value",
+        details: `actual: ${actual}`
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: "expected string to equal expected value",
+        negated_message: "expected string not to equal expected value",
+        details: `expected: ${self.expected}, actual: ${actual}`
+      }
+    }
+  }
+}
+
+struct StartsWithMatcher {
+  prefix: String
+}
+
+struct EndsWithMatcher {
+  suffix: String
+}
+
+fn start_with(prefix: String) -> StartsWithMatcher {
+  StartsWithMatcher { prefix }
+}
+
+fn end_with(suffix: String) -> EndsWithMatcher {
+  EndsWithMatcher { suffix }
+}
+
+impl Matcher String for StartsWithMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
+    if actual.starts_with(self.prefix) {
+      MatcherResult {
+        passed: true,
+        message: `expected string to start with "${self.prefix}"`,
+        negated_message: `expected string not to start with "${self.prefix}"`,
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: `expected string to start with "${self.prefix}"`,
+        negated_message: `expected string not to start with "${self.prefix}"`,
+        details: `actual value "${actual}"`
+      }
+    }
+  }
+}
+
+impl Matcher String for EndsWithMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
+    if actual.ends_with(self.suffix) {
+      MatcherResult {
+        passed: true,
+        message: `expected string to end with "${self.suffix}"`,
+        negated_message: `expected string not to end with "${self.suffix}"`,
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: `expected string to end with "${self.suffix}"`,
+        negated_message: `expected string not to end with "${self.suffix}"`,
+        details: `actual value "${actual}"`
+      }
+    }
+  }
+}
+
+struct IncludeSubstringMatcher {
+  substring: String
+}
+
+fn include_substring(substring: String) -> IncludeSubstringMatcher {
+  IncludeSubstringMatcher { substring }
+}
+
+impl Matcher String for IncludeSubstringMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
+    if actual.contains(self.substring) {
+      MatcherResult {
+        passed: true,
+        message: `expected string to include "${self.substring}"`,
+        negated_message: `expected string not to include "${self.substring}"`,
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: `expected string to include "${self.substring}"`,
+        negated_message: `expected string not to include "${self.substring}"`,
+        details: `actual value "${actual}"`
+      }
+    }
+  }
+}
+
+struct BeEmptyArrayMatcher Item {}
+
+fn be_empty_array<Item>() -> BeEmptyArrayMatcher Item {
+  BeEmptyArrayMatcher Item {}
+}
+
+impl Matcher (Array Item) for BeEmptyArrayMatcher Item {
+  fn matches(self: Self, actual: Array Item) -> MatcherResult {
+    if actual.len() == 0 {
+      MatcherResult {
+        passed: true,
+        message: "expected array to be empty",
+        negated_message: "expected array not to be empty",
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: "expected array to be empty",
+        negated_message: "expected array not to be empty",
+        details: `length: ${actual.len()}`
+      }
+    }
+  }
+}
+
+struct ContainMatcher Item {
+  expected: Item
+}
+
+fn contain<Item>(value: Item) -> ContainMatcher Item {
+  ContainMatcher { expected: value }
+}
+
+impl Matcher (Array Item) for ContainMatcher Item where Item: Eq {
+  fn matches(self: Self, actual: Array Item) -> MatcherResult {
+    idx := 0
+    loop {
+      if idx >= actual.len() { break }
+      actual.get(idx) match {
+        case nil => {},
+        case value: Item => {
+          if value == self.expected {
+            return MatcherResult {
+              passed: true,
+              message: "expected array to contain value",
+              negated_message: "expected array not to contain value",
+              details: nil
+            }
+          }
+        }
+      }
+      idx = idx + 1
+    }
+
+    MatcherResult {
+      passed: false,
+      message: "expected array to contain value",
+      negated_message: "expected array not to contain value",
+      details: "value not present"
+    }
+  }
+}
+
+struct BeWithinMatcher {
+  target: f64,
+  delta: f64
+}
+
+fn be_within(delta: f64, target: f64) -> BeWithinMatcher {
+  BeWithinMatcher { target, delta }
+}
+
+struct BeGreaterThanMatcher T {
+  threshold: T
+}
+
+struct BeLessThanMatcher T {
+  threshold: T
+}
+
+fn be_greater_than<T>(value: T) -> BeGreaterThanMatcher T {
+  BeGreaterThanMatcher { threshold: value }
+}
+
+fn be_less_than<T>(value: T) -> BeLessThanMatcher T {
+  BeLessThanMatcher { threshold: value }
+}
+
+impl Matcher i64 for BeGreaterThanMatcher i64 {
+  fn matches(self: Self, actual: i64) -> MatcherResult {
+    if actual > self.threshold {
+      MatcherResult { passed: true, message: `expected value > ${self.threshold}`, negated_message: `expected value <= ${self.threshold}`, details: nil }
+    } else {
+      MatcherResult { passed: false, message: `expected value > ${self.threshold}`, negated_message: `expected value <= ${self.threshold}`, details: `actual ${actual}` }
+    }
+  }
+}
+
+impl Matcher i64 for BeLessThanMatcher i64 {
+  fn matches(self: Self, actual: i64) -> MatcherResult {
+    if actual < self.threshold {
+      MatcherResult { passed: true, message: `expected value < ${self.threshold}`, negated_message: `expected value >= ${self.threshold}`, details: nil }
+    } else {
+      MatcherResult { passed: false, message: `expected value < ${self.threshold}`, negated_message: `expected value >= ${self.threshold}`, details: `actual ${actual}` }
+    }
+  }
+}
+
+struct ContainAllMatcher Item {
+  expected: Array Item
+}
+
+fn contain_all<Item>(values: Array Item) -> ContainAllMatcher Item {
+  ContainAllMatcher { expected: values }
+}
+
+impl Matcher (Array Item) for ContainAllMatcher Item where Item: Eq {
+  fn matches(self: Self, actual: Array Item) -> MatcherResult {
+    missing_count := 0
+    idx := 0
+    loop {
+      if idx >= self.expected.len() { break }
+      self.expected.get(idx) match {
+        case nil => {},
+        case value: Item => {
+          if !array_contains(actual, value) {
+            missing_count = missing_count + 1
+          }
+        }
+      }
+      idx = idx + 1
+    }
+
+    if missing_count == 0 {
+      MatcherResult {
+        passed: true,
+        message: "expected array to contain all values",
+        negated_message: "expected array not to contain all values",
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: "expected array to contain all values",
+        negated_message: "expected array not to contain all values",
+        details: `missing ${missing_count} value(s)`
+      }
+    }
+  }
+}
+
+fn array_contains<T>(array: Array T, target: T) -> bool where T: Eq {
+  idx := 0
+  loop {
+    if idx >= array.len() { break }
+    array.get(idx) match {
+      case nil => {},
+      case value: T => {
+        if value == target { return true }
+      }
+    }
+    idx = idx + 1
+  }
+  false
+}
+
+impl Matcher f64 for BeWithinMatcher {
+  fn matches(self: Self, actual: f64) -> MatcherResult {
+    lower := self.target - self.delta
+    upper := self.target + self.delta
+    if actual >= lower && actual <= upper {
+      MatcherResult {
+        passed: true,
+        message: `expected value within ±${self.delta} of ${self.target}`,
+        negated_message: `expected value outside ±${self.delta} of ${self.target}`,
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: `expected value within ±${self.delta} of ${self.target}`,
+        negated_message: `expected value outside ±${self.delta} of ${self.target}`,
+        details: `actual value ${actual}`
+      }
+    }
+  }
+}
+
+struct BeBetweenMatcher T {
+  lower: T,
+  upper: T
+}
+
+fn be_between(lower: i64, upper: i64) -> BeBetweenMatcher i64 {
+  BeBetweenMatcher i64 { lower, upper }
+}
+
+impl Matcher i64 for BeBetweenMatcher i64 {
+  fn matches(self: Self, actual: i64) -> MatcherResult {
+    if actual >= self.lower && actual <= self.upper {
+      MatcherResult {
+        passed: true,
+        message: `expected value between ${self.lower} and ${self.upper}`,
+        negated_message: `expected value outside ${self.lower}..${self.upper}`,
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: `expected value between ${self.lower} and ${self.upper}`,
+        negated_message: `expected value outside ${self.lower}..${self.upper}`,
+        details: `actual value ${actual}`
+      }
+    }
+  }
+}
+struct MatchRegexMatcher {
+  pattern: String
+}
+
+fn match_regex(pattern: String) -> MatchRegexMatcher {
+  MatchRegexMatcher { pattern }
+}
+
+impl Matcher String for MatchRegexMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
+    if regex_match(self.pattern, actual) {
+      MatcherResult {
+        passed: true,
+        message: `expected value to match /${self.pattern}/`,
+        negated_message: `expected value not to match /${self.pattern}/`,
+        details: nil
+      }
+    } else {
+      MatcherResult {
+        passed: false,
+        message: `expected value to match /${self.pattern}/`,
+        negated_message: `expected value not to match /${self.pattern}/`,
+        details: `value \"${actual}\" did not match`
+      }
+    }
+  }
+}
+
+fn regex_match(pattern: String, value: String) -> bool {
+  regex_is_match(pattern, value) match {
+    case matched: bool => matched,
+    case _: Error => pattern == value
+  }
+}
+
+struct CustomMatcher T {
+  message: String,
+  negated_message: String,
+  predicate: T -> bool,
+  detail: ?(T -> ?String)
+}
+
+fn matcher<T>(
+  message: String,
+  negated_message: String,
+  predicate: T -> bool
+) -> CustomMatcher T {
+  CustomMatcher T {
+    message,
+    negated_message,
+    predicate,
+    detail: nil
+  }
+}
+
+fn matcher_with_details<T>(
+  message: String,
+  negated_message: String,
+  predicate: T -> bool,
+  detail: T -> ?String
+) -> CustomMatcher T {
+  CustomMatcher T {
+    message,
+    negated_message,
+    predicate,
+    detail: detail
+  }
+}
+
+impl Matcher T for CustomMatcher T {
+  fn matches(self: Self, actual: T) -> MatcherResult {
+    if self.predicate(actual) {
+      MatcherResult {
+        passed: true,
+        message: self.message,
+        negated_message: self.negated_message,
+        details: nil
+      }
+    } else {
+      details := self.detail match {
+        case nil => nil,
+        case detail_fn: (T -> ?String) => detail_fn(actual)
+      }
+      MatcherResult {
+        passed: false,
+        message: self.message,
+        negated_message: self.negated_message,
+        details
+      }
+    }
+  }
+}

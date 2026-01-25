@@ -1,0 +1,12 @@
+{
+  "description": "iterator literal with each + pipeline call",
+  "expect": {
+    "stdout": [
+      "value 1 doubled 2 squared 4",
+      "value 2 doubled 4 squared 16",
+      "value 3 doubled 6 squared 36",
+      "value 4 doubled 8 squared 64"
+    ],
+    "exit": 0
+  }
+}

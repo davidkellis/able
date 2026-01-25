@@ -1,0 +1,382 @@
+package typechecker
+
+func registerBuiltins(env *Environment) {
+	if env == nil {
+		return
+	}
+
+	nilType := PrimitiveType{Kind: PrimitiveNil}
+	boolType := PrimitiveType{Kind: PrimitiveBool}
+	i32Type := IntegerType{Suffix: "i32"}
+	i64Type := IntegerType{Suffix: "i64"}
+	u64Type := IntegerType{Suffix: "u64"}
+	anyType := UnknownType{}
+	stringType := PrimitiveType{Kind: PrimitiveString}
+	charType := PrimitiveType{Kind: PrimitiveChar}
+	byteArrayType := ArrayType{Element: i32Type}
+
+	procYield := FunctionType{
+		Params: nil,
+		Return: nilType,
+	}
+	procCancelled := FunctionType{
+		Params: nil,
+		Return: boolType,
+	}
+	procFlush := FunctionType{
+		Params: nil,
+		Return: nilType,
+	}
+	procPendingTasks := FunctionType{
+		Params: nil,
+		Return: i32Type,
+	}
+	printFn := FunctionType{
+		Params: []Type{UnknownType{}},
+		Return: nilType,
+	}
+	awaitableIface := InterfaceType{
+		InterfaceName: "Awaitable",
+		TypeParams: []GenericParamSpec{
+			{Name: "Output"},
+		},
+		Methods: map[string]FunctionType{
+			"is_ready": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: boolType,
+			},
+			"register": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+					StructType{StructName: "AwaitWaker"},
+				},
+				Return: StructType{StructName: "AwaitRegistration"},
+			},
+			"commit": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: TypeParameterType{ParameterName: "Output"},
+			},
+			"is_default": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: boolType,
+			},
+		},
+	}
+	awaitableUnknown := AppliedType{
+		Base:      awaitableIface,
+		Arguments: []Type{UnknownType{}},
+	}
+	callbackType := FunctionType{
+		Params: nil,
+		Return: UnknownType{},
+	}
+
+	env.Define("future_yield", procYield)
+	env.Define("future_cancelled", procCancelled)
+	env.Define("future_flush", procFlush)
+	env.Define("future_pending_tasks", procPendingTasks)
+	env.Define("print", printFn)
+	env.Define("dyn", anyType)
+	env.Define("AwaitWaker", StructType{StructName: "AwaitWaker"})
+	env.Define("AwaitRegistration", StructType{StructName: "AwaitRegistration"})
+	env.Define("Awaitable", awaitableIface)
+	env.Define("__able_await_default", FunctionType{
+		Params: []Type{callbackType},
+		Return: awaitableUnknown,
+	})
+	env.Define("__able_await_sleep_ms", FunctionType{
+		Params: []Type{i64Type, NullableType{Inner: callbackType}},
+		Return: awaitableUnknown,
+	})
+
+	env.Define("__able_channel_new", FunctionType{
+		Params: []Type{i32Type},
+		Return: i64Type,
+	})
+	env.Define("__able_channel_send", FunctionType{
+		Params: []Type{anyType, anyType},
+		Return: nilType,
+	})
+	env.Define("__able_channel_receive", FunctionType{
+		Params: []Type{anyType},
+		Return: anyType,
+	})
+	env.Define("__able_channel_try_send", FunctionType{
+		Params: []Type{anyType, anyType},
+		Return: boolType,
+	})
+	env.Define("__able_channel_try_receive", FunctionType{
+		Params: []Type{anyType},
+		Return: anyType,
+	})
+	env.Define("__able_channel_await_try_recv", FunctionType{
+		Params: []Type{anyType, anyType},
+		Return: anyType,
+	})
+	env.Define("__able_channel_await_try_send", FunctionType{
+		Params: []Type{anyType, anyType, anyType},
+		Return: anyType,
+	})
+	env.Define("__able_channel_close", FunctionType{
+		Params: []Type{anyType},
+		Return: nilType,
+	})
+	env.Define("__able_channel_is_closed", FunctionType{
+		Params: []Type{anyType},
+		Return: boolType,
+	})
+
+	env.Define("__able_mutex_new", FunctionType{
+		Params: nil,
+		Return: i64Type,
+	})
+	env.Define("__able_mutex_lock", FunctionType{
+		Params: []Type{i64Type},
+		Return: nilType,
+	})
+	env.Define("__able_mutex_unlock", FunctionType{
+		Params: []Type{i64Type},
+		Return: nilType,
+	})
+	env.Define("__able_mutex_await_lock", FunctionType{
+		Params: []Type{i64Type, anyType},
+		Return: anyType,
+	})
+
+	env.Define("__able_array_new", FunctionType{
+		Params: nil,
+		Return: i64Type,
+	})
+	env.Define("__able_array_with_capacity", FunctionType{
+		Params: []Type{i32Type},
+		Return: i64Type,
+	})
+	env.Define("__able_array_size", FunctionType{
+		Params: []Type{i64Type},
+		Return: u64Type,
+	})
+	env.Define("__able_array_capacity", FunctionType{
+		Params: []Type{i64Type},
+		Return: u64Type,
+	})
+	env.Define("__able_array_set_len", FunctionType{
+		Params: []Type{i64Type, i32Type},
+		Return: nilType,
+	})
+	env.Define("__able_array_read", FunctionType{
+		Params: []Type{i64Type, i32Type},
+		Return: anyType,
+	})
+	env.Define("__able_array_write", FunctionType{
+		Params: []Type{i64Type, i32Type, anyType},
+		Return: nilType,
+	})
+	env.Define("__able_array_reserve", FunctionType{
+		Params: []Type{i64Type, i32Type},
+		Return: u64Type,
+	})
+	env.Define("__able_array_clone", FunctionType{
+		Params: []Type{i64Type},
+		Return: i64Type,
+	})
+
+	env.Define("__able_String_from_builtin", FunctionType{
+		Params: []Type{stringType},
+		Return: byteArrayType,
+	})
+	env.Define("__able_String_to_builtin", FunctionType{
+		Params: []Type{byteArrayType},
+		Return: stringType,
+	})
+	env.Define("__able_char_from_codepoint", FunctionType{
+		Params: []Type{i32Type},
+		Return: charType,
+	})
+	env.Define("__able_char_to_codepoint", FunctionType{
+		Params: []Type{charType},
+		Return: i32Type,
+	})
+	env.Define("__able_ratio_from_float", FunctionType{
+		Params: []Type{FloatType{Suffix: "f64"}},
+		Return: StructType{StructName: "Ratio"},
+	})
+	env.Define("__able_f32_bits", FunctionType{
+		Params: []Type{FloatType{Suffix: "f32"}},
+		Return: IntegerType{Suffix: "u32"},
+	})
+	env.Define("__able_f64_bits", FunctionType{
+		Params: []Type{FloatType{Suffix: "f64"}},
+		Return: IntegerType{Suffix: "u64"},
+	})
+	env.Define("__able_u64_mul", FunctionType{
+		Params: []Type{IntegerType{Suffix: "u64"}, IntegerType{Suffix: "u64"}},
+		Return: IntegerType{Suffix: "u64"},
+	})
+
+	env.Define("Less", lessType)
+	env.Define("Equal", equalType)
+	env.Define("Greater", greaterType)
+	env.Define("Ordering", ordering)
+
+	displayIface := InterfaceType{
+		InterfaceName: "Display",
+		Methods: map[string]FunctionType{
+			"to_string": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: stringType,
+			},
+		},
+	}
+	cloneIface := InterfaceType{
+		InterfaceName: "Clone",
+		Methods: map[string]FunctionType{
+			"clone": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: TypeParameterType{ParameterName: "Self"},
+			},
+		},
+	}
+	errorIface := InterfaceType{
+		InterfaceName: "Error",
+		Methods: map[string]FunctionType{
+			"message": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: stringType,
+			},
+			"cause": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: NullableType{Inner: InterfaceType{InterfaceName: "Error"}},
+			},
+		},
+	}
+	ordIface := InterfaceType{
+		InterfaceName: "Ord",
+		Methods: map[string]FunctionType{
+			"cmp": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: ordering,
+			},
+		},
+	}
+	env.Define("Ord", ordIface)
+
+	env.Define("Display", displayIface)
+	env.Define("Clone", cloneIface)
+	env.Define("Error", errorIface)
+
+	selfType := TypeParameterType{ParameterName: "Self"}
+	iteratorParam := TypeParameterType{ParameterName: "T"}
+	iteratorIface := InterfaceType{
+		InterfaceName: "Iterator",
+		TypeParams:    []GenericParamSpec{{Name: "T"}},
+	}
+	env.Define("IteratorEnd", StructType{StructName: "IteratorEnd"})
+	iteratorOf := func(elem Type) AppliedType {
+		return AppliedType{Base: iteratorIface, Arguments: []Type{elem}}
+	}
+	iteratorIface.Methods = map[string]FunctionType{
+		"next": {
+			Params: []Type{selfType},
+			Return: UnionLiteralType{Members: []Type{iteratorParam, StructType{StructName: "IteratorEnd"}}},
+		},
+		"filter": {
+			Params: []Type{
+				selfType,
+				FunctionType{Params: []Type{iteratorParam}, Return: boolType},
+			},
+			Return: iteratorOf(iteratorParam),
+		},
+		"map": {
+			Params: []Type{
+				selfType,
+				FunctionType{Params: []Type{iteratorParam}, Return: TypeParameterType{ParameterName: "U"}},
+			},
+			Return: iteratorOf(TypeParameterType{ParameterName: "U"}),
+			TypeParams: []GenericParamSpec{
+				{Name: "U"},
+			},
+		},
+		"filter_map": {
+			Params: []Type{
+				selfType,
+				FunctionType{
+					Params: []Type{iteratorParam},
+					Return: NullableType{Inner: TypeParameterType{ParameterName: "U"}},
+				},
+			},
+			Return: iteratorOf(TypeParameterType{ParameterName: "U"}),
+			TypeParams: []GenericParamSpec{
+				{Name: "U"},
+			},
+		},
+		"collect": {
+			Params: []Type{selfType},
+			Return: TypeParameterType{ParameterName: "C"},
+			TypeParams: []GenericParamSpec{
+				{Name: "C"},
+			},
+		},
+	}
+	env.Define("Iterator", iteratorIface)
+
+	ratioFields := map[string]Type{
+		"num": i64Type,
+		"den": i64Type,
+	}
+	divModFields := map[string]Type{
+		"quotient":  TypeParameterType{ParameterName: "T"},
+		"remainder": TypeParameterType{ParameterName: "T"},
+	}
+	env.Define("DivMod", StructType{
+		StructName: "DivMod",
+		TypeParams: []GenericParamSpec{{Name: "T"}},
+		Fields:     divModFields,
+	})
+	env.Define("Ratio", StructType{
+		StructName: "Ratio",
+		Fields:     ratioFields,
+	})
+	futureErrorFields := map[string]Type{
+		"details": stringType,
+	}
+	futureErrorType := StructType{
+		StructName: "FutureError",
+		Fields:     futureErrorFields,
+	}
+	env.Define("FutureError", futureErrorType)
+
+	pendingType := StructType{StructName: "Pending"}
+	resolvedType := StructType{StructName: "Resolved"}
+	cancelledType := StructType{StructName: "Cancelled"}
+	failedType := StructType{
+		StructName: "Failed",
+		Fields: map[string]Type{
+			"error": futureErrorType,
+		},
+	}
+	env.Define("Pending", pendingType)
+	env.Define("Resolved", resolvedType)
+	env.Define("Cancelled", cancelledType)
+	env.Define("Failed", failedType)
+	env.Define("FutureStatus", UnionType{
+		UnionName: "FutureStatus",
+		Variants:  []Type{pendingType, resolvedType, cancelledType, failedType},
+	})
+}

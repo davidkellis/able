@@ -1,0 +1,351 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Address"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "street"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "city"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "zip"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Person"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "name"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "age"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "address"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Address"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "person"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Person"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "name"
+            },
+            "value": {
+              "type": "StringLiteral",
+              "value": "Terry"
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "age"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 29
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "address"
+            },
+            "value": {
+              "type": "StructLiteral",
+              "structType": {
+                "type": "Identifier",
+                "name": "Address"
+              },
+              "fields": [
+                {
+                  "type": "StructFieldInitializer",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "street"
+                  },
+                  "value": {
+                    "type": "StringLiteral",
+                    "value": "Main"
+                  },
+                  "isShorthand": false
+                },
+                {
+                  "type": "StructFieldInitializer",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "city"
+                  },
+                  "value": {
+                    "type": "StringLiteral",
+                    "value": "SF"
+                  },
+                  "isShorthand": false
+                },
+                {
+                  "type": "StructFieldInitializer",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "zip"
+                  },
+                  "value": {
+                    "type": "IntegerLiteral",
+                    "value": 94107
+                  },
+                  "isShorthand": false
+                }
+              ],
+              "isPositional": false
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "StructPattern",
+        "structType": {
+          "type": "Identifier",
+          "name": "Person"
+        },
+        "fields": [
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "name"
+            },
+            "pattern": {
+              "type": "Identifier",
+              "name": "name"
+            }
+          },
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "age"
+            },
+            "pattern": {
+              "type": "Identifier",
+              "name": "years"
+            },
+            "typeAnnotation": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "i32"
+              }
+            }
+          },
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "address"
+            },
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Address"
+              },
+              "fields": [
+                {
+                  "type": "StructPatternField",
+                  "fieldName": {
+                    "type": "Identifier",
+                    "name": "street"
+                  },
+                  "pattern": {
+                    "type": "Identifier",
+                    "name": "street"
+                  }
+                },
+                {
+                  "type": "StructPatternField",
+                  "fieldName": {
+                    "type": "Identifier",
+                    "name": "zip"
+                  },
+                  "pattern": {
+                    "type": "Identifier",
+                    "name": "zip"
+                  }
+                }
+              ],
+              "isPositional": false
+            },
+            "binding": {
+              "type": "Identifier",
+              "name": "addr"
+            },
+            "typeAnnotation": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Address"
+              }
+            }
+          }
+        ],
+        "isPositional": false
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "person"
+      }
+    },
+    {
+      "type": "StringInterpolation",
+      "parts": [
+        {
+          "type": "Identifier",
+          "name": "name"
+        },
+        {
+          "type": "StringLiteral",
+          "value": "-"
+        },
+        {
+          "type": "Identifier",
+          "name": "years"
+        },
+        {
+          "type": "StringLiteral",
+          "value": "-"
+        },
+        {
+          "type": "Identifier",
+          "name": "street"
+        },
+        {
+          "type": "StringLiteral",
+          "value": "-"
+        },
+        {
+          "type": "Identifier",
+          "name": "zip"
+        },
+        {
+          "type": "StringLiteral",
+          "value": "-"
+        },
+        {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "addr"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "city"
+          }
+        }
+      ]
+    }
+  ]
+}

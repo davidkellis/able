@@ -1,0 +1,25 @@
+{
+  "description": "Channel.iterator yields lazily until receive() returns nil",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "30"
+        },
+        {
+          "kind": "i32",
+          "value": "42"
+        },
+        {
+          "kind": "iterator_end"
+        },
+        {
+          "kind": "iterator_end"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

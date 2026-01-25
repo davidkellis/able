@@ -1,0 +1,59 @@
+package vector_specs
+
+import able.spec.assertions.{AssertionError}
+import able.spec.*
+import able.collections.vector.{Vector}
+
+describe("Vector") { suite =>
+  suite.it("pushes values and reads them back") { _ctx =>
+    vec: Vector i32 := Vector.new()
+    i := 0
+    loop {
+      if i >= 100 { break }
+      vec = vec.push(i)
+      i = i + 1
+    }
+
+    expect(vec.len()).to(eq(100))
+    expect(vec.get(0)).to(eq(0))
+    expect(vec.get(31)).to(eq(31))  ## tail chunk boundary
+    expect(vec.get(63)).to(eq(63))  ## first tree promotion
+    expect(vec.get(99)).to(eq(99))
+  }
+
+  suite.it("supports set without mutating prior versions") { _ctx =>
+    base: Vector String := Vector.new()
+    base = base.push("zero")
+    base = base.push("one")
+    base = base.push("two")
+    updated := base.set(1, "ONE")
+
+    ## Base vector untouched.
+    expect(base.get(1)).to(eq("one"))
+    expect(updated.get(1)).to(eq("ONE"))
+
+    ## Out-of-range set should no-op.
+    unchanged := base.set(10, "x")
+    expect(unchanged.len()).to(eq(base.len()))
+    expect(unchanged.get(1)).to(eq("one"))
+  }
+
+  suite.it("pops and iterates while preserving older values") { _ctx =>
+    vec: Vector i32 := Vector.new()
+    i := 0
+    loop {
+      if i >= 40 { break }
+      vec = vec.push(i)
+      i = i + 1
+    }
+    popped := vec.pop()
+
+    expect(vec.last()).to(eq(39))
+    expect(popped.last()).to(eq(38))
+    expect(popped.len()).to(eq(39))
+
+    sum := 0
+    popped.each(fn(value: i32) -> void { sum = sum + value })
+    expect(sum).to(eq(741)) ## sum 0..38
+  }
+}

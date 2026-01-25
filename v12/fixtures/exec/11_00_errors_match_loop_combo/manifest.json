@@ -1,0 +1,10 @@
+{
+  "description": "composition: match + raise/rescue inside a loop",
+  "expect": {
+    "stdout": [
+      "rescued zero",
+      "partial 9"
+    ],
+    "exit": 0
+  }
+}

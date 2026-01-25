@@ -1,0 +1,717 @@
+{
+  "type": "Module",
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "able"
+        },
+        {
+          "type": "Identifier",
+          "name": "kernel"
+        }
+      ],
+      "isWildcard": false,
+      "selectors": [
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "HashMap"
+          }
+        },
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "Hash"
+          }
+        },
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "Eq"
+          }
+        },
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "Hasher"
+          }
+        }
+      ]
+    }
+  ],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "CollisionKey"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "id"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Hash"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "CollisionKey"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "hash"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "hasher"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Hasher"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "hasher"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "write_u64"
+                  }
+                },
+                "arguments": [
+                  {
+                    "type": "IntegerLiteral",
+                    "value": "1",
+                    "integerType": "u64"
+                  }
+                ],
+                "isTrailingLambda": false
+              },
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "NilLiteral",
+                  "value": null
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "void"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Eq"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "CollisionKey"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "eq"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "other"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "id"
+                    }
+                  },
+                  "right": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "other"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "id"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "bool"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "TypedPattern",
+        "pattern": {
+          "type": "Identifier",
+          "name": "map"
+        },
+        "typeAnnotation": {
+          "type": "GenericTypeExpression",
+          "base": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "HashMap"
+            }
+          },
+          "arguments": [
+            {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "CollisionKey"
+              }
+            },
+            {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "String"
+              }
+            }
+          ]
+        }
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "HashMap"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "new"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "map"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "raw_set"
+        }
+      },
+      "arguments": [
+        {
+          "type": "StructLiteral",
+          "structType": {
+            "type": "Identifier",
+            "name": "CollisionKey"
+          },
+          "fields": [
+            {
+              "type": "StructFieldInitializer",
+              "name": {
+                "type": "Identifier",
+                "name": "id"
+              },
+              "value": {
+                "type": "IntegerLiteral",
+                "value": 1
+              },
+              "isShorthand": false
+            }
+          ],
+          "isPositional": false
+        },
+        {
+          "type": "StringLiteral",
+          "value": "first"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "map"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "raw_set"
+        }
+      },
+      "arguments": [
+        {
+          "type": "StructLiteral",
+          "structType": {
+            "type": "Identifier",
+            "name": "CollisionKey"
+          },
+          "fields": [
+            {
+              "type": "StructFieldInitializer",
+              "name": {
+                "type": "Identifier",
+                "name": "id"
+              },
+              "value": {
+                "type": "IntegerLiteral",
+                "value": 2
+              },
+              "isShorthand": false
+            }
+          ],
+          "isPositional": false
+        },
+        {
+          "type": "StringLiteral",
+          "value": "second"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "score"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "==",
+        "left": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "map"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "raw_size"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 2
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "score"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "score"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 1
+              }
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "MatchExpression",
+      "subject": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "map"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "raw_get"
+          }
+        },
+        "arguments": [
+          {
+            "type": "StructLiteral",
+            "structType": {
+              "type": "Identifier",
+              "name": "CollisionKey"
+            },
+            "fields": [
+              {
+                "type": "StructFieldInitializer",
+                "name": {
+                  "type": "Identifier",
+                  "name": "id"
+                },
+                "value": {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                },
+                "isShorthand": false
+              }
+            ],
+            "isPositional": false
+          }
+        ],
+        "isTrailingLambda": false
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "TypedPattern",
+            "pattern": {
+              "type": "Identifier",
+              "name": "value"
+            },
+            "typeAnnotation": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "String"
+              }
+            }
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "IfExpression",
+                "ifCondition": {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "right": {
+                    "type": "StringLiteral",
+                    "value": "first"
+                  }
+                },
+                "ifBody": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "score"
+                      },
+                      "right": {
+                        "type": "BinaryExpression",
+                        "operator": "+",
+                        "left": {
+                          "type": "Identifier",
+                          "name": "score"
+                        },
+                        "right": {
+                          "type": "IntegerLiteral",
+                          "value": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "elseIfClauses": []
+              }
+            ]
+          }
+        },
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "WildcardPattern"
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "MatchExpression",
+      "subject": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "map"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "raw_get"
+          }
+        },
+        "arguments": [
+          {
+            "type": "StructLiteral",
+            "structType": {
+              "type": "Identifier",
+              "name": "CollisionKey"
+            },
+            "fields": [
+              {
+                "type": "StructFieldInitializer",
+                "name": {
+                  "type": "Identifier",
+                  "name": "id"
+                },
+                "value": {
+                  "type": "IntegerLiteral",
+                  "value": 2
+                },
+                "isShorthand": false
+              }
+            ],
+            "isPositional": false
+          }
+        ],
+        "isTrailingLambda": false
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "TypedPattern",
+            "pattern": {
+              "type": "Identifier",
+              "name": "value"
+            },
+            "typeAnnotation": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "String"
+              }
+            }
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "IfExpression",
+                "ifCondition": {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "right": {
+                    "type": "StringLiteral",
+                    "value": "second"
+                  }
+                },
+                "ifBody": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "score"
+                      },
+                      "right": {
+                        "type": "BinaryExpression",
+                        "operator": "+",
+                        "left": {
+                          "type": "Identifier",
+                          "name": "score"
+                        },
+                        "right": {
+                          "type": "IntegerLiteral",
+                          "value": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "elseIfClauses": []
+              }
+            ]
+          }
+        },
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "WildcardPattern"
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "==",
+      "left": {
+        "type": "Identifier",
+        "name": "score"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 3
+      }
+    }
+  ]
+}

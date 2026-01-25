@@ -1,0 +1,55 @@
+package rosettacode_sieve_of_eratosthenes
+
+import able.kernel.{Array}
+import able.collections.array
+
+## Rosetta Code — Sieve of Eratosthenes (https://rosettacode.org/wiki/Sieve_of_Eratosthenes)
+fn sieve(limit: i32) -> Array i32 {
+  if limit < 2 {
+    return []
+  }
+
+  flags: Array bool = []
+  i := 0
+  while i <= limit {
+    flags.push(true)
+    i = i + 1
+  }
+  flags[0] = false
+  flags[1] = false
+
+  p := 2
+  while p * p <= limit {
+    if flags[p] {
+      multiple := p * p
+      while multiple <= limit {
+        flags[multiple] = false
+        multiple = multiple + p
+      }
+    }
+    p = p + 1
+  }
+
+  primes: Array i32 = []
+  value := 2
+  while value <= limit {
+    if flags[value] {
+      primes.push(value)
+    }
+    value = value + 1
+  }
+
+  primes
+}
+
+fn show_primes(limit: i32) -> void {
+  primes := sieve(limit)
+  print(`Primes up to ${limit}:`)
+  print(primes)
+  print("")
+}
+
+fn main() -> void {
+  show_primes(30)
+  show_primes(100)
+}

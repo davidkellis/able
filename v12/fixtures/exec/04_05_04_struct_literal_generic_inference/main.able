@@ -1,0 +1,14 @@
+package exec_04_05_04_struct_literal_generic_inference
+
+struct Box T {
+  value: T
+}
+
+fn wrap<T>(value: T) -> Box T {
+  Box { value }
+}
+
+fn main() -> void {
+  boxed := wrap(41)
+  print(`boxed ${boxed.value}`)
+}

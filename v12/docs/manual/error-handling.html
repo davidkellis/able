@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v11 Manual — Error Handling</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v11 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
+          <li><a href="error-handling.html" class="active">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>9. Error Handling</h1>
+        <p>
+          Able blends Option/Result-style unions with exceptions. Use
+          <code>!T</code> (or <code>?T</code>) for recoverable flows; raise and
+          rescue exceptions for exceptional paths.
+        </p>
+        <h2 id="propagation">9.1 Propagation with <code>!</code> and <code>else</code></h2>
+        <pre><code class="language-able">fn read_config(path: String) -&gt; !Config { ... }
+
+fn boot() -&gt; !void {
+  config := read_config(path)!          ## returns early on Error
+  port := config.port else { 8080 }     ## handles nil/Error inline
+  start_server(config.host, port)!
+}</code></pre>
+        <p>
+          <code>expr!</code> unwraps success and returns early on
+          <code>nil</code> or <code>Error</code>. <code>value else { ... }</code>
+          handles either case and can capture the error:
+        </p>
+        <pre><code class="language-able">content = read_file(path) else { |err|
+  log(`fallback: ${err.message()}`)
+  default_payload()
+}</code></pre>
+        <h2 id="exceptions">9.2 Exceptions</h2>
+        <pre><code class="language-able">fn divide(a: i32, b: i32) -&gt; i32 {
+  if b == 0 { raise DivideByZeroError {} }
+  a / b
+}
+
+result = do { divide(total, count) } rescue {
+  case _: DivideByZeroError =&gt; 0,
+  case e: Error =&gt; {
+    log(`failed: ${e.message()}`)
+    -1
+  }
+}</code></pre>
+        <p>
+          <code>rescue</code> supports pattern guards and multiple arms. Use
+          <code>ensure</code> for finally-style cleanup and
+          <code>rethrow</code> to propagate within a handler.
+        </p>
+        <footer class="manual-footer">
+          Able v11 manual · Error Handling
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

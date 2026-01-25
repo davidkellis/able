@@ -1,0 +1,114 @@
+package reporters
+
+import able.kernel.{Array}
+import able.collections.array
+import able.text.string
+import able.test.protocol.{
+  Failure,
+  Reporter,
+  TestDescriptor,
+  TestEvent,
+  case_started,
+  case_passed,
+  case_failed,
+  case_skipped,
+  framework_error
+}
+
+struct ReporterOutputState {
+  write_line: (String -> void)
+}
+
+struct DocReporterState {
+  output: ReporterOutputState
+}
+
+struct ProgressReporterState {
+  output: ReporterOutputState,
+  buffer: String
+}
+
+fn ReporterOutput(write_line: String -> void) -> ReporterOutputState {
+  ReporterOutputState { write_line }
+}
+
+fn render_failure_line(descriptor: TestDescriptor, failure: Failure) -> String {
+  line := `${descriptor.display_name} … FAIL`
+  failure.details match {
+    case nil => {},
+    case details: String => line = `${line} (${details})`
+  }
+  line
+}
+
+fn render_success_line(descriptor: TestDescriptor) -> String {
+  `${descriptor.display_name} … ok`
+}
+
+fn render_skip_line(descriptor: TestDescriptor, reason: ?String) -> String {
+  reason match {
+    case nil => `${descriptor.display_name} … SKIP`,
+    case value: String => `${descriptor.display_name} … SKIP (${value})`
+  }
+}
+
+fn render_framework_error(message: String) -> String {
+  `framework error: ${message}`
+}
+
+fn DocReporter(output: String -> void) -> DocReporterState {
+  DocReporterState { output: ReporterOutput(output) }
+}
+
+impl Reporter for DocReporterState {
+  fn emit(self: Self, event: TestEvent) -> void {
+    event match {
+      case case_started { descriptor } => {},
+      case case_passed { descriptor, duration_ms::_ } => self.output.write_line(render_success_line(descriptor)),
+      case case_failed { descriptor, duration_ms::_, failure } => self.output.write_line(render_failure_line(descriptor, failure)),
+      case case_skipped { descriptor, reason } => self.output.write_line(render_skip_line(descriptor, reason)),
+      case framework_error { message } => self.output.write_line(render_framework_error(message))
+    }
+  }
+}
+
+fn ProgressReporter(output: String -> void) -> ProgressReporterState {
+  ProgressReporterState { output: ReporterOutput(output), buffer: "" }
+}
+
+impl Reporter for ProgressReporterState {
+  fn emit(self: Self, event: TestEvent) -> void {
+    event match {
+      case case_started { descriptor::_ } => {},
+      case case_passed { descriptor::_, duration_ms::_ } => {
+        self.buffer = `${self.buffer}.`
+        self.flush_if_long()
+      },
+      case case_failed { descriptor::_, duration_ms::_, failure::_ } => {
+        self.buffer = `${self.buffer}F`
+        self.flush_if_long()
+      },
+      case case_skipped { descriptor::_, reason::_ } => {
+        self.buffer = `${self.buffer}S`
+        self.flush_if_long()
+      },
+      case framework_error { message } => self.output.write_line(render_framework_error(message))
+    }
+  }
+}
+
+methods ProgressReporterState {
+  fn flush_if_long(self: Self) -> void {
+    if self.buffer.len_chars() >= 40 {
+      self.output.write_line(self.buffer)
+      self.buffer = ""
+    }
+  }
+
+  fn finish(self: Self) -> void {
+    if self.buffer != "" {
+      self.output.write_line(self.buffer)
+      self.buffer = ""
+    }
+  }
+}

@@ -1,0 +1,36 @@
+package bit_set_specs
+
+import able.spec.*
+import able.collections.bit_set.{BitSet}
+import able.kernel.{Array}
+import able.collections.array
+
+describe("BitSet") { suite =>
+  suite.it("sets, checks, and resets bits") { _ctx =>
+    bits := BitSet.new()
+    bits.set(0)
+    bits.set(5)
+    bits.set(70)
+
+    expect(bits.contains(0)).to(be_truthy())
+    expect(bits.contains(5)).to(be_truthy())
+    expect(bits.contains(70)).to(be_truthy())
+    expect(bits.contains(2)).to(be_false())
+
+    bits.reset(5)
+    expect(bits.contains(5)).to(be_false())
+  }
+
+  suite.it("iterates set bits in ascending order") { _ctx =>
+    bits := BitSet.new()
+    bits.set(3)
+    bits.set(1)
+    bits.set(65)
+
+    values: Array i32 := Array.new()
+    bits.each(fn(bit: i32) -> void { values.push(bit) })
+    expect(values.get(0)).to(eq(1))
+    expect(values.get(1)).to(eq(3))
+    expect(values.get(2)).to(eq(65))
+  }
+}

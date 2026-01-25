@@ -1,0 +1,17 @@
+{
+  "description": "Conflicting alias-attached impls surface a duplicate impl error when both packages are imported",
+  "setup": [
+    "base.able",
+    "alias_a.able",
+    "alias_b.able"
+  ],
+  "expect": {
+    "errors": [
+      "Unnamed impl for (Taggable, Widget) already exists"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/ast/errors/alias_reexport_impl_ambiguity/source.able:8:1 typechecker: ambiguous implementations of Taggable for Widget: impl Taggable for Widget"
+    ]
+  },
+  "entry": "source.able"
+}

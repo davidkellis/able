@@ -1,0 +1,10 @@
+{
+  "description": "For-in loop destructures array elements",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "10"
+    }
+  },
+  "entry": "module.json"
+}

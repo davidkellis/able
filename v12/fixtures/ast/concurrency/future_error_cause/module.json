@@ -1,0 +1,227 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "describe_error"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "err"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Error"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "Identifier",
+              "name": "cause"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "err"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "cause"
+                }
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "Identifier",
+              "name": "flag"
+            },
+            "right": {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "cause"
+                },
+                "right": {
+                  "type": "NilLiteral",
+                  "value": null
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "StringLiteral",
+                    "value": "no-error"
+                  }
+                ]
+              },
+              "elseIfClauses": [],
+              "elseBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "StringLiteral",
+                    "value": "has-cause"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "StringInterpolation",
+            "parts": [
+              {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "err"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "message"
+                  }
+                },
+                "arguments": [],
+                "isTrailingLambda": false
+              },
+              {
+                "type": "StringLiteral",
+                "value": "|"
+              },
+              {
+                "type": "Identifier",
+                "name": "flag"
+              }
+            ]
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "String"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "future"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "RaiseStatement",
+              "expression": {
+                "type": "StringLiteral",
+                "value": "boom"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "future_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "summary"
+      },
+      "right": {
+        "type": "OrElseExpression",
+        "expression": {
+          "type": "PropagationExpression",
+          "expression": {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "future"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "value"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        },
+        "handler": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "describe_error"
+              },
+              "arguments": [
+                {
+                  "type": "Identifier",
+                  "name": "err"
+                }
+              ],
+              "isTrailingLambda": false
+            }
+          ]
+        },
+        "errorBinding": {
+          "type": "Identifier",
+          "name": "err"
+        }
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "summary"
+    }
+  ]
+}

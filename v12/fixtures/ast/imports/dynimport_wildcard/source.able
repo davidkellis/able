@@ -1,0 +1,3 @@
+dynimport dynp.*
+value := f();
+value;

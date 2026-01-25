@@ -1,0 +1,12 @@
+{
+  "description": "Impl targeting mismatched concrete type violates explicit interface self pattern",
+  "expect": {
+    "result": {
+      "kind": "nil"
+    },
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
+    ]
+  },
+  "entry": "module.json"
+}

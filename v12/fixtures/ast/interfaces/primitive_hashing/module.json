@@ -1,0 +1,423 @@
+{
+  "type": "Module",
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "able"
+        },
+        {
+          "type": "Identifier",
+          "name": "kernel"
+        }
+      ],
+      "isWildcard": false,
+      "selectors": [
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "KernelHasher"
+          }
+        },
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "Hash"
+          }
+        },
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "Hasher"
+          }
+        }
+      ]
+    }
+  ],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "hash_value"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "TypedPattern",
+              "pattern": {
+                "type": "Identifier",
+                "name": "hasher"
+              },
+              "typeAnnotation": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Hasher"
+                }
+              }
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "KernelHasher"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "new"
+                }
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          },
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "hash"
+              }
+            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "name": "hasher"
+              }
+            ],
+            "isTrailingLambda": false
+          },
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "hasher"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "finish"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "u64"
+        }
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
+      "whereClause": [
+        {
+          "type": "WhereClauseConstraint",
+          "typeParam": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          },
+          "constraints": [
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Hash"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "ok"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": true
+      }
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "hash_value"
+          },
+          "arguments": [
+            {
+              "type": "BooleanLiteral",
+              "value": true
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": "12638152016183539244",
+          "integerType": "u64"
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "ok"
+            },
+            "right": {
+              "type": "BooleanLiteral",
+              "value": false
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "hash_value"
+          },
+          "arguments": [
+            {
+              "type": "IntegerLiteral",
+              "value": -42,
+              "integerType": "i32"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": "11047133508193088422",
+          "integerType": "u64"
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "ok"
+            },
+            "right": {
+              "type": "BooleanLiteral",
+              "value": false
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "hash_value"
+          },
+          "arguments": [
+            {
+              "type": "IntegerLiteral",
+              "value": "123",
+              "integerType": "u64"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": "12162020487158469588",
+          "integerType": "u64"
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "ok"
+            },
+            "right": {
+              "type": "BooleanLiteral",
+              "value": false
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "hash_value"
+          },
+          "arguments": [
+            {
+              "type": "CharLiteral",
+              "value": "A"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": "5559048874771775234",
+          "integerType": "u64"
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "ok"
+            },
+            "right": {
+              "type": "BooleanLiteral",
+              "value": false
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "hash_value"
+          },
+          "arguments": [
+            {
+              "type": "StringLiteral",
+              "value": "Able"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": "9016399465655874229",
+          "integerType": "u64"
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "ok"
+            },
+            "right": {
+              "type": "BooleanLiteral",
+              "value": false
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "Identifier",
+      "name": "ok"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "type": "Module",
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "wraplib"
+        }
+      ],
+      "isWildcard": false,
+      "selectors": [
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "wrap"
+          }
+        }
+      ]
+    }
+  ],
+  "body": [
+    {
+      "type": "NilLiteral",
+      "value": null
+    }
+  ]
+}

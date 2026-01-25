@@ -1,0 +1,10 @@
+{
+  "description": "Positional struct literal supports numeric member access",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "9"
+    }
+  },
+  "entry": "module.json"
+}

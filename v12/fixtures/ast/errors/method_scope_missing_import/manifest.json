@@ -1,0 +1,12 @@
+{
+  "description": "Package alias imports do not surface method names for receiver sugar",
+  "setup": [
+    "package.json"
+  ],
+  "expect": {
+    "errors": [
+      "No field or method named 'bump'"
+    ]
+  },
+  "entry": "module.json"
+}

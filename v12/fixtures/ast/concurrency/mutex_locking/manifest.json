@@ -1,0 +1,10 @@
+{
+  "description": "Mutex lock/unlock methods mutate in sequence",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "AB"
+    }
+  },
+  "entry": "module.json"
+}

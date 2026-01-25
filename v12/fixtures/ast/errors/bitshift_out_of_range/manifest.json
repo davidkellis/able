@@ -1,0 +1,9 @@
+{
+  "description": "Bitshift bounds validation",
+  "expect": {
+    "errors": [
+      "shift out of range"
+    ]
+  },
+  "entry": "module.json"
+}

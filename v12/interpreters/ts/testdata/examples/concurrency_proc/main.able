@@ -1,0 +1,12 @@
+package spawn
+
+fn main() {
+  count := 0
+  handle := spawn {
+    count = count + 1
+    count
+  }
+  first := handle.value()
+  second := handle.value()
+  print(`values ${first}, ${second}, count ${count}`)
+}

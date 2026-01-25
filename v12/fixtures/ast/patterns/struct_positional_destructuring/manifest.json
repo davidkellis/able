@@ -1,0 +1,10 @@
+{
+  "description": "Positional struct destructuring assignment binds tuple fields",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "12"
+    }
+  },
+  "entry": "module.json"
+}

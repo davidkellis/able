@@ -1,0 +1,17 @@
+mtx := __able_mutex_new();
+__able_mutex_lock(mtx);
+hits := 0;
+runner := spawn {
+  result = await [__able_mutex_await_lock(mtx, { => {
+    hits = hits + 1;
+    "locked";
+  }})];
+  result;
+};
+future_flush();
+runner.cancel();
+future_flush();
+__able_mutex_unlock(mtx);
+lock_again := __able_mutex_lock(mtx);
+__able_mutex_unlock(mtx);
+[hits == 0, lock_again == nil];

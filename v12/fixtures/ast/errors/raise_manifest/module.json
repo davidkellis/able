@@ -1,0 +1,13 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "RaiseStatement",
+      "expression": {
+        "type": "StringLiteral",
+        "value": "boom"
+      }
+    }
+  ]
+}

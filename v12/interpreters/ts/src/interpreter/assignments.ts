@@ -1,0 +1,268 @@
+import * as AST from "../ast";
+import type { Environment } from "./environment";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
+import { numericToNumber } from "./numeric";
+import { makeIndexErrorInstance, resolveIndexFunction } from "./operations";
+import { callCallableValue } from "./functions";
+
+function isErrorResult(ctx: Interpreter, value: RuntimeValue): boolean {
+  if (value.kind === "error") return true;
+  if (value.kind === "interface_value" && value.interfaceName === "Error") return true;
+  const typeName = ctx.getTypeNameForValue(value);
+  if (!typeName) return false;
+  const typeArgs = value.kind === "struct_instance" ? value.typeArguments : undefined;
+  return ctx.typeImplementsInterface(typeName, "Error", typeArgs);
+}
+
+function isPatternNode(node: AST.Node | undefined | null): node is AST.Pattern {
+  if (!node) return false;
+  switch (node.type) {
+    case "Identifier":
+    case "WildcardPattern":
+    case "LiteralPattern":
+    case "StructPattern":
+    case "ArrayPattern":
+    case "TypedPattern":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function collectPatternIdentifiers(pattern: AST.Pattern | undefined | null, into: Set<string>): void {
+  if (!pattern) return;
+  switch (pattern.type) {
+    case "Identifier":
+      if (pattern.name) into.add(pattern.name);
+      return;
+    case "StructPattern":
+      if (Array.isArray(pattern.fields)) {
+        for (const field of pattern.fields) {
+          if (!field) continue;
+          if (field.binding?.name) into.add(field.binding.name);
+          collectPatternIdentifiers(field.pattern as AST.Pattern, into);
+        }
+      }
+      return;
+    case "ArrayPattern":
+      if (Array.isArray(pattern.elements)) {
+        for (const element of pattern.elements) {
+          collectPatternIdentifiers(element as AST.Pattern, into);
+        }
+      }
+      if (pattern.restPattern?.type === "Identifier" && pattern.restPattern.name) {
+        into.add(pattern.restPattern.name);
+      }
+      return;
+    case "TypedPattern":
+      collectPatternIdentifiers(pattern.pattern as AST.Pattern, into);
+      return;
+    case "WildcardPattern":
+    case "LiteralPattern":
+    default:
+      return;
+  }
+}
+
+function analyzeDeclarationTargets(
+  target: AST.Pattern,
+  env: Environment,
+): { declarationNames: Set<string>; hasAny: boolean } {
+  const names = new Set<string>();
+  collectPatternIdentifiers(target, names);
+  const declarationNames = new Set<string>();
+  for (const name of names) {
+    if (!env.hasInCurrentScope(name)) {
+      declarationNames.add(name);
+    }
+  }
+  return { declarationNames, hasAny: names.size > 0 };
+}
+
+export function evaluateAssignmentExpression(ctx: Interpreter, node: AST.AssignmentExpression, env: Environment): RuntimeValue {
+  const value = ctx.evaluate(node.right, env);
+  const isCompound = ["+=", "-=", "*=", "/=", "%=", ".&=", ".|=", ".^=", ".<<=", ".>>="].includes(node.operator);
+
+  if (node.left.type === "ImplicitMemberExpression") {
+    if (node.operator === ":=") throw new Error("Cannot use := on implicit member access");
+    if (ctx.implicitReceiverStack.length === 0) {
+      throw new Error("Implicit member assignment requires an implicit receiver");
+    }
+    const targetObj = ctx.implicitReceiverStack[ctx.implicitReceiverStack.length - 1];
+    if (!targetObj || targetObj.kind !== "struct_instance") {
+      throw new Error("Implicit member assignment requires struct instance receiver");
+    }
+    if (!(targetObj.values instanceof Map)) {
+      throw new Error("Implicit member assignment requires named struct instance");
+    }
+    const memberName = node.left.member.name;
+    if (!targetObj.values.has(memberName)) {
+      throw new Error(`No field named '${memberName}' on implicit receiver`);
+    }
+    if (isCompound) {
+      const current = targetObj.values.get(memberName)!;
+      const op = node.operator.slice(0, -1);
+      const computed = ctx.computeBinaryForCompound(op, current, value);
+      targetObj.values.set(memberName, computed);
+      return computed;
+    }
+    targetObj.values.set(memberName, value);
+    return value;
+  }
+
+  if (node.left.type === "Identifier") {
+    if (node.operator === ":=") {
+      if (env.hasInCurrentScope(node.left.name)) {
+        throw new Error(":= requires at least one new binding");
+      }
+      env.define(node.left.name, value);
+      const enclosing = (env as any).enclosing;
+      if (ctx.currentPackage && (!enclosing || enclosing === ctx.globals)) {
+        ctx.registerSymbol(node.left.name, value);
+      }
+      return value;
+    }
+    if (isCompound) {
+      const current = env.get(node.left.name);
+      const op = node.operator.slice(0, -1);
+      const computed = ctx.computeBinaryForCompound(op, current, value);
+      env.assign(node.left.name, computed);
+      return computed;
+    }
+    if (!env.assignExisting(node.left.name, value)) {
+      env.define(node.left.name, value);
+    }
+    return value;
+  }
+
+  if (isPatternNode(node.left as AST.Pattern)) {
+    if (isCompound) throw new Error("Compound assignment not supported with destructuring");
+    const pattern = node.left as AST.Pattern;
+    if (node.operator === ":=") {
+      const { declarationNames, hasAny } = analyzeDeclarationTargets(pattern, env);
+      if (!hasAny || declarationNames.size === 0) {
+        throw new Error(":= requires at least one new binding");
+      }
+      ctx.assignByPattern(pattern, value, env, true, { declarationNames });
+      return value;
+    }
+    ctx.assignByPattern(pattern, value, env, false, { fallbackToDeclaration: true });
+    return value;
+  }
+
+  if (node.left.type === "MemberAccessExpression") {
+    if (node.left.isSafe) throw new Error("Cannot assign through safe navigation");
+    if (node.operator === ":=") throw new Error("Cannot use := on member access");
+    const targetObj = ctx.evaluate(node.left.object, env);
+    if (targetObj.kind === "struct_instance") {
+      if (node.left.member.type === "Identifier") {
+        if (!(targetObj.values instanceof Map)) throw new Error("Expected named struct instance");
+        if (!targetObj.values.has(node.left.member.name)) throw new Error(`No field named '${node.left.member.name}'`);
+        if (isCompound) {
+          const current = targetObj.values.get(node.left.member.name)!;
+          const op = node.operator.slice(0, -1);
+          const computed = ctx.computeBinaryForCompound(op, current, value);
+          targetObj.values.set(node.left.member.name, computed);
+          return computed;
+        }
+        targetObj.values.set(node.left.member.name, value);
+        return value;
+      }
+      if (!Array.isArray(targetObj.values)) throw new Error("Expected positional struct instance");
+      const idx = Number(node.left.member.value);
+      if (idx < 0 || idx >= targetObj.values.length) throw new Error("Struct field index out of bounds");
+      if (isCompound) {
+        const current = targetObj.values[idx] as RuntimeValue;
+        const op = node.operator.slice(0, -1);
+        const computed = ctx.computeBinaryForCompound(op, current, value);
+        targetObj.values[idx] = computed;
+        return computed;
+      }
+      targetObj.values[idx] = value;
+      return value;
+    }
+    if (targetObj.kind === "array") {
+      const state = ctx.ensureArrayState(targetObj);
+      if (node.left.member.type === "Identifier") {
+        const name = node.left.member.name;
+        if (name === "storage_handle") {
+          const handle = Math.trunc(numericToNumber(value, "array storage_handle", { requireSafeInteger: true }));
+          targetObj.handle = handle;
+          return value;
+        }
+        if (name === "length") {
+          const nilValue: RuntimeValue = { kind: "nil", value: null };
+          const len = Math.max(0, Math.trunc(numericToNumber(value, "array length", { requireSafeInteger: true })));
+          if (len < state.values.length) {
+            state.values.length = len;
+          } else {
+            while (state.values.length < len) state.values.push(nilValue);
+          }
+          state.capacity = Math.max(state.capacity, state.values.length);
+          return value;
+        }
+        if (name === "capacity") {
+          const cap = Math.max(0, Math.trunc(numericToNumber(value, "array capacity", { requireSafeInteger: true })));
+          state.capacity = Math.max(state.capacity, cap);
+          return value;
+        }
+        throw new Error("Array member assignment requires integer member");
+      }
+      if (node.left.member.type !== "IntegerLiteral") throw new Error("Array member assignment requires integer member");
+      const idx = Number(node.left.member.value);
+      if (idx < 0 || idx >= state.values.length) throw new Error("Array index out of bounds");
+      if (isCompound) {
+        const current = state.values[idx]!;
+        const op = node.operator.slice(0, -1);
+        const computed = ctx.computeBinaryForCompound(op, current, value);
+        state.values[idx] = computed;
+        return computed;
+      }
+      state.values[idx] = value;
+      return value;
+    }
+    throw new Error("Member assignment requires struct or array");
+  }
+
+  if (node.left.type === "IndexExpression") {
+    if (node.operator === ":=") throw new Error("Cannot use := on index assignment");
+    const obj = ctx.evaluate(node.left.object, env);
+    const idxVal = ctx.evaluate(node.left.index, env);
+    const setMethod = resolveIndexFunction(ctx, obj, "set", "IndexMut");
+    if (setMethod) {
+      if (isCompound) {
+        const getMethod = resolveIndexFunction(ctx, obj, "get", "Index");
+        if (!getMethod) {
+          throw new Error("Compound index assignment requires readable Index implementation");
+        }
+        const existing = callCallableValue(ctx, getMethod, [obj, idxVal], env);
+        const op = node.operator.slice(0, -1);
+        const computed = ctx.computeBinaryForCompound(op, existing, value);
+        const setResult = callCallableValue(ctx, setMethod, [obj, idxVal, computed], env);
+        if (isErrorResult(ctx, setResult)) return setResult;
+        return computed;
+      }
+      const setResult = callCallableValue(ctx, setMethod, [obj, idxVal, value], env);
+      if (isErrorResult(ctx, setResult)) return setResult;
+      return value;
+    }
+    if (obj.kind !== "array") throw new Error("Index assignment requires array");
+    const state = ctx.ensureArrayState(obj);
+    const idx = Math.trunc(numericToNumber(idxVal, "Array index", { requireSafeInteger: true }));
+    if (idx < 0 || idx >= state.values.length) {
+      return makeIndexErrorInstance(ctx, idx, state.values.length);
+    }
+    if (isCompound) {
+      const current = state.values[idx]!;
+      const op = node.operator.slice(0, -1);
+      const computed = ctx.computeBinaryForCompound(op, current, value);
+      state.values[idx] = computed;
+      return computed;
+    }
+    state.values[idx] = value;
+    return value;
+  }
+
+  throw new Error("Unsupported assignment target");
+}

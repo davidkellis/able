@@ -1,0 +1,43 @@
+package exceptions
+
+import able.core.interfaces.{Error}
+
+struct NetworkError { message: String }
+
+impl Error for NetworkError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn fetch(url: String) -> String {
+  if url == "" { raise NetworkError { message: "missing url" } }
+  `body from ${url}`
+}
+
+fn fetch_with_logging(url: String) -> String {
+  fetch(url) rescue {
+    case _ => {
+      print("caught network error")
+      "serving cached body"
+    }
+  } ensure {
+    print("ensure runs after fetch attempt")
+  }
+}
+
+fn retry_once(url: String) -> String {
+  fetch(url) rescue {
+    case _ => {
+      print("retrying once then rethrowing")
+      rethrow
+    }
+  }
+}
+
+fn main() -> void {
+  print(fetch_with_logging(""))
+  print(fetch_with_logging("https://example.com"))
+
+  outcome = retry_once("") rescue { case _ => "gave up after retry" }
+  print(outcome)
+}

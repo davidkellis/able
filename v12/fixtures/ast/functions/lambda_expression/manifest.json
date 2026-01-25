@@ -1,0 +1,10 @@
+{
+  "description": "Lambda expression returns computed sum",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": "5"
+    }
+  },
+  "entry": "module.json"
+}

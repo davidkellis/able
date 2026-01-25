@@ -1,0 +1,32 @@
+package sync
+
+import able.kernel.{Channel, Mutex}
+import able.concurrency
+import able.concurrency.{with_lock}
+
+fn main() -> void {
+  ch: Channel String = Channel.new(2)
+  ch.send("hi")
+  ch.send("bye")
+  ch.close()
+  loop {
+    msg := ch.receive()
+    if msg == nil { break }
+    print(`received ${msg}`)
+  }
+
+  buffered: Channel i32 = Channel.new(1)
+  buffered.send(42)
+  print("sent without blocking")
+
+  received := buffered.try_receive()
+  received match {
+    case nil => print("channel empty"),
+    case value => print(`saw ${value}`),
+  }
+
+  shared := 0
+  m := Mutex.new()
+  next := with_lock(m, { => shared = shared + 1; shared })
+  print(`mutex protected value -> ${next}`)
+}

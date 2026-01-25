@@ -1,0 +1,368 @@
+package fs_specs
+
+import able.spec.*
+import able.collections.array
+import able.core.interfaces.{Error}
+import able.fs
+import able.io
+import able.io.{AlreadyExists, IOError, NotFound, PermissionDenied}
+import able.io.path
+import able.io.path.{Path}
+import able.os
+import able.text.string
+
+FS_TEMP_SEQ := 0
+
+fn next_temp_path(label: String) -> String {
+  FS_TEMP_SEQ = FS_TEMP_SEQ + 1
+  base := path.parse(os.temp_dir())
+  temp_path := base.join(`able-${label}-${FS_TEMP_SEQ}`)
+  if fs.exists(temp_path) { fs.remove(temp_path, true) }
+  temp_path.to_string()
+}
+
+fn cleanup_path(path: String) -> void {
+  do {
+    fs.remove(path, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+describe("able.fs") { suite =>
+  suite.it("writes and reads text with metadata") { _ctx =>
+    root := next_temp_path("fs-text")
+    file := path.parse(root).join("nested/hello.txt").to_string()
+    do {
+      fs.write_text(file, "hello", true)
+      expect(fs.read_text(file)).to(eq("hello"))
+      expect(fs.exists(file)).to(be_truthy())
+      meta := fs.stat(file)
+      expect(meta.is_file).to(be_truthy())
+      expect(meta.is_dir).to(be_false())
+      expect(meta.size).to(eq(5_i64))
+      expect(meta.modified_ms != nil).to(be_truthy())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("writes and reads bytes") { _ctx =>
+    root := next_temp_path("fs-bytes")
+    file := path.parse(root).join("data.bin").to_string()
+    payload := [65_u8, 66_u8, 67_u8]
+    do {
+      fs.write_bytes(file, payload, true)
+      bytes := fs.read_bytes(file)
+      expect(bytes.len()).to(eq(3))
+      bytes.get(0) match {
+        case value: u8 => expect(value).to(eq(65_u8)),
+        case nil => expect(false).to(be_truthy())
+      }
+      expect(fs.read_text(file)).to(eq("ABC"))
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("supports append with open flags") { _ctx =>
+    root := next_temp_path("fs-open")
+    file := path.parse(root).join("log.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      handle := fs.open(file, fs.write_only(true, true), nil)
+      io.write_all(handle, io.string_to_bytes("first"))
+      io.close(handle)
+      handle = fs.open(file, fs.append_only(true), nil)
+      io.write_all(handle, io.string_to_bytes("-second"))
+      io.close(handle)
+      expect(fs.read_text(file)).to(eq("first-second"))
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("lists directory entries") { _ctx =>
+    root := next_temp_path("fs-read-dir")
+    file := path.parse(root).join("alpha.txt").to_string()
+    subdir := path.parse(root).join("nested").to_string()
+    do {
+      fs.mkdir(root, true)
+      fs.write_text(file, "data", false)
+      fs.mkdir(subdir, true)
+      entries := fs.read_dir(root)
+      found_file := false
+      found_dir := false
+      for entry in entries {
+        if entry.name == "alpha.txt" {
+          found_file = entry.is_file && !entry.is_dir
+          expect(entry.path.ends_with("alpha.txt")).to(be_truthy())
+        }
+        if entry.name == "nested" {
+          found_dir = entry.is_dir
+        }
+      }
+      expect(found_file).to(be_truthy())
+      expect(found_dir).to(be_truthy())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("renames and removes paths") { _ctx =>
+    root := next_temp_path("fs-rename")
+    old_path := path.parse(root).join("old.txt").to_string()
+    new_path := path.parse(root).join("new.txt").to_string()
+    do {
+      fs.write_text(old_path, "data", true)
+      fs.rename(old_path, new_path)
+      expect(fs.exists(old_path)).to(be_false())
+      expect(fs.exists(new_path)).to(be_truthy())
+      fs.remove(new_path, false)
+      expect(fs.exists(new_path)).to(be_false())
+      fs.mkdir(path.parse(root).join("nested").to_string(), true)
+      fs.write_text(path.parse(root).join("nested/file.txt").to_string(), "x", false)
+      fs.remove(root, true)
+      expect(fs.exists(root)).to(be_false())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("reads and writes line content") { _ctx =>
+    root := next_temp_path("fs-lines")
+    file := path.parse(root).join("lines.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      fs.write_lines(file, ["alpha", "beta", "gamma"], nil)
+      expect(fs.read_text(file)).to(eq("alpha\nbeta\ngamma"))
+      lines := fs.read_lines(file)
+      expect(lines.len()).to(eq(3))
+      lines.get(0) match {
+        case value: String => expect(value).to(eq("alpha")),
+        case nil => expect(false).to(be_truthy())
+      }
+      lines.get(2) match {
+        case value: String => expect(value).to(eq("gamma")),
+        case nil => expect(false).to(be_truthy())
+      }
+
+      fs.write_text(file, "one\r\ntwo\r\n", false)
+      lines = fs.read_lines(file)
+      expect(lines.len()).to(eq(2))
+      lines.get(1) match {
+        case value: String => expect(value).to(eq("two")),
+        case nil => expect(false).to(be_truthy())
+      }
+
+      fs.write_lines(file, ["a", "b"], "\r\n")
+      expect(fs.read_text(file)).to(eq("a\r\nb"))
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("copies files with overwrite control") { _ctx =>
+    root := next_temp_path("fs-copy-file")
+    src := path.parse(root).join("src.txt").to_string()
+    dst := path.parse(root).join("nested/dst.txt").to_string()
+    do {
+      fs.write_text(src, "data", true)
+      fs.copy_file(src, dst, nil)
+      expect(fs.read_text(dst)).to(eq("data"))
+      saw_exists := false
+      do { fs.copy_file(src, dst, nil) } rescue {
+        case err: IOError => {
+          err.kind match {
+            case AlreadyExists => { saw_exists = true },
+            case _ => {}
+          }
+          nil
+        }
+      }
+      expect(saw_exists).to(be_truthy())
+      fs.write_text(src, "updated", false)
+      fs.copy_file(src, dst, true)
+      expect(fs.read_text(dst)).to(eq("updated"))
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("copies directory trees with overwrite control") { _ctx =>
+    root := next_temp_path("fs-copy-dir")
+    src := path.parse(root).join("src").to_string()
+    dst := path.parse(root).join("dst").to_string()
+    do {
+      fs.write_text(path.parse(src).join("alpha.txt").to_string(), "alpha", true)
+      fs.write_text(path.parse(src).join("nested/beta.txt").to_string(), "beta", true)
+      fs.copy_dir(src, dst, nil)
+      expect(fs.read_text(path.parse(dst).join("alpha.txt").to_string())).to(eq("alpha"))
+      expect(fs.read_text(path.parse(dst).join("nested/beta.txt").to_string())).to(eq("beta"))
+      extra := path.parse(dst).join("extra.txt").to_string()
+      fs.write_text(extra, "extra", false)
+      saw_exists := false
+      do { fs.copy_dir(src, dst, nil) } rescue {
+        case err: IOError => {
+          err.kind match {
+            case AlreadyExists => { saw_exists = true },
+            case _ => {}
+          }
+          nil
+        }
+      }
+      expect(saw_exists).to(be_truthy())
+      fs.copy_dir(src, dst, true)
+      expect(fs.exists(extra)).to(be_false())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("touches files and removes paths explicitly") { _ctx =>
+    root := next_temp_path("fs-touch")
+    file := path.parse(root).join("touch.txt").to_string()
+    dir := path.parse(root).join("dir").to_string()
+    do {
+      fs.mkdir(root, true)
+      fs.touch(file)
+      expect(fs.exists(file)).to(be_truthy())
+      meta_before := fs.stat(file)
+      fs.touch(file)
+      meta_after := fs.stat(file)
+      meta_before.modified_ms match {
+        case before: i64 => {
+          meta_after.modified_ms match {
+            case after: i64 => expect(after >= before).to(be_truthy()),
+            case nil => expect(false).to(be_truthy())
+          }
+        },
+        case nil => expect(false).to(be_truthy())
+      }
+
+      fs.mkdir(dir, true)
+      fs.write_text(path.parse(dir).join("nested/file.txt").to_string(), "x", true)
+      fs.remove_file(file)
+      expect(fs.exists(file)).to(be_false())
+      fs.remove_dir(dir, true)
+      expect(fs.exists(dir)).to(be_false())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("reports missing paths as NotFound") { _ctx =>
+    root := next_temp_path("fs-missing")
+    missing := path.parse(root).join("missing.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      expect(fs.exists(missing)).to(be_false())
+      saw_not_found := false
+      do { fs.read_text(missing) } rescue {
+        case err: IOError => {
+          err.kind match {
+            case NotFound => { saw_not_found = true },
+            case _ => {}
+          }
+          nil
+        }
+      }
+      expect(saw_not_found).to(be_truthy())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("reports NotFound when reading missing directories") { _ctx =>
+    root := next_temp_path("fs-missing-dir")
+    do {
+      saw_not_found := false
+      do { fs.read_dir(root) } rescue {
+        case err: IOError => {
+          err.kind match {
+            case NotFound => { saw_not_found = true },
+            case _ => {}
+          }
+          nil
+        }
+      }
+      expect(saw_not_found).to(be_truthy())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("reports NotFound when removing missing paths") { _ctx =>
+    root := next_temp_path("fs-remove-missing")
+    missing := path.parse(root).join("missing.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      saw_not_found := false
+      do { fs.remove(missing, false) } rescue {
+        case err: IOError => {
+          err.kind match {
+            case NotFound => { saw_not_found = true },
+            case _ => {}
+          }
+          nil
+        }
+      }
+      expect(saw_not_found).to(be_truthy())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("reports PermissionDenied for read-only files when possible") { _ctx =>
+    root := next_temp_path("fs-permission")
+    file := path.parse(root).join("ro.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      handle := fs.open(file, fs.write_only(true, true), fs.mode(0o444))
+      io.write_all(handle, io.string_to_bytes("data"))
+      io.close(handle)
+      expect(fs.exists(file)).to(be_truthy())
+      saw_permission := false
+      opened := false
+      do {
+        handle = fs.open(file, fs.write_only(false, false), nil)
+        opened = true
+        io.close(handle)
+      } rescue {
+        case err: IOError => {
+          err.kind match {
+            case PermissionDenied => { saw_permission = true },
+            case _ => { raise err }
+          }
+          nil
+        }
+      }
+      expect(saw_permission || opened).to(be_truthy())
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+
+  suite.it("reads empty files as zero lines") { _ctx =>
+    root := next_temp_path("fs-lines-empty")
+    file := path.parse(root).join("empty.txt").to_string()
+    do {
+      fs.mkdir(root, true)
+      fs.write_text(file, "", false)
+      lines := fs.read_lines(file)
+      expect(lines.len()).to(eq(0))
+    } ensure {
+      cleanup_path(root)
+    }
+  }
+}

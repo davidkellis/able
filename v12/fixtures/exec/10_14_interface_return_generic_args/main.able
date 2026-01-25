@@ -1,0 +1,33 @@
+package exec_10_14_interface_return_generic_args
+
+## Semantics: functions returning interface types preserve interface arguments.
+
+interface Formatter <T> for Self {
+  fn format(self: Self, value: T) -> String
+}
+
+struct Printer { tag: String }
+
+impl Formatter String for Printer {
+  fn format(self: Self, value: String) -> String { `S:${self.tag}:${value}` }
+}
+
+impl Formatter i32 for Printer {
+  fn format(self: Self, value: i32) -> String { `I:${self.tag}:${value}` }
+}
+
+fn as_string(printer: Printer) -> Formatter String {
+  printer
+}
+
+fn as_int(printer: Printer) -> Formatter i32 {
+  printer
+}
+
+fn main() -> void {
+  printer := Printer { tag: "p" }
+  fmt_string := as_string(printer)
+  fmt_int := as_int(printer)
+  print(fmt_string.format("hi"))
+  print(fmt_int.format(4))
+}

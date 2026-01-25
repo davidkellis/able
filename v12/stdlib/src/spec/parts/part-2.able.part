@@ -1,0 +1,179 @@
+fn describe(name: String, body: SuiteBuilder -> void) -> void {
+  builder := push_suite(name)
+  body(builder)
+  pop_suite()
+}
+
+fn context(name: String, body: SuiteBuilder -> void) -> void {
+  describe(name, body)
+}
+
+methods SuiteBuilder {
+  fn it(self: Self, name: String, body: ExampleContext -> void) -> void {
+    self.register_example(name, empty_string_array(), body, false, false)
+  }
+
+  fn it_tags(self: Self, name: String, tags: Array String, body: ExampleContext -> void) -> void {
+    self.register_example(name, tags, body, false, false)
+  }
+
+  fn it_skip(self: Self, name: String, body: ExampleContext -> void) -> void {
+    self.register_example(name, empty_string_array(), body, true, false)
+  }
+
+  fn it_only(self: Self, name: String, body: ExampleContext -> void) -> void {
+    self.register_example(name, empty_string_array(), body, false, true)
+  }
+
+  fn it_opts(self: Self, name: String, options: ExampleOptions, body: ExampleContext -> void) -> void {
+    self.register_example(name, clone_string_array(options.tags), body, options.skip, options.focus)
+  }
+
+  fn describe(self: Self, name: String, body: SuiteBuilder -> void) -> void {
+    describe(name, body)
+  }
+
+  fn context(self: Self, name: String, body: SuiteBuilder -> void) -> void {
+    describe(name, body)
+  }
+
+  fn before_each(self: Self, hook: ExampleContext -> void) -> void {
+    if self.state_index < 0 { return }
+    SUITE_STACK.get(self.state_index) match {
+      case nil => {},
+      case state: SuiteState => {
+        updated := state
+        updated.before_each.push(hook)
+        SUITE_STACK.set(self.state_index, updated)
+      }
+    }
+  }
+
+  fn after_each(self: Self, hook: ExampleContext -> void) -> void {
+    if self.state_index < 0 { return }
+    SUITE_STACK.get(self.state_index) match {
+      case nil => {},
+      case state: SuiteState => {
+        updated := state
+        updated.after_each.push(hook)
+        SUITE_STACK.set(self.state_index, updated)
+      }
+    }
+  }
+
+  fn before_all(self: Self, hook: ExampleContext -> void) -> void {
+    if self.state_index < 0 { return }
+    SUITE_STACK.get(self.state_index) match {
+      case nil => {},
+      case state: SuiteState => {
+        updated := state
+        updated.before_all.push(hook)
+        SUITE_STACK.set(self.state_index, updated)
+      }
+    }
+  }
+
+  fn after_all(self: Self, hook: ExampleContext -> void) -> void {
+    if self.state_index < 0 { return }
+    SUITE_STACK.get(self.state_index) match {
+      case nil => {},
+      case state: SuiteState => {
+        updated := state
+        updated.after_all.push(hook)
+        SUITE_STACK.set(self.state_index, updated)
+      }
+    }
+  }
+
+  fn tag(self: Self, tag: String) -> void {
+    if self.state_index < 0 { return }
+    SUITE_STACK.get(self.state_index) match {
+      case nil => {},
+      case state: SuiteState => {
+        updated := state
+        updated.tags.push(tag)
+        SUITE_STACK.set(self.state_index, updated)
+      }
+    }
+  }
+
+  fn tags(self: Self, tags: Array String) -> void {
+    idx := 0
+    loop {
+      if idx >= tags.len() { break }
+      tags.get(idx) match {
+        case nil => {},
+        case tag: String => self.tag(tag)
+      }
+      idx = idx + 1
+    }
+  }
+
+  fn module_path(self: Self, path: String) -> void {
+    if self.state_index < 0 { return }
+    SUITE_STACK.get(self.state_index) match {
+      case nil => {},
+      case state: SuiteState => {
+        updated := state
+        updated.module_path = path
+        SUITE_STACK.set(self.state_index, updated)
+      }
+    }
+  }
+
+  fn register_example(
+    self: Self,
+    name: String,
+    tags: Array String,
+    body: ExampleContext -> void,
+    skip: bool,
+    focus: bool
+  ) -> void {
+    if self.state_index < 0 { return }
+    SUITE_STACK.get(self.state_index) match {
+      case nil => {},
+      case state: SuiteState => {
+        stored_path := clone_string_array(state.path)
+        suite_key := build_suite_key(stored_path)
+        example_id := build_example_id(stored_path, name)
+        display_name := build_example_display(stored_path, name)
+        full_tags := if tags.len() == 0 {
+          clone_string_array(state.tags)
+        } else {
+          clone_string_array(tags)
+        }
+        if skip { full_tags.push("skip") }
+        if focus { full_tags.push("focus") }
+        example := ExampleDefinition {
+          id: example_id,
+          display_name,
+          suite_key,
+          suite_path: stored_path,
+          tags: full_tags,
+          before_each: clone_hook_array(state.before_each),
+          after_each: clone_hook_array(state.after_each),
+          body,
+          module_path: state.module_path,
+          skip,
+          focus
+        }
+        EXAMPLES.push(example)
+        archive_idx := 0
+        loop {
+          if archive_idx >= EXAMPLES_ARCHIVE.len() { break }
+          EXAMPLES_ARCHIVE.get(archive_idx) match {
+            case nil => {},
+            case existing: ExampleDefinition => {
+              if existing.id == example_id {
+                EXAMPLES_ARCHIVE.set(archive_idx, example)
+                return
+              }
+            }
+          }
+          archive_idx = archive_idx + 1
+        }
+        EXAMPLES_ARCHIVE.push(example)
+      }
+    }
+  }
+}

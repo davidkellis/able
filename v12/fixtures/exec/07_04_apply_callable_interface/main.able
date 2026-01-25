@@ -1,0 +1,25 @@
+package exec_07_04_apply_callable_interface
+
+## Semantics: values implementing Apply can be invoked like functions.
+
+import able.core.interfaces.{Apply}
+
+struct Scaler { factor: i32 }
+
+impl Apply i32 i32 for Scaler {
+  fn apply(self: Self, value: i32) -> i32 { self.factor * value }
+}
+
+struct Prefixer { prefix: String }
+
+impl Apply String String for Prefixer {
+  fn apply(self: Self, value: String) -> String { `${self.prefix}${value}` }
+}
+
+fn main() -> void {
+  scaler := Scaler { factor: 4 }
+  print(`direct ${scaler(3)}`)
+
+  prefixer := Prefixer { prefix: "hi-" }
+  print(prefixer("able"))
+}

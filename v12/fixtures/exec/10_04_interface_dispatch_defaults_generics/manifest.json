@@ -1,0 +1,12 @@
+{
+  "description": "interface dispatch uses defaults + generic methods on interface-typed values across packages",
+  "setup": ["iface_defs.able", "impls.able"],
+  "expect": {
+    "stdout": [
+      "desc:Quill",
+      "token tok alpha",
+      "token tok 42"
+    ],
+    "exit": 0
+  }
+}

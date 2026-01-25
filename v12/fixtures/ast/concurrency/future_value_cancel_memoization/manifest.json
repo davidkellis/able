@@ -1,0 +1,24 @@
+{
+  "description": "Cancelled future value() calls return identical memoized errors",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "length": 3,
+      "elements": [
+        {
+          "kind": "String",
+          "value": "Future cancelled"
+        },
+        {
+          "kind": "String",
+          "value": "Future cancelled"
+        },
+        {
+          "kind": "String",
+          "value": "0"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

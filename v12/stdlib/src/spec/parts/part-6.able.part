@@ -1,0 +1,22 @@
+fn tag_list_contains(tags: Array String, needle: String) -> bool {
+  idx := 0
+  loop {
+    if idx >= tags.len() { break }
+    tags.get(idx) match {
+      case nil => {},
+      case value: String => {
+        if value == needle { return true }
+      }
+    }
+    idx = idx + 1
+  }
+  false
+}
+
+fn __clear_examples_for_tests() -> void {
+  EXAMPLES = Array.new()
+  SUITES = Array.new()
+  SUITE_STACK = Array.new()
+}
+
+register_framework(SpecFramework {})

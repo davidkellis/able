@@ -1,0 +1,30 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "RescueExpression",
+      "monitoredExpression": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "StringLiteral",
+            "value": "safe"
+          }
+        ]
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "WildcardPattern"
+          },
+          "body": {
+            "type": "StringLiteral",
+            "value": "handled"
+          }
+        }
+      ]
+    }
+  ]
+}

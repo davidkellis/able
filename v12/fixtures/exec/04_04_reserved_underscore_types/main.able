@@ -1,0 +1,10 @@
+package exec_04_04_reserved_underscore_types
+
+## Semantics: `_` in type expressions denotes an unbound type parameter (type constructor).
+
+type AnyArray = Array _
+
+fn main() -> void {
+  values := [10, 20, 30]
+  print(values[0])
+}

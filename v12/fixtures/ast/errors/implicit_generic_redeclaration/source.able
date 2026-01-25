@@ -1,0 +1,6 @@
+fn wrap(value: T) -> T {
+  struct T {
+    value: i32
+  }
+  value;
+}

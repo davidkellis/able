@@ -1,0 +1,378 @@
+package numeric
+import able.core.errors.{DivisionByZeroError, OverflowError}
+import able.core.interfaces.{Error}
+import able.core.options.{Result}
+import able.kernel.{Ratio, ratio_from_float}
+
+## Error raised when a numeric conversion cannot be performed without loss.
+struct NumericConversionError {
+  message: String
+}
+
+impl Error for NumericConversionError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+methods NumericConversionError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn numeric_conversion_error(message: String) -> NumericConversionError {
+  raise NumericConversionError { message }
+}
+
+## Shared result returned by Integral#div_mod implementations.
+struct DivModResult T {
+  quotient: T,
+  remainder: T
+}
+
+## Core numeric surface shared across integers/floats.
+interface Numeric for T {
+  fn zero() -> Self;
+  fn one() -> Self;
+  fn abs(self: Self) -> Self;
+  fn sign(self: Self) -> i32;
+  fn min(self: Self, other: Self) -> Self;
+  fn max(self: Self, other: Self) -> Self;
+  fn clamp(self: Self, min_value: Self, max_value: Self) -> Self;
+}
+
+interface Signed for T {
+  fn is_positive(self: Self) -> bool;
+  fn is_negative(self: Self) -> bool;
+}
+
+interface Unsigned for T {
+  fn leading_zeros(self: Self) -> i32;
+  fn trailing_zeros(self: Self) -> i32;
+}
+
+interface Integral for T {
+  fn div_mod(self: Self, other: Self) -> DivModResult Self;
+  fn bit_length(self: Self) -> i32;
+  fn bit_count(self: Self) -> i32;
+  fn is_even(self: Self) -> bool;
+  fn is_odd(self: Self) -> bool;
+}
+
+interface Fractional for T {
+  fn floor(self: Self) -> Self;
+  fn ceil(self: Self) -> Self;
+  fn round(self: Self) -> Self;
+  fn reciprocal(self: Self) -> Self;
+  fn fract(self: Self) -> Self;
+}
+
+interface NumericConversions for T {
+  fn to_i32(self: Self) -> Result i32;
+  fn to_u32(self: Self) -> Result u32;
+  fn to_i64(self: Self) -> Result i64;
+  fn to_u64(self: Self) -> Result u64;
+  fn to_f64(self: Self) -> Result f64;
+}
+
+## Ratio helpers -------------------------------------------------------------
+
+I64_MIN_I128 := -9223372036854775808_i128;
+I64_MAX_I128 := 9223372036854775807_i128;
+
+fn ratio_abs(value: i128) -> i128 {
+  if value < 0_i128 { -value } else { value }
+}
+
+fn ratio_gcd(a: i128, b: i128) -> i128 {
+  x := ratio_abs(a)
+  y := ratio_abs(b)
+  loop {
+    if y == 0_i128 { break }
+    tmp := x % y
+    x = y
+    y = tmp
+  }
+  if x == 0_i128 { 1_i128 } else { x }
+}
+
+fn ratio_normalize(num: i128, den: i128) -> Ratio {
+  if den == 0_i128 { raise DivisionByZeroError {} }
+
+  n := num
+  d := den
+  if d < 0_i128 {
+    n = -n
+    d = -d
+  }
+
+  if n == 0_i128 {
+    d = 1_i128
+  } else {
+    divisor := ratio_gcd(ratio_abs(n), d)
+    n = n // divisor
+    d = d // divisor
+  }
+
+  if n < I64_MIN_I128 || n > I64_MAX_I128 {
+    raise OverflowError { operation: "ratio numerator overflow" }
+  }
+  if d < 1_i128 || d > I64_MAX_I128 {
+    raise OverflowError { operation: "ratio denominator overflow" }
+  }
+
+  Ratio { num: n as i64, den: d as i64 }
+}
+
+methods Ratio {
+  fn new(num: i64, den: i64) -> Ratio { ratio_normalize(num as i128, den as i128) }
+}
+
+## Integer conversions and Ratio entry points --------------------------------
+
+methods i32 {
+  fn to_i32(self: Self) -> Result i32 { self }
+  fn to_u32(self: Self) -> Result u32 {
+    if self < 0 { numeric_conversion_error("cannot convert negative i32 to u32") }
+    else { self as u32 }
+  }
+  fn to_i64(self: Self) -> Result i64 { self as i64 }
+  fn to_u64(self: Self) -> Result u64 {
+    if self < 0 { numeric_conversion_error("cannot convert negative i32 to u64") }
+    else { self as u64 }
+  }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+
+}
+
+methods i64 {
+  fn to_i32(self: Self) -> Result i32 {
+    if self < -2147483648_i64 || self > 2147483647_i64 {
+      numeric_conversion_error("value out of range for i32")
+    } else { self as i32 }
+  }
+  fn to_u32(self: Self) -> Result u32 {
+    if self < 0 || self > 4294967295_i64 {
+      numeric_conversion_error("value out of range for u32")
+    } else { self as u32 }
+  }
+  fn to_i64(self: Self) -> Result i64 { self }
+  fn to_u64(self: Self) -> Result u64 {
+    if self < 0 { numeric_conversion_error("cannot convert negative i64 to u64") }
+    else { self as u64 }
+  }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+
+}
+
+methods u32 {
+  fn to_i32(self: Self) -> Result i32 {
+    if self > 2147483647_u32 {
+      numeric_conversion_error("value out of range for i32")
+    } else { self as i32 }
+  }
+  fn to_u32(self: Self) -> Result u32 { self }
+  fn to_i64(self: Self) -> Result i64 { self as i64 }
+  fn to_u64(self: Self) -> Result u64 { self as u64 }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+
+}
+
+methods u64 {
+  fn to_i32(self: Self) -> Result i32 {
+    if self > 2147483647_u64 {
+      numeric_conversion_error("value out of range for i32")
+    } else { self as i32 }
+  }
+  fn to_u32(self: Self) -> Result u32 {
+    if self > 4294967295_u64 {
+      numeric_conversion_error("value out of range for u32")
+    } else { self as u32 }
+  }
+  fn to_i64(self: Self) -> Result i64 {
+    if self > 9223372036854775807_u64 {
+      numeric_conversion_error("value out of range for i64")
+    } else { self as i64 }
+  }
+  fn to_u64(self: Self) -> Result u64 { self }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+
+}
+
+fn f64_is_nan(value: f64) -> bool { value != value }
+
+methods f64 {
+  fn to_i32(self: Self) -> Result i32 {
+    if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to i32") }
+    elsif self < -2147483648.0 || self > 2147483647.0 {
+      numeric_conversion_error("value out of range for i32")
+    } else {
+      value: i32 = self as i32
+      if (value as f64) != self { numeric_conversion_error("cannot convert fractional f64 to i32") }
+      else { value }
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to u32") }
+    elsif self < 0.0 || self > 4294967295.0 {
+      numeric_conversion_error("value out of range for u32")
+    } else {
+      value: u32 = self as u32
+      if (value as f64) != self { numeric_conversion_error("cannot convert fractional f64 to u32") }
+      else { value }
+    }
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to i64") }
+    elsif self < -9223372036854775808.0 || self > 9223372036854775807.0 {
+      numeric_conversion_error("value out of range for i64")
+    } else {
+      value: i64 = self as i64
+      if (value as f64) != self { numeric_conversion_error("cannot convert fractional f64 to i64") }
+      else { value }
+    }
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to u64") }
+    elsif self < 0.0 || self > 18446744073709551615.0 {
+      numeric_conversion_error("value out of range for u64")
+    } else {
+      value: u64 = self as u64
+      if (value as f64) != self { numeric_conversion_error("cannot convert fractional f64 to u64") }
+      else { value }
+    }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { self }
+  fn to_r(self: Self) -> Ratio { ratio_from_float(self) }
+}
+
+methods f32 {
+  fn to_i32(self: Self) -> Result i32 { (self as f64).to_i32() }
+  fn to_u32(self: Self) -> Result u32 { (self as f64).to_u32() }
+  fn to_i64(self: Self) -> Result i64 { (self as f64).to_i64() }
+  fn to_u64(self: Self) -> Result u64 { (self as f64).to_u64() }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_from_float(self as f64) }
+}
+
+methods Ratio {
+  fn to_i32(self: Self) -> Result i32 {
+    if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to i32") }
+    elsif self.num < -2147483648_i64 || self.num > 2147483647_i64 {
+      numeric_conversion_error("value out of range for i32")
+    } else { self.num as i32 }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to u32") }
+    elsif self.num < 0 || self.num > 4294967295_i64 {
+      numeric_conversion_error("value out of range for u32")
+    } else { self.num as u32 }
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to i64") }
+    else { self.num }
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to u64") }
+    elsif self.num < 0 { numeric_conversion_error("cannot convert negative Ratio to u64") }
+    else { self.num as u64 }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { (self.num as f64) / (self.den as f64) }
+  fn to_r(self: Self) -> Ratio { self }
+}
+
+## Floor-division helpers ---------------------------------------------------
+
+interface FloorOps for T {
+  fn div_floor(self: Self, rhs: T) -> T;
+  fn mod_floor(self: Self, rhs: T) -> T;
+  fn div_mod_floor(self: Self, rhs: T) -> DivModResult T;
+}
+
+fn div_mod_floor_i32(lhs: i32, rhs: i32) -> DivModResult i32 {
+  pair := lhs /% rhs
+  q := pair.quotient
+  r := pair.remainder
+  if rhs < 0 && r != 0 {
+    q = q - 1
+    r = r + rhs
+  }
+  DivModResult i32 { quotient: q, remainder: r }
+}
+
+fn div_mod_floor_i64(lhs: i64, rhs: i64) -> DivModResult i64 {
+  pair := lhs /% rhs
+  q := pair.quotient
+  r := pair.remainder
+  if rhs < 0 && r != 0 {
+    q = q - 1
+    r = r + rhs
+  }
+  DivModResult i64 { quotient: q, remainder: r }
+}
+
+impl FloorOps for i32 {
+  fn div_floor(self: Self, rhs: i32) -> i32 { div_mod_floor_i32(self, rhs).quotient }
+  fn mod_floor(self: Self, rhs: i32) -> i32 { div_mod_floor_i32(self, rhs).remainder }
+  fn div_mod_floor(self: Self, rhs: i32) -> DivModResult i32 { div_mod_floor_i32(self, rhs) }
+}
+
+impl FloorOps for i64 {
+  fn div_floor(self: Self, rhs: i64) -> i64 { div_mod_floor_i64(self, rhs).quotient }
+  fn mod_floor(self: Self, rhs: i64) -> i64 { div_mod_floor_i64(self, rhs).remainder }
+  fn div_mod_floor(self: Self, rhs: i64) -> DivModResult i64 { div_mod_floor_i64(self, rhs) }
+}
+
+impl FloorOps for u32 {
+  fn div_floor(self: Self, rhs: u32) -> u32 { self // rhs }
+  fn mod_floor(self: Self, rhs: u32) -> u32 { self % rhs }
+  fn div_mod_floor(self: Self, rhs: u32) -> DivModResult u32 { self /% rhs }
+}
+
+impl FloorOps for u64 {
+  fn div_floor(self: Self, rhs: u64) -> u64 { self // rhs }
+  fn mod_floor(self: Self, rhs: u64) -> u64 { self % rhs }
+  fn div_mod_floor(self: Self, rhs: u64) -> DivModResult u64 { self /% rhs }
+}
+
+fn div_floor<T>(lhs: T, rhs: T) -> T where T: FloorOps { lhs.div_floor(rhs) }
+fn mod_floor<T>(lhs: T, rhs: T) -> T where T: FloorOps { lhs.mod_floor(rhs) }
+fn div_mod_floor<T>(lhs: T, rhs: T) -> DivModResult T where T: FloorOps { lhs.div_mod_floor(rhs) }
+
+## Arithmetic and comparisons ------------------------------------------------
+
+fn ratio_add(lhs: Ratio, rhs: Ratio) -> Ratio {
+  ratio_normalize((lhs.num as i128 * rhs.den as i128) + (rhs.num as i128 * lhs.den as i128), lhs.den as i128 * rhs.den as i128)
+}
+
+fn ratio_sub(lhs: Ratio, rhs: Ratio) -> Ratio {
+  ratio_normalize((lhs.num as i128 * rhs.den as i128) - (rhs.num as i128 * lhs.den as i128), lhs.den as i128 * rhs.den as i128)
+}
+
+fn ratio_mul(lhs: Ratio, rhs: Ratio) -> Ratio {
+  ratio_normalize(lhs.num as i128 * rhs.num as i128, lhs.den as i128 * rhs.den as i128)
+}
+
+fn ratio_div(lhs: Ratio, rhs: Ratio) -> Ratio {
+  if rhs.num == 0 { raise DivisionByZeroError {} }
+  ratio_normalize(lhs.num as i128 * rhs.den as i128, lhs.den as i128 * rhs.num as i128)
+}
+
+fn ratio_eq(lhs: Ratio, rhs: Ratio) -> bool {
+  lhs.num == rhs.num && lhs.den == rhs.den
+}
+
+fn ratio_lt(lhs: Ratio, rhs: Ratio) -> bool {
+  (lhs.num as i128 * rhs.den as i128) < (rhs.num as i128 * lhs.den as i128)
+}
