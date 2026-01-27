@@ -1,0 +1,10 @@
+{
+  "description": "bytecode-friendly placeholder lambdas",
+  "expect": {
+    "stdout": [
+      "swap 907",
+      "adder 12"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "description": "bytecode-friendly match with literals and guards",
+  "expect": {
+    "stdout": [
+      "zero",
+      "one",
+      "many",
+      "negative"
+    ],
+    "exit": 0
+  }
+}

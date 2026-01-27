@@ -1,0 +1,12 @@
+{
+  "description": "bytecode-friendly map literal + spread merge with basic inspections",
+  "expect": {
+    "stdout": [
+      "4",
+      "55",
+      "true",
+      "false"
+    ],
+    "exit": 0
+  }
+}

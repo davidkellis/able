@@ -236,6 +236,31 @@ func (i *Interpreter) runAsyncEvaluation(payload *asyncContextPayload, node ast.
 	return result, nil
 }
 
+func (i *Interpreter) runAsyncBytecodeProgram(payload *asyncContextPayload, program *bytecodeProgram, env *runtime.Environment) (runtime.Value, error) {
+	if payload == nil {
+		payload = &asyncContextPayload{kind: asyncContextNone}
+	}
+	if payload.state == nil {
+		payload.state = newEvalState()
+	}
+	if env != nil {
+		env.SetRuntimeData(payload)
+		defer env.SetRuntimeData(nil)
+	}
+	vm := newBytecodeVM(i, env)
+	result, evalErr := vm.run(program)
+	if evalErr != nil {
+		if errors.Is(evalErr, context.Canceled) {
+			return nil, context.Canceled
+		}
+		return nil, i.asyncFailure(payload, evalErr)
+	}
+	if payload != nil && payload.handle != nil && payload.handle.CancelRequested() {
+		return nil, i.asyncCancelled(payload)
+	}
+	return result, nil
+}
+
 func (i *Interpreter) asyncFailure(payload *asyncContextPayload, err error) error {
 	if errors.Is(err, errSerialYield) {
 		return err

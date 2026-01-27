@@ -127,48 +127,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		if err != nil {
 			return nil, err
 		}
-		if result, err := i.tryInvokeRangeImplementation(start, endExpr, n.Inclusive, env); err != nil {
-			return nil, err
-		} else if result != nil {
-			return result, nil
-		}
-		if !isIntegerValue(start) || !isIntegerValue(endExpr) {
-			return nil, fmt.Errorf("Range boundaries must be numeric")
-		}
-		startVal, err := rangeEndpoint(start)
-		if err != nil {
-			return nil, err
-		}
-		endVal, err := rangeEndpoint(endExpr)
-		if err != nil {
-			return nil, err
-		}
-		step := 1
-		if startVal > endVal {
-			step = -1
-		}
-		elements := make([]runtime.Value, 0)
-		for current := startVal; ; current += step {
-			if step > 0 {
-				if n.Inclusive {
-					if current > endVal {
-						break
-					}
-				} else if current >= endVal {
-					break
-				}
-			} else {
-				if n.Inclusive {
-					if current < endVal {
-						break
-					}
-				} else if current <= endVal {
-					break
-				}
-			}
-			elements = append(elements, runtime.IntegerValue{Val: big.NewInt(int64(current)), TypeSuffix: runtime.IntegerI32})
-		}
-		return &runtime.ArrayValue{Elements: elements}, nil
+		return i.evaluateRangeValues(start, endExpr, n.Inclusive, env)
 	case *ast.StructLiteral:
 		return i.evaluateStructLiteral(n, env)
 	case *ast.MapLiteral:
@@ -442,8 +401,12 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 	if err != nil {
 		return nil, err
 	}
+	return i.applyUnaryOperator(string(expr.Operator), operand)
+}
+
+func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value) (runtime.Value, error) {
 	rawOperand := unwrapInterfaceValue(operand)
-	switch expr.Operator {
+	switch operator {
 	case "-":
 		switch v := rawOperand.(type) {
 		case runtime.IntegerValue:
@@ -452,7 +415,7 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 		case runtime.FloatValue:
 			return runtime.FloatValue{Val: -v.Val, TypeSuffix: v.TypeSuffix}, nil
 		default:
-			if result, ok, err := i.applyUnaryInterface(string(expr.Operator), operand); ok {
+			if result, ok, err := i.applyUnaryInterface(operator, operand); ok {
 				return result, err
 			}
 			return nil, fmt.Errorf("unary '-' not supported for %T", operand)
@@ -478,14 +441,59 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 			neg := new(big.Int).Neg(new(big.Int).Add(v.Val, big.NewInt(1)))
 			return runtime.IntegerValue{Val: neg, TypeSuffix: v.TypeSuffix}, nil
 		default:
-			if result, ok, err := i.applyUnaryInterface(string(expr.Operator), operand); ok {
+			if result, ok, err := i.applyUnaryInterface(operator, operand); ok {
 				return result, err
 			}
-			return nil, fmt.Errorf("unary '%s' not supported for %T", expr.Operator, operand)
+			return nil, fmt.Errorf("unary '%s' not supported for %T", operator, operand)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported unary operator %s", expr.Operator)
+		return nil, fmt.Errorf("unsupported unary operator %s", operator)
 	}
+}
+
+func (i *Interpreter) evaluateRangeValues(start runtime.Value, end runtime.Value, inclusive bool, env *runtime.Environment) (runtime.Value, error) {
+	if result, err := i.tryInvokeRangeImplementation(start, end, inclusive, env); err != nil {
+		return nil, err
+	} else if result != nil {
+		return result, nil
+	}
+	if !isIntegerValue(start) || !isIntegerValue(end) {
+		return nil, fmt.Errorf("Range boundaries must be numeric")
+	}
+	startVal, err := rangeEndpoint(start)
+	if err != nil {
+		return nil, err
+	}
+	endVal, err := rangeEndpoint(end)
+	if err != nil {
+		return nil, err
+	}
+	step := 1
+	if startVal > endVal {
+		step = -1
+	}
+	elements := make([]runtime.Value, 0)
+	for current := startVal; ; current += step {
+		if step > 0 {
+			if inclusive {
+				if current > endVal {
+					break
+				}
+			} else if current >= endVal {
+				break
+			}
+		} else {
+			if inclusive {
+				if current < endVal {
+					break
+				}
+			} else if current <= endVal {
+				break
+			}
+		}
+		elements = append(elements, runtime.IntegerValue{Val: big.NewInt(int64(current)), TypeSuffix: runtime.IntegerI32})
+	}
+	return &runtime.ArrayValue{Elements: elements}, nil
 }
 
 func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *runtime.Environment) (runtime.Value, error) {

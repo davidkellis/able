@@ -1,0 +1,11 @@
+package exec_07_08_bytecode_placeholder_lambda
+
+## Semantics: placeholder lambdas (@/@n) compile and execute in bytecode mode.
+fn main() -> void {
+  swap := @2 * 100 + @1
+  print(`swap ${swap(7, 9)}`)
+
+  make_adder := { offset => (@ + offset) }
+  adder := make_adder(5)
+  print(`adder ${adder(7)}`)
+}

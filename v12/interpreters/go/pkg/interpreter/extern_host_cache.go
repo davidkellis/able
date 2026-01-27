@@ -9,8 +9,13 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-func hashExternState(target ast.HostTarget, state *externTargetState) string {
+func hashExternState(target ast.HostTarget, state *externTargetState, salt string) string {
 	hasher := sha256.New()
+	if salt != "" {
+		hasher.Write([]byte("salt:"))
+		hasher.Write([]byte(salt))
+		hasher.Write([]byte("\n"))
+	}
 	hasher.Write([]byte("target:"))
 	hasher.Write([]byte(target))
 	hasher.Write([]byte("\nversion:"))

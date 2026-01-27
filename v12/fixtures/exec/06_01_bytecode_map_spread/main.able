@@ -1,0 +1,26 @@
+package exec_06_01_bytecode_map_spread
+
+## Semantics: map literals + spread merge entries, preserving later overrides, without leaving bytecode mode.
+import able.collections.hash_map.*
+
+fn main() -> void {
+  base := #{ "a": 1, "b": 2 }
+  override := #{ "b": 20, "c": 30 }
+  merged := #{
+    ...base,
+    "b": 3,
+    ...override,
+    "d": 4
+  }
+
+  print(merged.size())
+
+  sum := 0
+  merged.for_each(fn(_key: String, value: i32) -> void {
+    sum = sum + value
+  })
+
+  print(sum)
+  print(merged.contains("a"))
+  print(merged.contains("z"))
+}
