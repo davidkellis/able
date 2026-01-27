@@ -152,7 +152,7 @@ func (i *Interpreter) invokeExternHostFunction(pkgName string, def *ast.ExternFu
 }
 
 func (i *Interpreter) ensureExternHostModule(pkgName string, target ast.HostTarget, state *externTargetState, pkg *externHostPackage) (*externHostModule, error) {
-	hash := hashExternState(target, state)
+	hash := hashExternState(target, state, i.externSession)
 	if existing := pkg.modules[target]; existing != nil && existing.hash == hash && existing.plugin != nil {
 		return existing, nil
 	}

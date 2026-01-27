@@ -1,0 +1,9 @@
+{
+  "description": "bytecode-friendly rescue handles raise",
+  "expect": {
+    "stdout": [
+      "42"
+    ],
+    "exit": 0
+  }
+}

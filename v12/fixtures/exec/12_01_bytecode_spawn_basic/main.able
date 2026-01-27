@@ -1,0 +1,8 @@
+package exec_12_01_bytecode_spawn_basic
+
+## Semantics: spawn returns a Future handle; value() blocks and yields result in bytecode mode.
+fn main() -> void {
+  base := 5
+  handle := spawn { base + 2 }
+  print(handle.value())
+}

@@ -1,0 +1,15 @@
+package exec_06_02_bytecode_unary_range_cast
+
+## Semantics: unary ops, ranges, type casts, and interpolation execute in bytecode mode.
+fn main() -> void {
+  print(-3)
+  print(!false)
+
+  values := 1..4
+  print(values[0])
+  print(values[2])
+
+  casted := 3.7 as i32
+  print(casted)
+  print(`sum ${casted + values[1]}`)
+}

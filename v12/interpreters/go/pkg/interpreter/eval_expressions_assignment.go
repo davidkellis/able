@@ -175,9 +175,6 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			return nil, fmt.Errorf("Implicit member assignments supported only on struct instances")
 		}
 	case *ast.IndexExpression:
-		if assign.Operator == ast.AssignmentDeclare {
-			return nil, fmt.Errorf("Cannot use := on index assignment")
-		}
 		arrObj, err := i.evaluateExpression(lhs.Object, env)
 		if err != nil {
 			return nil, err
@@ -186,77 +183,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		if err != nil {
 			return nil, err
 		}
-		if setMethod, err := i.findIndexMethod(arrObj, "set", "IndexMut"); err != nil {
-			return nil, err
-		} else if setMethod != nil {
-			if assign.Operator == ast.AssignmentAssign {
-				setResult, err := i.CallFunction(setMethod, []runtime.Value{arrObj, idxVal, value})
-				if err != nil {
-					return nil, err
-				}
-				if isErrorResult(i, setResult) {
-					return setResult, nil
-				}
-				return value, nil
-			}
-			if !isCompound {
-				return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
-			}
-			getMethod, err := i.findIndexMethod(arrObj, "get", "Index")
-			if err != nil {
-				return nil, err
-			}
-			if getMethod == nil {
-				return nil, fmt.Errorf("Compound index assignment requires readable Index implementation")
-			}
-			current, err := i.CallFunction(getMethod, []runtime.Value{arrObj, idxVal})
-			if err != nil {
-				return nil, err
-			}
-			computed, err := applyBinaryOperator(i, binaryOp, current, value)
-			if err != nil {
-				return nil, err
-			}
-			setResult, err := i.CallFunction(setMethod, []runtime.Value{arrObj, idxVal, computed})
-			if err != nil {
-				return nil, err
-			}
-			if isErrorResult(i, setResult) {
-				return setResult, nil
-			}
-			return computed, nil
-		}
-		arr, err := i.toArrayValue(arrObj)
-		if err != nil {
-			return nil, err
-		}
-		idx, err := indexFromValue(idxVal)
-		if err != nil {
-			return nil, err
-		}
-		state, err := i.ensureArrayState(arr, 0)
-		if err != nil {
-			return nil, err
-		}
-		if idx < 0 || idx >= len(state.values) {
-			return nil, fmt.Errorf("Array index out of bounds")
-		}
-		if assign.Operator == ast.AssignmentAssign {
-			state.values[idx] = value
-			i.syncArrayValues(arr.Handle, state)
-			return value, nil
-		}
-		if !isCompound {
-			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
-		}
-		current := state.values[idx]
-		computed, err := applyBinaryOperator(i, binaryOp, current, value)
-		if err != nil {
-			return nil, err
-		}
-		state.values[idx] = computed
-		i.syncArrayValues(arr.Handle, state)
-		return computed, nil
+		return i.assignIndex(arrObj, idxVal, value, assign.Operator, binaryOp, isCompound)
 	case ast.Pattern:
 		if isCompound {
 			return nil, fmt.Errorf("compound assignment not supported with patterns")
@@ -284,6 +211,111 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 	}
 
 	return value, nil
+}
+
+func (i *Interpreter) indexGet(obj runtime.Value, idxVal runtime.Value) (runtime.Value, error) {
+	if method, err := i.findIndexMethod(obj, "get", "Index"); err != nil {
+		return nil, err
+	} else if method != nil {
+		return i.CallFunction(method, []runtime.Value{obj, idxVal})
+	}
+	arr, err := i.toArrayValue(obj)
+	if err != nil {
+		return nil, err
+	}
+	idx, err := indexFromValue(idxVal)
+	if err != nil {
+		return nil, err
+	}
+	state, err := i.ensureArrayState(arr, 0)
+	if err != nil {
+		return nil, err
+	}
+	if idx < 0 || idx >= len(state.values) {
+		return i.makeIndexErrorValue(idx, len(state.values)), nil
+	}
+	val := state.values[idx]
+	if val == nil {
+		return i.makeIndexErrorValue(idx, len(state.values)), nil
+	}
+	return val, nil
+}
+
+func (i *Interpreter) assignIndex(obj runtime.Value, idxVal runtime.Value, value runtime.Value, op ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, error) {
+	if op == ast.AssignmentDeclare {
+		return nil, fmt.Errorf("Cannot use := on index assignment")
+	}
+	if setMethod, err := i.findIndexMethod(obj, "set", "IndexMut"); err != nil {
+		return nil, err
+	} else if setMethod != nil {
+		if op == ast.AssignmentAssign {
+			setResult, err := i.CallFunction(setMethod, []runtime.Value{obj, idxVal, value})
+			if err != nil {
+				return nil, err
+			}
+			if isErrorResult(i, setResult) {
+				return setResult, nil
+			}
+			return value, nil
+		}
+		if !isCompound {
+			return nil, fmt.Errorf("unsupported assignment operator %s", op)
+		}
+		getMethod, err := i.findIndexMethod(obj, "get", "Index")
+		if err != nil {
+			return nil, err
+		}
+		if getMethod == nil {
+			return nil, fmt.Errorf("Compound index assignment requires readable Index implementation")
+		}
+		current, err := i.CallFunction(getMethod, []runtime.Value{obj, idxVal})
+		if err != nil {
+			return nil, err
+		}
+		computed, err := applyBinaryOperator(i, binaryOp, current, value)
+		if err != nil {
+			return nil, err
+		}
+		setResult, err := i.CallFunction(setMethod, []runtime.Value{obj, idxVal, computed})
+		if err != nil {
+			return nil, err
+		}
+		if isErrorResult(i, setResult) {
+			return setResult, nil
+		}
+		return computed, nil
+	}
+	arr, err := i.toArrayValue(obj)
+	if err != nil {
+		return nil, err
+	}
+	idx, err := indexFromValue(idxVal)
+	if err != nil {
+		return nil, err
+	}
+	state, err := i.ensureArrayState(arr, 0)
+	if err != nil {
+		return nil, err
+	}
+	if idx < 0 || idx >= len(state.values) {
+		return nil, fmt.Errorf("Array index out of bounds")
+	}
+	if op == ast.AssignmentAssign {
+		state.values[idx] = value
+		i.syncArrayValues(arr.Handle, state)
+		return value, nil
+	}
+	if !isCompound {
+		return nil, fmt.Errorf("unsupported assignment operator %s", op)
+	}
+	current := state.values[idx]
+	computed, err := applyBinaryOperator(i, binaryOp, current, value)
+	if err != nil {
+		return nil, err
+	}
+	state.values[idx] = computed
+	i.syncArrayValues(arr.Handle, state)
+	return computed, nil
 }
 
 func isErrorResult(i *Interpreter, value runtime.Value) bool {

@@ -1,0 +1,10 @@
+{
+  "description": "bytecode-friendly implicit members and iterator literal",
+  "expect": {
+    "stdout": [
+      "sum 7",
+      "iter 7"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,19 @@
+package exec_08_01_bytecode_match_basic
+
+## Semantics: bytecode-friendly match with literals, wildcard, and guard.
+
+fn classify(value: i32) -> String {
+  value match {
+    case 0 => "zero",
+    case 1 => "one",
+    case n if n > 1 => "many",
+    case _ => "negative"
+  }
+}
+
+fn main() -> void {
+  print(classify(0))
+  print(classify(1))
+  print(classify(3))
+  print(classify(-2))
+}

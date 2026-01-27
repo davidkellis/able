@@ -1,0 +1,40 @@
+package exec_09_00_bytecode_member_calls
+
+## Semantics: bytecode-friendly member access, method calls, and safe navigation.
+
+struct Point { x: i32, y: i32 }
+
+methods Point {
+  fn sum(self: Self) -> i32 { self.x + self.y }
+  fn add(self: Self, dx: i32, dy: i32) -> Point {
+    Point { x: self.x + dx, y: self.y + dy }
+  }
+  fn origin() -> Point { Point { x: 0, y: 0 } }
+}
+
+ticks := 0
+
+fn tick() -> i32 {
+  ticks = ticks + 1
+  ticks
+}
+
+fn main() -> void {
+  p := Point { x: 2, y: 3 }
+  print(p.x)
+  print(p.sum())
+
+  q := p.add(4, 1)
+  print(q.y)
+
+  o := Point.origin()
+  print(o.sum())
+
+  maybe: ?Point := nil
+  maybe?.add(tick(), tick())
+  print(ticks)
+
+  maybe = p
+  maybe?.add(tick(), tick())
+  print(ticks)
+}

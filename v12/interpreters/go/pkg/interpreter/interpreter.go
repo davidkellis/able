@@ -1,9 +1,11 @@
 package interpreter
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
@@ -175,6 +177,15 @@ func (f *placeholderFrame) valueAt(index int) (runtime.Value, error) {
 	return f.args[index-1], nil
 }
 
+type execMode int
+
+const (
+	execModeTreewalker execMode = iota
+	execModeBytecode
+)
+
+var externSessionCounter uint64
+
 // Interpreter drives evaluation of Able v12 AST nodes.
 type Interpreter struct {
 	global                *runtime.Environment
@@ -189,6 +200,7 @@ type Interpreter struct {
 	packageRegistry       map[string]map[string]runtime.Value
 	packageMetadata       map[string]packageMeta
 	externHostPackages    map[string]*externHostPackage
+	externSession         string
 	externHostMu          sync.Mutex
 	currentPackage        string
 	dynamicDefinitionMode bool
@@ -196,17 +208,18 @@ type Interpreter struct {
 	dynPackageEvalMethod  runtime.NativeFunctionValue
 	dynamicPackageEnvs    map[string]*runtime.Environment
 	executor              Executor
+	execMode              execMode
 	rootState             *evalState
 	nodeOrigins           map[ast.Node]string
 
-	concurrencyReady     bool
-	futureErrorStruct      *runtime.StructDefinitionValue
-	futureStatusStructs    map[string]*runtime.StructDefinitionValue
-	futureStatusPending    runtime.Value
-	futureStatusResolved   runtime.Value
-	futureStatusCancelled  runtime.Value
-	awaitWakerStruct     *runtime.StructDefinitionValue
-	awaitRoundRobinIndex int
+	concurrencyReady      bool
+	futureErrorStruct     *runtime.StructDefinitionValue
+	futureStatusStructs   map[string]*runtime.StructDefinitionValue
+	futureStatusPending   runtime.Value
+	futureStatusResolved  runtime.Value
+	futureStatusCancelled runtime.Value
+	awaitWakerStruct      *runtime.StructDefinitionValue
+	awaitRoundRobinIndex  int
 
 	channelMutexReady       bool
 	channelMu               sync.Mutex
@@ -223,7 +236,7 @@ type Interpreter struct {
 	stringHostReady bool
 	osReady         bool
 	osArgs          []string
-	ratioReady       bool
+	ratioReady      bool
 
 	orderingStructs map[string]*runtime.StructDefinitionValue
 	divModStruct    *runtime.StructDefinitionValue
@@ -325,16 +338,11 @@ func (i *Interpreter) defineInEnv(env *runtime.Environment, name string, value r
 	env.Define(name, value)
 }
 
-// New returns an interpreter with an empty global environment.
-func New() *Interpreter {
-	return NewWithExecutor(NewSerialExecutor(nil))
-}
-
-// NewWithExecutor allows configuring the executor used for asynchronous tasks.
-func NewWithExecutor(exec Executor) *Interpreter {
+func newInterpreter(exec Executor, mode execMode) *Interpreter {
 	if exec == nil {
 		exec = NewSerialExecutor(nil)
 	}
+	sessionID := atomic.AddUint64(&externSessionCounter, 1)
 	i := &Interpreter{
 		global:               runtime.NewEnvironment(nil),
 		inherentMethods:      make(map[string]map[string]runtime.Value),
@@ -348,8 +356,10 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		packageRegistry:      make(map[string]map[string]runtime.Value),
 		packageMetadata:      make(map[string]packageMeta),
 		externHostPackages:   make(map[string]*externHostPackage),
+		externSession:        fmt.Sprintf("sess_%d", sessionID),
 		dynamicPackageEnvs:   make(map[string]*runtime.Environment),
 		executor:             exec,
+		execMode:             mode,
 		rootState:            newEvalState(),
 		futureStatusStructs: map[string]*runtime.StructDefinitionValue{
 			"Pending":   nil,
@@ -382,6 +392,26 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	i.initInterfaceBuiltins()
 	i.initDynamicBuiltins()
 	return i
+}
+
+// New returns a tree-walker interpreter with an empty global environment.
+func New() *Interpreter {
+	return newInterpreter(NewSerialExecutor(nil), execModeTreewalker)
+}
+
+// NewWithExecutor allows configuring the executor used for asynchronous tasks.
+func NewWithExecutor(exec Executor) *Interpreter {
+	return newInterpreter(exec, execModeTreewalker)
+}
+
+// NewBytecode returns a bytecode-backed interpreter (with tree-walker fallback).
+func NewBytecode() *Interpreter {
+	return newInterpreter(NewSerialExecutor(nil), execModeBytecode)
+}
+
+// NewBytecodeWithExecutor allows configuring the executor for bytecode runs.
+func NewBytecodeWithExecutor(exec Executor) *Interpreter {
+	return newInterpreter(exec, execModeBytecode)
 }
 
 // GlobalEnvironment returns the interpreter’s global environment.
@@ -475,21 +505,49 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 		}
 	}
 
+	var (
+		last runtime.Value
+		err  error
+	)
+	if i.execMode == execModeBytecode {
+		last, err = i.evaluateModuleBodyBytecode(module, moduleEnv)
+		if err != nil && errors.Is(err, errBytecodeUnsupported) {
+			last, err = i.evaluateModuleBodyTreewalker(module, moduleEnv)
+		}
+	} else {
+		last, err = i.evaluateModuleBodyTreewalker(module, moduleEnv)
+	}
+	if err != nil {
+		if rs, ok := err.(raiseSignal); ok {
+			return nil, moduleEnv, rs
+		}
+		if _, ok := err.(returnSignal); ok {
+			return nil, nil, fmt.Errorf("return outside function")
+		}
+		return nil, nil, err
+	}
+	return last, moduleEnv, nil
+}
+
+func (i *Interpreter) evaluateModuleBodyTreewalker(module *ast.Module, env *runtime.Environment) (runtime.Value, error) {
 	var last runtime.Value = runtime.NilValue{}
 	for _, stmt := range module.Body {
-		val, err := i.evaluateStatement(stmt, moduleEnv)
+		val, err := i.evaluateStatement(stmt, env)
 		if err != nil {
-			if rs, ok := err.(raiseSignal); ok {
-				return nil, moduleEnv, rs
-			}
-			if _, ok := err.(returnSignal); ok {
-				return nil, nil, fmt.Errorf("return outside function")
-			}
-			return nil, nil, err
+			return nil, err
 		}
 		last = val
 	}
-	return last, moduleEnv, nil
+	return last, nil
+}
+
+func (i *Interpreter) evaluateModuleBodyBytecode(module *ast.Module, env *runtime.Environment) (runtime.Value, error) {
+	program, err := i.lowerModuleToBytecode(module)
+	if err != nil {
+		return nil, err
+	}
+	vm := newBytecodeVM(i, env)
+	return vm.run(program)
 }
 
 func (i *Interpreter) getPackageMeta(pkgName string, namePath []string) packageMeta {

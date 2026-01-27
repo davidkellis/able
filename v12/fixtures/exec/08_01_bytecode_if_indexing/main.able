@@ -1,0 +1,40 @@
+package exec_08_01_bytecode_if_indexing
+
+## Semantics: bytecode-friendly if/elsif/else with array/map index assignments.
+import able.collections.hash_map.*
+
+fn main() -> void {
+  arr := [1, 2, 3]
+  arr[1] = 5
+
+  sum := 0
+  for value in arr {
+    sum = sum + value
+  }
+
+  print(sum)
+
+  m := #{ "a": 1, "b": 2 }
+  m["c"] = 3
+  m["b"] = 4
+
+  print(m.size())
+
+  map_sum := 0
+  m.for_each(fn(key: String, value: i32) -> void {
+    map_sum = map_sum + value
+  })
+
+  print(map_sum)
+
+  label := ""
+  if sum > map_sum {
+    label = "sum"
+  } elsif map_sum > sum {
+    label = "map"
+  } else {
+    label = "equal"
+  }
+
+  print(label)
+}
