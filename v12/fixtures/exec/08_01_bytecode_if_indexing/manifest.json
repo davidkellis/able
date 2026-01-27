@@ -1,0 +1,12 @@
+{
+  "description": "bytecode-friendly if/elsif/else with array and map index assignment",
+  "expect": {
+    "stdout": [
+      "9",
+      "3",
+      "8",
+      "sum"
+    ],
+    "exit": 0
+  }
+}

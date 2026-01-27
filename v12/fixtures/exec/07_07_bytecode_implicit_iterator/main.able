@@ -1,0 +1,32 @@
+package exec_07_07_bytecode_implicit_iterator
+
+import able.core.iteration.{IteratorEnd}
+
+## Semantics: implicit member access and iterator literals are supported in bytecode mode.
+struct Pair { a: i32, b: i32 }
+
+methods Pair {
+  fn #sum() -> i32 { #a + #b }
+}
+
+fn main() -> void {
+  pair := Pair { a: 2, b: 5 }
+  print(`sum ${pair.sum()}`)
+
+  iter := Iterator i32 { gen =>
+    gen.yield(3)
+    gen.yield(4)
+  }
+
+  total := 0
+  iter.next() match {
+    case v: i32 => total = total + v,
+    case IteratorEnd {} => {}
+  }
+  iter.next() match {
+    case v: i32 => total = total + v,
+    case IteratorEnd {} => {}
+  }
+
+  print(`iter ${total}`)
+}

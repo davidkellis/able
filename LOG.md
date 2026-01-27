@@ -1,5 +1,163 @@
 # Able Project Log
 
+# 2026-01-26 — Bytecode placeholder lambda opcode (v12)
+- Bytecode: added placeholder lambda opcode to construct @/@n callables in bytecode mode, with parity test.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_PlaceholderLambda -count=1`.
+
+# 2026-01-26 — Bytecode placeholder lambda fixture (v12)
+- Fixtures: added exec fixture for placeholder lambdas in bytecode mode.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_08_bytecode_placeholder_lambda -count=1`.
+
+# 2026-01-26 — Bytecode implicit member + iterator fixture (v12)
+- Fixtures: added exec fixture for implicit members and iterator literals in bytecode mode.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_07_bytecode_implicit_iterator -count=1`.
+
+# 2026-01-26 — Bytecode breakpoint opcode (v12)
+- Bytecode: added breakpoint opcode delegation with parity test.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_BreakpointExpression -count=1`.
+
+# 2026-01-26 — Bytecode iterator literal opcode (v12)
+- Bytecode: added iterator literal opcode delegation with parity test.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_IteratorLiteral -count=1`.
+
+# 2026-01-26 — Bytecode implicit member opcode (v12)
+- Bytecode: added implicit member opcode delegation with parity test.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_ImplicitMemberExpression -count=1`.
+
+# 2026-01-26 — Bytecode await fixture (v12)
+- Fixtures: added exec fixture for bytecode await default arm.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/12_01_bytecode_await_default -count=1`.
+
+# 2026-01-26 — Bytecode await opcode (v12)
+- Bytecode: added await opcode delegation with a manual-waker parity test.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_AwaitExpressionManualWaker -count=1`.
+
+# 2026-01-26 — Bytecode async task lowering (v12)
+- Bytecode: spawned tasks now run bytecode when lowering succeeds (fallback to tree-walker on unsupported nodes).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_SpawnExpression -count=1`.
+
+# 2026-01-26 — Bytecode spawn fixture (v12)
+- Fixtures: added exec fixture for bytecode spawn + future.value.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/12_01_bytecode_spawn_basic -count=1`.
+
+# 2026-01-26 — Bytecode spawn op (v12)
+- Bytecode: added native spawn opcode/lowering plus parity test for future.value().
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_SpawnExpression -count=1`.
+
+# 2026-01-26 — Bytecode or-else opcode (v12)
+- Bytecode: added a dedicated or-else opcode that delegates evaluation to the tree-walker for correct raise handling.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM/OrElse -count=1`.
+
+# 2026-01-26 — Bytecode unary/range/cast fixture (v12)
+- Fixtures: added exec fixture to cover unary ops, ranges, type casts, and interpolation in bytecode mode.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_02_bytecode_unary_range_cast -count=1`.
+
+# 2026-01-26 — Bytecode propagation op (v12)
+- Bytecode: added native propagation opcode/lowering so `!` raises in bytecode mode without eval delegation.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode string interpolation (v12)
+- Bytecode: added native lowering + VM op for string interpolation with parity test.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode unary/range/typecast ops (v12)
+- Bytecode: added native lowering + VM ops for unary, range, and type cast expressions, plus parity tests.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode short-circuit + pipe (v12)
+- Bytecode: added native lowering for `&&`/`||` short-circuit and `|>`/`|>>` pipe operators, plus parity tests.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode statement delegation (v12)
+- Bytecode: added eval-statement opcode to delegate definitions/imports/return/yield to the tree-walker during bytecode runs.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity -count=1`.
+
+# 2026-01-26 — Bytecode eval delegation (v12)
+- Bytecode: added a generic eval opcode to delegate propagation/or-else/unary/typecast/await/spawn/etc to the tree-walker, with parity tests for propagation and or-else.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode ensure/rethrow (v12)
+- Bytecode: added ensure/rethrow opcode delegation and parity tests; added a bytecode-friendly ensure fixture.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/11_03_bytecode_ensure_basic -count=1`.
+
+# 2026-01-26 — Bytecode rescue/raise (v12)
+- Bytecode: added rescue/raise opcode delegation with parity tests plus a bytecode-friendly rescue fixture.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/11_03_bytecode_rescue_basic -count=1`.
+
+# 2026-01-26 — Bytecode match fixture (v12)
+- Fixtures: added exec fixture for bytecode-friendly match (literals, guards, wildcard).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/08_01_bytecode_match_basic -count=1`.
+
+# 2026-01-26 — Bytecode match expressions (v12)
+- Bytecode: added match-expression opcode delegation and parity tests for literal patterns + guards.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode lambda-call fixture (v12)
+- Fixtures: added exec fixture for bytecode-friendly lambda calls, closure capture, and safe member access.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_02_bytecode_lambda_calls -count=1`.
+
+# 2026-01-26 — Bytecode loop expression (v12)
+- Bytecode: added loop-expression lowering with break/continue handling and parity tests.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode member-call fixture (v12)
+- Fixtures: added exec fixture for bytecode-friendly member access, method calls, and safe navigation (tick suppression on nil).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/09_00_bytecode_member_calls -count=1`.
+
+# 2026-01-26 — Bytecode if/index fixture (v12)
+- Fixtures: added exec fixture for bytecode-friendly if/elsif/else with array/map index assignment and aggregation.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/08_01_bytecode_if_indexing -count=1`.
+
+# 2026-01-26 — Bytecode loop fixture (v12)
+- Fixtures: added exec fixture for bytecode-friendly while/for loops with continue and accumulation.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/08_02_bytecode_loop_basics -count=1`.
+
+# 2026-01-26 — Bytecode map literal fixture (v12)
+- Fixtures: added exec fixture to exercise bytecode-friendly map literal + spread evaluation (size, sum, contains checks).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_01_bytecode_map_spread -count=1`.
+
+# 2026-01-26 — Bytecode for loops (v12)
+- Bytecode: added for-loop opcode that delegates to tree-walker evaluation; parity tests cover array iteration and break payloads.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode while loops (v12)
+- Bytecode: added while-loop lowering plus break/continue handling with scope unwinding; added parity tests for while loops (including break/continue).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+
+# 2026-01-26 — Bytecode map literals (v12)
+- Bytecode: added map literal opcode/lowering; parity tests cover direct map literal and spread semantics using kernel HashMap helpers.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity -count=1`.
+
+# 2026-01-25 — Bytecode array literals (v12)
+- Bytecode: added array literal opcode/lowering and exercised with index access tests.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity -count=1`.
+
+# 2026-01-25 — Bytecode index expressions (v12)
+- Bytecode: added index get/set ops plus lowering for index expressions and index assignments, sharing interpreter index helpers.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity -count=1`.
+
+# 2026-01-25 — Bytecode struct literals (v12)
+- Bytecode: added struct definition/literal ops so named struct literals can be evaluated in bytecode mode.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity -count=1`.
+
+# 2026-01-25 — Bytecode member access + calls (v12)
+- Bytecode: added member access op + call-site handling for member callees, dotted identifiers, and safe `?.` calls; added dup/jump-if-nil op for short-circuiting.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity -count=1`.
+
+# 2026-01-25 — Bytecode funcs + extern isolation (v12)
+- Bytecode: added lowering/VM support for function definitions, lambda expressions, and direct function calls.
+- Extern host: salted the extern cache hash per interpreter session to avoid Go plugin reuse across runs (prevents fixture parity cross-talk with stateful externs).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity -count=1`.
+
+# 2026-01-25 — Go bytecode VM baseline (v12)
+- Interpreter: added a minimal Go bytecode VM + lowering (literals, identifiers, :=/=, blocks, if/elsif/else, binary ops) with tree-walker fallback for unsupported nodes.
+- CLI/tests: wired bytecode exec mode to the new backend; added bytecode unit parity tests.
+- Tests not run (not requested).
+
+# 2026-01-25 — Exec fixture parity harness (v12)
+- Tests: added exec fixture parity checks that compare tree-walker vs bytecode stdout/stderr/exit and typecheck diagnostics (`TestExecFixtureParity`).
+- Tests not run (not requested).
+
 # 2026-01-25 — Exec-mode flag + fixture mode runs (v12)
 - CLI: added `--exec-mode=treewalker|bytecode` global flag and wired treewalker/bytecode wrappers to pass it.
 - Tests: added an exec-mode flag for interpreter fixture tests and updated `v12/run_all_tests.sh` to run fixtures in bytecode mode.

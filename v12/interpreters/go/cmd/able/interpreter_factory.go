@@ -7,8 +7,7 @@ func newInterpreter(mode interpreterMode) *interpreter.Interpreter {
 	case interpreterTreewalker:
 		return interpreter.New()
 	case interpreterBytecode:
-		// TODO: swap to bytecode backend once available.
-		return interpreter.New()
+		return interpreter.NewBytecode()
 	default:
 		return interpreter.New()
 	}

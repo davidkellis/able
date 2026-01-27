@@ -1,0 +1,13 @@
+package exec_11_03_bytecode_rescue_basic
+
+## Semantics: bytecode-friendly rescue handles raise with a wildcard clause.
+
+fn main() -> void {
+  result := do {
+    raise "boom"
+  } rescue {
+    case _ => 42
+  }
+
+  print(result)
+}

@@ -1,0 +1,26 @@
+package exec_08_02_bytecode_loop_basics
+
+## Semantics: while loops and for-in array loops execute under bytecode-friendly control flow.
+
+fn main() -> void {
+  i := 0
+  total := 0
+
+  while i < 5 {
+    i = i + 1
+    if i == 3 {
+      continue
+    }
+    total = total + i
+  }
+
+  print(i)
+  print(total)
+
+  sum := 0
+  for value in [1, 2, 3, 4] {
+    sum = sum + value
+  }
+
+  print(sum)
+}

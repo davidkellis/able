@@ -1,0 +1,10 @@
+{
+  "description": "bytecode-friendly await default arm",
+  "expect": {
+    "stdout": [
+      "idle",
+      "idle"
+    ],
+    "exit": 0
+  }
+}

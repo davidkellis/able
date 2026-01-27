@@ -52,6 +52,16 @@
     "focus": "integer literals, arithmetic, accumulation in for-range loop"
   },
   {
+    "id": "exec/08_02_bytecode_loop_basics",
+    "status": "seeded",
+    "spec_sections": [
+      "8.2.1",
+      "8.2.2",
+      "8.2.4"
+    ],
+    "focus": "bytecode-friendly while and for loops with continue"
+  },
+  {
     "id": "exec/08_02_while_continue_break",
     "status": "seeded",
     "spec_sections": [
@@ -116,6 +126,16 @@
     "focus": "if/elsif/else branching with inclusive range iteration"
   },
   {
+    "id": "exec/08_01_bytecode_if_indexing",
+    "status": "seeded",
+    "spec_sections": [
+      "8.1.1",
+      "8.2.2",
+      "6.8"
+    ],
+    "focus": "bytecode-friendly if/elsif/else with array/map index assignment"
+  },
+  {
     "id": "exec/08_01_if_truthiness_value",
     "status": "seeded",
     "spec_sections": [
@@ -123,6 +143,14 @@
       "6.11"
     ],
     "focus": "if/elsif truthiness evaluation, branch values, and nil when no else"
+  },
+  {
+    "id": "exec/08_01_bytecode_match_basic",
+    "status": "seeded",
+    "spec_sections": [
+      "8.1.2"
+    ],
+    "focus": "bytecode-friendly match with literals, guards, and wildcard"
   },
   {
     "id": "exec/08_01_match_guards_exhaustiveness",
@@ -139,6 +167,22 @@
       "11.3"
     ],
     "focus": "uncaught raise terminates with non-zero exit"
+  },
+  {
+    "id": "exec/11_03_bytecode_rescue_basic",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "bytecode-friendly rescue handles raise with wildcard"
+  },
+  {
+    "id": "exec/11_03_bytecode_ensure_basic",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "bytecode-friendly ensure runs after success"
   },
   {
     "id": "exec/11_03_rescue_ensure",
@@ -163,6 +207,22 @@
       "12.5"
     ],
     "focus": "channel send/receive, close returning nil to consumer"
+  },
+  {
+    "id": "exec/12_01_bytecode_spawn_basic",
+    "status": "seeded",
+    "spec_sections": [
+      "12.2"
+    ],
+    "focus": "bytecode-friendly spawn with future.value()"
+  },
+  {
+    "id": "exec/12_01_bytecode_await_default",
+    "status": "seeded",
+    "spec_sections": [
+      "12.6"
+    ],
+    "focus": "bytecode-friendly await default arm"
   },
   {
     "id": "exec/12_02_async_spawn_combo",
@@ -420,6 +480,24 @@
       "6.1.8"
     ],
     "focus": "array literal inference with nested arrays maintaining element typing"
+  },
+  {
+    "id": "exec/06_01_bytecode_map_spread",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.8"
+    ],
+    "focus": "map literal spread merges entries with later overrides"
+  },
+  {
+    "id": "exec/06_02_bytecode_unary_range_cast",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2",
+      "6.6",
+      "8.2.5"
+    ],
+    "focus": "bytecode-friendly unary ops, ranges, type casts, and interpolation"
   },
   {
     "id": "exec/06_02_block_expression_value_scope",
@@ -838,6 +916,23 @@
     "focus": "implicit member shorthand and placeholder lambdas within nested callables"
   },
   {
+    "id": "exec/07_07_bytecode_implicit_iterator",
+    "status": "seeded",
+    "spec_sections": [
+      "6.7",
+      "7.6.1"
+    ],
+    "focus": "bytecode-friendly implicit members and iterator literals"
+  },
+  {
+    "id": "exec/07_08_bytecode_placeholder_lambda",
+    "status": "seeded",
+    "spec_sections": [
+      "7.6.3"
+    ],
+    "focus": "bytecode-friendly placeholder lambdas"
+  },
+  {
     "id": "exec/07_07_overload_resolution_runtime",
     "status": "seeded",
     "spec_sections": [
@@ -852,6 +947,16 @@
       "7.2.1"
     ],
     "focus": "verbose anonymous function syntax with generics and where clauses"
+  },
+  {
+    "id": "exec/07_02_bytecode_lambda_calls",
+    "status": "seeded",
+    "spec_sections": [
+      "7.2",
+      "7.4",
+      "9.4"
+    ],
+    "focus": "bytecode-friendly lambda calls, closures, and safe member access"
   },
   {
     "id": "exec/07_02_lambdas_closures_capture",
@@ -1055,6 +1160,16 @@
       "13.4"
     ],
     "focus": "directory-derived package paths, hyphen normalization, and package-segment imports"
+  },
+  {
+    "id": "exec/09_00_bytecode_member_calls",
+    "status": "seeded",
+    "spec_sections": [
+      "9.1",
+      "9.4",
+      "6.3"
+    ],
+    "focus": "bytecode-friendly member access, method calls, and safe navigation"
   },
   {
     "id": "exec/09_00_methods_generics_imports_combo",

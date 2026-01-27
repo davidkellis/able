@@ -1,0 +1,10 @@
+{
+  "description": "bytecode-friendly ensure runs after success",
+  "expect": {
+    "stdout": [
+      "ensured",
+      "5"
+    ],
+    "exit": 0
+  }
+}

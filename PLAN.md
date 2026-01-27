@@ -40,13 +40,48 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - It is expected that some new fixtures will fail due to interpreter bugs/deficiencies. Implement fixtures strictly in accordance with the v12 spec semantics. Do not weaken or sidestep the behavior under test to "make tests pass".
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
-- Tree-walker + bytecode parity harness
-  - Add parity tests that compare output + diagnostics for tree-walker vs bytecode.
 - Interpreter performance track: bytecode VM expansion
   - Expand bytecode instruction set (control flow, functions/closures, structs, arrays, member access, interface dispatch).
+    - Done: basic function definitions, lambda expressions, and direct calls (bytecode lowering/VM).
+    - Done: member access + call-site resolution (member callees, dotted identifiers, safe `?.` calls).
+    - Done: struct definitions + named struct literals (bytecode opcode support).
+    - Done: index expressions + index assignments (bytecode opcode support).
+    - Done: array literals (bytecode opcode support).
+    - Done: map literals + spread (bytecode opcode support).
+    - Done: while loops + break/continue (bytecode lowering/VM).
+    - Done: for loops (bytecode opcode delegation).
+    - Done: loop expression + break/continue (bytecode lowering).
+    - Done: match expressions (bytecode opcode delegation).
+    - Done: raise/rescue (bytecode opcode delegation).
+    - Done: ensure/rethrow (bytecode opcode delegation).
+    - Done: await (bytecode opcode delegation).
+    - Done: unary/range/typecast (native bytecode lowering + VM ops).
+    - Done: string interpolation (native bytecode lowering + VM op).
+    - Done: propagation (native bytecode op).
+    - Done: or-else (bytecode opcode delegation).
+    - Done: spawn (native bytecode op).
+    - Done: implicit member expressions (bytecode opcode delegation).
+    - Done: iterator literal (bytecode opcode delegation).
+    - Done: breakpoint expression (bytecode opcode delegation).
+    - Done: placeholder lambdas (bytecode opcode delegation).
+    - Done: definitions/imports via eval-statement delegation.
+    - Done: short-circuit/pipeline operators (native bytecode lowering).
   - Lower more AST nodes to bytecode; keep tree-walker fallback for unsupported nodes.
   - Add VM/tree-walker parity tests for each newly supported feature (unit + fixtures).
   - Add bytecode conformance fixtures that run through both VM + tree-walker paths.
+    - Done: map literal/spread bytecode fixture in exec coverage.
+    - Done: unary/range/type-cast bytecode fixture in exec coverage.
+    - Done: spawn bytecode fixture in exec coverage.
+    - Done: await bytecode fixture in exec coverage.
+    - Done: implicit member + iterator literal bytecode fixture in exec coverage.
+    - Done: placeholder lambda bytecode fixture in exec coverage.
+    - Done: while/for loop bytecode fixture in exec coverage.
+    - Done: if/elsif/else + index assignment bytecode fixture in exec coverage.
+    - Done: member access + method call bytecode fixture in exec coverage.
+    - Done: lambda/function call bytecode fixture in exec coverage.
+    - Done: match expression bytecode fixture in exec coverage.
+    - Done: rescue/raise bytecode fixture in exec coverage.
+    - Done: ensure bytecode fixture in exec coverage.
   - Gate VM behind a CLI/runtime flag and add perf harness to compare VM vs tree-walker.
   - Document the bytecode format + calling convention in `v12/design/compiler-interpreter-vision.md`.
 - Compiler/interpreter vision: typed core IR + runtime ABI implementation track

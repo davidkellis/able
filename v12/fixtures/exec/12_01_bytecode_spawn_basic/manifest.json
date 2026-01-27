@@ -1,0 +1,9 @@
+{
+  "description": "bytecode-friendly spawn with future.value",
+  "expect": {
+    "stdout": [
+      "7"
+    ],
+    "exit": 0
+  }
+}

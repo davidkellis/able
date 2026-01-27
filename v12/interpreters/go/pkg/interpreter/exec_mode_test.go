@@ -34,8 +34,7 @@ func newTestInterpreter(t *testing.T, mode testExecMode, executor Executor) *Int
 	case testExecTreewalker:
 		return NewWithExecutor(executor)
 	case testExecBytecode:
-		// TODO: wire bytecode backend once available.
-		return NewWithExecutor(executor)
+		return NewBytecodeWithExecutor(executor)
 	default:
 		return NewWithExecutor(executor)
 	}

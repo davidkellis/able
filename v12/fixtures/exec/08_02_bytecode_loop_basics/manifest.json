@@ -1,0 +1,11 @@
+{
+  "description": "bytecode-friendly while and for loops",
+  "expect": {
+    "stdout": [
+      "5",
+      "12",
+      "10"
+    ],
+    "exit": 0
+  }
+}

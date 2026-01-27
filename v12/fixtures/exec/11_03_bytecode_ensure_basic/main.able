@@ -1,0 +1,13 @@
+package exec_11_03_bytecode_ensure_basic
+
+## Semantics: bytecode-friendly ensure runs even when the try expression succeeds.
+
+fn main() -> void {
+  result := do {
+    5
+  } ensure {
+    print("ensured")
+  }
+
+  print(result)
+}

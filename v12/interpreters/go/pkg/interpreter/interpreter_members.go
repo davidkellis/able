@@ -177,31 +177,7 @@ func (i *Interpreter) evaluateIndexExpression(expr *ast.IndexExpression, env *ru
 	if err != nil {
 		return nil, err
 	}
-	if method, err := i.findIndexMethod(obj, "get", "Index"); err == nil && method != nil {
-		return i.CallFunction(method, []runtime.Value{obj, idxVal})
-	} else if err != nil {
-		return nil, err
-	}
-	arr, err := i.toArrayValue(obj)
-	if err != nil {
-		return nil, err
-	}
-	idx, err := indexFromValue(idxVal)
-	if err != nil {
-		return nil, err
-	}
-	state, err := i.ensureArrayState(arr, 0)
-	if err != nil {
-		return nil, err
-	}
-	if idx < 0 || idx >= len(state.values) {
-		return i.makeIndexErrorValue(idx, len(state.values)), nil
-	}
-	val := state.values[idx]
-	if val == nil {
-		return i.makeIndexErrorValue(idx, len(state.values)), nil
-	}
-	return val, nil
+	return i.indexGet(obj, idxVal)
 }
 
 func (i *Interpreter) toArrayValue(val runtime.Value) (*runtime.ArrayValue, error) {

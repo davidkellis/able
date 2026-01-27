@@ -1,0 +1,14 @@
+package exec_12_01_bytecode_await_default
+
+import able.concurrency.{Await}
+
+## Semantics: await default arm executes inside spawn in bytecode mode.
+fn main() -> void {
+  result := "pending"
+  handle := spawn {
+    result = await [Await.default({ => "idle" })]
+  }
+  future_flush()
+  print(result)
+  print(handle.value())
+}

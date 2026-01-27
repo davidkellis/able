@@ -1,0 +1,37 @@
+package exec_07_02_bytecode_lambda_calls
+
+## Semantics: bytecode-friendly function + lambda calls with safe member access.
+
+struct Box { value: i32 }
+
+methods Box {
+  fn add(self: Self, delta: i32) -> i32 { self.value + delta }
+}
+
+ticks := 0
+
+fn tick() -> i32 {
+  ticks = ticks + 1
+  ticks
+}
+
+fn apply_twice(f: i32 -> i32, value: i32) -> i32 {
+  f(f(value))
+}
+
+fn main() -> void {
+  inc := fn(x: i32) -> i32 { x + 1 }
+  print(apply_twice(inc, 3))
+
+  box := Box { value: 4 }
+  add_to_box := fn(delta: i32) -> i32 { box.add(delta) }
+  print(add_to_box(2))
+
+  maybe: ?Box := nil
+  maybe?.add(tick())
+  print(ticks)
+
+  maybe = box
+  maybe?.add(tick())
+  print(ticks)
+}
