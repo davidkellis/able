@@ -785,7 +785,14 @@ func (p *placeholderClosure) invoke(args []runtime.Value) (runtime.Value, error)
 	state := p.interpreter.stateFromEnv(callEnv)
 	state.pushPlaceholderFrame(p.plan.paramCount, args)
 	defer state.popPlaceholderFrame()
-	result, err := p.interpreter.evaluateExpression(p.expression, callEnv)
+	var result runtime.Value
+	var err error
+	if p.bytecode != nil {
+		vm := newBytecodeVM(p.interpreter, callEnv)
+		result, err = vm.run(p.bytecode)
+	} else {
+		result, err = p.interpreter.evaluateExpression(p.expression, callEnv)
+	}
 	if err != nil {
 		return nil, err
 	}

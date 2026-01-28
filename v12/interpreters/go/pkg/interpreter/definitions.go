@@ -101,6 +101,11 @@ func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, en
 		return nil, err
 	}
 	fnVal := &runtime.FunctionValue{Declaration: def, Closure: env}
+	if def.Body != nil {
+		if program, err := i.lowerBlockExpressionToBytecode(def.Body, true); err == nil {
+			fnVal.Bytecode = program
+		}
+	}
 	i.defineInEnv(env, def.ID.Name, fnVal)
 	i.registerSymbol(def.ID.Name, fnVal)
 	return runtime.NilValue{}, nil

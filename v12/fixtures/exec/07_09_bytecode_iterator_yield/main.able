@@ -1,0 +1,41 @@
+package exec_07_09_bytecode_iterator_yield
+
+import able.core.iteration.{IteratorEnd}
+
+## Semantics: iterator bodies can yield via bytecode and use loop control.
+fn main() -> void {
+  iter := Iterator i32 { gen =>
+    i := 0
+    while i < 5 {
+      i = i + 1
+      if i == 2 {
+        continue
+      }
+      if i == 4 {
+        break
+      }
+      gen.yield(i)
+    }
+    gen.yield(9)
+  }
+
+  total := 0
+  iter.next() match {
+    case v: i32 => total = total + v,
+    case IteratorEnd {} => {}
+  }
+  iter.next() match {
+    case v: i32 => total = total + v,
+    case IteratorEnd {} => {}
+  }
+  iter.next() match {
+    case v: i32 => total = total + v,
+    case IteratorEnd {} => {}
+  }
+  iter.next() match {
+    case v: i32 => total = total + v,
+    case IteratorEnd {} => print("end")
+  }
+
+  print(`total ${total}`)
+}

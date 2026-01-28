@@ -18,6 +18,7 @@ type generatorInstance struct {
 	interpreter *Interpreter
 	env         *runtime.Environment
 	body        []ast.Statement
+	bytecode    *bytecodeProgram
 
 	requests chan struct{}
 	results  chan generatorResult
@@ -38,10 +39,15 @@ func (generatorStopSignal) Error() string {
 }
 
 func newGeneratorInstance(i *Interpreter, env *runtime.Environment, body []ast.Statement) *generatorInstance {
+	return newGeneratorInstanceWithBytecode(i, env, body, nil)
+}
+
+func newGeneratorInstanceWithBytecode(i *Interpreter, env *runtime.Environment, body []ast.Statement, program *bytecodeProgram) *generatorInstance {
 	return &generatorInstance{
 		interpreter: i,
 		env:         env,
 		body:        body,
+		bytecode:    program,
 		requests:    make(chan struct{}),
 		results:     make(chan generatorResult),
 	}
@@ -145,6 +151,11 @@ func (g *generatorInstance) run() {
 }
 
 func (g *generatorInstance) execute() error {
+	if g.bytecode != nil {
+		vm := newBytecodeVM(g.interpreter, g.env)
+		_, err := vm.run(g.bytecode)
+		return err
+	}
 	for _, stmt := range g.body {
 		if _, err := g.interpreter.evaluateStatement(stmt, g.env); err != nil {
 			return err

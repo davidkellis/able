@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,6 +17,8 @@ const (
 	bytecodeOpLoadName
 	bytecodeOpDeclareName
 	bytecodeOpAssignName
+	bytecodeOpAssignPattern
+	bytecodeOpAssignNameCompound
 	bytecodeOpDup
 	bytecodeOpPop
 	bytecodeOpBinary
@@ -28,12 +31,25 @@ const (
 	bytecodeOpSpawn
 	bytecodeOpAwait
 	bytecodeOpImplicitMember
+	bytecodeOpImplicitMemberSet
 	bytecodeOpIteratorLiteral
 	bytecodeOpBreakpoint
 	bytecodeOpPlaceholderLambda
+	bytecodeOpPlaceholderValue
+	bytecodeOpIterInit
+	bytecodeOpIterNext
+	bytecodeOpIterClose
+	bytecodeOpBindPattern
+	bytecodeOpYield
 	bytecodeOpMakeFunction
 	bytecodeOpDefineFunction
 	bytecodeOpDefineStruct
+	bytecodeOpDefineUnion
+	bytecodeOpDefineTypeAlias
+	bytecodeOpDefineMethods
+	bytecodeOpDefineInterface
+	bytecodeOpDefineImplementation
+	bytecodeOpDefineExtern
 	bytecodeOpStructLiteral
 	bytecodeOpMapLiteral
 	bytecodeOpArrayLiteral
@@ -43,6 +59,7 @@ const (
 	bytecodeOpCall
 	bytecodeOpCallName
 	bytecodeOpMemberAccess
+	bytecodeOpMemberSet
 	bytecodeOpMatch
 	bytecodeOpRescue
 	bytecodeOpRaise
@@ -54,43 +71,18 @@ const (
 	bytecodeOpJump
 	bytecodeOpJumpIfFalse
 	bytecodeOpJumpIfNil
+	bytecodeOpLoopEnter
+	bytecodeOpLoopExit
 	bytecodeOpEnterScope
 	bytecodeOpExitScope
 	bytecodeOpReturn
 )
 
-type bytecodeInstruction struct {
-	op            bytecodeOp
-	name          string
-	operator      string
-	value         runtime.Value
-	target        int
-	argCount      int
-	node          ast.Node
-	safe          bool
-	preferMethods bool
-}
-
-type bytecodeProgram struct {
-	instructions []bytecodeInstruction
-}
-
-type bytecodeVM struct {
-	interp *Interpreter
-	stack  []runtime.Value
-	env    *runtime.Environment
-	ip     int
-}
-
-func newBytecodeVM(interp *Interpreter, env *runtime.Environment) *bytecodeVM {
-	return &bytecodeVM{
-		interp: interp,
-		env:    env,
-		stack:  make([]runtime.Value, 0, 8),
-	}
-}
-
 func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
+	return vm.runResumable(program, false)
+}
+
+func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (result runtime.Value, err error) {
 	if vm == nil || vm.interp == nil {
 		return nil, fmt.Errorf("bytecode vm missing interpreter")
 	}
@@ -101,8 +93,18 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 		return nil, fmt.Errorf("bytecode vm missing environment")
 	}
 
-	vm.stack = vm.stack[:0]
-	vm.ip = 0
+	if !resume {
+		vm.stack = vm.stack[:0]
+		vm.iterStack = vm.iterStack[:0]
+		vm.loopStack = vm.loopStack[:0]
+		vm.ip = 0
+	}
+	defer func() {
+		if err == nil || !errors.Is(err, errSerialYield) {
+			vm.closeAllIterators()
+			vm.loopStack = vm.loopStack[:0]
+		}
+	}()
 
 	instructions := program.instructions
 	for vm.ip < len(instructions) {
@@ -114,6 +116,9 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 		case bytecodeOpLoadName:
 			val, err := vm.env.Get(instr.name)
 			if err != nil {
+				if instr.node != nil {
+					err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+				}
 				return nil, err
 			}
 			vm.stack = append(vm.stack, val)
@@ -125,7 +130,11 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 					return nil, err
 				}
 				if vm.env.HasInCurrentScope(instr.name) {
-					return nil, fmt.Errorf(":= requires at least one new binding")
+					err := fmt.Errorf(":= requires at least one new binding")
+					if instr.node != nil {
+						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+					}
+					return nil, err
 				}
 				vm.env.Define(instr.name, val)
 				if vm.interp.currentPackage != "" && vm.env.Parent() == vm.interp.global {
@@ -149,6 +158,18 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				vm.stack = append(vm.stack, val)
 				vm.ip++
 			}
+		case bytecodeOpAssignPattern:
+			{
+				if err := vm.execAssignPattern(instr); err != nil {
+					return nil, err
+				}
+			}
+		case bytecodeOpAssignNameCompound:
+			{
+				if err := vm.execAssignNameCompound(instr); err != nil {
+					return nil, err
+				}
+			}
 		case bytecodeOpDup:
 			{
 				if len(vm.stack) == 0 {
@@ -164,36 +185,13 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 			vm.ip++
 		case bytecodeOpBinary:
 			{
-				right, err := vm.pop()
+				handled, err := vm.execBinary(instr)
 				if err != nil {
 					return nil, err
 				}
-				left, err := vm.pop()
-				if err != nil {
-					return nil, err
+				if handled {
+					continue
 				}
-				if instr.operator == "+" {
-					rawLeft := unwrapInterfaceValue(left)
-					rawRight := unwrapInterfaceValue(right)
-					if ls, ok := rawLeft.(runtime.StringValue); ok {
-						rs, ok := rawRight.(runtime.StringValue)
-						if !ok {
-							return nil, fmt.Errorf("Arithmetic requires numeric operands")
-						}
-						vm.stack = append(vm.stack, runtime.StringValue{Val: ls.Val + rs.Val})
-						vm.ip++
-						break
-					}
-					if _, ok := rawRight.(runtime.StringValue); ok {
-						return nil, fmt.Errorf("Arithmetic requires numeric operands")
-					}
-				}
-				result, err := applyBinaryOperator(vm.interp, instr.operator, left, right)
-				if err != nil {
-					return nil, err
-				}
-				vm.stack = append(vm.stack, result)
-				vm.ip++
 			}
 		case bytecodeOpUnary:
 			{
@@ -206,6 +204,13 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				result, err := vm.interp.applyUnaryOperator(instr.operator, operand)
 				if err != nil {
+					err = vm.interp.wrapStandardRuntimeError(err)
+					if instr.node != nil {
+						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						if vm.handleLoopSignal(err) {
+							continue
+						}
+					}
 					return nil, err
 				}
 				if result == nil {
@@ -230,6 +235,11 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				result, err := vm.interp.evaluateRangeValues(startVal, endVal, rangeExpr.Inclusive, vm.env)
 				if err != nil {
+					err = vm.interp.wrapStandardRuntimeError(err)
+					err = vm.interp.attachRuntimeContext(err, rangeExpr, vm.interp.stateFromEnv(vm.env))
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if result == nil {
@@ -250,6 +260,10 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				result, err := vm.interp.castValueToType(castExpr.TargetType, val)
 				if err != nil {
+					err = vm.interp.attachRuntimeContext(err, castExpr, vm.interp.stateFromEnv(vm.env))
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if result == nil {
@@ -303,8 +317,11 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				if !ok || orElseExpr == nil {
 					return nil, fmt.Errorf("bytecode or-else expects node")
 				}
-				val, err := vm.interp.evaluateOrElseExpression(orElseExpr, vm.env)
+				val, err := vm.runOrElseExpression(orElseExpr)
 				if err != nil {
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -352,8 +369,11 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				if !ok || awaitExpr == nil {
 					return nil, fmt.Errorf("bytecode await expects node")
 				}
-				val, err := vm.interp.evaluateAwaitExpression(awaitExpr, vm.env)
+				val, err := vm.runAwaitExpression(awaitExpr)
 				if err != nil {
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -368,7 +388,15 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				if !ok || implicitExpr == nil {
 					return nil, fmt.Errorf("bytecode implicit member expects node")
 				}
-				val, err := vm.interp.evaluateImplicitMemberExpression(implicitExpr, vm.env)
+				if implicitExpr.Member == nil {
+					return nil, fmt.Errorf("Implicit member requires identifier")
+				}
+				state := vm.interp.stateFromEnv(vm.env)
+				receiver, ok := state.currentImplicitReceiver()
+				if !ok {
+					return nil, fmt.Errorf("Implicit member '#%s' requires enclosing function with a first parameter", implicitExpr.Member.Name)
+				}
+				val, err := vm.interp.memberAccessOnValue(receiver, implicitExpr.Member, vm.env)
 				if err != nil {
 					return nil, err
 				}
@@ -378,13 +406,19 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				vm.stack = append(vm.stack, val)
 				vm.ip++
 			}
+		case bytecodeOpImplicitMemberSet:
+			{
+				if err := vm.execImplicitMemberSet(instr); err != nil {
+					return nil, err
+				}
+			}
 		case bytecodeOpIteratorLiteral:
 			{
 				iterExpr, ok := instr.node.(*ast.IteratorLiteral)
 				if !ok || iterExpr == nil {
 					return nil, fmt.Errorf("bytecode iterator literal expects node")
 				}
-				val, err := vm.interp.evaluateIteratorLiteral(iterExpr, vm.env)
+				val, err := vm.runIteratorLiteral(iterExpr)
 				if err != nil {
 					return nil, err
 				}
@@ -400,7 +434,7 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				if !ok || breakExpr == nil {
 					return nil, fmt.Errorf("bytecode breakpoint expects node")
 				}
-				val, err := vm.interp.evaluateBreakpointExpression(breakExpr, vm.env)
+				val, err := vm.runBreakpointExpression(breakExpr)
 				if err != nil {
 					return nil, err
 				}
@@ -416,9 +450,22 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				if !ok || expr == nil {
 					return nil, fmt.Errorf("bytecode placeholder lambda expects expression node")
 				}
+				var program *bytecodeProgram
+				if lowered, err := vm.interp.lowerExpressionToBytecodeWithOptions(expr, false); err == nil {
+					program = lowered
+				} else if !errors.Is(err, errBytecodeUnsupported) {
+					return nil, err
+				}
 				state := vm.interp.stateFromEnv(vm.env)
 				if state.hasPlaceholderFrame() {
-					val, err := vm.interp.evaluateExpression(expr, vm.env)
+					var val runtime.Value
+					var err error
+					if program != nil {
+						innerVM := newBytecodeVM(vm.interp, vm.env)
+						val, err = innerVM.run(program)
+					} else {
+						val, err = vm.interp.evaluateExpression(expr, vm.env)
+					}
 					if err != nil {
 						return nil, err
 					}
@@ -437,6 +484,7 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 					expression:  expr,
 					env:         vm.env,
 					plan:        placeholderPlan{paramCount: instr.argCount},
+					bytecode:    program,
 				}
 				fn := runtime.NativeFunctionValue{
 					Name:  "<placeholder>",
@@ -448,9 +496,30 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				vm.stack = append(vm.stack, fn)
 				vm.ip++
 			}
+		case bytecodeOpPlaceholderValue:
+			{
+				placeholderExpr, ok := instr.node.(*ast.PlaceholderExpression)
+				if !ok || placeholderExpr == nil {
+					return nil, fmt.Errorf("bytecode placeholder value expects placeholder expression")
+				}
+				val, err := vm.interp.evaluatePlaceholderExpression(placeholderExpr, vm.env)
+				if err != nil {
+					return nil, err
+				}
+				if val == nil {
+					val = runtime.NilValue{}
+				}
+				vm.stack = append(vm.stack, val)
+				vm.ip++
+			}
 		case bytecodeOpMakeFunction:
 			{
 				fn := &runtime.FunctionValue{Declaration: instr.node, Closure: vm.env}
+				if lambda, ok := instr.node.(*ast.LambdaExpression); ok && lambda != nil && lambda.Body != nil {
+					if program, err := vm.interp.lowerExpressionToBytecodeWithOptions(lambda.Body, true); err == nil {
+						fn.Bytecode = program
+					}
+				}
 				vm.stack = append(vm.stack, fn)
 				vm.ip++
 			}
@@ -462,6 +531,7 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				val, err := vm.interp.evaluateFunctionDefinition(def, vm.env)
 				if err != nil {
+					err = vm.interp.attachRuntimeContext(err, def, vm.interp.stateFromEnv(vm.env))
 					return nil, err
 				}
 				if val == nil {
@@ -478,6 +548,7 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				val, err := vm.interp.evaluateStructDefinition(def, vm.env)
 				if err != nil {
+					err = vm.interp.attachRuntimeContext(err, def, vm.interp.stateFromEnv(vm.env))
 					return nil, err
 				}
 				if val == nil {
@@ -485,6 +556,42 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				vm.stack = append(vm.stack, val)
 				vm.ip++
+			}
+		case bytecodeOpDefineUnion:
+			{
+				if err := vm.execDefineUnion(instr); err != nil {
+					return nil, err
+				}
+			}
+		case bytecodeOpDefineTypeAlias:
+			{
+				if err := vm.execDefineTypeAlias(instr); err != nil {
+					return nil, err
+				}
+			}
+		case bytecodeOpDefineMethods:
+			{
+				if err := vm.execDefineMethods(instr); err != nil {
+					return nil, err
+				}
+			}
+		case bytecodeOpDefineInterface:
+			{
+				if err := vm.execDefineInterface(instr); err != nil {
+					return nil, err
+				}
+			}
+		case bytecodeOpDefineImplementation:
+			{
+				if err := vm.execDefineImplementation(instr); err != nil {
+					return nil, err
+				}
+			}
+		case bytecodeOpDefineExtern:
+			{
+				if err := vm.execDefineExtern(instr); err != nil {
+					return nil, err
+				}
 			}
 		case bytecodeOpStructLiteral:
 			{
@@ -535,54 +642,79 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				vm.stack = append(vm.stack, arr)
 				vm.ip++
 			}
-		case bytecodeOpIndexGet:
+		case bytecodeOpIterInit:
 			{
-				idxVal, err := vm.pop()
+				iterable, err := vm.pop()
 				if err != nil {
 					return nil, err
 				}
-				obj, err := vm.pop()
-				if err != nil {
+				if err := vm.pushForIterator(iterable); err != nil {
 					return nil, err
 				}
-				result, err := vm.interp.indexGet(obj, idxVal)
-				if err != nil {
-					return nil, err
-				}
-				if result == nil {
-					result = runtime.NilValue{}
-				}
-				vm.stack = append(vm.stack, result)
 				vm.ip++
 			}
-		case bytecodeOpIndexSet:
+		case bytecodeOpIterNext:
 			{
-				idxVal, err := vm.pop()
+				val, done, err := vm.nextForIterator()
 				if err != nil {
 					return nil, err
 				}
-				obj, err := vm.pop()
-				if err != nil {
+				vm.stack = append(vm.stack, val, runtime.BoolValue{Val: done})
+				vm.ip++
+			}
+		case bytecodeOpIterClose:
+			{
+				if err := vm.closeForIterator(); err != nil {
 					return nil, err
+				}
+				vm.ip++
+			}
+		case bytecodeOpBindPattern:
+			{
+				pattern, ok := instr.node.(ast.Pattern)
+				if !ok || pattern == nil {
+					return nil, fmt.Errorf("bytecode bind pattern expects pattern node")
 				}
 				val, err := vm.pop()
 				if err != nil {
 					return nil, err
 				}
-				if instr.operator == "" {
-					return nil, fmt.Errorf("bytecode index set missing operator")
+				if err := vm.interp.assignPattern(pattern, val, vm.env, true, nil); err != nil {
+					err = vm.interp.attachRuntimeContext(err, pattern, vm.interp.stateFromEnv(vm.env))
+					return nil, err
 				}
-				op := ast.AssignmentOperator(instr.operator)
-				binaryOp, isCompound := binaryOpForAssignment(op)
-				result, err := vm.interp.assignIndex(obj, idxVal, val, op, binaryOp, isCompound)
+				vm.ip++
+			}
+		case bytecodeOpYield:
+			{
+				val, err := vm.pop()
 				if err != nil {
 					return nil, err
 				}
-				if result == nil {
-					result = runtime.NilValue{}
+				if val == nil {
+					val = runtime.NilValue{}
 				}
-				vm.stack = append(vm.stack, result)
+				gen := vm.interp.currentGenerator()
+				if gen == nil {
+					return nil, fmt.Errorf("yield may only appear inside iterator literal")
+				}
+				if err := gen.emit(val); err != nil {
+					return nil, err
+				}
+				vm.stack = append(vm.stack, runtime.NilValue{})
 				vm.ip++
+			}
+		case bytecodeOpIndexGet:
+			{
+				if err := vm.execIndexGet(instr); err != nil {
+					return nil, err
+				}
+			}
+		case bytecodeOpIndexSet:
+			{
+				if err := vm.execIndexSet(instr); err != nil {
+					return nil, err
+				}
 			}
 		case bytecodeOpForLoop:
 			{
@@ -602,123 +734,27 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 			}
 		case bytecodeOpCall:
 			{
-				if instr.argCount < 0 {
-					return nil, fmt.Errorf("bytecode call arg count invalid")
-				}
-				args := make([]runtime.Value, instr.argCount)
-				for idx := instr.argCount - 1; idx >= 0; idx-- {
-					arg, err := vm.pop()
-					if err != nil {
-						return nil, err
-					}
-					args[idx] = arg
-				}
-				callee, err := vm.pop()
-				if err != nil {
+				if err := vm.execCall(instr); err != nil {
 					return nil, err
 				}
-				var callNode *ast.FunctionCall
-				if instr.node != nil {
-					if call, ok := instr.node.(*ast.FunctionCall); ok {
-						callNode = call
-					}
-				}
-				result, err := vm.interp.callCallableValue(callee, args, vm.env, callNode)
-				if err != nil {
-					return nil, err
-				}
-				if result == nil {
-					result = runtime.NilValue{}
-				}
-				vm.stack = append(vm.stack, result)
-				vm.ip++
 			}
 		case bytecodeOpCallName:
 			{
-				if instr.argCount < 0 {
-					return nil, fmt.Errorf("bytecode call arg count invalid")
-				}
-				args := make([]runtime.Value, instr.argCount)
-				for idx := instr.argCount - 1; idx >= 0; idx-- {
-					arg, err := vm.pop()
-					if err != nil {
-						return nil, err
-					}
-					args[idx] = arg
-				}
-				if instr.name == "" {
-					return nil, fmt.Errorf("bytecode call missing target name")
-				}
-				calleeVal, err := vm.env.Get(instr.name)
-				if err != nil {
-					if dotIdx := strings.Index(instr.name, "."); dotIdx > 0 && dotIdx < len(instr.name)-1 {
-						head := instr.name[:dotIdx]
-						tail := instr.name[dotIdx+1:]
-						receiver, recvErr := vm.env.Get(head)
-						if recvErr != nil {
-							if def, ok := vm.env.StructDefinition(head); ok {
-								receiver = def
-							} else {
-								receiver = runtime.TypeRefValue{TypeName: head}
-							}
-						}
-						member := ast.ID(tail)
-						candidate, err := vm.interp.memberAccessOnValueWithOptions(receiver, member, vm.env, true)
-						if err != nil {
-							return nil, err
-						}
-						calleeVal = candidate
-					} else {
-						return nil, err
-					}
-				}
-				var callNode *ast.FunctionCall
-				if instr.node != nil {
-					if call, ok := instr.node.(*ast.FunctionCall); ok {
-						callNode = call
-					}
-				}
-				result, err := vm.interp.callCallableValue(calleeVal, args, vm.env, callNode)
-				if err != nil {
+				if err := vm.execCallName(instr); err != nil {
 					return nil, err
 				}
-				if result == nil {
-					result = runtime.NilValue{}
-				}
-				vm.stack = append(vm.stack, result)
-				vm.ip++
 			}
 		case bytecodeOpMemberAccess:
 			{
-				obj, err := vm.pop()
-				if err != nil {
+				if err := vm.execMemberAccess(instr); err != nil {
 					return nil, err
 				}
-				if instr.safe && isNilRuntimeValue(obj) {
-					vm.stack = append(vm.stack, runtime.NilValue{})
-					vm.ip++
-					break
-				}
-				memberExpr := ast.Expression(nil)
-				if instr.node != nil {
-					if memberNode, ok := instr.node.(*ast.MemberAccessExpression); ok {
-						memberExpr = memberNode.Member
-					} else if expr, ok := instr.node.(ast.Expression); ok {
-						memberExpr = expr
-					}
-				}
-				if memberExpr == nil {
-					return nil, fmt.Errorf("bytecode member access missing member")
-				}
-				result, err := vm.interp.memberAccessOnValueWithOptions(obj, memberExpr, vm.env, instr.preferMethods)
-				if err != nil {
+			}
+		case bytecodeOpMemberSet:
+			{
+				if err := vm.execMemberSet(instr); err != nil {
 					return nil, err
 				}
-				if result == nil {
-					result = runtime.NilValue{}
-				}
-				vm.stack = append(vm.stack, result)
-				vm.ip++
 			}
 		case bytecodeOpMatch:
 			{
@@ -726,8 +762,12 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				if !ok || matchExpr == nil {
 					return nil, fmt.Errorf("bytecode match expects node")
 				}
-				val, err := vm.interp.evaluateMatchExpression(matchExpr, vm.env)
+				val, err := vm.runMatchExpression(matchExpr)
 				if err != nil {
+					err = vm.interp.attachRuntimeContext(err, matchExpr, vm.interp.stateFromEnv(vm.env))
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -742,8 +782,11 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				if !ok || rescueExpr == nil {
 					return nil, fmt.Errorf("bytecode rescue expects node")
 				}
-				val, err := vm.interp.evaluateRescueExpression(rescueExpr, vm.env)
+				val, err := vm.runRescueExpression(rescueExpr)
 				if err != nil {
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -760,6 +803,10 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				val, err := vm.interp.evaluateRaiseStatement(raiseStmt, vm.env)
 				if err != nil {
+					err = vm.interp.attachRuntimeContext(err, raiseStmt, vm.interp.stateFromEnv(vm.env))
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -774,8 +821,11 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				if !ok || ensureExpr == nil {
 					return nil, fmt.Errorf("bytecode ensure expects node")
 				}
-				val, err := vm.interp.evaluateEnsureExpression(ensureExpr, vm.env)
+				val, err := vm.runEnsureExpression(ensureExpr)
 				if err != nil {
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -792,6 +842,10 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				val, err := vm.interp.evaluateRethrowStatement(rethrowStmt, vm.env)
 				if err != nil {
+					err = vm.interp.attachRuntimeContext(err, rethrowStmt, vm.interp.stateFromEnv(vm.env))
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -808,6 +862,9 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				val, err := vm.interp.evaluateExpression(expr, vm.env)
 				if err != nil {
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -824,6 +881,9 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				val, err := vm.interp.evaluateStatement(stmt, vm.env)
 				if err != nil {
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -844,6 +904,9 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				val, err := vm.interp.evaluatePipeExpression(subject, rhs, vm.env)
 				if err != nil {
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				if val == nil {
@@ -878,6 +941,20 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 				}
 				vm.ip++
 			}
+		case bytecodeOpLoopEnter:
+			{
+				if err := vm.pushLoopFrame(instr.loopBreak, instr.loopContinue); err != nil {
+					return nil, err
+				}
+				vm.ip++
+			}
+		case bytecodeOpLoopExit:
+			{
+				if err := vm.popLoopFrame(); err != nil {
+					return nil, err
+				}
+				vm.ip++
+			}
 		case bytecodeOpEnterScope:
 			vm.env = runtime.NewEnvironment(vm.env)
 			vm.ip++
@@ -894,19 +971,25 @@ func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 			}
 			vm.ip++
 		case bytecodeOpReturn:
-			return vm.pop()
+			val, err := vm.pop()
+			if err != nil {
+				return nil, err
+			}
+			if instr.node != nil {
+				state := vm.interp.stateFromEnv(vm.env)
+				var context *runtimeDiagnosticContext
+				if state != nil {
+					context = &runtimeDiagnosticContext{
+						node:      instr.node,
+						callStack: state.snapshotCallStack(),
+					}
+				}
+				return nil, returnSignal{value: val, context: context}
+			}
+			return val, nil
 		default:
 			return nil, fmt.Errorf("bytecode opcode %d not implemented", instr.op)
 		}
 	}
-	return runtime.NilValue{}, nil
-}
-
-func (vm *bytecodeVM) pop() (runtime.Value, error) {
-	if len(vm.stack) == 0 {
-		return nil, fmt.Errorf("bytecode stack underflow")
-	}
-	last := vm.stack[len(vm.stack)-1]
-	vm.stack = vm.stack[:len(vm.stack)-1]
-	return last, nil
+	return runtime.NilValue{}, err
 }

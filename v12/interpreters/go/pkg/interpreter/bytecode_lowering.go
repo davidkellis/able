@@ -11,9 +11,10 @@ import (
 var errBytecodeUnsupported = errors.New("bytecode lowering unsupported")
 
 type bytecodeLoweringContext struct {
-	instructions []bytecodeInstruction
-	scopeDepth   int
-	loopStack    []loopContext
+	instructions           []bytecodeInstruction
+	scopeDepth             int
+	loopStack              []loopContext
+	allowPlaceholderLambda bool
 }
 
 type loopContext struct {
@@ -26,7 +27,10 @@ func (i *Interpreter) lowerModuleToBytecode(module *ast.Module) (*bytecodeProgra
 	if module == nil {
 		return nil, fmt.Errorf("bytecode lowering module is nil")
 	}
-	ctx := &bytecodeLoweringContext{instructions: make([]bytecodeInstruction, 0, len(module.Body)*2)}
+	ctx := &bytecodeLoweringContext{
+		instructions:           make([]bytecodeInstruction, 0, len(module.Body)*2),
+		allowPlaceholderLambda: true,
+	}
 	if len(module.Body) == 0 {
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
 		ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
@@ -45,11 +49,37 @@ func (i *Interpreter) lowerModuleToBytecode(module *ast.Module) (*bytecodeProgra
 }
 
 func (i *Interpreter) lowerExpressionToBytecode(expr ast.Expression) (*bytecodeProgram, error) {
+	return i.lowerExpressionToBytecodeWithOptions(expr, true)
+}
+
+func (i *Interpreter) lowerExpressionToBytecodeWithOptions(expr ast.Expression, allowPlaceholderLambda bool) (*bytecodeProgram, error) {
 	if expr == nil {
 		return nil, fmt.Errorf("bytecode lowering expression is nil")
 	}
-	module := ast.NewModule([]ast.Statement{expr}, nil, nil)
-	return i.lowerModuleToBytecode(module)
+	ctx := &bytecodeLoweringContext{
+		instructions:           make([]bytecodeInstruction, 0, 4),
+		allowPlaceholderLambda: allowPlaceholderLambda,
+	}
+	if err := emitExpression(ctx, i, expr); err != nil {
+		return nil, err
+	}
+	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
+	return &bytecodeProgram{instructions: ctx.instructions}, nil
+}
+
+func (i *Interpreter) lowerBlockExpressionToBytecode(block *ast.BlockExpression, allowPlaceholderLambda bool) (*bytecodeProgram, error) {
+	if block == nil {
+		return nil, fmt.Errorf("bytecode lowering block is nil")
+	}
+	ctx := &bytecodeLoweringContext{
+		instructions:           make([]bytecodeInstruction, 0, len(block.Body)*2),
+		allowPlaceholderLambda: allowPlaceholderLambda,
+	}
+	if err := emitBlock(ctx, i, block); err != nil {
+		return nil, err
+	}
+	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
+	return &bytecodeProgram{instructions: ctx.instructions}, nil
 }
 
 func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statement, isLast bool) error {
@@ -64,19 +94,65 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 			return bytecodeUnsupported("nil struct definition")
 		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineStruct, node: s})
-	case *ast.UnionDefinition,
-		*ast.TypeAliasDefinition,
-		*ast.MethodsDefinition,
-		*ast.InterfaceDefinition,
-		*ast.ImplementationDefinition,
-		*ast.PackageStatement,
+	case *ast.UnionDefinition:
+		if s == nil {
+			return bytecodeUnsupported("nil union definition")
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineUnion, node: s})
+	case *ast.TypeAliasDefinition:
+		if s == nil {
+			return bytecodeUnsupported("nil type alias definition")
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineTypeAlias, node: s})
+	case *ast.MethodsDefinition:
+		if s == nil {
+			return bytecodeUnsupported("nil methods definition")
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineMethods, node: s})
+	case *ast.InterfaceDefinition:
+		if s == nil {
+			return bytecodeUnsupported("nil interface definition")
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineInterface, node: s})
+	case *ast.ImplementationDefinition:
+		if s == nil {
+			return bytecodeUnsupported("nil implementation definition")
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineImplementation, node: s})
+	case *ast.ExternFunctionBody:
+		if s == nil {
+			return bytecodeUnsupported("nil extern function body")
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineExtern, node: s})
+	case *ast.PackageStatement,
 		*ast.ImportStatement,
 		*ast.DynImportStatement,
-		*ast.PreludeStatement,
-		*ast.ExternFunctionBody,
-		*ast.ReturnStatement,
-		*ast.YieldStatement:
+		*ast.PreludeStatement:
 		ctx.emit(bytecodeInstruction{op: bytecodeOpEvalStatement, node: s})
+	case *ast.ReturnStatement:
+		if s == nil {
+			return bytecodeUnsupported("nil return statement")
+		}
+		if s.Argument != nil {
+			if err := emitExpression(ctx, i, s.Argument); err != nil {
+				return err
+			}
+		} else {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.VoidValue{}})
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpReturn, node: s})
+	case *ast.YieldStatement:
+		if s == nil {
+			return bytecodeUnsupported("nil yield statement")
+		}
+		if s.Expression != nil {
+			if err := emitExpression(ctx, i, s.Expression); err != nil {
+				return err
+			}
+		} else {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpYield})
 	case *ast.RaiseStatement:
 		if s == nil {
 			return bytecodeUnsupported("nil raise statement")
@@ -88,10 +164,9 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpRethrow, node: s})
 	case *ast.ForLoop:
-		if s == nil {
-			return bytecodeUnsupported("nil for loop")
+		if err := emitForLoop(ctx, i, s); err != nil {
+			return err
 		}
-		ctx.emit(bytecodeInstruction{op: bytecodeOpForLoop, node: s})
 	case *ast.WhileLoop:
 		if err := emitWhileLoop(ctx, i, s); err != nil {
 			return err
@@ -121,15 +196,17 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 	if expr == nil {
 		return bytecodeUnsupported("nil expression")
 	}
-	if plan, ok, err := placeholderPlanForExpression(expr); err != nil {
-		return err
-	} else if ok {
-		ctx.emit(bytecodeInstruction{
-			op:       bytecodeOpPlaceholderLambda,
-			node:     expr,
-			argCount: plan.paramCount,
-		})
-		return nil
+	if ctx.allowPlaceholderLambda {
+		if plan, ok, err := placeholderPlanForExpression(expr); err != nil {
+			return err
+		} else if ok {
+			ctx.emit(bytecodeInstruction{
+				op:       bytecodeOpPlaceholderLambda,
+				node:     expr,
+				argCount: plan.paramCount,
+			})
+			return nil
+		}
 	}
 	switch n := expr.(type) {
 	case *ast.StringLiteral:
@@ -174,7 +251,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.FloatValue{Val: val, TypeSuffix: suffix}})
 		return nil
 	case *ast.Identifier:
-		ctx.emit(bytecodeInstruction{op: bytecodeOpLoadName, name: n.Name})
+		ctx.emit(bytecodeInstruction{op: bytecodeOpLoadName, name: n.Name, node: n})
 		return nil
 	case *ast.MemberAccessExpression:
 		if err := emitExpression(ctx, i, n.Object); err != nil {
@@ -335,14 +412,14 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			if err := emitExpression(ctx, i, n.Right); err != nil {
 				return err
 			}
-			ctx.emit(bytecodeInstruction{op: bytecodeOpBinary, operator: n.Operator})
+			ctx.emit(bytecodeInstruction{op: bytecodeOpBinary, operator: n.Operator, node: n})
 			return nil
 		}
 	case *ast.UnaryExpression:
 		if err := emitExpression(ctx, i, n.Operand); err != nil {
 			return err
 		}
-		ctx.emit(bytecodeInstruction{op: bytecodeOpUnary, operator: string(n.Operator)})
+		ctx.emit(bytecodeInstruction{op: bytecodeOpUnary, operator: string(n.Operator), node: n})
 		return nil
 	case *ast.AssignmentExpression:
 		if idxExpr, ok := n.Left.(*ast.IndexExpression); ok {
@@ -358,12 +435,45 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			ctx.emit(bytecodeInstruction{op: bytecodeOpIndexSet, operator: string(n.Operator), node: n})
 			return nil
 		}
-		if n.Operator != ast.AssignmentDeclare && n.Operator != ast.AssignmentAssign {
-			return bytecodeUnsupported("assignment operator %s", n.Operator)
+		if memberExpr, ok := n.Left.(*ast.MemberAccessExpression); ok {
+			if err := emitExpression(ctx, i, n.Right); err != nil {
+				return err
+			}
+			if err := emitExpression(ctx, i, memberExpr.Object); err != nil {
+				return err
+			}
+			ctx.emit(bytecodeInstruction{op: bytecodeOpMemberSet, operator: string(n.Operator), node: memberExpr})
+			return nil
+		}
+		if implicitExpr, ok := n.Left.(*ast.ImplicitMemberExpression); ok {
+			if err := emitExpression(ctx, i, n.Right); err != nil {
+				return err
+			}
+			ctx.emit(bytecodeInstruction{op: bytecodeOpImplicitMemberSet, operator: string(n.Operator), node: implicitExpr})
+			return nil
+		}
+		if pattern, ok := n.Left.(ast.Pattern); ok && pattern != nil {
+			if _, isIdent := n.Left.(*ast.Identifier); !isIdent {
+				if err := emitExpression(ctx, i, n.Right); err != nil {
+					return err
+				}
+				ctx.emit(bytecodeInstruction{op: bytecodeOpAssignPattern, operator: string(n.Operator), node: n})
+				return nil
+			}
 		}
 		name, ok := resolveAssignmentTargetName(n.Left)
-		if !ok {
-			return bytecodeUnsupported("assignment target %T", n.Left)
+		if ok && n.Operator != ast.AssignmentDeclare && n.Operator != ast.AssignmentAssign {
+			if _, isCompound := binaryOpForAssignment(n.Operator); isCompound {
+				if err := emitExpression(ctx, i, n.Right); err != nil {
+					return err
+				}
+				ctx.emit(bytecodeInstruction{op: bytecodeOpAssignNameCompound, name: name, operator: string(n.Operator), node: n})
+				return nil
+			}
+		}
+		if n.Operator != ast.AssignmentDeclare && n.Operator != ast.AssignmentAssign || !ok {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpEvalExpression, node: n})
+			return nil
 		}
 		if err := emitExpression(ctx, i, n.Right); err != nil {
 			return err
@@ -372,7 +482,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if n.Operator == ast.AssignmentDeclare {
 			op = bytecodeOpDeclareName
 		}
-		ctx.emit(bytecodeInstruction{op: op, name: name})
+		ctx.emit(bytecodeInstruction{op: op, name: name, node: n})
 		return nil
 	case *ast.BlockExpression:
 		return emitBlock(ctx, i, n)
@@ -412,7 +522,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpBreakpoint, node: n})
 		return nil
 	case *ast.PlaceholderExpression:
-		ctx.emit(bytecodeInstruction{op: bytecodeOpEvalExpression, node: n})
+		ctx.emit(bytecodeInstruction{op: bytecodeOpPlaceholderValue, node: n})
 		return nil
 	case *ast.LoopExpression:
 		return emitLoopExpression(ctx, i, n)
@@ -527,6 +637,7 @@ func emitLoopExpression(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.VoidValue{}})
 		return nil
 	}
+	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
 	loopStart := len(ctx.instructions)
 	ctx.pushLoop(loopStart)
 	if err := emitBlock(ctx, i, loop.Body); err != nil {
@@ -534,8 +645,9 @@ func emitLoopExpression(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
 	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
-	loopEnd := len(ctx.instructions)
-	ctx.popLoop(loopEnd)
+	loopExit := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopExit})
+	ctx.popLoop(loopExit)
+	ctx.patchLoopTargets(loopEnter, loopExit, loopStart)
 	return nil
 }
 
@@ -546,6 +658,7 @@ func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.While
 	if loop.Condition == nil || loop.Body == nil {
 		return bytecodeUnsupported("while loop missing condition/body")
 	}
+	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
 	loopStart := len(ctx.instructions)
 	ctx.pushLoop(loopStart)
 	if err := emitExpression(ctx, i, loop.Condition); err != nil {
@@ -560,8 +673,53 @@ func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.While
 	noBreak := len(ctx.instructions)
 	ctx.patchJump(jumpToNoBreak, noBreak)
 	ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.VoidValue{}})
-	loopEnd := len(ctx.instructions)
-	ctx.popLoop(loopEnd)
+	loopExit := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopExit})
+	ctx.popLoop(loopExit)
+	ctx.patchLoopTargets(loopEnter, loopExit, loopStart)
+	return nil
+}
+
+func emitForLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.ForLoop) error {
+	if loop == nil {
+		return bytecodeUnsupported("nil for loop")
+	}
+	if loop.Iterable == nil || loop.Body == nil {
+		return bytecodeUnsupported("for loop missing iterable/body")
+	}
+	if err := emitExpression(ctx, i, loop.Iterable); err != nil {
+		return err
+	}
+	ctx.emit(bytecodeInstruction{op: bytecodeOpIterInit})
+	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
+	loopStart := len(ctx.instructions)
+	ctx.pushLoop(loopStart)
+
+	ctx.emit(bytecodeInstruction{op: bytecodeOpIterNext})
+	jumpToBody := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
+
+	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	ctx.emit(bytecodeInstruction{op: bytecodeOpIterClose})
+	ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.VoidValue{}})
+	jumpToEnd := ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1})
+
+	bodyStart := len(ctx.instructions)
+	ctx.patchJump(jumpToBody, bodyStart)
+	ctx.enterScope()
+	ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop.Pattern})
+	if err := emitBlock(ctx, i, loop.Body); err != nil {
+		return err
+	}
+	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	ctx.exitScope()
+	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
+
+	breakCleanup := len(ctx.instructions)
+	ctx.emit(bytecodeInstruction{op: bytecodeOpIterClose})
+	loopExit := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopExit})
+
+	ctx.patchJump(jumpToEnd, loopExit)
+	ctx.popLoopWithBreakTarget(loopExit, breakCleanup)
+	ctx.patchLoopTargets(loopEnter, breakCleanup, loopStart)
 	return nil
 }
 
@@ -617,6 +775,14 @@ func (ctx *bytecodeLoweringContext) patchJump(index int, target int) {
 	ctx.instructions[index].target = target
 }
 
+func (ctx *bytecodeLoweringContext) patchLoopTargets(index int, breakTarget int, continueTarget int) {
+	if index < 0 || index >= len(ctx.instructions) {
+		return
+	}
+	ctx.instructions[index].loopBreak = breakTarget
+	ctx.instructions[index].loopContinue = continueTarget
+}
+
 func (ctx *bytecodeLoweringContext) enterScope() {
 	ctx.emit(bytecodeInstruction{op: bytecodeOpEnterScope})
 	ctx.scopeDepth++
@@ -637,13 +803,17 @@ func (ctx *bytecodeLoweringContext) pushLoop(start int) {
 }
 
 func (ctx *bytecodeLoweringContext) popLoop(loopEnd int) {
+	ctx.popLoopWithBreakTarget(loopEnd, loopEnd)
+}
+
+func (ctx *bytecodeLoweringContext) popLoopWithBreakTarget(loopEnd int, breakTarget int) {
 	if len(ctx.loopStack) == 0 {
 		return
 	}
 	loop := ctx.loopStack[len(ctx.loopStack)-1]
 	ctx.loopStack = ctx.loopStack[:len(ctx.loopStack)-1]
 	for _, idx := range loop.breakJumps {
-		ctx.patchJump(idx, loopEnd)
+		ctx.patchJump(idx, breakTarget)
 	}
 }
 
@@ -682,10 +852,6 @@ func resolveAssignmentTargetName(target ast.AssignmentTarget) (string, bool) {
 	switch t := target.(type) {
 	case *ast.Identifier:
 		return t.Name, true
-	case *ast.TypedPattern:
-		if id, ok := t.Pattern.(*ast.Identifier); ok {
-			return id.Name, true
-		}
 	}
 	return "", false
 }

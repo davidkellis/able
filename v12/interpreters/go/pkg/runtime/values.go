@@ -306,6 +306,7 @@ type FunctionValue struct {
 	MethodPriority float64
 	TypeQualified  bool
 	MethodSet      *MethodSet
+	Bytecode       any // interpreter-specific compiled program (e.g., *bytecodeProgram)
 }
 
 func (v *FunctionValue) Kind() Kind { return KindFunction }
@@ -442,9 +443,9 @@ type InterfaceDefinitionValue struct {
 func (v InterfaceDefinitionValue) Kind() Kind { return KindInterfaceDefinition }
 
 type InterfaceValue struct {
-	Interface  *InterfaceDefinitionValue
-	Underlying Value
-	Methods    map[string]Value
+	Interface     *InterfaceDefinitionValue
+	Underlying    Value
+	Methods       map[string]Value
 	InterfaceArgs []ast.TypeExpression
 }
 

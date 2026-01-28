@@ -44,12 +44,13 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   - Expand bytecode instruction set (control flow, functions/closures, structs, arrays, member access, interface dispatch).
     - Done: basic function definitions, lambda expressions, and direct calls (bytecode lowering/VM).
     - Done: member access + call-site resolution (member callees, dotted identifiers, safe `?.` calls).
+    - Done: member assignments (struct/array/implicit member targets).
     - Done: struct definitions + named struct literals (bytecode opcode support).
     - Done: index expressions + index assignments (bytecode opcode support).
     - Done: array literals (bytecode opcode support).
     - Done: map literals + spread (bytecode opcode support).
     - Done: while loops + break/continue (bytecode lowering/VM).
-    - Done: for loops (bytecode opcode delegation).
+    - Done: for loops (native bytecode lowering).
     - Done: loop expression + break/continue (bytecode lowering).
     - Done: match expressions (bytecode opcode delegation).
     - Done: raise/rescue (bytecode opcode delegation).
@@ -58,15 +59,19 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
     - Done: unary/range/typecast (native bytecode lowering + VM ops).
     - Done: string interpolation (native bytecode lowering + VM op).
     - Done: propagation (native bytecode op).
+    - Done: pattern assignments (native bytecode lowering + VM).
+    - Done: compound assignments for identifiers (native bytecode lowering + VM).
     - Done: or-else (bytecode opcode delegation).
     - Done: spawn (native bytecode op).
     - Done: implicit member expressions (bytecode opcode delegation).
     - Done: iterator literal (bytecode opcode delegation).
     - Done: breakpoint expression (bytecode opcode delegation).
     - Done: placeholder lambdas (bytecode opcode delegation).
-    - Done: definitions/imports via eval-statement delegation.
+    - Done: definition statements via bytecode ops (function/struct/union/type alias/methods/interface/impl/extern); imports still delegated.
+    - Done: return statements (bytecode lowering + VM return signal).
     - Done: short-circuit/pipeline operators (native bytecode lowering).
   - Lower more AST nodes to bytecode; keep tree-walker fallback for unsupported nodes.
+    - Remaining delegated ops: match/rescue/ensure/or_else/await/breakpoint/iterator literals and import statements.
   - Add VM/tree-walker parity tests for each newly supported feature (unit + fixtures).
   - Add bytecode conformance fixtures that run through both VM + tree-walker paths.
     - Done: map literal/spread bytecode fixture in exec coverage.
@@ -82,7 +87,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
     - Done: match expression bytecode fixture in exec coverage.
     - Done: rescue/raise bytecode fixture in exec coverage.
     - Done: ensure bytecode fixture in exec coverage.
-  - Gate VM behind a CLI/runtime flag and add perf harness to compare VM vs tree-walker.
+    - Done: pattern + compound assignment bytecode fixture in exec coverage.
   - Document the bytecode format + calling convention in `v12/design/compiler-interpreter-vision.md`.
 - Compiler/interpreter vision: typed core IR + runtime ABI implementation track
   - Define the concrete IR node set and type system (values, blocks, control flow, call/impl dispatch, async/await surfaces).
