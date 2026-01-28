@@ -1,0 +1,10 @@
+{
+  "description": "bytecode-friendly or-else handles nil and error values",
+  "expect": {
+    "stdout": [
+      "42",
+      "bad"
+    ],
+    "exit": 0
+  }
+}

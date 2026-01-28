@@ -1,0 +1,54 @@
+package bigint_specs
+
+import able.numbers.bigint.{BigInt}
+import able.core.interfaces.{Greater, Less}
+import able.spec.*
+
+describe("BigInt") { suite =>
+  suite.module_path("numbers/bigint")
+
+  suite.it("constructs and formats values") { _ctx =>
+    zero := BigInt.zero()
+    expect(zero.to_string()).to(eq("0"))
+    expect(zero.is_zero()).to(be_truthy())
+
+    pos := BigInt.from_i64(42)
+    expect(pos.to_string()).to(eq("42"))
+
+    neg := BigInt.from_i64(-15)
+    expect(neg.to_string()).to(eq("-15"))
+  }
+
+  suite.it("adds and subtracts across digit groups") { _ctx =>
+    base := BigInt.from_u64(1000000000_u64)
+    value := (base * BigInt.from_u64(2_u64)) + BigInt.from_u64(5_u64)
+    expect(value.to_string()).to(eq("2000000005"))
+
+    sum := value + BigInt.from_i64(-5)
+    expect(sum.to_string()).to(eq("2000000000"))
+
+    diff := sum - base
+    expect(diff.to_string()).to(eq("1000000000"))
+  }
+
+  suite.it("multiplies and compares values") { _ctx =>
+    a := BigInt.from_i64(-123456789)
+    b := BigInt.from_u64(987654321_u64)
+    product := a * b
+    expect(product.to_string()).to(eq("-121932631112635269"))
+    expect(product.compare(BigInt.zero())).to(eq(Less))
+    expect(b.compare(a)).to(eq(Greater))
+  }
+
+  suite.it("clamps and converts within range") { _ctx =>
+    low := BigInt.from_i64(-5)
+    mid := BigInt.from_i64(0)
+    high := BigInt.from_i64(5)
+
+    expect(mid.clamp(low, high)).to(eq(mid))
+    expect(high.clamp(low, mid)).to(eq(mid))
+
+    expect(BigInt.from_u64(42_u64).to_i32()).to(eq(42))
+    expect(fn() { BigInt.from_i64(-1).to_u64() }).to(raise_error())
+  }
+}

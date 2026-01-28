@@ -1,0 +1,20 @@
+package factorial_bigint
+
+import able.numbers.bigint.{BigInt}
+
+fn factorial(n: i32) -> BigInt {
+  if n <= 1 { return BigInt.one() }
+  result := BigInt.one()
+  i := 2
+  loop {
+    if i > n { break }
+    result = result * BigInt.from_i32(i)
+    i = i + 1
+  }
+  result
+}
+
+fn main() {
+  value := factorial(505)
+  print(value.to_string())
+}

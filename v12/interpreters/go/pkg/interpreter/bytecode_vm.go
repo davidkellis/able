@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -50,6 +49,8 @@ const (
 	bytecodeOpDefineInterface
 	bytecodeOpDefineImplementation
 	bytecodeOpDefineExtern
+	bytecodeOpImport
+	bytecodeOpDynImport
 	bytecodeOpStructLiteral
 	bytecodeOpMapLiteral
 	bytecodeOpArrayLiteral
@@ -64,6 +65,7 @@ const (
 	bytecodeOpRescue
 	bytecodeOpRaise
 	bytecodeOpEnsure
+	bytecodeOpEnsureEnd
 	bytecodeOpRethrow
 	bytecodeOpEvalExpression
 	bytecodeOpEvalStatement
@@ -97,6 +99,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 		vm.stack = vm.stack[:0]
 		vm.iterStack = vm.iterStack[:0]
 		vm.loopStack = vm.loopStack[:0]
+		vm.ensureStack = vm.ensureStack[:0]
 		vm.ip = 0
 	}
 	defer func() {
@@ -313,55 +316,19 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpOrElse:
 			{
-				orElseExpr, ok := instr.node.(*ast.OrElseExpression)
-				if !ok || orElseExpr == nil {
-					return nil, fmt.Errorf("bytecode or-else expects node")
-				}
-				val, err := vm.runOrElseExpression(orElseExpr)
+				handled, err := vm.execOrElse(instr)
 				if err != nil {
-					if vm.handleLoopSignal(err) {
-						continue
-					}
 					return nil, err
 				}
-				if val == nil {
-					val = runtime.NilValue{}
+				if handled {
+					continue
 				}
-				vm.stack = append(vm.stack, val)
-				vm.ip++
 			}
 		case bytecodeOpSpawn:
 			{
-				spawnExpr, ok := instr.node.(*ast.SpawnExpression)
-				if !ok || spawnExpr == nil {
-					return nil, fmt.Errorf("bytecode spawn expects node")
+				if err := vm.execSpawn(instr); err != nil {
+					return nil, err
 				}
-				vm.interp.ensureConcurrencyBuiltins()
-				capturedEnv := runtime.NewEnvironment(vm.env)
-				task := ProcTask(nil)
-				if vm.interp.execMode == execModeBytecode {
-					if program, err := vm.interp.lowerExpressionToBytecode(spawnExpr.Expression); err == nil {
-						task = func(ctx context.Context) (runtime.Value, error) {
-							payload := payloadFromContext(ctx)
-							if payload == nil {
-								payload = &asyncContextPayload{kind: asyncContextFuture}
-							} else {
-								payload.kind = asyncContextFuture
-							}
-							return vm.interp.runAsyncBytecodeProgram(payload, program, capturedEnv)
-						}
-					}
-				}
-				if task == nil {
-					task = vm.interp.makeAsyncTask(spawnExpr.Expression, vm.env)
-				}
-				future := vm.interp.executor.RunFuture(task)
-				if future == nil {
-					vm.stack = append(vm.stack, runtime.NilValue{})
-				} else {
-					vm.stack = append(vm.stack, future)
-				}
-				vm.ip++
 			}
 		case bytecodeOpAwait:
 			{
@@ -593,6 +560,18 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					return nil, err
 				}
 			}
+		case bytecodeOpImport:
+			{
+				if err := vm.execImport(instr); err != nil {
+					return nil, err
+				}
+			}
+		case bytecodeOpDynImport:
+			{
+				if err := vm.execDynImport(instr); err != nil {
+					return nil, err
+				}
+			}
 		case bytecodeOpStructLiteral:
 			{
 				lit, ok := instr.node.(*ast.StructLiteral)
@@ -762,7 +741,11 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				if !ok || matchExpr == nil {
 					return nil, fmt.Errorf("bytecode match expects node")
 				}
-				val, err := vm.runMatchExpression(matchExpr)
+				subject, err := vm.pop()
+				if err != nil {
+					return nil, err
+				}
+				val, err := vm.runMatchExpression(matchExpr, subject)
 				if err != nil {
 					err = vm.interp.attachRuntimeContext(err, matchExpr, vm.interp.stateFromEnv(vm.env))
 					if vm.handleLoopSignal(err) {
@@ -817,22 +800,18 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpEnsure:
 			{
-				ensureExpr, ok := instr.node.(*ast.EnsureExpression)
-				if !ok || ensureExpr == nil {
-					return nil, fmt.Errorf("bytecode ensure expects node")
+				if err := vm.execEnsureStart(instr); err != nil {
+					return nil, err
 				}
-				val, err := vm.runEnsureExpression(ensureExpr)
-				if err != nil {
+			}
+		case bytecodeOpEnsureEnd:
+			{
+				if err := vm.execEnsureEnd(instr); err != nil {
 					if vm.handleLoopSignal(err) {
 						continue
 					}
 					return nil, err
 				}
-				if val == nil {
-					val = runtime.NilValue{}
-				}
-				vm.stack = append(vm.stack, val)
-				vm.ip++
 			}
 		case bytecodeOpRethrow:
 			{

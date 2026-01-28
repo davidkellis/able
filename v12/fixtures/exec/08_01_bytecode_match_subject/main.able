@@ -1,0 +1,21 @@
+package exec_08_01_bytecode_match_subject
+
+## Semantics: match subject evaluated once before clauses.
+
+counter := 0
+
+fn next() -> i32 {
+  counter = counter + 1
+  counter
+}
+
+fn main() -> void {
+  result := next() match {
+    case 1 => 10,
+    case 2 => 20,
+    case _ => 0
+  }
+
+  print(`counter ${counter}`)
+  print(`result ${result}`)
+}

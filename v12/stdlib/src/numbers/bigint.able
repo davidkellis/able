@@ -1,0 +1,531 @@
+package bigint
+
+import able.collections.array.{Array}
+import able.core.interfaces.{PartialEq, PartialOrd, Eq, Ord, Less, Greater, Equal, Display, Ordering, Error, Add, Sub, Mul, Neg}
+import able.core.numeric.{Numeric, Signed, NumericConversions, NumericConversionError}
+import able.core.options.{Result}
+import able.text.string.{String, StringBuilder}
+
+BIGINT_BASE: i64 := 1000000000_i64
+BIGINT_BASE_U64: u64 := 1000000000_u64
+BIGINT_GROUP_DIGITS: i32 := 9
+
+I64_MIN: i64 := (-9223372036854775807_i64) - 1
+I64_MAX: i64 := 9223372036854775807_i64
+U64_MAX: u64 := 18446744073709551615_u64
+
+fn bigint_conversion_error(message: String) -> NumericConversionError {
+  raise NumericConversionError { message }
+}
+
+struct BigInt {
+  sign: i32,
+  digits: Array i64
+}
+
+fn bigint_trim(digits: Array i64) -> void {
+  loop {
+    count := digits.len()
+    if count <= 0 { break }
+    if digits.read_slot(count - 1) == 0 {
+      digits.pop()
+    } else {
+      break
+    }
+  }
+}
+
+fn bigint_normalize(sign: i32, digits: Array i64) -> BigInt {
+  bigint_trim(digits)
+  if digits.len() == 0 || sign == 0 {
+    return BigInt.zero()
+  }
+  BigInt { sign: if sign < 0 { -1 } else { 1 }, digits }
+}
+
+fn bigint_compare_abs(left: Array i64, right: Array i64) -> Ordering {
+  left_len := left.len()
+  right_len := right.len()
+  if left_len < right_len { return Less }
+  if left_len > right_len { return Greater }
+  if left_len == 0 { return Equal }
+  idx := left_len - 1
+  loop {
+    if idx < 0 { break }
+    l := left.read_slot(idx)
+    r := right.read_slot(idx)
+    if l < r { return Less }
+    if l > r { return Greater }
+    idx = idx - 1
+  }
+  Equal
+}
+
+fn bigint_add_abs(left: Array i64, right: Array i64) -> Array i64 {
+  left_len := left.len()
+  right_len := right.len()
+  max_len := if left_len > right_len { left_len } else { right_len }
+  result: Array i64 := Array.with_capacity(max_len + 1)
+  carry: i64 := 0
+  idx := 0
+  loop {
+    if idx >= max_len { break }
+    l := if idx < left_len { left.read_slot(idx) } else { 0 }
+    r := if idx < right_len { right.read_slot(idx) } else { 0 }
+    sum := l + r + carry
+    if sum >= BIGINT_BASE {
+      sum = sum - BIGINT_BASE
+      carry = 1
+    } else {
+      carry = 0
+    }
+    result.push(sum)
+    idx = idx + 1
+  }
+  if carry != 0 {
+    result.push(carry)
+  }
+  result
+}
+
+fn bigint_sub_abs(left: Array i64, right: Array i64) -> Array i64 {
+  ## Assumes |left| >= |right|
+  left_len := left.len()
+  right_len := right.len()
+  result: Array i64 := Array.with_capacity(left_len)
+  borrow: i64 := 0
+  idx := 0
+  loop {
+    if idx >= left_len { break }
+    l := left.read_slot(idx)
+    r := if idx < right_len { right.read_slot(idx) } else { 0 }
+    diff := l - r - borrow
+    if diff < 0 {
+      diff = diff + BIGINT_BASE
+      borrow = 1
+    } else {
+      borrow = 0
+    }
+    result.push(diff)
+    idx = idx + 1
+  }
+  bigint_trim(result)
+  result
+}
+
+fn bigint_mul_abs(left: Array i64, right: Array i64) -> Array i64 {
+  left_len := left.len()
+  right_len := right.len()
+  if left_len == 0 || right_len == 0 {
+    return Array.new()
+  }
+  result_len := left_len + right_len
+  result: Array i64 := Array.with_capacity(result_len)
+  idx := 0
+  loop {
+    if idx >= result_len { break }
+    result.push(0)
+    idx = idx + 1
+  }
+
+  i := 0
+  loop {
+    if i >= left_len { break }
+    carry: i64 := 0
+    j := 0
+    loop {
+      if j >= right_len { break }
+      slot := i + j
+      current := result.read_slot(slot)
+      prod := left.read_slot(i) * right.read_slot(j)
+      sum := current + prod + carry
+      result.write_slot(slot, sum % BIGINT_BASE)
+      carry = sum // BIGINT_BASE
+      j = j + 1
+    }
+    slot := i + right_len
+    loop {
+      if carry == 0 { break }
+      current := result.read_slot(slot)
+      sum := current + carry
+      result.write_slot(slot, sum % BIGINT_BASE)
+      carry = sum // BIGINT_BASE
+      slot = slot + 1
+      if slot >= result_len { break }
+    }
+    i = i + 1
+  }
+  bigint_trim(result)
+  result
+}
+
+fn bigint_digits_from_i64(value: i64) -> Array i64 {
+  result: Array i64 := Array.new()
+  remaining := value
+  loop {
+    if remaining == 0 { break }
+    digit := remaining % BIGINT_BASE
+    result.push(digit)
+    remaining = remaining // BIGINT_BASE
+  }
+  result
+}
+
+fn bigint_digits_from_u64(value: u64) -> Array i64 {
+  result: Array i64 := Array.new()
+  remaining := value
+  loop {
+    if remaining == 0_u64 { break }
+    digit_u64 := remaining % BIGINT_BASE_U64
+    digit_i64 := digit_u64.to_i64()
+    digit_i64 match {
+      case value: i64 => result.push(value),
+      case err: Error => { raise err }
+    }
+    remaining = remaining // BIGINT_BASE_U64
+  }
+  result
+}
+
+fn bigint_digits_for_i64_min() -> Array i64 {
+  digits: Array i64 := Array.with_capacity(3)
+  digits.push(854775808)
+  digits.push(223372036)
+  digits.push(9)
+  digits
+}
+
+fn bigint_is_i64_min_magnitude(digits: Array i64) -> bool {
+  if digits.len() != 3 { return false }
+  digits.read_slot(0) == 854775808 && digits.read_slot(1) == 223372036 && digits.read_slot(2) == 9
+}
+
+fn bigint_finish_builder(builder: StringBuilder) -> String {
+  builder.finish() match {
+    case value: String => value,
+    case err: Error => { raise err }
+  }
+}
+
+fn bigint_pad_group(value: i64) -> String {
+  text := `${value}`
+  len := text.len_bytes().to_i32()
+  len match {
+    case count: i32 => {
+      if count >= BIGINT_GROUP_DIGITS {
+        return text
+      }
+      builder := StringBuilder.with_capacity(BIGINT_GROUP_DIGITS)
+      zeros := BIGINT_GROUP_DIGITS - count
+      i := 0
+      loop {
+        if i >= zeros { break }
+        builder.push_char('0')
+        i = i + 1
+      }
+      builder.push_string(text)
+      bigint_finish_builder(builder)
+    },
+    case err: Error => { raise err }
+  }
+}
+
+fn bigint_to_i64_with_limit(digits: Array i64, limit: i64, label: String) -> i64 {
+  if digits.len() == 0 { return 0 }
+  acc: i64 := 0
+  idx := digits.len() - 1
+  loop {
+    if idx < 0 { break }
+    digit := digits.read_slot(idx)
+    if acc > limit // BIGINT_BASE {
+      bigint_conversion_error(`value out of range for ${label}`)
+    }
+    acc = acc * BIGINT_BASE + digit
+    if acc > limit {
+      bigint_conversion_error(`value out of range for ${label}`)
+    }
+    idx = idx - 1
+  }
+  acc
+}
+
+fn bigint_to_u64_with_limit(digits: Array i64, limit: u64, label: String) -> u64 {
+  if digits.len() == 0 { return 0_u64 }
+  acc: u64 := 0_u64
+  idx := digits.len() - 1
+  loop {
+    if idx < 0 { break }
+    digit := digits.read_slot(idx)
+    digit.to_u64() match {
+      case value: u64 => {
+        if acc > limit // BIGINT_BASE_U64 {
+          bigint_conversion_error(`value out of range for ${label}`)
+        }
+        acc = acc * BIGINT_BASE_U64 + value
+        if acc > limit {
+          bigint_conversion_error(`value out of range for ${label}`)
+        }
+      },
+      case err: Error => { raise err }
+    }
+    idx = idx - 1
+  }
+  acc
+}
+
+methods BigInt {
+  fn zero() -> BigInt { BigInt { sign: 0, digits: Array.new() } }
+
+  fn one() -> BigInt {
+    digits := Array.new()
+    digits.push(1)
+    BigInt { sign: 1, digits }
+  }
+
+  fn from_u64(value: u64) -> BigInt {
+    if value == 0_u64 { return BigInt.zero() }
+    BigInt { sign: 1, digits: bigint_digits_from_u64(value) }
+  }
+
+  fn from_i64(value: i64) -> BigInt {
+    if value == 0 { return BigInt.zero() }
+    if value > 0 { return BigInt { sign: 1, digits: bigint_digits_from_i64(value) } }
+    if value == I64_MIN {
+      return BigInt { sign: -1, digits: bigint_digits_for_i64_min() }
+    }
+    magnitude := 0 - value
+    BigInt { sign: -1, digits: bigint_digits_from_i64(magnitude) }
+  }
+
+  fn from_i32(value: i32) -> BigInt {
+    value.to_i64() match {
+      case output: i64 => BigInt.from_i64(output),
+      case err: Error => { raise err }
+    }
+  }
+
+  fn is_zero(self: Self) -> bool { self.sign == 0 }
+  fn is_positive(self: Self) -> bool { self.sign > 0 }
+  fn is_negative(self: Self) -> bool { self.sign < 0 }
+
+  fn abs(self: Self) -> BigInt {
+    if self.sign < 0 { BigInt { sign: 1, digits: self.digits.clone_shallow() } } else { self }
+  }
+
+  fn negate(self: Self) -> BigInt {
+    if self.sign == 0 { self } else { BigInt { sign: -self.sign, digits: self.digits.clone_shallow() } }
+  }
+
+  fn compare(self: Self, other: BigInt) -> Ordering {
+    if self.sign < other.sign { return Less }
+    if self.sign > other.sign { return Greater }
+    if self.sign == 0 { return Equal }
+    magnitude := bigint_compare_abs(self.digits, other.digits)
+    if self.sign > 0 { magnitude }
+    else {
+      magnitude match {
+        case Less => Greater,
+        case Greater => Less,
+        case Equal => Equal
+      }
+    }
+  }
+
+  fn add(self: Self, other: BigInt) -> BigInt {
+    if self.sign == 0 { return other }
+    if other.sign == 0 { return self }
+    if self.sign == other.sign {
+      return bigint_normalize(self.sign, bigint_add_abs(self.digits, other.digits))
+    }
+    magnitude := bigint_compare_abs(self.digits, other.digits)
+    magnitude match {
+      case Equal => BigInt.zero(),
+      case Greater => bigint_normalize(self.sign, bigint_sub_abs(self.digits, other.digits)),
+      case Less => bigint_normalize(other.sign, bigint_sub_abs(other.digits, self.digits))
+    }
+  }
+
+  fn sub(self: Self, other: BigInt) -> BigInt { self.add(other.negate()) }
+
+  fn mul(self: Self, other: BigInt) -> BigInt {
+    if self.sign == 0 || other.sign == 0 { return BigInt.zero() }
+    sign := if self.sign == other.sign { 1 } else { -1 }
+    bigint_normalize(sign, bigint_mul_abs(self.digits, other.digits))
+  }
+
+  fn min(self: Self, other: BigInt) -> BigInt {
+    if self.compare(other) == Greater { other } else { self }
+  }
+
+  fn max(self: Self, other: BigInt) -> BigInt {
+    if self.compare(other) == Less { other } else { self }
+  }
+
+  fn clamp(self: Self, min_value: BigInt, max_value: BigInt) -> BigInt {
+    if min_value.compare(max_value) == Greater {
+      bigint_conversion_error("BigInt.clamp requires min <= max")
+    }
+    if self.compare(min_value) == Less { return min_value }
+    if self.compare(max_value) == Greater { return max_value }
+    self
+  }
+
+  fn to_string(self: Self) -> String {
+    if self.sign == 0 { return "0" }
+    estimated := self.digits.len() * BIGINT_GROUP_DIGITS + 1
+    builder := StringBuilder.with_capacity(estimated)
+    if self.sign < 0 { builder.push_char('-') }
+    last := self.digits.len() - 1
+    builder.push_string(`${self.digits.read_slot(last)}`)
+    idx := last - 1
+    loop {
+      if idx < 0 { break }
+      builder.push_string(bigint_pad_group(self.digits.read_slot(idx)))
+      idx = idx - 1
+    }
+    bigint_finish_builder(builder)
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    if self.sign == 0 { return 0 }
+    if self.sign > 0 {
+      return bigint_to_i64_with_limit(self.digits, I64_MAX, "i64")
+    }
+    if bigint_is_i64_min_magnitude(self.digits) { return I64_MIN }
+    magnitude := bigint_to_i64_with_limit(self.digits, I64_MAX, "i64")
+    0 - magnitude
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if self.sign < 0 { bigint_conversion_error("cannot convert negative BigInt to u64") }
+    bigint_to_u64_with_limit(self.digits, U64_MAX, "u64")
+  }
+
+  fn to_i32(self: Self) -> Result i32 {
+    self.to_i64() match {
+      case value: i64 => {
+        value.to_i32() match {
+          case output: i32 => output,
+          case err: Error => { raise err }
+        }
+      },
+      case err: Error => { raise err }
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    self.to_u64() match {
+      case value: u64 => {
+        value.to_u32() match {
+          case output: u32 => output,
+          case err: Error => { raise err }
+        }
+      },
+      case err: Error => { raise err }
+    }
+  }
+
+  fn to_f64(self: Self) -> Result f64 {
+    if self.sign < 0 {
+      self.to_i64() match {
+        case value: i64 => {
+          value.to_f64() match {
+            case output: f64 => output,
+            case err: Error => { raise err }
+          }
+        },
+        case err: Error => { raise err }
+      }
+    } else {
+      self.to_u64() match {
+        case value: u64 => {
+          value.to_f64() match {
+            case output: f64 => output,
+            case err: Error => { raise err }
+          }
+        },
+        case err: Error => { raise err }
+      }
+    }
+  }
+}
+
+## Trait implementations -----------------------------------------------------
+
+impl Display for BigInt {
+  fn to_string(self: Self) -> String { self.to_string() }
+}
+
+impl PartialEq BigInt for BigInt {
+  fn eq(self: Self, other: BigInt) -> bool {
+    if self.sign != other.sign { return false }
+    if self.sign == 0 { return true }
+    if self.digits.len() != other.digits.len() { return false }
+    idx := 0
+    count := self.digits.len()
+    loop {
+      if idx >= count { break }
+      if self.digits.read_slot(idx) != other.digits.read_slot(idx) { return false }
+      idx = idx + 1
+    }
+    true
+  }
+}
+
+impl Eq for BigInt {
+  fn eq(self: Self, other: BigInt) -> bool { self.eq(other) }
+}
+
+impl PartialOrd BigInt for BigInt {
+  fn partial_cmp(self: Self, other: BigInt) -> Ordering { self.compare(other) }
+}
+
+impl Ord for BigInt {
+  fn partial_cmp(self: Self, other: BigInt) -> Ordering { self.compare(other) }
+  fn cmp(self: Self, other: BigInt) -> Ordering { self.compare(other) }
+}
+
+impl Numeric for BigInt {
+  fn zero() -> BigInt { BigInt.zero() }
+  fn one() -> BigInt { BigInt.one() }
+  fn abs(self: Self) -> BigInt { self.abs() }
+  fn sign(self: Self) -> i32 {
+    if self.sign > 0 { 1 }
+    elsif self.sign < 0 { -1 }
+    else { 0 }
+  }
+  fn min(self: Self, other: BigInt) -> BigInt { self.min(other) }
+  fn max(self: Self, other: BigInt) -> BigInt { self.max(other) }
+  fn clamp(self: Self, min_value: BigInt, max_value: BigInt) -> BigInt {
+    self.clamp(min_value, max_value)
+  }
+}
+
+impl Signed for BigInt {
+  fn is_positive(self: Self) -> bool { self.is_positive() }
+  fn is_negative(self: Self) -> bool { self.is_negative() }
+}
+
+impl NumericConversions for BigInt {
+  fn to_i32(self: Self) -> Result i32 { self.to_i32() }
+  fn to_u32(self: Self) -> Result u32 { self.to_u32() }
+  fn to_i64(self: Self) -> Result i64 { self.to_i64() }
+  fn to_u64(self: Self) -> Result u64 { self.to_u64() }
+  fn to_f64(self: Self) -> Result f64 { self.to_f64() }
+}
+
+impl Add BigInt BigInt for BigInt {
+  fn add(self: Self, rhs: BigInt) -> BigInt { self.add(rhs) }
+}
+
+impl Sub BigInt BigInt for BigInt {
+  fn sub(self: Self, rhs: BigInt) -> BigInt { self.sub(rhs) }
+}
+
+impl Mul BigInt BigInt for BigInt {
+  fn mul(self: Self, rhs: BigInt) -> BigInt { self.mul(rhs) }
+}
+
+impl Neg BigInt for BigInt {
+  fn neg(self: Self) -> BigInt { self.negate() }
+}
