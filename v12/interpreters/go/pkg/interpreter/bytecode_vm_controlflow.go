@@ -87,6 +87,40 @@ func (vm *bytecodeVM) closeAllIterators() {
 	vm.iterStack = vm.iterStack[:0]
 }
 
+func (vm *bytecodeVM) execSpawn(instr bytecodeInstruction) error {
+	spawnExpr, ok := instr.node.(*ast.SpawnExpression)
+	if !ok || spawnExpr == nil {
+		return fmt.Errorf("bytecode spawn expects node")
+	}
+	vm.interp.ensureConcurrencyBuiltins()
+	capturedEnv := runtime.NewEnvironment(vm.env)
+	task := ProcTask(nil)
+	if vm.interp.execMode == execModeBytecode {
+		if program, err := vm.interp.lowerExpressionToBytecode(spawnExpr.Expression); err == nil {
+			task = func(ctx context.Context) (runtime.Value, error) {
+				payload := payloadFromContext(ctx)
+				if payload == nil {
+					payload = &asyncContextPayload{kind: asyncContextFuture}
+				} else {
+					payload.kind = asyncContextFuture
+				}
+				return vm.interp.runAsyncBytecodeProgram(payload, program, capturedEnv)
+			}
+		}
+	}
+	if task == nil {
+		task = vm.interp.makeAsyncTask(spawnExpr.Expression, vm.env)
+	}
+	future := vm.interp.executor.RunFuture(task)
+	if future == nil {
+		vm.stack = append(vm.stack, runtime.NilValue{})
+	} else {
+		vm.stack = append(vm.stack, future)
+	}
+	vm.ip++
+	return nil
+}
+
 func (vm *bytecodeVM) evalExpressionWithFallback(expr ast.Expression, env *runtime.Environment) (runtime.Value, error) {
 	if expr == nil {
 		return runtime.NilValue{}, nil
@@ -116,11 +150,7 @@ func (vm *bytecodeVM) evalExpressionWithFallback(expr ast.Expression, env *runti
 	return val, nil
 }
 
-func (vm *bytecodeVM) runMatchExpression(expr *ast.MatchExpression) (runtime.Value, error) {
-	subject, err := vm.evalExpressionWithFallback(expr.Subject, vm.env)
-	if err != nil {
-		return nil, err
-	}
+func (vm *bytecodeVM) runMatchExpression(expr *ast.MatchExpression, subject runtime.Value) (runtime.Value, error) {
 	for _, clause := range expr.Clauses {
 		if clause == nil {
 			continue
@@ -350,64 +380,4 @@ func (vm *bytecodeVM) runRescueExpression(expr *ast.RescueExpression) (runtime.V
 		return val, nil
 	}
 	return nil, rs
-}
-
-func (vm *bytecodeVM) runOrElseExpression(expr *ast.OrElseExpression) (runtime.Value, error) {
-	val, err := vm.evalExpressionWithFallback(expr.Expression, vm.env)
-	if err != nil {
-		if rs, ok := err.(raiseSignal); ok {
-			handlerEnv := runtime.NewEnvironment(vm.env)
-			if expr.ErrorBinding != nil {
-				handlerEnv.Define(expr.ErrorBinding.Name, rs.value)
-			}
-			return vm.evalExpressionWithFallback(expr.Handler, handlerEnv)
-		}
-		return nil, err
-	}
-	failureKind := ""
-	var failureValue runtime.Value
-	if val == nil {
-		failureKind = "nil"
-	} else if val.Kind() == runtime.KindNil {
-		failureKind = "nil"
-	} else if errVal, ok := asErrorValue(val); ok {
-		failureKind = "error"
-		failureValue = errVal
-	} else if vm.interp.matchesType(ast.Ty("Error"), val) {
-		failureKind = "error"
-		failureValue = val
-	}
-	if failureKind != "" {
-		handlerEnv := runtime.NewEnvironment(vm.env)
-		if expr.ErrorBinding != nil && failureKind == "error" {
-			handlerEnv.Define(expr.ErrorBinding.Name, failureValue)
-		}
-		return vm.evalExpressionWithFallback(expr.Handler, handlerEnv)
-	}
-	return val, nil
-}
-
-func (vm *bytecodeVM) runEnsureExpression(expr *ast.EnsureExpression) (runtime.Value, error) {
-	var tryResult runtime.Value = runtime.NilValue{}
-	var execErr error
-	val, err := vm.evalExpressionWithFallback(expr.TryExpression, vm.env)
-	if err == nil {
-		if val != nil {
-			tryResult = val
-		}
-	} else {
-		execErr = err
-	}
-	if expr.EnsureBlock != nil {
-		if _, ensureErr := vm.evalExpressionWithFallback(expr.EnsureBlock, vm.env); ensureErr != nil {
-			return nil, ensureErr
-		}
-	}
-	if execErr != nil {
-		return nil, execErr
-	}
-	if tryResult == nil {
-		return runtime.NilValue{}, nil
-	}
-	return tryResult, nil
 }

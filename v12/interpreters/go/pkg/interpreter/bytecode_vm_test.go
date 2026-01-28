@@ -118,6 +118,55 @@ func TestBytecodeVM_CompoundAssignmentPattern(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_ImportStatement(t *testing.T) {
+	pkgModule := ast.Mod([]ast.Statement{
+		ast.Fn("value", nil, []ast.Statement{ast.Ret(ast.Int(7))}, nil, nil, nil, false, false),
+	}, nil, ast.Pkg([]interface{}{"bytecode_pkg"}, false))
+
+	byteInterp := NewBytecode()
+	if _, _, err := byteInterp.EvaluateModule(pkgModule); err != nil {
+		t.Fatalf("bytecode package module failed: %v", err)
+	}
+
+	entryModule := ast.Mod([]ast.Statement{
+		ast.Imp([]interface{}{"bytecode_pkg"}, false, []*ast.ImportSelector{ast.ImpSel("value", nil)}, nil),
+		ast.Call("value"),
+	}, nil, nil)
+
+	program, err := byteInterp.lowerModuleToBytecode(entryModule)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	sawImport := false
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpImport {
+			sawImport = true
+			break
+		}
+	}
+	if !sawImport {
+		t.Fatalf("bytecode import opcode not emitted")
+	}
+
+	got, _, err := byteInterp.EvaluateModule(entryModule)
+	if err != nil {
+		t.Fatalf("bytecode entry module failed: %v", err)
+	}
+
+	treeInterp := New()
+	if _, _, err := treeInterp.EvaluateModule(pkgModule); err != nil {
+		t.Fatalf("tree-walker package module failed: %v", err)
+	}
+	want, _, err := treeInterp.EvaluateModule(entryModule)
+	if err != nil {
+		t.Fatalf("tree-walker entry module failed: %v", err)
+	}
+
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode import mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
 func TestBytecodeVM_DefinitionOpcodes(t *testing.T) {
 	alias := ast.NewTypeAliasDefinition(ast.ID("Alias"), ast.Ty("i32"), nil, nil, false)
 	union := ast.UnionDef("Maybe", []ast.TypeExpression{ast.Ty("i32"), ast.Ty("String")}, nil, nil, false)
@@ -559,15 +608,48 @@ func TestBytecodeVM_PropagationExpression(t *testing.T) {
 }
 
 func TestBytecodeVM_OrElseExpression(t *testing.T) {
-	module := ast.Mod([]ast.Statement{
-		ast.OrElse(ast.Nil(), nil, ast.Int(9)),
+	errorVal := runtime.ErrorValue{Message: "boom"}
+	errorModule := ast.Mod([]ast.Statement{
+		ast.OrElse(ast.ID("err"), "e", ast.ID("e")),
 	}, nil, nil)
 
-	want := mustEvalModule(t, New(), module)
-	got := runBytecodeModule(t, module)
+	treeInterp := New()
+	treeInterp.GlobalEnvironment().Define("err", errorVal)
+	want := mustEvalModule(t, treeInterp, errorModule)
 
-	if !valuesEqual(got, want) {
-		t.Fatalf("bytecode or-else mismatch: got=%#v want=%#v", got, want)
+	byteInterp := NewBytecode()
+	byteInterp.GlobalEnvironment().Define("err", errorVal)
+	program, err := byteInterp.lowerModuleToBytecode(errorModule)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	sawOrElse := false
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpOrElse {
+			sawOrElse = true
+			break
+		}
+	}
+	if !sawOrElse {
+		t.Fatalf("bytecode or-else opcode not emitted")
+	}
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, errorModule)
+	gotMsg, gotOK := asErrorValue(got)
+	wantMsg, wantOK := asErrorValue(want)
+	if !gotOK || !wantOK {
+		t.Fatalf("bytecode or-else expected error value: got=%#v want=%#v", got, want)
+	}
+	if gotMsg.Message != wantMsg.Message {
+		t.Fatalf("bytecode or-else error binding mismatch: got=%#v want=%#v", got, want)
+	}
+
+	nilModule := ast.Mod([]ast.Statement{
+		ast.OrElse(ast.Nil(), nil, ast.Int(9)),
+	}, nil, nil)
+	nilTree := mustEvalModule(t, New(), nilModule)
+	nilByte := runBytecodeModule(t, nilModule)
+	if !valuesEqual(nilByte, nilTree) {
+		t.Fatalf("bytecode or-else nil mismatch: got=%#v want=%#v", nilByte, nilTree)
 	}
 }
 

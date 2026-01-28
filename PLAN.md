@@ -71,7 +71,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
     - Done: return statements (bytecode lowering + VM return signal).
     - Done: short-circuit/pipeline operators (native bytecode lowering).
   - Lower more AST nodes to bytecode; keep tree-walker fallback for unsupported nodes.
-    - Remaining delegated ops: match/rescue/ensure/or_else/await/breakpoint/iterator literals and import statements.
+    - Remaining delegated ops: rescue/await/breakpoint/iterator literals.
   - Add VM/tree-walker parity tests for each newly supported feature (unit + fixtures).
   - Add bytecode conformance fixtures that run through both VM + tree-walker paths.
     - Done: map literal/spread bytecode fixture in exec coverage.
