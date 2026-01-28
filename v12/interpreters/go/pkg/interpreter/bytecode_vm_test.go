@@ -23,6 +23,132 @@ func TestBytecodeVM_AssignmentAndBinary(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_AssignmentPattern(t *testing.T) {
+	pattern := ast.ArrP([]ast.Pattern{ast.ID("a"), ast.ID("b")}, nil)
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("arr"), ast.Arr(ast.Int(1), ast.Int(2))),
+		ast.Assign(pattern, ast.ID("arr")),
+		ast.Bin("+", ast.ID("a"), ast.ID("b")),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	byteInterp := NewBytecode()
+	program, err := byteInterp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	found := false
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpAssignPattern {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("bytecode assign pattern opcode not emitted")
+	}
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, module)
+
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode assignment pattern mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_CompoundAssignmentName(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("x"), ast.Int(1)),
+		ast.AssignOp(
+			ast.AssignmentAdd,
+			ast.ID("x"),
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.Int(5)),
+		),
+		ast.ID("x"),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	byteInterp := NewBytecode()
+	program, err := byteInterp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	found := false
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpAssignNameCompound {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("bytecode compound assignment opcode not emitted")
+	}
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, module)
+
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode compound assignment mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_CompoundAssignmentPattern(t *testing.T) {
+	pattern := ast.ArrP([]ast.Pattern{ast.ID("a"), ast.ID("b")}, nil)
+	module := ast.Mod([]ast.Statement{
+		ast.AssignOp(ast.AssignmentAdd, pattern, ast.Arr(ast.Int(1), ast.Int(2))),
+	}, nil, nil)
+
+	byteInterp := NewBytecode()
+	program, err := byteInterp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	found := false
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpAssignPattern {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("bytecode assign pattern opcode not emitted")
+	}
+	_, _, err = byteInterp.EvaluateModule(module)
+	if err == nil {
+		t.Fatalf("expected compound assignment error for pattern")
+	}
+	if err.Error() != "compound assignment not supported with patterns" {
+		t.Fatalf("unexpected pattern compound assignment error: %v", err)
+	}
+}
+
+func TestBytecodeVM_DefinitionOpcodes(t *testing.T) {
+	alias := ast.NewTypeAliasDefinition(ast.ID("Alias"), ast.Ty("i32"), nil, nil, false)
+	union := ast.UnionDef("Maybe", []ast.TypeExpression{ast.Ty("i32"), ast.Ty("String")}, nil, nil, false)
+	module := ast.Mod([]ast.Statement{
+		alias,
+		union,
+	}, nil, nil)
+
+	byteInterp := NewBytecode()
+	program, err := byteInterp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	var sawAlias, sawUnion bool
+	for _, instr := range program.instructions {
+		switch instr.op {
+		case bytecodeOpDefineTypeAlias:
+			sawAlias = true
+		case bytecodeOpDefineUnion:
+			sawUnion = true
+		}
+	}
+	if !sawAlias {
+		t.Fatalf("bytecode type alias opcode not emitted")
+	}
+	if !sawUnion {
+		t.Fatalf("bytecode union opcode not emitted")
+	}
+	_ = runBytecodeModuleWithInterpreter(t, byteInterp, module)
+}
+
 func TestBytecodeVM_UnaryNegate(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
 		ast.Un(ast.UnaryOperatorNegate, ast.Int(3)),
@@ -785,6 +911,39 @@ func TestBytecodeVM_LambdaCall(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_ReturnStatement(t *testing.T) {
+	fn := ast.Fn("early", nil, []ast.Statement{
+		ast.Ret(ast.Int(7)),
+		ast.Int(9),
+	}, nil, nil, nil, false, false)
+	module := ast.Mod([]ast.Statement{
+		fn,
+		ast.Call("early"),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode return mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_ReturnOutsideFunction(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Ret(ast.Int(1)),
+	}, nil, nil)
+
+	interp := NewBytecode()
+	_, _, err := interp.EvaluateModule(module)
+	if err == nil {
+		t.Fatalf("expected return outside function error")
+	}
+	if err.Error() != "return outside function" {
+		t.Fatalf("unexpected return error: %v", err)
+	}
+}
+
 func TestBytecodeVM_MemberAccess(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
 		ast.Member(ast.ID("point"), "x"),
@@ -808,6 +967,60 @@ func TestBytecodeVM_MemberAccess(t *testing.T) {
 
 	if !valuesEqual(got, want) {
 		t.Fatalf("bytecode member access mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_MemberAssignment(t *testing.T) {
+	pointDef := ast.StructDef(
+		"Point",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "x"),
+			ast.FieldDef(ast.Ty("i32"), "y"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	pointLit := ast.StructLit(
+		[]*ast.StructFieldInitializer{
+			ast.FieldInit(ast.Int(1), "x"),
+			ast.FieldInit(ast.Int(2), "y"),
+		},
+		false,
+		"Point",
+		nil,
+		nil,
+	)
+	module := ast.Mod([]ast.Statement{
+		pointDef,
+		ast.Assign(ast.ID("p"), pointLit),
+		ast.AssignOp(ast.AssignmentAssign, ast.Member(ast.ID("p"), "x"), ast.Int(10)),
+		ast.AssignOp(ast.AssignmentAdd, ast.Member(ast.ID("p"), "y"), ast.Int(5)),
+		ast.Bin("+", ast.Member(ast.ID("p"), "x"), ast.Member(ast.ID("p"), "y")),
+	}, nil, nil)
+
+	byteInterp := NewBytecode()
+	program, err := byteInterp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	found := false
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpMemberSet {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("bytecode member set opcode not emitted")
+	}
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, module)
+
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode member assignment mismatch: got=%#v want=%#v", got, want)
 	}
 }
 
@@ -989,7 +1202,7 @@ func TestBytecodeVM_MapLiteralSpread(t *testing.T) {
 
 func runBytecodeModule(t *testing.T, module *ast.Module) runtime.Value {
 	t.Helper()
-	interp := New()
+	interp := NewBytecode()
 	return runBytecodeModuleWithInterpreter(t, interp, module)
 }
 

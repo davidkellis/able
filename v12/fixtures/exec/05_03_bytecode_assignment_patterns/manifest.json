@@ -1,0 +1,14 @@
+{
+  "description": "bytecode-friendly pattern assignments and identifier compound assignments",
+  "expect": {
+    "stdout": [
+      "2",
+      "4",
+      "3",
+      "2",
+      "5",
+      "10"
+    ],
+    "exit": 0
+  }
+}
