@@ -102,6 +102,10 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
 - `define_implementation <impl>`: `S -> S, nil`
 - `define_extern <extern>`: `S -> S, nil`
 
+#### Imports
+- `import <stmt>`: `S -> S, nil`
+- `dynimport <stmt>`: `S -> S, nil`
+
 #### Data literals
 - `struct_literal`: `S -> S, struct`
 - `map_literal`: `S -> S, map` (handles spread via runtime helpers)
@@ -130,7 +134,12 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
 #### Errors + rescue
 - `raise`: delegates to tree-walker; returns `raiseSignal`
 - `rethrow`: delegates to tree-walker; returns `raiseSignal`
-- `match`, `rescue`, `ensure`, `or_else`: delegated with bytecode fallback for
+- `or_else`: opcode that evaluates the main expression via fallback, binds
+  errors in a new scope, and runs the handler inline.
+- `match`: `S, subject -> S, result` (clause bodies and guards use fallback eval)
+- `ensure`: opcode that evaluates the try expression via fallback, runs the ensure
+  block inline, then rethrows any captured error or yields the try result.
+- `rescue`: delegated with bytecode fallback for
   subexpressions; errors carry runtime context for parity.
 
 #### Spawn / await

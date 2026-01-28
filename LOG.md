@@ -1,5 +1,38 @@
 # Able Project Log
 
+# 2026-01-28 — Stdlib BigInt/BigUint (v12)
+- Stdlib: added `able.numbers.bigint` and `able.numbers.biguint` with basic arithmetic, comparisons, formatting, and numeric conversions.
+- Tests: added BigInt/BigUint stdlib tests under `v12/stdlib/tests`.
+
+# 2026-01-28 — Bytecode ensure inline handler (v12)
+- Bytecode: execute ensure blocks inline after evaluating the try expression via fallback, then rethrow any captured error or return the try result.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_EnsureExpression -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_03_bytecode_ensure_basic -count=1 -timeout 60s`.
+
+# 2026-01-28 — Bytecode match subject lowering (v12)
+- Bytecode: lower match subjects as bytecode expressions before clause dispatch, leaving guards/bodies on fallback eval.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_Match -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/08_01_bytecode_match_subject -count=1 -timeout 60s`.
+
+# 2026-01-28 — Exec fixture parity (13_04 slice)
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/13_04 -count=1 -timeout 60s`.
+
+# 2026-01-28 — Bytecode or-else exec fixture (v12)
+- Fixtures: added bytecode-friendly `or {}` exec fixture for nil fallback and error binding.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_02_bytecode_or_else_basic -count=1 -timeout 60s`.
+
+# 2026-01-28 — Exec fixture parity (11_03 slice)
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_03 -count=1 -timeout 60s`.
+
+# 2026-01-28 — Bytecode or-else handler path (v12)
+- Bytecode: route `or {}` handling through a dedicated opcode that catches raised errors, binds failures in a fresh scope, and evaluates the handler inline.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_OrElseExpression -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_02 -count=1 -timeout 60s`.
+
+# 2026-01-28 — Bytecode import ops (v12)
+- Bytecode: added native import/dynimport opcodes and moved spawn execution into the controlflow helper to keep the VM file under 1000 lines.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_ImportStatement -count=1`.
+
 # 2026-01-28 — Bytecode pattern compound assignment guard (v12)
 - Bytecode: lower compound pattern assignments to the pattern assignment opcode so the VM raises the expected runtime error.
 - Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_CompoundAssignmentPattern -count=1`.

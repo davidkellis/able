@@ -1,0 +1,435 @@
+package biguint
+
+import able.collections.array.{Array}
+import able.core.errors.{OverflowError}
+import able.core.interfaces.{PartialEq, PartialOrd, Eq, Ord, Less, Greater, Equal, Display, Ordering, Error, Add, Sub, Mul}
+import able.core.numeric.{Numeric, NumericConversions, NumericConversionError}
+import able.core.options.{Result}
+import able.text.string.{String, StringBuilder}
+
+BIGUINT_BASE: i64 := 1000000000_i64
+BIGUINT_BASE_U64: u64 := 1000000000_u64
+BIGUINT_GROUP_DIGITS: i32 := 9
+
+I64_MAX: i64 := 9223372036854775807_i64
+U64_MAX: u64 := 18446744073709551615_u64
+
+fn biguint_conversion_error(message: String) -> NumericConversionError {
+  raise NumericConversionError { message }
+}
+
+struct BigUint {
+  digits: Array i64
+}
+
+fn biguint_trim(digits: Array i64) -> void {
+  loop {
+    count := digits.len()
+    if count <= 0 { break }
+    if digits.read_slot(count - 1) == 0 {
+      digits.pop()
+    } else {
+      break
+    }
+  }
+}
+
+fn biguint_normalize(digits: Array i64) -> BigUint {
+  biguint_trim(digits)
+  BigUint { digits }
+}
+
+fn biguint_compare(left: Array i64, right: Array i64) -> Ordering {
+  left_len := left.len()
+  right_len := right.len()
+  if left_len < right_len { return Less }
+  if left_len > right_len { return Greater }
+  if left_len == 0 { return Equal }
+  idx := left_len - 1
+  loop {
+    if idx < 0 { break }
+    l := left.read_slot(idx)
+    r := right.read_slot(idx)
+    if l < r { return Less }
+    if l > r { return Greater }
+    idx = idx - 1
+  }
+  Equal
+}
+
+fn biguint_add(left: Array i64, right: Array i64) -> Array i64 {
+  left_len := left.len()
+  right_len := right.len()
+  max_len := if left_len > right_len { left_len } else { right_len }
+  result: Array i64 := Array.with_capacity(max_len + 1)
+  carry: i64 := 0
+  idx := 0
+  loop {
+    if idx >= max_len { break }
+    l := if idx < left_len { left.read_slot(idx) } else { 0 }
+    r := if idx < right_len { right.read_slot(idx) } else { 0 }
+    sum := l + r + carry
+    if sum >= BIGUINT_BASE {
+      sum = sum - BIGUINT_BASE
+      carry = 1
+    } else {
+      carry = 0
+    }
+    result.push(sum)
+    idx = idx + 1
+  }
+  if carry != 0 {
+    result.push(carry)
+  }
+  result
+}
+
+fn biguint_sub(left: Array i64, right: Array i64) -> Array i64 {
+  ## Assumes left >= right
+  left_len := left.len()
+  right_len := right.len()
+  result: Array i64 := Array.with_capacity(left_len)
+  borrow: i64 := 0
+  idx := 0
+  loop {
+    if idx >= left_len { break }
+    l := left.read_slot(idx)
+    r := if idx < right_len { right.read_slot(idx) } else { 0 }
+    diff := l - r - borrow
+    if diff < 0 {
+      diff = diff + BIGUINT_BASE
+      borrow = 1
+    } else {
+      borrow = 0
+    }
+    result.push(diff)
+    idx = idx + 1
+  }
+  biguint_trim(result)
+  result
+}
+
+fn biguint_mul(left: Array i64, right: Array i64) -> Array i64 {
+  left_len := left.len()
+  right_len := right.len()
+  if left_len == 0 || right_len == 0 {
+    return Array.new()
+  }
+  result_len := left_len + right_len
+  result: Array i64 := Array.with_capacity(result_len)
+  idx := 0
+  loop {
+    if idx >= result_len { break }
+    result.push(0)
+    idx = idx + 1
+  }
+
+  i := 0
+  loop {
+    if i >= left_len { break }
+    carry: i64 := 0
+    j := 0
+    loop {
+      if j >= right_len { break }
+      slot := i + j
+      current := result.read_slot(slot)
+      prod := left.read_slot(i) * right.read_slot(j)
+      sum := current + prod + carry
+      result.write_slot(slot, sum % BIGUINT_BASE)
+      carry = sum // BIGUINT_BASE
+      j = j + 1
+    }
+    slot := i + right_len
+    loop {
+      if carry == 0 { break }
+      current := result.read_slot(slot)
+      sum := current + carry
+      result.write_slot(slot, sum % BIGUINT_BASE)
+      carry = sum // BIGUINT_BASE
+      slot = slot + 1
+      if slot >= result_len { break }
+    }
+    i = i + 1
+  }
+  biguint_trim(result)
+  result
+}
+
+fn biguint_digits_from_u64(value: u64) -> Array i64 {
+  result: Array i64 := Array.new()
+  remaining := value
+  loop {
+    if remaining == 0_u64 { break }
+    digit_u64 := remaining % BIGUINT_BASE_U64
+    digit_u64.to_i64() match {
+      case value: i64 => result.push(value),
+      case err: Error => { raise err }
+    }
+    remaining = remaining // BIGUINT_BASE_U64
+  }
+  result
+}
+
+fn biguint_finish_builder(builder: StringBuilder) -> String {
+  builder.finish() match {
+    case value: String => value,
+    case err: Error => { raise err }
+  }
+}
+
+fn biguint_pad_group(value: i64) -> String {
+  text := `${value}`
+  len := text.len_bytes().to_i32()
+  len match {
+    case count: i32 => {
+      if count >= BIGUINT_GROUP_DIGITS {
+        return text
+      }
+      builder := StringBuilder.with_capacity(BIGUINT_GROUP_DIGITS)
+      zeros := BIGUINT_GROUP_DIGITS - count
+      i := 0
+      loop {
+        if i >= zeros { break }
+        builder.push_char('0')
+        i = i + 1
+      }
+      builder.push_string(text)
+      biguint_finish_builder(builder)
+    },
+    case err: Error => { raise err }
+  }
+}
+
+fn biguint_to_i64_with_limit(digits: Array i64, limit: i64, label: String) -> i64 {
+  if digits.len() == 0 { return 0 }
+  acc: i64 := 0
+  idx := digits.len() - 1
+  loop {
+    if idx < 0 { break }
+    digit := digits.read_slot(idx)
+    if acc > limit // BIGUINT_BASE {
+      biguint_conversion_error(`value out of range for ${label}`)
+    }
+    acc = acc * BIGUINT_BASE + digit
+    if acc > limit {
+      biguint_conversion_error(`value out of range for ${label}`)
+    }
+    idx = idx - 1
+  }
+  acc
+}
+
+fn biguint_to_u64_with_limit(digits: Array i64, limit: u64, label: String) -> u64 {
+  if digits.len() == 0 { return 0_u64 }
+  acc: u64 := 0_u64
+  idx := digits.len() - 1
+  loop {
+    if idx < 0 { break }
+    digit := digits.read_slot(idx)
+    digit.to_u64() match {
+      case value: u64 => {
+        if acc > limit // BIGUINT_BASE_U64 {
+          biguint_conversion_error(`value out of range for ${label}`)
+        }
+        acc = acc * BIGUINT_BASE_U64 + value
+        if acc > limit {
+          biguint_conversion_error(`value out of range for ${label}`)
+        }
+      },
+      case err: Error => { raise err }
+    }
+    idx = idx - 1
+  }
+  acc
+}
+
+methods BigUint {
+  fn zero() -> BigUint { BigUint { digits: Array.new() } }
+
+  fn one() -> BigUint {
+    digits := Array.new()
+    digits.push(1)
+    BigUint { digits }
+  }
+
+  fn from_u64(value: u64) -> BigUint {
+    if value == 0_u64 { return BigUint.zero() }
+    BigUint { digits: biguint_digits_from_u64(value) }
+  }
+
+  fn from_i64(value: i64) -> BigUint {
+    if value < 0 { biguint_conversion_error("cannot construct BigUint from negative i64") }
+    value.to_u64() match {
+      case output: u64 => BigUint.from_u64(output),
+      case err: Error => { raise err }
+    }
+  }
+
+  fn is_zero(self: Self) -> bool { self.digits.len() == 0 }
+  fn is_positive(self: Self) -> bool { !self.is_zero() }
+
+  fn compare(self: Self, other: BigUint) -> Ordering {
+    biguint_compare(self.digits, other.digits)
+  }
+
+  fn add(self: Self, other: BigUint) -> BigUint {
+    if self.is_zero() { return other }
+    if other.is_zero() { return self }
+    biguint_normalize(biguint_add(self.digits, other.digits))
+  }
+
+  fn sub(self: Self, other: BigUint) -> BigUint {
+    if other.is_zero() { return self }
+    if self.is_zero() { raise OverflowError { operation: "BigUint.sub underflow" } }
+    if self.compare(other) == Less {
+      raise OverflowError { operation: "BigUint.sub underflow" }
+    }
+    biguint_normalize(biguint_sub(self.digits, other.digits))
+  }
+
+  fn mul(self: Self, other: BigUint) -> BigUint {
+    if self.is_zero() || other.is_zero() { return BigUint.zero() }
+    biguint_normalize(biguint_mul(self.digits, other.digits))
+  }
+
+  fn min(self: Self, other: BigUint) -> BigUint {
+    if self.compare(other) == Greater { other } else { self }
+  }
+
+  fn max(self: Self, other: BigUint) -> BigUint {
+    if self.compare(other) == Less { other } else { self }
+  }
+
+  fn clamp(self: Self, min_value: BigUint, max_value: BigUint) -> BigUint {
+    if min_value.compare(max_value) == Greater {
+      biguint_conversion_error("BigUint.clamp requires min <= max")
+    }
+    if self.compare(min_value) == Less { return min_value }
+    if self.compare(max_value) == Greater { return max_value }
+    self
+  }
+
+  fn to_string(self: Self) -> String {
+    if self.is_zero() { return "0" }
+    estimated := self.digits.len() * BIGUINT_GROUP_DIGITS + 1
+    builder := StringBuilder.with_capacity(estimated)
+    last := self.digits.len() - 1
+    builder.push_string(`${self.digits.read_slot(last)}`)
+    idx := last - 1
+    loop {
+      if idx < 0 { break }
+      builder.push_string(biguint_pad_group(self.digits.read_slot(idx)))
+      idx = idx - 1
+    }
+    biguint_finish_builder(builder)
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    biguint_to_u64_with_limit(self.digits, U64_MAX, "u64")
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    biguint_to_i64_with_limit(self.digits, I64_MAX, "i64")
+  }
+
+  fn to_i32(self: Self) -> Result i32 {
+    self.to_i64() match {
+      case value: i64 => {
+        value.to_i32() match {
+          case output: i32 => output,
+          case err: Error => { raise err }
+        }
+      },
+      case err: Error => { raise err }
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    self.to_u64() match {
+      case value: u64 => {
+        value.to_u32() match {
+          case output: u32 => output,
+          case err: Error => { raise err }
+        }
+      },
+      case err: Error => { raise err }
+    }
+  }
+
+  fn to_f64(self: Self) -> Result f64 {
+    self.to_u64() match {
+      case value: u64 => {
+        value.to_f64() match {
+          case output: f64 => output,
+          case err: Error => { raise err }
+        }
+      },
+      case err: Error => { raise err }
+    }
+  }
+}
+
+## Trait implementations -----------------------------------------------------
+
+impl Display for BigUint {
+  fn to_string(self: Self) -> String { self.to_string() }
+}
+
+impl PartialEq BigUint for BigUint {
+  fn eq(self: Self, other: BigUint) -> bool {
+    if self.digits.len() != other.digits.len() { return false }
+    idx := 0
+    count := self.digits.len()
+    loop {
+      if idx >= count { break }
+      if self.digits.read_slot(idx) != other.digits.read_slot(idx) { return false }
+      idx = idx + 1
+    }
+    true
+  }
+}
+
+impl Eq for BigUint {
+  fn eq(self: Self, other: BigUint) -> bool { self.eq(other) }
+}
+
+impl PartialOrd BigUint for BigUint {
+  fn partial_cmp(self: Self, other: BigUint) -> Ordering { self.compare(other) }
+}
+
+impl Ord for BigUint {
+  fn partial_cmp(self: Self, other: BigUint) -> Ordering { self.compare(other) }
+  fn cmp(self: Self, other: BigUint) -> Ordering { self.compare(other) }
+}
+
+impl Numeric for BigUint {
+  fn zero() -> BigUint { BigUint.zero() }
+  fn one() -> BigUint { BigUint.one() }
+  fn abs(self: Self) -> BigUint { self }
+  fn sign(self: Self) -> i32 { if self.is_zero() { 0 } else { 1 } }
+  fn min(self: Self, other: BigUint) -> BigUint { self.min(other) }
+  fn max(self: Self, other: BigUint) -> BigUint { self.max(other) }
+  fn clamp(self: Self, min_value: BigUint, max_value: BigUint) -> BigUint {
+    self.clamp(min_value, max_value)
+  }
+}
+
+impl NumericConversions for BigUint {
+  fn to_i32(self: Self) -> Result i32 { self.to_i32() }
+  fn to_u32(self: Self) -> Result u32 { self.to_u32() }
+  fn to_i64(self: Self) -> Result i64 { self.to_i64() }
+  fn to_u64(self: Self) -> Result u64 { self.to_u64() }
+  fn to_f64(self: Self) -> Result f64 { self.to_f64() }
+}
+
+impl Add BigUint BigUint for BigUint {
+  fn add(self: Self, rhs: BigUint) -> BigUint { self.add(rhs) }
+}
+
+impl Sub BigUint BigUint for BigUint {
+  fn sub(self: Self, rhs: BigUint) -> BigUint { self.sub(rhs) }
+}
+
+impl Mul BigUint BigUint for BigUint {
+  fn mul(self: Self, rhs: BigUint) -> BigUint { self.mul(rhs) }
+}

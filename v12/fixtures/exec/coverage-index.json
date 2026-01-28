@@ -153,6 +153,14 @@
     "focus": "bytecode-friendly match with literals, guards, and wildcard"
   },
   {
+    "id": "exec/08_01_bytecode_match_subject",
+    "status": "seeded",
+    "spec_sections": [
+      "8.1.2"
+    ],
+    "focus": "bytecode-friendly match subject evaluated once"
+  },
+  {
     "id": "exec/08_01_match_guards_exhaustiveness",
     "status": "seeded",
     "spec_sections": [
@@ -694,6 +702,14 @@
       "11.2"
     ],
     "focus": "option/result propagation with ! and or handling"
+  },
+  {
+    "id": "exec/11_02_bytecode_or_else_basic",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2.3"
+    ],
+    "focus": "bytecode-friendly or-else handling for nil and error bindings"
   },
   {
     "id": "exec/11_02_option_result_or_handlers",

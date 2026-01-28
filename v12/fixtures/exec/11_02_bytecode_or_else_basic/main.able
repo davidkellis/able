@@ -1,0 +1,26 @@
+package exec_11_02_bytecode_or_else_basic
+
+## Semantics: bytecode-friendly or-else handles nil and error values with bindings.
+
+struct MyError { message: String }
+
+impl Error for MyError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn maybe_value(ok: bool) -> ?i32 {
+  if ok { 5 } else { nil }
+}
+
+fn result_value(ok: bool) -> !String {
+  if ok { "ok" } else { MyError { message: "bad" } }
+}
+
+fn main() -> void {
+  fallback := maybe_value(false) or { 42 }
+  handled := result_value(false) or { err => err.message() }
+
+  print(fallback)
+  print(handled)
+}

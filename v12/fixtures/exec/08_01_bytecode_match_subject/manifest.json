@@ -1,0 +1,10 @@
+{
+  "description": "bytecode-friendly match subject evaluated once",
+  "expect": {
+    "stdout": [
+      "counter 1",
+      "result 10"
+    ],
+    "exit": 0
+  }
+}

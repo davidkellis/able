@@ -124,10 +124,17 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 			return bytecodeUnsupported("nil extern function body")
 		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineExtern, node: s})
-	case *ast.PackageStatement,
-		*ast.ImportStatement,
-		*ast.DynImportStatement,
-		*ast.PreludeStatement:
+	case *ast.ImportStatement:
+		if s == nil {
+			return bytecodeUnsupported("nil import statement")
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpImport, node: s})
+	case *ast.DynImportStatement:
+		if s == nil {
+			return bytecodeUnsupported("nil dynimport statement")
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpDynImport, node: s})
+	case *ast.PackageStatement, *ast.PreludeStatement:
 		ctx.emit(bytecodeInstruction{op: bytecodeOpEvalStatement, node: s})
 	case *ast.ReturnStatement:
 		if s == nil {
@@ -489,6 +496,9 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 	case *ast.IfExpression:
 		return emitIf(ctx, i, n)
 	case *ast.MatchExpression:
+		if err := emitExpression(ctx, i, n.Subject); err != nil {
+			return err
+		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpMatch, node: n})
 		return nil
 	case *ast.RescueExpression:
@@ -496,9 +506,29 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		return nil
 	case *ast.EnsureExpression:
 		ctx.emit(bytecodeInstruction{op: bytecodeOpEnsure, node: n})
+		if n.EnsureBlock != nil {
+			if err := emitExpression(ctx, i, n.EnsureBlock); err != nil {
+				return err
+			}
+		} else {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpEnsureEnd, node: n})
 		return nil
 	case *ast.OrElseExpression:
-		ctx.emit(bytecodeInstruction{op: bytecodeOpOrElse, node: n})
+		if n.Handler == nil {
+			return bytecodeUnsupported("or-else missing handler")
+		}
+		bindingName := ""
+		if n.ErrorBinding != nil {
+			bindingName = n.ErrorBinding.Name
+		}
+		jumpToEnd := ctx.emit(bytecodeInstruction{op: bytecodeOpOrElse, node: n, name: bindingName, target: -1})
+		if err := emitExpression(ctx, i, n.Handler); err != nil {
+			return err
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope})
+		ctx.patchJump(jumpToEnd, len(ctx.instructions))
 		return nil
 	case *ast.PropagationExpression:
 		if err := emitExpression(ctx, i, n.Expression); err != nil {
