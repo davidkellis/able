@@ -1,0 +1,10 @@
+{
+  "description": "bytecode-friendly iterator yield with loop control",
+  "expect": {
+    "stdout": [
+      "end",
+      "total 13"
+    ],
+    "exit": 0
+  }
+}

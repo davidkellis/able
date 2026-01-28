@@ -473,6 +473,17 @@
     "focus": "assignment evaluates RHS once before binding compound patterns"
   },
   {
+    "id": "exec/05_03_bytecode_assignment_patterns",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.3",
+      "5.2.5",
+      "5.2.7",
+      "5.3.1"
+    ],
+    "focus": "bytecode-friendly pattern assignments and identifier compound assignments"
+  },
+  {
     "id": "exec/06_01_literals_array_map_inference",
     "status": "seeded",
     "spec_sections": [
@@ -931,6 +942,17 @@
       "7.6.3"
     ],
     "focus": "bytecode-friendly placeholder lambdas"
+  },
+  {
+    "id": "exec/07_09_bytecode_iterator_yield",
+    "status": "seeded",
+    "spec_sections": [
+      "6.7",
+      "8.2",
+      "8.2.1",
+      "8.2.4"
+    ],
+    "focus": "bytecode-friendly iterator yields with while-loop control"
   },
   {
     "id": "exec/07_07_overload_resolution_runtime",

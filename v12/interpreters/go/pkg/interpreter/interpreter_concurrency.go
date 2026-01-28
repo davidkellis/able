@@ -247,14 +247,34 @@ func (i *Interpreter) runAsyncBytecodeProgram(payload *asyncContextPayload, prog
 		env.SetRuntimeData(payload)
 		defer env.SetRuntimeData(nil)
 	}
-	vm := newBytecodeVM(i, env)
-	result, evalErr := vm.run(program)
+	var (
+		vm     *bytecodeVM
+		resume bool
+	)
+	if payload.bytecodeVM != nil && payload.bytecodeProgram == program && payload.bytecodeEnv == env {
+		vm = payload.bytecodeVM
+		resume = true
+	} else {
+		vm = newBytecodeVM(i, env)
+		payload.bytecodeVM = vm
+		payload.bytecodeProgram = program
+		payload.bytecodeEnv = env
+	}
+	result, evalErr := vm.runResumable(program, resume)
 	if evalErr != nil {
 		if errors.Is(evalErr, context.Canceled) {
 			return nil, context.Canceled
 		}
+		if !errors.Is(evalErr, errSerialYield) {
+			payload.bytecodeVM = nil
+			payload.bytecodeProgram = nil
+			payload.bytecodeEnv = nil
+		}
 		return nil, i.asyncFailure(payload, evalErr)
 	}
+	payload.bytecodeVM = nil
+	payload.bytecodeProgram = nil
+	payload.bytecodeEnv = nil
 	if payload != nil && payload.handle != nil && payload.handle.CancelRequested() {
 		return nil, i.asyncCancelled(payload)
 	}

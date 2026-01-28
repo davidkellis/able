@@ -41,6 +41,9 @@ type asyncContextPayload struct {
 	kind   asyncContextKind
 	handle *runtime.FutureValue
 	state  *evalState
+	bytecodeVM      *bytecodeVM
+	bytecodeProgram *bytecodeProgram
+	bytecodeEnv     *runtime.Environment
 	// awaitBlocked is set when an await expression is pending and should
 	// prevent the serial executor from automatically rescheduling the task.
 	awaitBlocked bool

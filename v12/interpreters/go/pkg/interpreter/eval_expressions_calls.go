@@ -232,6 +232,33 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			state.pushImplicitReceiver(implicitReceiver)
 			defer state.popImplicitReceiver()
 		}
+		if i.execMode == execModeBytecode {
+			if program, ok := fn.Bytecode.(*bytecodeProgram); ok && program != nil {
+				vm := newBytecodeVM(i, localEnv)
+				result, err := vm.run(program)
+				if err != nil {
+					if ret, ok := err.(returnSignal); ok {
+						retVal := ret.value
+						if retVal == nil {
+							retVal = runtime.NilValue{}
+						}
+						coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, generics, localEnv)
+						if err != nil {
+							if ret.context != nil {
+								return nil, runtimeDiagnosticError{err: err, context: ret.context}
+							}
+							return nil, err
+						}
+						return coerced, nil
+					}
+					return nil, err
+				}
+				if result == nil {
+					result = runtime.NilValue{}
+				}
+				return i.coerceReturnValue(decl.ReturnType, result, generics, localEnv)
+			}
+		}
 		result, err := i.evaluateBlock(decl.Body, localEnv)
 		if err != nil {
 			if ret, ok := err.(returnSignal); ok {
@@ -290,6 +317,33 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			defer state.popImplicitReceiver()
 		}
 		lambdaGenerics := genericNameSet(decl.GenericParams)
+		if i.execMode == execModeBytecode {
+			if program, ok := fn.Bytecode.(*bytecodeProgram); ok && program != nil {
+				vm := newBytecodeVM(i, localEnv)
+				result, err := vm.run(program)
+				if err != nil {
+					if ret, ok := err.(returnSignal); ok {
+						retVal := ret.value
+						if retVal == nil {
+							retVal = runtime.NilValue{}
+						}
+						coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, lambdaGenerics, localEnv)
+						if err != nil {
+							if ret.context != nil {
+								return nil, runtimeDiagnosticError{err: err, context: ret.context}
+							}
+							return nil, err
+						}
+						return coerced, nil
+					}
+					return nil, err
+				}
+				if result == nil {
+					result = runtime.NilValue{}
+				}
+				return i.coerceReturnValue(decl.ReturnType, result, lambdaGenerics, localEnv)
+			}
+		}
 		result, err := i.evaluateExpression(decl.Body, localEnv)
 		if err != nil {
 			if ret, ok := err.(returnSignal); ok {
@@ -805,5 +859,11 @@ func (i *Interpreter) evaluateLambdaExpression(expr *ast.LambdaExpression, env *
 	if expr == nil {
 		return nil, fmt.Errorf("lambda expression is nil")
 	}
-	return &runtime.FunctionValue{Declaration: expr, Closure: env}, nil
+	fnVal := &runtime.FunctionValue{Declaration: expr, Closure: env}
+	if expr.Body != nil {
+		if program, err := i.lowerExpressionToBytecodeWithOptions(expr.Body, true); err == nil {
+			fnVal.Bytecode = program
+		}
+	}
+	return fnVal, nil
 }

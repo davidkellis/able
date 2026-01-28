@@ -1,0 +1,24 @@
+package exec_05_03_bytecode_assignment_patterns
+
+## Semantics: bytecode-friendly pattern assignments and identifier compound assignments.
+
+struct Pair { a: i32, b: i32 }
+
+fn main() -> void {
+  pair := Pair { a: 2, b: 4 }
+  Pair { a::left, b::right } := pair
+  print(left)
+  print(right)
+
+  data := [1, 2, 3, 4]
+  [first, second, ...tail] := data
+  print(first + second)
+  print(tail.length)
+
+  value: i64 := 5
+  print(value)
+
+  x := 1
+  x += (x = 5)
+  print(x)
+}

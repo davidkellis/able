@@ -239,6 +239,7 @@ type placeholderClosure struct {
 	expression  ast.Expression
 	env         *runtime.Environment
 	plan        placeholderPlan
+	bytecode    *bytecodeProgram
 }
 
 func extractFunctionGenerics(funcNode ast.Node) ([]*ast.GenericParameter, []*ast.WhereClauseConstraint) {

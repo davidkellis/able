@@ -1,5 +1,132 @@
 # Able Project Log
 
+# 2026-01-28 — Bytecode pattern compound assignment guard (v12)
+- Bytecode: lower compound pattern assignments to the pattern assignment opcode so the VM raises the expected runtime error.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_CompoundAssignmentPattern -count=1`.
+
+# 2026-01-27 — Bytecode assignment fixtures (v12)
+- Fixtures: added exec coverage for bytecode-friendly pattern assignments and identifier compound assignments.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/05_03_bytecode_assignment_patterns -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/05_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/06_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/07_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/08_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/09_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/10_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/12_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/13_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/14_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/15_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/16_ -count=1 -timeout 60s`.
+
+# 2026-01-27 — Bytecode definition ops (v12)
+- Bytecode: added definition opcodes for unions, type aliases, methods, interfaces, implementations, and externs (with runtime context attached on errors).
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_DefinitionOpcodes -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/09_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/10_ -count=1 -timeout 60s`.
+
+# 2026-01-27 — Bytecode member/index diagnostics (v12)
+- Bytecode: attach runtime context and standard error wrapping to member/index get/set errors for parity with tree-walker diagnostics.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_MemberAccess -count=1`.
+
+# 2026-01-27 — Bytecode opcode docs (v12)
+- Docs: documented assignment and member-set bytecode opcodes in the compiler/interpreter vision doc.
+
+# 2026-01-27 — Bytecode name diagnostics (v12)
+- Bytecode: attach runtime context for identifier loads and `:=` redeclaration errors by threading source nodes into load/declare opcodes.
+
+# 2026-01-27 — Bytecode loop pattern diagnostics (v12)
+- Bytecode: attach runtime context to loop pattern binding errors in bytecode for parity with tree-walker diagnostics.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_ForLoopArraySum -count=1`.
+
+# 2026-01-27 — Bytecode delegated ops audit (v12)
+- Plan: documented remaining delegated ops for future bytecode lowering.
+
+# 2026-01-27 — Bytecode compound assignments (v12)
+- Bytecode: lower identifier compound assignments (e.g., `+=`) to a native opcode that evaluates RHS first and reuses the current binding for correct semantics.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_CompoundAssignmentName -count=1`.
+
+# 2026-01-27 — Bytecode pattern assignments (v12)
+- Bytecode: lower non-identifier pattern assignments to a native opcode and execute via `assignPattern`, including typed patterns and `:=` new-binding checks.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_AssignmentPattern -count=1`.
+
+# 2026-01-27 — Bytecode return statements (v12)
+- Bytecode: lower return statements to a native opcode that emits return signals for function returns while preserving “return outside function” errors at module scope.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_Return -count=1`.
+
+# 2026-01-27 — Bytecode member assignment (v12)
+- Bytecode: lower member/implicit-member assignments to new opcodes and implement VM handling for struct/array member mutations (kept member/index ops in a helper file to stay under the 1000-line limit).
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_MemberAssignment -count=1`.
+
+# 2026-01-27 — Exec perf harness (v12)
+- Tooling: added Go benchmarks to compare tree-walker vs bytecode execution over exec fixtures (configurable via `ABLE_BENCH_FIXTURE`).
+- Benchmarks: `cd v12/interpreters/go && go test -bench ExecFixture ./pkg/interpreter -run '^$'`.
+
+# 2026-01-27 — Bytecode format documentation (v12)
+- Docs: documented the current bytecode VM instruction set and calling convention in `v12/design/compiler-interpreter-vision.md`.
+
+# 2026-01-27 — Bytecode async resume + typed pattern assignment (v12)
+- Bytecode: preserve VM state across `future_yield` in async tasks (resume VM on yield), and advance past yield calls so tasks don't restart; also route typed-pattern assignments through the tree-walker path to preserve type-driven coercions.
+- Bytecode: wrap standard runtime errors (division by zero, etc.) and attach runtime context for raise/rethrow to match rescue behavior/diagnostics.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/10_11_interface_generic_args_dispatch -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/11_03_raise_exit_unhandled -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/11_03_rescue_rethrow_standard_errors -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/12_02_async_spawn_combo -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/12_02_future_fairness_cancellation -count=1 -timeout 60s`.
+
+# 2026-01-27 — Bytecode diagnostics parity (v12)
+- Bytecode: attach runtime context to match/range/cast errors so fixture diagnostics include source locations.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/04_06_04_union_guarded_match_exhaustive_diag -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_02_bytecode_unary_range_cast -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run 'TestExecFixtureParity/06_' -count=1 -timeout 60s`.
+
+# 2026-01-27 — Bytecode loop signals + call diagnostics (v12)
+- Bytecode: added loop-enter/exit tracking so delegated eval can honor break/continue, and attached runtime context to call errors for parity (moved call ops into helper file).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_07_iterator_pipeline -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_07_overload_resolution_runtime -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_ -count=1 -timeout 60s`.
+
+# 2026-01-27 — Bytecode placeholder block lowering (v12)
+- Bytecode: lower named function bodies as blocks to avoid mistakenly treating blocks with placeholder lambdas as placeholder closures.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_08_bytecode_placeholder_lambda -count=1 -timeout 60s`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_Placeholder -count=1 -timeout 60s`.
+
+# 2026-01-27 — Bytecode function bodies (v12)
+- Bytecode: function and lambda bodies now execute via compiled bytecode when running in bytecode mode (with tree-walker fallback if lowering fails).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(LambdaCalls|SpawnExpression|IteratorLiteral|ForLoopArraySum)$' -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_02_bytecode_lambda_calls -count=1`.
+
+# 2026-01-27 — Bytecode iterator yield fixture (v12)
+- Fixtures: added exec coverage for iterator literals that yield with loop control in bytecode mode.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_09_bytecode_iterator_yield -count=1`.
+
+# 2026-01-27 — Bytecode yield opcode (v12)
+- Bytecode: yield statements now lower to a native opcode, letting iterator bodies run fully in bytecode.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_IteratorLiteral -count=1`.
+
+# 2026-01-27 — Bytecode for-loop lowering (v12)
+- Bytecode: for loops now lower to native bytecode with iterator opcodes and pattern binding (no tree-walker delegation for the loop itself).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run 'TestBytecodeVM_ForLoop(ArraySum|BreakValue)$' -count=1`.
+
+# 2026-01-27 — Bytecode await evaluation (v12)
+- Bytecode: await opcode now evaluates the await-expression iterable via bytecode when possible (fallback per expression).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_AwaitExpressionManualWaker -count=1`.
+
+# 2026-01-27 — Bytecode iterator + breakpoint evaluation (v12)
+- Bytecode: iterator literal and breakpoint opcodes now execute their bodies via bytecode when lowering succeeds (fallback to tree-walker per-expression).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(IteratorLiteral|BreakpointExpression)$' -count=1`.
+
+# 2026-01-27 — Bytecode rescue/or-else/ensure evaluation (v12)
+- Bytecode: rescue/or-else/ensure opcodes now evaluate inner expressions via bytecode when possible (fallback per expression).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(MatchLiteralPatterns|MatchGuard|RescueExpression|EnsureExpression|OrElseExpression)$' -count=1`.
+
+# 2026-01-27 — Bytecode match evaluation (v12)
+- Bytecode: match opcode now evaluates subject, guards, and bodies via bytecode when possible (with tree-walker fallback per expression).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_MatchLiteralPatterns -count=1`.
+
+# 2026-01-27 — Bytecode implicit member direct access (v12)
+- Bytecode: implicit member opcode now resolves the implicit receiver directly in the VM without tree-walker delegation.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_ImplicitMemberExpression -count=1`.
+
+# 2026-01-27 — Bytecode assignment pattern fallback (v12)
+- Bytecode: assignment expressions that require pattern/compound handling now delegate via eval-expression opcode instead of failing lowering.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_AssignmentPatternFallback -count=1`.
+
+# 2026-01-27 — Bytecode placeholder lambda execution (v12)
+- Bytecode: placeholder lambda invocation now runs a bytecode program when available; placeholder expressions lower to a dedicated placeholder-value opcode to honor active placeholder frames.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_PlaceholderLambda -count=1`.
+
 # 2026-01-26 — Bytecode placeholder lambda opcode (v12)
 - Bytecode: added placeholder lambda opcode to construct @/@n callables in bytecode mode, with parity test.
 - Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_PlaceholderLambda -count=1`.
