@@ -1,5 +1,18 @@
 # Able Project Log
 
+# 2026-01-30 — Error payload cast recovery fixture (v12)
+- Fixtures: added exec coverage for error-payload cast recovery via `as`.
+- Tests: `./run_all_tests.sh`.
+
+# 2026-01-30 — Stdlib test run (v12)
+- Tests: `./run_stdlib_tests.sh`.
+
+# 2026-01-30 — Type-application newline fix (v12)
+- Parser: added external type-application separator to prevent newline from binding space-delimited type applications, plus immediate parenthesized type application for `fn()` type forms.
+- Scanner: emit type-application separators only for same-line type prefixes and avoid reserved keywords; keep newline continuation logic intact.
+- Fixtures: removed semicolon workaround in AST error payload fixtures.
+- Tests: `npx tree-sitter test`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser`; `./run_all_tests.sh`.
+
 # 2026-01-29 — Parser line-break operators + type-application newline guard (v12)
 - Parser: treat newlines as statement separators and add line-break-aware operator tokens so line-leading operators parse without consuming trailing newlines.
 - Parser: remove optional line breaks before assignment operators; keep line-break handling after operators and inside delimiters.

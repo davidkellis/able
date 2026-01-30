@@ -554,6 +554,15 @@
     "focus": "explicit casts for numeric conversions and interface upcasts"
   },
   {
+    "id": "exec/06_03_cast_error_payload_recovery",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.5",
+      "11.3"
+    ],
+    "focus": "cast unwraps payload structs from raised Error values"
+  },
+  {
     "id": "exec/14_01_language_interfaces_index_apply_iterable",
     "status": "seeded",
     "spec_sections": [

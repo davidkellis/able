@@ -3291,6 +3291,10 @@
       "required": true,
       "types": [
         {
+          "type": "parenthesized_type",
+          "named": true
+        },
+        {
           "type": "type_arguments",
           "named": true
         },
