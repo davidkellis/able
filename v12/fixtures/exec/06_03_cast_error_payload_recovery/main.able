@@ -1,0 +1,25 @@
+package exec_06_03_cast_error_payload_recovery
+
+## Semantics: casting Error values unwraps payloads raised via raise when payloads match the target type.
+
+struct PayloadError { label: String, code: i32 }
+
+impl Error for PayloadError {
+  fn message(self: Self) -> String { self.label }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn boom() -> void {
+  raise PayloadError { label: "payload", code: 7 }
+}
+
+fn main() -> void {
+  recovered := do {
+    boom()
+    PayloadError { label: "unused", code: -1 }
+  } rescue {
+    case err: Error => err as PayloadError
+  }
+
+  print(`recovered ${recovered.label} ${recovered.code}`)
+}

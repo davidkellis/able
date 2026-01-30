@@ -1,0 +1,9 @@
+{
+  "description": "casts recover error payload structs raised via raise",
+  "expect": {
+    "stdout": [
+      "recovered payload 7"
+    ],
+    "exit": 0
+  }
+}

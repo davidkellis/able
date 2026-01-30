@@ -129,6 +129,7 @@ module.exports = grammar({
 
   externals: $ => [
     $._newline,
+    $._type_application_sep,
   ],
 
   word: $ => $.identifier,
@@ -171,6 +172,8 @@ module.exports = grammar({
     [$.pattern_base, $.wildcard_type],
     [$.struct_pattern, $.type_identifier],
     [$.type_suffix, $.type_prefix],
+    [$.struct_type_suffix, $.type_prefix],
+    [$.type_suffix, $.struct_type_suffix],
     [$._line_breaks, $._statement_sep],
     [$._line_breaks, $._comma_or_newline_sep],
     [$.struct_definition],
@@ -1269,7 +1272,7 @@ module.exports = grammar({
     ),
 
     struct_literal: $ => prec.left(-1, seq(
-      field("type", $.type_suffix),
+      field("type", alias($.struct_type_suffix, $.type_suffix)),
       "{",
       choice(
         seq(
@@ -1500,6 +1503,21 @@ module.exports = grammar({
         PREC.type_application,
         seq(
           $.type_prefix,
+          repeat1(choice(
+            $.type_arguments,
+            seq($._type_application_sep, $.type_prefix),
+            alias($.parenthesized_type_immediate, $.parenthesized_type),
+          )),
+        ),
+      ),
+      $.type_prefix,
+    ),
+
+    struct_type_suffix: $ => choice(
+      prec.left(
+        PREC.type_application,
+        seq(
+          $.type_prefix,
           repeat1(choice($.type_prefix, $.type_arguments)),
         ),
       ),
@@ -1528,6 +1546,22 @@ module.exports = grammar({
 
     parenthesized_type: $ => seq(
       "(",
+      choice(
+        seq(
+          optional($._line_breaks),
+          ")",
+        ),
+        seq(
+          optional($._line_breaks),
+          sep1($, $.type_expression, $._comma_sep),
+          optional($._line_breaks),
+          ")",
+        ),
+      ),
+    ),
+
+    parenthesized_type_immediate: $ => seq(
+      token.immediate("("),
       choice(
         seq(
           optional($._line_breaks),
