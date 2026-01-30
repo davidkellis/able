@@ -62,7 +62,7 @@
                 "type": "IfExpression",
                 "ifCondition": {
                   "type": "BinaryExpression",
-                  "operator": ">=",
+                  "operator": "\u003e=",
                   "left": {
                     "type": "Identifier",
                     "name": "n"

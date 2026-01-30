@@ -4,7 +4,10 @@
     {
       "type": "ImportStatement",
       "packagePath": [
-        { "type": "Identifier", "name": "example_static" }
+        {
+          "type": "Identifier",
+          "name": "example_static"
+        }
       ],
       "isWildcard": true
     }

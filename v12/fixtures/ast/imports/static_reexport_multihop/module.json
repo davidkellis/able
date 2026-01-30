@@ -4,13 +4,19 @@
     {
       "type": "ImportStatement",
       "packagePath": [
-        { "type": "Identifier", "name": "static_top_multihop" }
+        {
+          "type": "Identifier",
+          "name": "static_top_multihop"
+        }
       ],
       "isWildcard": false,
       "selectors": [
         {
           "type": "ImportSelector",
-          "name": { "type": "Identifier", "name": "top_value" }
+          "name": {
+            "type": "Identifier",
+            "name": "top_value"
+          }
         }
       ]
     }
@@ -18,7 +24,10 @@
   "body": [
     {
       "type": "FunctionCall",
-      "callee": { "type": "Identifier", "name": "top_value" },
+      "callee": {
+        "type": "Identifier",
+        "name": "top_value"
+      },
       "arguments": [],
       "isTrailingLambda": false
     }

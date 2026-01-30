@@ -4,37 +4,57 @@
   "body": [
     {
       "type": "InterfaceDefinition",
-      "id": { "type": "Identifier", "name": "CustomDisplay" },
-      "isPrivate": false,
+      "id": {
+        "type": "Identifier",
+        "name": "CustomDisplay"
+      },
       "signatures": [
         {
           "type": "FunctionSignature",
-          "name": { "type": "Identifier", "name": "to_string" },
+          "name": {
+            "type": "Identifier",
+            "name": "to_string"
+          },
           "params": [
             {
               "type": "FunctionParameter",
-              "name": { "type": "Identifier", "name": "self" },
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
               "paramType": {
                 "type": "SimpleTypeExpression",
-                "name": { "type": "Identifier", "name": "Self" }
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
               }
             }
           ],
           "returnType": {
             "type": "SimpleTypeExpression",
-            "name": { "type": "Identifier", "name": "String" }
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
           }
         }
-      ]
+      ],
+      "isPrivate": false
     },
     {
       "type": "InterfaceDefinition",
-      "id": { "type": "Identifier", "name": "Feed" },
-      "isPrivate": false,
+      "id": {
+        "type": "Identifier",
+        "name": "Feed"
+      },
       "genericParams": [
         {
           "type": "GenericParameter",
-          "name": { "type": "Identifier", "name": "T" }
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
         }
       ],
       "signatures": [],
@@ -43,29 +63,34 @@
           "type": "GenericTypeExpression",
           "base": {
             "type": "SimpleTypeExpression",
-            "name": { "type": "Identifier", "name": "Iterable" }
+            "name": {
+              "type": "Identifier",
+              "name": "Iterable"
+            }
           },
           "arguments": [
             {
               "type": "SimpleTypeExpression",
-              "name": { "type": "Identifier", "name": "String" }
+              "name": {
+                "type": "Identifier",
+                "name": "String"
+              }
             }
           ]
         },
         {
-          "type": "GenericTypeExpression",
-          "base": {
-            "type": "SimpleTypeExpression",
-            "name": { "type": "Identifier", "name": "Sized" }
-          },
-          "arguments": [
-            {
-              "type": "SimpleTypeExpression",
-              "name": { "type": "Identifier", "name": "nil" }
-            }
-          ]
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "Sized"
+          }
         }
-      ]
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "NilLiteral",
+      "value": null
     }
   ]
 }

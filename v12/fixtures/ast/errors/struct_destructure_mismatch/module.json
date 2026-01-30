@@ -4,23 +4,64 @@
   "body": [
     {
       "type": "StructDefinition",
-      "id": { "type": "Identifier", "name": "Pair" },
+      "id": {
+        "type": "Identifier",
+        "name": "Pair"
+      },
       "fields": [
-        { "type": "StructFieldDefinition", "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } },
-        { "type": "StructFieldDefinition", "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } }
+        {
+          "type": "StructFieldDefinition",
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
       ],
       "kind": "positional"
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
-      "left": { "type": "Identifier", "name": "p" },
+      "left": {
+        "type": "Identifier",
+        "name": "p"
+      },
       "right": {
         "type": "StructLiteral",
-        "structType": { "type": "Identifier", "name": "Pair" },
+        "structType": {
+          "type": "Identifier",
+          "name": "Pair"
+        },
         "fields": [
-          { "type": "StructFieldInitializer", "value": { "type": "IntegerLiteral", "value": 1 }, "isShorthand": false },
-          { "type": "StructFieldInitializer", "value": { "type": "IntegerLiteral", "value": 2 }, "isShorthand": false }
+          {
+            "type": "StructFieldInitializer",
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 2
+            },
+            "isShorthand": false
+          }
         ],
         "isPositional": true
       }
@@ -30,13 +71,29 @@
       "operator": ":=",
       "left": {
         "type": "StructPattern",
-        "isPositional": true,
+        "structType": {
+          "type": "Identifier",
+          "name": "Pair"
+        },
         "fields": [
-          { "type": "StructPatternField", "pattern": { "type": "Identifier", "name": "a" } }
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "a"
+            },
+            "pattern": {
+              "type": "Identifier",
+              "name": "a"
+            }
+          }
         ],
-        "structType": { "type": "Identifier", "name": "Pair" }
+        "isPositional": true
       },
-      "right": { "type": "Identifier", "name": "p" }
+      "right": {
+        "type": "Identifier",
+        "name": "p"
+      }
     }
   ]
 }

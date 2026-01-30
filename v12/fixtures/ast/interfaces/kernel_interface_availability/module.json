@@ -55,6 +55,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "u64"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -97,13 +104,6 @@
             "isTrailingLambda": false
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "u64"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false

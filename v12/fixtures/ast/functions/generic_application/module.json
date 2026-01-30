@@ -4,45 +4,74 @@
   "body": [
     {
       "type": "FunctionDefinition",
-      "id": { "type": "Identifier", "name": "identity" },
+      "id": {
+        "type": "Identifier",
+        "name": "identity"
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
       "params": [
         {
           "type": "FunctionParameter",
-          "name": { "type": "Identifier", "name": "value" }
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          }
         }
       ],
       "body": {
         "type": "BlockExpression",
         "body": [
-          { "type": "Identifier", "name": "value" }
+          {
+            "type": "Identifier",
+            "name": "value"
+          }
         ]
       },
-      "genericParams": [
-        {
-          "type": "GenericParameter",
-          "name": { "type": "Identifier", "name": "T" }
-        }
-      ],
       "isMethodShorthand": false,
       "isPrivate": false
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
-      "left": { "type": "Identifier", "name": "result" },
+      "left": {
+        "type": "Identifier",
+        "name": "result"
+      },
       "right": {
         "type": "FunctionCall",
-        "callee": { "type": "Identifier", "name": "identity" },
-        "arguments": [ { "type": "IntegerLiteral", "value": 5 } ],
+        "callee": {
+          "type": "Identifier",
+          "name": "identity"
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 5
+          }
+        ],
         "typeArguments": [
           {
             "type": "SimpleTypeExpression",
-            "name": { "type": "Identifier", "name": "i32" }
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
           }
         ],
         "isTrailingLambda": false
       }
     },
-    { "type": "Identifier", "name": "result" }
+    {
+      "type": "Identifier",
+      "name": "result"
+    }
   ]
 }

@@ -82,7 +82,7 @@
                         },
                         {
                           "type": "LambdaExpression",
-                          "params": [],
+                          "params": null,
                           "body": {
                             "type": "BlockExpression",
                             "body": [

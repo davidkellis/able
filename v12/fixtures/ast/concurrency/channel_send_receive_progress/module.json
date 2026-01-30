@@ -39,6 +39,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "String"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -117,13 +124,6 @@
           }
         ]
       },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "String"
-        }
-      },
       "isMethodShorthand": false,
       "isPrivate": false
     },
@@ -167,7 +167,7 @@
               "type": "WhileLoop",
               "condition": {
                 "type": "BinaryExpression",
-                "operator": "&&",
+                "operator": "\u0026\u0026",
                 "left": {
                   "type": "BinaryExpression",
                   "operator": "==",
@@ -182,7 +182,7 @@
                 },
                 "right": {
                   "type": "BinaryExpression",
-                  "operator": "<",
+                  "operator": "\u003c",
                   "left": {
                     "type": "Identifier",
                     "name": "attempts"
@@ -312,7 +312,7 @@
               "type": "WhileLoop",
               "condition": {
                 "type": "BinaryExpression",
-                "operator": "&&",
+                "operator": "\u0026\u0026",
                 "left": {
                   "type": "BinaryExpression",
                   "operator": "==",
@@ -327,7 +327,7 @@
                 },
                 "right": {
                   "type": "BinaryExpression",
-                  "operator": "<",
+                  "operator": "\u003c",
                   "left": {
                     "type": "Identifier",
                     "name": "attempts"
@@ -469,10 +469,10 @@
               "type": "WhileLoop",
               "condition": {
                 "type": "BinaryExpression",
-                "operator": "&&",
+                "operator": "\u0026\u0026",
                 "left": {
                   "type": "BinaryExpression",
-                  "operator": "<",
+                  "operator": "\u003c",
                   "left": {
                     "type": "Identifier",
                     "name": "received"
@@ -484,7 +484,7 @@
                 },
                 "right": {
                   "type": "BinaryExpression",
-                  "operator": "<",
+                  "operator": "\u003c",
                   "left": {
                     "type": "Identifier",
                     "name": "attempts"
@@ -760,7 +760,7 @@
       "type": "WhileLoop",
       "condition": {
         "type": "BinaryExpression",
-        "operator": "&&",
+        "operator": "\u0026\u0026",
         "left": {
           "type": "BinaryExpression",
           "operator": "||",
@@ -807,7 +807,7 @@
         },
         "right": {
           "type": "BinaryExpression",
-          "operator": "<",
+          "operator": "\u003c",
           "left": {
             "type": "Identifier",
             "name": "flushes"
@@ -1168,7 +1168,7 @@
         },
         {
           "type": "BinaryExpression",
-          "operator": ">",
+          "operator": "\u003e",
           "left": {
             "type": "Identifier",
             "name": "flushes"

@@ -27,15 +27,6 @@
           }
         }
       ],
-      "body": {
-        "type": "BlockExpression",
-        "body": [
-          {
-            "type": "Identifier",
-            "name": "value"
-          }
-        ]
-      },
       "returnType": {
         "type": "NullableTypeExpression",
         "innerType": {
@@ -45,6 +36,15 @@
             "name": "String"
           }
         }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "Identifier",
+            "name": "value"
+          }
+        ]
       },
       "isMethodShorthand": false,
       "isPrivate": false

@@ -24,6 +24,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -43,13 +50,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -76,6 +76,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -116,13 +123,6 @@
           }
         ]
       },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
-      },
       "isMethodShorthand": false,
       "isPrivate": false
     },
@@ -152,7 +152,7 @@
     },
     {
       "type": "BinaryExpression",
-      "operator": "|>>",
+      "operator": "|\u003e\u003e",
       "left": {
         "type": "AssignmentExpression",
         "operator": ":=",
@@ -194,7 +194,7 @@
         },
         "right": {
           "type": "BinaryExpression",
-          "operator": "|>",
+          "operator": "|\u003e",
           "left": {
             "type": "IntegerLiteral",
             "value": 1
@@ -215,7 +215,7 @@
       },
       "right": {
         "type": "BinaryExpression",
-        "operator": "|>",
+        "operator": "|\u003e",
         "left": {
           "type": "BinaryExpression",
           "operator": "||",

@@ -4,23 +4,38 @@
     {
       "type": "ImportStatement",
       "packagePath": [
-        { "type": "Identifier", "name": "util_static" }
+        {
+          "type": "Identifier",
+          "name": "util_static"
+        }
       ],
       "isWildcard": false,
-      "alias": { "type": "Identifier", "name": "U" }
+      "alias": {
+        "type": "Identifier",
+        "name": "U"
+      }
     }
   ],
   "body": [
     {
       "type": "AssignmentExpression",
       "operator": ":=",
-      "left": { "type": "Identifier", "name": "value" },
+      "left": {
+        "type": "Identifier",
+        "name": "value"
+      },
       "right": {
         "type": "FunctionCall",
         "callee": {
           "type": "MemberAccessExpression",
-          "object": { "type": "Identifier", "name": "U" },
-          "member": { "type": "Identifier", "name": "foo" }
+          "object": {
+            "type": "Identifier",
+            "name": "U"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "foo"
+          }
         },
         "arguments": [],
         "isTrailingLambda": false

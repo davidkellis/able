@@ -109,6 +109,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Point"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -117,13 +124,6 @@
             "name": "value"
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "Point"
-        }
       },
       "whereClause": [
         {

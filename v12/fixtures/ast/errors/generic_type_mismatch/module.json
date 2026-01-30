@@ -4,45 +4,71 @@
   "body": [
     {
       "type": "FunctionDefinition",
-      "id": { "type": "Identifier", "name": "identity" },
-      "params": [
-        {
-          "type": "FunctionParameter",
-          "name": { "type": "Identifier", "name": "value" }
-        }
-      ],
-      "body": {
-        "type": "BlockExpression",
-        "body": [
-          { "type": "Identifier", "name": "value" }
-        ]
+      "id": {
+        "type": "Identifier",
+        "name": "identity"
       },
       "genericParams": [
         {
           "type": "GenericParameter",
-          "name": { "type": "Identifier", "name": "T" },
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          },
           "constraints": [
             {
               "type": "InterfaceConstraint",
               "interfaceType": {
                 "type": "SimpleTypeExpression",
-                "name": { "type": "Identifier", "name": "Error" }
+                "name": {
+                  "type": "Identifier",
+                  "name": "Error"
+                }
               }
             }
           ]
         }
       ],
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "Identifier",
+            "name": "value"
+          }
+        ]
+      },
       "isMethodShorthand": false,
       "isPrivate": false
     },
     {
       "type": "FunctionCall",
-      "callee": { "type": "Identifier", "name": "identity" },
-      "arguments": [ { "type": "IntegerLiteral", "value": 5 } ],
+      "callee": {
+        "type": "Identifier",
+        "name": "identity"
+      },
+      "arguments": [
+        {
+          "type": "IntegerLiteral",
+          "value": 5
+        }
+      ],
       "typeArguments": [
         {
           "type": "SimpleTypeExpression",
-          "name": { "type": "Identifier", "name": "i32" }
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
         }
       ],
       "isTrailingLambda": false

@@ -72,6 +72,10 @@
             "fields": [
               {
                 "type": "StructPatternField",
+                "fieldName": {
+                  "type": "Identifier",
+                  "name": "first"
+                },
                 "pattern": {
                   "type": "Identifier",
                   "name": "first"
@@ -79,6 +83,10 @@
               },
               {
                 "type": "StructPatternField",
+                "fieldName": {
+                  "type": "Identifier",
+                  "name": "second"
+                },
                 "pattern": {
                   "type": "Identifier",
                   "name": "second"

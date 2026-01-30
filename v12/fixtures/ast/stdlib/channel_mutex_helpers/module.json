@@ -57,6 +57,13 @@
             "name": "new"
           },
           "params": [],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Channel"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -121,13 +128,6 @@
               }
             ]
           },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "Channel"
-            }
-          },
           "isMethodShorthand": false,
           "isPrivate": false
         }
@@ -174,6 +174,13 @@
             "name": "new"
           },
           "params": [],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Mutex"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -221,13 +228,6 @@
               }
             ]
           },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "Mutex"
-            }
-          },
           "isMethodShorthand": false,
           "isPrivate": false
         }
@@ -255,6 +255,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i64"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -277,13 +284,6 @@
           }
         ]
       },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i64"
-        }
-      },
       "isMethodShorthand": false,
       "isPrivate": false
     },
@@ -294,6 +294,13 @@
         "name": "mutex_handle"
       },
       "params": [],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i64"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -310,13 +317,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i64"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false

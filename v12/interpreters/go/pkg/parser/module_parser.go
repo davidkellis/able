@@ -132,6 +132,59 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 				return nil, wrapParseError(node, err)
 			}
 			body = append(body, fn)
+		case "elsif_clause_statement", "else_clause_statement":
+			if len(body) == 0 {
+				return nil, wrapParseError(node, fmt.Errorf("parser: %s without preceding if expression", node.Kind()))
+			}
+			target := findIfExpressionTarget(body[len(body)-1])
+			if target == nil {
+				return nil, wrapParseError(node, fmt.Errorf("parser: %s without preceding if expression", node.Kind()))
+			}
+			switch node.Kind() {
+			case "elsif_clause_statement":
+				if target.ElseBody != nil {
+					return nil, wrapParseError(node, fmt.Errorf("parser: elsif clause after else"))
+				}
+				clause, err := ctx.parseElseIfClause(node)
+				if err != nil {
+					return nil, wrapParseError(node, err)
+				}
+				target.ElseIfClauses = append(target.ElseIfClauses, clause)
+				extendExpressionToNode(target, node)
+				if elseClause := node.ChildByFieldName("else_clause"); elseClause != nil {
+					if target.ElseBody != nil {
+						return nil, wrapParseError(elseClause, fmt.Errorf("parser: duplicate else clause"))
+					}
+					bodyNode := elseClause.ChildByFieldName("alternative")
+					if bodyNode == nil {
+						bodyNode = firstNamedChild(elseClause)
+					}
+					if bodyNode == nil {
+						return nil, wrapParseError(elseClause, fmt.Errorf("parser: else clause missing body"))
+					}
+					body, err := ctx.parseBlock(bodyNode)
+					if err != nil {
+						return nil, wrapParseError(bodyNode, err)
+					}
+					target.ElseBody = body
+					extendExpressionToNode(target, elseClause)
+				}
+			case "else_clause_statement":
+				if target.ElseBody != nil {
+					return nil, wrapParseError(node, fmt.Errorf("parser: duplicate else clause"))
+				}
+				bodyNode := node.ChildByFieldName("alternative")
+				if bodyNode == nil {
+					return nil, wrapParseError(node, fmt.Errorf("parser: else clause missing body"))
+				}
+				body, err := ctx.parseBlock(bodyNode)
+				if err != nil {
+					return nil, wrapParseError(bodyNode, err)
+				}
+				target.ElseBody = body
+				extendExpressionToNode(target, node)
+			}
+			continue
 		default:
 			if !node.IsNamed() {
 				continue

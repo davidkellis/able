@@ -332,11 +332,39 @@ func (c *Checker) checkTypeCastExpression(env *Environment, expr *ast.TypeCastEx
 			return diags, targetType
 		}
 	}
+	if isErrorLikeType(c, valueType) {
+		if name, ok := structName(targetType); ok && name != "" {
+			return diags, targetType
+		}
+	}
 	diags = append(diags, Diagnostic{
 		Message: fmt.Sprintf("typechecker: cannot cast %s to %s", typeName(valueType), typeName(targetType)),
 		Node:    expr,
 	})
 	return diags, targetType
+}
+
+func isErrorLikeType(c *Checker, t Type) bool {
+	if t == nil || isUnknownType(t) {
+		return false
+	}
+	if iface, ok := t.(InterfaceType); ok && iface.InterfaceName == "Error" {
+		return true
+	}
+	if name, ok := structName(t); ok && name == "Error" {
+		return true
+	}
+	if ok, _ := c.typeImplementsInterface(t, InterfaceType{InterfaceName: "Error"}, nil); ok {
+		return true
+	}
+	if union, ok := t.(UnionLiteralType); ok {
+		for _, member := range union.Members {
+			if isErrorLikeType(c, member) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (c *Checker) checkExpressionWithExpectedType(env *Environment, expr ast.Expression, expected Type) ([]Diagnostic, Type) {

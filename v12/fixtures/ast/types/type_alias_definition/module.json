@@ -22,6 +22,15 @@
         "type": "Identifier",
         "name": "Box"
       },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
       "targetType": {
         "type": "GenericTypeExpression",
         "base": {
@@ -41,15 +50,6 @@
           }
         ]
       },
-      "genericParams": [
-        {
-          "type": "GenericParameter",
-          "name": {
-            "type": "Identifier",
-            "name": "T"
-          }
-        }
-      ],
       "whereClause": [
         {
           "type": "WhereClauseConstraint",
