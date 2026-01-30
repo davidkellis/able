@@ -6,10 +6,15 @@ fn main() -> void {
   print(!false)
 
   values := 1..4
-  print(values[0])
-  print(values[2])
+  i := 0
+  second := 0
+  for v in values {
+    if i == 0 || i == 2 { print(v) }
+    if i == 1 { second = v }
+    i = i + 1
+  }
 
   casted := 3.7 as i32
   print(casted)
-  print(`sum ${casted + values[1]}`)
+  print(`sum ${casted + second}`)
 }

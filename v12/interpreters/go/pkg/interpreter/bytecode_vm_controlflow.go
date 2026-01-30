@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"able/interpreter-go/pkg/ast"
@@ -94,22 +93,18 @@ func (vm *bytecodeVM) execSpawn(instr bytecodeInstruction) error {
 	}
 	vm.interp.ensureConcurrencyBuiltins()
 	capturedEnv := runtime.NewEnvironment(vm.env)
-	task := ProcTask(nil)
-	if vm.interp.execMode == execModeBytecode {
-		if program, err := vm.interp.lowerExpressionToBytecode(spawnExpr.Expression); err == nil {
-			task = func(ctx context.Context) (runtime.Value, error) {
-				payload := payloadFromContext(ctx)
-				if payload == nil {
-					payload = &asyncContextPayload{kind: asyncContextFuture}
-				} else {
-					payload.kind = asyncContextFuture
-				}
-				return vm.interp.runAsyncBytecodeProgram(payload, program, capturedEnv)
-			}
-		}
+	program, err := vm.interp.lowerExpressionToBytecode(spawnExpr.Expression)
+	if err != nil {
+		return err
 	}
-	if task == nil {
-		task = vm.interp.makeAsyncTask(spawnExpr.Expression, vm.env)
+	task := func(ctx context.Context) (runtime.Value, error) {
+		payload := payloadFromContext(ctx)
+		if payload == nil {
+			payload = &asyncContextPayload{kind: asyncContextFuture}
+		} else {
+			payload.kind = asyncContextFuture
+		}
+		return vm.interp.runAsyncBytecodeProgram(payload, program, capturedEnv)
 	}
 	future := vm.interp.executor.RunFuture(task)
 	if future == nil {
@@ -121,22 +116,16 @@ func (vm *bytecodeVM) execSpawn(instr bytecodeInstruction) error {
 	return nil
 }
 
-func (vm *bytecodeVM) evalExpressionWithFallback(expr ast.Expression, env *runtime.Environment) (runtime.Value, error) {
+func (vm *bytecodeVM) evalExpressionBytecode(expr ast.Expression, env *runtime.Environment) (runtime.Value, error) {
+	return vm.evalExpressionBytecodeWithOptions(expr, env, true)
+}
+
+func (vm *bytecodeVM) evalExpressionBytecodeWithOptions(expr ast.Expression, env *runtime.Environment, allowPlaceholderLambda bool) (runtime.Value, error) {
 	if expr == nil {
 		return runtime.NilValue{}, nil
 	}
-	program, err := vm.interp.lowerExpressionToBytecodeWithOptions(expr, true)
+	program, err := vm.interp.lowerExpressionToBytecodeWithOptions(expr, allowPlaceholderLambda)
 	if err != nil {
-		if errors.Is(err, errBytecodeUnsupported) {
-			val, evalErr := vm.interp.evaluateExpression(expr, env)
-			if evalErr != nil {
-				return nil, evalErr
-			}
-			if val == nil {
-				return runtime.NilValue{}, nil
-			}
-			return val, nil
-		}
 		return nil, err
 	}
 	innerVM := newBytecodeVM(vm.interp, env)
@@ -160,7 +149,7 @@ func (vm *bytecodeVM) runMatchExpression(expr *ast.MatchExpression, subject runt
 			continue
 		}
 		if clause.Guard != nil {
-			guardVal, err := vm.evalExpressionWithFallback(clause.Guard, clauseEnv)
+			guardVal, err := vm.evalExpressionBytecode(clause.Guard, clauseEnv)
 			if err != nil {
 				return nil, err
 			}
@@ -168,7 +157,7 @@ func (vm *bytecodeVM) runMatchExpression(expr *ast.MatchExpression, subject runt
 				continue
 			}
 		}
-		return vm.evalExpressionWithFallback(clause.Body, clauseEnv)
+		return vm.evalExpressionBytecode(clause.Body, clauseEnv)
 	}
 	return nil, fmt.Errorf("Non-exhaustive match")
 }
@@ -182,7 +171,7 @@ func (vm *bytecodeVM) runBreakpointExpression(expr *ast.BreakpointExpression) (r
 	state.pushBreakpoint(label)
 	defer state.popBreakpoint()
 	for {
-		val, err := vm.evalExpressionWithFallback(expr.Body, vm.env)
+		val, err := vm.evalExpressionBytecode(expr.Body, vm.env)
 		if err != nil {
 			switch sig := err.(type) {
 			case breakSignal:
@@ -206,17 +195,15 @@ func (vm *bytecodeVM) runBreakpointExpression(expr *ast.BreakpointExpression) (r
 	}
 }
 
-func (vm *bytecodeVM) runIteratorLiteral(expr *ast.IteratorLiteral) (runtime.Value, error) {
+func (vm *bytecodeVM) runIteratorLiteral(expr *ast.IteratorLiteral, program *bytecodeProgram) (runtime.Value, error) {
 	iterEnv := runtime.NewEnvironment(vm.env)
-	var program *bytecodeProgram
-	if expr != nil {
+	if program == nil && expr != nil {
 		module := ast.NewModule(expr.Body, nil, nil)
 		lowered, err := vm.interp.lowerModuleToBytecode(module)
-		if err == nil {
-			program = lowered
-		} else if !errors.Is(err, errBytecodeUnsupported) {
+		if err != nil {
 			return nil, err
 		}
+		program = lowered
 	}
 	instance := newGeneratorInstanceWithBytecode(vm.interp, iterEnv, expr.Body, program)
 	controller := instance.controllerValue()
@@ -233,7 +220,7 @@ func (vm *bytecodeVM) runIteratorLiteral(expr *ast.IteratorLiteral) (runtime.Val
 	}, instance.close), nil
 }
 
-func (vm *bytecodeVM) runAwaitExpression(expr *ast.AwaitExpression) (runtime.Value, error) {
+func (vm *bytecodeVM) runAwaitExpression(expr *ast.AwaitExpression, iterable runtime.Value) (runtime.Value, error) {
 	payload, err := payloadFromEnv(vm.env)
 	if err != nil {
 		return nil, err
@@ -244,10 +231,6 @@ func (vm *bytecodeVM) runAwaitExpression(expr *ast.AwaitExpression) (runtime.Val
 
 	state := payload.getAwaitState(expr)
 	if state == nil {
-		iterable, err := vm.evalExpressionWithFallback(expr.Expression, vm.env)
-		if err != nil {
-			return nil, err
-		}
 		arms, err := vm.interp.collectAwaitArms(iterable, vm.env)
 		if err != nil {
 			return nil, err
@@ -340,44 +323,4 @@ func (vm *bytecodeVM) runAwaitExpression(expr *ast.AwaitExpression) (runtime.Val
 		state.waiting = false
 		state.wakePending = false
 	}
-}
-
-func (vm *bytecodeVM) runRescueExpression(expr *ast.RescueExpression) (runtime.Value, error) {
-	result, err := vm.evalExpressionWithFallback(expr.MonitoredExpression, vm.env)
-	if err == nil {
-		return result, nil
-	}
-	rs, ok := err.(raiseSignal)
-	if !ok {
-		return nil, err
-	}
-	for _, clause := range expr.Clauses {
-		if clause == nil {
-			continue
-		}
-		clauseEnv, matched := vm.interp.matchPattern(clause.Pattern, rs.value, vm.env)
-		if !matched {
-			continue
-		}
-		state := vm.interp.stateFromEnv(clauseEnv)
-		state.pushRaise(rs.value)
-		if clause.Guard != nil {
-			guardVal, err := vm.evalExpressionWithFallback(clause.Guard, clauseEnv)
-			if err != nil {
-				state.popRaise()
-				return nil, err
-			}
-			if !vm.interp.isTruthy(guardVal) {
-				state.popRaise()
-				continue
-			}
-		}
-		val, bodyErr := vm.evalExpressionWithFallback(clause.Body, clauseEnv)
-		state.popRaise()
-		if bodyErr != nil {
-			return nil, bodyErr
-		}
-		return val, nil
-	}
-	return nil, rs
 }

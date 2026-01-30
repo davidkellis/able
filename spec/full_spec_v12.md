@@ -1,6 +1,6 @@
 # Able Language Specification (Draft)
 
-**Version:** 2026-01-25
+**Version:** 2026-01-29
 **Status:** Draft
 
 ## Table of Contents
@@ -42,6 +42,8 @@
         *   [6.3.1. Operator Precedence and Associativity](#631-operator-precedence-and-associativity)
         *   [6.3.2. Operator Semantics](#632-operator-semantics)
         *   [6.3.3. Overloading (Via Interfaces)](#633-overloading-via-interfaces)
+        *   [6.3.4. Safe Navigation Operator (`?.`)](#634-safe-navigation-operator-)
+        *   [6.3.5. Type Cast Operator (`as`)](#635-type-cast-operator-as)
     *   [6.4. Function Calls](#64-function-calls)
     *   [6.5. Control Flow Expressions](#65-control-flow-expressions)
     *   [6.6. String Interpolation](#66-string-interpolation)
@@ -161,7 +163,7 @@ Defines how raw text is converted into tokens.
 
 *   **Character Set:** UTF-8 source files are recommended.
 *   **Identifiers:** Start with a letter (`a-z`, `A-Z`) or underscore (`_`), followed by letters, digits (`0-9`), or underscores. Typically `[a-zA-Z_][a-zA-Z0-9_]*`. Identifiers are case-sensitive. Package/directory names mapping to identifiers treat hyphens (`-`) as underscores. The identifier `_` is reserved as the wildcard pattern (see Section [5.2.2](#522-wildcard-pattern-_)) and for unbound type parameters (see Section [4.4](#44-reserved-identifier-_-in-types)). The tokens `@` and `@n` (e.g., `@1`, `@2`, ...) are reserved for expression placeholders and cannot be used as identifiers.
-*   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `elsif`, `else`, `or`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `spawn`, `nil`, `void`, `true`, `false`.
+*   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `elsif`, `else`, `or`, `while`, `for`, `in`, `match`, `case`, `as`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `spawn`, `nil`, `void`, `true`, `false`.
 *   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas.
 *   **Operators:** Symbols with specific meanings (See Section [6.3](#63-operators)). Includes assignment/declaration operators `:=` and `=`.
 *   **Literals:** Source code representations of fixed values (See Section [4.2](#42-primitive-types) and Section [6.1](#61-literals)).
@@ -1346,6 +1348,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 | 12         | `-` (unary)           | Arithmetic Negation                     | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 12         | `!` (unary)           | **Logical NOT**                         | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 12         | `.~` (unary)          | **Bitwise NOT (Complement)**            | Non-assoc     | (Effectively Right-to-left in practice)                 |
+| 11.5       | `as`                  | Type Cast                               | Left-to-right | Binds tighter than `*`/`+`; looser than unary.          |
 | 11         | `*`, `/`, `//`, `%`, `/%` | Multiplication; float div; Euclidean int div; modulo; div-with-remainder | Left-to-right | `//`, `%`, and `/%` use Euclidean integer division. |
 | 10         | `+`, `-` (binary)     | Addition, Subtraction                   | Left-to-right |                                                           |
 | 9          | `.<<`, `.>>`          | Left Shift, Right Shift                 | Left-to-right |                                                           |
@@ -1508,6 +1511,53 @@ log(user?.session()?.token or { "no session" })
 ```
 
 Each expression above returns `nil` if any receiver in the chain is `nil`; otherwise it produces the same value as the corresponding `.` access. The helper `len()` is shown for illustration; it follows ordinary lookup rules once the safe-navigation step succeeds.
+
+#### 6.3.5. Type Cast Operator (`as`)
+
+The `as` operator performs an **explicit, runtime cast** to a target type. It is the single built-in cast facility; all conversions described here are explicit and never implicit (except where other sections explicitly define numeric promotion or type inference rules).
+
+*   **Syntax:** `Expression as TypeExpression`
+    -   Casts are left-associative: `x as u8 as i32` is parsed as `(x as u8) as i32`.
+    -   `as` binds tighter than `*`/`+` and looser than unary operators (see §6.3.1).
+    -   Parentheses are not required unless needed for grouping.
+*   **Evaluation:** Evaluate `Expression` exactly once, then attempt to convert it to `TypeExpression`.
+
+**Typechecking (C1):** A cast is permitted if **any** of the following holds:
+1.  The value is already assignable to the target type (including unions, nullable types, and aliases).
+2.  Both the source and target are primitive numeric types (`i*`, `u*`, `f32`, `f64`).
+3.  The target is an interface type (explicit interface upcast). If the compiler cannot prove the value implements the interface, it permits the cast but the runtime check may fail.
+4.  The value is an `Error` whose payload contains a `value` field that is a struct or singleton of the target type (see runtime rule E2 below).
+
+All other casts are rejected by the typechecker.
+
+**Runtime semantics:** If any step below fails, the cast raises a runtime error (an `Error` value).
+
+**N1. Already-compatible values (no-op).**
+If the value already matches the target type, the cast returns the value unchanged. This includes unions (e.g., `nil as ?T`) and alias-expanded matches.
+
+**N2. Numeric casts.**
+- **int → int:** Perform a bit-pattern cast to the target width and signedness (wrap/truncate as needed).
+- **int → float:** Convert to the target float (`f32`/`f64`), rounding per IEEE-754. Precision loss is allowed.
+- **float → float:** Convert to the target float width (`f32`/`f64`), rounding per IEEE-754.
+- **float → int:** Truncate toward zero, then **range-check** against the target integer bounds.
+  - `NaN` or `±Inf` is an error.
+  - Out-of-range results raise `OverflowError { message: "integer overflow" }`.
+
+**N3. Interface upcast.**
+If the target is an interface type, the runtime checks whether the value implements that interface and, if so, returns an interface value that captures the implementation dictionary at the cast site (import-scoped). If the value does not implement the interface, the cast raises an error.
+
+**E2. Error payload unwrap (raised values).**
+If the value is an `Error` that carries a `payload["value"]` which is a struct or singleton of the target type, the cast yields that payload value. This supports typed recovery of values raised via `raise`.
+
+**Examples:**
+```able
+wrapped := 256_u16 as u8             ## int -> int (wraps to 0)
+flt     := 42_i32 as f64             ## int -> float
+trunc   := 3.9 as i32                ## float -> int (truncates to 3)
+
+point := Point { x: 1, y: 2 }
+show  := point as Display            ## interface upcast
+```
 
 ### 6.4. Function Calls
 

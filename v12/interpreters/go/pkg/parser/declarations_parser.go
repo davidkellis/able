@@ -145,6 +145,9 @@ func (ctx *parseContext) parseStructDefinition(node *sitter.Node) (ast.Statement
 			if child == nil || !child.IsNamed() || isIgnorableNode(child) {
 				continue
 			}
+			if child.Kind() == "ERROR" && strings.TrimSpace(sliceContent(child, ctx.source)) == "" {
+				continue
+			}
 			fieldType := ctx.parseTypeExpression(child)
 			if fieldType == nil {
 				return nil, fmt.Errorf("parser: unsupported tuple field type")
@@ -153,6 +156,9 @@ func (ctx *parseContext) parseStructDefinition(node *sitter.Node) (ast.Statement
 			annotateSpan(field, child)
 			fields = append(fields, field)
 		}
+	}
+	if len(fields) == 0 {
+		kind = ast.StructKindSingleton
 	}
 
 	if id != nil && ctx != nil && ctx.structKinds != nil {

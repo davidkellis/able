@@ -1,0 +1,14 @@
+{
+  "description": "numeric casts, interface upcast, and error payload unwrap",
+  "expect": {
+    "stdout": [
+      "wrap 0",
+      "neg 255",
+      "intf 42",
+      "floatf 1.5",
+      "trunc 3",
+      "(1,2)"
+    ],
+    "exit": 0
+  }
+}

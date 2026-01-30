@@ -76,7 +76,15 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 						continue
 					}
 					defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-					method = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
+					defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
+					if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
+						if i.execMode == execModeBytecode {
+							return nil, err
+						}
+					} else {
+						defaultVal.Bytecode = program
+					}
+					method = defaultVal
 					if cand.entry.methods == nil {
 						cand.entry.methods = make(map[string]runtime.Value)
 					}

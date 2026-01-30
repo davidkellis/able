@@ -110,6 +110,7 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
 - `struct_literal`: `S -> S, struct`
 - `map_literal`: `S -> S, map` (handles spread via runtime helpers)
 - `array_literal <n>`: `S, elements... -> S, array`
+- `iterator_literal`: `S -> S, iterator` (generator body runs in bytecode when supported; falls back to tree-walker)
 
 #### Indexing
 - `index_get`: `S, object, index -> S, value`
@@ -119,6 +120,7 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
 - `jump <target>`: `S -> S`
 - `jump_if_false <target>`: `S, cond -> S` (jumps on falsy)
 - `jump_if_nil <target>`: `S, value -> S` (jumps on nil)
+- `break_label <label>`: `S, value -> S` (raises break signal for breakpoint labels)
 - `enter_scope`: pushes environment
 - `exit_scope [n]`: pops `n` environments (defaults to 1)
 - `loop_enter <break, continue>`: pushes loop frame for delegated break/continue handling
@@ -139,8 +141,9 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
 - `match`: `S, subject -> S, result` (clause bodies and guards use fallback eval)
 - `ensure`: opcode that evaluates the try expression via fallback, runs the ensure
   block inline, then rethrows any captured error or yields the try result.
-- `rescue`: delegated with bytecode fallback for
-  subexpressions; errors carry runtime context for parity.
+- `await`: `S, iterable -> S, result` (await arms are collected from the iterable)
+- `rescue`: opcode that evaluates the monitored expression via fallback, matches
+  clauses inline, and returns the handled value or rethrows.
 
 #### Spawn / await
 - `spawn`: schedules async task; returns `Future`

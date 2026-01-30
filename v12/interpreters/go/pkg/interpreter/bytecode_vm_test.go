@@ -873,7 +873,7 @@ func TestBytecodeVM_IteratorLiteral(t *testing.T) {
 
 func TestBytecodeVM_BreakpointExpression(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
-		ast.Bp("exit", ast.Int(9)),
+		ast.Bp("exit", ast.Brk("exit", ast.Int(9)), ast.Int(0)),
 	}, nil, nil)
 
 	want := mustEvalModule(t, New(), module)
