@@ -19,7 +19,11 @@
         },
         "arguments": [
           {
-            "type": "WildcardTypeExpression"
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "_"
+            }
           }
         ]
       },
@@ -30,6 +34,15 @@
             "type": "Identifier",
             "name": "wrap"
           },
+          "genericParams": [
+            {
+              "type": "GenericParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "T"
+              }
+            }
+          ],
           "params": [
             {
               "type": "FunctionParameter",
@@ -90,16 +103,7 @@
                 }
               }
             ]
-          },
-          "genericParams": [
-            {
-              "type": "GenericParameter",
-              "name": {
-                "type": "Identifier",
-                "name": "T"
-              }
-            }
-          ]
+          }
         }
       ],
       "isPrivate": false
@@ -110,6 +114,15 @@
         "type": "Identifier",
         "name": "Holder"
       },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
       "fields": [
         {
           "type": "StructFieldDefinition",
@@ -126,16 +139,7 @@
           }
         }
       ],
-      "kind": "named",
-      "genericParams": [
-        {
-          "type": "GenericParameter",
-          "name": {
-            "type": "Identifier",
-            "name": "T"
-          }
-        }
-      ]
+      "kind": "named"
     },
     {
       "type": "ImplementationDefinition",
@@ -157,6 +161,15 @@
             "type": "Identifier",
             "name": "wrap"
           },
+          "genericParams": [
+            {
+              "type": "GenericParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "T"
+              }
+            }
+          ],
           "params": [
             {
               "type": "FunctionParameter",
@@ -199,6 +212,25 @@
               }
             }
           ],
+          "returnType": {
+            "type": "GenericTypeExpression",
+            "base": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Holder"
+              }
+            },
+            "arguments": [
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "T"
+                }
+              }
+            ]
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -235,34 +267,6 @@
               }
             ]
           },
-          "returnType": {
-            "type": "GenericTypeExpression",
-            "base": {
-              "type": "SimpleTypeExpression",
-              "name": {
-                "type": "Identifier",
-                "name": "Holder"
-              }
-            },
-            "arguments": [
-              {
-                "type": "SimpleTypeExpression",
-                "name": {
-                  "type": "Identifier",
-                  "name": "T"
-                }
-              }
-            ]
-          },
-          "genericParams": [
-            {
-              "type": "GenericParameter",
-              "name": {
-                "type": "Identifier",
-                "name": "T"
-              }
-            }
-          ],
           "isMethodShorthand": false,
           "isPrivate": false
         }

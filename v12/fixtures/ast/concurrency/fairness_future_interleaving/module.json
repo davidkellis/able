@@ -142,7 +142,7 @@
                     },
                     "right": {
                       "type": "BinaryExpression",
-                      "operator": ">=",
+                      "operator": "\u003e=",
                       "left": {
                         "type": "Identifier",
                         "name": "stage_future"
@@ -204,7 +204,7 @@
                     },
                     "right": {
                       "type": "BinaryExpression",
-                      "operator": ">=",
+                      "operator": "\u003e=",
                       "left": {
                         "type": "Identifier",
                         "name": "stage_future"
@@ -322,7 +322,7 @@
                         },
                         "right": {
                           "type": "BinaryExpression",
-                          "operator": ">=",
+                          "operator": "\u003e=",
                           "left": {
                             "type": "Identifier",
                             "name": "stage_proc"

@@ -156,6 +156,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -167,13 +174,6 @@
                 }
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false
@@ -216,6 +216,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Point"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -228,13 +235,6 @@
               }
             ]
           },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "Point"
-            }
-          },
           "isMethodShorthand": false,
           "isPrivate": false
         }
@@ -246,6 +246,15 @@
         "type": "Identifier",
         "name": "Wrapper"
       },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
       "fields": [
         {
           "type": "StructFieldDefinition",
@@ -262,16 +271,7 @@
           }
         }
       ],
-      "kind": "named",
-      "genericParams": [
-        {
-          "type": "GenericParameter",
-          "name": {
-            "type": "Identifier",
-            "name": "T"
-          }
-        }
-      ]
+      "kind": "named"
     },
     {
       "type": "ImplementationDefinition",
@@ -342,6 +342,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -353,13 +360,6 @@
                 }
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false
@@ -435,6 +435,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -446,13 +453,6 @@
                 }
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false
@@ -466,6 +466,13 @@
         "name": "main"
       },
       "params": [],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -534,13 +541,6 @@
             "isTrailingLambda": false
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "void"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false

@@ -121,6 +121,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "void"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -160,13 +167,6 @@
                 }
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "void"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false
@@ -223,6 +223,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "bool"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -256,13 +263,6 @@
                 }
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "bool"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false

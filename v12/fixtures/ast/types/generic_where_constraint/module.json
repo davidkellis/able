@@ -8,6 +8,22 @@
         "type": "Identifier",
         "name": "choose_first"
       },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        },
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "U"
+          }
+        }
+      ],
       "params": [
         {
           "type": "FunctionParameter",
@@ -38,6 +54,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "T"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -47,29 +70,6 @@
           }
         ]
       },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "T"
-        }
-      },
-      "genericParams": [
-        {
-          "type": "GenericParameter",
-          "name": {
-            "type": "Identifier",
-            "name": "T"
-          }
-        },
-        {
-          "type": "GenericParameter",
-          "name": {
-            "type": "Identifier",
-            "name": "U"
-          }
-        }
-      ],
       "whereClause": [
         {
           "type": "WhereClauseConstraint",

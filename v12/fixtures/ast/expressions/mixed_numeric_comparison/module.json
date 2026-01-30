@@ -5,8 +5,14 @@
     {
       "type": "BinaryExpression",
       "operator": "==",
-      "left": { "type": "IntegerLiteral", "value": 3 },
-      "right": { "type": "FloatLiteral", "value": 3.0 }
+      "left": {
+        "type": "IntegerLiteral",
+        "value": 3
+      },
+      "right": {
+        "type": "FloatLiteral",
+        "value": 3
+      }
     }
   ]
 }

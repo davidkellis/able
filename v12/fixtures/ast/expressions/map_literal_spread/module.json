@@ -30,7 +30,7 @@
       },
       "right": {
         "type": "MapLiteral",
-        "entries": [
+        "elements": [
           {
             "type": "MapLiteralEntry",
             "key": {
@@ -54,7 +54,7 @@
       },
       "right": {
         "type": "MapLiteral",
-        "entries": [
+        "elements": [
           {
             "type": "MapLiteralEntry",
             "key": {

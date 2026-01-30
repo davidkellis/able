@@ -17,6 +17,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "String"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -94,13 +101,6 @@
             ]
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "String"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -205,7 +205,7 @@
               "type": "WhileLoop",
               "condition": {
                 "type": "BinaryExpression",
-                "operator": "<",
+                "operator": "\u003c",
                 "left": {
                   "type": "Identifier",
                   "name": "future_iteration"
@@ -543,7 +543,7 @@
         },
         {
           "type": "BinaryExpression",
-          "operator": ">",
+          "operator": "\u003e",
           "left": {
             "type": "Identifier",
             "name": "future_iteration"

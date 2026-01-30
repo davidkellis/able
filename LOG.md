@@ -1,5 +1,19 @@
 # Able Project Log
 
+# 2026-01-30 — Error-payload cast typechecker + full test runs (v12)
+- Typechecker: allow explicit `as` casts from `Error` values to struct targets (payload recovery) with runtime checks.
+- Tests: `./run_all_tests.sh`; `./run_stdlib_tests.sh`.
+
+# 2026-01-30 — Top-level else/elsif parsing fix (v12)
+- Parser: attach `else`/`elsif` clause statements to the preceding `if` at module scope, matching block parsing and v12 semantics.
+- Fixtures: re-exported v12 AST fixtures via `./v12/export_fixtures.sh` (Go exporter, full run).
+- Tests: `cd v12/interpreters/go && go test ./pkg/parser -count=1`.
+
+# 2026-01-30 — Bytecode doc + singleton payload cast AST fixture (v12)
+- Docs: expanded bytecode VM format + calling convention details in `v12/design/compiler-interpreter-vision.md`.
+- Fixtures: added AST fixture `errors/error_payload_cast_singleton` and exported its `module.json` via the Go fixture exporter.
+- Tests: not run (fixture export only).
+
 # 2026-01-30 — Error payload cast recovery fixture (v12)
 - Fixtures: added exec coverage for error-payload cast recovery via `as`.
 - Tests: `./run_all_tests.sh`.

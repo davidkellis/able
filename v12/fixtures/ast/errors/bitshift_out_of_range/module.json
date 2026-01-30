@@ -4,9 +4,15 @@
   "body": [
     {
       "type": "BinaryExpression",
-      "operator": ".<<",
-      "left": { "type": "IntegerLiteral", "value": 1 },
-      "right": { "type": "IntegerLiteral", "value": 32 }
+      "operator": ".\u003c\u003c",
+      "left": {
+        "type": "IntegerLiteral",
+        "value": 1
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 32
+      }
     }
   ]
 }

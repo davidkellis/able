@@ -24,6 +24,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -32,13 +39,6 @@
             "value": 1
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -65,6 +65,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -73,13 +80,6 @@
             "value": 2
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false

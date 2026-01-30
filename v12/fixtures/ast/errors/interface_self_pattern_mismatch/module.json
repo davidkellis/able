@@ -161,6 +161,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -169,13 +176,6 @@
                 "value": "line"
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false

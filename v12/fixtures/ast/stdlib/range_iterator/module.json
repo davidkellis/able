@@ -110,7 +110,7 @@
                       "type": "IfExpression",
                       "ifCondition": {
                         "type": "BinaryExpression",
-                        "operator": ">=",
+                        "operator": "\u003e=",
                         "left": {
                           "type": "MemberAccessExpression",
                           "object": {
@@ -157,7 +157,7 @@
                                   "type": "WhileLoop",
                                   "condition": {
                                     "type": "BinaryExpression",
-                                    "operator": "<=",
+                                    "operator": "\u003c=",
                                     "left": {
                                       "type": "Identifier",
                                       "name": "current"
@@ -223,7 +223,7 @@
                                   "type": "WhileLoop",
                                   "condition": {
                                     "type": "BinaryExpression",
-                                    "operator": "<",
+                                    "operator": "\u003c",
                                     "left": {
                                       "type": "Identifier",
                                       "name": "current"
@@ -308,7 +308,7 @@
                                   "type": "WhileLoop",
                                   "condition": {
                                     "type": "BinaryExpression",
-                                    "operator": ">=",
+                                    "operator": "\u003e=",
                                     "left": {
                                       "type": "Identifier",
                                       "name": "current"
@@ -374,7 +374,7 @@
                                   "type": "WhileLoop",
                                   "condition": {
                                     "type": "BinaryExpression",
-                                    "operator": ">",
+                                    "operator": "\u003e",
                                     "left": {
                                       "type": "Identifier",
                                       "name": "current"

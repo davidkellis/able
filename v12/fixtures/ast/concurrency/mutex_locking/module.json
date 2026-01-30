@@ -43,6 +43,13 @@
             "name": "new"
           },
           "params": [],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Mutex"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -89,13 +96,6 @@
                 }
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "Mutex"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false

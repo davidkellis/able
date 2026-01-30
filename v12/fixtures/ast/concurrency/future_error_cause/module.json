@@ -24,6 +24,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "String"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -123,13 +130,6 @@
             ]
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "String"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false

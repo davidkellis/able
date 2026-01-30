@@ -1,5 +1,14 @@
 {
   "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      {
+        "type": "Identifier",
+        "name": "alias_reexport_impl_ambiguity_main"
+      }
+    ]
+  },
   "imports": [
     {
       "type": "ImportStatement",
@@ -9,6 +18,7 @@
           "name": "alias_reexport_impl_ambiguity_base"
         }
       ],
+      "isWildcard": false,
       "selectors": [
         {
           "type": "ImportSelector",
@@ -17,8 +27,7 @@
             "name": "Widget"
           }
         }
-      ],
-      "isWildcard": false
+      ]
     },
     {
       "type": "ImportStatement",
@@ -44,11 +53,11 @@
   "body": [
     {
       "type": "AssignmentExpression",
+      "operator": ":=",
       "left": {
         "type": "Identifier",
         "name": "w"
       },
-      "operator": ":=",
       "right": {
         "type": "StructLiteral",
         "structType": {
@@ -65,7 +74,8 @@
             "value": {
               "type": "IntegerLiteral",
               "value": 1
-            }
+            },
+            "isShorthand": false
           }
         ],
         "isPositional": false
@@ -87,15 +97,5 @@
       "arguments": [],
       "isTrailingLambda": false
     }
-  ],
-  "package": {
-    "type": "PackageStatement",
-    "namePath": [
-      {
-        "type": "Identifier",
-        "name": "alias_reexport_impl_ambiguity_main"
-      }
-    ],
-    "isPrivate": false
-  }
+  ]
 }

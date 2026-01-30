@@ -4,7 +4,10 @@
     {
       "type": "ImportStatement",
       "packagePath": [
-        { "type": "Identifier", "name": "example_static" }
+        {
+          "type": "Identifier",
+          "name": "example_static"
+        }
       ],
       "isWildcard": true
     }
@@ -13,10 +16,16 @@
     {
       "type": "AssignmentExpression",
       "operator": ":=",
-      "left": { "type": "Identifier", "name": "result" },
+      "left": {
+        "type": "Identifier",
+        "name": "result"
+      },
       "right": {
         "type": "FunctionCall",
-        "callee": { "type": "Identifier", "name": "pub_fn" },
+        "callee": {
+          "type": "Identifier",
+          "name": "pub_fn"
+        },
         "arguments": [],
         "isTrailingLambda": false
       }

@@ -4,23 +4,80 @@
   "body": [
     {
       "type": "StructDefinition",
-      "id": { "type": "Identifier", "name": "Point" },
+      "id": {
+        "type": "Identifier",
+        "name": "Point"
+      },
       "fields": [
-        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "x" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } },
-        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "y" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } }
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "y"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
       ],
       "kind": "named"
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
-      "left": { "type": "Identifier", "name": "p" },
+      "left": {
+        "type": "Identifier",
+        "name": "p"
+      },
       "right": {
         "type": "StructLiteral",
-        "structType": { "type": "Identifier", "name": "Point" },
+        "structType": {
+          "type": "Identifier",
+          "name": "Point"
+        },
         "fields": [
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 }, "isShorthand": false },
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "y" }, "value": { "type": "IntegerLiteral", "value": 2 }, "isShorthand": false }
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "y"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 2
+            },
+            "isShorthand": false
+          }
         ],
         "isPositional": false
       }
@@ -30,14 +87,40 @@
       "operator": ":=",
       "left": {
         "type": "StructPattern",
-        "isPositional": false,
-        "structType": { "type": "Identifier", "name": "Point" },
+        "structType": {
+          "type": "Identifier",
+          "name": "Point"
+        },
         "fields": [
-          { "type": "StructPatternField", "fieldName": { "type": "Identifier", "name": "x" }, "pattern": { "type": "Identifier", "name": "x" } },
-          { "type": "StructPatternField", "fieldName": { "type": "Identifier", "name": "z" }, "pattern": { "type": "Identifier", "name": "z" } }
-        ]
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "pattern": {
+              "type": "Identifier",
+              "name": "x"
+            }
+          },
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "z"
+            },
+            "pattern": {
+              "type": "Identifier",
+              "name": "z"
+            }
+          }
+        ],
+        "isPositional": false
       },
-      "right": { "type": "Identifier", "name": "p" }
+      "right": {
+        "type": "Identifier",
+        "name": "p"
+      }
     }
   ]
 }

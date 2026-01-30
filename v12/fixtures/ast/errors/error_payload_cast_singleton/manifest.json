@@ -1,0 +1,10 @@
+{
+  "description": "Cast unwraps singleton payload from raised Error",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "ok"
+    }
+  },
+  "entry": "module.json"
+}
