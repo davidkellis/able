@@ -6,849 +6,233 @@
       "type": "InterfaceDefinition",
       "id": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 1,
-            "column": 11
-          },
-          "end": {
-            "line": 1,
-            "column": 15
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "selfTypePattern": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
-          "name": "T",
-          "span": {
-            "start": {
-              "line": 1,
-              "column": 20
-            },
-            "end": {
-              "line": 1,
-              "column": 21
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        "span": {
-          "start": {
-            "line": 1,
-            "column": 20
-          },
-          "end": {
-            "line": 1,
-            "column": 21
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "T"
+        }
       },
       "signatures": [
         {
           "type": "FunctionSignature",
           "name": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 2,
-                "column": 6
-              },
-              "end": {
-                "line": 2,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 2,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 2,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 2,
-                  "column": 11
-                },
-                "end": {
-                  "line": 2,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
           "returnType": {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 2,
-                  "column": 26
-                },
-                "end": {
-                  "line": 2,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 2,
-                "column": 26
-              },
-              "end": {
-                "line": 2,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 2,
-              "column": 3
-            },
-            "end": {
-              "line": 2,
-              "column": 32
+              "name": "String"
             }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          }
         }
       ],
-      "isPrivate": false,
-      "span": {
-        "start": {
-          "line": 1,
-          "column": 1
-        },
-        "end": {
-          "line": 3,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "isPrivate": false
     },
     {
       "type": "InterfaceDefinition",
       "id": {
         "type": "Identifier",
-        "name": "TraitA",
-        "span": {
-          "start": {
-            "line": 5,
-            "column": 11
-          },
-          "end": {
-            "line": 5,
-            "column": 17
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "TraitA"
       },
       "selfTypePattern": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
-          "name": "T",
-          "span": {
-            "start": {
-              "line": 5,
-              "column": 22
-            },
-            "end": {
-              "line": 5,
-              "column": 23
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        "span": {
-          "start": {
-            "line": 5,
-            "column": 22
-          },
-          "end": {
-            "line": 5,
-            "column": 23
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "signatures": [],
-      "isPrivate": false,
-      "span": {
-        "start": {
-          "line": 5,
-          "column": 1
-        },
-        "end": {
-          "line": 5,
-          "column": 26
+          "name": "T"
         }
       },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "signatures": [],
+      "isPrivate": false
     },
     {
       "type": "InterfaceDefinition",
       "id": {
         "type": "Identifier",
-        "name": "TraitB",
-        "span": {
-          "start": {
-            "line": 6,
-            "column": 11
-          },
-          "end": {
-            "line": 6,
-            "column": 17
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "TraitB"
       },
       "selfTypePattern": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
-          "name": "T",
-          "span": {
-            "start": {
-              "line": 6,
-              "column": 22
-            },
-            "end": {
-              "line": 6,
-              "column": 23
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        "span": {
-          "start": {
-            "line": 6,
-            "column": 22
-          },
-          "end": {
-            "line": 6,
-            "column": 23
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "T"
+        }
       },
       "signatures": [],
-      "isPrivate": false,
-      "span": {
-        "start": {
-          "line": 6,
-          "column": 1
-        },
-        "end": {
-          "line": 6,
-          "column": 26
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "isPrivate": false
     },
     {
       "type": "StructDefinition",
       "id": {
         "type": "Identifier",
-        "name": "Box",
-        "span": {
-          "start": {
-            "line": 8,
-            "column": 8
-          },
-          "end": {
-            "line": 8,
-            "column": 11
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Box"
       },
-      "fields": [
-        {
-          "type": "StructFieldDefinition",
-          "name": {
-            "type": "Identifier",
-            "name": "value",
-            "span": {
-              "start": {
-                "line": 8,
-                "column": 17
-              },
-              "end": {
-                "line": 8,
-                "column": 22
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "fieldType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "T",
-              "span": {
-                "start": {
-                  "line": 8,
-                  "column": 24
-                },
-                "end": {
-                  "line": 8,
-                  "column": 25
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 8,
-                "column": 24
-              },
-              "end": {
-                "line": 8,
-                "column": 25
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 8,
-              "column": 17
-            },
-            "end": {
-              "line": 8,
-              "column": 25
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        }
-      ],
-      "kind": "named",
       "genericParams": [
         {
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "T",
-            "span": {
-              "start": {
-                "line": 8,
-                "column": 12
-              },
-              "end": {
-                "line": 8,
-                "column": 13
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 8,
-              "column": 12
-            },
-            "end": {
-              "line": 8,
-              "column": 13
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "T"
+          }
         }
       ],
-      "span": {
-        "start": {
-          "line": 8,
-          "column": 1
-        },
-        "end": {
-          "line": 8,
-          "column": 27
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-    },
-    {
-      "type": "StructDefinition",
-      "id": {
-        "type": "Identifier",
-        "name": "Wrapper",
-        "span": {
-          "start": {
-            "line": 9,
-            "column": 8
-          },
-          "end": {
-            "line": 9,
-            "column": 15
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
       "fields": [
         {
           "type": "StructFieldDefinition",
           "name": {
             "type": "Identifier",
-            "name": "value",
-            "span": {
-              "start": {
-                "line": 9,
-                "column": 21
-              },
-              "end": {
-                "line": 9,
-                "column": 26
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "value"
           },
           "fieldType": {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "T",
-              "span": {
-                "start": {
-                  "line": 9,
-                  "column": 28
-                },
-                "end": {
-                  "line": 9,
-                  "column": 29
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 9,
-                "column": 28
-              },
-              "end": {
-                "line": 9,
-                "column": 29
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 9,
-              "column": 21
-            },
-            "end": {
-              "line": 9,
-              "column": 29
+              "name": "T"
             }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          }
         }
       ],
-      "kind": "named",
-      "genericParams": [
-        {
-          "type": "GenericParameter",
-          "name": {
-            "type": "Identifier",
-            "name": "T",
-            "span": {
-              "start": {
-                "line": 9,
-                "column": 16
-              },
-              "end": {
-                "line": 9,
-                "column": 17
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 9,
-              "column": 16
-            },
-            "end": {
-              "line": 9,
-              "column": 17
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        }
-      ],
-      "span": {
-        "start": {
-          "line": 9,
-          "column": 1
-        },
-        "end": {
-          "line": 9,
-          "column": 31
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "kind": "named"
     },
     {
       "type": "StructDefinition",
       "id": {
         "type": "Identifier",
-        "name": "Pair",
-        "span": {
-          "start": {
-            "line": 10,
-            "column": 8
-          },
-          "end": {
-            "line": 10,
-            "column": 12
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Wrapper"
       },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
       "fields": [
         {
           "type": "StructFieldDefinition",
           "name": {
             "type": "Identifier",
-            "name": "left",
-            "span": {
-              "start": {
-                "line": 10,
-                "column": 21
-              },
-              "end": {
-                "line": 10,
-                "column": 25
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "value"
           },
           "fieldType": {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "L",
-              "span": {
-                "start": {
-                  "line": 10,
-                  "column": 27
-                },
-                "end": {
-                  "line": 10,
-                  "column": 28
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 10,
-                "column": 27
-              },
-              "end": {
-                "line": 10,
-                "column": 28
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 10,
-              "column": 21
-            },
-            "end": {
-              "line": 10,
-              "column": 28
+              "name": "T"
             }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        {
-          "type": "StructFieldDefinition",
-          "name": {
-            "type": "Identifier",
-            "name": "right",
-            "span": {
-              "start": {
-                "line": 10,
-                "column": 30
-              },
-              "end": {
-                "line": 10,
-                "column": 35
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "fieldType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "R",
-              "span": {
-                "start": {
-                  "line": 10,
-                  "column": 37
-                },
-                "end": {
-                  "line": 10,
-                  "column": 38
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 10,
-                "column": 37
-              },
-              "end": {
-                "line": 10,
-                "column": 38
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 10,
-              "column": 30
-            },
-            "end": {
-              "line": 10,
-              "column": 38
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          }
         }
       ],
-      "kind": "named",
+      "kind": "named"
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Pair"
+      },
       "genericParams": [
         {
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "L",
-            "span": {
-              "start": {
-                "line": 10,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": 14
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 10,
-              "column": 13
-            },
-            "end": {
-              "line": 10,
-              "column": 14
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "L"
+          }
         },
         {
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "R",
-            "span": {
-              "start": {
-                "line": 10,
-                "column": 16
-              },
-              "end": {
-                "line": 10,
-                "column": 17
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 10,
-              "column": 16
-            },
-            "end": {
-              "line": 10,
-              "column": 17
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "R"
+          }
         }
       ],
-      "span": {
-        "start": {
-          "line": 10,
-          "column": 1
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "left"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "L"
+            }
+          }
         },
-        "end": {
-          "line": 10,
-          "column": 40
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "right"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "R"
+            }
+          }
         }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ],
+      "kind": "named"
     },
     {
       "type": "StructDefinition",
       "id": {
         "type": "Identifier",
-        "name": "Alpha",
-        "span": {
-          "start": {
-            "line": 11,
-            "column": 8
-          },
-          "end": {
-            "line": 11,
-            "column": 13
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Alpha"
       },
       "fields": [],
-      "kind": "named",
-      "span": {
-        "start": {
-          "line": 11,
-          "column": 1
-        },
-        "end": {
-          "line": 11,
-          "column": 16
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "kind": "singleton"
     },
     {
       "type": "StructDefinition",
       "id": {
         "type": "Identifier",
-        "name": "Beta",
-        "span": {
-          "start": {
-            "line": 12,
-            "column": 8
-          },
-          "end": {
-            "line": 12,
-            "column": 12
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Beta"
       },
       "fields": [],
-      "kind": "named",
-      "span": {
-        "start": {
-          "line": 12,
-          "column": 1
-        },
-        "end": {
-          "line": 12,
-          "column": 15
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "kind": "singleton"
     },
     {
       "type": "StructDefinition",
       "id": {
         "type": "Identifier",
-        "name": "Gamma",
-        "span": {
-          "start": {
-            "line": 13,
-            "column": 8
-          },
-          "end": {
-            "line": 13,
-            "column": 13
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Gamma"
       },
       "fields": [],
-      "kind": "named",
-      "span": {
-        "start": {
-          "line": 13,
-          "column": 1
-        },
-        "end": {
-          "line": 13,
-          "column": 16
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "kind": "singleton"
     },
     {
       "type": "ImplementationDefinition",
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 15,
-            "column": 6
-          },
-          "end": {
-            "line": 15,
-            "column": 10
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "GenericTypeExpression",
@@ -856,227 +240,62 @@
           "type": "SimpleTypeExpression",
           "name": {
             "type": "Identifier",
-            "name": "Box",
-            "span": {
-              "start": {
-                "line": 15,
-                "column": 15
-              },
-              "end": {
-                "line": 15,
-                "column": 18
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 15,
-              "column": 15
-            },
-            "end": {
-              "line": 15,
-              "column": 18
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "Box"
+          }
         },
         "arguments": [
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "i32",
-              "span": {
-                "start": {
-                  "line": 15,
-                  "column": 19
-                },
-                "end": {
-                  "line": 15,
-                  "column": 22
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 15,
-                "column": 19
-              },
-              "end": {
-                "line": 15,
-                "column": 22
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "i32"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 15,
-            "column": 15
-          },
-          "end": {
-            "line": 15,
-            "column": 18
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 16,
-                "column": 6
-              },
-              "end": {
-                "line": 16,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 16,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 16,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 16,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 16,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 16,
-                  "column": 11
-                },
-                "end": {
-                  "line": 16,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "box-i32",
-                "span": {
-                  "start": {
-                    "line": 16,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 16,
-                    "column": 44
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "box-i32"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 16,
-                "column": 33
-              },
-              "end": {
-                "line": 16,
-                "column": 46
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 16,
-                  "column": 26
-                },
-                "end": {
-                  "line": 16,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 16,
-                "column": 26
-              },
-              "end": {
-                "line": 16,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 16,
-              "column": 3
-            },
-            "end": {
-              "line": 16,
-              "column": 46
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 15,
-          "column": 1
-        },
-        "end": {
-          "line": 17,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
@@ -1085,46 +304,13 @@
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "T",
-            "span": {
-              "start": {
-                "line": 18,
-                "column": 6
-              },
-              "end": {
-                "line": 18,
-                "column": 7
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 18,
-              "column": 6
-            },
-            "end": {
-              "line": 18,
-              "column": 7
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "T"
+          }
         }
       ],
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 18,
-            "column": 9
-          },
-          "end": {
-            "line": 18,
-            "column": 13
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "GenericTypeExpression",
@@ -1132,259 +318,72 @@
           "type": "SimpleTypeExpression",
           "name": {
             "type": "Identifier",
-            "name": "Box",
-            "span": {
-              "start": {
-                "line": 18,
-                "column": 18
-              },
-              "end": {
-                "line": 18,
-                "column": 21
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 18,
-              "column": 18
-            },
-            "end": {
-              "line": 18,
-              "column": 21
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "Box"
+          }
         },
         "arguments": [
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "T",
-              "span": {
-                "start": {
-                  "line": 18,
-                  "column": 22
-                },
-                "end": {
-                  "line": 18,
-                  "column": 23
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 18,
-                "column": 22
-              },
-              "end": {
-                "line": 18,
-                "column": 23
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "T"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 18,
-            "column": 18
-          },
-          "end": {
-            "line": 18,
-            "column": 21
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 19,
-                "column": 6
-              },
-              "end": {
-                "line": 19,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 19,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 19,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 19,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 19,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 19,
-                  "column": 11
-                },
-                "end": {
-                  "line": 19,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "box-generic",
-                "span": {
-                  "start": {
-                    "line": 19,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 19,
-                    "column": 48
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "box-generic"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 19,
-                "column": 33
-              },
-              "end": {
-                "line": 19,
-                "column": 50
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 19,
-                  "column": 26
-                },
-                "end": {
-                  "line": 19,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 19,
-                "column": 26
-              },
-              "end": {
-                "line": 19,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 19,
-              "column": 3
-            },
-            "end": {
-              "line": 19,
-              "column": 50
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 18,
-          "column": 1
-        },
-        "end": {
-          "line": 20,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
       "implName": {
         "type": "Identifier",
-        "name": "Fancy",
-        "span": {
-          "start": {
-            "line": 21,
-            "column": 1
-          },
-          "end": {
-            "line": 21,
-            "column": 6
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Fancy"
       },
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 21,
-            "column": 14
-          },
-          "end": {
-            "line": 21,
-            "column": 18
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "GenericTypeExpression",
@@ -1392,227 +391,62 @@
           "type": "SimpleTypeExpression",
           "name": {
             "type": "Identifier",
-            "name": "Box",
-            "span": {
-              "start": {
-                "line": 21,
-                "column": 23
-              },
-              "end": {
-                "line": 21,
-                "column": 26
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 21,
-              "column": 23
-            },
-            "end": {
-              "line": 21,
-              "column": 26
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "Box"
+          }
         },
         "arguments": [
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "i32",
-              "span": {
-                "start": {
-                  "line": 21,
-                  "column": 27
-                },
-                "end": {
-                  "line": 21,
-                  "column": 30
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 21,
-                "column": 27
-              },
-              "end": {
-                "line": 21,
-                "column": 30
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "i32"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 21,
-            "column": 23
-          },
-          "end": {
-            "line": 21,
-            "column": 26
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 22,
-                "column": 6
-              },
-              "end": {
-                "line": 22,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 22,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 22,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 22,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 22,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 22,
-                  "column": 11
-                },
-                "end": {
-                  "line": 22,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "box-named",
-                "span": {
-                  "start": {
-                    "line": 22,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 22,
-                    "column": 46
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "box-named"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 22,
-                "column": 33
-              },
-              "end": {
-                "line": 22,
-                "column": 48
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 22,
-                  "column": 26
-                },
-                "end": {
-                  "line": 22,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 22,
-                "column": 26
-              },
-              "end": {
-                "line": 22,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 22,
-              "column": 3
-            },
-            "end": {
-              "line": 22,
-              "column": 48
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 21,
-          "column": 9
-        },
-        "end": {
-          "line": 23,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
@@ -1621,18 +455,7 @@
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "T",
-            "span": {
-              "start": {
-                "line": 25,
-                "column": 6
-              },
-              "end": {
-                "line": 25,
-                "column": 7
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "T"
           },
           "constraints": [
             {
@@ -1641,42 +464,9 @@
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
-                  "name": "TraitA",
-                  "span": {
-                    "start": {
-                      "line": 25,
-                      "column": 9
-                    },
-                    "end": {
-                      "line": 25,
-                      "column": 15
-                    }
-                  },
-                  "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-                },
-                "span": {
-                  "start": {
-                    "line": 25,
-                    "column": 9
-                  },
-                  "end": {
-                    "line": 25,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 25,
-                  "column": 9
-                },
-                "end": {
-                  "line": 25,
-                  "column": 15
+                  "name": "TraitA"
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             },
             {
               "type": "InterfaceConstraint",
@@ -1684,71 +474,16 @@
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
-                  "name": "TraitB",
-                  "span": {
-                    "start": {
-                      "line": 25,
-                      "column": 18
-                    },
-                    "end": {
-                      "line": 25,
-                      "column": 24
-                    }
-                  },
-                  "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-                },
-                "span": {
-                  "start": {
-                    "line": 25,
-                    "column": 18
-                  },
-                  "end": {
-                    "line": 25,
-                    "column": 24
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 25,
-                  "column": 18
-                },
-                "end": {
-                  "line": 25,
-                  "column": 24
+                  "name": "TraitB"
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
-          ],
-          "span": {
-            "start": {
-              "line": 25,
-              "column": 6
-            },
-            "end": {
-              "line": 25,
-              "column": 24
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          ]
         }
       ],
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 25,
-            "column": 26
-          },
-          "end": {
-            "line": 25,
-            "column": 30
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "GenericTypeExpression",
@@ -1756,227 +491,62 @@
           "type": "SimpleTypeExpression",
           "name": {
             "type": "Identifier",
-            "name": "Wrapper",
-            "span": {
-              "start": {
-                "line": 25,
-                "column": 35
-              },
-              "end": {
-                "line": 25,
-                "column": 42
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 25,
-              "column": 35
-            },
-            "end": {
-              "line": 25,
-              "column": 42
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "Wrapper"
+          }
         },
         "arguments": [
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "T",
-              "span": {
-                "start": {
-                  "line": 25,
-                  "column": 43
-                },
-                "end": {
-                  "line": 25,
-                  "column": 44
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 25,
-                "column": 43
-              },
-              "end": {
-                "line": 25,
-                "column": 44
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "T"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 25,
-            "column": 35
-          },
-          "end": {
-            "line": 25,
-            "column": 42
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 26,
-                "column": 6
-              },
-              "end": {
-                "line": 26,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 26,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 26,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 26,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 26,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 26,
-                  "column": 11
-                },
-                "end": {
-                  "line": 26,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "constraints-ab",
-                "span": {
-                  "start": {
-                    "line": 26,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 26,
-                    "column": 51
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "constraints-ab"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 26,
-                "column": 33
-              },
-              "end": {
-                "line": 26,
-                "column": 53
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 26,
-                  "column": 26
-                },
-                "end": {
-                  "line": 26,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 26,
-                "column": 26
-              },
-              "end": {
-                "line": 26,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 26,
-              "column": 3
-            },
-            "end": {
-              "line": 26,
-              "column": 53
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 25,
-          "column": 1
-        },
-        "end": {
-          "line": 27,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
@@ -1985,18 +555,7 @@
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "T",
-            "span": {
-              "start": {
-                "line": 28,
-                "column": 6
-              },
-              "end": {
-                "line": 28,
-                "column": 7
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "T"
           },
           "constraints": [
             {
@@ -2005,71 +564,16 @@
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
-                  "name": "TraitA",
-                  "span": {
-                    "start": {
-                      "line": 28,
-                      "column": 9
-                    },
-                    "end": {
-                      "line": 28,
-                      "column": 15
-                    }
-                  },
-                  "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-                },
-                "span": {
-                  "start": {
-                    "line": 28,
-                    "column": 9
-                  },
-                  "end": {
-                    "line": 28,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 28,
-                  "column": 9
-                },
-                "end": {
-                  "line": 28,
-                  "column": 15
+                  "name": "TraitA"
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
-          ],
-          "span": {
-            "start": {
-              "line": 28,
-              "column": 6
-            },
-            "end": {
-              "line": 28,
-              "column": 15
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          ]
         }
       ],
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 28,
-            "column": 17
-          },
-          "end": {
-            "line": 28,
-            "column": 21
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "GenericTypeExpression",
@@ -2077,244 +581,68 @@
           "type": "SimpleTypeExpression",
           "name": {
             "type": "Identifier",
-            "name": "Wrapper",
-            "span": {
-              "start": {
-                "line": 28,
-                "column": 26
-              },
-              "end": {
-                "line": 28,
-                "column": 33
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 28,
-              "column": 26
-            },
-            "end": {
-              "line": 28,
-              "column": 33
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "Wrapper"
+          }
         },
         "arguments": [
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "T",
-              "span": {
-                "start": {
-                  "line": 28,
-                  "column": 34
-                },
-                "end": {
-                  "line": 28,
-                  "column": 35
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 28,
-                "column": 34
-              },
-              "end": {
-                "line": 28,
-                "column": 35
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "T"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 28,
-            "column": 26
-          },
-          "end": {
-            "line": 28,
-            "column": 33
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 29,
-                "column": 6
-              },
-              "end": {
-                "line": 29,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 29,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 29,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 29,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 29,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 29,
-                  "column": 11
-                },
-                "end": {
-                  "line": 29,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "constraints-a",
-                "span": {
-                  "start": {
-                    "line": 29,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 29,
-                    "column": 50
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "constraints-a"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 29,
-                "column": 33
-              },
-              "end": {
-                "line": 29,
-                "column": 52
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 29,
-                  "column": 26
-                },
-                "end": {
-                  "line": 29,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 29,
-                "column": 26
-              },
-              "end": {
-                "line": 29,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 29,
-              "column": 3
-            },
-            "end": {
-              "line": 29,
-              "column": 52
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 28,
-          "column": 1
-        },
-        "end": {
-          "line": 30,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 32,
-            "column": 6
-          },
-          "end": {
-            "line": 32,
-            "column": 10
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "UnionTypeExpression",
@@ -2323,243 +651,67 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "Alpha",
-              "span": {
-                "start": {
-                  "line": 32,
-                  "column": 15
-                },
-                "end": {
-                  "line": 32,
-                  "column": 20
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 32,
-                "column": 15
-              },
-              "end": {
-                "line": 32,
-                "column": 20
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "Alpha"
+            }
           },
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "Beta",
-              "span": {
-                "start": {
-                  "line": 32,
-                  "column": 23
-                },
-                "end": {
-                  "line": 32,
-                  "column": 27
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 32,
-                "column": 23
-              },
-              "end": {
-                "line": 32,
-                "column": 27
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "Beta"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 32,
-            "column": 15
-          },
-          "end": {
-            "line": 32,
-            "column": 27
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 33,
-                "column": 6
-              },
-              "end": {
-                "line": 33,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 33,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 33,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 33,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 33,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 33,
-                  "column": 11
-                },
-                "end": {
-                  "line": 33,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "union-narrow",
-                "span": {
-                  "start": {
-                    "line": 33,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 33,
-                    "column": 49
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "union-narrow"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 33,
-                "column": 33
-              },
-              "end": {
-                "line": 33,
-                "column": 51
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 33,
-                  "column": 26
-                },
-                "end": {
-                  "line": 33,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 33,
-                "column": 26
-              },
-              "end": {
-                "line": 33,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 33,
-              "column": 3
-            },
-            "end": {
-              "line": 33,
-              "column": 51
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 32,
-          "column": 1
-        },
-        "end": {
-          "line": 34,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 35,
-            "column": 6
-          },
-          "end": {
-            "line": 35,
-            "column": 10
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "UnionTypeExpression",
@@ -2568,255 +720,68 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "Alpha",
-              "span": {
-                "start": {
-                  "line": 35,
-                  "column": 15
-                },
-                "end": {
-                  "line": 35,
-                  "column": 20
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 35,
-                "column": 15
-              },
-              "end": {
-                "line": 35,
-                "column": 20
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "Alpha"
+            }
           },
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "Beta",
-              "span": {
-                "start": {
-                  "line": 35,
-                  "column": 23
-                },
-                "end": {
-                  "line": 35,
-                  "column": 27
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 35,
-                "column": 23
-              },
-              "end": {
-                "line": 35,
-                "column": 27
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "Beta"
+            }
           },
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "Gamma",
-              "span": {
-                "start": {
-                  "line": 35,
-                  "column": 30
-                },
-                "end": {
-                  "line": 35,
-                  "column": 35
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 35,
-                "column": 30
-              },
-              "end": {
-                "line": 35,
-                "column": 35
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "Gamma"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 35,
-            "column": 15
-          },
-          "end": {
-            "line": 35,
-            "column": 35
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 36,
-                "column": 6
-              },
-              "end": {
-                "line": 36,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 36,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 36,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 36,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 36,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 36,
-                  "column": 11
-                },
-                "end": {
-                  "line": 36,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "union-wide",
-                "span": {
-                  "start": {
-                    "line": 36,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 36,
-                    "column": 47
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "union-wide"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 36,
-                "column": 33
-              },
-              "end": {
-                "line": 36,
-                "column": 49
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 36,
-                  "column": 26
-                },
-                "end": {
-                  "line": 36,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 36,
-                "column": 26
-              },
-              "end": {
-                "line": 36,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 36,
-              "column": 3
-            },
-            "end": {
-              "line": 36,
-              "column": 49
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 35,
-          "column": 1
-        },
-        "end": {
-          "line": 37,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
@@ -2825,46 +790,13 @@
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "T",
-            "span": {
-              "start": {
-                "line": 39,
-                "column": 6
-              },
-              "end": {
-                "line": 39,
-                "column": 7
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 39,
-              "column": 6
-            },
-            "end": {
-              "line": 39,
-              "column": 7
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "T"
+          }
         }
       ],
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 39,
-            "column": 9
-          },
-          "end": {
-            "line": 39,
-            "column": 13
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "GenericTypeExpression",
@@ -2872,256 +804,69 @@
           "type": "SimpleTypeExpression",
           "name": {
             "type": "Identifier",
-            "name": "Pair",
-            "span": {
-              "start": {
-                "line": 39,
-                "column": 18
-              },
-              "end": {
-                "line": 39,
-                "column": 22
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 39,
-              "column": 18
-            },
-            "end": {
-              "line": 39,
-              "column": 22
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "Pair"
+          }
         },
         "arguments": [
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "T",
-              "span": {
-                "start": {
-                  "line": 39,
-                  "column": 23
-                },
-                "end": {
-                  "line": 39,
-                  "column": 24
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 39,
-                "column": 23
-              },
-              "end": {
-                "line": 39,
-                "column": 24
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "T"
+            }
           },
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "i32",
-              "span": {
-                "start": {
-                  "line": 39,
-                  "column": 26
-                },
-                "end": {
-                  "line": 39,
-                  "column": 29
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 39,
-                "column": 26
-              },
-              "end": {
-                "line": 39,
-                "column": 29
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "i32"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 39,
-            "column": 18
-          },
-          "end": {
-            "line": 39,
-            "column": 22
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 40,
-                "column": 6
-              },
-              "end": {
-                "line": 40,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 40,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 40,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 40,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 40,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 40,
-                  "column": 11
-                },
-                "end": {
-                  "line": 40,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "pair-tail",
-                "span": {
-                  "start": {
-                    "line": 40,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 40,
-                    "column": 46
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "pair-tail"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 40,
-                "column": 33
-              },
-              "end": {
-                "line": 40,
-                "column": 48
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 40,
-                  "column": 26
-                },
-                "end": {
-                  "line": 40,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 40,
-                "column": 26
-              },
-              "end": {
-                "line": 40,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 40,
-              "column": 3
-            },
-            "end": {
-              "line": 40,
-              "column": 48
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 39,
-          "column": 1
-        },
-        "end": {
-          "line": 41,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
@@ -3130,75 +875,20 @@
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "U",
-            "span": {
-              "start": {
-                "line": 42,
-                "column": 6
-              },
-              "end": {
-                "line": 42,
-                "column": 7
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 42,
-              "column": 6
-            },
-            "end": {
-              "line": 42,
-              "column": 7
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "U"
+          }
         },
         {
           "type": "GenericParameter",
           "name": {
             "type": "Identifier",
-            "name": "V",
-            "span": {
-              "start": {
-                "line": 42,
-                "column": 9
-              },
-              "end": {
-                "line": 42,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 42,
-              "column": 9
-            },
-            "end": {
-              "line": 42,
-              "column": 10
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "V"
+          }
         }
       ],
       "interfaceName": {
         "type": "Identifier",
-        "name": "Show",
-        "span": {
-          "start": {
-            "line": 42,
-            "column": 12
-          },
-          "end": {
-            "line": 42,
-            "column": 16
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "Show"
       },
       "targetType": {
         "type": "GenericTypeExpression",
@@ -3206,514 +896,140 @@
           "type": "SimpleTypeExpression",
           "name": {
             "type": "Identifier",
-            "name": "Pair",
-            "span": {
-              "start": {
-                "line": 42,
-                "column": 21
-              },
-              "end": {
-                "line": 42,
-                "column": 25
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 42,
-              "column": 21
-            },
-            "end": {
-              "line": 42,
-              "column": 25
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "Pair"
+          }
         },
         "arguments": [
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "U",
-              "span": {
-                "start": {
-                  "line": 42,
-                  "column": 26
-                },
-                "end": {
-                  "line": 42,
-                  "column": 27
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 42,
-                "column": 26
-              },
-              "end": {
-                "line": 42,
-                "column": 27
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "U"
+            }
           },
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "V",
-              "span": {
-                "start": {
-                  "line": 42,
-                  "column": 29
-                },
-                "end": {
-                  "line": 42,
-                  "column": 30
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 42,
-                "column": 29
-              },
-              "end": {
-                "line": 42,
-                "column": 30
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "V"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 42,
-            "column": 21
-          },
-          "end": {
-            "line": 42,
-            "column": 25
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
       },
       "definitions": [
         {
           "type": "FunctionDefinition",
           "id": {
             "type": "Identifier",
-            "name": "show",
-            "span": {
-              "start": {
-                "line": 43,
-                "column": 6
-              },
-              "end": {
-                "line": 43,
-                "column": 10
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "name": "show"
           },
           "params": [
             {
               "type": "FunctionParameter",
               "name": {
                 "type": "Identifier",
-                "name": "self",
-                "span": {
-                  "start": {
-                    "line": 43,
-                    "column": 11
-                  },
-                  "end": {
-                    "line": 43,
-                    "column": 15
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "self"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
                 "name": {
                   "type": "Identifier",
                   "name": "Self"
-                },
-                "span": {
-                  "start": {
-                    "line": 43,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 43,
-                    "column": 21
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 43,
-                  "column": 11
-                },
-                "end": {
-                  "line": 43,
-                  "column": 21
                 }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
               {
                 "type": "StringLiteral",
-                "value": "pair-generic",
-                "span": {
-                  "start": {
-                    "line": 43,
-                    "column": 35
-                  },
-                  "end": {
-                    "line": 43,
-                    "column": 49
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "value": "pair-generic"
               }
-            ],
-            "span": {
-              "start": {
-                "line": 43,
-                "column": 33
-              },
-              "end": {
-                "line": 43,
-                "column": 51
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 43,
-                  "column": 26
-                },
-                "end": {
-                  "line": 43,
-                  "column": 32
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 43,
-                "column": 26
-              },
-              "end": {
-                "line": 43,
-                "column": 32
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            ]
           },
           "isMethodShorthand": false,
-          "isPrivate": false,
-          "span": {
-            "start": {
-              "line": 43,
-              "column": 3
-            },
-            "end": {
-              "line": 43,
-              "column": 51
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isPrivate": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 42,
-          "column": 1
-        },
-        "end": {
-          "line": 44,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     },
     {
       "type": "ImplementationDefinition",
       "interfaceName": {
         "type": "Identifier",
-        "name": "TraitA",
-        "span": {
-          "start": {
-            "line": 46,
-            "column": 6
-          },
-          "end": {
-            "line": 46,
-            "column": 12
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "TraitA"
       },
       "targetType": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
-          "name": "Alpha",
-          "span": {
-            "start": {
-              "line": 46,
-              "column": 17
-            },
-            "end": {
-              "line": 46,
-              "column": 22
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        "span": {
-          "start": {
-            "line": 46,
-            "column": 17
-          },
-          "end": {
-            "line": 46,
-            "column": 22
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "definitions": [],
-      "span": {
-        "start": {
-          "line": 46,
-          "column": 1
-        },
-        "end": {
-          "line": 46,
-          "column": 25
+          "name": "Alpha"
         }
       },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "definitions": []
     },
     {
       "type": "ImplementationDefinition",
       "interfaceName": {
         "type": "Identifier",
-        "name": "TraitB",
-        "span": {
-          "start": {
-            "line": 47,
-            "column": 6
-          },
-          "end": {
-            "line": 47,
-            "column": 12
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "TraitB"
       },
       "targetType": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
-          "name": "Alpha",
-          "span": {
-            "start": {
-              "line": 47,
-              "column": 17
-            },
-            "end": {
-              "line": 47,
-              "column": 22
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        "span": {
-          "start": {
-            "line": 47,
-            "column": 17
-          },
-          "end": {
-            "line": 47,
-            "column": 22
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "definitions": [],
-      "span": {
-        "start": {
-          "line": 47,
-          "column": 1
-        },
-        "end": {
-          "line": 47,
-          "column": 25
+          "name": "Alpha"
         }
       },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "definitions": []
     },
     {
       "type": "ImplementationDefinition",
       "interfaceName": {
         "type": "Identifier",
-        "name": "TraitA",
-        "span": {
-          "start": {
-            "line": 48,
-            "column": 6
-          },
-          "end": {
-            "line": 48,
-            "column": 12
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "TraitA"
       },
       "targetType": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
-          "name": "Beta",
-          "span": {
-            "start": {
-              "line": 48,
-              "column": 17
-            },
-            "end": {
-              "line": 48,
-              "column": 21
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        "span": {
-          "start": {
-            "line": 48,
-            "column": 17
-          },
-          "end": {
-            "line": 48,
-            "column": 21
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "definitions": [],
-      "span": {
-        "start": {
-          "line": 48,
-          "column": 1
-        },
-        "end": {
-          "line": 48,
-          "column": 24
+          "name": "Beta"
         }
       },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      "definitions": []
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
       "left": {
         "type": "Identifier",
-        "name": "box_i32",
-        "span": {
-          "start": {
-            "line": 50,
-            "column": 1
-          },
-          "end": {
-            "line": 50,
-            "column": 8
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "box_i32"
       },
       "right": {
         "type": "StructLiteral",
         "structType": {
           "type": "Identifier",
-          "name": "Box",
-          "span": {
-            "start": {
-              "line": 50,
-              "column": 12
-            },
-            "end": {
-              "line": 50,
-              "column": 15
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "Box"
         },
         "fields": [
           {
             "type": "StructFieldInitializer",
             "name": {
               "type": "Identifier",
-              "name": "value",
-              "span": {
-                "start": {
-                  "line": 50,
-                  "column": 23
-                },
-                "end": {
-                  "line": 50,
-                  "column": 28
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "value"
             },
             "value": {
               "type": "IntegerLiteral",
-              "value": 3,
-              "span": {
-                "start": {
-                  "line": 50,
-                  "column": 30
-                },
-                "end": {
-                  "line": 50,
-                  "column": 31
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "value": 3
             },
-            "isShorthand": false,
-            "span": {
-              "start": {
-                "line": 50,
-                "column": 23
-              },
-              "end": {
-                "line": 50,
-                "column": 31
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "isShorthand": false
           }
         ],
         "isPositional": false,
@@ -3722,136 +1038,37 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "i32",
-              "span": {
-                "start": {
-                  "line": 50,
-                  "column": 16
-                },
-                "end": {
-                  "line": 50,
-                  "column": 19
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 50,
-                "column": 16
-              },
-              "end": {
-                "line": 50,
-                "column": 19
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "i32"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 50,
-            "column": 12
-          },
-          "end": {
-            "line": 50,
-            "column": 33
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "span": {
-        "start": {
-          "line": 50,
-          "column": 1
-        },
-        "end": {
-          "line": 50,
-          "column": 33
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
+      }
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
       "left": {
         "type": "Identifier",
-        "name": "box_str",
-        "span": {
-          "start": {
-            "line": 51,
-            "column": 1
-          },
-          "end": {
-            "line": 51,
-            "column": 8
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "box_str"
       },
       "right": {
         "type": "StructLiteral",
         "structType": {
           "type": "Identifier",
-          "name": "Box",
-          "span": {
-            "start": {
-              "line": 51,
-              "column": 12
-            },
-            "end": {
-              "line": 51,
-              "column": 15
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "Box"
         },
         "fields": [
           {
             "type": "StructFieldInitializer",
             "name": {
               "type": "Identifier",
-              "name": "value",
-              "span": {
-                "start": {
-                  "line": 51,
-                  "column": 26
-                },
-                "end": {
-                  "line": 51,
-                  "column": 31
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "value"
             },
             "value": {
               "type": "StringLiteral",
-              "value": "hi",
-              "span": {
-                "start": {
-                  "line": 51,
-                  "column": 33
-                },
-                "end": {
-                  "line": 51,
-                  "column": 37
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "value": "hi"
             },
-            "isShorthand": false,
-            "span": {
-              "start": {
-                "line": 51,
-                "column": 26
-              },
-              "end": {
-                "line": 51,
-                "column": 37
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "isShorthand": false
           }
         ],
         "isPositional": false,
@@ -3860,152 +1077,42 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "String",
-              "span": {
-                "start": {
-                  "line": 51,
-                  "column": 16
-                },
-                "end": {
-                  "line": 51,
-                  "column": 22
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 51,
-                "column": 16
-              },
-              "end": {
-                "line": 51,
-                "column": 22
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "String"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 51,
-            "column": 12
-          },
-          "end": {
-            "line": 51,
-            "column": 39
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "span": {
-        "start": {
-          "line": 51,
-          "column": 1
-        },
-        "end": {
-          "line": 51,
-          "column": 39
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
+      }
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
       "left": {
         "type": "Identifier",
-        "name": "wrapper",
-        "span": {
-          "start": {
-            "line": 52,
-            "column": 1
-          },
-          "end": {
-            "line": 52,
-            "column": 8
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "wrapper"
       },
       "right": {
         "type": "StructLiteral",
         "structType": {
           "type": "Identifier",
-          "name": "Wrapper",
-          "span": {
-            "start": {
-              "line": 52,
-              "column": 12
-            },
-            "end": {
-              "line": 52,
-              "column": 19
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "Wrapper"
         },
         "fields": [
           {
             "type": "StructFieldInitializer",
             "name": {
               "type": "Identifier",
-              "name": "value",
-              "span": {
-                "start": {
-                  "line": 52,
-                  "column": 29
-                },
-                "end": {
-                  "line": 52,
-                  "column": 34
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "value"
             },
             "value": {
               "type": "StructLiteral",
               "structType": {
                 "type": "Identifier",
-                "name": "Alpha",
-                "span": {
-                  "start": {
-                    "line": 52,
-                    "column": 36
-                  },
-                  "end": {
-                    "line": 52,
-                    "column": 41
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "Alpha"
               },
               "fields": [],
-              "isPositional": false,
-              "span": {
-                "start": {
-                  "line": 52,
-                  "column": 36
-                },
-                "end": {
-                  "line": 52,
-                  "column": 44
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "isPositional": false
             },
-            "isShorthand": false,
-            "span": {
-              "start": {
-                "line": 52,
-                "column": 29
-              },
-              "end": {
-                "line": 52,
-                "column": 44
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "isShorthand": false
           }
         ],
         "isPositional": false,
@@ -4014,55 +1121,11 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "Alpha",
-              "span": {
-                "start": {
-                  "line": 52,
-                  "column": 20
-                },
-                "end": {
-                  "line": 52,
-                  "column": 25
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 52,
-                "column": 20
-              },
-              "end": {
-                "line": 52,
-                "column": 25
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "Alpha"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 52,
-            "column": 12
-          },
-          "end": {
-            "line": 52,
-            "column": 46
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "span": {
-        "start": {
-          "line": 52,
-          "column": 1
-        },
-        "end": {
-          "line": 52,
-          "column": 46
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
+      }
     },
     {
       "type": "AssignmentExpression",
@@ -4071,18 +1134,7 @@
         "type": "TypedPattern",
         "pattern": {
           "type": "Identifier",
-          "name": "union_val",
-          "span": {
-            "start": {
-              "line": 53,
-              "column": 1
-            },
-            "end": {
-              "line": 53,
-              "column": 10
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "union_val"
         },
         "typeAnnotation": {
           "type": "UnionTypeExpression",
@@ -4091,253 +1143,66 @@
               "type": "SimpleTypeExpression",
               "name": {
                 "type": "Identifier",
-                "name": "Alpha",
-                "span": {
-                  "start": {
-                    "line": 53,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 53,
-                    "column": 17
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 53,
-                  "column": 12
-                },
-                "end": {
-                  "line": 53,
-                  "column": 17
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "Alpha"
+              }
             },
             {
               "type": "SimpleTypeExpression",
               "name": {
                 "type": "Identifier",
-                "name": "Beta",
-                "span": {
-                  "start": {
-                    "line": 53,
-                    "column": 20
-                  },
-                  "end": {
-                    "line": 53,
-                    "column": 24
-                  }
-                },
-                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-              },
-              "span": {
-                "start": {
-                  "line": 53,
-                  "column": 20
-                },
-                "end": {
-                  "line": 53,
-                  "column": 24
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+                "name": "Beta"
+              }
             }
-          ],
-          "span": {
-            "start": {
-              "line": 53,
-              "column": 12
-            },
-            "end": {
-              "line": 53,
-              "column": 24
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        "span": {
-          "start": {
-            "line": 53,
-            "column": 1
-          },
-          "end": {
-            "line": 53,
-            "column": 24
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          ]
+        }
       },
       "right": {
         "type": "StructLiteral",
         "structType": {
           "type": "Identifier",
-          "name": "Alpha",
-          "span": {
-            "start": {
-              "line": 53,
-              "column": 27
-            },
-            "end": {
-              "line": 53,
-              "column": 32
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "Alpha"
         },
         "fields": [],
-        "isPositional": false,
-        "span": {
-          "start": {
-            "line": 53,
-            "column": 27
-          },
-          "end": {
-            "line": 53,
-            "column": 35
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "span": {
-        "start": {
-          "line": 53,
-          "column": 1
-        },
-        "end": {
-          "line": 53,
-          "column": 35
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "isPositional": false
+      }
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
       "left": {
         "type": "Identifier",
-        "name": "pair",
-        "span": {
-          "start": {
-            "line": 54,
-            "column": 1
-          },
-          "end": {
-            "line": 54,
-            "column": 5
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "pair"
       },
       "right": {
         "type": "StructLiteral",
         "structType": {
           "type": "Identifier",
-          "name": "Pair",
-          "span": {
-            "start": {
-              "line": 54,
-              "column": 9
-            },
-            "end": {
-              "line": 54,
-              "column": 13
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "Pair"
         },
         "fields": [
           {
             "type": "StructFieldInitializer",
             "name": {
               "type": "Identifier",
-              "name": "left",
-              "span": {
-                "start": {
-                  "line": 54,
-                  "column": 26
-                },
-                "end": {
-                  "line": 54,
-                  "column": 30
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "left"
             },
             "value": {
               "type": "IntegerLiteral",
-              "value": 1,
-              "span": {
-                "start": {
-                  "line": 54,
-                  "column": 32
-                },
-                "end": {
-                  "line": 54,
-                  "column": 33
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "value": 1
             },
-            "isShorthand": false,
-            "span": {
-              "start": {
-                "line": 54,
-                "column": 26
-              },
-              "end": {
-                "line": 54,
-                "column": 33
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "isShorthand": false
           },
           {
             "type": "StructFieldInitializer",
             "name": {
               "type": "Identifier",
-              "name": "right",
-              "span": {
-                "start": {
-                  "line": 54,
-                  "column": 35
-                },
-                "end": {
-                  "line": 54,
-                  "column": 40
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "right"
             },
             "value": {
               "type": "IntegerLiteral",
-              "value": 2,
-              "span": {
-                "start": {
-                  "line": 54,
-                  "column": 42
-                },
-                "end": {
-                  "line": 54,
-                  "column": 43
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "value": 2
             },
-            "isShorthand": false,
-            "span": {
-              "start": {
-                "line": 54,
-                "column": 35
-              },
-              "end": {
-                "line": 54,
-                "column": 43
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+            "isShorthand": false
           }
         ],
         "isPositional": false,
@@ -4346,84 +1211,18 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "i32",
-              "span": {
-                "start": {
-                  "line": 54,
-                  "column": 14
-                },
-                "end": {
-                  "line": 54,
-                  "column": 17
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 54,
-                "column": 14
-              },
-              "end": {
-                "line": 54,
-                "column": 17
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "i32"
+            }
           },
           {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "i32",
-              "span": {
-                "start": {
-                  "line": 54,
-                  "column": 19
-                },
-                "end": {
-                  "line": 54,
-                  "column": 22
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 54,
-                "column": 19
-              },
-              "end": {
-                "line": 54,
-                "column": 22
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "i32"
+            }
           }
-        ],
-        "span": {
-          "start": {
-            "line": 54,
-            "column": 9
-          },
-          "end": {
-            "line": 54,
-            "column": 45
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "span": {
-        "start": {
-          "line": 54,
-          "column": 1
-        },
-        "end": {
-          "line": 54,
-          "column": 45
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        ]
+      }
     },
     {
       "type": "AssignmentExpression",
@@ -4432,86 +1231,20 @@
         "type": "TypedPattern",
         "pattern": {
           "type": "Identifier",
-          "name": "iface_val",
-          "span": {
-            "start": {
-              "line": 55,
-              "column": 1
-            },
-            "end": {
-              "line": 55,
-              "column": 10
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "name": "iface_val"
         },
         "typeAnnotation": {
           "type": "SimpleTypeExpression",
           "name": {
             "type": "Identifier",
-            "name": "Show",
-            "span": {
-              "start": {
-                "line": 55,
-                "column": 12
-              },
-              "end": {
-                "line": 55,
-                "column": 16
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "span": {
-            "start": {
-              "line": 55,
-              "column": 12
-            },
-            "end": {
-              "line": 55,
-              "column": 16
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-        },
-        "span": {
-          "start": {
-            "line": 55,
-            "column": 1
-          },
-          "end": {
-            "line": 55,
-            "column": 16
+            "name": "Show"
           }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        }
       },
       "right": {
         "type": "Identifier",
-        "name": "box_i32",
-        "span": {
-          "start": {
-            "line": 55,
-            "column": 19
-          },
-          "end": {
-            "line": 55,
-            "column": 26
-          }
-        },
-        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-      },
-      "span": {
-        "start": {
-          "line": 55,
-          "column": 1
-        },
-        "end": {
-          "line": 55,
-          "column": 26
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+        "name": "box_i32"
+      }
     },
     {
       "type": "ArrayLiteral",
@@ -4522,59 +1255,15 @@
             "type": "MemberAccessExpression",
             "object": {
               "type": "Identifier",
-              "name": "box_i32",
-              "span": {
-                "start": {
-                  "line": 58,
-                  "column": 3
-                },
-                "end": {
-                  "line": 58,
-                  "column": 10
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "box_i32"
             },
             "member": {
               "type": "Identifier",
-              "name": "show",
-              "span": {
-                "start": {
-                  "line": 58,
-                  "column": 11
-                },
-                "end": {
-                  "line": 58,
-                  "column": 15
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 58,
-                "column": 10
-              },
-              "end": {
-                "line": 58,
-                "column": 15
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "arguments": [],
-          "isTrailingLambda": false,
-          "span": {
-            "start": {
-              "line": 58,
-              "column": 15
-            },
-            "end": {
-              "line": 58,
-              "column": 17
+              "name": "show"
             }
           },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "arguments": [],
+          "isTrailingLambda": false
         },
         {
           "type": "FunctionCall",
@@ -4582,59 +1271,15 @@
             "type": "MemberAccessExpression",
             "object": {
               "type": "Identifier",
-              "name": "box_str",
-              "span": {
-                "start": {
-                  "line": 59,
-                  "column": 3
-                },
-                "end": {
-                  "line": 59,
-                  "column": 10
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "box_str"
             },
             "member": {
               "type": "Identifier",
-              "name": "show",
-              "span": {
-                "start": {
-                  "line": 59,
-                  "column": 11
-                },
-                "end": {
-                  "line": 59,
-                  "column": 15
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 59,
-                "column": 10
-              },
-              "end": {
-                "line": 59,
-                "column": 15
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "arguments": [],
-          "isTrailingLambda": false,
-          "span": {
-            "start": {
-              "line": 59,
-              "column": 15
-            },
-            "end": {
-              "line": 59,
-              "column": 17
+              "name": "show"
             }
           },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "arguments": [],
+          "isTrailingLambda": false
         },
         {
           "type": "FunctionCall",
@@ -4642,75 +1287,20 @@
             "type": "MemberAccessExpression",
             "object": {
               "type": "Identifier",
-              "name": "Fancy",
-              "span": {
-                "start": {
-                  "line": 60,
-                  "column": 3
-                },
-                "end": {
-                  "line": 60,
-                  "column": 8
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "Fancy"
             },
             "member": {
               "type": "Identifier",
-              "name": "show",
-              "span": {
-                "start": {
-                  "line": 60,
-                  "column": 9
-                },
-                "end": {
-                  "line": 60,
-                  "column": 13
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 60,
-                "column": 8
-              },
-              "end": {
-                "line": 60,
-                "column": 13
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "show"
+            }
           },
           "arguments": [
             {
               "type": "Identifier",
-              "name": "box_i32",
-              "span": {
-                "start": {
-                  "line": 60,
-                  "column": 14
-                },
-                "end": {
-                  "line": 60,
-                  "column": 21
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "box_i32"
             }
           ],
-          "isTrailingLambda": false,
-          "span": {
-            "start": {
-              "line": 60,
-              "column": 13
-            },
-            "end": {
-              "line": 60,
-              "column": 22
-            }
-          },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "isTrailingLambda": false
         },
         {
           "type": "FunctionCall",
@@ -4718,59 +1308,15 @@
             "type": "MemberAccessExpression",
             "object": {
               "type": "Identifier",
-              "name": "wrapper",
-              "span": {
-                "start": {
-                  "line": 61,
-                  "column": 3
-                },
-                "end": {
-                  "line": 61,
-                  "column": 10
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "wrapper"
             },
             "member": {
               "type": "Identifier",
-              "name": "show",
-              "span": {
-                "start": {
-                  "line": 61,
-                  "column": 11
-                },
-                "end": {
-                  "line": 61,
-                  "column": 15
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 61,
-                "column": 10
-              },
-              "end": {
-                "line": 61,
-                "column": 15
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "arguments": [],
-          "isTrailingLambda": false,
-          "span": {
-            "start": {
-              "line": 61,
-              "column": 15
-            },
-            "end": {
-              "line": 61,
-              "column": 17
+              "name": "show"
             }
           },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "arguments": [],
+          "isTrailingLambda": false
         },
         {
           "type": "FunctionCall",
@@ -4778,59 +1324,15 @@
             "type": "MemberAccessExpression",
             "object": {
               "type": "Identifier",
-              "name": "union_val",
-              "span": {
-                "start": {
-                  "line": 62,
-                  "column": 3
-                },
-                "end": {
-                  "line": 62,
-                  "column": 12
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "union_val"
             },
             "member": {
               "type": "Identifier",
-              "name": "show",
-              "span": {
-                "start": {
-                  "line": 62,
-                  "column": 13
-                },
-                "end": {
-                  "line": 62,
-                  "column": 17
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 62,
-                "column": 12
-              },
-              "end": {
-                "line": 62,
-                "column": 17
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "arguments": [],
-          "isTrailingLambda": false,
-          "span": {
-            "start": {
-              "line": 62,
-              "column": 17
-            },
-            "end": {
-              "line": 62,
-              "column": 19
+              "name": "show"
             }
           },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "arguments": [],
+          "isTrailingLambda": false
         },
         {
           "type": "FunctionCall",
@@ -4838,59 +1340,15 @@
             "type": "MemberAccessExpression",
             "object": {
               "type": "Identifier",
-              "name": "pair",
-              "span": {
-                "start": {
-                  "line": 63,
-                  "column": 3
-                },
-                "end": {
-                  "line": 63,
-                  "column": 7
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "pair"
             },
             "member": {
               "type": "Identifier",
-              "name": "show",
-              "span": {
-                "start": {
-                  "line": 63,
-                  "column": 8
-                },
-                "end": {
-                  "line": 63,
-                  "column": 12
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 63,
-                "column": 7
-              },
-              "end": {
-                "line": 63,
-                "column": 12
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "arguments": [],
-          "isTrailingLambda": false,
-          "span": {
-            "start": {
-              "line": 63,
-              "column": 12
-            },
-            "end": {
-              "line": 63,
-              "column": 14
+              "name": "show"
             }
           },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "arguments": [],
+          "isTrailingLambda": false
         },
         {
           "type": "FunctionCall",
@@ -4898,83 +1356,17 @@
             "type": "MemberAccessExpression",
             "object": {
               "type": "Identifier",
-              "name": "iface_val",
-              "span": {
-                "start": {
-                  "line": 64,
-                  "column": 3
-                },
-                "end": {
-                  "line": 64,
-                  "column": 12
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+              "name": "iface_val"
             },
             "member": {
               "type": "Identifier",
-              "name": "show",
-              "span": {
-                "start": {
-                  "line": 64,
-                  "column": 13
-                },
-                "end": {
-                  "line": 64,
-                  "column": 17
-                }
-              },
-              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-            },
-            "span": {
-              "start": {
-                "line": 64,
-                "column": 12
-              },
-              "end": {
-                "line": 64,
-                "column": 17
-              }
-            },
-            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
-          },
-          "arguments": [],
-          "isTrailingLambda": false,
-          "span": {
-            "start": {
-              "line": 64,
-              "column": 17
-            },
-            "end": {
-              "line": 64,
-              "column": 19
+              "name": "show"
             }
           },
-          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+          "arguments": [],
+          "isTrailingLambda": false
         }
-      ],
-      "span": {
-        "start": {
-          "line": 57,
-          "column": 1
-        },
-        "end": {
-          "line": 65,
-          "column": 2
-        }
-      },
-      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+      ]
     }
-  ],
-  "span": {
-    "start": {
-      "line": 1,
-      "column": 1
-    },
-    "end": {
-      "line": 66,
-      "column": 1
-    }
-  },
-  "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity/source.able"
+  ]
 }

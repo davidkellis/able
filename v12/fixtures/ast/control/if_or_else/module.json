@@ -25,7 +25,7 @@
         "type": "IfExpression",
         "ifCondition": {
           "type": "BinaryExpression",
-          "operator": ">=",
+          "operator": "\u003e=",
           "left": {
             "type": "Identifier",
             "name": "score"
@@ -49,7 +49,7 @@
             "type": "ElseIfClause",
             "condition": {
               "type": "BinaryExpression",
-              "operator": ">=",
+              "operator": "\u003e=",
               "left": {
                 "type": "Identifier",
                 "name": "score"

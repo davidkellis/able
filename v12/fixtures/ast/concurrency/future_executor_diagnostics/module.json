@@ -108,7 +108,7 @@
       "type": "IfExpression",
       "ifCondition": {
         "type": "BinaryExpression",
-        "operator": "<=",
+        "operator": "\u003c=",
         "left": {
           "type": "Identifier",
           "name": "pending_mid"
@@ -186,10 +186,10 @@
       "type": "WhileLoop",
       "condition": {
         "type": "BinaryExpression",
-        "operator": "&&",
+        "operator": "\u0026\u0026",
         "left": {
           "type": "BinaryExpression",
-          "operator": ">",
+          "operator": "\u003e",
           "left": {
             "type": "Identifier",
             "name": "pending_end"
@@ -201,7 +201,7 @@
         },
         "right": {
           "type": "BinaryExpression",
-          "operator": "<",
+          "operator": "\u003c",
           "left": {
             "type": "Identifier",
             "name": "attempts"

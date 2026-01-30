@@ -36,15 +36,6 @@
           }
         }
       ],
-      "body": {
-        "type": "BlockExpression",
-        "body": [
-          {
-            "type": "Identifier",
-            "name": "value"
-          }
-        ]
-      },
       "returnType": {
         "type": "UnionTypeExpression",
         "members": [
@@ -61,6 +52,15 @@
               "type": "Identifier",
               "name": "i32"
             }
+          }
+        ]
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "Identifier",
+            "name": "value"
           }
         ]
       },

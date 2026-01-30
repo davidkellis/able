@@ -1,0 +1,18 @@
+struct Payload
+
+impl Error for Payload {
+  fn message(self: Self) -> String { "payload" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+recovered := do {
+  raise Payload
+  Payload
+} rescue {
+  case err: Error => err as Payload
+}
+
+recovered match {
+  case Payload => "ok",
+  case _ => "bad"
+}

@@ -41,10 +41,28 @@ lowering target for the AST (pre-IR) and must remain in parity with tree-walker 
 - **Values**: VM uses the same `runtime.Value` types as the tree-walker.
 - **Control flow**: absolute jump targets by instruction index.
 
+### Instruction encoding (in-memory)
+The Go VM currently uses an in-memory struct representation (no serialized bytecode
+format yet). Each instruction carries inline operands:
+- `op`: opcode enum.
+- `name`: identifier payload for `load_name`, `assign_name`, `call_name`, `break_label`.
+- `operator`: operator token for `binary`, `unary`, compound assignments, member/index sets.
+- `value`: literal `runtime.Value` for `const`.
+- `target`: absolute instruction index for jumps.
+- `argCount`: arity for `call`, `call_name`, `array_literal`, `string_interp`, `exit_scope`.
+- `loopBreak`/`loopContinue`: jump targets recorded by `loop_enter`.
+- `node`: AST node used for diagnostics and fallback evaluation (match/rescue/ensure/etc.).
+- `program`: nested bytecode program for placeholder lambdas and iterator literals.
+- `safe`/`preferMethods`: member-access flags (safe navigation + method preference).
+
 ### Execution + call frames
 - The VM itself is not re-entrant; nested execution (e.g., placeholder lambdas) spins up
   a new VM instance.
-- Function calls use the same runtime overload dispatch as the tree-walker.
+- Function calls use the same runtime overload dispatch as the tree-walker and do **not**
+  allocate an explicit VM call frame.
+- `call` expects the callee below its arguments on the stack; arguments are pushed
+  left-to-right, then popped in reverse to preserve order before invoking the callee.
+- `call_name` pops only arguments and resolves the callee by name (including `Type.method`).
 - Runtime diagnostics attach to AST nodes captured on each instruction where needed.
 
 ### Concurrency + async
@@ -77,7 +95,8 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
 - `cast`: `S, value -> S, coerced`
 - `string_interp <n>`: `S, parts... -> S, string`
 - `propagate`: `S, value -> S, value` (raises if value is `Error`/`!T`)
-- `or_else`: delegated to tree-walker with per-expression bytecode fallback.
+- `or_else`: opcode that evaluates the main expression via fallback, binds errors in a
+  new scope, and runs the handler inline.
 
 #### Calls + member access
 - `call <n>`: `S, callee, args... -> S, result`
@@ -136,18 +155,15 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
 #### Errors + rescue
 - `raise`: delegates to tree-walker; returns `raiseSignal`
 - `rethrow`: delegates to tree-walker; returns `raiseSignal`
-- `or_else`: opcode that evaluates the main expression via fallback, binds
-  errors in a new scope, and runs the handler inline.
 - `match`: `S, subject -> S, result` (clause bodies and guards use fallback eval)
 - `ensure`: opcode that evaluates the try expression via fallback, runs the ensure
   block inline, then rethrows any captured error or yields the try result.
-- `await`: `S, iterable -> S, result` (await arms are collected from the iterable)
 - `rescue`: opcode that evaluates the monitored expression via fallback, matches
   clauses inline, and returns the handled value or rethrows.
 
 #### Spawn / await
 - `spawn`: schedules async task; returns `Future`
-- `await`: drives awaitable protocol with cooperative yields on serial executor
+- `await`: `S, iterable -> S, result` (collects await arms; cooperates with the serial executor)
 
 #### Eval fallbacks
 - `eval_expression`: evaluate expression in tree-walker (used for unsupported nodes)

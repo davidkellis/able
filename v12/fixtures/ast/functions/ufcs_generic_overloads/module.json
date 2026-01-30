@@ -8,6 +8,15 @@
         "type": "Identifier",
         "name": "Box"
       },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
       "fields": [
         {
           "type": "StructFieldDefinition",
@@ -24,7 +33,14 @@
           }
         }
       ],
-      "kind": "named",
+      "kind": "named"
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "describe"
+      },
       "genericParams": [
         {
           "type": "GenericParameter",
@@ -33,14 +49,7 @@
             "name": "T"
           }
         }
-      ]
-    },
-    {
-      "type": "FunctionDefinition",
-      "id": {
-        "type": "Identifier",
-        "name": "describe"
-      },
+      ],
       "params": [
         {
           "type": "FunctionParameter",
@@ -69,6 +78,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -78,22 +94,6 @@
           }
         ]
       },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
-      },
-      "genericParams": [
-        {
-          "type": "GenericParameter",
-          "name": {
-            "type": "Identifier",
-            "name": "T"
-          }
-        }
-      ],
       "isMethodShorthand": false,
       "isPrivate": false
     },
@@ -131,6 +131,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -154,13 +161,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -213,6 +213,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -236,13 +243,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -362,7 +362,7 @@
         },
         {
           "type": "BinaryExpression",
-          "operator": "|>",
+          "operator": "|\u003e",
           "left": {
             "type": "Identifier",
             "name": "intBox"
@@ -413,7 +413,7 @@
         },
         {
           "type": "BinaryExpression",
-          "operator": "|>",
+          "operator": "|\u003e",
           "left": {
             "type": "Identifier",
             "name": "intBox"
@@ -435,7 +435,7 @@
         },
         {
           "type": "BinaryExpression",
-          "operator": "|>",
+          "operator": "|\u003e",
           "left": {
             "type": "Identifier",
             "name": "boolBox"

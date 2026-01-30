@@ -38,6 +38,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -57,13 +64,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -90,6 +90,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -109,13 +116,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -161,6 +161,13 @@
             "name": "double"
           },
           "params": [],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -183,13 +190,6 @@
                 }
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "i32"
-            }
           },
           "isMethodShorthand": true,
           "isPrivate": false
@@ -217,7 +217,7 @@
       },
       "right": {
         "type": "BinaryExpression",
-        "operator": "|>",
+        "operator": "|\u003e",
         "left": {
           "type": "Identifier",
           "name": "value"
@@ -245,7 +245,7 @@
       },
       "right": {
         "type": "BinaryExpression",
-        "operator": "|>",
+        "operator": "|\u003e",
         "left": {
           "type": "Identifier",
           "name": "value"
@@ -315,7 +315,7 @@
       },
       "right": {
         "type": "BinaryExpression",
-        "operator": "|>",
+        "operator": "|\u003e",
         "left": {
           "type": "Identifier",
           "name": "value"
@@ -335,7 +335,7 @@
       },
       "right": {
         "type": "BinaryExpression",
-        "operator": "|>",
+        "operator": "|\u003e",
         "left": {
           "type": "StructLiteral",
           "structType": {

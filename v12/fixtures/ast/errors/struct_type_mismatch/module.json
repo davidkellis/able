@@ -4,29 +4,78 @@
   "body": [
     {
       "type": "StructDefinition",
-      "id": { "type": "Identifier", "name": "Point" },
+      "id": {
+        "type": "Identifier",
+        "name": "Point"
+      },
       "fields": [
-        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "x" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } }
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
       ],
       "kind": "named"
     },
     {
       "type": "StructDefinition",
-      "id": { "type": "Identifier", "name": "Vector" },
+      "id": {
+        "type": "Identifier",
+        "name": "Vector"
+      },
       "fields": [
-        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "dx" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } }
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "dx"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
       ],
       "kind": "named"
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
-      "left": { "type": "Identifier", "name": "p" },
+      "left": {
+        "type": "Identifier",
+        "name": "p"
+      },
       "right": {
         "type": "StructLiteral",
-        "structType": { "type": "Identifier", "name": "Point" },
+        "structType": {
+          "type": "Identifier",
+          "name": "Point"
+        },
         "fields": [
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 }, "isShorthand": false }
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          }
         ],
         "isPositional": false
       }
@@ -36,13 +85,29 @@
       "operator": ":=",
       "left": {
         "type": "StructPattern",
-        "isPositional": false,
-        "structType": { "type": "Identifier", "name": "Vector" },
+        "structType": {
+          "type": "Identifier",
+          "name": "Vector"
+        },
         "fields": [
-          { "type": "StructPatternField", "fieldName": { "type": "Identifier", "name": "dx" }, "pattern": { "type": "Identifier", "name": "dx" } }
-        ]
+          {
+            "type": "StructPatternField",
+            "fieldName": {
+              "type": "Identifier",
+              "name": "dx"
+            },
+            "pattern": {
+              "type": "Identifier",
+              "name": "dx"
+            }
+          }
+        ],
+        "isPositional": false
       },
-      "right": { "type": "Identifier", "name": "p" }
+      "right": {
+        "type": "Identifier",
+        "name": "p"
+      }
     }
   ]
 }

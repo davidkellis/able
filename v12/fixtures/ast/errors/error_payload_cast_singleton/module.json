@@ -1,0 +1,206 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Payload"
+      },
+      "fields": [],
+      "kind": "singleton"
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Error"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Payload"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "message"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "StringLiteral",
+                "value": "payload"
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "cause"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "NullableTypeExpression",
+            "innerType": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Error"
+              }
+            }
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "NilLiteral",
+                "value": null
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "recovered"
+      },
+      "right": {
+        "type": "RescueExpression",
+        "monitoredExpression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "RaiseStatement",
+              "expression": {
+                "type": "Identifier",
+                "name": "Payload"
+              }
+            },
+            {
+              "type": "Identifier",
+              "name": "Payload"
+            }
+          ]
+        },
+        "clauses": [
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "TypedPattern",
+              "pattern": {
+                "type": "Identifier",
+                "name": "err"
+              },
+              "typeAnnotation": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Error"
+                }
+              }
+            },
+            "body": {
+              "type": "TypeCastExpression",
+              "expression": {
+                "type": "Identifier",
+                "name": "err"
+              },
+              "targetType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Payload"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "MatchExpression",
+      "subject": {
+        "type": "Identifier",
+        "name": "recovered"
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "Identifier",
+            "name": "Payload"
+          },
+          "body": {
+            "type": "StringLiteral",
+            "value": "ok"
+          }
+        },
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "WildcardPattern"
+          },
+          "body": {
+            "type": "StringLiteral",
+            "value": "bad"
+          }
+        }
+      ]
+    }
+  ]
+}

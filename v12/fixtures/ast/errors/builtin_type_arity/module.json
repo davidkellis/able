@@ -24,16 +24,16 @@
           }
         }
       ],
-      "body": {
-        "type": "BlockExpression",
-        "body": []
-      },
       "returnType": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
           "name": "void"
         }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": []
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -72,16 +72,16 @@
           }
         }
       ],
-      "body": {
-        "type": "BlockExpression",
-        "body": []
-      },
       "returnType": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
           "name": "void"
         }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": []
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -120,16 +120,16 @@
           }
         }
       ],
-      "body": {
-        "type": "BlockExpression",
-        "body": []
-      },
       "returnType": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
           "name": "void"
         }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": []
       },
       "isMethodShorthand": false,
       "isPrivate": false

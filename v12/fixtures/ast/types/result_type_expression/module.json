@@ -9,15 +9,6 @@
         "name": "always_ok"
       },
       "params": [],
-      "body": {
-        "type": "BlockExpression",
-        "body": [
-          {
-            "type": "IntegerLiteral",
-            "value": 7
-          }
-        ]
-      },
       "returnType": {
         "type": "ResultTypeExpression",
         "innerType": {
@@ -27,6 +18,15 @@
             "name": "i32"
           }
         }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "IntegerLiteral",
+            "value": 7
+          }
+        ]
       },
       "isMethodShorthand": false,
       "isPrivate": false

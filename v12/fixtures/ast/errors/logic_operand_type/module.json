@@ -4,9 +4,15 @@
   "body": [
     {
       "type": "BinaryExpression",
-      "operator": "&&",
-      "left": { "type": "StringLiteral", "value": "oops" },
-      "right": { "type": "BooleanLiteral", "value": true }
+      "operator": "\u0026\u0026",
+      "left": {
+        "type": "StringLiteral",
+        "value": "oops"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": true
+      }
     }
   ]
 }

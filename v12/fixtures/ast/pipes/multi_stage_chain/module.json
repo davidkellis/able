@@ -38,6 +38,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -57,13 +64,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -90,6 +90,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -119,13 +126,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "Box"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -200,6 +200,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Self"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -245,13 +252,6 @@
               }
             ]
           },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "Self"
-            }
-          },
           "isMethodShorthand": false,
           "isPrivate": false
         },
@@ -277,6 +277,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -303,13 +310,6 @@
                 }
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "i32"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false
@@ -338,6 +338,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -367,13 +374,6 @@
           }
         ]
       },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "Box"
-        }
-      },
       "isMethodShorthand": false,
       "isPrivate": false
     },
@@ -399,6 +399,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -422,13 +429,6 @@
             }
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "i32"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -454,19 +454,19 @@
       },
       "right": {
         "type": "BinaryExpression",
-        "operator": "|>",
+        "operator": "|\u003e",
         "left": {
           "type": "BinaryExpression",
-          "operator": "|>",
+          "operator": "|\u003e",
           "left": {
             "type": "BinaryExpression",
-            "operator": "|>",
+            "operator": "|\u003e",
             "left": {
               "type": "BinaryExpression",
-              "operator": "|>",
+              "operator": "|\u003e",
               "left": {
                 "type": "BinaryExpression",
-                "operator": "|>",
+                "operator": "|\u003e",
                 "left": {
                   "type": "Identifier",
                   "name": "start"

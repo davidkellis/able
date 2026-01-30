@@ -9,7 +9,7 @@
         "name": "ChannelClosed"
       },
       "fields": [],
-      "kind": "named"
+      "kind": "singleton"
     },
     {
       "type": "StructDefinition",
@@ -18,7 +18,7 @@
         "name": "ChannelNil"
       },
       "fields": [],
-      "kind": "named"
+      "kind": "singleton"
     },
     {
       "type": "StructDefinition",
@@ -27,7 +27,7 @@
         "name": "ChannelSendOnClosed"
       },
       "fields": [],
-      "kind": "named"
+      "kind": "singleton"
     },
     {
       "type": "AssignmentExpression",
@@ -39,56 +39,53 @@
       "right": {
         "type": "OrElseExpression",
         "expression": {
-          "type": "PropagationExpression",
-          "expression": {
-            "type": "RescueExpression",
-            "monitoredExpression": {
-              "type": "BlockExpression",
-              "body": [
-                {
-                  "type": "FunctionCall",
-                  "callee": {
-                    "type": "Identifier",
-                    "name": "__able_channel_close"
-                  },
-                  "arguments": [
-                    {
-                      "type": "IntegerLiteral",
-                      "value": 0
-                    }
-                  ],
-                  "isTrailingLambda": false
-                },
-                {
-                  "type": "StringLiteral",
-                  "value": "ok"
-                }
-              ]
-            },
-            "clauses": [
+          "type": "RescueExpression",
+          "monitoredExpression": {
+            "type": "BlockExpression",
+            "body": [
               {
-                "type": "MatchClause",
-                "pattern": {
-                  "type": "TypedPattern",
-                  "pattern": {
-                    "type": "Identifier",
-                    "name": "err"
-                  },
-                  "typeAnnotation": {
-                    "type": "SimpleTypeExpression",
-                    "name": {
-                      "type": "Identifier",
-                      "name": "Error"
-                    }
-                  }
-                },
-                "body": {
+                "type": "FunctionCall",
+                "callee": {
                   "type": "Identifier",
-                  "name": "err"
-                }
+                  "name": "__able_channel_close"
+                },
+                "arguments": [
+                  {
+                    "type": "IntegerLiteral",
+                    "value": 0
+                  }
+                ],
+                "isTrailingLambda": false
+              },
+              {
+                "type": "StringLiteral",
+                "value": "ok"
               }
             ]
-          }
+          },
+          "clauses": [
+            {
+              "type": "MatchClause",
+              "pattern": {
+                "type": "TypedPattern",
+                "pattern": {
+                  "type": "Identifier",
+                  "name": "err"
+                },
+                "typeAnnotation": {
+                  "type": "SimpleTypeExpression",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "Error"
+                  }
+                }
+              },
+              "body": {
+                "type": "Identifier",
+                "name": "err"
+              }
+            }
+          ]
         },
         "handler": {
           "type": "BlockExpression",

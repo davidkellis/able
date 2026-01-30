@@ -4,10 +4,16 @@
     {
       "type": "ImportStatement",
       "packagePath": [
-        { "type": "Identifier", "name": "util_static" }
+        {
+          "type": "Identifier",
+          "name": "util_static"
+        }
       ],
       "isWildcard": false,
-      "alias": { "type": "Identifier", "name": "U" }
+      "alias": {
+        "type": "Identifier",
+        "name": "U"
+      }
     }
   ],
   "body": [
@@ -15,8 +21,14 @@
       "type": "FunctionCall",
       "callee": {
         "type": "MemberAccessExpression",
-        "object": { "type": "Identifier", "name": "U" },
-        "member": { "type": "Identifier", "name": "hidden" }
+        "object": {
+          "type": "Identifier",
+          "name": "U"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "hidden"
+        }
       },
       "arguments": [],
       "isTrailingLambda": false

@@ -4,8 +4,14 @@
   "body": [
     {
       "type": "RangeExpression",
-      "start": { "type": "StringLiteral", "value": "start" },
-      "end": { "type": "IntegerLiteral", "value": 5 },
+      "start": {
+        "type": "StringLiteral",
+        "value": "start"
+      },
+      "end": {
+        "type": "IntegerLiteral",
+        "value": 5
+      },
       "inclusive": false
     }
   ]

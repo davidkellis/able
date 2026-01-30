@@ -130,7 +130,7 @@
                     },
                     "right": {
                       "type": "BinaryExpression",
-                      "operator": ">=",
+                      "operator": "\u003e=",
                       "left": {
                         "type": "Identifier",
                         "name": "stage_b"
@@ -245,7 +245,7 @@
                     },
                     "right": {
                       "type": "BinaryExpression",
-                      "operator": ">=",
+                      "operator": "\u003e=",
                       "left": {
                         "type": "Identifier",
                         "name": "stage_a"

@@ -72,6 +72,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -133,13 +140,6 @@
               }
             ]
           },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "i32"
-            }
-          },
           "isMethodShorthand": false,
           "isPrivate": false
         },
@@ -179,6 +179,13 @@
               }
             }
           ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Point"
+            }
+          },
           "body": {
             "type": "BlockExpression",
             "body": [
@@ -247,13 +254,6 @@
                 "isPositional": false
               }
             ]
-          },
-          "returnType": {
-            "type": "SimpleTypeExpression",
-            "name": {
-              "type": "Identifier",
-              "name": "Point"
-            }
           },
           "isMethodShorthand": false,
           "isPrivate": false
@@ -403,7 +403,7 @@
         },
         {
           "type": "BinaryExpression",
-          "operator": "|>",
+          "operator": "|\u003e",
           "left": {
             "type": "Identifier",
             "name": "p"

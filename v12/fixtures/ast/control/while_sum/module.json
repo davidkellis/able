@@ -42,7 +42,7 @@
       "type": "WhileLoop",
       "condition": {
         "type": "BinaryExpression",
-        "operator": "<",
+        "operator": "\u003c",
         "left": {
           "type": "Identifier",
           "name": "i"

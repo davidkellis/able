@@ -38,6 +38,13 @@
           }
         }
       ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "T"
+        }
+      },
       "body": {
         "type": "BlockExpression",
         "body": [
@@ -46,13 +53,6 @@
             "name": "first"
           }
         ]
-      },
-      "returnType": {
-        "type": "SimpleTypeExpression",
-        "name": {
-          "type": "Identifier",
-          "name": "T"
-        }
       },
       "isMethodShorthand": false,
       "isPrivate": false

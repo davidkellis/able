@@ -12,7 +12,10 @@
       "right": {
         "type": "ArrayLiteral",
         "elements": [
-          { "type": "IntegerLiteral", "value": 1 }
+          {
+            "type": "IntegerLiteral",
+            "value": 1
+          }
         ]
       }
     },
@@ -22,11 +25,20 @@
       "left": {
         "type": "ArrayPattern",
         "elements": [
-          { "type": "Identifier", "name": "a" },
-          { "type": "Identifier", "name": "b" }
+          {
+            "type": "Identifier",
+            "name": "a"
+          },
+          {
+            "type": "Identifier",
+            "name": "b"
+          }
         ]
       },
-      "right": { "type": "Identifier", "name": "arr" }
+      "right": {
+        "type": "Identifier",
+        "name": "arr"
+      }
     }
   ]
 }

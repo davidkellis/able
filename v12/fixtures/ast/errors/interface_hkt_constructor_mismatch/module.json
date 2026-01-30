@@ -28,7 +28,11 @@
         },
         "arguments": [
           {
-            "type": "WildcardTypeExpression"
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "_"
+            }
           }
         ]
       },
@@ -110,8 +114,6 @@
         "type": "Identifier",
         "name": "Array"
       },
-      "fields": [],
-      "kind": "named",
       "genericParams": [
         {
           "type": "GenericParameter",
@@ -120,7 +122,9 @@
             "name": "T"
           }
         }
-      ]
+      ],
+      "fields": [],
+      "kind": "singleton"
     },
     {
       "type": "ImplementationDefinition",
@@ -205,15 +209,6 @@
               }
             }
           ],
-          "body": {
-            "type": "BlockExpression",
-            "body": [
-              {
-                "type": "Identifier",
-                "name": "self"
-              }
-            ]
-          },
           "returnType": {
             "type": "GenericTypeExpression",
             "base": {
@@ -230,6 +225,15 @@
                   "type": "Identifier",
                   "name": "i32"
                 }
+              }
+            ]
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "Identifier",
+                "name": "self"
               }
             ]
           },
