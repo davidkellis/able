@@ -1,0 +1,29 @@
+package exec_06_03_cast_semantics
+interface Show {
+  fn render(self: Self) -> String
+}
+
+struct Point { x: i32, y: i32 }
+
+impl Show for Point {
+  fn render(self: Self) -> String { `(${self.x},${self.y})` }
+}
+
+fn main() -> void {
+  wrap := 256_u16 as u8
+  neg := -1_i16 as u8
+  intf := 42_i32 as f64
+  floatf := 1.5 as f32
+  trunc := 3.9 as i32
+
+  print(`wrap ${wrap}`)
+  print(`neg ${neg}`)
+  print(`intf ${intf}`)
+  print(`floatf ${floatf}`)
+  print(`trunc ${trunc}`)
+
+  point := Point { x: 1, y: 2 }
+  show := point as Show
+  print(show.render())
+
+}

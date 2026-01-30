@@ -12,7 +12,7 @@ func (vm *bytecodeVM) execOrElse(instr bytecodeInstruction) (bool, error) {
 	if !ok || orElseExpr == nil {
 		return false, fmt.Errorf("bytecode or-else expects node")
 	}
-	val, err := vm.evalExpressionWithFallback(orElseExpr.Expression, vm.env)
+	val, err := vm.evalExpressionBytecode(orElseExpr.Expression, vm.env)
 	if err != nil {
 		if rs, ok := err.(raiseSignal); ok {
 			err = nil

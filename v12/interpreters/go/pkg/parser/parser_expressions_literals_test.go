@@ -158,6 +158,140 @@ fn classify(point: Point) -> i32 {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestParseCastExpression(t *testing.T) {
+	source := `fn casty() {
+  wrap := 256_u16 as u8
+  trunc := 3.9 as i32
+  nested := 1_u16 as u8 as i32
+  point := Point { x: 1, y: 2 }
+  show := point as Display
+}
+`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	u16 := ast.IntegerTypeU16
+
+	wrap := ast.Assign(
+		ast.ID("wrap"),
+		ast.NewTypeCastExpression(ast.IntTyped(256, &u16), ast.Ty("u8")),
+	)
+	trunc := ast.Assign(
+		ast.ID("trunc"),
+		ast.NewTypeCastExpression(ast.Flt(3.9), ast.Ty("i32")),
+	)
+	nested := ast.Assign(
+		ast.ID("nested"),
+		ast.NewTypeCastExpression(
+			ast.NewTypeCastExpression(ast.IntTyped(1, &u16), ast.Ty("u8")),
+			ast.Ty("i32"),
+		),
+	)
+	point := ast.Assign(
+		ast.ID("point"),
+		ast.StructLit(
+			[]*ast.StructFieldInitializer{
+				ast.FieldInit(ast.Int(1), "x"),
+				ast.FieldInit(ast.Int(2), "y"),
+			},
+			false,
+			"Point",
+			nil,
+			nil,
+		),
+	)
+	show := ast.Assign(
+		ast.ID("show"),
+		ast.NewTypeCastExpression(ast.ID("point"), ast.Ty("Display")),
+	)
+
+	body := ast.Block(
+		wrap,
+		trunc,
+		nested,
+		point,
+		show,
+	)
+
+	expected := ast.NewModule([]ast.Statement{
+		ast.NewFunctionDefinition(
+			ast.ID("casty"),
+			nil,
+			body,
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+	}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseCastExpressionNewlineTermination(t *testing.T) {
+	source := `fn casty() {
+  casted := 3.7 as i32
+  print(casted)
+}
+`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	casted := ast.Assign(
+		ast.ID("casted"),
+		ast.NewTypeCastExpression(ast.Flt(3.7), ast.Ty("i32")),
+	)
+	printCall := ast.NewFunctionCall(
+		ast.ID("print"),
+		[]ast.Expression{ast.ID("casted")},
+		nil,
+		false,
+	)
+
+	body := ast.Block(
+		casted,
+		printCall,
+	)
+
+	fn := ast.NewFunctionDefinition(
+		ast.ID("casty"),
+		nil,
+		body,
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	expected := ast.NewModule([]ast.Statement{
+		fn,
+	}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
 func TestParsePropagationAndOrElse(t *testing.T) {
 source := `fn handlers(opt: ?i32, res: !i32) -> !i32 {
  	value := opt! or { 0 }

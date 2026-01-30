@@ -25,6 +25,60 @@ func (ctx *parseContext) parseBlock(node *sitter.Node) (*ast.BlockExpression, er
 		if node.FieldNameForChild(uint32(i-1)) == "binding" && child.Kind() == "identifier" {
 			continue
 		}
+		if child.Kind() == "elsif_clause_statement" || child.Kind() == "else_clause_statement" {
+			if len(statements) == 0 {
+				return nil, wrapParseError(child, fmt.Errorf("parser: %s without preceding if expression", child.Kind()))
+			}
+			target := findIfExpressionTarget(statements[len(statements)-1])
+			if target == nil {
+				return nil, wrapParseError(child, fmt.Errorf("parser: %s without preceding if expression", child.Kind()))
+			}
+			switch child.Kind() {
+			case "elsif_clause_statement":
+				if target.ElseBody != nil {
+					return nil, wrapParseError(child, fmt.Errorf("parser: elsif clause after else"))
+				}
+				clause, err := ctx.parseElseIfClause(child)
+				if err != nil {
+					return nil, wrapParseError(child, err)
+				}
+				target.ElseIfClauses = append(target.ElseIfClauses, clause)
+				extendExpressionToNode(target, child)
+				if elseClause := child.ChildByFieldName("else_clause"); elseClause != nil {
+					if target.ElseBody != nil {
+						return nil, wrapParseError(elseClause, fmt.Errorf("parser: duplicate else clause"))
+					}
+					bodyNode := elseClause.ChildByFieldName("alternative")
+					if bodyNode == nil {
+						bodyNode = firstNamedChild(elseClause)
+					}
+					if bodyNode == nil {
+						return nil, wrapParseError(elseClause, fmt.Errorf("parser: else clause missing body"))
+					}
+					body, err := ctx.parseBlock(bodyNode)
+					if err != nil {
+						return nil, wrapParseError(bodyNode, err)
+					}
+					target.ElseBody = body
+					extendExpressionToNode(target, elseClause)
+				}
+			case "else_clause_statement":
+				if target.ElseBody != nil {
+					return nil, wrapParseError(child, fmt.Errorf("parser: duplicate else clause"))
+				}
+				bodyNode := child.ChildByFieldName("alternative")
+				if bodyNode == nil {
+					return nil, wrapParseError(child, fmt.Errorf("parser: else clause missing body"))
+				}
+				body, err := ctx.parseBlock(bodyNode)
+				if err != nil {
+					return nil, wrapParseError(bodyNode, err)
+				}
+				target.ElseBody = body
+				extendExpressionToNode(target, child)
+			}
+			continue
+		}
 		var (
 			stmt ast.Statement
 			err  error
@@ -131,6 +185,26 @@ func (ctx *parseContext) parseBlock(node *sitter.Node) (*ast.BlockExpression, er
 	block := ast.NewBlockExpression(statements)
 	annotateExpression(block, node)
 	return block, nil
+}
+
+func findIfExpressionTarget(stmt ast.Statement) *ast.IfExpression {
+	switch s := stmt.(type) {
+	case *ast.IfExpression:
+		return s
+	case *ast.AssignmentExpression:
+		if expr, ok := s.Right.(*ast.IfExpression); ok {
+			return expr
+		}
+	case *ast.ReturnStatement:
+		if expr, ok := s.Argument.(*ast.IfExpression); ok {
+			return expr
+		}
+	case *ast.BreakStatement:
+		if expr, ok := s.Value.(*ast.IfExpression); ok {
+			return expr
+		}
+	}
+	return nil
 }
 
 func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error) {

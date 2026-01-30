@@ -52,26 +52,26 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
     - Done: while loops + break/continue (bytecode lowering/VM).
     - Done: for loops (native bytecode lowering).
     - Done: loop expression + break/continue (bytecode lowering).
-    - Done: match expressions (bytecode opcode delegation).
-    - Done: raise/rescue (bytecode opcode delegation).
-    - Done: ensure/rethrow (bytecode opcode delegation).
-    - Done: await (bytecode opcode delegation).
+    - Done: match expressions (native bytecode for subject; clause bodies/guards delegated).
+    - Done: raise/rescue (native bytecode rescue; raise delegated).
+    - Done: ensure/rethrow (native bytecode ensure; rethrow delegated).
+    - Done: await (native bytecode for iterable; await protocol delegated).
     - Done: unary/range/typecast (native bytecode lowering + VM ops).
     - Done: string interpolation (native bytecode lowering + VM op).
     - Done: propagation (native bytecode op).
     - Done: pattern assignments (native bytecode lowering + VM).
     - Done: compound assignments for identifiers (native bytecode lowering + VM).
-    - Done: or-else (bytecode opcode delegation).
+    - Done: or-else (native bytecode handler; main expression delegated).
     - Done: spawn (native bytecode op).
     - Done: implicit member expressions (bytecode opcode delegation).
-    - Done: iterator literal (bytecode opcode delegation).
-    - Done: breakpoint expression (bytecode opcode delegation).
+    - Done: iterator literal (bytecode opcode delegation with bytecode body when possible).
+    - Done: breakpoint expression (native bytecode labeled break).
     - Done: placeholder lambdas (bytecode opcode delegation).
-    - Done: definition statements via bytecode ops (function/struct/union/type alias/methods/interface/impl/extern); imports still delegated.
+    - Done: definition statements via bytecode ops (function/struct/union/type alias/methods/interface/impl/extern/import/dynimport).
     - Done: return statements (bytecode lowering + VM return signal).
     - Done: short-circuit/pipeline operators (native bytecode lowering).
-  - Lower more AST nodes to bytecode; keep tree-walker fallback for unsupported nodes.
-    - Remaining delegated ops: rescue/await/breakpoint/iterator literals.
+  - Lower more AST nodes to bytecode; remove tree-walker fallback for bytecode execution.
+    - Remaining delegated ops: none (bytecode-only; iterator literals, guards, and bodies lowered with no fallback).
   - Add VM/tree-walker parity tests for each newly supported feature (unit + fixtures).
   - Add bytecode conformance fixtures that run through both VM + tree-walker paths.
     - Done: map literal/spread bytecode fixture in exec coverage.

@@ -546,6 +546,14 @@
     "focus": "operator dispatch via Add/Index/IndexMut interfaces on custom structs"
   },
   {
+    "id": "exec/06_03_cast_semantics",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.5"
+    ],
+    "focus": "explicit casts for numeric conversions and interface upcasts"
+  },
+  {
     "id": "exec/14_01_language_interfaces_index_apply_iterable",
     "status": "seeded",
     "spec_sections": [

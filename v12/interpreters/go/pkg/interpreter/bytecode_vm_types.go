@@ -15,6 +15,7 @@ type bytecodeInstruction struct {
 	loopBreak     int
 	loopContinue  int
 	node          ast.Node
+	program       *bytecodeProgram
 	safe          bool
 	preferMethods bool
 }

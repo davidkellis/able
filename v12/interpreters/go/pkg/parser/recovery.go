@@ -38,6 +38,29 @@ func recoverableInterfaceBaseErrors(root *sitter.Node, source []byte) bool {
 	return ok
 }
 
+func recoverableWhitespaceErrors(root *sitter.Node, source []byte) bool {
+	if root == nil || !root.HasError() {
+		return true
+	}
+	ok := true
+	walkNodes(root, func(node *sitter.Node) {
+		if node == nil || !ok {
+			return
+		}
+		if node.IsMissing() {
+			ok = false
+			return
+		}
+		if !node.IsError() {
+			return
+		}
+		if strings.TrimSpace(sliceContent(node, source)) != "" {
+			ok = false
+		}
+	})
+	return ok
+}
+
 func nearestInterfaceDefinition(node *sitter.Node) *sitter.Node {
 	parent := node
 	for parent != nil {

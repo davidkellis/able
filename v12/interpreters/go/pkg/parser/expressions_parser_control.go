@@ -418,6 +418,14 @@ func (ctx *parseContext) parseMatchClause(node *sitter.Node) (*ast.MatchClause, 
 }
 
 func (ctx *parseContext) parseIfExpression(node *sitter.Node) (ast.Expression, error) {
+	if node == nil {
+		return nil, fmt.Errorf("parser: if expression missing node")
+	}
+	if node.Kind() == "if_expression" {
+		if child := firstNamedChild(node); child != nil && (child.Kind() == "if_expression_with_else" || child.Kind() == "if_expression_without_else") {
+			node = child
+		}
+	}
 	conditionNode := node.ChildByFieldName("condition")
 	if conditionNode == nil {
 		return nil, fmt.Errorf("parser: if expression missing condition")
@@ -448,6 +456,19 @@ func (ctx *parseContext) parseIfExpression(node *sitter.Node) (ast.Expression, e
 	var elseBody *ast.BlockExpression
 	if elseNode := node.ChildByFieldName("alternative"); elseNode != nil {
 		block, err := ctx.parseBlock(elseNode)
+		if err != nil {
+			return nil, err
+		}
+		elseBody = block
+	} else if elseClause := node.ChildByFieldName("else_clause"); elseClause != nil {
+		bodyNode := elseClause.ChildByFieldName("alternative")
+		if bodyNode == nil {
+			bodyNode = firstNamedChild(elseClause)
+		}
+		if bodyNode == nil {
+			return nil, fmt.Errorf("parser: else clause missing body")
+		}
+		block, err := ctx.parseBlock(bodyNode)
 		if err != nil {
 			return nil, err
 		}

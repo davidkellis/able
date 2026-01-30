@@ -456,7 +456,7 @@ impl Display for BigInt {
   fn to_string(self: Self) -> String { self.to_string() }
 }
 
-impl PartialEq BigInt for BigInt {
+impl Eq for BigInt {
   fn eq(self: Self, other: BigInt) -> bool {
     if self.sign != other.sign { return false }
     if self.sign == 0 { return true }
@@ -470,10 +470,6 @@ impl PartialEq BigInt for BigInt {
     }
     true
   }
-}
-
-impl Eq for BigInt {
-  fn eq(self: Self, other: BigInt) -> bool { self.eq(other) }
 }
 
 impl PartialOrd BigInt for BigInt {

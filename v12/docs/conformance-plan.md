@@ -30,6 +30,7 @@ its conventions.
 | 6.3.1 | Operator precedence/associativity across arithmetic and boolean chains | `exec/06_03_operator_precedence_associativity` | Seeded; precedence and associativity across arithmetic, comparison, and boolean operators |
 | 6.3.2, 11.3.3 | Division by zero raises a runtime error | `exec/04_02_primitives_truthiness_numeric_diag` | Seeded; confirms division-by-zero error propagation |
 | 6.3.2-6.3.3, 14.1.1, 14.1.4 | Operator dispatch via Add/Index/IndexMut interfaces | `exec/06_03_operator_overloading_interfaces` | Seeded; custom structs participate in `+` and `[]`/`[]=` |
+| 6.3.5 | Explicit numeric casts and interface upcasts | `exec/06_03_cast_semantics` | Seeded; numeric conversions + interface upcast via `as` |
 | 14.1.1-14.1.3 | Index/IndexMut + Iterable/Iterator + Apply dispatch | `exec/14_01_language_interfaces_index_apply_iterable` | Seeded; [] access, for/each iteration, and call syntax via interfaces |
 | 14.1.4-14.1.7 | Operator interfaces (arith/compare/display/clone/default) | `exec/14_01_operator_interfaces_arithmetic_comparison` | Seeded; arithmetic/comparison operators route through impls |
 | 14.2 | Regex compile/match/find_all + streaming scanner spans | `exec/14_02_regex_core_match_streaming` | Planned; quarantined until stdlib regex engine lands |

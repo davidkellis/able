@@ -210,6 +210,18 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 			return nil, err
 		}
 		return annotateExpression(expr, node), nil
+	case "if_expression_with_else":
+		expr, err := ctx.parseIfExpression(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateExpression(expr, node), nil
+	case "if_expression_without_else":
+		expr, err := ctx.parseIfExpression(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateExpression(expr, node), nil
 	case "match_expression":
 		expr, err := ctx.parseMatchExpression(node)
 		if err != nil {
@@ -833,47 +845,61 @@ func parseLambdaParameter(node *sitter.Node, source []byte) (*ast.FunctionParame
 
 func (ctx *parseContext) parseExpressionList(node *sitter.Node) (*ast.BlockExpression, error) {
 	statements := make([]ast.Statement, 0)
+	appendStatement := func(stmt ast.Statement) {
+		if stmt == nil {
+			return
+		}
+		if lambda, ok := stmt.(*ast.LambdaExpression); ok && len(statements) > 0 {
+			switch prev := statements[len(statements)-1].(type) {
+			case *ast.AssignmentExpression:
+				switch rhs := prev.Right.(type) {
+				case *ast.FunctionCall:
+					if len(rhs.Arguments) == 0 || rhs.Arguments[len(rhs.Arguments)-1] != lambda {
+						rhs.Arguments = append(rhs.Arguments, lambda)
+					}
+					rhs.IsTrailingLambda = true
+					return
+				case ast.Expression:
+					call := ast.NewFunctionCall(rhs, nil, nil, true)
+					call.Arguments = []ast.Expression{lambda}
+					prev.Right = call
+					return
+				}
+			case *ast.FunctionCall:
+				if len(prev.Arguments) == 0 || prev.Arguments[len(prev.Arguments)-1] != lambda {
+					prev.Arguments = append(prev.Arguments, lambda)
+				}
+				prev.IsTrailingLambda = true
+				return
+			case ast.Expression:
+				call := ast.NewFunctionCall(prev, nil, nil, true)
+				call.Arguments = []ast.Expression{lambda}
+				statements[len(statements)-1] = call
+				return
+			}
+		}
+		statements = append(statements, stmt)
+	}
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
 		if child == nil || !child.IsNamed() {
+			continue
+		}
+		if child.Kind() == "expression_list" {
+			block, err := ctx.parseExpressionList(child)
+			if err != nil {
+				return nil, err
+			}
+			for _, stmt := range block.Body {
+				appendStatement(stmt)
+			}
 			continue
 		}
 		stmt, err := ctx.parseStatement(child)
 		if err != nil {
 			return nil, err
 		}
-		if stmt != nil {
-			if lambda, ok := stmt.(*ast.LambdaExpression); ok && len(statements) > 0 {
-				switch prev := statements[len(statements)-1].(type) {
-				case *ast.AssignmentExpression:
-					switch rhs := prev.Right.(type) {
-					case *ast.FunctionCall:
-						if len(rhs.Arguments) == 0 || rhs.Arguments[len(rhs.Arguments)-1] != lambda {
-							rhs.Arguments = append(rhs.Arguments, lambda)
-						}
-						rhs.IsTrailingLambda = true
-						continue
-					case ast.Expression:
-						call := ast.NewFunctionCall(rhs, nil, nil, true)
-						call.Arguments = []ast.Expression{lambda}
-						prev.Right = call
-						continue
-					}
-				case *ast.FunctionCall:
-					if len(prev.Arguments) == 0 || prev.Arguments[len(prev.Arguments)-1] != lambda {
-						prev.Arguments = append(prev.Arguments, lambda)
-					}
-					prev.IsTrailingLambda = true
-					continue
-				case ast.Expression:
-					call := ast.NewFunctionCall(prev, nil, nil, true)
-					call.Arguments = []ast.Expression{lambda}
-					statements[len(statements)-1] = call
-					continue
-				}
-			}
-			statements = append(statements, stmt)
-		}
+		appendStatement(stmt)
 	}
 
 	block := ast.NewBlockExpression(statements)

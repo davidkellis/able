@@ -93,6 +93,13 @@ func canonicalizeTypeExpression(expr ast.TypeExpression, env *runtime.Environmen
 	return canonicalizeExpandedTypeExpression(expanded, env)
 }
 
+func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinition) (*bytecodeProgram, error) {
+	if def == nil || def.Body == nil {
+		return nil, nil
+	}
+	return i.lowerBlockExpressionToBytecode(def.Body, true)
+}
+
 func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, env *runtime.Environment) (runtime.Value, error) {
 	if def.ID == nil {
 		return nil, fmt.Errorf("Function definition requires identifier")
@@ -102,7 +109,12 @@ func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, en
 	}
 	fnVal := &runtime.FunctionValue{Declaration: def, Closure: env}
 	if def.Body != nil {
-		if program, err := i.lowerBlockExpressionToBytecode(def.Body, true); err == nil {
+		program, err := i.lowerFunctionDefinitionBytecode(def)
+		if err != nil {
+			if i.execMode == execModeBytecode {
+				return nil, err
+			}
+		} else {
 			fnVal.Bytecode = program
 		}
 	}
@@ -221,7 +233,15 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Implementation method requires identifier")
 		}
-		mergeFunctionLike(methods, fn.ID.Name, &runtime.FunctionValue{Declaration: fn, Closure: env, MethodPriority: -1, MethodSet: methodSet})
+		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env, MethodPriority: -1, MethodSet: methodSet}
+		if program, err := i.lowerFunctionDefinitionBytecode(fn); err != nil {
+			if i.execMode == execModeBytecode {
+				return nil, err
+			}
+		} else {
+			fnVal.Bytecode = program
+		}
+		mergeFunctionLike(methods, fn.ID.Name, fnVal)
 		hasExplicit = true
 	}
 	if ifaceDef.Node != nil {
@@ -237,7 +257,15 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				continue
 			}
 			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			mergeFunctionLike(methods, name, &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1, MethodSet: methodSet})
+			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1, MethodSet: methodSet}
+			if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
+				if i.execMode == execModeBytecode {
+					return nil, err
+				}
+			} else {
+				defaultVal.Bytecode = program
+			}
+			mergeFunctionLike(methods, name, defaultVal)
 		}
 	}
 	constraintSpecs := collectConstraintSpecs(canonicalDef.GenericParams, canonicalDef.WhereClause)
@@ -369,6 +397,13 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 			exportedName = fmt.Sprintf("%s.%s", typeName, fn.ID.Name)
 		}
 		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env, TypeQualified: !expectsSelf, MethodSet: methodSet}
+		if program, err := i.lowerFunctionDefinitionBytecode(fn); err != nil {
+			if i.execMode == execModeBytecode {
+				return nil, err
+			}
+		} else {
+			fnVal.Bytecode = program
+		}
 		mergeFunctionLike(bucket, fn.ID.Name, fnVal)
 		i.defineInEnv(env, exportedName, fnVal)
 		i.registerSymbol(exportedName, fnVal)
