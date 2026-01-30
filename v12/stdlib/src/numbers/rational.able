@@ -211,12 +211,6 @@ impl Display for Rational {
   fn to_string(self: Self) -> String { self.to_string() }
 }
 
-impl PartialEq Rational for Rational {
-  fn eq(self: Self, other: Rational) -> bool {
-    self.numerator == other.numerator && self.denominator == other.denominator
-  }
-}
-
 impl Eq for Rational {
   fn eq(self: Self, other: Rational) -> bool {
     self.numerator == other.numerator && self.denominator == other.denominator

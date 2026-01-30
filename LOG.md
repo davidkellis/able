@@ -1,5 +1,29 @@
 # Able Project Log
 
+# 2026-01-29 — Parser line-break operators + type-application newline guard (v12)
+- Parser: treat newlines as statement separators and add line-break-aware operator tokens so line-leading operators parse without consuming trailing newlines.
+- Parser: remove optional line breaks before assignment operators; keep line-break handling after operators and inside delimiters.
+- Parser: regenerated tree-sitter artifacts.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser`; `cd v12/interpreters/go && go test ./pkg/interpreter`.
+
+# 2026-01-28 — Bytecode iterator literal pre-lowering (v12)
+- Bytecode: pre-lower iterator literal bodies to bytecode when supported, falling back to tree-walker execution for unsupported nodes.
+- Design: documented `iterator_literal` in the bytecode instruction set.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_IteratorLiteral -count=1`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_07_bytecode_implicit_iterator -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_09_bytecode_iterator_yield -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/07_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/08_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/11_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/12_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/13_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/14_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/05_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/09_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/10_ -count=1 -timeout 60s`.
+
 # 2026-01-28 — Stdlib BigInt/BigUint (v12)
 - Stdlib: added `able.numbers.bigint` and `able.numbers.biguint` with basic arithmetic, comparisons, formatting, and numeric conversions.
 - Tests: added BigInt/BigUint stdlib tests under `v12/stdlib/tests`.
@@ -8,6 +32,25 @@
 - Bytecode: execute ensure blocks inline after evaluating the try expression via fallback, then rethrow any captured error or return the try result.
 - Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_EnsureExpression -count=1`.
 - Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_03_bytecode_ensure_basic -count=1 -timeout 60s`.
+
+# 2026-01-28 — Bytecode rescue inline handler (v12)
+- Bytecode: execute rescue clauses inline after evaluating the monitored expression via fallback, matching patterns/guards before returning or rethrowing.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_RescueExpression -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_03_bytecode_rescue_basic -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_03 -count=1 -timeout 60s`.
+
+# 2026-01-28 — Bytecode await iterable lowering (v12)
+- Bytecode: lower await iterable expressions to bytecode before running the await protocol.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/12_01_bytecode_await_default -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/12_06 -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/12_ -count=1 -timeout 60s`.
+
+# 2026-01-28 — Bytecode breakpoint labeled break (v12)
+- Bytecode: lower labeled break statements to a breakpoint-aware opcode for non-local exits.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestBytecodeVM_BreakpointExpression -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/08_03_breakpoint_nonlocal_jump -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/08_ -count=1 -timeout 60s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestExecFixtureParity/11_ -count=1 -timeout 60s`.
 
 # 2026-01-28 — Bytecode match subject lowering (v12)
 - Bytecode: lower match subjects as bytecode expressions before clause dispatch, leaving guards/bodies on fallback eval.

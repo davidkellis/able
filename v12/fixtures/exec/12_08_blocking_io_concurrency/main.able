@@ -62,11 +62,11 @@ fn main() -> void {
   trace := ""
   trace_lock := Mutex.new()
 
-  push := { event =>
+  push := { event => {
     trace_lock.lock()
     trace = trace + event
     trace_lock.unlock()
-  }
+  } }
 
   reader := spawn {
     push("R")

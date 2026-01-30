@@ -61,6 +61,9 @@ func syntaxError(root *sitter.Node) *ParseError {
 	if missing != nil {
 		expected = formatExpectedKind(missing.Kind())
 	}
+	if expected == "" && errorNode != nil && errorNode.IsError() {
+		expected = "valid syntax"
+	}
 	message := "parser: syntax error"
 	if expected != "" {
 		message = fmt.Sprintf("parser: syntax error: expected %s", expected)

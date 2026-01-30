@@ -48,10 +48,16 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 	defer tree.Close()
 
 	root := tree.RootNode()
-	if root == nil || root.Kind() != "source_file" {
+	if root == nil {
 		return nil, fmt.Errorf("parser: unexpected root node")
 	}
-	if root.HasError() && !recoverableInterfaceBaseErrors(root, source) {
+	if root.Kind() != "source_file" {
+		if root.HasError() {
+			return nil, syntaxError(root)
+		}
+		return nil, fmt.Errorf("parser: unexpected root node")
+	}
+	if root.HasError() && !recoverableInterfaceBaseErrors(root, source) && !recoverableWhitespaceErrors(root, source) {
 		return nil, syntaxError(root)
 	}
 

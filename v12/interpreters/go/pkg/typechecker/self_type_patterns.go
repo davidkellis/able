@@ -51,6 +51,7 @@ func (c *declarationCollector) validateImplementationSelfTypePattern(
 	if def == nil {
 		return false
 	}
+	diagNode := implSelfTypeDiagnosticNode(def)
 	interfaceLabel := nonEmpty(interfaceName)
 	pattern := iface.SelfTypePattern
 	if isTrivialSelfPattern(pattern) {
@@ -62,7 +63,7 @@ func (c *declarationCollector) validateImplementationSelfTypePattern(
 			expected := formatTypeExpressionNode(pattern)
 			c.diags = append(c.diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: impl %s for %s must match interface self type '%s'", interfaceLabel, targetLabel, expected),
-				Node:    def,
+				Node:    diagNode,
 			})
 			return false
 		}
@@ -70,7 +71,7 @@ func (c *declarationCollector) validateImplementationSelfTypePattern(
 			expected := formatTypeExpressionNode(pattern)
 			c.diags = append(c.diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: impl %s for %s must match interface self type '%s'", interfaceLabel, targetLabel, expected),
-				Node:    def,
+				Node:    diagNode,
 			})
 			return false
 		}
@@ -80,12 +81,32 @@ func (c *declarationCollector) validateImplementationSelfTypePattern(
 	if targetsBareTypeConstructor(def.TargetType, implGenericNames, c.env) {
 		c.diags = append(c.diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: impl %s for %s cannot target a type constructor because the interface does not declare a self type (use 'for ...' to enable constructor implementations)", interfaceLabel, targetLabel),
-			Node:    def,
+			Node:    diagNode,
 		})
 		return false
 	}
 
 	return true
+}
+
+func implSelfTypeDiagnosticNode(def *ast.ImplementationDefinition) ast.Node {
+	if def == nil {
+		return nil
+	}
+	if span := def.Span(); span.Start.Line > 0 && span.Start.Column > 0 {
+		return def
+	}
+	if def.TargetType != nil {
+		if span := def.TargetType.Span(); span.Start.Line > 0 && span.Start.Column > 0 {
+			return def.TargetType
+		}
+	}
+	if def.InterfaceName != nil {
+		if span := def.InterfaceName.Span(); span.Start.Line > 0 && span.Start.Column > 0 {
+			return def.InterfaceName
+		}
+	}
+	return def
 }
 
 func (c *declarationCollector) doesSelfPatternMatchTarget(

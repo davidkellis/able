@@ -135,7 +135,7 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpDynImport, node: s})
 	case *ast.PackageStatement, *ast.PreludeStatement:
-		ctx.emit(bytecodeInstruction{op: bytecodeOpEvalStatement, node: s})
+		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
 	case *ast.ReturnStatement:
 		if s == nil {
 			return bytecodeUnsupported("nil return statement")
@@ -237,13 +237,6 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			suffix = runtime.IntegerType(*n.IntegerType)
 		}
 		val := runtime.CloneBigInt(bigFromLiteral(n.Value))
-		info, err := getIntegerInfo(suffix)
-		if err != nil {
-			return err
-		}
-		if err := ensureFitsInteger(info, val); err != nil {
-			return err
-		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.IntegerValue{Val: val, TypeSuffix: suffix}})
 		return nil
 	case *ast.FloatLiteral:
@@ -479,8 +472,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			}
 		}
 		if n.Operator != ast.AssignmentDeclare && n.Operator != ast.AssignmentAssign || !ok {
-			ctx.emit(bytecodeInstruction{op: bytecodeOpEvalExpression, node: n})
-			return nil
+			return bytecodeUnsupported("assignment expression operator %q target %T", n.Operator, n.Left)
 		}
 		if err := emitExpression(ctx, i, n.Right); err != nil {
 			return err
@@ -537,6 +529,9 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpPropagation})
 		return nil
 	case *ast.AwaitExpression:
+		if err := emitExpression(ctx, i, n.Expression); err != nil {
+			return err
+		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpAwait, node: n})
 		return nil
 	case *ast.SpawnExpression:
@@ -546,7 +541,16 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpImplicitMember, node: n})
 		return nil
 	case *ast.IteratorLiteral:
-		ctx.emit(bytecodeInstruction{op: bytecodeOpIteratorLiteral, node: n})
+		var program *bytecodeProgram
+		if n != nil {
+			module := ast.NewModule(n.Body, nil, nil)
+			lowered, err := i.lowerModuleToBytecode(module)
+			if err != nil {
+				return err
+			}
+			program = lowered
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpIteratorLiteral, node: n, program: program})
 		return nil
 	case *ast.BreakpointExpression:
 		ctx.emit(bytecodeInstruction{op: bytecodeOpBreakpoint, node: n})
@@ -758,7 +762,26 @@ func emitBreakStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt *ast.
 		return bytecodeUnsupported("nil break statement")
 	}
 	if stmt.Label != nil {
-		return bytecodeUnsupported("labeled break not supported")
+		if stmt.Value != nil {
+			if err := emitExpression(ctx, i, stmt.Value); err != nil {
+				return err
+			}
+		} else {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpBreakLabel, name: stmt.Label.Name, node: stmt})
+		return nil
+	}
+	if len(ctx.loopStack) == 0 {
+		if stmt.Value != nil {
+			if err := emitExpression(ctx, i, stmt.Value); err != nil {
+				return err
+			}
+		} else {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpBreakSignal, node: stmt})
+		return nil
 	}
 	if stmt.Value != nil {
 		if err := emitExpression(ctx, i, stmt.Value); err != nil {
@@ -783,6 +806,10 @@ func emitContinueStatement(ctx *bytecodeLoweringContext, _ *Interpreter, stmt *a
 	}
 	if stmt.Label != nil {
 		return bytecodeUnsupported("labeled continue not supported")
+	}
+	if len(ctx.loopStack) == 0 {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpContinueSignal, node: stmt})
+		return nil
 	}
 	exitCount, err := ctx.loopExitCount()
 	if err != nil {

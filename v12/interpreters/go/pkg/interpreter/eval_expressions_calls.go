@@ -258,6 +258,11 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				}
 				return i.coerceReturnValue(decl.ReturnType, result, generics, localEnv)
 			}
+			name := "<anonymous>"
+			if decl.ID != nil && decl.ID.Name != "" {
+				name = decl.ID.Name
+			}
+			return nil, fmt.Errorf("bytecode missing for function %s", name)
 		}
 		result, err := i.evaluateBlock(decl.Body, localEnv)
 		if err != nil {
@@ -343,6 +348,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				}
 				return i.coerceReturnValue(decl.ReturnType, result, lambdaGenerics, localEnv)
 			}
+			return nil, fmt.Errorf("bytecode missing for lambda")
 		}
 		result, err := i.evaluateExpression(decl.Body, localEnv)
 		if err != nil {
@@ -861,7 +867,12 @@ func (i *Interpreter) evaluateLambdaExpression(expr *ast.LambdaExpression, env *
 	}
 	fnVal := &runtime.FunctionValue{Declaration: expr, Closure: env}
 	if expr.Body != nil {
-		if program, err := i.lowerExpressionToBytecodeWithOptions(expr.Body, true); err == nil {
+		program, err := i.lowerExpressionToBytecodeWithOptions(expr.Body, true)
+		if err != nil {
+			if i.execMode == execModeBytecode {
+				return nil, err
+			}
+		} else {
 			fnVal.Bytecode = program
 		}
 	}

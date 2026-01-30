@@ -402,7 +402,15 @@ func (i *Interpreter) iteratorInterfaceMethodDictionary(ifaceDef *runtime.Interf
 		}
 		if sig.DefaultImpl != nil {
 			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			methods[name] = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
+			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
+			if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
+				if i.execMode == execModeBytecode {
+					return nil, err
+				}
+			} else {
+				defaultVal.Bytecode = program
+			}
+			methods[name] = defaultVal
 			continue
 		}
 		return nil, fmt.Errorf("No method '%s' for interface %s", name, ifaceDef.Node.ID.Name)

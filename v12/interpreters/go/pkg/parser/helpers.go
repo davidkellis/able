@@ -262,7 +262,7 @@ func isIgnorableNode(node *sitter.Node) bool {
 		return false
 	}
 	switch node.Kind() {
-	case "comment", "line_comment", "block_comment":
+	case "comment", "line_comment", "block_comment", "ellipsis_statement":
 		return true
 	default:
 		return false

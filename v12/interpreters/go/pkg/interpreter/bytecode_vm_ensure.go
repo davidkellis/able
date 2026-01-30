@@ -12,7 +12,7 @@ func (vm *bytecodeVM) execEnsureStart(instr bytecodeInstruction) error {
 	if !ok || ensureExpr == nil {
 		return fmt.Errorf("bytecode ensure expects node")
 	}
-	val, err := vm.evalExpressionWithFallback(ensureExpr.TryExpression, vm.env)
+	val, err := vm.evalExpressionBytecode(ensureExpr.TryExpression, vm.env)
 	if val == nil {
 		val = runtime.NilValue{}
 	}

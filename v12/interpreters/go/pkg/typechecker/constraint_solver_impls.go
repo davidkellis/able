@@ -351,7 +351,35 @@ func (c *Checker) selectMostSpecificImplementationMatch(matches []implementation
 	if len(contenders) == 1 {
 		return true, ""
 	}
+	if chosen := pickInterfaceSpecificityPair(contenders, "Eq", "PartialEq"); chosen != nil {
+		return true, ""
+	}
+	if chosen := pickInterfaceSpecificityPair(contenders, "Ord", "PartialOrd"); chosen != nil {
+		return true, ""
+	}
 	return false, formatAmbiguousImplementationDetail(iface, subject, contenders)
+}
+
+func pickInterfaceSpecificityPair(contenders []implementationMatch, preferred, fallback string) *implementationMatch {
+	var preferredMatch *implementationMatch
+	foundFallback := false
+	for i := range contenders {
+		name := contenders[i].spec.InterfaceName
+		if name == preferred {
+			if preferredMatch != nil {
+				return nil
+			}
+			preferredMatch = &contenders[i]
+			continue
+		}
+		if name == fallback {
+			foundFallback = true
+		}
+	}
+	if preferredMatch != nil && foundFallback {
+		return preferredMatch
+	}
+	return nil
 }
 
 func compareImplementationMatches(a, b implementationMatch) int {
@@ -400,6 +428,34 @@ func compareImplementationMatches(a, b implementationMatch) int {
 			return -1
 		}
 		return 1
+	}
+	if cmp := compareInterfaceSpecificity(a.spec.InterfaceName, b.spec.InterfaceName); cmp != 0 {
+		return cmp
+	}
+	return 0
+}
+
+func compareInterfaceSpecificity(a, b string) int {
+	if a == b {
+		return 0
+	}
+	switch a {
+	case "Eq":
+		if b == "PartialEq" {
+			return 1
+		}
+	case "PartialEq":
+		if b == "Eq" {
+			return -1
+		}
+	case "Ord":
+		if b == "PartialOrd" {
+			return 1
+		}
+	case "PartialOrd":
+		if b == "Ord" {
+			return -1
+		}
 	}
 	return 0
 }

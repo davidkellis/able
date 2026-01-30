@@ -2,4 +2,6 @@
 
 This list tracks the remaining v12 items after audit; completed work should be removed.
 
-- None currently tracked. Use `spec/full_spec_v12.md` and `PLAN.md` for active work.
+## Parser gaps
+
+- Newline + space-delimited type application can still consume next-line identifiers. Semicolons are used in cast fixtures as a temporary workaround; needs a real parser fix (scanner/grammar refactor).

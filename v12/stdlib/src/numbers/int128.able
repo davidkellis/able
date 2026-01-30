@@ -153,12 +153,6 @@ impl Display for Int128 {
   fn to_string(self: Self) -> String { self.to_string() }
 }
 
-impl PartialEq Int128 for Int128 {
-  fn eq(self: Self, other: Int128) -> bool {
-    self.high == other.high && self.low == other.low
-  }
-}
-
 impl Eq for Int128 {
   fn eq(self: Self, other: Int128) -> bool {
     self.high == other.high && self.low == other.low

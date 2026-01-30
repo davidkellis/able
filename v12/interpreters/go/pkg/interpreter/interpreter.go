@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -404,7 +403,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	return newInterpreter(exec, execModeTreewalker)
 }
 
-// NewBytecode returns a bytecode-backed interpreter (with tree-walker fallback).
+// NewBytecode returns a bytecode-backed interpreter.
 func NewBytecode() *Interpreter {
 	return newInterpreter(NewSerialExecutor(nil), execModeBytecode)
 }
@@ -511,9 +510,6 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 	)
 	if i.execMode == execModeBytecode {
 		last, err = i.evaluateModuleBodyBytecode(module, moduleEnv)
-		if err != nil && errors.Is(err, errBytecodeUnsupported) {
-			last, err = i.evaluateModuleBodyTreewalker(module, moduleEnv)
-		}
 	} else {
 		last, err = i.evaluateModuleBodyTreewalker(module, moduleEnv)
 	}
