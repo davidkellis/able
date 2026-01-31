@@ -1,0 +1,12 @@
+package exec_06_01_compiler_member_assignment
+
+## Semantics: member assignment mutates the named struct field in compiled code.
+
+struct Point { x: i32, y: i32 }
+
+fn main() -> void {
+  point := Point { x: 1, y: 2 }
+  point.x = 9
+  print(`x ${point.x}`)
+  return
+}

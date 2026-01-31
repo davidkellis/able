@@ -37,6 +37,22 @@ func newDivisionByZeroError() error {
 	return standardRuntimeError{kind: standardDivisionByZero, message: "division by zero"}
 }
 
+func (i *Interpreter) StandardDivisionByZeroErrorValue() runtime.ErrorValue {
+	return i.makeStandardErrorValue(standardRuntimeError{kind: standardDivisionByZero, message: "division by zero"})
+}
+
+func (i *Interpreter) StandardOverflowErrorValue(operation string) runtime.ErrorValue {
+	message := operation
+	if message == "" {
+		message = "integer overflow"
+	}
+	return i.makeStandardErrorValue(standardRuntimeError{kind: standardOverflow, message: message, operation: operation})
+}
+
+func (i *Interpreter) StandardShiftOutOfRangeErrorValue(shift int64) runtime.ErrorValue {
+	return i.makeStandardErrorValue(standardRuntimeError{kind: standardShiftOutOfRange, message: "shift out of range", shift: shift})
+}
+
 func newOverflowError(operation string) error {
 	message := operation
 	if message == "" {

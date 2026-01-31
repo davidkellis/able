@@ -1,0 +1,6 @@
+{
+  "description": "index assignment runs under the compiler with no output",
+  "expect": {
+    "exit": 0
+  }
+}

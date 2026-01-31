@@ -1,5 +1,76 @@
 # Able Project Log
 
+# 2026-01-30 — Exec fixture stderr normalization (v12)
+- Fixtures: normalized exec fixture stderr comparisons to split multi-line diagnostics; updated compiler error fixture manifests.
+- Tests: `./run_all_tests.sh`.
+
+# 2026-01-30 — Compiler compound assignment lowering (v12)
+- Compiler: added compound assignment lowering (`+=`, `-=`, `*=`, `/=`, `%=`, `.&=`, `.|=`, `.^=`, `.<<=`, `.>>=`) with RHS-first evaluation for identifiers, index targets, and struct fields.
+- Compiler: added runtime binary-op helper for dynamic compound assignments.
+- Fixtures: added compiler exec fixture for compound assignments; updated exec coverage + compiler fixture list.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-30 — Compiler /% divmod lowering (v12)
+- Compiler: added /% lowering via runtime binary operator bridge for DivMod results.
+- Compiler: map DivMod generic type to runtime values for compiled function signatures.
+- Fixtures: added compiler exec fixture for DivMod results; updated exec coverage + compiler fixture list.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-30 — Compiler bitwise/shift lowering (v12)
+- Compiler: added bitwise and shift operator lowering with overflow/shift-range checks for compiled code.
+- Runtime bridge: exposed standard overflow and shift-out-of-range error values for compiled helpers.
+- Fixtures: added compiler exec fixtures for bitwise ops and shift out-of-range diagnostics; updated exec coverage + compiler fixture list.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-30 — Compiler division ops lowering (v12)
+- Compiler: added /, //, % lowering with division-by-zero raises and Euclidean integer helpers for compiled code.
+- Runtime bridge: exposed DivisionByZeroError value for compiled helpers.
+- Fixtures: added compiler exec fixtures for division ops and division-by-zero behavior; updated exec coverage and compiler fixture list.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-30 — Compiler map literal spread lowering (v12)
+- Compiler: added map literal spread lowering via HashMap for-each callbacks in compiled code.
+- Compiler: infer HashMap type arguments from map literal entries/spreads; refactored generator helpers to keep files under 1000 lines.
+- Fixtures: added compiler map literal spread exec fixture and updated exec coverage + compiler fixture list.
+
+# 2026-01-30 — Compiler typed HashMap literal fixture (v12)
+- Fixtures: added a typed HashMap compiler exec fixture to exercise map literal inference; updated exec coverage and compiler fixture list.
+
+# 2026-01-30 — Compiler map literal lowering (v12)
+- Compiler: added map literal lowering to runtime HashMap creation with explicit entry sets (no spread yet).
+- Fixtures: added compiler exec fixture for map literals; updated exec coverage index and compiler fixture list.
+
+# 2026-01-30 — WASM JS host ABI draft (v12)
+- Docs: defined the initial JS host ABI for the WASM runtime (stdout/stderr, timers, filesystem, module search roots) in `v12/docs/wasm-host-abi.md`.
+
+# 2026-01-30 — Exec coverage + full test run (v12)
+- Fixtures: added compiler fixture entries to exec coverage index; adjusted index-assignment fixture manifest to omit empty stdout expectation.
+- Tests: `./run_all_tests.sh`; `./run_stdlib_tests.sh`.
+
+# 2026-01-30 — Compiler member assignment lowering (v12)
+- Compiler: lowered struct field assignment to Go field writes with RHS-first evaluation; added runtime member assignment fallback for dynamic values.
+- Runtime bridge: added member assignment bridge helper and interpreter wrapper.
+- Fixtures: added compiler exec fixture for member assignment.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-30 — Compiler unary/comparison/control-flow codegen (v12)
+- Compiler: added unary `-`, `!` (bool-only), and bitwise not `.~` codegen plus comparison operators for primitive types.
+- Compiler: added bool-only `&&`/`||` and if/elsif/else codegen for boolean conditions with same-typed branches; block expressions now compile in tail positions.
+- Compiler: allow untyped integer literals to adopt float contexts during codegen.
+- Compiler: fixed `:=` handling to allow shadowing outer bindings while rejecting same-scope redeclarations.
+- Compiler: split render/control-flow/type helpers into `generator_render.go`, `generator_controlflow.go`, and `generator_types.go` to keep `generator.go` under 1000 lines.
+- Tests: `./run_all_tests.sh`; `./run_stdlib_tests.sh`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler`.
+
+# 2026-01-30 — Compiler exec fixture parity runner (v12)
+- Compiler: added exec fixture parity runner that builds and runs compiled wrappers against a configurable fixture subset (`ABLE_COMPILER_EXEC_FIXTURES`, defaulting to a small smoke list).
+- Tests: `./run_all_tests.sh`; `./run_stdlib_tests.sh`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler`.
+
+# 2026-01-30 — IR track deferred (v12)
+- Plan: removed the typed core IR + runtime ABI implementation track from `PLAN.md` (deferred in favor of direct Go codegen).
+
+# 2026-01-30 — Bytecode VM expansion track completed (v12)
+- Plan: removed the completed interpreter performance/bytecode VM expansion track from `PLAN.md`.
+
 # 2026-01-30 — Error-payload cast typechecker + full test runs (v12)
 - Typechecker: allow explicit `as` casts from `Error` values to struct targets (payload recovery) with runtime checks.
 - Tests: `./run_all_tests.sh`; `./run_stdlib_tests.sh`.
@@ -1513,3 +1584,19 @@ Open items (2025-11-02 audit):
 - Typechecker: future `cancel()` is allowed (TS + Go), and concurrency/typechecker tests updated to use spawn/future semantics.
 - Fixtures: `.able` sources updated from `proc` → `spawn`, and expected error strings updated from `Proc failed/cancelled` → `Future failed/cancelled`.
 - Tests not run (parser + runtime + fixture changes only).
+
+### 2026-01-30
+- Compiler: added Go compiler scaffolding to emit Go struct types, literal-return function bodies, wrapper registrations, and struct conversion helpers; added a bridge runtime for interpreter/compiled interop and a new `ablec` CLI.
+- Compiler: extended codegen to handle identifiers, `+/-/*` binary expressions, and simple compiled-function calls; added a compiler-backed exec harness that builds and runs a tiny compiled program.
+- Compiler: added multi-statement bodies with implicit return, plus `:=`/`=` identifier bindings (typed patterns supported); expanded statement lowering to evaluate expressions via `_ = expr`.
+- Compiler: compile array literals into runtime array values and support struct member access; map Array/Map/HashMap types to runtime values for safe pass-through; added compiler coverage for array literals and member access.
+- Compiler: added panic/recover plumbing for compiled wrappers, plus bridge/interpreter helpers to convert panicked runtime values into raise signals.
+- Compiler: added runtime bridge index helper, global runtime registration, and index-expression codegen (runtime.Value-only) with compiler coverage.
+- Compiler: index-expression codegen now converts runtime values into expected primitive/struct types with panic-on-conversion failure.
+- Fixtures: added exec coverage for compiler index expressions (statement form) and included it in the compiler fixture parity list.
+- Compiler: added index assignment lowering via runtime bridge and new compiler exec fixture coverage for assignment.
+- Compiler: array literal lowering now converts struct elements into runtime values for interop.
+- Fixtures: added compiler exec fixture for array literals with struct elements and import fix for array helpers.
+- Compiler: assignment expressions returning runtime values now coerce to expected types; added compiler exec fixture for index assignment return value.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler` (including `TestCompilerExecHarness`) in `v12/interpreters/go`; `GOCACHE=$(pwd)/.gocache go test ./cmd/ablec` in `v12/interpreters/go`; `GOCACHE=$(pwd)/v12/interpreters/go/.gocache ./run_all_tests.sh`; `GOCACHE=$(pwd)/v12/interpreters/go/.gocache ./run_stdlib_tests.sh`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler` in `v12/interpreters/go`.

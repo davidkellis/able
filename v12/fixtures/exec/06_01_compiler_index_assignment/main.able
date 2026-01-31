@@ -1,0 +1,10 @@
+package exec_06_01_compiler_index_assignment
+
+## Semantics: index assignment executes and mutates the target array.
+
+fn main() -> void {
+  nums := [1, 2, 3]
+  nums[1] = 9
+  nums[1]
+  return
+}

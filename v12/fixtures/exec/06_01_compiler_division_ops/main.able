@@ -1,0 +1,26 @@
+package exec_06_01_compiler_division_ops
+
+## Semantics: compiled division uses float / and Euclidean // and %.
+
+fn div_float() -> f64 { 5 / 2 }
+fn q_pos() -> i32 { 5 // 3 }
+fn r_pos() -> i32 { 5 % 3 }
+fn q_neg_pos() -> i32 { -5 // 3 }
+fn r_neg_pos() -> i32 { -5 % 3 }
+fn q_pos_neg() -> i32 { 5 // -3 }
+fn r_pos_neg() -> i32 { 5 % -3 }
+fn q_neg_neg() -> i32 { -5 // -3 }
+fn r_neg_neg() -> i32 { -5 % -3 }
+
+fn main() -> void {
+  print(`div ${div_float()}`)
+  print(`q0 ${q_pos()}`)
+  print(`r0 ${r_pos()}`)
+  print(`q1 ${q_neg_pos()}`)
+  print(`r1 ${r_neg_pos()}`)
+  print(`q2 ${q_pos_neg()}`)
+  print(`r2 ${r_pos_neg()}`)
+  print(`q3 ${q_neg_neg()}`)
+  print(`r3 ${r_neg_neg()}`)
+  return
+}

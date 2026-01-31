@@ -1,0 +1,14 @@
+package exec_06_01_compiler_index_statement
+
+## Semantics: index expressions execute even when the result is ignored.
+
+fn touch(values: Array i32) -> void {
+  values[0]
+  return
+}
+
+fn main() -> void {
+  nums := [7, 9]
+  touch(nums)
+  print("ok")
+}

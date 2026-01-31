@@ -185,10 +185,11 @@ func runExecFixture(t *testing.T, dir string, execMode testExecMode) {
 	if expected.Stderr != nil {
 		actualErrs := []string{}
 		if runtimeErr != nil {
-			actualErrs = append(actualErrs, DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(runtimeErr)))
+			actualErrs = expandFixtureLines([]string{DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(runtimeErr))})
 		}
-		if !reflect.DeepEqual(actualErrs, expected.Stderr) {
-			t.Fatalf("stderr mismatch: expected %v, got %v", expected.Stderr, actualErrs)
+		expectedErrs := expandFixtureLines(expected.Stderr)
+		if !reflect.DeepEqual(actualErrs, expectedErrs) {
+			t.Fatalf("stderr mismatch: expected %v, got %v", expectedErrs, actualErrs)
 		}
 	}
 
@@ -201,6 +202,22 @@ func runExecFixture(t *testing.T, dir string, execMode testExecMode) {
 	} else if runtimeErr != nil {
 		t.Fatalf("runtime error: %v", runtimeErr)
 	}
+}
+
+func expandFixtureLines(lines []string) []string {
+	if len(lines) == 0 {
+		return []string{}
+	}
+	var out []string
+	for _, raw := range lines {
+		trimmed := strings.TrimRight(raw, "\n")
+		if strings.TrimSpace(trimmed) == "" {
+			continue
+		}
+		parts := strings.Split(trimmed, "\n")
+		out = append(out, parts...)
+	}
+	return out
 }
 
 func selectFixtureExecutor(t *testing.T, name string) Executor {

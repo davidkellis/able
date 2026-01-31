@@ -1,0 +1,17 @@
+{
+  "description": "compiler handles division and Euclidean div/mod",
+  "expect": {
+    "stdout": [
+      "div 2.5",
+      "q0 1",
+      "r0 2",
+      "q1 -2",
+      "r1 1",
+      "q2 -1",
+      "r2 2",
+      "q3 2",
+      "r3 1"
+    ],
+    "exit": 0
+  }
+}

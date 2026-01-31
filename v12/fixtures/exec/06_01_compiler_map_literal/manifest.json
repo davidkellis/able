@@ -1,0 +1,9 @@
+{
+  "description": "compiler builds map literals with explicit entries",
+  "expect": {
+    "stdout": [
+      "map 1 2"
+    ],
+    "exit": 0
+  }
+}
