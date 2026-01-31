@@ -1,0 +1,24 @@
+package exec_06_01_compiler_compound_assignment
+
+## Semantics: compiler handles compound assignment with RHS-first evaluation.
+
+fn main() -> void {
+  x := 1
+  x += (x = x + 1)
+  print(`x ${x}`)
+
+  arr := [1, 2, 3]
+  idx := 0
+  arr[idx] += (idx = idx + 1)
+  print(`arr ${arr[1]!}`)
+
+  val := 6
+  val .&= 3
+  print(`and ${val}`)
+
+  shift := 1
+  shift .<<= 3
+  print(`shl ${shift}`)
+
+  return
+}

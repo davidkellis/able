@@ -1,0 +1,11 @@
+package exec_06_01_compiler_divmod
+
+## Semantics: compiled /% returns DivMod with quotient/remainder fields.
+
+fn calc() -> DivMod i32 { 7 /% 3 }
+
+fn main() -> void {
+  result := calc()
+  print(`q ${result.quotient}`)
+  print(`r ${result.remainder}`)
+}

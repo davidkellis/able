@@ -1,0 +1,10 @@
+{
+  "description": "compiler raises DivisionByZeroError for /",
+  "expect": {
+    "stderr": [
+      "runtime: v12/fixtures/exec/06_01_compiler_division_by_zero/main.able:13:20 division by zero",
+      "note: v12/fixtures/exec/06_01_compiler_division_by_zero/main.able:17:3 called from here"
+    ],
+    "exit": 1
+  }
+}

@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
@@ -224,6 +225,52 @@ func (i *Interpreter) findIndexMethod(val runtime.Value, methodName string, ifac
 		return nil, nil
 	}
 	return i.findMethod(info, methodName, iface, nil)
+}
+
+// IndexGet is an exported wrapper for index access to support compiled interop.
+func (i *Interpreter) IndexGet(obj runtime.Value, idx runtime.Value, _ *runtime.Environment) (runtime.Value, error) {
+	return i.indexGet(obj, idx)
+}
+
+// IndexAssign is an exported wrapper for index assignment to support compiled interop.
+func (i *Interpreter) IndexAssign(obj runtime.Value, idx runtime.Value, value runtime.Value, _ *runtime.Environment) (runtime.Value, error) {
+	return i.assignIndex(obj, idx, value, ast.AssignmentAssign, "", false)
+}
+
+// MemberAssign is an exported wrapper for member assignment to support compiled interop.
+func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, value runtime.Value, _ *runtime.Environment) (runtime.Value, error) {
+	if i == nil {
+		return nil, fmt.Errorf("interpreter: nil interpreter")
+	}
+	inst, ok := obj.(*runtime.StructInstanceValue)
+	if !ok || inst == nil {
+		return nil, fmt.Errorf("member assignment expects struct instance")
+	}
+	var memberExpr ast.Expression
+	switch m := member.(type) {
+	case runtime.StringValue:
+		memberExpr = ast.NewIdentifier(m.Val)
+	case *runtime.StringValue:
+		if m == nil {
+			return nil, fmt.Errorf("member assignment expects string member")
+		}
+		memberExpr = ast.NewIdentifier(m.Val)
+	case runtime.IntegerValue:
+		if m.Val == nil {
+			return nil, fmt.Errorf("member assignment expects integer index")
+		}
+		idx := int(m.Val.Int64())
+		memberExpr = ast.NewIntegerLiteral(big.NewInt(int64(idx)), nil)
+	case *runtime.IntegerValue:
+		if m == nil || m.Val == nil {
+			return nil, fmt.Errorf("member assignment expects integer index")
+		}
+		idx := int(m.Val.Int64())
+		memberExpr = ast.NewIntegerLiteral(big.NewInt(int64(idx)), nil)
+	default:
+		return nil, fmt.Errorf("member assignment expects string or integer member")
+	}
+	return assignStructMember(i, inst, memberExpr, value, ast.AssignmentAssign, "", false)
 }
 
 func (i *Interpreter) findApplyMethod(val runtime.Value) (runtime.Value, error) {

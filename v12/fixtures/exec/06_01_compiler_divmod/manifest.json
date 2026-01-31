@@ -1,0 +1,10 @@
+{
+  "description": "compiler handles /% DivMod result",
+  "expect": {
+    "stdout": [
+      "q 2",
+      "r 1"
+    ],
+    "exit": 0
+  }
+}

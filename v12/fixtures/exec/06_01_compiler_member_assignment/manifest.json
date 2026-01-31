@@ -1,0 +1,7 @@
+{
+  "description": "member assignment runs under the compiler",
+  "expect": {
+    "stdout": ["x 9"],
+    "exit": 0
+  }
+}

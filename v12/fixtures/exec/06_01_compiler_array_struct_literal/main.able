@@ -1,0 +1,12 @@
+package exec_06_01_compiler_array_struct_literal
+
+import able.collections.array
+
+## Semantics: array literals can contain struct values.
+
+struct Point { x: i32, y: i32 }
+
+fn main() -> void {
+  points := [Point { x: 1, y: 2 }, Point { x: 3, y: 4 }]
+  print(`len ${points.len()}`)
+}

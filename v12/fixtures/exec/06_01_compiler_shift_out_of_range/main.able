@@ -1,0 +1,19 @@
+package exec_06_01_compiler_shift_out_of_range
+
+## Semantics: compiled shifts raise ShiftOutOfRangeError for invalid counts.
+
+fn uncompiled() -> void {
+  1 match {
+    case 1 => 1,
+    case _ => 0
+  }
+  return
+}
+
+fn boom() -> i32 { 1 .<< 32 }
+
+fn main() -> void {
+  uncompiled()
+  boom()
+  return
+}

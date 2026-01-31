@@ -1,0 +1,19 @@
+package exec_06_01_compiler_division_by_zero
+
+## Semantics: compiled division by zero raises DivisionByZeroError.
+
+fn uncompiled() -> void {
+  1 match {
+    case 1 => 1,
+    case _ => 0
+  }
+  return
+}
+
+fn boom() -> f64 { 1 / 0 }
+
+fn main() -> void {
+  uncompiled()
+  boom()
+  return
+}

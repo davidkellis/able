@@ -1,0 +1,9 @@
+{
+  "description": "index assignment returns the assigned value",
+  "expect": {
+    "stdout": [
+      "value 9"
+    ],
+    "exit": 0
+  }
+}
