@@ -1,0 +1,9 @@
+{
+  "description": "index expressions can be evaluated as statements",
+  "expect": {
+    "stdout": [
+      "ok"
+    ],
+    "exit": 0
+  }
+}

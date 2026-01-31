@@ -1,0 +1,9 @@
+{
+  "description": "array literals with struct elements run under the compiler",
+  "expect": {
+    "stdout": [
+      "len 2"
+    ],
+    "exit": 0
+  }
+}

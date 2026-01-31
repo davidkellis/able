@@ -1,0 +1,10 @@
+{
+  "description": "compiler raises ShiftOutOfRangeError for invalid shifts",
+  "expect": {
+    "stderr": [
+      "runtime: v12/fixtures/exec/06_01_compiler_shift_out_of_range/main.able:13:20 shift out of range",
+      "note: v12/fixtures/exec/06_01_compiler_shift_out_of_range/main.able:17:3 called from here"
+    ],
+    "exit": 1
+  }
+}

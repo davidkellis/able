@@ -1,0 +1,8 @@
+package exec_06_01_compiler_map_literal_typed
+
+import able.collections.hash_map.*
+
+fn main() -> void {
+  values: HashMap String i32 := #{ "a": 1, "b": 2 }
+  print(`map ${values["a"]!} ${values["b"]!}`)
+}

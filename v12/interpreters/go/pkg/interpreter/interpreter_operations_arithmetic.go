@@ -129,6 +129,11 @@ func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right ru
 	}
 }
 
+// ApplyBinaryOperator exposes binary operator dispatch for compiled/runtime interop.
+func (i *Interpreter) ApplyBinaryOperator(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	return applyBinaryOperator(i, op, left, right)
+}
+
 func evaluateDivision(i *Interpreter, left runtime.Value, right runtime.Value) (runtime.Value, error) {
 	if isRatioValue(left) || isRatioValue(right) {
 		leftRatio, err := coerceToRatio(left)

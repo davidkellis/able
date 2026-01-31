@@ -1,0 +1,13 @@
+package exec_06_01_compiler_map_literal_spread
+
+import able.collections.hash_map.*
+
+fn main() -> void {
+  base := #{ "a": 1, "b": 2 }
+  merged := #{
+    ...base,
+    "b": 3,
+    "c": 4
+  }
+  print(`map ${merged["a"]!} ${merged["b"]!} ${merged["c"]!}`)
+}

@@ -501,6 +501,133 @@
     "focus": "array literal inference with nested arrays maintaining element typing"
   },
   {
+    "id": "exec/06_01_compiler_array_struct_literal",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.7",
+      "6.1.8",
+      "4.5.2"
+    ],
+    "focus": "compiler handles array literals with struct elements"
+  },
+  {
+    "id": "exec/06_01_compiler_map_literal",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.8",
+      "6.8"
+    ],
+    "focus": "compiler handles map literals with explicit entries"
+  },
+  {
+    "id": "exec/06_01_compiler_map_literal_spread",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.8",
+      "6.8"
+    ],
+    "focus": "compiler handles map literal spread with overrides"
+  },
+  {
+    "id": "exec/06_01_compiler_map_literal_typed",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.8",
+      "5.3"
+    ],
+    "focus": "compiler handles typed HashMap literals"
+  },
+  {
+    "id": "exec/06_01_compiler_index_statement",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2",
+      "6.8"
+    ],
+    "focus": "compiler evaluates index expressions as statements"
+  },
+  {
+    "id": "exec/06_01_compiler_index_assignment",
+    "status": "seeded",
+    "spec_sections": [
+      "5.3",
+      "5.3.1",
+      "6.3.2",
+      "6.8"
+    ],
+    "focus": "compiler mutates array elements via index assignment"
+  },
+  {
+    "id": "exec/06_01_compiler_index_assignment_value",
+    "status": "seeded",
+    "spec_sections": [
+      "5.3",
+      "5.3.1",
+      "6.3.2",
+      "6.8"
+    ],
+    "focus": "compiler preserves assignment expression value for index updates"
+  },
+  {
+    "id": "exec/06_01_compiler_member_assignment",
+    "status": "seeded",
+    "spec_sections": [
+      "5.3",
+      "5.3.1",
+      "4.5.2"
+    ],
+    "focus": "compiler mutates struct fields via member assignment"
+  },
+  {
+    "id": "exec/06_01_compiler_division_ops",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler handles /, //, and % with Euclidean semantics"
+  },
+  {
+    "id": "exec/06_01_compiler_division_by_zero",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler raises DivisionByZeroError for zero division"
+  },
+  {
+    "id": "exec/06_01_compiler_bitwise_shift",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler handles bitwise operators and shifts"
+  },
+  {
+    "id": "exec/06_01_compiler_shift_out_of_range",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler raises shift out of range errors"
+  },
+  {
+    "id": "exec/06_01_compiler_divmod",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler handles /% div-mod struct results"
+  },
+  {
+    "id": "exec/06_01_compiler_compound_assignment",
+    "status": "seeded",
+    "spec_sections": [
+      "5.3.1",
+      "6.3.2"
+    ],
+    "focus": "compiler handles compound assignments with RHS-first evaluation"
+  },
+  {
     "id": "exec/06_01_bytecode_map_spread",
     "status": "seeded",
     "spec_sections": [

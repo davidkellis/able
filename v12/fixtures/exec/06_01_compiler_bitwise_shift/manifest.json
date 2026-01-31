@@ -1,0 +1,13 @@
+{
+  "description": "compiler handles bitwise and shift operators",
+  "expect": {
+    "stdout": [
+      "and 2",
+      "or 7",
+      "xor 5",
+      "shl 8",
+      "shr 4"
+    ],
+    "exit": 0
+  }
+}

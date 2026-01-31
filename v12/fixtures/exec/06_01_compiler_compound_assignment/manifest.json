@@ -1,0 +1,12 @@
+{
+  "description": "compiler handles compound assignments with RHS-first evaluation",
+  "expect": {
+    "stdout": [
+      "x 4",
+      "arr 3",
+      "and 2",
+      "shl 8"
+    ],
+    "exit": 0
+  }
+}

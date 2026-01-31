@@ -1,0 +1,9 @@
+{
+  "description": "compiler handles typed HashMap literals with inferred entries",
+  "expect": {
+    "stdout": [
+      "map 1 2"
+    ],
+    "exit": 0
+  }
+}
