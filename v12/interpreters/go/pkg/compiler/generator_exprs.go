@@ -74,6 +74,10 @@ func (g *generator) compileExpr(ctx *compileContext, expr ast.Expression, expect
 		return g.compileRescueExpression(ctx, e, expected)
 	case *ast.EnsureExpression:
 		return g.compileEnsureExpression(ctx, e, expected)
+	case *ast.PropagationExpression:
+		return g.compilePropagationExpression(ctx, e, expected)
+	case *ast.OrElseExpression:
+		return g.compileOrElseExpression(ctx, e, expected)
 	case *ast.MatchExpression:
 		return g.compileMatchExpression(ctx, e, expected)
 	case *ast.LoopExpression:

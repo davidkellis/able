@@ -1,0 +1,21 @@
+package exec_06_01_compiler_or_else
+
+## Semantics: compiler lowers or-else and propagation for option/result handling.
+
+fn maybe_id(ok: bool) {
+  if ok { 10 } else { nil }
+}
+
+fn fallible(ok: bool) {
+  if ok { "ok" } else { raise "boom" }
+}
+
+fn main() -> void {
+  present := maybe_id(true)!
+  missing := maybe_id(false) or { -1 }
+  handled := fallible(false)! or { err => err.message() }
+
+  print(`present ${present}`)
+  print(`missing ${missing}`)
+  print(`handled ${handled}`)
+}

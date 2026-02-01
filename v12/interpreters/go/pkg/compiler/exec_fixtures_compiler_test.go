@@ -349,6 +349,7 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		"06_01_compiler_ensure_rethrow",
 		"06_01_compiler_raise_error_interface",
 		"06_01_compiler_raise_non_error",
+		"06_01_compiler_or_else",
 		"06_01_compiler_string_interpolation",
 		"06_01_compiler_string_interpolation_display",
 		"06_01_compiler_method_call",

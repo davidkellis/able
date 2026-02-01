@@ -80,3 +80,17 @@ func asErrorValue(val runtime.Value) (runtime.ErrorValue, bool) {
 		return runtime.ErrorValue{}, false
 	}
 }
+
+// IsErrorValue reports whether a value is an Error or implements the Error interface.
+func (i *Interpreter) IsErrorValue(val runtime.Value) bool {
+	if val == nil {
+		return false
+	}
+	if _, ok := asErrorValue(val); ok {
+		return true
+	}
+	if i == nil {
+		return false
+	}
+	return i.matchesType(ast.Ty("Error"), val)
+}
