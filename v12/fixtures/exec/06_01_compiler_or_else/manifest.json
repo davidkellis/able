@@ -1,0 +1,11 @@
+{
+  "description": "compiler lowers or-else and propagation",
+  "expect": {
+    "stdout": [
+      "present 10",
+      "missing -1",
+      "handled boom"
+    ],
+    "exit": 0
+  }
+}

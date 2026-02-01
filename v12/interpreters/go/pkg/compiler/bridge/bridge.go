@@ -206,6 +206,21 @@ func Stringify(rt *Runtime, value runtime.Value) (string, error) {
 	return rt.interp.Stringify(value, env)
 }
 
+func IsError(rt *Runtime, value runtime.Value) bool {
+	if value == nil {
+		return false
+	}
+	if rt == nil || rt.interp == nil {
+		switch value.(type) {
+		case runtime.ErrorValue, *runtime.ErrorValue:
+			return true
+		default:
+			return false
+		}
+	}
+	return rt.interp.IsErrorValue(value)
+}
+
 func ErrorValue(rt *Runtime, value runtime.Value) runtime.ErrorValue {
 	switch v := value.(type) {
 	case runtime.ErrorValue:

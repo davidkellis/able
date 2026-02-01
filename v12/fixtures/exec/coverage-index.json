@@ -714,6 +714,14 @@
     "focus": "compiler raise string payload yields message text"
   },
   {
+    "id": "exec/06_01_compiler_or_else",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2"
+    ],
+    "focus": "compiler lowers or-else and propagation"
+  },
+  {
     "id": "exec/06_01_compiler_bound_method_value",
     "status": "seeded",
     "spec_sections": [
