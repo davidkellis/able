@@ -1,5 +1,62 @@
 # Able Project Log
 
+# 2026-01-31 — Full test run (v12)
+- Tests: `./run_all_tests.sh`.
+
+# 2026-01-31 — Compiler bound method value fixture (v12)
+- Compiler: allowed struct member access to fall back to runtime so bound method values can be captured.
+- Fixtures: added compiler exec fixture for bound method values; updated exec coverage index.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-31 — Full test run (v12)
+- Tests: `./run_all_tests.sh`.
+
+# 2026-01-31 — Compiler dynamic member access fixture (v12)
+- Compiler: allowed runtime member access expressions to lower via member-get bridge.
+- Fixtures: added compiler exec fixture for dynamic member access; updated exec coverage index.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-31 — Compiler type-qualified methods fixture (v12)
+- Fixtures: added compiler exec fixture for type-qualified methods; updated exec coverage index.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-31 — Compiler interpolation Display fixture (v12)
+- Fixtures: added compiler exec fixture for struct to_string interpolation; updated exec coverage index.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-31 — Full test run (v12)
+- Tests: `./run_all_tests.sh`.
+
+# 2026-01-31 — Compiler method calls + block scoping (v12)
+- Compiler: lowered method call syntax via runtime dispatch; block expressions now compile into scoped closures to allow shadowing.
+- Runtime bridge: added call-by-value and method-preferred member access helpers for compiled code.
+- Fixtures: added compiler exec fixture for method call syntax; updated exec coverage index.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-31 — Stdlib test run (v12)
+- Tests: `./run_stdlib_tests.sh`.
+
+# 2026-01-31 — Full test run (v12)
+- Tests: `./run_all_tests.sh`.
+
+# 2026-01-31 — Compiler string interpolation lowering (v12)
+- Compiler: added string interpolation lowering using runtime stringify for Display conversions.
+- Runtime bridge: exposed interpreter stringify for compiled code.
+- Fixtures: added compiler exec fixture for string interpolation; updated exec coverage index.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-31 — Compiler exec harness typecheck parity (v12)
+- Compiler: aligned compiled exec harness with fixture typecheck mode (allow diagnostics unless fixtures are typecheck-off), preventing silent skips when warnings exist.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_dynamic_member_compound go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+# 2026-01-30 — Compiler dynamic member compound fixture (v12)
+- Fixtures: added compiler exec fixture for dynamic compound member assignment; updated exec coverage + compiler fixture list.
+
+# 2026-01-30 — Compiler dynamic compound member assignment (v12)
+- Compiler: added dynamic member get bridge and compound member assignment lowering for runtime values.
+- Interpreter: exposed member-get wrapper for compiled interop.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
 # 2026-01-30 — Exec fixture stderr normalization (v12)
 - Fixtures: normalized exec fixture stderr comparisons to split multi-line diagnostics; updated compiler error fixture manifests.
 - Tests: `./run_all_tests.sh`.
@@ -1600,3 +1657,44 @@ Open items (2025-11-02 audit):
 - Compiler: assignment expressions returning runtime values now coerce to expected types; added compiler exec fixture for index assignment return value.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler` (including `TestCompilerExecHarness`) in `v12/interpreters/go`; `GOCACHE=$(pwd)/.gocache go test ./cmd/ablec` in `v12/interpreters/go`; `GOCACHE=$(pwd)/v12/interpreters/go/.gocache ./run_all_tests.sh`; `GOCACHE=$(pwd)/v12/interpreters/go/.gocache ./run_stdlib_tests.sh`.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler` in `v12/interpreters/go`.
+
+### 2026-01-31
+- Compiler: added `as` type-cast lowering via the interpreter bridge, including runtime helper emission and type-expression rendering for compiled code.
+- Compiler: added `06_03_cast_semantics` to the compiled exec fixture list for coverage.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added safe-navigation lowering for member access/method calls with nil short-circuiting and argument skip.
+- Fixtures: added `06_01_compiler_safe_navigation` exec fixture + coverage index entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Compiler: added match-expression lowering for simple patterns (wildcard/identifier/literal), plus while-loop and loop-expression lowering with break/continue signals.
+- Fixtures: added `06_01_compiler_loops` exec fixture + coverage index entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: lowered lambda expressions into native function values with capture support for compiled locals.
+- Fixtures: added `06_01_compiler_lambda_closure` exec fixture + coverage index entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added verbose anonymous-function lowering that accepts block bodies with explicit returns.
+- Fixtures: added `06_01_compiler_verbose_anonymous_fn` exec fixture + coverage index entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added range-expression lowering plus for-loop codegen over arrays and iterables.
+- Fixtures: added `06_01_compiler_for_loop` exec fixture + coverage index entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Compiler: expanded match lowering to handle struct/array patterns (including runtime-typed checks) with bindings.
+- Fixtures: added `06_01_compiler_match_patterns` exec fixture + coverage index entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Compiler: match lowering now treats `ErrorValue` as struct-like data during pattern matches.
+- Fixtures: expanded `06_01_compiler_match_patterns` to cover typed cases and rest bindings.
+- Fixtures: added positional struct pattern coverage to `06_01_compiler_match_patterns`.
+- Compiler: fixed positional-struct match bindings to keep identifiers in scope for clause bodies.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added raise/rescue lowering plus error-value conversion helpers for compiled code.
+- Fixtures: added `06_01_compiler_rescue` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Compiler: added ensure-expression lowering and rethrow statement lowering for compiled code (rescue-aware rethrow).
+- Fixtures: added `06_01_compiler_ensure_rethrow` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_raise_error_interface` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: expanded `06_01_compiler_raise_error_interface` to cover nil Error.cause handling.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_raise_non_error` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.

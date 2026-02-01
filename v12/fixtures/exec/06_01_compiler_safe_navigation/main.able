@@ -1,0 +1,32 @@
+package exec_06_01_compiler_safe_navigation
+
+## Semantics: compiler supports safe navigation and short-circuits on nil receivers.
+
+struct Box { value: i32 }
+
+methods Box {
+  fn add(self: Self, delta: i32) -> i32 { self.value + delta }
+}
+
+ticks := 0
+
+fn tick(label: String) -> i32 {
+  ticks = ticks + 1
+  print(`tick ${label} ${ticks}`)
+  ticks
+}
+
+fn maybe_box(make_nil: bool) -> ?Box {
+  if make_nil { nil } else { Box { value: 10 } }
+}
+
+fn main() -> void {
+  a := maybe_box(false)?.add(tick("a"))
+  print(`a ${a}`)
+
+  b := maybe_box(true)?.add(tick("b"))
+  print(`b ${b}`)
+
+  c := maybe_box(true)?.value
+  print(`c ${c}`)
+}

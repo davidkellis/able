@@ -1,0 +1,9 @@
+{
+  "description": "compiler raise string payload yields message text",
+  "expect": {
+    "stdout": [
+      "msg boom"
+    ],
+    "exit": 0
+  }
+}

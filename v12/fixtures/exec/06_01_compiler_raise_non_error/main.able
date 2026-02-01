@@ -1,0 +1,17 @@
+package exec_06_01_compiler_raise_non_error
+
+## Semantics: raising a non-Error value uses its stringified payload as message.
+
+fn boom() -> void {
+  raise("boom")
+}
+
+fn main() -> void {
+  handled := do {
+    boom()
+    "ok"
+  } rescue {
+    case err => `msg ${err.message()}`,
+  }
+  print(handled)
+}

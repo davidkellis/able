@@ -1,0 +1,13 @@
+package exec_06_01_compiler_for_loop
+
+## Semantics: compiler lowers for loops over arrays and ranges.
+
+fn main() -> void {
+  sum := 0
+  for value in [1, 2, 3] { sum = sum + value }
+  print(`sum ${sum}`)
+
+  total := 0
+  for n in 1..3 { total = total + n }
+  print(`range ${total}`)
+}

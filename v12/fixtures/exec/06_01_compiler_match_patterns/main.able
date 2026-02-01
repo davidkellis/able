@@ -1,0 +1,46 @@
+package exec_06_01_compiler_match_patterns
+
+struct Point { x: i32, y: i32 }
+struct Pair { i32, i32 }
+
+## Semantics: compiler handles struct/array match patterns, rest bindings, and typed guards.
+
+fn make_pair() -> Pair {
+  Pair { 5, 6 }
+}
+
+fn main() -> void {
+  p := Point { x: 3, y: 4 }
+  result := p match {
+    case Point { x, y } if x + y == 7 => `point ${x},${y}`,
+    case _ => "no match",
+  }
+  print(result)
+
+  arr := [1, 2, 3, 4]
+  out := arr match {
+    case [1, 2, third, _] if third > 2 => `third ${third}`,
+    case _ => "miss",
+  }
+  print(out)
+
+  raw := arr[2]
+  typed := raw match {
+    case x: i32 => x + 1,
+    case _ => 0,
+  }
+  print(`typed ${typed}`)
+
+  tail_first := arr match {
+    case [1, 2, ...tail] => tail[0] as i32,
+    case _ => 0,
+  }
+  print(`tail ${tail_first}`)
+
+  pair := make_pair()
+  label := pair match {
+    case Pair { first, second } => `pair ${first},${second}`,
+    case _ => "no pair",
+  }
+  print(label)
+}

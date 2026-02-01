@@ -81,3 +81,8 @@ func (i *Interpreter) makeErrorValue(val runtime.Value, env *runtime.Environment
 	}
 	return runtime.ErrorValue{Message: message, Payload: payload}
 }
+
+// MakeErrorValue exposes error value construction for compiler interop helpers.
+func (i *Interpreter) MakeErrorValue(val runtime.Value, env *runtime.Environment) runtime.ErrorValue {
+	return i.makeErrorValue(val, env)
+}

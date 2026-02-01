@@ -231,6 +231,10 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 	return nil, fmt.Errorf("cannot cast %s to %s", typeDesc, typeExpressionToString(typeExpr))
 }
 
+func (i *Interpreter) CastValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	return i.castValueToType(typeExpr, value)
+}
+
 func (i *Interpreter) interfaceDispatchSets(interfaceName string) (map[string]struct{}, map[string]struct{}) {
 	base := make(map[string]struct{})
 	impls := make(map[string]struct{})

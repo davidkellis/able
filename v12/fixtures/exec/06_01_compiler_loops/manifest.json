@@ -1,0 +1,10 @@
+{
+  "description": "compiler lowers while loops and loop expressions",
+  "expect": {
+    "stdout": [
+      "while 3",
+      "loop 5"
+    ],
+    "exit": 0
+  }
+}

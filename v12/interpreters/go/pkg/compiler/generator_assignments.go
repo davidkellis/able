@@ -178,10 +178,6 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			ctx.setReason("unsupported member assignment target")
 			return nil, "", "", false
 		}
-		if assign.Operator != ast.AssignmentAssign {
-			ctx.setReason("unsupported member assignment operator")
-			return nil, "", "", false
-		}
 		valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", assign.Right)
 		if !ok {
 			return nil, "", "", false
@@ -209,9 +205,23 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
 		lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objRuntime))
 		lines = append(lines, fmt.Sprintf("%s := %s", memberTemp, memberRuntime))
-		lines = append(lines, fmt.Sprintf("%s := __able_member_set(%s, %s, %s)", resultTemp, objTemp, memberTemp, valueTemp))
+		if assign.Operator == ast.AssignmentAssign {
+			lines = append(lines, fmt.Sprintf("%s := __able_member_set(%s, %s, %s)", resultTemp, objTemp, memberTemp, valueTemp))
+			lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
+			return lines, resultTemp, "runtime.Value", true
+		}
+		op, ok := binaryOpForAssignment(assign.Operator)
+		if !ok {
+			ctx.setReason("unsupported member assignment operator")
+			return nil, "", "", false
+		}
+		currentTemp := ctx.newTemp()
+		computedTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := __able_member_get(%s, %s)", currentTemp, objTemp, memberTemp))
+		lines = append(lines, fmt.Sprintf("%s := __able_binary_op(%q, %s, %s)", computedTemp, op, currentTemp, valueTemp))
+		lines = append(lines, fmt.Sprintf("%s := __able_member_set(%s, %s, %s)", resultTemp, objTemp, memberTemp, computedTemp))
 		lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
-		return lines, resultTemp, "runtime.Value", true
+		return lines, computedTemp, "runtime.Value", true
 	}
 	if assign.Operator != ast.AssignmentDeclare && assign.Operator != ast.AssignmentAssign {
 		op, ok := binaryOpForAssignment(assign.Operator)
