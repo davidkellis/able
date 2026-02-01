@@ -51,6 +51,17 @@ func (r returnSignal) Error() string {
 	return "return"
 }
 
+// RaisedValue extracts the underlying value from a raised error signal.
+func RaisedValue(err error) (runtime.Value, bool) {
+	if err == nil {
+		return nil, false
+	}
+	if rs, ok := err.(raiseSignal); ok {
+		return rs.value, true
+	}
+	return nil, false
+}
+
 func (i *Interpreter) makeErrorValue(val runtime.Value, env *runtime.Environment) runtime.ErrorValue {
 	if errVal, ok := asErrorValue(val); ok {
 		return errVal

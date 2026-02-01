@@ -1698,3 +1698,7 @@ Open items (2025-11-02 audit):
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
 - Fixtures: added `06_01_compiler_raise_non_error` exec fixture and coverage entry.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added lowering for propagation (`!`) and `or {}` with runtime error handling for raised interpreter errors.
+- Compiler: added raise-signal extraction to panic with runtime values in compiled runtime helpers.
+- Fixtures: added `06_01_compiler_or_else` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
