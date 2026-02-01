@@ -1,0 +1,10 @@
+{
+  "description": "compiler or-else supports struct vs primitive mix",
+  "expect": {
+    "stdout": [
+      "nil fallback",
+      "ok ok"
+    ],
+    "exit": 0
+  }
+}

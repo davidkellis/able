@@ -722,6 +722,22 @@
     "focus": "compiler lowers or-else and propagation"
   },
   {
+    "id": "exec/06_01_compiler_or_else_mixed",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2"
+    ],
+    "focus": "compiler or-else supports mixed result types"
+  },
+  {
+    "id": "exec/06_01_compiler_or_else_struct_mix",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2"
+    ],
+    "focus": "compiler or-else supports struct vs primitive mix"
+  },
+  {
     "id": "exec/06_01_compiler_bound_method_value",
     "status": "seeded",
     "spec_sections": [

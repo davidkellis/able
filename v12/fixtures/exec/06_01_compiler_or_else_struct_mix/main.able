@@ -1,0 +1,26 @@
+package exec_06_01_compiler_or_else_struct_mix
+
+## Semantics: or-else supports struct vs primitive mix by returning runtime.Value.
+
+struct Info { label: String }
+
+fn maybe_text(ok: bool) {
+  if ok { "ok" } else { nil }
+}
+
+fn main() -> void {
+  mixed_nil = maybe_text(false) or { err => Info { label: "fallback" } }
+  mixed_ok = maybe_text(true) or { err => Info { label: "fallback" } }
+
+  nil_label = mixed_nil match {
+    case { label } => label,
+    case v: String => v,
+  }
+  ok_label = mixed_ok match {
+    case { label } => label,
+    case v: String => v,
+  }
+
+  print(`nil ${nil_label}`)
+  print(`ok ${ok_label}`)
+}

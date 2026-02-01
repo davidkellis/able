@@ -1,0 +1,10 @@
+{
+  "description": "compiler or-else supports mixed result types",
+  "expect": {
+    "stdout": [
+      "mixed_nil 9",
+      "mixed_ok ok"
+    ],
+    "exit": 0
+  }
+}

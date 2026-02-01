@@ -1702,3 +1702,10 @@ Open items (2025-11-02 audit):
 - Compiler: added raise-signal extraction to panic with runtime values in compiled runtime helpers.
 - Fixtures: added `06_01_compiler_or_else` exec fixture and coverage entry.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Fixtures: expanded `06_01_compiler_or_else` to cover error binding on nil and success cases.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: adjusted or-else type resolution to fall back to runtime.Value for mixed branch types.
+- Fixtures: added `06_01_compiler_or_else_mixed` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_or_else_struct_mix` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
