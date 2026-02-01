@@ -4,7 +4,9 @@
     "stdout": [
       "present 10",
       "missing -1",
-      "handled boom"
+      "handled boom",
+      "nil nil",
+      "ok ok"
     ],
     "exit": 0
   }

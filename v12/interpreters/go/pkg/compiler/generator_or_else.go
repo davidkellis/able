@@ -76,12 +76,19 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		return "", "", false
 	}
 
-	resultType := preferredType
+	resultType := expected
 	if resultType == "" {
-		if handlerType != "" {
+		switch {
+		case valueType == "" && handlerType == "":
+			resultType = "runtime.Value"
+		case valueType == "":
 			resultType = handlerType
-		} else {
+		case handlerType == "":
 			resultType = valueType
+		case valueType == handlerType:
+			resultType = valueType
+		default:
+			resultType = "runtime.Value"
 		}
 	}
 	if resultType == "" {
