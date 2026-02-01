@@ -396,6 +396,14 @@ func (i *Interpreter) resolveIteratorValue(iterable runtime.Value, env *runtime.
 	}
 }
 
+// ResolveIteratorValue exposes iterator resolution for compiled interop.
+func (i *Interpreter) ResolveIteratorValue(iterable runtime.Value, env *runtime.Environment) (*runtime.IteratorValue, error) {
+	if i == nil {
+		return nil, fmt.Errorf("interpreter: nil interpreter")
+	}
+	return i.resolveIteratorValue(iterable, env)
+}
+
 func (i *Interpreter) adaptIteratorValue(candidate runtime.Value, env *runtime.Environment) (*runtime.IteratorValue, error) {
 	if iter, ok := candidate.(*runtime.IteratorValue); ok && iter != nil {
 		return iter, nil

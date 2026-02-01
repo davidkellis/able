@@ -1,0 +1,9 @@
+{
+  "description": "compiler handles runtime member access",
+  "expect": {
+    "stdout": [
+      "value 5"
+    ],
+    "exit": 0
+  }
+}

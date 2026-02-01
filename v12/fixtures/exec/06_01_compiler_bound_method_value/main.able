@@ -1,0 +1,16 @@
+package exec_06_01_compiler_bound_method_value
+
+## Semantics: compiler can capture bound methods via member access.
+
+struct Counter { value: i32 }
+
+methods Counter {
+  fn #inc() -> i32 { #value + 1 }
+}
+
+fn main() -> void {
+  counter := Counter { value: 9 }
+  inc_fn := counter.inc
+  print(`inc ${inc_fn()}`)
+  return
+}

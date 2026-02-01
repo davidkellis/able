@@ -387,10 +387,6 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("missing member access")
 		return "", "", false
 	}
-	if expr.Safe {
-		ctx.setReason("safe member access unsupported")
-		return "", "", false
-	}
 	member, ok := expr.Member.(*ast.Identifier)
 	if !ok || member == nil || member.Name == "" {
 		ctx.setReason("unsupported member access")
@@ -400,6 +396,33 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 	if !ok {
 		return "", "", false
 	}
+	if g.typeCategory(objectType) == "runtime" {
+		memberValue, ok := g.memberAssignmentRuntimeValue(ctx, expr.Member)
+		if !ok {
+			ctx.setReason("unsupported member access")
+			return "", "", false
+		}
+		objValue, ok := g.runtimeValueExpr(objectExpr, objectType)
+		if !ok {
+			ctx.setReason("unsupported member access")
+			return "", "", false
+		}
+		baseExpr := fmt.Sprintf("__able_member_get(%s, %s)", objValue, memberValue)
+		if expr.Safe {
+			objTemp := ctx.newTemp()
+			memberTemp := ctx.newTemp()
+			baseExpr = fmt.Sprintf("func() runtime.Value { %s := %s; if __able_is_nil(%s) { return runtime.NilValue{} }; %s := %s; return __able_member_get(%s, %s) }()", objTemp, objValue, objTemp, memberTemp, memberValue, objTemp, memberTemp)
+		}
+		if expected == "" || expected == "runtime.Value" {
+			return baseExpr, "runtime.Value", true
+		}
+		converted, ok := g.expectRuntimeValueExpr(baseExpr, expected)
+		if !ok {
+			ctx.setReason("member access type mismatch")
+			return "", "", false
+		}
+		return converted, expected, true
+	}
 	info := g.structInfoByGoName(objectType)
 	if info == nil {
 		ctx.setReason("unsupported member access")
@@ -407,8 +430,26 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 	}
 	field := g.fieldInfo(info, member.Name)
 	if field == nil {
-		ctx.setReason("unknown struct field")
-		return "", "", false
+		memberValue, ok := g.memberAssignmentRuntimeValue(ctx, expr.Member)
+		if !ok {
+			ctx.setReason("unknown struct field")
+			return "", "", false
+		}
+		objValue, ok := g.runtimeValueExpr(objectExpr, objectType)
+		if !ok {
+			ctx.setReason("unknown struct field")
+			return "", "", false
+		}
+		baseExpr := fmt.Sprintf("__able_member_get(%s, %s)", objValue, memberValue)
+		if expected == "" || expected == "runtime.Value" {
+			return baseExpr, "runtime.Value", true
+		}
+		converted, ok := g.expectRuntimeValueExpr(baseExpr, expected)
+		if !ok {
+			ctx.setReason("member access type mismatch")
+			return "", "", false
+		}
+		return converted, expected, true
 	}
 	if !g.typeMatches(expected, field.GoType) {
 		ctx.setReason("member access type mismatch")

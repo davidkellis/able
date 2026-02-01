@@ -68,6 +68,8 @@ func exprUsesMapLiteral(expr ast.Expression) bool {
 			}
 		}
 		return false
+	case *ast.TypeCastExpression:
+		return true
 	case *ast.IndexExpression:
 		return exprUsesMapLiteral(e.Object) || exprUsesMapLiteral(e.Index)
 	case *ast.MemberAccessExpression:
@@ -115,6 +117,43 @@ func exprUsesMapLiteral(expr ast.Expression) bool {
 			}
 		}
 		return false
+	case *ast.MatchExpression:
+		if exprUsesMapLiteral(e.Subject) {
+			return true
+		}
+		for _, clause := range e.Clauses {
+			if clause == nil {
+				continue
+			}
+			if clause.Guard != nil && exprUsesMapLiteral(clause.Guard) {
+				return true
+			}
+			if clause.Body != nil && exprUsesMapLiteral(clause.Body) {
+				return true
+			}
+		}
+		return false
+	case *ast.RescueExpression:
+		if exprUsesMapLiteral(e.MonitoredExpression) {
+			return true
+		}
+		for _, clause := range e.Clauses {
+			if clause == nil {
+				continue
+			}
+			if clause.Guard != nil && exprUsesMapLiteral(clause.Guard) {
+				return true
+			}
+			if clause.Body != nil && exprUsesMapLiteral(clause.Body) {
+				return true
+			}
+		}
+		return false
+	case *ast.LambdaExpression:
+		if e.Body == nil {
+			return false
+		}
+		return exprUsesMapLiteral(e.Body)
 	case *ast.AssignmentExpression:
 		if exprUsesMapLiteral(e.Right) {
 			return true

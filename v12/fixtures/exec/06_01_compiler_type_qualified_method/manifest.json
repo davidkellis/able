@@ -1,0 +1,9 @@
+{
+  "description": "compiler handles type-qualified method calls",
+  "expect": {
+    "stdout": [
+      "helper 7"
+    ],
+    "exit": 0
+  }
+}

@@ -246,31 +246,61 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 	if !ok || inst == nil {
 		return nil, fmt.Errorf("member assignment expects struct instance")
 	}
-	var memberExpr ast.Expression
-	switch m := member.(type) {
-	case runtime.StringValue:
-		memberExpr = ast.NewIdentifier(m.Val)
-	case *runtime.StringValue:
-		if m == nil {
-			return nil, fmt.Errorf("member assignment expects string member")
-		}
-		memberExpr = ast.NewIdentifier(m.Val)
-	case runtime.IntegerValue:
-		if m.Val == nil {
-			return nil, fmt.Errorf("member assignment expects integer index")
-		}
-		idx := int(m.Val.Int64())
-		memberExpr = ast.NewIntegerLiteral(big.NewInt(int64(idx)), nil)
-	case *runtime.IntegerValue:
-		if m == nil || m.Val == nil {
-			return nil, fmt.Errorf("member assignment expects integer index")
-		}
-		idx := int(m.Val.Int64())
-		memberExpr = ast.NewIntegerLiteral(big.NewInt(int64(idx)), nil)
-	default:
-		return nil, fmt.Errorf("member assignment expects string or integer member")
+	memberExpr, err := memberExpressionFromValue(member)
+	if err != nil {
+		return nil, err
 	}
 	return assignStructMember(i, inst, memberExpr, value, ast.AssignmentAssign, "", false)
+}
+
+// MemberGet is an exported wrapper for member access to support compiled interop.
+func (i *Interpreter) MemberGet(obj runtime.Value, member runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+	if i == nil {
+		return nil, fmt.Errorf("interpreter: nil interpreter")
+	}
+	memberExpr, err := memberExpressionFromValue(member)
+	if err != nil {
+		return nil, err
+	}
+	return i.memberAccessOnValue(obj, memberExpr, env)
+}
+
+// MemberGetPreferMethods is an exported wrapper for member access when methods should take priority.
+func (i *Interpreter) MemberGetPreferMethods(obj runtime.Value, member runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+	if i == nil {
+		return nil, fmt.Errorf("interpreter: nil interpreter")
+	}
+	memberExpr, err := memberExpressionFromValue(member)
+	if err != nil {
+		return nil, err
+	}
+	return i.memberAccessOnValueWithOptions(obj, memberExpr, env, true)
+}
+
+func memberExpressionFromValue(member runtime.Value) (ast.Expression, error) {
+	switch m := member.(type) {
+	case runtime.StringValue:
+		return ast.NewIdentifier(m.Val), nil
+	case *runtime.StringValue:
+		if m == nil {
+			return nil, fmt.Errorf("member access expects string member")
+		}
+		return ast.NewIdentifier(m.Val), nil
+	case runtime.IntegerValue:
+		if m.Val == nil {
+			return nil, fmt.Errorf("member access expects integer index")
+		}
+		idx := int(m.Val.Int64())
+		return ast.NewIntegerLiteral(big.NewInt(int64(idx)), nil), nil
+	case *runtime.IntegerValue:
+		if m == nil || m.Val == nil {
+			return nil, fmt.Errorf("member access expects integer index")
+		}
+		idx := int(m.Val.Int64())
+		return ast.NewIntegerLiteral(big.NewInt(int64(idx)), nil), nil
+	default:
+		return nil, fmt.Errorf("member access expects string or integer member")
+	}
 }
 
 func (i *Interpreter) findApplyMethod(val runtime.Value) (runtime.Value, error) {

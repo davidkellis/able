@@ -1,0 +1,14 @@
+package exec_06_01_compiler_type_qualified_method
+
+## Semantics: compiler handles type-qualified method calls.
+
+struct Counter { value: i32 }
+
+methods Counter {
+  fn helper(x: i32) -> i32 { x + 4 }
+}
+
+fn main() -> void {
+  print(`helper ${Counter.helper(3)}`)
+  return
+}

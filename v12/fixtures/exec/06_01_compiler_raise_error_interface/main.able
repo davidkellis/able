@@ -1,0 +1,54 @@
+package exec_06_01_compiler_raise_error_interface
+
+## Semantics: compiler raise uses Error.message/cause implementations for Error values.
+
+struct RootError { code: i32 }
+
+impl Error for RootError {
+  fn message(self: Self) -> String { `root ${self.code}` }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct WrapperError { detail: String, root: RootError }
+
+impl Error for WrapperError {
+  fn message(self: Self) -> String { `wrap ${self.detail}` }
+  fn cause(self: Self) -> ?Error { self.root }
+}
+
+fn boom() -> String {
+  raise WrapperError { detail: "fail", root: RootError { code: 7 } }
+  "ok"
+}
+
+fn main() -> void {
+  handled := do {
+    boom()
+  } rescue {
+    case err => do {
+      msg := err.message()
+      cause = err.cause()
+      cause_msg := cause match {
+        case nil => "nil",
+        case _ => cause.message(),
+      }
+      `msg ${msg} cause ${cause_msg}`
+    },
+  }
+  root_handled := do {
+    raise RootError { code: 1 }
+    "ok"
+  } rescue {
+    case err => do {
+      msg := err.message()
+      cause = err.cause()
+      cause_msg := cause match {
+        case nil => "nil",
+        case _ => cause.message(),
+      }
+      `msg ${msg} cause ${cause_msg}`
+    },
+  }
+  print(handled)
+  print(root_handled)
+}

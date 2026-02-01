@@ -1,0 +1,13 @@
+{
+  "description": "compiler supports match with struct/array patterns, typed cases, and rest bindings",
+  "expect": {
+    "stdout": [
+      "point 3,4",
+      "third 3",
+      "typed 4",
+      "tail 3",
+      "pair 5,6"
+    ],
+    "exit": 0
+  }
+}

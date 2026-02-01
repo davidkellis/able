@@ -17,12 +17,14 @@ type generator struct {
 }
 
 type compileContext struct {
-	params    map[string]paramInfo
-	locals    map[string]paramInfo
-	functions map[string]*functionInfo
-	parent    *compileContext
-	temps     *int
-	reason    string
+	params     map[string]paramInfo
+	locals     map[string]paramInfo
+	functions  map[string]*functionInfo
+	parent     *compileContext
+	temps      *int
+	reason     string
+	loopDepth  int
+	rethrowVar string
 }
 
 func newGenerator(opts Options) *generator {
@@ -248,15 +250,22 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 			}
 			return g.compileReturnStatement(ctx, info.ReturnType, ret, lines)
 		}
-		expr, ok := stmt.(ast.Expression)
-		if !ok || expr == nil {
-			ctx.setReason("unsupported statement")
+		if isLast {
+			if expr, ok := stmt.(ast.Expression); ok && expr != nil {
+				return g.compileImplicitReturn(ctx, info.ReturnType, expr, lines)
+			}
+			if g.isVoidType(info.ReturnType) {
+				stmtLines, ok := g.compileStatement(ctx, stmt)
+				if !ok {
+					return nil, "", false
+				}
+				lines = append(lines, stmtLines...)
+				return lines, "struct{}{}", true
+			}
+			ctx.setReason("missing return expression")
 			return nil, "", false
 		}
-		if isLast {
-			return g.compileImplicitReturn(ctx, info.ReturnType, expr, lines)
-		}
-		stmtLines, ok := g.compileStatement(ctx, expr)
+		stmtLines, ok := g.compileStatement(ctx, stmt)
 		if !ok {
 			return nil, "", false
 		}
@@ -321,25 +330,45 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 	return lines, valueExpr, true
 }
 
-func (g *generator) compileStatement(ctx *compileContext, expr ast.Expression) ([]string, bool) {
-	if expr == nil {
-		ctx.setReason("missing statement expression")
+func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([]string, bool) {
+	if stmt == nil {
+		ctx.setReason("missing statement")
 		return nil, false
 	}
-	switch e := expr.(type) {
+	switch s := stmt.(type) {
 	case *ast.AssignmentExpression:
-		lines, _, _, ok := g.compileAssignment(ctx, e)
+		lines, _, _, ok := g.compileAssignment(ctx, s)
 		return lines, ok
+	case *ast.WhileLoop:
+		return g.compileWhileLoop(ctx, s)
+	case *ast.ForLoop:
+		return g.compileForLoop(ctx, s)
+	case *ast.BreakStatement:
+		return g.compileBreakStatement(ctx, s)
+	case *ast.ContinueStatement:
+		return g.compileContinueStatement(ctx, s)
+	case *ast.RaiseStatement:
+		return g.compileRaiseStatement(ctx, s)
+	case *ast.RethrowStatement:
+		return g.compileRethrowStatement(ctx, s)
+	case *ast.IfExpression:
+		return g.compileIfStatement(ctx, s)
+	case *ast.BlockExpression:
+		return g.compileBlockStatement(ctx, s)
 	default:
-		valueLines, valueExpr, _, ok := g.compileTailExpression(ctx, "", expr)
-		if !ok {
-			return nil, false
+		if expr, ok := stmt.(ast.Expression); ok {
+			valueLines, valueExpr, _, ok := g.compileTailExpression(ctx, "", expr)
+			if !ok {
+				return nil, false
+			}
+			if valueExpr == "" {
+				return valueLines, true
+			}
+			lines := append(valueLines, fmt.Sprintf("_ = %s", valueExpr))
+			return lines, true
 		}
-		if valueExpr == "" {
-			return valueLines, true
-		}
-		lines := append(valueLines, fmt.Sprintf("_ = %s", valueExpr))
-		return lines, true
+		ctx.setReason("unsupported statement")
+		return nil, false
 	}
 }
 
@@ -350,6 +379,7 @@ func newCompileContext(info *functionInfo, functions map[string]*functionInfo) *
 		locals:    make(map[string]paramInfo),
 		functions: functions,
 		temps:     &counter,
+		loopDepth: 0,
 	}
 	if info != nil {
 		for _, param := range info.Params {
@@ -407,10 +437,12 @@ func (c *compileContext) child() *compileContext {
 		return nil
 	}
 	return &compileContext{
-		locals:    make(map[string]paramInfo),
-		functions: c.functions,
-		parent:    c,
-		temps:     c.temps,
+		locals:     make(map[string]paramInfo),
+		functions:  c.functions,
+		parent:     c,
+		temps:      c.temps,
+		loopDepth:  c.loopDepth,
+		rethrowVar: c.rethrowVar,
 	}
 }
 

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 	"sync"
 
+	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/interpreter"
 	"able/interpreter-go/pkg/runtime"
 )
@@ -131,6 +133,102 @@ func MemberAssign(rt *Runtime, obj runtime.Value, member runtime.Value, value ru
 	return rt.interp.MemberAssign(obj, member, value, nil)
 }
 
+func MemberGet(rt *Runtime, obj runtime.Value, member runtime.Value) (runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	env := rt.env
+	if env == nil {
+		env = rt.interp.GlobalEnvironment()
+	}
+	return rt.interp.MemberGet(obj, member, env)
+}
+
+func MemberGetPreferMethods(rt *Runtime, obj runtime.Value, member runtime.Value) (runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	env := rt.env
+	if env == nil {
+		env = rt.interp.GlobalEnvironment()
+	}
+	return rt.interp.MemberGetPreferMethods(obj, member, env)
+}
+
+func CallValue(rt *Runtime, fn runtime.Value, args []runtime.Value) (runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.CallFunction(fn, args)
+}
+
+func CallNamed(rt *Runtime, name string, args []runtime.Value) (runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	env := rt.env
+	if env == nil {
+		env = rt.interp.GlobalEnvironment()
+	}
+	value, err := env.Get(name)
+	if err == nil {
+		return rt.interp.CallFunction(value, args)
+	}
+	if dot := strings.Index(name, "."); dot > 0 && dot < len(name)-1 {
+		head := name[:dot]
+		tail := name[dot+1:]
+		receiver, recvErr := env.Get(head)
+		if recvErr != nil {
+			if def, ok := env.StructDefinition(head); ok {
+				receiver = def
+			} else {
+				receiver = runtime.TypeRefValue{TypeName: head}
+			}
+		}
+		member := runtime.StringValue{Val: tail}
+		candidate, err := rt.interp.MemberGetPreferMethods(receiver, member, env)
+		if err != nil {
+			return nil, err
+		}
+		return rt.interp.CallFunction(candidate, args)
+	}
+	return nil, err
+}
+
+func Stringify(rt *Runtime, value runtime.Value) (string, error) {
+	if rt == nil || rt.interp == nil {
+		return "", fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	env := rt.env
+	if env == nil {
+		env = rt.interp.GlobalEnvironment()
+	}
+	return rt.interp.Stringify(value, env)
+}
+
+func ErrorValue(rt *Runtime, value runtime.Value) runtime.ErrorValue {
+	switch v := value.(type) {
+	case runtime.ErrorValue:
+		return v
+	case *runtime.ErrorValue:
+		if v != nil {
+			return *v
+		}
+	}
+	if rt == nil || rt.interp == nil {
+		payload := map[string]runtime.Value{}
+		if value != nil {
+			payload["value"] = value
+		}
+		return runtime.ErrorValue{Message: fmt.Sprintf("%v", value), Payload: payload}
+	}
+	env := rt.env
+	if env == nil {
+		env = rt.interp.GlobalEnvironment()
+	}
+	return rt.interp.MakeErrorValue(value, env)
+}
+
 func DivisionByZeroError(rt *Runtime) runtime.Value {
 	if rt == nil || rt.interp == nil {
 		return runtime.ErrorValue{Message: "division by zero"}
@@ -161,6 +259,42 @@ func ApplyBinaryOperator(rt *Runtime, op string, left runtime.Value, right runti
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	return rt.interp.ApplyBinaryOperator(op, left, right)
+}
+
+func Range(rt *Runtime, start runtime.Value, end runtime.Value, inclusive bool) (runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	env := rt.env
+	if env == nil {
+		env = rt.interp.GlobalEnvironment()
+	}
+	return rt.interp.EvaluateRangeValues(start, end, inclusive, env)
+}
+
+func ResolveIterator(rt *Runtime, iterable runtime.Value) (*runtime.IteratorValue, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	env := rt.env
+	if env == nil {
+		env = rt.interp.GlobalEnvironment()
+	}
+	return rt.interp.ResolveIteratorValue(iterable, env)
+}
+
+func ArrayElements(rt *Runtime, arr *runtime.ArrayValue) ([]runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.ArrayElements(arr)
+}
+
+func Cast(rt *Runtime, typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.CastValueToType(typeExpr, value)
 }
 
 // Raise panics with the provided value so compiled code can signal a runtime error.

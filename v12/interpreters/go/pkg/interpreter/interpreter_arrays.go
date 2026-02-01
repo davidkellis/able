@@ -143,6 +143,18 @@ func (i *Interpreter) ensureArrayState(arr *runtime.ArrayValue, capacityHint int
 	return state, nil
 }
 
+// ArrayElements exposes array state access for compiled interop.
+func (i *Interpreter) ArrayElements(arr *runtime.ArrayValue) ([]runtime.Value, error) {
+	if i == nil {
+		return nil, fmt.Errorf("interpreter: nil interpreter")
+	}
+	state, err := i.ensureArrayState(arr, 0)
+	if err != nil {
+		return nil, err
+	}
+	return state.values, nil
+}
+
 func (i *Interpreter) arrayValueFromHandle(handle int64, lengthHint int, capacityHint int) (*runtime.ArrayValue, error) {
 	if handle == 0 {
 		return nil, fmt.Errorf("array handle must be non-zero")

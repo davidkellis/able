@@ -1,0 +1,12 @@
+{
+  "description": "compiler handles safe navigation and short-circuiting",
+  "expect": {
+    "stdout": [
+      "tick a 1",
+      "a 11",
+      "b nil",
+      "c nil"
+    ],
+    "exit": 0
+  }
+}

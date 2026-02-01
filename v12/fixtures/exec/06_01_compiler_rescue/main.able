@@ -1,0 +1,18 @@
+package exec_06_01_compiler_rescue
+
+## Semantics: compiler lowers raise/rescue with pattern matching on error values.
+
+fn explode() -> String {
+  raise("boom")
+  "ok"
+}
+
+fn main() -> void {
+  message := do {
+    explode()
+  } rescue {
+    case { message } => `rescued ${message}`,
+    case _ => "miss",
+  }
+  print(message)
+}

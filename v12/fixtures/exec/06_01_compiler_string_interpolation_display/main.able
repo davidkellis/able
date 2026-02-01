@@ -1,0 +1,15 @@
+package exec_06_01_compiler_string_interpolation_display
+
+## Semantics: compiler interpolation uses Display/to_string for structs.
+
+struct Counter { value: i32 }
+
+methods Counter {
+  fn #to_string() -> String { `Counter(${#value})` }
+}
+
+fn main() -> void {
+  counter := Counter { value: 4 }
+  print(`value ${counter}`)
+  return
+}

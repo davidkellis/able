@@ -19,6 +19,17 @@ func (i *Interpreter) stringifyValue(val runtime.Value, env *runtime.Environment
 	return valueToString(val), nil
 }
 
+// Stringify is an exported wrapper for compiled interop.
+func (i *Interpreter) Stringify(val runtime.Value, env *runtime.Environment) (string, error) {
+	if i == nil {
+		return "", fmt.Errorf("interpreter: nil interpreter")
+	}
+	if env == nil {
+		env = i.GlobalEnvironment()
+	}
+	return i.stringifyValue(val, env)
+}
+
 func (i *Interpreter) invokeStructToString(inst *runtime.StructInstanceValue) (string, bool) {
 	if inst == nil {
 		return "", false

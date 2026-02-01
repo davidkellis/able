@@ -1,0 +1,14 @@
+package exec_06_01_compiler_lambda_closure
+
+## Semantics: compiler lowers lambda expressions into callable values with captures.
+
+fn main() -> void {
+  offset := 4
+  add := { x => x + offset }
+  print(`add ${add(3)}`)
+  offset = 10
+  print(`add ${add(3)}`)
+
+  triple := { v => v * 3 }
+  print(`triple ${triple(5)}`)
+}

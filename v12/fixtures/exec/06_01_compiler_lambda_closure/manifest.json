@@ -1,0 +1,11 @@
+{
+  "description": "compiler lowers lambda expressions with captures",
+  "expect": {
+    "stdout": [
+      "add 7",
+      "add 13",
+      "triple 15"
+    ],
+    "exit": 0
+  }
+}

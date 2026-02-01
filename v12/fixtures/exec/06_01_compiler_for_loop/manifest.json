@@ -1,0 +1,10 @@
+{
+  "description": "compiler lowers for loops over arrays and ranges",
+  "expect": {
+    "stdout": [
+      "sum 6",
+      "range 6"
+    ],
+    "exit": 0
+  }
+}

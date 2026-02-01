@@ -1,0 +1,9 @@
+{
+  "description": "compiler interpolation uses struct to_string",
+  "expect": {
+    "stdout": [
+      "value Counter(4)"
+    ],
+    "exit": 0
+  }
+}
