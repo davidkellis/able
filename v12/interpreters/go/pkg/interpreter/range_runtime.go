@@ -148,3 +148,11 @@ func (i *Interpreter) tryInvokeRangeImplementation(start, end runtime.Value, inc
 	}
 	return nil, nil
 }
+
+// EvaluateRangeValues exposes range evaluation for compiled interop.
+func (i *Interpreter) EvaluateRangeValues(start, end runtime.Value, inclusive bool, env *runtime.Environment) (runtime.Value, error) {
+	if i == nil {
+		return nil, fmt.Errorf("interpreter: nil interpreter")
+	}
+	return i.evaluateRangeValues(start, end, inclusive, env)
+}

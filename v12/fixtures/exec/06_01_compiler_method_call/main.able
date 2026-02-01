@@ -1,0 +1,19 @@
+package exec_06_01_compiler_method_call
+
+## Semantics: compiler handles method call syntax via runtime dispatch.
+
+struct Counter { value: i32 }
+
+methods Counter {
+  fn #inc() -> i32 { #value + 1 }
+}
+
+fn bump() -> i32 {
+  counter := Counter { value: 2 }
+  counter.inc()
+}
+
+fn main() -> void {
+  print(`inc ${bump()}`)
+  return
+}

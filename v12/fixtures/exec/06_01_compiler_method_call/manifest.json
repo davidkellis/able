@@ -1,0 +1,9 @@
+{
+  "description": "compiler handles method call syntax",
+  "expect": {
+    "stdout": [
+      "inc 3"
+    ],
+    "exit": 0
+  }
+}

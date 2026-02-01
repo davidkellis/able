@@ -1,0 +1,10 @@
+{
+  "description": "compiler raise uses Error.message/cause implementations",
+  "expect": {
+    "stdout": [
+      "msg wrap fail cause root 7",
+      "msg root 1 cause nil"
+    ],
+    "exit": 0
+  }
+}

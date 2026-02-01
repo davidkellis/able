@@ -1,0 +1,17 @@
+package exec_06_01_compiler_loops
+
+## Semantics: compiler lowers while loops and loop expressions with break values.
+
+fn main() -> void {
+  count := 0
+  while count < 3 {
+    count = count + 1
+  }
+  print(`while ${count}`)
+
+  result: i32 = loop {
+    if count == 5 { break count }
+    count = count + 1
+  }
+  print(`loop ${result}`)
+}

@@ -210,7 +210,8 @@ func compilerHarnessSource(entryPath string, searchPaths []driver.SearchPath) st
 	buf.WriteString("\tinterp := interpreter.New()\n")
 	buf.WriteString("\tinterp.SetArgs(os.Args[1:])\n")
 	buf.WriteString("\tregisterPrint(interp)\n")
-	buf.WriteString("\t_, entryEnv, _, err := interp.EvaluateProgram(program, interpreter.ProgramEvaluationOptions{})\n")
+	buf.WriteString("\tmode := resolveFixtureTypecheckMode()\n")
+	buf.WriteString("\t_, entryEnv, _, err := interp.EvaluateProgram(program, interpreter.ProgramEvaluationOptions{SkipTypecheck: mode == typecheckModeOff, AllowDiagnostics: mode != typecheckModeOff})\n")
 	buf.WriteString("\tif err != nil {\n")
 	buf.WriteString("\t\tif code, ok := interpreter.ExitCodeFromError(err); ok {\n\t\t\tos.Exit(code)\n\t\t}\n")
 	buf.WriteString("\t\tfmt.Fprintln(os.Stderr, interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(err)))\n")
@@ -241,6 +242,28 @@ func compilerHarnessSource(entryPath string, searchPaths []driver.SearchPath) st
 	buf.WriteString("\tcase runtime.IntegerValue:\n\t\treturn v.Val.String()\n")
 	buf.WriteString("\tcase runtime.FloatValue:\n\t\treturn fmt.Sprintf(\"%g\", v.Val)\n")
 	buf.WriteString("\tdefault:\n\t\treturn fmt.Sprintf(\"[%s]\", v.Kind())\n\t}\n}\n")
+	buf.WriteString("type fixtureTypecheckMode int\n\n")
+	buf.WriteString("const (\n")
+	buf.WriteString("\ttypecheckModeOff fixtureTypecheckMode = iota\n")
+	buf.WriteString("\ttypecheckModeWarn\n")
+	buf.WriteString("\ttypecheckModeStrict\n")
+	buf.WriteString(")\n\n")
+	buf.WriteString("func resolveFixtureTypecheckMode() fixtureTypecheckMode {\n")
+	buf.WriteString("\tif _, ok := os.LookupEnv(\"ABLE_TYPECHECK_FIXTURES\"); !ok {\n")
+	buf.WriteString("\t\treturn typecheckModeStrict\n")
+	buf.WriteString("\t}\n")
+	buf.WriteString("\tmode := strings.TrimSpace(strings.ToLower(os.Getenv(\"ABLE_TYPECHECK_FIXTURES\")))\n")
+	buf.WriteString("\tswitch mode {\n")
+	buf.WriteString("\tcase \"\", \"0\", \"off\", \"false\":\n")
+	buf.WriteString("\t\treturn typecheckModeOff\n")
+	buf.WriteString("\tcase \"strict\", \"fail\", \"error\", \"1\", \"true\":\n")
+	buf.WriteString("\t\treturn typecheckModeStrict\n")
+	buf.WriteString("\tcase \"warn\", \"warning\":\n")
+	buf.WriteString("\t\treturn typecheckModeWarn\n")
+	buf.WriteString("\tdefault:\n")
+	buf.WriteString("\t\treturn typecheckModeWarn\n")
+	buf.WriteString("\t}\n")
+	buf.WriteString("}\n")
 	return buf.String()
 }
 
@@ -315,6 +338,24 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		"06_01_compiler_bitwise_shift",
 		"06_01_compiler_divmod",
 		"06_01_compiler_compound_assignment",
+		"06_01_compiler_dynamic_member_compound",
+		"06_01_compiler_dynamic_member_access",
+		"06_01_compiler_bound_method_value",
+		"06_01_compiler_safe_navigation",
+		"06_01_compiler_loops",
+		"06_01_compiler_for_loop",
+		"06_01_compiler_match_patterns",
+		"06_01_compiler_rescue",
+		"06_01_compiler_ensure_rethrow",
+		"06_01_compiler_raise_error_interface",
+		"06_01_compiler_raise_non_error",
+		"06_01_compiler_string_interpolation",
+		"06_01_compiler_string_interpolation_display",
+		"06_01_compiler_method_call",
+		"06_01_compiler_type_qualified_method",
+		"06_01_compiler_lambda_closure",
+		"06_01_compiler_verbose_anonymous_fn",
+		"06_03_cast_semantics",
 		"04_02_primitives_truthiness_numeric",
 	}
 }

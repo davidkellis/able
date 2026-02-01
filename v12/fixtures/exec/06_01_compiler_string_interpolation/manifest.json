@@ -1,0 +1,9 @@
+{
+  "description": "compiler handles string interpolation",
+  "expect": {
+    "stdout": [
+      "value 7 ok false"
+    ],
+    "exit": 0
+  }
+}

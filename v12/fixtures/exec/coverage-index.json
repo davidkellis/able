@@ -628,6 +628,154 @@
     "focus": "compiler handles compound assignments with RHS-first evaluation"
   },
   {
+    "id": "exec/06_01_compiler_dynamic_member_compound",
+    "status": "seeded",
+    "spec_sections": [
+      "5.3.1",
+      "4.5.2"
+    ],
+    "focus": "compiler handles dynamic compound member assignment"
+  },
+  {
+    "id": "exec/06_01_compiler_dynamic_member_access",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.2"
+    ],
+    "focus": "compiler handles runtime member access"
+  },
+  {
+    "id": "exec/06_01_compiler_safe_navigation",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.4"
+    ],
+    "focus": "compiler handles safe navigation with nil short-circuiting"
+  },
+  {
+    "id": "exec/06_01_compiler_loops",
+    "status": "seeded",
+    "spec_sections": [
+      "8.2.1",
+      "8.2.3",
+      "8.3.5"
+    ],
+    "focus": "compiler lowers while loops and loop expressions"
+  },
+  {
+    "id": "exec/06_01_compiler_for_loop",
+    "status": "seeded",
+    "spec_sections": [
+      "8.2.2",
+      "8.2.5"
+    ],
+    "focus": "compiler lowers for loops over arrays and ranges"
+  },
+  {
+    "id": "exec/06_01_compiler_match_patterns",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.3",
+      "5.2.5",
+      "8.1.2"
+    ],
+    "focus": "compiler matches struct and array patterns with guards"
+  },
+  {
+    "id": "exec/06_01_compiler_rescue",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "compiler lowers raise/rescue with error pattern matching"
+  },
+  {
+    "id": "exec/06_01_compiler_ensure_rethrow",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "compiler lowers ensure and rethrow with rescue re-raising"
+  },
+  {
+    "id": "exec/06_01_compiler_raise_error_interface",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "compiler raise uses Error.message/cause implementations"
+  },
+  {
+    "id": "exec/06_01_compiler_raise_non_error",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "compiler raise string payload yields message text"
+  },
+  {
+    "id": "exec/06_01_compiler_bound_method_value",
+    "status": "seeded",
+    "spec_sections": [
+      "7.4.3",
+      "9.4"
+    ],
+    "focus": "compiler handles bound method values"
+  },
+  {
+    "id": "exec/06_01_compiler_string_interpolation",
+    "status": "seeded",
+    "spec_sections": [
+      "6.6"
+    ],
+    "focus": "compiler handles string interpolation with Display conversion"
+  },
+  {
+    "id": "exec/06_01_compiler_method_call",
+    "status": "seeded",
+    "spec_sections": [
+      "7.4.3",
+      "9.4"
+    ],
+    "focus": "compiler handles method call syntax via runtime dispatch"
+  },
+  {
+    "id": "exec/06_01_compiler_string_interpolation_display",
+    "status": "seeded",
+    "spec_sections": [
+      "6.6",
+      "9.4"
+    ],
+    "focus": "compiler interpolation uses struct to_string via Display"
+  },
+  {
+    "id": "exec/06_01_compiler_type_qualified_method",
+    "status": "seeded",
+    "spec_sections": [
+      "7.4.3",
+      "9.4"
+    ],
+    "focus": "compiler handles type-qualified methods from methods blocks"
+  },
+  {
+    "id": "exec/06_01_compiler_lambda_closure",
+    "status": "seeded",
+    "spec_sections": [
+      "7.2.2",
+      "7.2.3"
+    ],
+    "focus": "compiler lowers lambda expressions with captures"
+  },
+  {
+    "id": "exec/06_01_compiler_verbose_anonymous_fn",
+    "status": "seeded",
+    "spec_sections": [
+      "7.2.1",
+      "7.2.3"
+    ],
+    "focus": "compiler lowers verbose anonymous functions with explicit returns"
+  },
+  {
     "id": "exec/06_01_bytecode_map_spread",
     "status": "seeded",
     "spec_sections": [

@@ -1,0 +1,9 @@
+{
+  "description": "compiler lowers raise/rescue with error pattern matching",
+  "expect": {
+    "stdout": [
+      "rescued boom"
+    ],
+    "exit": 0
+  }
+}

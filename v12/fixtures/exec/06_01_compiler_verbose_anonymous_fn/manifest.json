@@ -1,0 +1,10 @@
+{
+  "description": "compiler lowers verbose anonymous functions with explicit returns",
+  "expect": {
+    "stdout": [
+      "adder 6",
+      "adder 9"
+    ],
+    "exit": 0
+  }
+}

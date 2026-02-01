@@ -1,0 +1,14 @@
+package exec_06_01_compiler_verbose_anonymous_fn
+
+## Semantics: compiler lowers verbose anonymous functions with explicit returns.
+
+fn main() -> void {
+  offset := 2
+  adder := fn(x: i32) -> i32 {
+    temp := x + offset
+    return temp + 1
+  }
+  print(`adder ${adder(3)}`)
+  offset = 5
+  print(`adder ${adder(3)}`)
+}

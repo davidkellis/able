@@ -1,0 +1,9 @@
+{
+  "description": "compiler handles compound assignment for dynamic member access",
+  "expect": {
+    "stdout": [
+      "value 3"
+    ],
+    "exit": 0
+  }
+}

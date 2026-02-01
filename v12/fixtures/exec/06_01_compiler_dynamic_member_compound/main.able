@@ -1,0 +1,17 @@
+package exec_06_01_compiler_dynamic_member_compound
+
+## Semantics: compiler handles compound assignment on runtime-typed members.
+
+struct Counter { value: i32 }
+
+fn bump() -> Counter {
+  arr := [Counter { value: 1 }]
+  arr[0].value += 2
+  arr[0]
+}
+
+fn main() -> void {
+  counter := bump()
+  print(`value ${counter.value}`)
+  return
+}

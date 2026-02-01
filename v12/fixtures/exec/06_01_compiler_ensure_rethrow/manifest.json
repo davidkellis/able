@@ -1,0 +1,9 @@
+{
+  "description": "compiler lowers ensure and rethrow with rescue re-raising",
+  "expect": {
+    "stdout": [
+      "try;rescue;ensure;outer:boom;success;success-ensure;"
+    ],
+    "exit": 0
+  }
+}

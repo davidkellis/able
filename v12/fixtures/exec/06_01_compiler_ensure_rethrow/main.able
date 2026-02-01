@@ -1,0 +1,34 @@
+package exec_06_01_compiler_ensure_rethrow
+
+## Semantics: compiler lowers ensure/rethrow with rescue re-raising.
+
+fn main() -> void {
+  log := ""
+  do {
+    do {
+      log = log + "try;"
+      raise("boom")
+      "ok"
+    } rescue {
+      case _ => do {
+        log = log + "rescue;"
+        rethrow
+        "ignored"
+      },
+    } ensure {
+      log = log + "ensure;"
+    }
+  } rescue {
+    case { message } => do {
+      log = log + `outer:${message};`
+      "done"
+    },
+  }
+  do {
+    log = log + "success;"
+    "value"
+  } ensure {
+    log = log + "success-ensure;"
+  }
+  print(log)
+}

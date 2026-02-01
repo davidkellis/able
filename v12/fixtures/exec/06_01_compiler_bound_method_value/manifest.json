@@ -1,0 +1,9 @@
+{
+  "description": "compiler handles bound method values",
+  "expect": {
+    "stdout": [
+      "inc 10"
+    ],
+    "exit": 0
+  }
+}
