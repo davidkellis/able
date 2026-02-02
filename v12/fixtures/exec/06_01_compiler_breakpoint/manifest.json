@@ -1,0 +1,10 @@
+{
+  "description": "compiler lowers breakpoint with labeled breaks",
+  "expect": {
+    "stdout": [
+      "hit 3",
+      "miss 6"
+    ],
+    "exit": 0
+  }
+}

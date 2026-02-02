@@ -436,12 +436,19 @@ func (g *generator) compileBreakStatement(ctx *compileContext, stmt *ast.BreakSt
 		ctx.setReason("missing break")
 		return nil, false
 	}
-	if ctx.loopDepth <= 0 {
-		ctx.setReason("break used outside loop")
-		return nil, false
-	}
+	label := ""
 	if stmt.Label != nil {
-		ctx.setReason("labeled break unsupported")
+		label = stmt.Label.Name
+		if label == "" {
+			ctx.setReason("missing break label")
+			return nil, false
+		}
+		if !ctx.hasBreakpoint(label) {
+			ctx.setReason("unknown break label")
+			return nil, false
+		}
+	} else if ctx.loopDepth <= 0 {
+		ctx.setReason("break used outside loop")
 		return nil, false
 	}
 	valueExpr := "runtime.NilValue{}"
@@ -456,6 +463,9 @@ func (g *generator) compileBreakStatement(ctx *compileContext, stmt *ast.BreakSt
 			return nil, false
 		}
 		valueExpr = valueRuntime
+	}
+	if label != "" {
+		return []string{fmt.Sprintf("__able_break_label(%q, %s)", label, valueExpr)}, true
 	}
 	return []string{fmt.Sprintf("__able_break_value(%s)", valueExpr)}, true
 }
@@ -522,6 +532,98 @@ func (g *generator) compileLoopExpression(ctx *compileContext, loop *ast.LoopExp
 	}
 	expr := fmt.Sprintf("func() %s { %s }()", resultType, strings.Join(loopLines, "; "))
 	return expr, resultType, true
+}
+
+func (g *generator) compileBreakpointExpression(ctx *compileContext, expr *ast.BreakpointExpression, expected string) (string, string, bool) {
+	if expr == nil || expr.Body == nil {
+		ctx.setReason("missing breakpoint expression")
+		return "", "", false
+	}
+	if expr.Label == nil || expr.Label.Name == "" {
+		ctx.setReason("breakpoint requires label")
+		return "", "", false
+	}
+	label := expr.Label.Name
+	bodyCtx := ctx.child()
+	bodyCtx.pushBreakpoint(label)
+	bodyLines, bodyExpr, bodyType, ok := g.compileBlockExpression(bodyCtx, expr.Body, expected)
+	bodyCtx.popBreakpoint(label)
+	if !ok {
+		return "", "", false
+	}
+	if len(bodyLines) > 0 {
+		ctx.setReason("breakpoint body produced statements")
+		return "", "", false
+	}
+
+	resultType := expected
+	if resultType == "" {
+		if bodyType != "" {
+			resultType = bodyType
+		} else {
+			resultType = "runtime.Value"
+		}
+	}
+
+	bodyResultExpr := bodyExpr
+	switch {
+	case bodyType == resultType:
+	case bodyType == "runtime.Value" && resultType != "runtime.Value":
+		converted, ok := g.expectRuntimeValueExpr(bodyExpr, resultType)
+		if !ok {
+			ctx.setReason("breakpoint type mismatch")
+			return "", "", false
+		}
+		bodyResultExpr = converted
+	case resultType == "runtime.Value" && bodyType != "runtime.Value":
+		converted, ok := g.runtimeValueExpr(bodyExpr, bodyType)
+		if !ok {
+			ctx.setReason("breakpoint type mismatch")
+			return "", "", false
+		}
+		bodyResultExpr = converted
+	default:
+		ctx.setReason("breakpoint type mismatch")
+		return "", "", false
+	}
+
+	breakValueTemp := ctx.newTemp()
+	brokeTemp := ctx.newTemp()
+	contTemp := ctx.newTemp()
+	resultTemp := ctx.newTemp()
+	breakResultExpr := breakValueTemp
+	if resultType != "runtime.Value" {
+		converted, ok := g.expectRuntimeValueExpr(breakValueTemp, resultType)
+		if !ok {
+			ctx.setReason("breakpoint type mismatch")
+			return "", "", false
+		}
+		breakResultExpr = converted
+	}
+
+	innerLines := []string{
+		fmt.Sprintf("defer func() { if recovered := recover(); recovered != nil { switch sig := recovered.(type) { case __able_break_label_signal: if sig.label == %q { %s = true; %s = sig.value } else { panic(recovered) }; case __able_continue_label_signal: if sig.label == %q { %s = true } else { panic(recovered) }; default: panic(recovered) } } }()", label, brokeTemp, breakValueTemp, label, contTemp),
+		fmt.Sprintf("%s = %s", resultTemp, bodyResultExpr),
+	}
+
+	lines := []string{
+		fmt.Sprintf("var %s bool", brokeTemp),
+		fmt.Sprintf("var %s bool", contTemp),
+		fmt.Sprintf("var %s runtime.Value", breakValueTemp),
+		fmt.Sprintf("var %s %s", resultTemp, resultType),
+		"for {",
+		fmt.Sprintf("%s = false", brokeTemp),
+		fmt.Sprintf("%s = false", contTemp),
+		fmt.Sprintf("%s = runtime.NilValue{}", breakValueTemp),
+		fmt.Sprintf("func() { %s }()", strings.Join(innerLines, "; ")),
+		fmt.Sprintf("if %s { return %s }", brokeTemp, breakResultExpr),
+		fmt.Sprintf("if %s { continue }", contTemp),
+		fmt.Sprintf("return %s", resultTemp),
+		"}",
+	}
+
+	exprValue := fmt.Sprintf("func() %s { %s }()", resultType, strings.Join(lines, "; "))
+	return exprValue, resultType, true
 }
 
 func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.MatchExpression, expected string) (string, string, bool) {

@@ -1,0 +1,9 @@
+{
+  "description": "compiler handles if/do expressions in value positions",
+  "expect": {
+    "stdout": [
+      "result 16"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,21 @@
+package exec_06_01_compiler_breakpoint
+
+## Semantics: compiler lowers breakpoint with labeled breaks.
+
+fn compute(limit: i32) -> i32 {
+  breakpoint 'sum {
+    acc := 0
+    for v in [1, 2, 3] {
+      acc = acc + v
+      do {
+        if acc >= limit { break 'sum acc }
+      }
+    }
+    acc
+  }
+}
+
+fn main() -> void {
+  print(`hit ${compute(3)}`)
+  print(`miss ${compute(10)}`)
+}

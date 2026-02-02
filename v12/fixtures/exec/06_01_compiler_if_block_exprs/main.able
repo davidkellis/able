@@ -1,0 +1,19 @@
+package exec_06_01_compiler_if_block_exprs
+
+## Semantics: compiler handles if/do expressions in value positions.
+
+fn add(a: i32, b: i32) -> i32 { a + b }
+
+fn main() -> void {
+  flag := false
+
+  result := add(
+    do {
+      base := 10
+      if flag { base + 1 } else { base + 2 }
+    },
+    if flag { 3 } else { 4 }
+  )
+
+  print(`result ${result}`)
+}

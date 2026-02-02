@@ -1,0 +1,10 @@
+{
+  "description": "compiler handles named struct functional updates",
+  "expect": {
+    "stdout": [
+      "base Ada 1 true",
+      "updated Ada 2 true"
+    ],
+    "exit": 0
+  }
+}
