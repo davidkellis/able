@@ -546,7 +546,7 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 	}
 }
 
-func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
+func (p *placeholderAnalyzer) visitExpression(expr ast.Expression, root bool) error {
 	if expr == nil {
 		return nil
 	}
@@ -564,37 +564,43 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 			p.highestExplicit = idx
 		}
 	case *ast.BinaryExpression:
-		if err := p.visitExpression(e.Left); err != nil {
+		if e.Operator == "|>" || e.Operator == "|>>" {
+			return nil
+		}
+		if err := p.visitExpression(e.Left, false); err != nil {
 			return err
 		}
-		return p.visitExpression(e.Right)
+		return p.visitExpression(e.Right, false)
 	case *ast.UnaryExpression:
-		return p.visitExpression(e.Operand)
+		return p.visitExpression(e.Operand, false)
 	case *ast.FunctionCall:
-		if err := p.visitExpression(e.Callee); err != nil {
+		if !root {
+			return nil
+		}
+		if err := p.visitExpression(e.Callee, false); err != nil {
 			return err
 		}
 		for _, arg := range e.Arguments {
-			if err := p.visitExpression(arg); err != nil {
+			if err := p.visitExpression(arg, false); err != nil {
 				return err
 			}
 		}
 		return nil
 	case *ast.MemberAccessExpression:
-		if err := p.visitExpression(e.Object); err != nil {
+		if err := p.visitExpression(e.Object, false); err != nil {
 			return err
 		}
 		if memberExpr, ok := e.Member.(ast.Expression); ok {
-			return p.visitExpression(memberExpr)
+			return p.visitExpression(memberExpr, false)
 		}
 		return nil
 	case *ast.ImplicitMemberExpression:
 		return nil
 	case *ast.IndexExpression:
-		if err := p.visitExpression(e.Object); err != nil {
+		if err := p.visitExpression(e.Object, false); err != nil {
 			return err
 		}
-		return p.visitExpression(e.Index)
+		return p.visitExpression(e.Index, false)
 	case *ast.BlockExpression:
 		for _, stmt := range e.Body {
 			if err := p.visitStatement(stmt); err != nil {
@@ -603,16 +609,16 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 		}
 		return nil
 	case *ast.AssignmentExpression:
-		if err := p.visitExpression(e.Right); err != nil {
+		if err := p.visitExpression(e.Right, false); err != nil {
 			return err
 		}
 		if targetExpr, ok := e.Left.(ast.Expression); ok {
-			return p.visitExpression(targetExpr)
+			return p.visitExpression(targetExpr, false)
 		}
 		return nil
 	case *ast.StringInterpolation:
 		for _, part := range e.Parts {
-			if err := p.visitExpression(part); err != nil {
+			if err := p.visitExpression(part, false); err != nil {
 				return err
 			}
 		}
@@ -620,31 +626,31 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 	case *ast.StructLiteral:
 		for _, field := range e.Fields {
 			if field != nil {
-				if err := p.visitExpression(field.Value); err != nil {
+				if err := p.visitExpression(field.Value, false); err != nil {
 					return err
 				}
 			}
 		}
 		for _, src := range e.FunctionalUpdateSources {
-			if err := p.visitExpression(src); err != nil {
+			if err := p.visitExpression(src, false); err != nil {
 				return err
 			}
 		}
 		return nil
 	case *ast.ArrayLiteral:
 		for _, el := range e.Elements {
-			if err := p.visitExpression(el); err != nil {
+			if err := p.visitExpression(el, false); err != nil {
 				return err
 			}
 		}
 		return nil
 	case *ast.RangeExpression:
-		if err := p.visitExpression(e.Start); err != nil {
+		if err := p.visitExpression(e.Start, false); err != nil {
 			return err
 		}
-		return p.visitExpression(e.End)
+		return p.visitExpression(e.End, false)
 	case *ast.MatchExpression:
-		if err := p.visitExpression(e.Subject); err != nil {
+		if err := p.visitExpression(e.Subject, false); err != nil {
 			return err
 		}
 		for _, clause := range e.Clauses {
@@ -652,22 +658,22 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 				continue
 			}
 			if clause.Guard != nil {
-				if err := p.visitExpression(clause.Guard); err != nil {
+				if err := p.visitExpression(clause.Guard, false); err != nil {
 					return err
 				}
 			}
-			if err := p.visitExpression(clause.Body); err != nil {
+			if err := p.visitExpression(clause.Body, false); err != nil {
 				return err
 			}
 		}
 		return nil
 	case *ast.OrElseExpression:
-		if err := p.visitExpression(e.Expression); err != nil {
+		if err := p.visitExpression(e.Expression, false); err != nil {
 			return err
 		}
-		return p.visitExpression(e.Handler)
+		return p.visitExpression(e.Handler, false)
 	case *ast.RescueExpression:
-		if err := p.visitExpression(e.MonitoredExpression); err != nil {
+		if err := p.visitExpression(e.MonitoredExpression, false); err != nil {
 			return err
 		}
 		for _, clause := range e.Clauses {
@@ -675,40 +681,40 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 				continue
 			}
 			if clause.Guard != nil {
-				if err := p.visitExpression(clause.Guard); err != nil {
+				if err := p.visitExpression(clause.Guard, false); err != nil {
 					return err
 				}
 			}
-			if err := p.visitExpression(clause.Body); err != nil {
+			if err := p.visitExpression(clause.Body, false); err != nil {
 				return err
 			}
 		}
 		return nil
 	case *ast.EnsureExpression:
-		if err := p.visitExpression(e.TryExpression); err != nil {
+		if err := p.visitExpression(e.TryExpression, false); err != nil {
 			return err
 		}
-		return p.visitExpression(e.EnsureBlock)
+		return p.visitExpression(e.EnsureBlock, false)
 	case *ast.IfExpression:
-		if err := p.visitExpression(e.IfCondition); err != nil {
+		if err := p.visitExpression(e.IfCondition, false); err != nil {
 			return err
 		}
-		if err := p.visitExpression(e.IfBody); err != nil {
+		if err := p.visitExpression(e.IfBody, false); err != nil {
 			return err
 		}
 		for _, clause := range e.ElseIfClauses {
 			if clause == nil {
 				continue
 			}
-			if err := p.visitExpression(clause.Condition); err != nil {
+			if err := p.visitExpression(clause.Condition, false); err != nil {
 				return err
 			}
-			if err := p.visitExpression(clause.Body); err != nil {
+			if err := p.visitExpression(clause.Body, false); err != nil {
 				return err
 			}
 		}
 		if e.ElseBody != nil {
-			if err := p.visitExpression(e.ElseBody); err != nil {
+			if err := p.visitExpression(e.ElseBody, false); err != nil {
 				return err
 			}
 		}
@@ -738,36 +744,36 @@ func (p *placeholderAnalyzer) visitStatement(stmt ast.Statement) error {
 		return nil
 	}
 	if expr, ok := stmt.(ast.Expression); ok {
-		return p.visitExpression(expr)
+		return p.visitExpression(expr, false)
 	}
 	switch s := stmt.(type) {
 	case *ast.ReturnStatement:
 		if s.Argument != nil {
-			return p.visitExpression(s.Argument)
+			return p.visitExpression(s.Argument, false)
 		}
 	case *ast.RaiseStatement:
 		if s.Expression != nil {
-			return p.visitExpression(s.Expression)
+			return p.visitExpression(s.Expression, false)
 		}
 	case *ast.ForLoop:
-		if err := p.visitExpression(s.Iterable); err != nil {
+		if err := p.visitExpression(s.Iterable, false); err != nil {
 			return err
 		}
-		return p.visitExpression(s.Body)
+		return p.visitExpression(s.Body, false)
 	case *ast.WhileLoop:
-		if err := p.visitExpression(s.Condition); err != nil {
+		if err := p.visitExpression(s.Condition, false); err != nil {
 			return err
 		}
-		return p.visitExpression(s.Body)
+		return p.visitExpression(s.Body, false)
 	case *ast.BreakStatement:
 		if s.Value != nil {
-			return p.visitExpression(s.Value)
+			return p.visitExpression(s.Value, false)
 		}
 	case *ast.ContinueStatement:
 		return nil
 	case *ast.YieldStatement:
 		if s.Expression != nil {
-			return p.visitExpression(s.Expression)
+			return p.visitExpression(s.Expression, false)
 		}
 	case *ast.PreludeStatement, *ast.ExternFunctionBody, *ast.ImportStatement, *ast.DynImportStatement, *ast.PackageStatement:
 		return nil

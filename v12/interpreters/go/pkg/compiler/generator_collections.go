@@ -387,11 +387,6 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("missing member access")
 		return "", "", false
 	}
-	member, ok := expr.Member.(*ast.Identifier)
-	if !ok || member == nil || member.Name == "" {
-		ctx.setReason("unsupported member access")
-		return "", "", false
-	}
 	objectExpr, objectType, ok := g.compileExpr(ctx, expr.Object, "")
 	if !ok {
 		return "", "", false
@@ -428,34 +423,38 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("unsupported member access")
 		return "", "", false
 	}
-	field := g.fieldInfo(info, member.Name)
-	if field == nil {
-		memberValue, ok := g.memberAssignmentRuntimeValue(ctx, expr.Member)
-		if !ok {
-			ctx.setReason("unknown struct field")
-			return "", "", false
-		}
-		objValue, ok := g.runtimeValueExpr(objectExpr, objectType)
-		if !ok {
-			ctx.setReason("unknown struct field")
-			return "", "", false
-		}
-		baseExpr := fmt.Sprintf("__able_member_get(%s, %s)", objValue, memberValue)
-		if expected == "" || expected == "runtime.Value" {
-			return baseExpr, "runtime.Value", true
-		}
-		converted, ok := g.expectRuntimeValueExpr(baseExpr, expected)
-		if !ok {
+	field, ok := g.structFieldForMember(info, expr.Member)
+	if !ok {
+		ctx.setReason("unsupported member access")
+		return "", "", false
+	}
+	if field != nil {
+		if !g.typeMatches(expected, field.GoType) {
 			ctx.setReason("member access type mismatch")
 			return "", "", false
 		}
-		return converted, expected, true
+		return fmt.Sprintf("%s.%s", objectExpr, field.GoName), field.GoType, true
 	}
-	if !g.typeMatches(expected, field.GoType) {
+	memberValue, ok := g.memberAssignmentRuntimeValue(ctx, expr.Member)
+	if !ok {
+		ctx.setReason("unknown struct field")
+		return "", "", false
+	}
+	objValue, ok := g.runtimeValueExpr(objectExpr, objectType)
+	if !ok {
+		ctx.setReason("unknown struct field")
+		return "", "", false
+	}
+	baseExpr := fmt.Sprintf("__able_member_get(%s, %s)", objValue, memberValue)
+	if expected == "" || expected == "runtime.Value" {
+		return baseExpr, "runtime.Value", true
+	}
+	converted, ok := g.expectRuntimeValueExpr(baseExpr, expected)
+	if !ok {
 		ctx.setReason("member access type mismatch")
 		return "", "", false
 	}
-	return fmt.Sprintf("%s.%s", objectExpr, field.GoName), field.GoType, true
+	return converted, expected, true
 }
 
 func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexExpression, expected string) (string, string, bool) {

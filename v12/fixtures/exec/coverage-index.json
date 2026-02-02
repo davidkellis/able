@@ -511,6 +511,22 @@
     "focus": "compiler handles array literals with struct elements"
   },
   {
+    "id": "exec/06_01_compiler_struct_update",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.2"
+    ],
+    "focus": "compiler handles named struct functional updates"
+  },
+  {
+    "id": "exec/06_01_compiler_struct_positional",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.3"
+    ],
+    "focus": "compiler handles positional struct literals and index access"
+  },
+  {
     "id": "exec/06_01_compiler_map_literal",
     "status": "seeded",
     "spec_sections": [
@@ -653,6 +669,41 @@
     "focus": "compiler handles safe navigation with nil short-circuiting"
   },
   {
+    "id": "exec/06_01_compiler_breakpoint",
+    "status": "seeded",
+    "spec_sections": [
+      "8.3"
+    ],
+    "focus": "compiler lowers breakpoint with labeled breaks"
+  },
+  {
+    "id": "exec/06_01_compiler_placeholder_lambda",
+    "status": "seeded",
+    "spec_sections": [
+      "7.5",
+      "7.6.3"
+    ],
+    "focus": "compiler lowers placeholder lambdas for partial application"
+  },
+  {
+    "id": "exec/06_01_compiler_pipe",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler lowers pipe operators with callable RHS"
+  },
+  {
+    "id": "exec/06_01_compiler_if_block_exprs",
+    "status": "seeded",
+    "spec_sections": [
+      "6.2",
+      "6.5",
+      "8.1.1"
+    ],
+    "focus": "compiler handles if/do expressions in value positions"
+  },
+  {
     "id": "exec/06_01_compiler_loops",
     "status": "seeded",
     "spec_sections": [
@@ -736,6 +787,14 @@
       "11.2"
     ],
     "focus": "compiler or-else supports struct vs primitive mix"
+  },
+  {
+    "id": "exec/06_01_compiler_or_else_error_union",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2"
+    ],
+    "focus": "compiler or-else handles Error-implementer unions"
   },
   {
     "id": "exec/06_01_compiler_bound_method_value",

@@ -1709,3 +1709,31 @@ Open items (2025-11-02 audit):
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
 - Fixtures: added `06_01_compiler_or_else_struct_mix` exec fixture and coverage entry.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_or_else_error_union` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: allow if/block/assignment expressions to compile in value positions by wrapping tail-expression lowering.
+- Fixtures: added `06_01_compiler_if_block_exprs` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added breakpoint/labeled break lowering with breakpoint label tracking in codegen.
+- Fixtures: added `06_01_compiler_breakpoint` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added placeholder lambda lowering and implicit member access support for compiled code.
+- Fixtures: added `06_01_compiler_placeholder_lambda` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added pipe operator lowering with placeholder/implicit member handling.
+- Fixtures: added `06_01_compiler_pipe` exec fixture and coverage entry.
+- Interpreter + compiler: prevent placeholder analysis from lifting placeholders across pipe/call boundaries so pipe RHS placeholders don't suppress evaluation.
+- Fixtures: updated `06_01_compiler_pipe` expected output for low-precedence pipe assignment.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run Placeholder -count=1` in `v12/interpreters/go`.
+- Compiler: added positional struct literal lowering plus positional member access/assignment for compiled structs.
+- Fixtures: added `06_01_compiler_struct_positional` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added positional struct pattern support for compiled match patterns on positional structs.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added named struct functional update lowering for compiled code.
+- Fixtures: added `06_01_compiler_struct_update` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: expanded typed pattern lowering to support runtime Array/HashMap/DivMod type checks.
+- Fixtures: updated `06_01_compiler_match_patterns` to cover typed Array match cases.
+- Compiler: fixed positional struct pattern lowering to accept positional field ASTs with field names.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.

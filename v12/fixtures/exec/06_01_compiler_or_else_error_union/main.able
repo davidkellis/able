@@ -1,0 +1,22 @@
+package exec_06_01_compiler_or_else_error_union
+
+## Semantics: or-else treats Error-implementer unions as failures.
+
+struct MyError { message: String }
+
+impl Error for MyError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn result_value(ok: bool) -> String | MyError {
+  if ok { "ok" } else { MyError { message: "bad" } }
+}
+
+fn main() -> void {
+  good = result_value(true) or { "fallback" }
+  bad = result_value(false) or { err => `handled ${err.message()}` }
+
+  print(`good ${good}`)
+  print(`bad ${bad}`)
+}

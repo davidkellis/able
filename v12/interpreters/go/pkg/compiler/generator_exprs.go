@@ -8,14 +8,14 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-func (g *generator) typeMatches(expected, actual string) bool {
-	if expected == "" {
-		return true
-	}
-	return expected == actual
-}
-
 func (g *generator) compileExpr(ctx *compileContext, expr ast.Expression, expected string) (string, string, bool) {
+	if value, goType, ok := g.compilePlaceholderLambda(ctx, expr); ok {
+		if !g.typeMatches(expected, goType) {
+			ctx.setReason("placeholder lambda type mismatch")
+			return "", "", false
+		}
+		return value, goType, true
+	}
 	switch e := expr.(type) {
 	case *ast.StringLiteral:
 		actual := "string"
@@ -54,6 +54,10 @@ func (g *generator) compileExpr(ctx *compileContext, expr ast.Expression, expect
 		return g.compileMapLiteral(ctx, e, expected)
 	case *ast.Identifier:
 		return g.compileIdentifier(ctx, e, expected)
+	case *ast.PlaceholderExpression:
+		return g.compilePlaceholderExpression(ctx, e, expected)
+	case *ast.ImplicitMemberExpression:
+		return g.compileImplicitMemberExpression(ctx, e, expected)
 	case *ast.UnaryExpression:
 		return g.compileUnaryExpression(ctx, e, expected)
 	case *ast.BinaryExpression:
@@ -82,6 +86,14 @@ func (g *generator) compileExpr(ctx *compileContext, expr ast.Expression, expect
 		return g.compileMatchExpression(ctx, e, expected)
 	case *ast.LoopExpression:
 		return g.compileLoopExpression(ctx, e, expected)
+	case *ast.BreakpointExpression:
+		return g.compileBreakpointExpression(ctx, e, expected)
+	case *ast.AssignmentExpression, *ast.BlockExpression, *ast.IfExpression:
+		lines, exprValue, exprType, ok := g.compileTailExpression(ctx, expected, e)
+		if !ok {
+			return "", "", false
+		}
+		return g.wrapLinesAsExpression(ctx, lines, exprValue, exprType)
 	default:
 		ctx.setReason("unsupported expression")
 		return "", "", false
@@ -183,26 +195,8 @@ func (g *generator) compileFloatLiteral(ctx *compileContext, lit *ast.FloatLiter
 	return fmt.Sprintf("%s(%s)", expected, strconv.FormatFloat(lit.Value, 'g', -1, 64)), expected, true
 }
 
-func (g *generator) compileCharLiteral(ctx *compileContext, lit *ast.CharLiteral, expected string) (string, string, bool) {
-	if lit == nil {
-		ctx.setReason("missing char literal")
-		return "", "", false
-	}
-	actual := "rune"
-	if !g.typeMatches(expected, actual) {
-		ctx.setReason("unsupported char literal type")
-		return "", "", false
-	}
-	runes := []rune(lit.Value)
-	if len(runes) != 1 {
-		ctx.setReason("invalid char literal")
-		return "", "", false
-	}
-	return fmt.Sprintf("rune(%q)", runes[0]), actual, true
-}
-
 func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLiteral, expected string) (string, string, bool) {
-	if lit == nil || lit.StructType == nil || lit.IsPositional || len(lit.FunctionalUpdateSources) > 0 || len(lit.TypeArguments) > 0 {
+	if lit == nil || lit.StructType == nil || len(lit.FunctionalUpdateSources) > 0 || len(lit.TypeArguments) > 0 {
 		ctx.setReason("unsupported struct literal")
 		return "", "", false
 	}
@@ -217,6 +211,43 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 	}
 	if !info.Supported {
 		ctx.setReason("unsupported struct type")
+		return "", "", false
+	}
+	if lit.IsPositional {
+		if len(lit.FunctionalUpdateSources) > 0 {
+			ctx.setReason("functional update unsupported")
+			return "", "", false
+		}
+		if info.Kind != ast.StructKindPositional {
+			ctx.setReason("struct literal positional mismatch")
+			return "", "", false
+		}
+		if len(lit.Fields) != len(info.Fields) {
+			ctx.setReason("struct literal missing fields")
+			return "", "", false
+		}
+		parts := make([]string, 0, len(info.Fields))
+		for idx, field := range lit.Fields {
+			if field == nil || field.Value == nil || field.Name != nil {
+				ctx.setReason("unsupported struct field")
+				return "", "", false
+			}
+			fieldInfo := info.Fields[idx]
+			expr, _, ok := g.compileExpr(ctx, field.Value, fieldInfo.GoType)
+			if !ok {
+				return "", "", false
+			}
+			parts = append(parts, expr)
+		}
+		return fmt.Sprintf("%s{%s}", info.GoName, strings.Join(parts, ", ")), info.GoName, true
+	}
+	updateCount := len(lit.FunctionalUpdateSources)
+	if info.Kind == ast.StructKindPositional {
+		if updateCount > 0 {
+			ctx.setReason("functional update unsupported")
+			return "", "", false
+		}
+		ctx.setReason("struct literal positional mismatch")
 		return "", "", false
 	}
 	fieldValues := make(map[string]string, len(lit.Fields))
@@ -237,9 +268,37 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		}
 		fieldValues[fieldInfo.GoName] = expr
 	}
-	if len(fieldValues) != len(info.Fields) {
+	if updateCount == 0 && len(fieldValues) != len(info.Fields) {
 		ctx.setReason("struct literal missing fields")
 		return "", "", false
+	}
+	if updateCount > 0 {
+		lines := []string{}
+		sourceTemps := make([]string, 0, updateCount)
+		for _, source := range lit.FunctionalUpdateSources {
+			if source == nil {
+				ctx.setReason("functional update source missing")
+				return "", "", false
+			}
+			expr, _, ok := g.compileExpr(ctx, source, info.GoName)
+			if !ok {
+				return "", "", false
+			}
+			temp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("%s := %s", temp, expr))
+			sourceTemps = append(sourceTemps, temp)
+		}
+		resultTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, sourceTemps[len(sourceTemps)-1]))
+		for _, field := range info.Fields {
+			value, ok := fieldValues[field.GoName]
+			if !ok {
+				continue
+			}
+			lines = append(lines, fmt.Sprintf("%s.%s = %s", resultTemp, field.GoName, value))
+		}
+		exprValue := fmt.Sprintf("func() %s { %s; return %s }()", info.GoName, strings.Join(lines, "; "), resultTemp)
+		return exprValue, info.GoName, true
 	}
 	parts := make([]string, 0, len(info.Fields))
 	for _, field := range info.Fields {
@@ -251,23 +310,6 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		parts = append(parts, fmt.Sprintf("%s: %s", field.GoName, value))
 	}
 	return fmt.Sprintf("%s{%s}", info.GoName, strings.Join(parts, ", ")), info.GoName, true
-}
-
-func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier, expected string) (string, string, bool) {
-	if ident == nil || ident.Name == "" {
-		ctx.setReason("missing identifier")
-		return "", "", false
-	}
-	param, ok := ctx.lookup(ident.Name)
-	if !ok {
-		ctx.setReason("unknown identifier")
-		return "", "", false
-	}
-	if !g.typeMatches(expected, param.GoType) {
-		ctx.setReason("identifier type mismatch")
-		return "", "", false
-	}
-	return param.GoName, param.GoType, true
 }
 
 func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryExpression, expected string) (string, string, bool) {
@@ -669,6 +711,10 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		lambdaCtx.locals[ident.Name] = info
 		params = append(params, info)
 	}
+	if len(params) > 0 {
+		lambdaCtx.implicitReceiver = params[0]
+		lambdaCtx.hasImplicitReceiver = true
+	}
 
 	desiredReturn := ""
 	if expr.ReturnType != nil {
@@ -940,21 +986,4 @@ func (g *generator) lambdaReturnLines(resultName string, goType string) ([]strin
 	default:
 		return []string{fmt.Sprintf("return %s, nil", resultName)}, true
 	}
-}
-
-func (g *generator) fieldInfo(info *structInfo, name string) *fieldInfo {
-	for idx := range info.Fields {
-		if info.Fields[idx].Name == name {
-			return &info.Fields[idx]
-		}
-	}
-	return nil
-}
-
-func safeParamName(name string, idx int) string {
-	candidate := sanitizeIdent(name)
-	if candidate == "" || candidate == "err" || candidate == "args" || candidate == "rt" || candidate == "ctx" {
-		return fmt.Sprintf("p%d", idx)
-	}
-	return candidate
 }

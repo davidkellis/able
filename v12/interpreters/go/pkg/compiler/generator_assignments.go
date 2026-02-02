@@ -11,6 +11,16 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		ctx.setReason("missing assignment")
 		return nil, "", "", false
 	}
+	if implicitTarget, ok := assign.Left.(*ast.ImplicitMemberExpression); ok {
+		if ctx == nil || !ctx.hasImplicitReceiver || ctx.implicitReceiver.Name == "" {
+			ctx.setReason("implicit member assignment requires receiver")
+			return nil, "", "", false
+		}
+		receiver := ast.NewIdentifier(ctx.implicitReceiver.Name)
+		memberExpr := ast.NewMemberAccessExpression(receiver, implicitTarget.Member)
+		synthetic := ast.NewAssignmentExpression(assign.Operator, memberExpr, assign.Right)
+		return g.compileAssignment(ctx, synthetic)
+	}
 	if indexTarget, ok := assign.Left.(*ast.IndexExpression); ok {
 		if assign.Operator == ast.AssignmentDeclare {
 			ctx.setReason("index assignment cannot declare")
@@ -90,12 +100,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 					ctx.setReason("unsupported member assignment operator")
 					return nil, "", "", false
 				}
-				memberIdent, ok := memberTarget.Member.(*ast.Identifier)
-				if !ok || memberIdent == nil || memberIdent.Name == "" {
+				field, ok := g.structFieldForMember(info, memberTarget.Member)
+				if !ok {
 					ctx.setReason("unsupported member assignment target")
 					return nil, "", "", false
 				}
-				field := g.fieldInfo(info, memberIdent.Name)
 				if field == nil {
 					ctx.setReason("unknown struct field")
 					return nil, "", "", false
@@ -144,12 +153,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				lines = append(lines, fmt.Sprintf("%s.%s = %s", objTemp, field.GoName, computedTemp))
 				return lines, computedTemp, field.GoType, true
 			}
-			memberIdent, ok := memberTarget.Member.(*ast.Identifier)
-			if !ok || memberIdent == nil || memberIdent.Name == "" {
+			field, ok := g.structFieldForMember(info, memberTarget.Member)
+			if !ok {
 				ctx.setReason("unsupported member assignment target")
 				return nil, "", "", false
 			}
-			field := g.fieldInfo(info, memberIdent.Name)
 			if field == nil {
 				ctx.setReason("unknown struct field")
 				return nil, "", "", false

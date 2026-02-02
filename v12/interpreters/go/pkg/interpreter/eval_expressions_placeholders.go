@@ -219,7 +219,7 @@ func statementContainsPlaceholder(stmt ast.Statement) bool {
 
 func analyzePlaceholderExpression(expr ast.Expression) (placeholderPlan, bool, error) {
 	analyzer := &placeholderAnalyzer{}
-	if err := analyzer.visitExpression(expr); err != nil {
+	if err := analyzer.visitExpression(expr, true); err != nil {
 		return placeholderPlan{}, false, err
 	}
 	if !analyzer.hasPlaceholder {

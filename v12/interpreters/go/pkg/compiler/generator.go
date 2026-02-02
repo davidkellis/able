@@ -17,14 +17,19 @@ type generator struct {
 }
 
 type compileContext struct {
-	params     map[string]paramInfo
-	locals     map[string]paramInfo
-	functions  map[string]*functionInfo
-	parent     *compileContext
-	temps      *int
-	reason     string
-	loopDepth  int
-	rethrowVar string
+	params              map[string]paramInfo
+	locals              map[string]paramInfo
+	functions           map[string]*functionInfo
+	parent              *compileContext
+	temps               *int
+	reason              string
+	loopDepth           int
+	rethrowVar          string
+	breakpoints         map[string]int
+	implicitReceiver    paramInfo
+	hasImplicitReceiver bool
+	placeholderParams   map[int]paramInfo
+	inPlaceholder       bool
 }
 
 func newGenerator(opts Options) *generator {
@@ -66,7 +71,7 @@ func (g *generator) collect(program *driver.Program) error {
 	mapper := NewTypeMapper(g.structs)
 	for _, info := range g.structs {
 		fields := make([]fieldInfo, 0, len(info.Node.Fields))
-		supported := info.Kind != ast.StructKindPositional
+		supported := true
 		for idx, field := range info.Node.Fields {
 			fieldName := ""
 			if field.Name != nil {
@@ -128,6 +133,9 @@ func (g *generator) fillFunctionInfo(info *functionInfo, mapper *TypeMapper) {
 	def := info.Definition
 	params := make([]paramInfo, 0, len(def.Params))
 	supported := true
+	if def.IsMethodShorthand {
+		supported = false
+	}
 	for idx, param := range def.Params {
 		name := fmt.Sprintf("arg%d", idx)
 		if ident, ok := param.Name.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
@@ -375,11 +383,12 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 func newCompileContext(info *functionInfo, functions map[string]*functionInfo) *compileContext {
 	counter := 0
 	ctx := &compileContext{
-		params:    make(map[string]paramInfo),
-		locals:    make(map[string]paramInfo),
-		functions: functions,
-		temps:     &counter,
-		loopDepth: 0,
+		params:      make(map[string]paramInfo),
+		locals:      make(map[string]paramInfo),
+		functions:   functions,
+		temps:       &counter,
+		loopDepth:   0,
+		breakpoints: make(map[string]int),
 	}
 	if info != nil {
 		for _, param := range info.Params {
@@ -387,6 +396,10 @@ func newCompileContext(info *functionInfo, functions map[string]*functionInfo) *
 				continue
 			}
 			ctx.params[param.Name] = param
+		}
+		if len(info.Params) > 0 {
+			ctx.implicitReceiver = info.Params[0]
+			ctx.hasImplicitReceiver = true
 		}
 	}
 	return ctx
@@ -437,13 +450,47 @@ func (c *compileContext) child() *compileContext {
 		return nil
 	}
 	return &compileContext{
-		locals:     make(map[string]paramInfo),
-		functions:  c.functions,
-		parent:     c,
-		temps:      c.temps,
-		loopDepth:  c.loopDepth,
-		rethrowVar: c.rethrowVar,
+		locals:              make(map[string]paramInfo),
+		functions:           c.functions,
+		parent:              c,
+		temps:               c.temps,
+		loopDepth:           c.loopDepth,
+		rethrowVar:          c.rethrowVar,
+		breakpoints:         c.breakpoints,
+		implicitReceiver:    c.implicitReceiver,
+		hasImplicitReceiver: c.hasImplicitReceiver,
+		placeholderParams:   c.placeholderParams,
+		inPlaceholder:       c.inPlaceholder,
 	}
+}
+
+func (c *compileContext) pushBreakpoint(label string) {
+	if c == nil || label == "" {
+		return
+	}
+	if c.breakpoints == nil {
+		c.breakpoints = make(map[string]int)
+	}
+	c.breakpoints[label]++
+}
+
+func (c *compileContext) popBreakpoint(label string) {
+	if c == nil || label == "" || c.breakpoints == nil {
+		return
+	}
+	count := c.breakpoints[label]
+	if count <= 1 {
+		delete(c.breakpoints, label)
+		return
+	}
+	c.breakpoints[label] = count - 1
+}
+
+func (c *compileContext) hasBreakpoint(label string) bool {
+	if c == nil || label == "" || c.breakpoints == nil {
+		return false
+	}
+	return c.breakpoints[label] > 0
 }
 
 func (c *compileContext) newTemp() string {

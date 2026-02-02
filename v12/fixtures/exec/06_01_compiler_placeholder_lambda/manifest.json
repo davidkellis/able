@@ -1,0 +1,11 @@
+{
+  "description": "compiler lowers placeholder lambdas",
+  "expect": {
+    "stdout": [
+      "add 15",
+      "square 36",
+      "mixed 879"
+    ],
+    "exit": 0
+  }
+}

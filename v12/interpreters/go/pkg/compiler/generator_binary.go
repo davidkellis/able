@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -10,6 +11,9 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 	if expr == nil {
 		ctx.setReason("missing binary expression")
 		return "", "", false
+	}
+	if expr.Operator == "|>" || expr.Operator == "|>>" {
+		return g.compilePipeExpression(ctx, expr, expected)
 	}
 	if expr.Operator != "&&" && expr.Operator != "||" {
 		leftExpr, leftType, ok := g.compileExpr(ctx, expr.Left, "")
@@ -221,6 +225,143 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 		ctx.setReason("unsupported operator")
 		return "", "", false
 	}
+}
+
+func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryExpression, expected string) (string, string, bool) {
+	if expr == nil {
+		ctx.setReason("missing pipe expression")
+		return "", "", false
+	}
+	leftExpr, leftType, ok := g.compileExpr(ctx, expr.Left, "")
+	if !ok {
+		return "", "", false
+	}
+	subjectValue, ok := g.runtimeValueExpr(leftExpr, leftType)
+	if !ok {
+		ctx.setReason("pipe subject unsupported")
+		return "", "", false
+	}
+	subjectTemp := ctx.newTemp()
+	lines := []string{fmt.Sprintf("%s := %s", subjectTemp, subjectValue)}
+
+	pipeCtx := ctx.child()
+	subjectParam := paramInfo{Name: subjectTemp, GoName: subjectTemp, GoType: "runtime.Value"}
+	pipeCtx.locals[subjectTemp] = subjectParam
+	pipeCtx.implicitReceiver = subjectParam
+	pipeCtx.hasImplicitReceiver = true
+
+	if placeholderExpr, _, ok := g.compilePlaceholderLambda(pipeCtx, expr.Right); ok {
+		rhsTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", rhsTemp, placeholderExpr))
+		callTemp := ctx.newTemp()
+		argsTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("var %s []runtime.Value", argsTemp))
+		lines = append(lines, fmt.Sprintf("switch %s.(type) {", rhsTemp))
+		lines = append(lines, "case runtime.BoundMethodValue, *runtime.BoundMethodValue, runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue:")
+		lines = append(lines, fmt.Sprintf("\t%s = nil", argsTemp))
+		lines = append(lines, "default:")
+		lines = append(lines, fmt.Sprintf("\t%s = []runtime.Value{%s}", argsTemp, subjectTemp))
+		lines = append(lines, "}")
+		lines = append(lines, fmt.Sprintf("%s := __able_call_value(%s, %s)", callTemp, rhsTemp, argsTemp))
+		return g.pipeResultExpression(ctx, expected, lines, callTemp)
+	}
+
+	if call, ok := expr.Right.(*ast.FunctionCall); ok {
+		calleeExpr, calleeType, ok := g.compileExpr(pipeCtx, call.Callee, "")
+		if !ok {
+			return "", "", false
+		}
+		calleeValue, ok := g.runtimeValueExpr(calleeExpr, calleeType)
+		if !ok {
+			ctx.setReason("pipe call target unsupported")
+			return "", "", false
+		}
+		calleeTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", calleeTemp, calleeValue))
+		argTemps := make([]string, 0, len(call.Arguments))
+		for _, arg := range call.Arguments {
+			argExpr, argType, ok := g.compileExpr(pipeCtx, arg, "")
+			if !ok {
+				return "", "", false
+			}
+			argValue, ok := g.runtimeValueExpr(argExpr, argType)
+			if !ok {
+				ctx.setReason("pipe call argument unsupported")
+				return "", "", false
+			}
+			argTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("%s := %s", argTemp, argValue))
+			argTemps = append(argTemps, argTemp)
+		}
+		argsTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("var %s []runtime.Value", argsTemp))
+		lines = append(lines, fmt.Sprintf("switch %s.(type) {", calleeTemp))
+		lines = append(lines, "case runtime.BoundMethodValue, *runtime.BoundMethodValue, runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue:")
+		lines = append(lines, fmt.Sprintf("\t%s = %s", argsTemp, runtimeValueSlice(argTemps)))
+		lines = append(lines, "default:")
+		lines = append(lines, fmt.Sprintf("\t%s = %s", argsTemp, runtimeValueSliceWithSubject(subjectTemp, argTemps)))
+		lines = append(lines, "}")
+		callTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := __able_call_value(%s, %s)", callTemp, calleeTemp, argsTemp))
+		return g.pipeResultExpression(ctx, expected, lines, callTemp)
+	}
+
+	rhsExpr, rhsType, ok := g.compileExpr(pipeCtx, expr.Right, "")
+	if !ok {
+		return "", "", false
+	}
+	rhsValue, ok := g.runtimeValueExpr(rhsExpr, rhsType)
+	if !ok {
+		ctx.setReason("pipe rhs unsupported")
+		return "", "", false
+	}
+	rhsTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s := %s", rhsTemp, rhsValue))
+	argsTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("var %s []runtime.Value", argsTemp))
+	lines = append(lines, fmt.Sprintf("switch %s.(type) {", rhsTemp))
+	lines = append(lines, "case runtime.BoundMethodValue, *runtime.BoundMethodValue, runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue:")
+	lines = append(lines, fmt.Sprintf("\t%s = nil", argsTemp))
+	lines = append(lines, "default:")
+	lines = append(lines, fmt.Sprintf("\t%s = []runtime.Value{%s}", argsTemp, subjectTemp))
+	lines = append(lines, "}")
+	callTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s := __able_call_value(%s, %s)", callTemp, rhsTemp, argsTemp))
+	return g.pipeResultExpression(ctx, expected, lines, callTemp)
+}
+
+func (g *generator) pipeResultExpression(ctx *compileContext, expected string, lines []string, resultTemp string) (string, string, bool) {
+	if g.isVoidType(expected) {
+		lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
+		return fmt.Sprintf("func() struct{} { %s; return struct{}{} }()", strings.Join(lines, "; ")), "struct{}", true
+	}
+	resultType := "runtime.Value"
+	resultExpr := resultTemp
+	if expected != "" && expected != "runtime.Value" {
+		converted, ok := g.expectRuntimeValueExpr(resultTemp, expected)
+		if !ok {
+			ctx.setReason("pipe result type mismatch")
+			return "", "", false
+		}
+		resultType = expected
+		resultExpr = converted
+	}
+	return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
+}
+
+func runtimeValueSlice(args []string) string {
+	if len(args) == 0 {
+		return "nil"
+	}
+	return "[]runtime.Value{" + strings.Join(args, ", ") + "}"
+}
+
+func runtimeValueSliceWithSubject(subject string, args []string) string {
+	if len(args) == 0 {
+		return "[]runtime.Value{" + subject + "}"
+	}
+	all := append([]string{subject}, args...)
+	return "[]runtime.Value{" + strings.Join(all, ", ") + "}"
 }
 
 func (g *generator) compileRuntimeBinaryOperation(ctx *compileContext, op string, leftExpr string, leftType string, rightExpr string, rightType string, expected string) (string, string, bool) {

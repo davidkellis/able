@@ -1,0 +1,13 @@
+package exec_06_01_compiler_struct_update
+
+## Semantics: compiler handles named struct functional updates.
+
+struct User { name: String, visits: i32, active: bool }
+
+fn main() -> void {
+  user := User { name: "Ada", visits: 1, active: true }
+  updated := User { ...user, visits: user.visits + 1 }
+
+  print(`base ${user.name} ${user.visits} ${user.active}`)
+  print(`updated ${updated.name} ${updated.visits} ${updated.active}`)
+}

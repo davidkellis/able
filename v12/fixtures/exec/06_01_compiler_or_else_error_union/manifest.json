@@ -1,0 +1,10 @@
+{
+  "description": "compiler or-else handles Error-implementer unions",
+  "expect": {
+    "stdout": [
+      "good ok",
+      "bad handled bad"
+    ],
+    "exit": 0
+  }
+}
