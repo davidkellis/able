@@ -1,0 +1,12 @@
+{
+  "description": "compiler lowers pipe operators",
+  "expect": {
+    "stdout": [
+      "call 8",
+      "lambda 6",
+      "method 5",
+      "low 5"
+    ],
+    "exit": 0
+  }
+}

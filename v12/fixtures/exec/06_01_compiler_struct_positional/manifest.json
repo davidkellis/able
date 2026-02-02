@@ -1,0 +1,10 @@
+{
+  "description": "compiler handles positional struct literals and index access",
+  "expect": {
+    "stdout": [
+      "pair 3,4",
+      "mut 4,6"
+    ],
+    "exit": 0
+  }
+}

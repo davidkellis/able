@@ -1,0 +1,22 @@
+package exec_06_01_compiler_pipe
+
+## Semantics: compiler lowers pipe operators with callable RHS.
+
+fn add(a: i32, b: i32) -> i32 { a + b }
+
+struct Box { value: i32 }
+
+methods Box {
+  fn #inc() -> i32 { #value + 1 }
+}
+
+fn main() -> void {
+  print(`call ${5 |> add(3)}`)
+  print(`lambda ${5 |> (@ + 1)}`)
+
+  box := Box { value: 4 }
+  print(`method ${box |> #inc}`)
+
+  value := 5 |>> add(2)
+  print(`low ${value}`)
+}

@@ -31,6 +31,12 @@ fn main() -> void {
   }
   print(`typed ${typed}`)
 
+  array_typed := arr match {
+    case xs: Array i32 => xs[0] as i32,
+    case _ => 0,
+  }
+  print(`array ${array_typed}`)
+
   tail_first := arr match {
     case [1, 2, ...tail] => tail[0] as i32,
     case _ => 0,

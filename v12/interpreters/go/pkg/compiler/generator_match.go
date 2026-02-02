@@ -57,8 +57,23 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			return g.compileMatchPatternCondition(ctx, p.Pattern, subjectTemp, subjectType)
 		}
 		if mapped == "runtime.Value" {
-			ctx.setReason("unsupported typed pattern")
-			return "", false
+			typeCheck, ok := g.runtimeTypeCheckForTypeExpression(ctx, p.TypeAnnotation, subjectTemp)
+			if !ok {
+				ctx.setReason("unsupported typed pattern")
+				return "", false
+			}
+			innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, subjectTemp, "runtime.Value")
+			if !ok {
+				return "", false
+			}
+			if innerCond == "true" {
+				return typeCheck, true
+			}
+			lines := []string{
+				fmt.Sprintf("if !%s { return false }", typeCheck),
+				fmt.Sprintf("return %s", innerCond),
+			}
+			return fmt.Sprintf("func() bool { %s }()", strings.Join(lines, "; ")), true
 		}
 		typeCheck, ok := g.runtimeTypeCheckExpr(ctx, subjectTemp, mapped)
 		if !ok {
@@ -98,7 +113,36 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			return "", false
 		}
 		if p.IsPositional {
-			ctx.setReason("positional struct patterns unsupported")
+			if info.Kind != ast.StructKindPositional {
+				ctx.setReason("struct pattern positional mismatch")
+				return "", false
+			}
+			if len(p.Fields) != len(info.Fields) {
+				ctx.setReason("struct pattern arity mismatch")
+				return "", false
+			}
+			conds := make([]string, 0, len(p.Fields))
+			for idx, field := range p.Fields {
+				pattern, ok := positionalStructFieldPattern(field)
+				if !ok {
+					ctx.setReason("invalid struct pattern field")
+					return "", false
+				}
+				fieldInfo := info.Fields[idx]
+				fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+				fieldCond, ok := g.compileMatchPatternCondition(ctx, pattern, fieldExpr, fieldInfo.GoType)
+				if !ok {
+					return "", false
+				}
+				conds = append(conds, fieldCond)
+			}
+			if len(conds) == 0 {
+				return "true", true
+			}
+			return strings.Join(conds, " && "), true
+		}
+		if info.Kind == ast.StructKindPositional {
+			ctx.setReason("struct pattern positional mismatch")
 			return "", false
 		}
 		conds := make([]string, 0, len(p.Fields))
@@ -174,8 +218,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			return g.compileMatchPatternBindings(ctx, p.Pattern, subjectTemp, subjectType)
 		}
 		if mapped == "runtime.Value" {
-			ctx.setReason("unsupported typed pattern")
-			return nil, false
+			return g.compileMatchPatternBindings(ctx, p.Pattern, subjectTemp, "runtime.Value")
 		}
 		converted, ok := g.expectRuntimeValueExpr(subjectTemp, mapped)
 		if !ok {
@@ -207,7 +250,38 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			return nil, false
 		}
 		if p.IsPositional {
-			ctx.setReason("positional struct patterns unsupported")
+			if info.Kind != ast.StructKindPositional {
+				ctx.setReason("struct pattern positional mismatch")
+				return nil, false
+			}
+			if len(p.Fields) != len(info.Fields) {
+				ctx.setReason("struct pattern arity mismatch")
+				return nil, false
+			}
+			lines := []string{}
+			for idx, field := range p.Fields {
+				pattern, ok := positionalStructFieldPattern(field)
+				if !ok {
+					ctx.setReason("invalid struct pattern field")
+					return nil, false
+				}
+				fieldInfo := info.Fields[idx]
+				fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+				fieldLines, ok := g.compileMatchPatternBindings(ctx, pattern, fieldExpr, fieldInfo.GoType)
+				if !ok {
+					return nil, false
+				}
+				lines = append(lines, fieldLines...)
+				if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
+					bindName := sanitizeIdent(field.Binding.Name)
+					ctx.locals[field.Binding.Name] = paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: fieldInfo.GoType}
+					lines = append(lines, fmt.Sprintf("var %s %s = %s", bindName, fieldInfo.GoType, fieldExpr))
+				}
+			}
+			return lines, true
+		}
+		if info.Kind == ast.StructKindPositional {
+			ctx.setReason("struct pattern positional mismatch")
 			return nil, false
 		}
 		lines := []string{}
@@ -433,6 +507,41 @@ func (g *generator) compileRuntimeArrayPatternBindings(ctx *compileContext, patt
 		}
 	}
 	return lines, true
+}
+
+func positionalStructFieldPattern(field *ast.StructPatternField) (ast.Pattern, bool) {
+	if field == nil {
+		return nil, false
+	}
+	if field.Pattern != nil {
+		return field.Pattern, true
+	}
+	if field.FieldName != nil {
+		return field.FieldName, true
+	}
+	return nil, false
+}
+
+func (g *generator) runtimeTypeCheckForTypeExpression(ctx *compileContext, expr ast.TypeExpression, subjectTemp string) (string, bool) {
+	if expr == nil {
+		return "", false
+	}
+	switch t := expr.(type) {
+	case *ast.GenericTypeExpression:
+		base, ok := t.Base.(*ast.SimpleTypeExpression)
+		if !ok || base.Name == nil {
+			return "", false
+		}
+		switch base.Name.Name {
+		case "Array":
+			return fmt.Sprintf("func() bool { _, ok := __able_array_values(%s); return ok }()", subjectTemp), true
+		case "Map", "HashMap":
+			return fmt.Sprintf("func() bool { _, ok := %s.(*runtime.HashMapValue); return ok }()", subjectTemp), true
+		case "DivMod":
+			return fmt.Sprintf("func() bool { v, ok := %s.(*runtime.StructInstanceValue); if !ok || v == nil { return false }; if v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil { return false }; return v.Definition.Node.ID.Name == %q }()", subjectTemp, base.Name.Name), true
+		}
+	}
+	return "", false
 }
 
 func (g *generator) runtimeTypeCheckExpr(ctx *compileContext, subjectTemp string, goType string) (string, bool) {
