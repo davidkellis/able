@@ -1,0 +1,9 @@
+package exec_06_01_compiler_assignment_pattern_errors
+
+## Semantics: compiler reports runtime errors for pattern assignment mismatches.
+
+fn main() -> void {
+  data := [1, 2]
+  [first, second, third] := data
+  print(first + second + third)
+}

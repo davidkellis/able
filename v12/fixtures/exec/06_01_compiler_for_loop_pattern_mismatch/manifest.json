@@ -1,0 +1,6 @@
+{
+  "description": "compiler errors on for-loop pattern mismatches",
+  "expect": {
+    "exit": 1
+  }
+}

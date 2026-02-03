@@ -1,0 +1,6 @@
+{
+  "description": "compiler errors when struct patterns mismatch the subject type",
+  "expect": {
+    "exit": 1
+  }
+}

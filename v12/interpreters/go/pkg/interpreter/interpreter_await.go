@@ -103,7 +103,74 @@ func (i *Interpreter) evaluateAwaitExpression(expr *ast.AwaitExpression, env *ru
 		}
 		payload.setAwaitState(expr, state)
 	}
+	return i.awaitWithState(payload, expr, state, env)
+}
 
+func (i *Interpreter) initializeAwaitState(payload *asyncContextPayload, expr *ast.AwaitExpression, env *runtime.Environment) (*awaitEvalState, error) {
+	iterable, err := i.evaluateExpression(expr.Expression, env)
+	if err != nil {
+		return nil, err
+	}
+	return i.initializeAwaitStateWithIterable(payload, expr, iterable, env)
+}
+
+// AwaitIterable evaluates an await expression against a precomputed iterable.
+func (i *Interpreter) AwaitIterable(expr *ast.AwaitExpression, iterable runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+	payload, err := payloadFromEnv(env)
+	if err != nil {
+		return nil, err
+	}
+	if payload.kind != asyncContextFuture {
+		return nil, fmt.Errorf("await expressions must run inside an asynchronous task")
+	}
+	state := payload.getAwaitState(expr)
+	if state == nil {
+		state, err = i.initializeAwaitStateWithIterable(payload, expr, iterable, env)
+		if err != nil {
+			return nil, err
+		}
+		payload.setAwaitState(expr, state)
+	}
+	return i.awaitWithState(payload, expr, state, env)
+}
+
+func (i *Interpreter) initializeAwaitStateWithIterable(payload *asyncContextPayload, expr *ast.AwaitExpression, iterable runtime.Value, env *runtime.Environment) (*awaitEvalState, error) {
+	arms, err := i.collectAwaitArms(iterable, env)
+	if err != nil {
+		return nil, err
+	}
+	if len(arms) == 0 {
+		return nil, fmt.Errorf("await requires at least one arm")
+	}
+	var defaultArm *awaitArmState
+	for _, arm := range arms {
+		if arm != nil && arm.isDefault {
+			if defaultArm != nil {
+				return nil, fmt.Errorf("await accepts at most one default arm")
+			}
+			defaultArm = arm
+		}
+	}
+	state := &awaitEvalState{
+		env:        env,
+		arms:       arms,
+		defaultArm: defaultArm,
+		payload:    payload,
+	}
+	state.ensureWaitCh()
+	i.ensureConcurrencyBuiltins()
+	if i.awaitWakerStruct == nil {
+		return nil, fmt.Errorf("Await waker builtins are not initialized")
+	}
+	waker, err := i.makeAwaitWaker(payload, state)
+	if err != nil {
+		return nil, err
+	}
+	state.waker = waker
+	return state, nil
+}
+
+func (i *Interpreter) awaitWithState(payload *asyncContextPayload, expr *ast.AwaitExpression, state *awaitEvalState, env *runtime.Environment) (runtime.Value, error) {
 	for {
 		winner, err := i.selectReadyAwaitArm(state, env)
 		if err != nil {
@@ -161,46 +228,6 @@ func (i *Interpreter) evaluateAwaitExpression(expr *ast.AwaitExpression, env *ru
 		state.waiting = false
 		state.wakePending = false
 	}
-}
-
-func (i *Interpreter) initializeAwaitState(payload *asyncContextPayload, expr *ast.AwaitExpression, env *runtime.Environment) (*awaitEvalState, error) {
-	iterable, err := i.evaluateExpression(expr.Expression, env)
-	if err != nil {
-		return nil, err
-	}
-	arms, err := i.collectAwaitArms(iterable, env)
-	if err != nil {
-		return nil, err
-	}
-	if len(arms) == 0 {
-		return nil, fmt.Errorf("await requires at least one arm")
-	}
-	var defaultArm *awaitArmState
-	for _, arm := range arms {
-		if arm != nil && arm.isDefault {
-			if defaultArm != nil {
-				return nil, fmt.Errorf("await accepts at most one default arm")
-			}
-			defaultArm = arm
-		}
-	}
-	state := &awaitEvalState{
-		env:        env,
-		arms:       arms,
-		defaultArm: defaultArm,
-		payload:    payload,
-	}
-	state.ensureWaitCh()
-	i.ensureConcurrencyBuiltins()
-	if i.awaitWakerStruct == nil {
-		return nil, fmt.Errorf("Await waker builtins are not initialized")
-	}
-	waker, err := i.makeAwaitWaker(payload, state)
-	if err != nil {
-		return nil, err
-	}
-	state.waker = waker
-	return state, nil
 }
 
 func (i *Interpreter) collectAwaitArms(iterable runtime.Value, env *runtime.Environment) ([]*awaitArmState, error) {

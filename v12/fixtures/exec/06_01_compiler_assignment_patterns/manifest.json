@@ -1,0 +1,15 @@
+{
+  "description": "compiler handles pattern assignments",
+  "expect": {
+    "stdout": [
+      "2",
+      "4",
+      "3",
+      "2",
+      "5",
+      "10",
+      "map 1"
+    ],
+    "exit": 0
+  }
+}

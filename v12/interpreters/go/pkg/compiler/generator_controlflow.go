@@ -318,32 +318,26 @@ func (g *generator) compileForLoop(ctx *compileContext, loop *ast.ForLoop) ([]st
 		ctx.setReason("for loop iterable unsupported")
 		return nil, false
 	}
-	binding, ok := g.forLoopBinding(ctx, loop.Pattern)
+	elementTemp := ctx.newTemp()
+	bodyCtx := ctx.child()
+	bodyCtx.loopDepth++
+	newNames := map[string]struct{}{}
+	collectPatternBindingNames(loop.Pattern, newNames)
+	mode := patternBindingMode{declare: true, newNames: newNames}
+	cond, ok := g.compileMatchPatternCondition(bodyCtx, loop.Pattern, elementTemp, "runtime.Value")
 	if !ok {
 		return nil, false
 	}
-	bodyCtx := ctx.child()
-	bodyCtx.loopDepth++
-	bindLines := make([]string, 0, 1)
-	if binding != nil && binding.name != "" {
-		bodyCtx.locals[binding.name] = paramInfo{Name: binding.name, GoName: binding.goName, GoType: binding.goType}
+	bindLines, ok := g.compileAssignmentPatternBindings(bodyCtx, loop.Pattern, elementTemp, "runtime.Value", mode)
+	if !ok {
+		return nil, false
+	}
+	if cond != "true" {
+		bindLines = append([]string{fmt.Sprintf("if !(%s) { panic(fmt.Errorf(\"pattern assignment mismatch\")) }", cond)}, bindLines...)
 	}
 	bodyLines, ok := g.compileBlockStatement(bodyCtx, loop.Body)
 	if !ok {
 		return nil, false
-	}
-	elementTemp := ctx.newTemp()
-	if binding != nil && binding.name != "" {
-		bindExpr := elementTemp
-		if binding.goType != "runtime.Value" {
-			converted, ok := g.expectRuntimeValueExpr(elementTemp, binding.goType)
-			if !ok {
-				ctx.setReason("for loop binding type mismatch")
-				return nil, false
-			}
-			bindExpr = converted
-		}
-		bindLines = append(bindLines, fmt.Sprintf("%s := %s", binding.goName, bindExpr))
 	}
 	brokeTemp := ctx.newTemp()
 	contTemp := ctx.newTemp()
@@ -387,48 +381,6 @@ func (g *generator) compileForLoop(ctx *compileContext, loop *ast.ForLoop) ([]st
 		"}",
 	}
 	return lines, true
-}
-
-type forLoopBinding struct {
-	name   string
-	goName string
-	goType string
-}
-
-func (g *generator) forLoopBinding(ctx *compileContext, pattern ast.Pattern) (*forLoopBinding, bool) {
-	if pattern == nil {
-		ctx.setReason("missing for loop pattern")
-		return nil, false
-	}
-	switch p := pattern.(type) {
-	case *ast.WildcardPattern:
-		return nil, true
-	case *ast.Identifier:
-		if p == nil || p.Name == "" {
-			ctx.setReason("missing for loop identifier")
-			return nil, false
-		}
-		return &forLoopBinding{name: p.Name, goName: sanitizeIdent(p.Name), goType: "runtime.Value"}, true
-	case *ast.TypedPattern:
-		if p == nil || p.Pattern == nil || p.TypeAnnotation == nil {
-			ctx.setReason("unsupported for loop pattern")
-			return nil, false
-		}
-		ident, ok := p.Pattern.(*ast.Identifier)
-		if !ok || ident == nil || ident.Name == "" {
-			ctx.setReason("unsupported for loop pattern")
-			return nil, false
-		}
-		mapped, ok := g.mapTypeExpression(p.TypeAnnotation)
-		if !ok || mapped == "" || mapped == "struct{}" {
-			ctx.setReason("unsupported for loop pattern type")
-			return nil, false
-		}
-		return &forLoopBinding{name: ident.Name, goName: sanitizeIdent(ident.Name), goType: mapped}, true
-	default:
-		ctx.setReason("unsupported for loop pattern")
-		return nil, false
-	}
 }
 
 func (g *generator) compileBreakStatement(ctx *compileContext, stmt *ast.BreakStatement) ([]string, bool) {

@@ -528,7 +528,9 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 	if !ok {
 		return "", "", false
 	}
-	implLines := append([]string{}, paramLines...)
+	implLines := make([]string, 0, len(paramLines)+3)
+	implLines = append(implLines, "if __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }")
+	implLines = append(implLines, paramLines...)
 	if g.isVoidType(exprType) {
 		if exprValue != "" {
 			implLines = append(implLines, fmt.Sprintf("_ = %s", exprValue))
@@ -547,7 +549,7 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 		implLines = append(implLines, fmt.Sprintf("return %s, nil", resultExpr))
 	}
 	implBody := strings.Join(implLines, "; ")
-	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) { %s }}", "<placeholder>", plan.paramCount, implBody)
+	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) { %s }}", "<placeholder>", plan.paramCount, implBody)
 	return lambdaExpr, "runtime.Value", true
 }
 

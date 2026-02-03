@@ -1,0 +1,22 @@
+package exec_06_01_compiler_for_loop_struct_pattern
+
+## Semantics: compiler lowers for loops with struct pattern destructuring.
+
+struct Point { x: i32, y: i32 }
+struct Pair { i32, i32 }
+
+fn main() -> void {
+  points := [Point { x: 1, y: 2 }, Point { x: 3, y: 4 }]
+  sum := 0
+  for Point { x, y } in points {
+    sum = sum + x + y
+  }
+  print(`sum ${sum}`)
+
+  pairs := [Pair { 5, 6 }, Pair { 7, 8 }]
+  total := 0
+  for Pair { a, b } in pairs {
+    total = total + a + b
+  }
+  print(`total ${total}`)
+}

@@ -1,0 +1,11 @@
+package exec_06_01_compiler_assignment_pattern_rest_mismatch
+
+## Semantics: compiler errors when rest patterns require more elements.
+
+fn main() -> void {
+  data := [1]
+  [first, second, ...tail] := data
+  print(first)
+  print(second)
+  print(tail.length)
+}
