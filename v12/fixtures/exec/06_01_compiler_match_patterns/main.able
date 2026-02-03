@@ -1,5 +1,7 @@
 package exec_06_01_compiler_match_patterns
 
+import able.collections.hash_map.*
+
 struct Point { x: i32, y: i32 }
 struct Pair { i32, i32 }
 
@@ -49,4 +51,11 @@ fn main() -> void {
     case _ => "no pair",
   }
   print(label)
+
+  values := #{ "a": 1, "b": 2 }
+  map_label := values match {
+    case m: HashMap String i32 => `map ${m["a"]!}`,
+    case _ => "no map",
+  }
+  print(map_label)
 }

@@ -39,6 +39,40 @@ func (r *Runtime) SetEnv(env *runtime.Environment) {
 	r.mu.Unlock()
 }
 
+func (r *Runtime) Env() *runtime.Environment {
+	if r == nil {
+		return nil
+	}
+	r.mu.RLock()
+	env := r.env
+	r.mu.RUnlock()
+	return env
+}
+
+func (r *Runtime) SwapEnv(env *runtime.Environment) *runtime.Environment {
+	if r == nil {
+		return nil
+	}
+	r.mu.Lock()
+	prev := r.env
+	r.env = env
+	r.mu.Unlock()
+	return prev
+}
+
+func (r *Runtime) currentEnv() *runtime.Environment {
+	if r == nil {
+		return nil
+	}
+	r.mu.RLock()
+	env := r.env
+	r.mu.RUnlock()
+	if env == nil && r.interp != nil {
+		env = r.interp.GlobalEnvironment()
+	}
+	return env
+}
+
 func (r *Runtime) RegisterOriginal(name string, value runtime.Value) {
 	if r == nil || name == "" || value == nil {
 		return
@@ -60,14 +94,15 @@ func (r *Runtime) CallOriginal(name string, args []runtime.Value) (runtime.Value
 	if !ok || orig == nil {
 		return nil, fmt.Errorf("compiler bridge: original function %s not found", name)
 	}
-	return r.interp.CallFunction(orig, args)
+	env := r.currentEnv()
+	return r.interp.CallFunctionIn(orig, args, env)
 }
 
 func (r *Runtime) Call(name string, args []runtime.Value) (runtime.Value, error) {
 	if r == nil || r.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	env := r.interp.GlobalEnvironment()
+	env := r.currentEnv()
 	if env == nil {
 		return nil, fmt.Errorf("compiler bridge: missing global environment")
 	}
@@ -75,7 +110,7 @@ func (r *Runtime) Call(name string, args []runtime.Value) (runtime.Value, error)
 	if err != nil {
 		return nil, err
 	}
-	return r.interp.CallFunction(value, args)
+	return r.interp.CallFunctionIn(value, args, env)
 }
 
 func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue, error) {
@@ -87,11 +122,8 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 		r.mu.RUnlock()
 		return def, nil
 	}
-	env := r.env
+	env := r.currentEnv()
 	r.mu.RUnlock()
-	if env == nil {
-		env = r.interp.GlobalEnvironment()
-	}
 	if env == nil {
 		return nil, fmt.Errorf("compiler bridge: missing global environment")
 	}
@@ -137,10 +169,7 @@ func MemberGet(rt *Runtime, obj runtime.Value, member runtime.Value) (runtime.Va
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	env := rt.env
-	if env == nil {
-		env = rt.interp.GlobalEnvironment()
-	}
+	env := rt.currentEnv()
 	return rt.interp.MemberGet(obj, member, env)
 }
 
@@ -148,10 +177,7 @@ func MemberGetPreferMethods(rt *Runtime, obj runtime.Value, member runtime.Value
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	env := rt.env
-	if env == nil {
-		env = rt.interp.GlobalEnvironment()
-	}
+	env := rt.currentEnv()
 	return rt.interp.MemberGetPreferMethods(obj, member, env)
 }
 
@@ -159,20 +185,18 @@ func CallValue(rt *Runtime, fn runtime.Value, args []runtime.Value) (runtime.Val
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	return rt.interp.CallFunction(fn, args)
+	env := rt.currentEnv()
+	return rt.interp.CallFunctionIn(fn, args, env)
 }
 
 func CallNamed(rt *Runtime, name string, args []runtime.Value) (runtime.Value, error) {
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	env := rt.env
-	if env == nil {
-		env = rt.interp.GlobalEnvironment()
-	}
+	env := rt.currentEnv()
 	value, err := env.Get(name)
 	if err == nil {
-		return rt.interp.CallFunction(value, args)
+		return rt.interp.CallFunctionIn(value, args, env)
 	}
 	if dot := strings.Index(name, "."); dot > 0 && dot < len(name)-1 {
 		head := name[:dot]
@@ -190,7 +214,7 @@ func CallNamed(rt *Runtime, name string, args []runtime.Value) (runtime.Value, e
 		if err != nil {
 			return nil, err
 		}
-		return rt.interp.CallFunction(candidate, args)
+		return rt.interp.CallFunctionIn(candidate, args, env)
 	}
 	return nil, err
 }
@@ -199,10 +223,7 @@ func Stringify(rt *Runtime, value runtime.Value) (string, error) {
 	if rt == nil || rt.interp == nil {
 		return "", fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	env := rt.env
-	if env == nil {
-		env = rt.interp.GlobalEnvironment()
-	}
+	env := rt.currentEnv()
 	return rt.interp.Stringify(value, env)
 }
 
@@ -237,10 +258,7 @@ func ErrorValue(rt *Runtime, value runtime.Value) runtime.ErrorValue {
 		}
 		return runtime.ErrorValue{Message: fmt.Sprintf("%v", value), Payload: payload}
 	}
-	env := rt.env
-	if env == nil {
-		env = rt.interp.GlobalEnvironment()
-	}
+	env := rt.currentEnv()
 	return rt.interp.MakeErrorValue(value, env)
 }
 
@@ -280,10 +298,7 @@ func Range(rt *Runtime, start runtime.Value, end runtime.Value, inclusive bool) 
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	env := rt.env
-	if env == nil {
-		env = rt.interp.GlobalEnvironment()
-	}
+	env := rt.currentEnv()
 	return rt.interp.EvaluateRangeValues(start, end, inclusive, env)
 }
 
@@ -291,11 +306,38 @@ func ResolveIterator(rt *Runtime, iterable runtime.Value) (*runtime.IteratorValu
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	env := rt.env
-	if env == nil {
-		env = rt.interp.GlobalEnvironment()
-	}
+	env := rt.currentEnv()
 	return rt.interp.ResolveIteratorValue(iterable, env)
+}
+
+func Spawn(rt *Runtime, task func(*runtime.Environment) (runtime.Value, error)) (*runtime.FutureValue, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if task == nil {
+		return nil, fmt.Errorf("compiler bridge: missing task")
+	}
+	env := rt.currentEnv()
+	future := rt.interp.RunCompiledFuture(env, func(taskEnv *runtime.Environment) (runtime.Value, error) {
+		prev := rt.SwapEnv(taskEnv)
+		defer rt.SwapEnv(prev)
+		return task(taskEnv)
+	})
+	if future == nil {
+		return nil, fmt.Errorf("compiler bridge: spawn failed")
+	}
+	return future, nil
+}
+
+func Await(rt *Runtime, expr *ast.AwaitExpression, iterable runtime.Value) (runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if expr == nil {
+		return nil, fmt.Errorf("compiler bridge: missing await expression")
+	}
+	env := rt.currentEnv()
+	return rt.interp.AwaitIterable(expr, iterable, env)
 }
 
 func ArrayElements(rt *Runtime, arr *runtime.ArrayValue) ([]runtime.Value, error) {

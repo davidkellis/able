@@ -70,6 +70,13 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction) error {
 	if instr.name == "" {
 		return fmt.Errorf("bytecode call missing target name")
 	}
+	var callNode *ast.FunctionCall
+	if instr.node != nil {
+		if call, ok := instr.node.(*ast.FunctionCall); ok {
+			callNode = call
+		}
+	}
+	state := vm.interp.stateFromEnv(vm.env)
 	calleeVal, err := vm.env.Get(instr.name)
 	if err != nil {
 		if dotIdx := strings.Index(instr.name, "."); dotIdx > 0 && dotIdx < len(instr.name)-1 {
@@ -86,17 +93,11 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction) error {
 			member := ast.ID(tail)
 			candidate, err := vm.interp.memberAccessOnValueWithOptions(receiver, member, vm.env, true)
 			if err != nil {
-				return err
+				return vm.interp.attachRuntimeContext(err, callNode, state)
 			}
 			calleeVal = candidate
 		} else {
-			return err
-		}
-	}
-	var callNode *ast.FunctionCall
-	if instr.node != nil {
-		if call, ok := instr.node.(*ast.FunctionCall); ok {
-			callNode = call
+			return vm.interp.attachRuntimeContext(err, callNode, state)
 		}
 	}
 	result, err := vm.interp.callCallableValue(calleeVal, args, vm.env, callNode)
@@ -109,7 +110,7 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction) error {
 			}
 			return err
 		}
-		err = vm.interp.attachRuntimeContext(err, callNode, vm.interp.stateFromEnv(vm.env))
+		err = vm.interp.attachRuntimeContext(err, callNode, state)
 		if vm.handleLoopSignal(err) {
 			return nil
 		}

@@ -40,10 +40,10 @@ func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.Ensur
 	recoveredOkTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("var %s %s", resultTemp, resultType),
-		fmt.Sprintf("var %s runtime.Value", recoveredTemp),
+		fmt.Sprintf("var %s any", recoveredTemp),
 		fmt.Sprintf("var %s bool", recoveredOkTemp),
 		"func() {",
-		fmt.Sprintf("\tdefer func() { if recovered := recover(); recovered != nil { if val, ok := recovered.(runtime.Value); ok { %s = val; %s = true } else { panic(recovered) } } }()", recoveredTemp, recoveredOkTemp),
+		fmt.Sprintf("\tdefer func() { if recovered := recover(); recovered != nil { %s = recovered; %s = true } }()", recoveredTemp, recoveredOkTemp),
 	}
 	lines = append(lines, indentLines(tryLines, 1)...)
 	lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, tryExpr))

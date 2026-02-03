@@ -1,0 +1,8 @@
+package exec_06_01_compiler_await_future
+
+fn main() -> void {
+  worker := spawn { 21 }
+  consumer := spawn { await [worker] }
+  future_flush()
+  print(consumer.value())
+}

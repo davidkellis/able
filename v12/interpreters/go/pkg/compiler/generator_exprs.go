@@ -52,6 +52,8 @@ func (g *generator) compileExpr(ctx *compileContext, expr ast.Expression, expect
 		return g.compileArrayLiteral(ctx, e, expected)
 	case *ast.MapLiteral:
 		return g.compileMapLiteral(ctx, e, expected)
+	case *ast.IteratorLiteral:
+		return g.compileIteratorLiteral(ctx, e, expected)
 	case *ast.Identifier:
 		return g.compileIdentifier(ctx, e, expected)
 	case *ast.PlaceholderExpression:
@@ -78,6 +80,10 @@ func (g *generator) compileExpr(ctx *compileContext, expr ast.Expression, expect
 		return g.compileRescueExpression(ctx, e, expected)
 	case *ast.EnsureExpression:
 		return g.compileEnsureExpression(ctx, e, expected)
+	case *ast.SpawnExpression:
+		return g.compileSpawnExpression(ctx, e, expected)
+	case *ast.AwaitExpression:
+		return g.compileAwaitExpression(ctx, e, expected)
 	case *ast.PropagationExpression:
 		return g.compilePropagationExpression(ctx, e, expected)
 	case *ast.OrElseExpression:
@@ -748,7 +754,8 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		return "", "", false
 	}
 
-	implLines := make([]string, 0, len(bodyLines)+len(params)*4+4)
+	implLines := make([]string, 0, len(bodyLines)+len(params)*4+5)
+	implLines = append(implLines, "if __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }")
 	implLines = append(implLines, fmt.Sprintf("if len(args) != %d { return nil, fmt.Errorf(\"lambda expects %d arguments, got %%d\", len(args)) }", len(params), len(params)))
 	for idx, param := range params {
 		argVar := fmt.Sprintf("__able_lambda_arg_%d", idx)
@@ -780,7 +787,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 	}
 
 	implBody := strings.Join(implLines, "; ")
-	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) { %s }}", "<lambda>", len(params), implBody)
+	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) { %s }}", "<lambda>", len(params), implBody)
 	return lambdaExpr, "runtime.Value", true
 }
 

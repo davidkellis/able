@@ -80,6 +80,52 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
 		return lines, computedTemp, "runtime.Value", true
 	}
+	if pattern, ok := assign.Left.(ast.Pattern); ok {
+		if assign.Operator != ast.AssignmentDeclare && assign.Operator != ast.AssignmentAssign {
+			ctx.setReason("compound assignment not supported with patterns")
+			return nil, "", "", false
+		}
+		newNames := map[string]struct{}{}
+		if assign.Operator == ast.AssignmentDeclare {
+			names := map[string]struct{}{}
+			collectPatternBindingNames(pattern, names)
+			if len(names) == 0 {
+				ctx.setReason(":= requires new binding")
+				return nil, "", "", false
+			}
+			for name := range names {
+				if _, ok := ctx.lookupCurrent(name); !ok {
+					newNames[name] = struct{}{}
+				}
+			}
+			if len(newNames) == 0 {
+				ctx.setReason(":= requires new binding")
+				return nil, "", "", false
+			}
+		}
+		expectedType := g.patternExpectedType(pattern)
+		valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, expectedType, assign.Right)
+		if !ok {
+			return nil, "", "", false
+		}
+		subjectTemp := ctx.newTemp()
+		lines := append([]string{}, valueLines...)
+		lines = append(lines, fmt.Sprintf("%s := %s", subjectTemp, valueExpr))
+		cond, ok := g.compileMatchPatternCondition(ctx, pattern, subjectTemp, valueType)
+		if !ok {
+			return nil, "", "", false
+		}
+		mode := patternBindingMode{declare: assign.Operator == ast.AssignmentDeclare, newNames: newNames}
+		bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, subjectTemp, valueType, mode)
+		if !ok {
+			return nil, "", "", false
+		}
+		if cond != "true" {
+			lines = append(lines, fmt.Sprintf("if !(%s) { panic(fmt.Errorf(\"pattern assignment mismatch\")) }", cond))
+		}
+		lines = append(lines, bindLines...)
+		return lines, subjectTemp, valueType, true
+	}
 	if memberTarget, ok := assign.Left.(*ast.MemberAccessExpression); ok {
 		if assign.Operator == ast.AssignmentDeclare {
 			ctx.setReason("member assignment cannot declare")

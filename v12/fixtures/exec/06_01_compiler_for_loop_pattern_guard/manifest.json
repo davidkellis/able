@@ -1,0 +1,9 @@
+{
+  "description": "compiler lowers for loops with pattern bindings used in guarded matches",
+  "expect": {
+    "stdout": [
+      "sum 3"
+    ],
+    "exit": 0
+  }
+}

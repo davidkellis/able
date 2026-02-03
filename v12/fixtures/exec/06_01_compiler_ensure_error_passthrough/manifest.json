@@ -1,0 +1,9 @@
+{
+  "description": "compiler ensure runs on non-raise errors",
+  "expect": {
+    "stdout": [
+      "try;ensure;"
+    ],
+    "exit": 1
+  }
+}

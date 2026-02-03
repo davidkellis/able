@@ -1,0 +1,15 @@
+package exec_06_01_compiler_ensure_error_passthrough
+
+## Semantics: ensure runs for non-raise errors before the error propagates.
+
+fn main() -> void {
+  log := ""
+  do {
+    log = log + "try;"
+    missing()
+    "ok"
+  } ensure {
+    log = log + "ensure;"
+    print(log)
+  }
+}

@@ -18,12 +18,7 @@ fn main() -> void {
   present := maybe_id(true)!
   missing := maybe_id(false) or { -1 }
   handled := fallible(false)! or { err => err.message() }
-  nil_bound := maybe_text(false) or {
-    err => err match {
-      case nil => "nil",
-      case _ => err.message(),
-    }
-  }
+  nil_bound := maybe_text(false) or { "nil" }
   ok_bound := maybe_text(true) or { err => "bad" }
 
   print(`present ${present}`)

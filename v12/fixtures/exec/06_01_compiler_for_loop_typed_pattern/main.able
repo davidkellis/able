@@ -1,0 +1,14 @@
+package exec_06_01_compiler_for_loop_typed_pattern
+
+## Semantics: compiler lowers for loops with typed pattern bindings.
+
+union Val = i32 | String
+
+fn main() -> void {
+  values: Array Val := [1, 2, 3]
+  sum := 0
+  for value: i32 in values {
+    sum = sum + value
+  }
+  print(`sum ${sum}`)
+}

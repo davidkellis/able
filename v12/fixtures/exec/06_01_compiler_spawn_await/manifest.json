@@ -1,0 +1,10 @@
+{
+  "description": "compiler lowers spawn with await default arm",
+  "expect": {
+    "stdout": [
+      "idle",
+      "idle"
+    ],
+    "exit": 0
+  }
+}

@@ -342,12 +342,13 @@ func (g *generator) compileRuntimeStructPatternCondition(ctx *compileContext, pa
 	lines = append(lines, fmt.Sprintf("if %s != nil {", positionalTemp))
 	lines = append(lines, fmt.Sprintf("if len(%s) != %d { return false }", positionalTemp, len(pattern.Fields)))
 	for idx, field := range pattern.Fields {
-		if field == nil || field.Pattern == nil {
+		fieldPattern, ok := positionalStructFieldPattern(field)
+		if !ok {
 			ctx.setReason("invalid struct pattern field")
 			return "", false
 		}
 		fieldExpr := fmt.Sprintf("%s[%d]", positionalTemp, idx)
-		fieldCond, ok := g.compileMatchPatternCondition(ctx, field.Pattern, fieldExpr, "runtime.Value")
+		fieldCond, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldExpr, "runtime.Value")
 		if !ok {
 			return "", false
 		}
@@ -360,7 +361,8 @@ func (g *generator) compileRuntimeStructPatternCondition(ctx *compileContext, pa
 		lines = append(lines, fmt.Sprintf("if %s.Fields == nil { return false }", instTemp))
 	}
 	for _, field := range pattern.Fields {
-		if field == nil || field.Pattern == nil {
+		fieldPattern, ok := positionalStructFieldPattern(field)
+		if !ok {
 			ctx.setReason("invalid struct pattern field")
 			return "", false
 		}
@@ -370,7 +372,7 @@ func (g *generator) compileRuntimeStructPatternCondition(ctx *compileContext, pa
 		}
 		fieldOk := ctx.newTemp()
 		fieldExpr := fmt.Sprintf("%s.Fields[%q]", instTemp, field.FieldName.Name)
-		fieldCond, ok := g.compileMatchPatternCondition(ctx, field.Pattern, fieldExpr, "runtime.Value")
+		fieldCond, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldExpr, "runtime.Value")
 		if !ok {
 			return "", false
 		}
@@ -400,7 +402,8 @@ func (g *generator) compileRuntimeStructPatternBindings(ctx *compileContext, pat
 		fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp),
 	}
 	for idx, field := range pattern.Fields {
-		if field == nil || field.Pattern == nil {
+		fieldPattern, ok := positionalStructFieldPattern(field)
+		if !ok {
 			ctx.setReason("invalid struct pattern field")
 			return nil, false
 		}
@@ -410,7 +413,7 @@ func (g *generator) compileRuntimeStructPatternBindings(ctx *compileContext, pat
 		} else {
 			fieldExpr = fmt.Sprintf("func() runtime.Value { if %s != nil { return %s[%d] }; return runtime.NilValue{} }()", positionalTemp, positionalTemp, idx)
 		}
-		fieldLines, ok := g.compileMatchPatternBindings(ctx, field.Pattern, fieldExpr, "runtime.Value")
+		fieldLines, ok := g.compileMatchPatternBindings(ctx, fieldPattern, fieldExpr, "runtime.Value")
 		if !ok {
 			return nil, false
 		}
@@ -536,7 +539,7 @@ func (g *generator) runtimeTypeCheckForTypeExpression(ctx *compileContext, expr 
 		case "Array":
 			return fmt.Sprintf("func() bool { _, ok := __able_array_values(%s); return ok }()", subjectTemp), true
 		case "Map", "HashMap":
-			return fmt.Sprintf("func() bool { _, ok := %s.(*runtime.HashMapValue); return ok }()", subjectTemp), true
+			return fmt.Sprintf("func() bool { switch v := %s.(type) { case *runtime.HashMapValue: return v != nil; case *runtime.StructInstanceValue: if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil { return false }; return v.Definition.Node.ID.Name == \"HashMap\"; default: return false } }()", subjectTemp), true
 		case "DivMod":
 			return fmt.Sprintf("func() bool { v, ok := %s.(*runtime.StructInstanceValue); if !ok || v == nil { return false }; if v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil { return false }; return v.Definition.Node.ID.Name == %q }()", subjectTemp, base.Name.Name), true
 		}

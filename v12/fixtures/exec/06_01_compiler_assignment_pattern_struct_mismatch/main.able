@@ -1,0 +1,12 @@
+package exec_06_01_compiler_assignment_pattern_struct_mismatch
+
+## Semantics: compiler errors when struct patterns mismatch the subject type.
+
+struct Point { x: i32, y: i32 }
+struct Other { x: i32 }
+
+fn main() -> void {
+  value := Other { x: 1 }
+  Point { x, y } := value
+  print(x + y)
+}

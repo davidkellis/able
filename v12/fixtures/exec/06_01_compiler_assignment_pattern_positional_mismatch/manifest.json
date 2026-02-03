@@ -1,0 +1,6 @@
+{
+  "description": "compiler errors when positional struct patterns have mismatched arity",
+  "expect": {
+    "exit": 1
+  }
+}

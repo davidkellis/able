@@ -1,0 +1,10 @@
+{
+  "description": "compiler lowers for loops with struct pattern destructuring",
+  "expect": {
+    "stdout": [
+      "sum 10",
+      "total 26"
+    ],
+    "exit": 0
+  }
+}

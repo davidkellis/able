@@ -1,0 +1,15 @@
+package exec_06_01_compiler_iterator_literal
+
+## Semantics: compiler lowers iterator literals and generator control methods.
+
+fn main() -> void {
+  iter := Iterator i32 { gen =>
+    gen.yield(1)
+    gen.yield(2)
+    gen.stop()
+    gen.yield(3)
+  }
+  print(iter.next())
+  print(iter.next())
+  print(iter.next())
+}
