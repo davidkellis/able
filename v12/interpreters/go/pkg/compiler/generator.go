@@ -8,12 +8,15 @@ import (
 )
 
 type generator struct {
-	opts      Options
-	structs   map[string]*structInfo
-	functions map[string]*functionInfo
-	warnings  []string
-	mangler   *nameMangler
-	needsAst  bool
+	opts          Options
+	structs       map[string]*structInfo
+	functions     map[string]*functionInfo
+	warnings      []string
+	mangler       *nameMangler
+	needsAst      bool
+	needsIterator bool
+	awaitExprs    []string
+	awaitNames    map[*ast.AwaitExpression]string
 }
 
 type compileContext struct {
@@ -34,10 +37,11 @@ type compileContext struct {
 
 func newGenerator(opts Options) *generator {
 	return &generator{
-		opts:      opts,
-		structs:   make(map[string]*structInfo),
-		functions: make(map[string]*functionInfo),
-		mangler:   newNameMangler(),
+		opts:       opts,
+		structs:    make(map[string]*structInfo),
+		functions:  make(map[string]*functionInfo),
+		mangler:    newNameMangler(),
+		awaitNames: make(map[*ast.AwaitExpression]string),
 	}
 }
 

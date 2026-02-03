@@ -1,0 +1,6 @@
+{
+  "description": "compiler errors on typed pattern assignment mismatches",
+  "expect": {
+    "exit": 1
+  }
+}

@@ -1737,3 +1737,57 @@ Open items (2025-11-02 audit):
 - Fixtures: updated `06_01_compiler_match_patterns` to cover typed Array match cases.
 - Compiler: fixed positional struct pattern lowering to accept positional field ASTs with field names.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added pattern assignment lowering for struct/array/typed patterns with assignment-time matching and bindings in compiled code.
+- Compiler: updated runtime typed-pattern checks for Map/HashMap to accept HashMap struct instances (and HashMapValue) during match/assignment conditions.
+- Fixtures: added `06_01_compiler_assignment_patterns` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: expanded `06_01_compiler_match_patterns` to cover typed HashMap match cases.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: expanded `06_01_compiler_assignment_patterns` to cover typed HashMap pattern assignment.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_assignment_pattern_errors` exec fixture plus coverage entry for pattern assignment mismatch errors.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_assignment_pattern_typed_mismatch` exec fixture plus coverage entry for typed pattern assignment mismatches.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_assignment_pattern_rest_mismatch` exec fixture plus coverage entry for rest-pattern assignment mismatch errors.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_assignment_pattern_struct_mismatch` exec fixture plus coverage entry for struct pattern assignment mismatches.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_assignment_pattern_positional_mismatch` exec fixture plus coverage entry for positional struct pattern arity mismatches.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added iterator literal lowering via compiled generator helpers and controller methods.
+- Fixtures: added `06_01_compiler_iterator_literal` exec fixture plus coverage entry for iterator literals.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added spawn/await lowering with runtime await keys plus env swapping for compiled lambdas/wrappers.
+- Interpreter + bridge: added env-aware CallFunctionIn plus RunCompiledFuture/AwaitIterable and spawn/await bridge helpers.
+- Fixtures: added `06_01_compiler_spawn_await` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: stabilize await expression identifiers across compile passes to keep await helpers declared once.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fix: future.await commit now respects async payload so serial executor doesn't deadlock (compiled await on Future handle).
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_await_future go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: ensure lowering now rethrows any recovered panic after running ensure, matching tree-walker behavior on non-raise errors.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_ensure_error_passthrough` exec fixture and coverage entry for ensure running on non-raise errors.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_ensure_error_passthrough go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Bytecode: attach runtime context for call-by-name resolution failures to keep diagnostics aligned.
+- Fixtures: `06_01_compiler_or_else` nil handler no longer references unbound err (spec-aligned).
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` and `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `./run_all_tests.sh` (v12 default) in repo root.
+- Tests: `./run_stdlib_tests.sh` (tree-walker + bytecode) in repo root.
+- Compiler: lower for loops with pattern matching bindings, emitting runtime pattern mismatch errors on failed destructuring.
+- Fixtures: added `06_01_compiler_for_loop_pattern` exec fixture and coverage entry.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_pattern go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_for_loop_pattern_mismatch` exec fixture and coverage entry for for-loop pattern errors.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_pattern_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_for_loop_struct_pattern` exec fixture and coverage entry for for-loop struct patterns.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_struct_pattern go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_for_loop_pattern_guard` exec fixture and coverage entry for guarded match use inside for-loop pattern bodies.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_pattern_guard go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_for_loop_typed_pattern` exec fixture and coverage entry for typed for-loop patterns.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_typed_pattern go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.

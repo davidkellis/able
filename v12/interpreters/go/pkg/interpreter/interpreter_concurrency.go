@@ -212,6 +212,64 @@ func (i *Interpreter) makeAsyncTask(node ast.Expression, env *runtime.Environmen
 	}
 }
 
+// RunCompiledFuture schedules a compiled task on the interpreter's executor.
+func (i *Interpreter) RunCompiledFuture(env *runtime.Environment, task func(*runtime.Environment) (runtime.Value, error)) *runtime.FutureValue {
+	if i == nil || task == nil {
+		return nil
+	}
+	i.ensureConcurrencyBuiltins()
+	if env == nil {
+		env = i.global
+	}
+	capturedEnv := runtime.NewEnvironment(env)
+	proc := func(ctx context.Context) (result runtime.Value, err error) {
+		payload := payloadFromContext(ctx)
+		if payload == nil {
+			payload = &asyncContextPayload{kind: asyncContextFuture}
+		} else {
+			payload.kind = asyncContextFuture
+		}
+		if payload.state == nil {
+			payload.state = newEvalState()
+		}
+		if capturedEnv != nil {
+			capturedEnv.SetRuntimeData(payload)
+			defer capturedEnv.SetRuntimeData(nil)
+		}
+		defer func() {
+			if r := recover(); r != nil {
+				switch v := r.(type) {
+				case runtime.Value:
+					err = Raise(i, v, capturedEnv)
+				case error:
+					err = v
+				default:
+					err = fmt.Errorf("panic: %v", r)
+				}
+				if errors.Is(err, context.Canceled) {
+					result = nil
+					err = context.Canceled
+					return
+				}
+				err = i.asyncFailure(payload, err)
+				result = nil
+			}
+		}()
+		result, err = task(capturedEnv)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil, context.Canceled
+			}
+			return nil, i.asyncFailure(payload, err)
+		}
+		if payload != nil && payload.handle != nil && payload.handle.CancelRequested() {
+			return nil, i.asyncCancelled(payload)
+		}
+		return result, nil
+	}
+	return i.executor.RunFuture(proc)
+}
+
 func (i *Interpreter) runAsyncEvaluation(payload *asyncContextPayload, node ast.Expression, env *runtime.Environment) (runtime.Value, error) {
 	if payload == nil {
 		payload = &asyncContextPayload{kind: asyncContextNone}
@@ -560,7 +618,7 @@ func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expre
 		fn := runtime.NativeFunctionValue{
 			Name:  "future.commit",
 			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 				if len(args) == 0 {
 					return nil, fmt.Errorf("commit requires receiver")
 				}
@@ -568,7 +626,11 @@ func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expre
 				if !ok {
 					return nil, fmt.Errorf("commit receiver must be a future")
 				}
-				return i.futureValue(recv), nil
+				var payload *asyncContextPayload
+				if ctx != nil {
+					payload = payloadFromState(ctx.State)
+				}
+				return i.futureValueWithPayload(recv, payload), nil
 			},
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil

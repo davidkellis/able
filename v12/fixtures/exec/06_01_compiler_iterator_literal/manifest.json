@@ -1,0 +1,11 @@
+{
+  "description": "compiler lowers iterator literals",
+  "expect": {
+    "stdout": [
+      "1",
+      "2",
+      "[iterator_end]"
+    ],
+    "exit": 0
+  }
+}

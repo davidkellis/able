@@ -1,0 +1,9 @@
+{
+  "description": "compiler lowers for loops with pattern destructuring",
+  "expect": {
+    "stdout": [
+      "sum 21"
+    ],
+    "exit": 0
+  }
+}

@@ -723,6 +723,57 @@
     "focus": "compiler lowers for loops over arrays and ranges"
   },
   {
+    "id": "exec/06_01_compiler_for_loop_pattern",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.5",
+      "5.3",
+      "8.2.2"
+    ],
+    "focus": "compiler lowers for loops with pattern destructuring"
+  },
+  {
+    "id": "exec/06_01_compiler_for_loop_pattern_mismatch",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.5",
+      "5.3",
+      "8.2.2"
+    ],
+    "focus": "compiler errors on for-loop pattern mismatches"
+  },
+  {
+    "id": "exec/06_01_compiler_for_loop_struct_pattern",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.3",
+      "5.2.4",
+      "5.3",
+      "8.2.2"
+    ],
+    "focus": "compiler lowers for loops with struct pattern destructuring"
+  },
+  {
+    "id": "exec/06_01_compiler_for_loop_pattern_guard",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.5",
+      "8.1.2",
+      "8.2.2"
+    ],
+    "focus": "compiler lowers for loops with pattern bindings used in guarded matches"
+  },
+  {
+    "id": "exec/06_01_compiler_for_loop_typed_pattern",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.1",
+      "5.3",
+      "8.2.2"
+    ],
+    "focus": "compiler lowers for loops with typed pattern bindings"
+  },
+  {
     "id": "exec/06_01_compiler_match_patterns",
     "status": "seeded",
     "spec_sections": [
@@ -731,6 +782,88 @@
       "8.1.2"
     ],
     "focus": "compiler matches struct and array patterns with guards"
+  },
+  {
+    "id": "exec/06_01_compiler_assignment_patterns",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.3",
+      "5.2.5",
+      "5.3"
+    ],
+    "focus": "compiler handles pattern assignments with structs and arrays"
+  },
+  {
+    "id": "exec/06_01_compiler_assignment_pattern_errors",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.5",
+      "5.3"
+    ],
+    "focus": "compiler reports runtime errors on pattern assignment mismatches"
+  },
+  {
+    "id": "exec/06_01_compiler_assignment_pattern_typed_mismatch",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.1",
+      "5.2.5",
+      "5.3"
+    ],
+    "focus": "compiler reports runtime errors on typed pattern assignment mismatches"
+  },
+  {
+    "id": "exec/06_01_compiler_assignment_pattern_rest_mismatch",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.5",
+      "5.3"
+    ],
+    "focus": "compiler reports runtime errors when rest patterns require more elements"
+  },
+  {
+    "id": "exec/06_01_compiler_assignment_pattern_struct_mismatch",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.3",
+      "5.3"
+    ],
+    "focus": "compiler reports runtime errors when struct patterns mismatch the subject type"
+  },
+  {
+    "id": "exec/06_01_compiler_assignment_pattern_positional_mismatch",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.4",
+      "5.3"
+    ],
+    "focus": "compiler reports runtime errors when positional struct patterns have mismatched arity"
+  },
+  {
+    "id": "exec/06_01_compiler_iterator_literal",
+    "status": "seeded",
+    "spec_sections": [
+      "6.7"
+    ],
+    "focus": "compiler lowers iterator literals and generator control methods"
+  },
+  {
+    "id": "exec/06_01_compiler_spawn_await",
+    "status": "seeded",
+    "spec_sections": [
+      "12.2",
+      "12.6"
+    ],
+    "focus": "compiler lowers spawn with await default arm"
+  },
+  {
+    "id": "exec/06_01_compiler_await_future",
+    "status": "seeded",
+    "spec_sections": [
+      "12.2",
+      "12.6"
+    ],
+    "focus": "compiler lowers await on future handles"
   },
   {
     "id": "exec/06_01_compiler_rescue",
@@ -747,6 +880,14 @@
       "11.3"
     ],
     "focus": "compiler lowers ensure and rethrow with rescue re-raising"
+  },
+  {
+    "id": "exec/06_01_compiler_ensure_error_passthrough",
+    "status": "seeded",
+    "spec_sections": [
+      "11.3"
+    ],
+    "focus": "compiler ensure runs for non-raise errors"
   },
   {
     "id": "exec/06_01_compiler_raise_error_interface",

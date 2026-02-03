@@ -1,0 +1,9 @@
+{
+  "description": "compiler lowers for loops with typed pattern bindings",
+  "expect": {
+    "stdout": [
+      "sum 6"
+    ],
+    "exit": 0
+  }
+}

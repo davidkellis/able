@@ -1,0 +1,16 @@
+package exec_06_01_compiler_for_loop_pattern_guard
+
+## Semantics: compiler lowers for loops with pattern bindings used in guarded matches.
+
+fn main() -> void {
+  pairs := [[1, 2], [5, 3], [2, 2]]
+  sum := 0
+  for [x, y] in pairs {
+    diff := [x, y] match {
+      case [a, b] if a > b => a - b,
+      case [a, b] => b - a
+    }
+    sum = sum + diff
+  }
+  print(`sum ${sum}`)
+}

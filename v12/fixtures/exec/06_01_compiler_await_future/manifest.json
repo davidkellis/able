@@ -1,0 +1,9 @@
+{
+  "description": "compiler lowers await on future handles",
+  "expect": {
+    "stdout": [
+      "21"
+    ],
+    "exit": 0
+  }
+}
