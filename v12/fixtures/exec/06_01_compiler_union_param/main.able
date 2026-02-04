@@ -1,0 +1,15 @@
+package exec_06_01_compiler_union_param
+
+## Semantics: compiler accepts union-typed parameters with primitive arguments.
+
+fn describe(value: i32 | String) -> String {
+  value match {
+    case n: i32 => `n ${n}`,
+    case s: String => `s ${s}`
+  }
+}
+
+fn main() -> void {
+  print(describe(2))
+  print(describe("hi"))
+}

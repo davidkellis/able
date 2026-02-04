@@ -774,6 +774,70 @@
     "focus": "compiler lowers for loops with typed pattern bindings"
   },
   {
+    "id": "exec/06_01_compiler_for_loop_typed_pattern_mismatch",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.1",
+      "5.3",
+      "8.2.2"
+    ],
+    "focus": "compiler errors when for-loop typed pattern bindings mismatch"
+  },
+  {
+    "id": "exec/06_01_compiler_nullable_return",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2.1",
+      "11.2.3"
+    ],
+    "focus": "compiler handles nullable return types with mixed branch values"
+  },
+  {
+    "id": "exec/06_01_compiler_union_return",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6",
+      "8.1.1"
+    ],
+    "focus": "compiler handles union return types with mixed branch values"
+  },
+  {
+    "id": "exec/06_01_compiler_result_return",
+    "status": "seeded",
+    "spec_sections": [
+      "11.2.1",
+      "11.2.3"
+    ],
+    "focus": "compiler handles result return types with or-else handling"
+  },
+  {
+    "id": "exec/06_01_compiler_union_param",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6",
+      "7.4"
+    ],
+    "focus": "compiler accepts union-typed parameters with primitive arguments"
+  },
+  {
+    "id": "exec/06_01_compiler_nullable_param",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6.2",
+      "7.4"
+    ],
+    "focus": "compiler accepts nullable-typed parameters with primitive/nil arguments"
+  },
+  {
+    "id": "exec/06_01_compiler_struct_param_bridge",
+    "status": "seeded",
+    "spec_sections": [
+      "4.5.2",
+      "7.4"
+    ],
+    "focus": "compiler converts struct params/returns across the runtime bridge"
+  },
+  {
     "id": "exec/06_01_compiler_match_patterns",
     "status": "seeded",
     "spec_sections": [

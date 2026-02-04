@@ -9,6 +9,25 @@ import (
 )
 
 func (g *generator) compileExpr(ctx *compileContext, expr ast.Expression, expected string) (string, string, bool) {
+	if expected == "runtime.Value" {
+		exprValue, exprType, ok := g.compileExpr(ctx, expr, "")
+		if !ok {
+			return "", "", false
+		}
+		if exprType == "runtime.Value" {
+			return exprValue, "runtime.Value", true
+		}
+		converted, ok := g.runtimeValueExpr(exprValue, exprType)
+		if !ok {
+			ctx.setReason("expression type mismatch")
+			return "", "", false
+		}
+		return converted, "runtime.Value", true
+	}
+	return g.compileExprExpected(ctx, expr, expected)
+}
+
+func (g *generator) compileExprExpected(ctx *compileContext, expr ast.Expression, expected string) (string, string, bool) {
 	if value, goType, ok := g.compilePlaceholderLambda(ctx, expr); ok {
 		if !g.typeMatches(expected, goType) {
 			ctx.setReason("placeholder lambda type mismatch")
@@ -211,9 +230,16 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		ctx.setReason("unknown struct literal type")
 		return "", "", false
 	}
-	if expected != "" && info.GoName != expected {
-		ctx.setReason("struct literal type mismatch")
-		return "", "", false
+	structType := "*" + info.GoName
+	if expected != "" {
+		baseExpected := expected
+		if baseName, ok := g.structBaseName(expected); ok {
+			baseExpected = baseName
+		}
+		if baseExpected != info.GoName {
+			ctx.setReason("struct literal type mismatch")
+			return "", "", false
+		}
 	}
 	if !info.Supported {
 		ctx.setReason("unsupported struct type")
@@ -245,7 +271,7 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 			}
 			parts = append(parts, expr)
 		}
-		return fmt.Sprintf("%s{%s}", info.GoName, strings.Join(parts, ", ")), info.GoName, true
+		return fmt.Sprintf("&%s{%s}", info.GoName, strings.Join(parts, ", ")), structType, true
 	}
 	updateCount := len(lit.FunctionalUpdateSources)
 	if info.Kind == ast.StructKindPositional {
@@ -286,7 +312,7 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 				ctx.setReason("functional update source missing")
 				return "", "", false
 			}
-			expr, _, ok := g.compileExpr(ctx, source, info.GoName)
+			expr, _, ok := g.compileExpr(ctx, source, structType)
 			if !ok {
 				return "", "", false
 			}
@@ -295,7 +321,8 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 			sourceTemps = append(sourceTemps, temp)
 		}
 		resultTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, sourceTemps[len(sourceTemps)-1]))
+		lines = append(lines, fmt.Sprintf("%s := &%s{}", resultTemp, info.GoName))
+		lines = append(lines, fmt.Sprintf("*%s = *%s", resultTemp, sourceTemps[len(sourceTemps)-1]))
 		for _, field := range info.Fields {
 			value, ok := fieldValues[field.GoName]
 			if !ok {
@@ -303,8 +330,8 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 			}
 			lines = append(lines, fmt.Sprintf("%s.%s = %s", resultTemp, field.GoName, value))
 		}
-		exprValue := fmt.Sprintf("func() %s { %s; return %s }()", info.GoName, strings.Join(lines, "; "), resultTemp)
-		return exprValue, info.GoName, true
+		exprValue := fmt.Sprintf("func() %s { %s; return %s }()", structType, strings.Join(lines, "; "), resultTemp)
+		return exprValue, structType, true
 	}
 	parts := make([]string, 0, len(info.Fields))
 	for _, field := range info.Fields {
@@ -315,7 +342,7 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		}
 		parts = append(parts, fmt.Sprintf("%s: %s", field.GoName, value))
 	}
-	return fmt.Sprintf("%s{%s}", info.GoName, strings.Join(parts, ", ")), info.GoName, true
+	return fmt.Sprintf("&%s{%s}", info.GoName, strings.Join(parts, ", ")), structType, true
 }
 
 func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryExpression, expected string) (string, string, bool) {
@@ -330,8 +357,21 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			return "", "", false
 		}
 		if !g.isNumericType(operandType) {
-			ctx.setReason("unsupported unary operand type")
-			return "", "", false
+			operandRuntime, ok := g.runtimeValueExpr(operand, operandType)
+			if !ok {
+				ctx.setReason("unsupported unary operand type")
+				return "", "", false
+			}
+			unaryExpr := fmt.Sprintf("__able_unary_op(%q, %s)", string(expr.Operator), operandRuntime)
+			if expected == "" || expected == "runtime.Value" {
+				return unaryExpr, "runtime.Value", true
+			}
+			converted, ok := g.expectRuntimeValueExpr(unaryExpr, expected)
+			if !ok {
+				ctx.setReason("unary expression type mismatch")
+				return "", "", false
+			}
+			return converted, expected, true
 		}
 		if !g.typeMatches(expected, operandType) {
 			ctx.setReason("unary expression type mismatch")
@@ -343,19 +383,44 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			ctx.setReason("unary expression type mismatch")
 			return "", "", false
 		}
-		operand, _, ok := g.compileExpr(ctx, expr.Operand, "bool")
+		operand, operandType, ok := g.compileExpr(ctx, expr.Operand, "")
 		if !ok {
 			return "", "", false
 		}
-		return fmt.Sprintf("(!%s)", operand), "bool", true
+		if operandType == "bool" {
+			return fmt.Sprintf("(!%s)", operand), "bool", true
+		}
+		operandRuntime := operand
+		if operandType != "runtime.Value" {
+			converted, ok := g.runtimeValueExpr(operand, operandType)
+			if !ok {
+				ctx.setReason("unsupported unary operand type")
+				return "", "", false
+			}
+			operandRuntime = converted
+		}
+		return fmt.Sprintf("!__able_truthy(%s)", operandRuntime), "bool", true
 	case ast.UnaryOperatorBitNot:
 		operand, operandType, ok := g.compileExpr(ctx, expr.Operand, expected)
 		if !ok {
 			return "", "", false
 		}
 		if !g.isIntegerType(operandType) {
-			ctx.setReason("unsupported bitwise operand type")
-			return "", "", false
+			operandRuntime, ok := g.runtimeValueExpr(operand, operandType)
+			if !ok {
+				ctx.setReason("unsupported bitwise operand type")
+				return "", "", false
+			}
+			unaryExpr := fmt.Sprintf("__able_unary_op(%q, %s)", string(expr.Operator), operandRuntime)
+			if expected == "" || expected == "runtime.Value" {
+				return unaryExpr, "runtime.Value", true
+			}
+			converted, ok := g.expectRuntimeValueExpr(unaryExpr, expected)
+			if !ok {
+				ctx.setReason("unary expression type mismatch")
+				return "", "", false
+			}
+			return converted, expected, true
 		}
 		if !g.typeMatches(expected, operandType) {
 			ctx.setReason("unary expression type mismatch")
@@ -377,13 +442,22 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 		ctx.setReason("generic calls unsupported")
 		return "", "", false
 	}
+	callNode := g.diagNodeName(call, "*ast.FunctionCall", "call")
 	if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
 		if info, ok := ctx.functions[callee.Name]; ok && info != nil && info.Compileable {
 			if !g.typeMatches(expected, info.ReturnType) {
 				ctx.setReason("call return type mismatch")
 				return "", "", false
 			}
+			optionalLast := g.hasOptionalLastParam(info)
 			if len(call.Arguments) != len(info.Params) {
+				if !(optionalLast && len(call.Arguments) == len(info.Params)-1) {
+					ctx.setReason("call arity mismatch")
+					return "", "", false
+				}
+			}
+			missingOptional := optionalLast && len(call.Arguments) == len(info.Params)-1
+			if missingOptional && len(info.Params) > 0 && info.Params[len(info.Params)-1].GoType != "runtime.Value" {
 				ctx.setReason("call arity mismatch")
 				return "", "", false
 			}
@@ -396,16 +470,20 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 				}
 				args = append(args, expr)
 			}
-			return fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", ")), info.ReturnType, true
+			if missingOptional {
+				args = append(args, "runtime.NilValue{}")
+			}
+			callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
+			return fmt.Sprintf("func() %s { __able_push_call_frame(%s); defer __able_pop_call_frame(); return %s }()", info.ReturnType, callNode, callExpr), info.ReturnType, true
 		}
 		if _, ok := ctx.lookup(callee.Name); !ok {
-			return g.compileDynamicCall(ctx, call, expected, callee.Name)
+			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 		}
 	}
-	return g.compileDynamicCall(ctx, call, expected, "")
+	return g.compileDynamicCall(ctx, call, expected, "", callNode)
 }
 
-func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCall, expected string, calleeName string) (string, string, bool) {
+func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCall, expected string, calleeName string, callNode string) (string, string, bool) {
 	if call == nil {
 		ctx.setReason("missing function call")
 		return "", "", false
@@ -417,6 +495,10 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	lines := make([]string, 0, len(call.Arguments)+2)
 	args := make([]string, 0, len(call.Arguments))
 	calleeTemp := ""
+	writebackNeeded := false
+	writebackObjExpr := ""
+	writebackObjType := ""
+	writebackObjTemp := ""
 	if calleeName == "" {
 		switch callee := call.Callee.(type) {
 		case *ast.MemberAccessExpression:
@@ -425,7 +507,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 				return "", "", false
 			}
 			if callee.Safe && g.typeCategory(objType) == "runtime" {
-				return g.compileSafeMemberCall(ctx, call, callee, expected, objExpr, objType)
+				return g.compileSafeMemberCall(ctx, call, callee, expected, objExpr, objType, callNode)
 			}
 			objValue, ok := g.runtimeValueExpr(objExpr, objType)
 			if !ok {
@@ -443,6 +525,12 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
 			lines = append(lines, fmt.Sprintf("%s := %s", memberTemp, memberValue))
 			lines = append(lines, fmt.Sprintf("%s := __able_member_get_method(%s, %s)", calleeTemp, objTemp, memberTemp))
+			if g.typeCategory(objType) == "struct" && g.isAddressableMemberObject(callee.Object) {
+				writebackNeeded = true
+				writebackObjExpr = objExpr
+				writebackObjType = objType
+				writebackObjTemp = objTemp
+			}
 		default:
 			calleeExpr, calleeType, ok := g.compileExpr(ctx, call.Callee, "")
 			if !ok {
@@ -482,9 +570,46 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 
 	callExpr := ""
 	if calleeName != "" {
-		callExpr = fmt.Sprintf("__able_call_named(%q, %s)", calleeName, argList)
+		callExpr = fmt.Sprintf("__able_call_named(%q, %s, %s)", calleeName, argList, callNode)
 	} else {
-		callExpr = fmt.Sprintf("__able_call_value(%s, %s)", calleeTemp, argList)
+		callExpr = fmt.Sprintf("__able_call_value(%s, %s, %s)", calleeTemp, argList, callNode)
+	}
+
+	if writebackNeeded {
+		baseName, ok := g.structBaseName(writebackObjType)
+		if !ok {
+			baseName = strings.TrimPrefix(writebackObjType, "*")
+		}
+		convertedTemp := ctx.newTemp()
+		writebackLines := []string{
+			fmt.Sprintf("%s, err := __able_struct_%s_from(%s)", convertedTemp, baseName, writebackObjTemp),
+			"if err != nil { panic(err) }",
+		}
+		if strings.HasPrefix(writebackObjType, "*") {
+			writebackLines = append(writebackLines, fmt.Sprintf("*%s = *%s", writebackObjExpr, convertedTemp))
+		} else {
+			writebackLines = append(writebackLines, fmt.Sprintf("%s = *%s", writebackObjExpr, convertedTemp))
+		}
+		if g.isVoidType(expected) {
+			lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
+			lines = append(lines, writebackLines...)
+			return fmt.Sprintf("func() struct{} { %s; return struct{}{} }()", strings.Join(lines, "; ")), "struct{}", true
+		}
+		resultTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, callExpr))
+		lines = append(lines, writebackLines...)
+		resultExpr := resultTemp
+		resultType := "runtime.Value"
+		if expected != "" && expected != "runtime.Value" {
+			converted, ok := g.expectRuntimeValueExpr(resultTemp, expected)
+			if !ok {
+				ctx.setReason("call return type mismatch")
+				return "", "", false
+			}
+			resultExpr = converted
+			resultType = expected
+		}
+		return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
 	}
 
 	if g.isVoidType(expected) {
@@ -509,7 +634,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
 }
 
-func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string) (string, string, bool) {
+func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string, callNode string) (string, string, bool) {
 	if call == nil || callee == nil {
 		ctx.setReason("missing safe member call")
 		return "", "", false
@@ -553,7 +678,7 @@ func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.Functio
 	} else {
 		argList = "nil"
 	}
-	callExpr := fmt.Sprintf("__able_call_value(%s, %s)", calleeTemp, argList)
+	callExpr := fmt.Sprintf("__able_call_value(%s, %s, %s)", calleeTemp, argList, callNode)
 	if g.isVoidType(expected) {
 		lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
 		lines = append(lines, "return struct{}{}")
@@ -754,7 +879,8 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		return "", "", false
 	}
 
-	implLines := make([]string, 0, len(bodyLines)+len(params)*4+5)
+	implLines := make([]string, 0, len(bodyLines)+len(params)*4+7)
+	implLines = append(implLines, "defer func() { if recovered := recover(); recovered != nil { switch recovered.(type) { case __able_break, __able_break_label_signal, __able_continue_signal, __able_continue_label_signal: panic(recovered) }; result = nil; err = bridge.Recover(__able_runtime, callCtx, recovered) } }()")
 	implLines = append(implLines, "if __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }")
 	implLines = append(implLines, fmt.Sprintf("if len(args) != %d { return nil, fmt.Errorf(\"lambda expects %d arguments, got %%d\", len(args)) }", len(params), len(params)))
 	for idx, param := range params {
@@ -787,7 +913,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 	}
 
 	implBody := strings.Join(implLines, "; ")
-	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) { %s }}", "<lambda>", len(params), implBody)
+	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (result runtime.Value, err error) { %s }}", "<lambda>", len(params), implBody)
 	return lambdaExpr, "runtime.Value", true
 }
 
@@ -940,8 +1066,12 @@ func (g *generator) lambdaArgConversionLines(argVar string, valueVar string, goT
 			fmt.Sprintf("%s := %s(%s)", target, goType, raw),
 		}, true
 	case "struct":
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
 		return []string{
-			fmt.Sprintf("%s, err := __able_struct_%s_from(%s)", target, goType, valueVar),
+			fmt.Sprintf("%s, err := __able_struct_%s_from(%s)", target, baseName, valueVar),
 			"if err != nil { return nil, err }",
 		}, true
 	default:
@@ -989,7 +1119,11 @@ func (g *generator) lambdaReturnLines(resultName string, goType string) ([]strin
 	case "uint64":
 		return []string{fmt.Sprintf("return bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\")), nil", resultName)}, true
 	case "struct":
-		return []string{fmt.Sprintf("return __able_struct_%s_to(__able_runtime, %s)", goType, resultName)}, true
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
+		return []string{fmt.Sprintf("return __able_struct_%s_to(__able_runtime, %s)", baseName, resultName)}, true
 	default:
 		return []string{fmt.Sprintf("return %s, nil", resultName)}, true
 	}

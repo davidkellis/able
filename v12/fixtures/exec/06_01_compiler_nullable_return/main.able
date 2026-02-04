@@ -1,0 +1,14 @@
+package exec_06_01_compiler_nullable_return
+
+## Semantics: compiler handles nullable return types with mixed branch values.
+
+fn maybe(flag: bool) -> ?i32 {
+  if flag { 7 } else { nil }
+}
+
+fn main() -> void {
+  one: i32 := maybe(true) or { 0 }
+  two: i32 := maybe(false) or { 0 }
+  print(`one ${one}`)
+  print(`two ${two}`)
+}

@@ -66,12 +66,8 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 		}
 		guardExpr := ""
 		if clause.Guard != nil {
-			guardValue, guardType, ok := g.compileExpr(clauseCtx, clause.Guard, "bool")
+			guardValue, ok := g.compileCondition(clauseCtx, clause.Guard)
 			if !ok {
-				return "", "", false
-			}
-			if guardType != "bool" {
-				ctx.setReason("rescue guard must be bool")
 				return "", "", false
 			}
 			guardExpr = guardValue

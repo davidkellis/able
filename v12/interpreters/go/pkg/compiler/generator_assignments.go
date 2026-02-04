@@ -168,7 +168,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
 				currentTemp := ctx.newTemp()
 				computedTemp := ctx.newTemp()
-				if g.isAddressableMemberObject(memberTarget.Object) {
+				needsAddr := true
+				if baseName, ok := g.structBaseName(objType); ok && objType != baseName {
+					needsAddr = false
+				}
+				if g.isAddressableMemberObject(memberTarget.Object) && needsAddr {
 					objTemp := ctx.newTemp()
 					lines = append(lines, fmt.Sprintf("%s := &%s", objTemp, objExpr))
 					lines = append(lines, fmt.Sprintf("%s := %s.%s", currentTemp, objTemp, field.GoName))

@@ -182,21 +182,37 @@ func MemberGetPreferMethods(rt *Runtime, obj runtime.Value, member runtime.Value
 }
 
 func CallValue(rt *Runtime, fn runtime.Value, args []runtime.Value) (runtime.Value, error) {
+	return CallValueWithNode(rt, fn, args, nil)
+}
+
+func CallValueWithNode(rt *Runtime, fn runtime.Value, args []runtime.Value, call *ast.FunctionCall) (runtime.Value, error) {
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := rt.currentEnv()
-	return rt.interp.CallFunctionIn(fn, args, env)
+	val, err := rt.interp.CallFunctionInWithCallNode(fn, args, env, call)
+	if err != nil && call != nil {
+		err = rt.interp.AttachRuntimeContext(err, call, env)
+	}
+	return val, err
 }
 
 func CallNamed(rt *Runtime, name string, args []runtime.Value) (runtime.Value, error) {
+	return CallNamedWithNode(rt, name, args, nil)
+}
+
+func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast.FunctionCall) (runtime.Value, error) {
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := rt.currentEnv()
 	value, err := env.Get(name)
 	if err == nil {
-		return rt.interp.CallFunctionIn(value, args, env)
+		val, callErr := rt.interp.CallFunctionInWithCallNode(value, args, env, call)
+		if callErr != nil && call != nil {
+			callErr = rt.interp.AttachRuntimeContext(callErr, call, env)
+		}
+		return val, callErr
 	}
 	if dot := strings.Index(name, "."); dot > 0 && dot < len(name)-1 {
 		head := name[:dot]
@@ -214,7 +230,11 @@ func CallNamed(rt *Runtime, name string, args []runtime.Value) (runtime.Value, e
 		if err != nil {
 			return nil, err
 		}
-		return rt.interp.CallFunctionIn(candidate, args, env)
+		val, callErr := rt.interp.CallFunctionInWithCallNode(candidate, args, env, call)
+		if callErr != nil && call != nil {
+			callErr = rt.interp.AttachRuntimeContext(callErr, call, env)
+		}
+		return val, callErr
 	}
 	return nil, err
 }
@@ -240,6 +260,34 @@ func IsError(rt *Runtime, value runtime.Value) bool {
 		}
 	}
 	return rt.interp.IsErrorValue(value)
+}
+
+func IsTruthy(rt *Runtime, value runtime.Value) bool {
+	if value == nil {
+		return false
+	}
+	if rt == nil || rt.interp == nil {
+		switch v := value.(type) {
+		case runtime.BoolValue:
+			return v.Val
+		case *runtime.BoolValue:
+			return v != nil && v.Val
+		case runtime.NilValue, *runtime.NilValue:
+			return false
+		case runtime.ErrorValue, *runtime.ErrorValue:
+			return false
+		case runtime.InterfaceValue:
+			if v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
+				return false
+			}
+		case *runtime.InterfaceValue:
+			if v != nil && v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
+				return false
+			}
+		}
+		return true
+	}
+	return rt.interp.IsTruthy(value)
 }
 
 func ErrorValue(rt *Runtime, value runtime.Value) runtime.ErrorValue {
@@ -292,6 +340,13 @@ func ApplyBinaryOperator(rt *Runtime, op string, left runtime.Value, right runti
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	return rt.interp.ApplyBinaryOperator(op, left, right)
+}
+
+func ApplyUnaryOperator(rt *Runtime, op string, operand runtime.Value) (runtime.Value, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.ApplyUnaryOperator(op, operand)
 }
 
 func Range(rt *Runtime, start runtime.Value, end runtime.Value, inclusive bool) (runtime.Value, error) {
@@ -357,6 +412,44 @@ func Cast(rt *Runtime, typeExpr ast.TypeExpression, value runtime.Value) (runtim
 // Raise panics with the provided value so compiled code can signal a runtime error.
 func Raise(value runtime.Value) {
 	panic(value)
+}
+
+// RaiseRuntimeErrorWithContext attaches runtime diagnostics to an error and panics.
+func RaiseRuntimeErrorWithContext(rt *Runtime, node ast.Node, err error) {
+	if err == nil {
+		return
+	}
+	if rt == nil || rt.interp == nil {
+		panic(err)
+	}
+	env := rt.currentEnv()
+	panic(rt.interp.AttachRuntimeContext(err, node, env))
+}
+
+// RegisterNodeOrigin wires a node origin path for compiled diagnostics.
+func RegisterNodeOrigin(rt *Runtime, node ast.Node, origin string) {
+	if rt == nil || rt.interp == nil || node == nil || origin == "" {
+		return
+	}
+	rt.interp.AddNodeOrigin(node, origin)
+}
+
+// PushCallFrame records a call expression in the interpreter's runtime state.
+func PushCallFrame(rt *Runtime, call *ast.FunctionCall) {
+	if rt == nil || rt.interp == nil || call == nil {
+		return
+	}
+	env := rt.currentEnv()
+	rt.interp.PushCallFrame(env, call)
+}
+
+// PopCallFrame removes the most recent call expression frame.
+func PopCallFrame(rt *Runtime) {
+	if rt == nil || rt.interp == nil {
+		return
+	}
+	env := rt.currentEnv()
+	rt.interp.PopCallFrame(env)
 }
 
 // Recover converts a recovered panic into a runtime error compatible with the interpreter.

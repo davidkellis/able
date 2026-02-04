@@ -1,0 +1,10 @@
+{
+  "description": "compiler accepts union-typed parameters with primitive arguments",
+  "expect": {
+    "stdout": [
+      "n 2",
+      "s hi"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,14 @@
+package exec_06_01_compiler_result_return
+
+## Semantics: compiler handles result return types with or-else handling.
+
+fn ok(flag: bool) -> !i32 {
+  if flag { 3 } else { raise "nope" }
+}
+
+fn main() -> void {
+  one: i32 := ok(true) or { 0 }
+  two: i32 := ok(false) or { 5 }
+  print(`one ${one}`)
+  print(`two ${two}`)
+}
