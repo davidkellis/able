@@ -1,0 +1,10 @@
+{
+  "description": "compiler accepts nullable-typed parameters with primitive/nil arguments",
+  "expect": {
+    "stdout": [
+      "n 1",
+      "none"
+    ],
+    "exit": 0
+  }
+}

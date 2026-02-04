@@ -675,8 +675,18 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpBindPattern:
 			{
-				pattern, ok := instr.node.(ast.Pattern)
-				if !ok || pattern == nil {
+				var pattern ast.Pattern
+				contextNode := instr.node
+				switch node := instr.node.(type) {
+				case ast.Pattern:
+					pattern = node
+				case *ast.ForLoop:
+					if node != nil {
+						pattern = node.Pattern
+						contextNode = node
+					}
+				}
+				if pattern == nil {
 					return nil, fmt.Errorf("bytecode bind pattern expects pattern node")
 				}
 				val, err := vm.pop()
@@ -684,7 +694,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					return nil, err
 				}
 				if err := vm.interp.assignPattern(pattern, val, vm.env, true, nil); err != nil {
-					err = vm.interp.attachRuntimeContext(err, pattern, vm.interp.stateFromEnv(vm.env))
+					err = vm.interp.attachRuntimeContext(err, contextNode, vm.interp.stateFromEnv(vm.env))
 					return nil, err
 				}
 				vm.ip++

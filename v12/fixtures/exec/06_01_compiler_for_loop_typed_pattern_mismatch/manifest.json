@@ -1,0 +1,6 @@
+{
+  "description": "compiler errors when for-loop typed pattern bindings mismatch",
+  "expect": {
+    "exit": 1
+  }
+}

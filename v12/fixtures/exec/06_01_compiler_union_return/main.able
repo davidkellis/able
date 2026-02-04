@@ -1,0 +1,14 @@
+package exec_06_01_compiler_union_return
+
+## Semantics: compiler handles union return types with mixed branch values.
+
+fn choose(flag: bool) -> i32 | String {
+  if flag { 42 } else { "ok" }
+}
+
+fn main() -> void {
+  left := choose(true)
+  right := choose(false)
+  print(left match { case v: i32 => `left ${v}`, case _ => "left?" })
+  print(right match { case s: String => `right ${s}`, case _ => "right?" })
+}

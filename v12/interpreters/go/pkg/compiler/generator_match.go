@@ -197,7 +197,10 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 		}
 		goName := sanitizeIdent(p.Name)
 		ctx.locals[p.Name] = paramInfo{Name: p.Name, GoName: goName, GoType: subjectType}
-		return []string{fmt.Sprintf("var %s %s = %s", goName, subjectType, subjectTemp)}, true
+		return []string{
+			fmt.Sprintf("var %s %s = %s", goName, subjectType, subjectTemp),
+			fmt.Sprintf("_ = %s", goName),
+		}, true
 	case *ast.LiteralPattern:
 		return nil, true
 	case *ast.TypedPattern:
@@ -275,7 +278,10 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 				if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 					bindName := sanitizeIdent(field.Binding.Name)
 					ctx.locals[field.Binding.Name] = paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: fieldInfo.GoType}
-					lines = append(lines, fmt.Sprintf("var %s %s = %s", bindName, fieldInfo.GoType, fieldExpr))
+					lines = append(lines,
+						fmt.Sprintf("var %s %s = %s", bindName, fieldInfo.GoType, fieldExpr),
+						fmt.Sprintf("_ = %s", bindName),
+					)
 				}
 			}
 			return lines, true
@@ -308,7 +314,10 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 				bindName := sanitizeIdent(field.Binding.Name)
 				ctx.locals[field.Binding.Name] = paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: fieldInfo.GoType}
-				lines = append(lines, fmt.Sprintf("var %s %s = %s", bindName, fieldInfo.GoType, fieldExpr))
+				lines = append(lines,
+					fmt.Sprintf("var %s %s = %s", bindName, fieldInfo.GoType, fieldExpr),
+					fmt.Sprintf("_ = %s", bindName),
+				)
 			}
 		}
 		return lines, true
@@ -331,6 +340,12 @@ func (g *generator) compileRuntimeStructPatternCondition(ctx *compileContext, pa
 	}
 	instTemp := ctx.newTemp()
 	lines := []string{
+		fmt.Sprintf("switch %s.(type) { case runtime.IteratorEndValue, *runtime.IteratorEndValue: %s }", subjectTemp, func() string {
+			if pattern.StructType != nil && pattern.StructType.Name == "IteratorEnd" && len(pattern.Fields) == 0 {
+				return "return true"
+			}
+			return "return false"
+		}()),
 		fmt.Sprintf("%s := __able_struct_instance(%s)", instTemp, subjectTemp),
 		fmt.Sprintf("if %s == nil { return false }", instTemp),
 	}
@@ -395,12 +410,16 @@ func (g *generator) compileRuntimeStructPatternBindings(ctx *compileContext, pat
 		ctx.setReason("missing struct pattern")
 		return nil, false
 	}
+	if len(pattern.Fields) == 0 {
+		return nil, true
+	}
 	instTemp := ctx.newTemp()
-	positionalTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s := __able_struct_instance(%s)", instTemp, subjectTemp),
-		fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp),
 	}
+	positionalTemp := ""
+	positionalTemp = ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp))
 	for idx, field := range pattern.Fields {
 		fieldPattern, ok := positionalStructFieldPattern(field)
 		if !ok {
@@ -421,7 +440,10 @@ func (g *generator) compileRuntimeStructPatternBindings(ctx *compileContext, pat
 		if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 			bindName := sanitizeIdent(field.Binding.Name)
 			ctx.locals[field.Binding.Name] = paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: "runtime.Value"}
-			lines = append(lines, fmt.Sprintf("var %s runtime.Value = %s", bindName, fieldExpr))
+			lines = append(lines,
+				fmt.Sprintf("var %s runtime.Value = %s", bindName, fieldExpr),
+				fmt.Sprintf("_ = %s", bindName),
+			)
 		}
 	}
 	return lines, true
@@ -504,7 +526,10 @@ func (g *generator) compileRuntimeArrayPatternBindings(ctx *compileContext, patt
 			if rest.Name != "" && rest.Name != "_" {
 				goName := sanitizeIdent(rest.Name)
 				ctx.locals[rest.Name] = paramInfo{Name: rest.Name, GoName: goName, GoType: "runtime.Value"}
-				lines = append(lines, fmt.Sprintf("var %s runtime.Value = &runtime.ArrayValue{Elements: append([]runtime.Value(nil), %s[%d:]...)}", goName, valuesTemp, len(pattern.Elements)))
+				lines = append(lines,
+					fmt.Sprintf("var %s runtime.Value = &runtime.ArrayValue{Elements: append([]runtime.Value(nil), %s[%d:]...)}", goName, valuesTemp, len(pattern.Elements)),
+					fmt.Sprintf("_ = %s", goName),
+				)
 			}
 		case *ast.WildcardPattern:
 		}
