@@ -48,6 +48,10 @@ func (i *Interpreter) isTruthy(val runtime.Value) bool {
 	return true
 }
 
+func (i *Interpreter) IsTruthy(val runtime.Value) bool {
+	return i.isTruthy(val)
+}
+
 func isNumericValue(val runtime.Value) bool {
 	switch val.(type) {
 	case runtime.IntegerValue, runtime.FloatValue:

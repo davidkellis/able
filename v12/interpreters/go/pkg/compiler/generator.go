@@ -17,6 +17,18 @@ type generator struct {
 	needsIterator bool
 	awaitExprs    []string
 	awaitNames    map[*ast.AwaitExpression]string
+	diagNodes     []diagNodeInfo
+	diagNames     map[ast.Node]string
+	nodeOrigins   map[ast.Node]string
+}
+
+type diagNodeInfo struct {
+	Name       string
+	GoType     string
+	Span       ast.Span
+	Origin     string
+	CallName   string
+	CallMember string
 }
 
 type compileContext struct {
@@ -33,6 +45,7 @@ type compileContext struct {
 	hasImplicitReceiver bool
 	placeholderParams   map[int]paramInfo
 	inPlaceholder       bool
+	returnType          string
 }
 
 func newGenerator(opts Options) *generator {
@@ -48,6 +61,26 @@ func newGenerator(opts Options) *generator {
 func (g *generator) collect(program *driver.Program) error {
 	if program == nil || program.Entry == nil || program.Entry.AST == nil {
 		return fmt.Errorf("compiler: missing entry module")
+	}
+	if g.nodeOrigins == nil {
+		g.nodeOrigins = make(map[ast.Node]string)
+	}
+	if program.Entry.NodeOrigins != nil {
+		for node, origin := range program.Entry.NodeOrigins {
+			if _, exists := g.nodeOrigins[node]; !exists {
+				g.nodeOrigins[node] = origin
+			}
+		}
+	}
+	for _, module := range program.Modules {
+		if module == nil || module.NodeOrigins == nil {
+			continue
+		}
+		for node, origin := range module.NodeOrigins {
+			if _, exists := g.nodeOrigins[node]; !exists {
+				g.nodeOrigins[node] = origin
+			}
+		}
 	}
 	module := program.Entry.AST
 	for _, stmt := range module.Body {
@@ -128,6 +161,43 @@ func (g *generator) collect(program *driver.Program) error {
 	g.resolveCompileableFunctions()
 	g.detectAstNeeds()
 	return nil
+}
+
+func (g *generator) diagNodeName(node ast.Node, goType string, prefix string) string {
+	if node == nil {
+		return "nil"
+	}
+	if g.diagNames == nil {
+		g.diagNames = make(map[ast.Node]string)
+	}
+	if name, ok := g.diagNames[node]; ok {
+		return name
+	}
+	name := fmt.Sprintf("__able_%s_node_%d", prefix, len(g.diagNodes))
+	info := diagNodeInfo{
+		Name:   name,
+		GoType: goType,
+		Span:   node.Span(),
+	}
+	if call, ok := node.(*ast.FunctionCall); ok && call != nil {
+		switch callee := call.Callee.(type) {
+		case *ast.Identifier:
+			info.CallName = callee.Name
+		case *ast.MemberAccessExpression:
+			if member, ok := callee.Member.(*ast.Identifier); ok && member != nil {
+				info.CallMember = member.Name
+			}
+		}
+	}
+	if g.nodeOrigins != nil {
+		if origin, ok := g.nodeOrigins[node]; ok {
+			info.Origin = origin
+		}
+	}
+	g.diagNodes = append(g.diagNodes, info)
+	g.diagNames[node] = name
+	g.needsAst = true
+	return name
 }
 
 func (g *generator) fillFunctionInfo(info *functionInfo, mapper *TypeMapper) {
@@ -363,6 +433,37 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		return g.compileRaiseStatement(ctx, s)
 	case *ast.RethrowStatement:
 		return g.compileRethrowStatement(ctx, s)
+	case *ast.ReturnStatement:
+		if ctx == nil || ctx.returnType == "" {
+			ctx.setReason("return outside function")
+			return nil, false
+		}
+		if s.Argument == nil || g.isVoidType(ctx.returnType) {
+			lines := []string{}
+			if s.Argument != nil {
+				stmtLines, valueExpr, _, ok := g.compileTailExpression(ctx, "", s.Argument)
+				if !ok {
+					return nil, false
+				}
+				lines = append(lines, stmtLines...)
+				if valueExpr != "" {
+					lines = append(lines, fmt.Sprintf("_ = %s", valueExpr))
+				}
+			}
+			lines = append(lines, "panic(__able_return{value: struct{}{}})")
+			return lines, true
+		}
+		stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, ctx.returnType, s.Argument)
+		if !ok {
+			return nil, false
+		}
+		if !g.typeMatches(ctx.returnType, valueType) {
+			ctx.setReason("return type mismatch")
+			return nil, false
+		}
+		lines := append([]string{}, stmtLines...)
+		lines = append(lines, fmt.Sprintf("panic(__able_return{value: %s})", valueExpr))
+		return lines, true
 	case *ast.IfExpression:
 		return g.compileIfStatement(ctx, s)
 	case *ast.BlockExpression:
@@ -395,6 +496,7 @@ func newCompileContext(info *functionInfo, functions map[string]*functionInfo) *
 		breakpoints: make(map[string]int),
 	}
 	if info != nil {
+		ctx.returnType = info.ReturnType
 		for _, param := range info.Params {
 			if param.Name == "" {
 				continue
@@ -465,6 +567,7 @@ func (c *compileContext) child() *compileContext {
 		hasImplicitReceiver: c.hasImplicitReceiver,
 		placeholderParams:   c.placeholderParams,
 		inPlaceholder:       c.inPlaceholder,
+		returnType:          c.returnType,
 	}
 }
 

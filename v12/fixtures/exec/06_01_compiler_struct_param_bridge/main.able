@@ -1,0 +1,22 @@
+package exec_06_01_compiler_struct_param_bridge
+
+## Semantics: compiler converts struct params/returns across the runtime bridge.
+
+struct Point { x: i32, y: i32 }
+
+fn shift(p: Point) -> Point {
+  Point { x: p.x + 1, y: p.y + 1 }
+}
+
+fn sum(p: Point) -> i32 {
+  p.x + p.y
+}
+
+fn main() -> void {
+  point := Point { x: 1, y: 2 }
+  shifted := shift(point)
+  total := sum(shifted)
+  print(`total ${total}`)
+  if total == 5 { return }
+  print("after")
+}

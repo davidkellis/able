@@ -12,11 +12,20 @@ func (g *generator) compileTailExpression(ctx *compileContext, expected string, 
 		ctx.setReason("missing expression")
 		return nil, "", "", false
 	}
+	runtimeExpected := expected == "runtime.Value"
 	switch e := expr.(type) {
 	case *ast.AssignmentExpression:
 		lines, valueExpr, valueType, ok := g.compileAssignment(ctx, e)
 		if !ok {
 			return nil, "", "", false
+		}
+		if runtimeExpected && valueType != "runtime.Value" {
+			converted, ok := g.runtimeValueExpr(valueExpr, valueType)
+			if !ok {
+				ctx.setReason("assignment type mismatch")
+				return nil, "", "", false
+			}
+			return lines, converted, "runtime.Value", true
 		}
 		if expected != "" && valueType == "runtime.Value" && expected != "runtime.Value" {
 			converted, ok := g.expectRuntimeValueExpr(valueExpr, expected)
@@ -32,9 +41,76 @@ func (g *generator) compileTailExpression(ctx *compileContext, expected string, 
 	case *ast.BlockExpression:
 		return g.compileBlockExpression(ctx, e, expected)
 	default:
-		valueExpr, valueType, ok := g.compileExpr(ctx, expr, expected)
-		return nil, valueExpr, valueType, ok
+		compileExpected := expected
+		if runtimeExpected {
+			compileExpected = ""
+		}
+		valueExpr, valueType, ok := g.compileExpr(ctx, expr, compileExpected)
+		if !ok {
+			return nil, "", "", false
+		}
+		if runtimeExpected && valueType != "runtime.Value" {
+			converted, ok := g.runtimeValueExpr(valueExpr, valueType)
+			if !ok {
+				ctx.setReason("expression type mismatch")
+				return nil, "", "", false
+			}
+			return nil, converted, "runtime.Value", true
+		}
+		return nil, valueExpr, valueType, true
 	}
+}
+
+func (g *generator) compileCondition(ctx *compileContext, expr ast.Expression) (string, bool) {
+	if expr == nil {
+		ctx.setReason("missing condition")
+		return "", false
+	}
+	condExpr, condType, ok := g.compileExpr(ctx, expr, "")
+	if !ok {
+		return "", false
+	}
+	if condType == "bool" {
+		return condExpr, true
+	}
+	condRuntime := condExpr
+	if condType != "runtime.Value" {
+		converted, ok := g.runtimeValueExpr(condExpr, condType)
+		if !ok {
+			ctx.setReason("condition unsupported")
+			return "", false
+		}
+		condRuntime = converted
+	}
+	return fmt.Sprintf("__able_truthy(%s)", condRuntime), true
+}
+
+func (g *generator) coerceIfBranch(ctx *compileContext, resultType string, expr string, exprType string) (string, bool) {
+	if resultType == "" || exprType == "" {
+		ctx.setReason("if branch type mismatch")
+		return "", false
+	}
+	if resultType == exprType {
+		return expr, true
+	}
+	if resultType == "runtime.Value" && exprType != "runtime.Value" {
+		converted, ok := g.runtimeValueExpr(expr, exprType)
+		if !ok {
+			ctx.setReason("if branch type mismatch")
+			return "", false
+		}
+		return converted, true
+	}
+	if resultType != "runtime.Value" && exprType == "runtime.Value" {
+		converted, ok := g.expectRuntimeValueExpr(expr, resultType)
+		if !ok {
+			ctx.setReason("if branch type mismatch")
+			return "", false
+		}
+		return converted, true
+	}
+	ctx.setReason("if branch type mismatch")
+	return "", false
 }
 
 func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpression, expected string) ([]string, string, string, bool) {
@@ -46,16 +122,8 @@ func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpress
 		ctx.setReason("incomplete if expression")
 		return nil, "", "", false
 	}
-	if expr.ElseBody == nil {
-		ctx.setReason("if expression requires else")
-		return nil, "", "", false
-	}
-	condExpr, condType, ok := g.compileExpr(ctx, expr.IfCondition, "bool")
+	condExpr, ok := g.compileCondition(ctx, expr.IfCondition)
 	if !ok {
-		return nil, "", "", false
-	}
-	if condType != "bool" {
-		ctx.setReason("if condition must be bool")
 		return nil, "", "", false
 	}
 	bodyLines, bodyExpr, bodyType, ok := g.compileTailExpression(ctx.child(), expected, expr.IfBody)
@@ -64,10 +132,14 @@ func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpress
 	}
 	resultType := expected
 	if resultType == "" {
-		resultType = bodyType
+		if expr.ElseBody == nil {
+			resultType = "runtime.Value"
+		} else {
+			resultType = bodyType
+		}
 	}
-	if !g.typeMatches(resultType, bodyType) {
-		ctx.setReason("if branch type mismatch")
+	bodyExpr, ok = g.coerceIfBranch(ctx, resultType, bodyExpr, bodyType)
+	if !ok {
 		return nil, "", "", false
 	}
 	type ifBranch struct {
@@ -84,31 +156,39 @@ func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpress
 			ctx.setReason("incomplete else-if clause")
 			return nil, "", "", false
 		}
-		clauseCondExpr, clauseCondType, ok := g.compileExpr(ctx, clause.Condition, "bool")
+		clauseCondExpr, ok := g.compileCondition(ctx, clause.Condition)
 		if !ok {
-			return nil, "", "", false
-		}
-		if clauseCondType != "bool" {
-			ctx.setReason("if condition must be bool")
 			return nil, "", "", false
 		}
 		clauseLines, clauseExpr, clauseType, ok := g.compileTailExpression(ctx.child(), resultType, clause.Body)
 		if !ok {
 			return nil, "", "", false
 		}
-		if !g.typeMatches(resultType, clauseType) {
-			ctx.setReason("if branch type mismatch")
+		clauseExpr, ok = g.coerceIfBranch(ctx, resultType, clauseExpr, clauseType)
+		if !ok {
 			return nil, "", "", false
 		}
 		branches = append(branches, ifBranch{cond: clauseCondExpr, lines: clauseLines, expr: clauseExpr})
 	}
-	elseLines, elseExpr, elseType, ok := g.compileTailExpression(ctx.child(), resultType, expr.ElseBody)
-	if !ok {
-		return nil, "", "", false
-	}
-	if !g.typeMatches(resultType, elseType) {
-		ctx.setReason("if branch type mismatch")
-		return nil, "", "", false
+	var elseLines []string
+	elseExpr := ""
+	elseType := ""
+	if expr.ElseBody != nil {
+		elseLines, elseExpr, elseType, ok = g.compileTailExpression(ctx.child(), resultType, expr.ElseBody)
+		if !ok {
+			return nil, "", "", false
+		}
+		elseExpr, ok = g.coerceIfBranch(ctx, resultType, elseExpr, elseType)
+		if !ok {
+			return nil, "", "", false
+		}
+	} else {
+		if resultType != "runtime.Value" && !g.isVoidType(resultType) {
+			ctx.setReason("if expression requires else")
+			return nil, "", "", false
+		}
+		elseExpr = safeNilReturnExpr(resultType)
+		elseType = resultType
 	}
 	temp := ctx.newTemp()
 	lines := []string{fmt.Sprintf("var %s %s", temp, resultType)}
@@ -193,10 +273,6 @@ func (g *generator) compileBlockStatement(ctx *compileContext, block *ast.BlockE
 	child := ctx.child()
 	lines := make([]string, 0, len(block.Body))
 	for _, stmt := range block.Body {
-		if _, ok := stmt.(*ast.ReturnStatement); ok {
-			ctx.setReason("return not allowed in statement block")
-			return nil, false
-		}
 		stmtLines, ok := g.compileStatement(child, stmt)
 		if !ok {
 			return nil, false
@@ -215,12 +291,8 @@ func (g *generator) compileIfStatement(ctx *compileContext, expr *ast.IfExpressi
 		ctx.setReason("incomplete if statement")
 		return nil, false
 	}
-	condExpr, condType, ok := g.compileExpr(ctx, expr.IfCondition, "bool")
+	condExpr, ok := g.compileCondition(ctx, expr.IfCondition)
 	if !ok {
-		return nil, false
-	}
-	if condType != "bool" {
-		ctx.setReason("if condition must be bool")
 		return nil, false
 	}
 	bodyLines, ok := g.compileBlockStatement(ctx.child(), expr.IfBody)
@@ -237,12 +309,8 @@ func (g *generator) compileIfStatement(ctx *compileContext, expr *ast.IfExpressi
 			ctx.setReason("incomplete else-if clause")
 			return nil, false
 		}
-		clauseCondExpr, clauseCondType, ok := g.compileExpr(ctx, clause.Condition, "bool")
+		clauseCondExpr, ok := g.compileCondition(ctx, clause.Condition)
 		if !ok {
-			return nil, false
-		}
-		if clauseCondType != "bool" {
-			ctx.setReason("if condition must be bool")
 			return nil, false
 		}
 		clauseLines, ok := g.compileBlockStatement(ctx.child(), clause.Body)
@@ -269,12 +337,8 @@ func (g *generator) compileWhileLoop(ctx *compileContext, loop *ast.WhileLoop) (
 		ctx.setReason("missing while loop")
 		return nil, false
 	}
-	condExpr, condType, ok := g.compileExpr(ctx, loop.Condition, "bool")
+	condExpr, ok := g.compileCondition(ctx, loop.Condition)
 	if !ok {
-		return nil, false
-	}
-	if condType != "bool" {
-		ctx.setReason("while condition must be bool")
 		return nil, false
 	}
 	bodyCtx := ctx.child()
@@ -609,12 +673,8 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		}
 		guardExpr := ""
 		if clause.Guard != nil {
-			guardValue, guardType, ok := g.compileExpr(clauseCtx, clause.Guard, "bool")
+			guardValue, ok := g.compileCondition(clauseCtx, clause.Guard)
 			if !ok {
-				return "", "", false
-			}
-			if guardType != "bool" {
-				ctx.setReason("match guard must be bool")
 				return "", "", false
 			}
 			guardExpr = guardValue
@@ -643,6 +703,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 	}
 	matchedTemp := ctx.newTemp()
 	resultTemp := ctx.newTemp()
+	matchNode := g.diagNodeName(match, "*ast.MatchExpression", "match")
 	lines := []string{
 		fmt.Sprintf("%s := %s", subjectTemp, subjectExpr),
 		fmt.Sprintf("%s := false", matchedTemp),
@@ -666,7 +727,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		lines = append(lines, indentLines(branchLines, 1)...)
 		lines = append(lines, "}")
 	}
-	lines = append(lines, fmt.Sprintf("if !%s { panic(fmt.Errorf(\"Non-exhaustive match\")) }", matchedTemp))
+	lines = append(lines, fmt.Sprintf("if !%s { bridge.RaiseRuntimeErrorWithContext(__able_runtime, %s, fmt.Errorf(\"Non-exhaustive match\")) }", matchedTemp, matchNode))
 	lines = append(lines, fmt.Sprintf("return %s", resultTemp))
 	expr := fmt.Sprintf("func() %s { %s }()", resultType, strings.Join(lines, "; "))
 	return expr, resultType, true

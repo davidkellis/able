@@ -13,6 +13,22 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 		return "", "", false
 	}
 	if !g.typeMatches(expected, param.GoType) {
+		if expected == "runtime.Value" && param.GoType != "runtime.Value" {
+			converted, ok := g.runtimeValueExpr(param.GoName, param.GoType)
+			if !ok {
+				ctx.setReason("identifier type mismatch")
+				return "", "", false
+			}
+			return converted, "runtime.Value", true
+		}
+		if param.GoType == "runtime.Value" && expected != "" {
+			converted, ok := g.expectRuntimeValueExpr(param.GoName, expected)
+			if !ok {
+				ctx.setReason("identifier type mismatch")
+				return "", "", false
+			}
+			return converted, expected, true
+		}
 		ctx.setReason("identifier type mismatch")
 		return "", "", false
 	}

@@ -114,7 +114,16 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 			if payload == nil || payload.kind != asyncContextFuture || payload.handle == nil {
 				return nil, fmt.Errorf("future_yield must be called inside an asynchronous task")
 			}
-			if _, ok := i.executor.(*SerialExecutor); ok {
+			if serial, ok := i.executor.(*SerialExecutor); ok {
+				if payload.compiled {
+					if payload.compiledYield != nil && payload.compiledResume != nil {
+						payload.compiledYield <- compiledYield{}
+						<-payload.compiledResume
+						return runtime.NilValue{}, nil
+					}
+					serial.YieldCurrent()
+					return runtime.NilValue{}, nil
+				}
 				return nil, errSerialYield
 			}
 			goRuntime.Gosched()
@@ -222,52 +231,92 @@ func (i *Interpreter) RunCompiledFuture(env *runtime.Environment, task func(*run
 		env = i.global
 	}
 	capturedEnv := runtime.NewEnvironment(env)
-	proc := func(ctx context.Context) (result runtime.Value, err error) {
+	if _, ok := i.executor.(*SerialExecutor); ok {
+		resumeCh := make(chan struct{})
+		yieldCh := make(chan compiledYield)
+		var started atomic.Bool
+		proc := func(ctx context.Context) (runtime.Value, error) {
+			payload := payloadFromContext(ctx)
+			if payload == nil {
+				payload = &asyncContextPayload{kind: asyncContextFuture, compiled: true}
+			} else {
+				payload.kind = asyncContextFuture
+				payload.compiled = true
+			}
+			payload.compiledYield = yieldCh
+			payload.compiledResume = resumeCh
+			if started.CompareAndSwap(false, true) {
+				go func(taskPayload *asyncContextPayload) {
+					<-resumeCh
+					result, err := i.runCompiledTask(taskPayload, capturedEnv, task)
+					yieldCh <- compiledYield{result: result, err: err, done: true}
+				}(payload)
+			}
+			resumeCh <- struct{}{}
+			event := <-yieldCh
+			if !event.done {
+				return nil, errSerialYield
+			}
+			return event.result, event.err
+		}
+		return i.executor.RunFuture(proc)
+	}
+	proc := func(ctx context.Context) (runtime.Value, error) {
 		payload := payloadFromContext(ctx)
 		if payload == nil {
-			payload = &asyncContextPayload{kind: asyncContextFuture}
+			payload = &asyncContextPayload{kind: asyncContextFuture, compiled: true}
 		} else {
 			payload.kind = asyncContextFuture
+			payload.compiled = true
 		}
-		if payload.state == nil {
-			payload.state = newEvalState()
-		}
-		if capturedEnv != nil {
-			capturedEnv.SetRuntimeData(payload)
-			defer capturedEnv.SetRuntimeData(nil)
-		}
-		defer func() {
-			if r := recover(); r != nil {
-				switch v := r.(type) {
-				case runtime.Value:
-					err = Raise(i, v, capturedEnv)
-				case error:
-					err = v
-				default:
-					err = fmt.Errorf("panic: %v", r)
-				}
-				if errors.Is(err, context.Canceled) {
-					result = nil
-					err = context.Canceled
-					return
-				}
-				err = i.asyncFailure(payload, err)
-				result = nil
-			}
-		}()
-		result, err = task(capturedEnv)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				return nil, context.Canceled
-			}
-			return nil, i.asyncFailure(payload, err)
-		}
-		if payload != nil && payload.handle != nil && payload.handle.CancelRequested() {
-			return nil, i.asyncCancelled(payload)
-		}
-		return result, nil
+		return i.runCompiledTask(payload, capturedEnv, task)
 	}
 	return i.executor.RunFuture(proc)
+}
+
+func (i *Interpreter) runCompiledTask(payload *asyncContextPayload, env *runtime.Environment, task func(*runtime.Environment) (runtime.Value, error)) (result runtime.Value, err error) {
+	if payload == nil {
+		payload = &asyncContextPayload{kind: asyncContextFuture, compiled: true}
+	} else {
+		payload.compiled = true
+	}
+	if payload.state == nil {
+		payload.state = newEvalState()
+	}
+	if env != nil {
+		env.SetRuntimeData(payload)
+		defer env.SetRuntimeData(nil)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			switch v := r.(type) {
+			case runtime.Value:
+				err = Raise(i, v, env)
+			case error:
+				err = v
+			default:
+				err = fmt.Errorf("panic: %v", r)
+			}
+			if errors.Is(err, context.Canceled) {
+				result = nil
+				err = context.Canceled
+				return
+			}
+			err = i.asyncFailure(payload, err)
+			result = nil
+		}
+	}()
+	result, err = task(env)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, context.Canceled
+		}
+		return nil, i.asyncFailure(payload, err)
+	}
+	if payload != nil && payload.handle != nil && payload.handle.CancelRequested() {
+		return nil, i.asyncCancelled(payload)
+	}
+	return result, nil
 }
 
 func (i *Interpreter) runAsyncEvaluation(payload *asyncContextPayload, node ast.Expression, env *runtime.Environment) (runtime.Value, error) {

@@ -739,7 +739,7 @@ func emitForLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.ForLoop
 	bodyStart := len(ctx.instructions)
 	ctx.patchJump(jumpToBody, bodyStart)
 	ctx.enterScope()
-	ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop.Pattern})
+	ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop})
 	if err := emitBlock(ctx, i, loop.Body); err != nil {
 		return err
 	}

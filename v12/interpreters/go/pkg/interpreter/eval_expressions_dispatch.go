@@ -451,6 +451,11 @@ func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value)
 	}
 }
 
+// ApplyUnaryOperator exposes unary operator dispatch for compiled/runtime interop.
+func (i *Interpreter) ApplyUnaryOperator(operator string, operand runtime.Value) (runtime.Value, error) {
+	return i.applyUnaryOperator(operator, operand)
+}
+
 func (i *Interpreter) evaluateRangeValues(start runtime.Value, end runtime.Value, inclusive bool, env *runtime.Environment) (runtime.Value, error) {
 	if result, err := i.tryInvokeRangeImplementation(start, end, inclusive, env); err != nil {
 		return nil, err

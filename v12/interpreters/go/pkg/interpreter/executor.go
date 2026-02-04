@@ -38,9 +38,12 @@ const (
 )
 
 type asyncContextPayload struct {
-	kind   asyncContextKind
-	handle *runtime.FutureValue
-	state  *evalState
+	kind            asyncContextKind
+	handle          *runtime.FutureValue
+	state           *evalState
+	compiled        bool
+	compiledYield   chan compiledYield
+	compiledResume  chan struct{}
 	bytecodeVM      *bytecodeVM
 	bytecodeProgram *bytecodeProgram
 	bytecodeEnv     *runtime.Environment
@@ -55,6 +58,12 @@ type asyncContextPayload struct {
 }
 
 type asyncContextKey struct{}
+
+type compiledYield struct {
+	result runtime.Value
+	err    error
+	done   bool
+}
 
 func contextWithPayload(ctx context.Context, payload *asyncContextPayload) context.Context {
 	return context.WithValue(ctx, asyncContextKey{}, payload)
@@ -375,6 +384,37 @@ func (e *SerialExecutor) Drive(handle *runtime.FutureValue) {
 			return
 		}
 	}
+}
+
+// YieldCurrent runs one queued task (if any) while the current task is paused.
+// Used to emulate cooperative yielding for compiled tasks without resumable frames.
+func (e *SerialExecutor) YieldCurrent() bool {
+	if e == nil {
+		return false
+	}
+	e.mu.Lock()
+	current := e.current
+	if current == nil || e.closed {
+		e.mu.Unlock()
+		return false
+	}
+	idx := -1
+	var task serialTask
+	for i, queued := range e.queue {
+		if queued.handle != nil && queued.handle != current {
+			idx = i
+			task = queued
+			break
+		}
+	}
+	if idx == -1 {
+		e.mu.Unlock()
+		return false
+	}
+	e.queue = append(e.queue[:idx], e.queue[idx+1:]...)
+	e.mu.Unlock()
+	_ = e.runSerialTask(task)
+	return true
 }
 
 func (e *SerialExecutor) suspendCurrent(handle *runtime.FutureValue) {

@@ -1,0 +1,10 @@
+{
+  "description": "compiler handles nullable return types with mixed branch values",
+  "expect": {
+    "stdout": [
+      "one 7",
+      "two 0"
+    ],
+    "exit": 0
+  }
+}

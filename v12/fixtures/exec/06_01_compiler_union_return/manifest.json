@@ -1,0 +1,10 @@
+{
+  "description": "compiler handles union return types with mixed branch values",
+  "expect": {
+    "stdout": [
+      "left 42",
+      "right ok"
+    ],
+    "exit": 0
+  }
+}

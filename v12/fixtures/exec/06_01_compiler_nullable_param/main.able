@@ -1,0 +1,15 @@
+package exec_06_01_compiler_nullable_param
+
+## Semantics: compiler accepts nullable-typed parameters with primitive/nil arguments.
+
+fn describe(value: ?i32) -> String {
+  value match {
+    case n: i32 => `n ${n}`,
+    case _ => "none"
+  }
+}
+
+fn main() -> void {
+  print(describe(1))
+  print(describe(nil))
+}

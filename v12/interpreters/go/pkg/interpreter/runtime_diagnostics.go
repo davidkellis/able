@@ -97,6 +97,15 @@ func (i *Interpreter) BuildRuntimeDiagnostic(err error) RuntimeDiagnostic {
 	}
 }
 
+// AttachRuntimeContext attaches diagnostic context to an error for compiled/native callers.
+func (i *Interpreter) AttachRuntimeContext(err error, node ast.Node, env *runtime.Environment) error {
+	if i == nil {
+		return err
+	}
+	state := i.stateFromEnv(env)
+	return i.attachRuntimeContext(err, node, state)
+}
+
 func DescribeRuntimeDiagnostic(diag RuntimeDiagnostic) string {
 	message := strings.TrimSpace(diag.Message)
 	if strings.HasPrefix(message, "runtime:") {

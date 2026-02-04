@@ -1,0 +1,10 @@
+{
+  "description": "compiler handles result return types with or-else handling",
+  "expect": {
+    "stdout": [
+      "one 3",
+      "two 5"
+    ],
+    "exit": 0
+  }
+}

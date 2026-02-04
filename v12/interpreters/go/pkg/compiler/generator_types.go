@@ -55,6 +55,18 @@ func (g *generator) isOrderedComparable(goType string) bool {
 	return g.isNumericType(goType) || g.isStringType(goType) || goType == "rune"
 }
 
+func (g *generator) structBaseName(goType string) (string, bool) {
+	if strings.HasPrefix(goType, "*") {
+		goType = strings.TrimPrefix(goType, "*")
+	}
+	for _, info := range g.structs {
+		if info != nil && info.GoName == goType {
+			return info.GoName, true
+		}
+	}
+	return "", false
+}
+
 func (g *generator) intBits(goType string) int {
 	switch goType {
 	case "int8", "uint8":
@@ -208,4 +220,20 @@ func (g *generator) renderTypeExpression(expr ast.TypeExpression) (string, bool)
 	default:
 		return "", false
 	}
+}
+
+func (g *generator) hasOptionalLastParam(info *functionInfo) bool {
+	if info == nil || info.Definition == nil {
+		return false
+	}
+	params := info.Definition.Params
+	if len(params) == 0 {
+		return false
+	}
+	last := params[len(params)-1]
+	if last == nil || last.ParamType == nil {
+		return false
+	}
+	_, ok := last.ParamType.(*ast.NullableTypeExpression)
+	return ok
 }

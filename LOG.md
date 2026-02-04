@@ -1791,3 +1791,124 @@ Open items (2025-11-02 audit):
 - Fixtures: added `06_01_compiler_for_loop_typed_pattern` exec fixture and coverage entry for typed for-loop patterns.
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_typed_pattern go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_for_loop_typed_pattern_mismatch` exec fixture and coverage entry for typed for-loop pattern errors.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_typed_pattern_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: allow runtime.Value expectations to accept primitive/void expressions (converted to runtime values), and map nullable/result/union types to runtime.Value.
+- Fixtures: added `06_01_compiler_nullable_return` exec fixture and coverage entry for nullable return handling.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_nullable_return go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_union_return` exec fixture and coverage entry for union return handling.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_union_return go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_result_return` exec fixture and coverage entry for result return handling.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_result_return go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Bytecode: bind-pattern errors in for loops now attach runtime context to the for-loop node to match tree-walker spans.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_01_compiler_for_loop_pattern_mismatch -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_01_compiler_for_loop_typed_pattern_mismatch -count=1` in `v12/interpreters/go`.
+- Tests: `./run_all_tests.sh` (v12 default) in repo root.
+- Compiler: allow expressions targeting runtime.Value to accept primitive/void values in direct compileExpr calls (e.g. union/nullable parameters).
+- Fixtures: added `06_01_compiler_union_param` exec fixture and coverage entry for union-typed parameters.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_union_param go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_nullable_param` exec fixture and coverage entry for nullable parameters.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_nullable_param go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `./run_all_tests.sh` (v12 default) in repo root.
+- Fixtures: added `06_01_compiler_struct_param_bridge` exec fixture and coverage entry for struct param/return conversions.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_struct_param_bridge go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `./run_all_tests.sh` (v12 default) in repo root.
+- Compiler: boolean contexts now use runtime truthiness via new bridge.IsTruthy helper; logical operators and unary ! honor truthiness for non-bool operands.
+- Fixtures: added `06_11_truthiness_boolean_context` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_11_truthiness_boolean_context go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `./run_all_tests.sh` (v12 default) in repo root.
+- Compiler: if expressions now allow missing else (yielding nil) when the result type is runtime.Value/void, matching truthiness semantics.
+- Fixtures: added `08_01_if_truthiness_value` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_01_if_truthiness_value go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `./run_all_tests.sh` (v12 default) in repo root.
+- Compiler: expanded exec fixture coverage to include nullable truthiness, union construction, and literal inference/escaping scenarios.
+- Fixtures: added `04_06_02_nullable_truthiness`, `04_06_03_union_construction_result_option`, `06_01_literals_array_map_inference`, `06_01_literals_numeric_contextual`, `06_01_literals_string_char_escape` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_08_array_ops_mutability` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `11_02_option_result_or_handlers` and `11_02_option_result_propagation` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_02_option_result_or_handlers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_02_option_result_propagation go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_03_safe_navigation_nil_short_circuit`, `06_04_function_call_eval_order_trailing_lambda`, and `06_06_string_interpolation` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_safe_navigation_nil_short_circuit go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_04_function_call_eval_order_trailing_lambda go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_06_string_interpolation go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_03_cast_error_payload_recovery` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_cast_error_payload_recovery go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: treat `^` as exponentiation (bitwise XOR remains `.^`) and route exponent through runtime binary op handling.
+- Fixtures: added `06_03_operator_precedence_associativity` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_operator_precedence_associativity go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: route unary operator fallback through runtime dispatch for non-primitive operands, and allow non-primitive binary operators/comparisons to use runtime operator interfaces.
+- Bridge: added unary operator dispatch helper for compiled code.
+- Fixtures: added `06_03_operator_overloading_interfaces` and `14_01_operator_interfaces_arithmetic_comparison` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_operator_overloading_interfaces go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=14_01_operator_interfaces_arithmetic_comparison go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: avoid unused temps for empty struct pattern bindings and treat `IteratorEnd` sentinel values as matching `IteratorEnd {}` struct patterns.
+- Fixtures: added `14_01_language_interfaces_index_apply_iterable` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=14_01_language_interfaces_index_apply_iterable go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `10_01_interface_defaults_composites`, `10_02_impl_specificity_named_overrides`, `10_03_interface_type_dynamic_dispatch`, `10_05_interface_named_impl_defaults`, and `10_06_interface_generic_param_dispatch` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_01_interface_defaults_composites go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_02_impl_specificity_named_overrides go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_05_interface_named_impl_defaults go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_06_interface_generic_param_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `10_02_impl_where_clause`, `10_07_interface_default_chain`, `10_08_interface_default_override`, `10_09_interface_named_impl_inherent`, `10_10_interface_inheritance_defaults`, `10_11_interface_generic_args_dispatch`, `10_12_interface_union_target_dispatch`, `10_13_interface_param_generic_args`, `10_14_interface_return_generic_args`, and `10_16_interface_value_storage` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_02_impl_where_clause,10_07_interface_default_chain,10_08_interface_default_override,10_09_interface_named_impl_inherent,10_10_interface_inheritance_defaults,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_13_interface_param_generic_args,10_14_interface_return_generic_args,10_16_interface_value_storage go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `12_01_bytecode_spawn_basic`, `12_01_bytecode_await_default`, `12_02_async_spawn_combo`, `12_03_spawn_future_status_error`, and `12_04_future_handle_value_view` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_spawn_basic go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_await_default go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_02_async_spawn_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_03_spawn_future_status_error go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_04_future_handle_value_view go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler runtime: compiled async tasks now cooperatively yield by running another queued task when `future_yield()` is called, avoiding hangs without resumable compiled frames.
+- Compiler: compiled lambdas now recover raised errors from interpreter calls (while rethrowing break/continue signals) so rescue works when interpreted code invokes compiled lambdas.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_12_01_stdlib_string_helpers`, `06_12_02_stdlib_array_helpers`, and `06_12_03_stdlib_numeric_ratio_divmod` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_01_stdlib_string_helpers,06_12_02_stdlib_array_helpers,06_12_03_stdlib_numeric_ratio_divmod go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added diagnostic node registration and call-frame tracking so compiled runtime errors (division/shift) report source locations and call sites.
+- Fixtures: added `06_01_compiler_division_by_zero`, `06_01_compiler_shift_out_of_range`, and `15_02_entry_args_signature` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=15_02_entry_args_signature,06_01_compiler_division_by_zero,06_01_compiler_shift_out_of_range go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `08_02_loop_expression_break_value`, `08_02_numeric_sum_loop`, `08_02_range_inclusive_exclusive`, `08_02_while_continue_break`, and `08_03_breakpoint_nonlocal_jump` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_02_loop_expression_break_value,08_02_numeric_sum_loop,08_02_range_inclusive_exclusive,08_02_while_continue_break,08_03_breakpoint_nonlocal_jump go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: attach runtime context to non-exhaustive match failures in compiled code so diagnostics include source locations.
+- Fixtures: added `08_01_control_flow_fizzbuzz`, `08_01_match_guards_exhaustiveness`, and `08_01_union_match_basic` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_01_control_flow_fizzbuzz,08_01_match_guards_exhaustiveness,08_01_union_match_basic go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: represent structs as pointers in compiled Go code; update struct literal lowering and struct <-> runtime conversions to use pointer semantics and handle nil.
+- Compiler: allow pattern assignments to convert between runtime.Value and typed bindings (both directions), and suppress unused pattern binding vars.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_00_mutability_declaration_vs_assignment,05_02_array_nested_patterns,05_02_identifier_wildcard_typed_patterns,05_02_struct_pattern_rename_typed,05_03_assignment_evaluation_order go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Fixtures: added `04_05_01_struct_singleton_usage`, `04_05_02_struct_named_update_mutation`, `04_05_03_struct_positional_named_tuple`, `04_06_01_union_payload_patterns`, `04_06_04_union_guarded_match_exhaustive`, and `07_02_lambdas_closures_capture` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=04_05_01_struct_singleton_usage,04_05_02_struct_named_update_mutation,04_05_03_struct_positional_named_tuple,04_06_01_union_payload_patterns,04_06_04_union_guarded_match_exhaustive,07_02_lambdas_closures_capture go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `07_04_apply_callable_interface` and `07_04_trailing_lambda_method_syntax` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_04_apply_callable_interface,07_04_trailing_lambda_method_syntax go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: sync struct mutations after dynamic member calls by converting the runtime receiver back into the compiled struct pointer.
+- Fixtures: added `07_06_shorthand_member_placeholder_lambdas` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_06_shorthand_member_placeholder_lambdas go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: allow missing nullable tail args in compiled calls/wrappers by injecting nil; attach runtime context for compiled call errors; populate call-node callees so overload errors report names.
+- Fixtures: added `07_07_overload_resolution_runtime` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_07_overload_resolution_runtime go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `07_02_01_verbose_anonymous_fn` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_02_01_verbose_anonymous_fn go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `07_05_partial_application` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_05_partial_application go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `07_01_function_definition_generics_inference` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_01_function_definition_generics_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `07_08_return_context_generic_call_inference` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_08_return_context_generic_call_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: allow non-local returns inside nested blocks by lowering return statements to a compiled return signal and recovering at function boundaries.
+- Fixtures: added `07_03_explicit_return_flow` to compiler exec fixtures.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_03_explicit_return_flow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: treat wrapped generator stop errors as iterator completion in compiled iterator helpers (avoids stop bubbling through runtime diagnostics after call-context wrapping).
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_iterator_literal go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.

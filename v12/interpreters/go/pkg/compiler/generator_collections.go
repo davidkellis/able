@@ -515,7 +515,11 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 		bits := g.intBits(expected)
 		return fmt.Sprintf("func() %s { val := %s; v, err := bridge.AsUint(val, %d); if err != nil { panic(err) }; return %s(v) }()", expected, valueExpr, bits, expected), true
 	case "struct":
-		return fmt.Sprintf("func() %s { val := %s; v, err := __able_struct_%s_from(val); if err != nil { panic(err) }; return v }()", expected, valueExpr, expected), true
+		baseName, ok := g.structBaseName(expected)
+		if !ok {
+			baseName = strings.TrimPrefix(expected, "*")
+		}
+		return fmt.Sprintf("func() %s { val := %s; v, err := __able_struct_%s_from(val); if err != nil { panic(err) }; return v }()", expected, valueExpr, baseName), true
 	}
 	return "", false
 }
@@ -523,6 +527,9 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 func (g *generator) structInfoByGoName(goName string) *structInfo {
 	if goName == "" {
 		return nil
+	}
+	if strings.HasPrefix(goName, "*") {
+		goName = strings.TrimPrefix(goName, "*")
 	}
 	for _, info := range g.structs {
 		if info != nil && info.GoName == goName {
@@ -536,6 +543,8 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 	switch g.typeCategory(goType) {
 	case "runtime":
 		return expr, true
+	case "void":
+		return "runtime.VoidValue{}", true
 	case "bool":
 		return fmt.Sprintf("bridge.ToBool(%s)", expr), true
 	case "string":
@@ -567,7 +576,11 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 	case "uint64":
 		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))", expr), true
 	case "struct":
-		return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; v, err := __able_struct_%s_to(__able_runtime, %s); if err != nil { panic(err) }; return v }()", goType, expr), true
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
+		return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; v, err := __able_struct_%s_to(__able_runtime, %s); if err != nil { panic(err) }; return v }()", baseName, expr), true
 	default:
 		return "", false
 	}

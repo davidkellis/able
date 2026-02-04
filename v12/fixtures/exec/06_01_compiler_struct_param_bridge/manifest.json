@@ -1,0 +1,9 @@
+{
+  "description": "compiler converts struct params/returns across the runtime bridge",
+  "expect": {
+    "stdout": [
+      "total 5"
+    ],
+    "exit": 0
+  }
+}

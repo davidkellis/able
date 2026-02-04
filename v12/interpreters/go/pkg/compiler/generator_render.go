@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/format"
 	"sort"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -41,6 +42,25 @@ func (g *generator) renderCompiled() ([]byte, error) {
 
 	if len(g.functions) > 0 {
 		fmt.Fprintf(&buf, "var __able_runtime *bridge.Runtime\n\n")
+		if len(g.diagNodes) > 0 {
+			for _, info := range g.diagNodes {
+				initExpr := ""
+				switch {
+				case info.CallName != "":
+					initExpr = fmt.Sprintf("&ast.FunctionCall{Callee: ast.NewIdentifier(%q)}", info.CallName)
+				case info.CallMember != "":
+					initExpr = fmt.Sprintf("&ast.FunctionCall{Callee: ast.NewMemberAccessExpression(ast.NewIdentifier(\"\"), ast.NewIdentifier(%q))}", info.CallMember)
+				default:
+					goType := info.GoType
+					if strings.HasPrefix(goType, "*") {
+						goType = "&" + strings.TrimPrefix(goType, "*")
+					}
+					initExpr = fmt.Sprintf("%s{}", goType)
+				}
+				fmt.Fprintf(&buf, "var %s = %s\n", info.Name, initExpr)
+			}
+			fmt.Fprintf(&buf, "\n")
+		}
 		if len(g.awaitExprs) > 0 {
 			for _, name := range g.awaitExprs {
 				fmt.Fprintf(&buf, "var %s = &ast.AwaitExpression{}\n", name)
@@ -154,27 +174,39 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn val\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_call_value(fn runtime.Value, args []runtime.Value) runtime.Value {\n")
+	fmt.Fprintf(buf, "func __able_call_value(fn runtime.Value, args []runtime.Value, call *ast.FunctionCall) runtime.Value {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tval, err := bridge.CallValue(__able_runtime, fn, args)\n")
+	fmt.Fprintf(buf, "\tval, err := bridge.CallValueWithNode(__able_runtime, fn, args, call)\n")
 	fmt.Fprintf(buf, "\t__able_panic_on_error(err)\n")
 	fmt.Fprintf(buf, "\tif val == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn val\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_call_named(name string, args []runtime.Value) runtime.Value {\n")
+	fmt.Fprintf(buf, "func __able_call_named(name string, args []runtime.Value, call *ast.FunctionCall) runtime.Value {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tval, err := bridge.CallNamed(__able_runtime, name, args)\n")
+	fmt.Fprintf(buf, "\tval, err := bridge.CallNamedWithNode(__able_runtime, name, args, call)\n")
 	fmt.Fprintf(buf, "\t__able_panic_on_error(err)\n")
 	fmt.Fprintf(buf, "\tif val == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn val\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_push_call_frame(call *ast.FunctionCall) {\n")
+	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tbridge.PushCallFrame(__able_runtime, call)\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_pop_call_frame() {\n")
+	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tbridge.PopCallFrame(__able_runtime)\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_spawn(task func(*runtime.Environment) (runtime.Value, error)) runtime.Value {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
@@ -204,6 +236,9 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tvalue runtime.Value\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "type __able_continue_signal struct{}\n\n")
+	fmt.Fprintf(buf, "type __able_return struct {\n")
+	fmt.Fprintf(buf, "\tvalue any\n")
+	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "type __able_break_label_signal struct {\n")
 	fmt.Fprintf(buf, "\tlabel string\n")
 	fmt.Fprintf(buf, "\tvalue runtime.Value\n")
@@ -223,6 +258,20 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "func __able_continue_label(label string) {\n")
 	fmt.Fprintf(buf, "\tpanic(__able_continue_label_signal{label: label})\n")
 	fmt.Fprintf(buf, "}\n\n")
+	if len(g.diagNodes) > 0 {
+		fmt.Fprintf(buf, "func __able_register_diag_nodes() {\n")
+		fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+		fmt.Fprintf(buf, "\t\treturn\n")
+		fmt.Fprintf(buf, "\t}\n")
+		for _, info := range g.diagNodes {
+			span := info.Span
+			fmt.Fprintf(buf, "\tast.SetSpan(%s, ast.Span{Start: ast.Position{Line: %d, Column: %d}, End: ast.Position{Line: %d, Column: %d}})\n", info.Name, span.Start.Line, span.Start.Column, span.End.Line, span.End.Column)
+			if info.Origin != "" {
+				fmt.Fprintf(buf, "\tbridge.RegisterNodeOrigin(__able_runtime, %s, %q)\n", info.Name, info.Origin)
+			}
+		}
+		fmt.Fprintf(buf, "}\n\n")
+	}
 	fmt.Fprintf(buf, "func __able_panic_on_error(err error) {\n")
 	fmt.Fprintf(buf, "\tif err == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn\n")
@@ -248,6 +297,12 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn bridge.IsError(__able_runtime, val)\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_truthy(val runtime.Value) bool {\n")
+	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn bridge.IsTruthy(__able_runtime, val)\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_error_to_struct(err runtime.ErrorValue) *runtime.StructInstanceValue {\n")
 	fmt.Fprintf(buf, "\tfields := make(map[string]runtime.Value)\n")
@@ -301,11 +356,11 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t__able_panic_on_error(err)\n")
 	fmt.Fprintf(buf, "\treturn str\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_raise_division_by_zero() {\n")
+fmt.Fprintf(buf, "func __able_raise_division_by_zero(node ast.Node) {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tbridge.Raise(bridge.DivisionByZeroError(__able_runtime))\n")
+fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, fmt.Errorf(\"division by zero\"))\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_raise_overflow() {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
@@ -313,11 +368,12 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tbridge.Raise(bridge.OverflowError(__able_runtime, \"integer overflow\"))\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_raise_shift_out_of_range(shift int64) {\n")
+fmt.Fprintf(buf, "func __able_raise_shift_out_of_range(shift int64, node ast.Node) {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tbridge.Raise(bridge.ShiftOutOfRangeError(__able_runtime, shift))\n")
+fmt.Fprintf(buf, "\t_ = shift\n")
+fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, fmt.Errorf(\"shift out of range\"))\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_signed_bounds(bits int) (int64, int64) {\n")
 	fmt.Fprintf(buf, "\tif bits >= 64 {\n")
@@ -334,9 +390,9 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn (uint64(1) << uint(bits)) - 1\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_shift_left_signed(value int64, shift int64, bits int) int64 {\n")
+fmt.Fprintf(buf, "func __able_shift_left_signed(value int64, shift int64, bits int, node ast.Node) int64 {\n")
 	fmt.Fprintf(buf, "\tif shift < 0 || shift >= int64(bits) {\n")
-	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift)\n")
+fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tmin, max := __able_signed_bounds(bits)\n")
@@ -348,21 +404,21 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn value << shift\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_shift_right_signed(value int64, shift int64, bits int) int64 {\n")
+fmt.Fprintf(buf, "func __able_shift_right_signed(value int64, shift int64, bits int, node ast.Node) int64 {\n")
 	fmt.Fprintf(buf, "\tif shift < 0 || shift >= int64(bits) {\n")
-	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift)\n")
+fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn value >> shift\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_shift_left_unsigned(value uint64, shift uint64, bits int) uint64 {\n")
+fmt.Fprintf(buf, "func __able_shift_left_unsigned(value uint64, shift uint64, bits int, node ast.Node) uint64 {\n")
 	fmt.Fprintf(buf, "\tif shift > uint64(^uint64(0)>>1) {\n")
-	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(0)\n")
+fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(0, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\ts := int64(shift)\n")
 	fmt.Fprintf(buf, "\tif s < 0 || s >= int64(bits) {\n")
-	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s)\n")
+fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tmax := __able_unsigned_max(bits)\n")
@@ -372,14 +428,14 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn value << s\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_shift_right_unsigned(value uint64, shift uint64, bits int) uint64 {\n")
+fmt.Fprintf(buf, "func __able_shift_right_unsigned(value uint64, shift uint64, bits int, node ast.Node) uint64 {\n")
 	fmt.Fprintf(buf, "\tif shift > uint64(^uint64(0)>>1) {\n")
-	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(0)\n")
+fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(0, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\ts := int64(shift)\n")
 	fmt.Fprintf(buf, "\tif s < 0 || s >= int64(bits) {\n")
-	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s)\n")
+fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn value >> s\n")
@@ -395,9 +451,20 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn val\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_divmod_signed(a int64, b int64) (int64, int64) {\n")
+	fmt.Fprintf(buf, "func __able_unary_op(op string, operand runtime.Value) runtime.Value {\n")
+	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tval, err := bridge.ApplyUnaryOperator(__able_runtime, op, operand)\n")
+	fmt.Fprintf(buf, "\t__able_panic_on_error(err)\n")
+	fmt.Fprintf(buf, "\tif val == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn val\n")
+	fmt.Fprintf(buf, "}\n\n")
+fmt.Fprintf(buf, "func __able_divmod_signed(a int64, b int64, node ast.Node) (int64, int64) {\n")
 	fmt.Fprintf(buf, "\tif b == 0 {\n")
-	fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero()\n")
+fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero(node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0, 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tq := a / b\n")
@@ -413,9 +480,9 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn q, r\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_divmod_unsigned(a uint64, b uint64) (uint64, uint64) {\n")
+fmt.Fprintf(buf, "func __able_divmod_unsigned(a uint64, b uint64, node ast.Node) (uint64, uint64) {\n")
 	fmt.Fprintf(buf, "\tif b == 0 {\n")
-	fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero()\n")
+fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero(node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0, 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn a / b, a %% b\n")
@@ -428,15 +495,14 @@ func (g *generator) importsForCompiled() []string {
 	if len(g.functions) > 0 {
 		importSet["fmt"] = struct{}{}
 		importSet["able/interpreter-go/pkg/compiler/bridge"] = struct{}{}
-		if g.needsAst {
-			importSet["able/interpreter-go/pkg/ast"] = struct{}{}
-		}
+		importSet["able/interpreter-go/pkg/ast"] = struct{}{}
 		importSet["able/interpreter-go/pkg/interpreter"] = struct{}{}
 	}
 	if needsRuntime {
 		importSet["able/interpreter-go/pkg/runtime"] = struct{}{}
 	}
 	if g.needsIterator {
+		importSet["errors"] = struct{}{}
 		importSet["sync"] = struct{}{}
 	}
 	imports := make([]string, 0, len(importSet))
@@ -490,8 +556,8 @@ func (g *generator) renderStructConverters(buf *bytes.Buffer) {
 }
 
 func (g *generator) renderStructFrom(buf *bytes.Buffer, info *structInfo) {
-	fmt.Fprintf(buf, "func __able_struct_%s_from(value runtime.Value) (%s, error) {\n", info.GoName, info.GoName)
-	fmt.Fprintf(buf, "\tvar out %s\n", info.GoName)
+	fmt.Fprintf(buf, "func __able_struct_%s_from(value runtime.Value) (*%s, error) {\n", info.GoName, info.GoName)
+	fmt.Fprintf(buf, "\tout := &%s{}\n", info.GoName)
 	fmt.Fprintf(buf, "\tinst, ok := value.(*runtime.StructInstanceValue)\n")
 	fmt.Fprintf(buf, "\tif !ok {\n")
 	fmt.Fprintf(buf, "\t\treturn out, fmt.Errorf(\"expected %s struct instance\")\n", info.Name)
@@ -541,9 +607,12 @@ func (g *generator) renderFieldFromPositional(buf *bytes.Buffer, field fieldInfo
 }
 
 func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
-	fmt.Fprintf(buf, "func __able_struct_%s_to(rt *bridge.Runtime, value %s) (runtime.Value, error) {\n", info.GoName, info.GoName)
+	fmt.Fprintf(buf, "func __able_struct_%s_to(rt *bridge.Runtime, value *%s) (runtime.Value, error) {\n", info.GoName, info.GoName)
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif value == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing %s value\")\n", info.Name)
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tdef, err := rt.StructDefinition(%q)\n", info.Name)
 	fmt.Fprintf(buf, "\tif err != nil {\n")
@@ -583,7 +652,21 @@ func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
 			}
 			fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 		}
-		fmt.Fprintf(buf, ") %s {\n", info.ReturnType)
+		resultName := "__able_result"
+		fmt.Fprintf(buf, ") (%s %s) {\n", resultName, info.ReturnType)
+		recoverValue := fmt.Sprintf("val, ok := ret.value.(%s); if !ok { panic(fmt.Errorf(\"compiler: return type mismatch\")) }; %s = val", info.ReturnType, resultName)
+		if info.ReturnType == "runtime.Value" {
+			recoverValue = fmt.Sprintf("if ret.value == nil { %s = runtime.NilValue{}; return }; val, ok := ret.value.(%s); if !ok { panic(fmt.Errorf(\"compiler: return type mismatch\")) }; %s = val", resultName, info.ReturnType, resultName)
+		}
+		fmt.Fprintf(buf, "\tdefer func() {\n")
+		fmt.Fprintf(buf, "\t\tif recovered := recover(); recovered != nil {\n")
+		fmt.Fprintf(buf, "\t\t\tif ret, ok := recovered.(__able_return); ok {\n")
+		fmt.Fprintf(buf, "\t\t\t\t%s\n", recoverValue)
+		fmt.Fprintf(buf, "\t\t\t\treturn\n")
+		fmt.Fprintf(buf, "\t\t\t}\n")
+		fmt.Fprintf(buf, "\t\t\tpanic(recovered)\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t}()\n")
 		for _, line := range lines {
 			fmt.Fprintf(buf, "\t%s\n", line)
 		}
@@ -609,6 +692,11 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 		fmt.Fprintf(buf, "\t\tprevEnv := rt.SwapEnv(ctx.Env)\n")
 		fmt.Fprintf(buf, "\t\tdefer rt.SwapEnv(prevEnv)\n")
 		fmt.Fprintf(buf, "\t}\n")
+		if g.hasOptionalLastParam(info) && info.Arity > 0 {
+			fmt.Fprintf(buf, "\tif len(args) == %d {\n", info.Arity-1)
+			fmt.Fprintf(buf, "\t\targs = append(args, runtime.NilValue{})\n")
+			fmt.Fprintf(buf, "\t}\n")
+		}
 		if info.Compileable {
 			fmt.Fprintf(buf, "\tif len(args) != %d {\n", info.Arity)
 			fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"arity mismatch calling %s: expected %d, got %%d\", len(args))\n", info.Name, info.Arity)
@@ -652,6 +740,9 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\trt := bridge.New(interp)\n")
 	fmt.Fprintf(buf, "\t__able_runtime = rt\n")
 	fmt.Fprintf(buf, "\trt.SetEnv(env)\n")
+	if len(g.diagNodes) > 0 {
+		fmt.Fprintf(buf, "\t__able_register_diag_nodes()\n")
+	}
 	for _, name := range g.sortedFunctionNames() {
 		info := g.functions[name]
 		if info == nil {
@@ -772,7 +863,11 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName, goType, targ
 		g.renderConvertErr(buf)
 		fmt.Fprintf(buf, "\t%s := %s(%sRaw)\n", target, goType, argName)
 	case "struct":
-		fmt.Fprintf(buf, "\t%s, err := __able_struct_%s_from(%sValue)\n", target, goType, argName)
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
+		fmt.Fprintf(buf, "\t%s, err := __able_struct_%s_from(%sValue)\n", target, baseName, argName)
 		g.renderConvertErr(buf)
 	default:
 		fmt.Fprintf(buf, "\t%s := %sValue\n", target, argName)
@@ -817,7 +912,11 @@ func (g *generator) renderReturnConversion(buf *bytes.Buffer, resultName, goType
 	case "uint64":
 		fmt.Fprintf(buf, "\treturn bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\")), nil\n", resultName)
 	case "struct":
-		fmt.Fprintf(buf, "\treturn __able_struct_%s_to(rt, %s)\n", goType, resultName)
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
+		fmt.Fprintf(buf, "\treturn __able_struct_%s_to(rt, %s)\n", baseName, resultName)
 	default:
 		fmt.Fprintf(buf, "\treturn %s, nil\n", resultName)
 	}
@@ -866,7 +965,11 @@ func (g *generator) renderValueConversion(buf *bytes.Buffer, indent, valueVar, g
 		g.renderConvertErrWith(buf, indent, returnExpr)
 		fmt.Fprintf(buf, "%s%s = %s(convertedRaw)\n", indent, assignTarget, goType)
 	case "struct":
-		fmt.Fprintf(buf, "%sconverted, err := __able_struct_%s_from(%s)\n", indent, goType, valueVar)
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
+		fmt.Fprintf(buf, "%sconverted, err := __able_struct_%s_from(%s)\n", indent, baseName, valueVar)
 		g.renderConvertErrWith(buf, indent, returnExpr)
 		fmt.Fprintf(buf, "%s%s = converted\n", indent, assignTarget)
 	default:
@@ -909,7 +1012,11 @@ func (g *generator) renderValueToRuntime(buf *bytes.Buffer, valueExpr, goType, t
 	case "uint64":
 		fmt.Fprintf(buf, "\t%s = append(%s, bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\")))\n", targetSlice, targetSlice, valueExpr)
 	case "struct":
-		fmt.Fprintf(buf, "\tvalueField, err := __able_struct_%s_to(rt, %s)\n", goType, valueExpr)
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
+		fmt.Fprintf(buf, "\tvalueField, err := __able_struct_%s_to(rt, %s)\n", baseName, valueExpr)
 		fmt.Fprintf(buf, "\tif err != nil {\n")
 		fmt.Fprintf(buf, "\t\treturn nil, err\n")
 		fmt.Fprintf(buf, "\t}\n")
@@ -952,7 +1059,11 @@ func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goTy
 	case "uint64":
 		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))\n", fieldName, valueExpr)
 	case "struct":
-		fmt.Fprintf(buf, "\tvalueField, err := __able_struct_%s_to(rt, %s)\n", goType, valueExpr)
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
+		fmt.Fprintf(buf, "\tvalueField, err := __able_struct_%s_to(rt, %s)\n", baseName, valueExpr)
 		fmt.Fprintf(buf, "\tif err != nil {\n")
 		fmt.Fprintf(buf, "\t\treturn nil, err\n")
 		fmt.Fprintf(buf, "\t}\n")
@@ -999,6 +1110,9 @@ func (g *generator) typeCategory(goType string) string {
 		if info.GoName == goType {
 			return "struct"
 		}
+		if strings.HasPrefix(goType, "*") && info.GoName == strings.TrimPrefix(goType, "*") {
+			return "struct"
+		}
 	}
 	return "unknown"
 }
@@ -1032,6 +1146,13 @@ func formatSource(src []byte) ([]byte, error) {
 func (g *generator) renderIteratorHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "type __able_generator_stop struct{}\n\n")
 	fmt.Fprintf(buf, "func (__able_generator_stop) Error() string { return \"generator stopped\" }\n\n")
+	fmt.Fprintf(buf, "func __able_is_generator_stop(err error) bool {\n")
+	fmt.Fprintf(buf, "\tif err == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn false\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tvar stop __able_generator_stop\n")
+	fmt.Fprintf(buf, "\treturn errors.As(err, &stop)\n")
+	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "type __able_generator_result struct {\n")
 	fmt.Fprintf(buf, "\tvalue runtime.Value\n")
 	fmt.Fprintf(buf, "\tdone bool\n")
@@ -1057,11 +1178,11 @@ func (g *generator) renderIteratorHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tfunc() {\n")
 	fmt.Fprintf(buf, "\t\tdefer func() {\n")
 	fmt.Fprintf(buf, "\t\t\tif r := recover(); r != nil {\n")
-	fmt.Fprintf(buf, "\t\t\t\tif _, ok := r.(__able_generator_stop); ok {\n")
-	fmt.Fprintf(buf, "\t\t\t\t\trunErr = __able_generator_stop{}\n")
-	fmt.Fprintf(buf, "\t\t\t\t\treturn\n")
-	fmt.Fprintf(buf, "\t\t\t\t}\n")
 	fmt.Fprintf(buf, "\t\t\t\tif err, ok := r.(error); ok {\n")
+	fmt.Fprintf(buf, "\t\t\t\t\tif __able_is_generator_stop(err) {\n")
+	fmt.Fprintf(buf, "\t\t\t\t\t\trunErr = __able_generator_stop{}\n")
+	fmt.Fprintf(buf, "\t\t\t\t\t\treturn\n")
+	fmt.Fprintf(buf, "\t\t\t\t\t}\n")
 	fmt.Fprintf(buf, "\t\t\t\t\trunErr = err\n")
 	fmt.Fprintf(buf, "\t\t\t\t\treturn\n")
 	fmt.Fprintf(buf, "\t\t\t\t}\n")
@@ -1071,12 +1192,11 @@ func (g *generator) renderIteratorHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\trunErr = run(g.controllerValue())\n")
 	fmt.Fprintf(buf, "\t}()\n")
 	fmt.Fprintf(buf, "\tif runErr != nil {\n")
-	fmt.Fprintf(buf, "\t\tswitch runErr.(type) {\n")
-	fmt.Fprintf(buf, "\t\tcase __able_generator_stop:\n")
+	fmt.Fprintf(buf, "\t\tif __able_is_generator_stop(runErr) {\n")
 	fmt.Fprintf(buf, "\t\t\tg.results <- __able_generator_result{done: true}\n")
-	fmt.Fprintf(buf, "\t\tdefault:\n")
-	fmt.Fprintf(buf, "\t\t\tg.results <- __able_generator_result{err: runErr, done: true}\n")
+	fmt.Fprintf(buf, "\t\t\treturn\n")
 	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\tg.results <- __able_generator_result{err: runErr, done: true}\n")
 	fmt.Fprintf(buf, "\t\treturn\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tg.results <- __able_generator_result{done: true}\n")

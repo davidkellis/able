@@ -211,15 +211,37 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 		if _, ok := mode.newNames[name]; ok {
 			goName := sanitizeIdent(name)
 			ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType}
-			return []string{fmt.Sprintf("var %s %s = %s", goName, goType, expr)}, true
+			return []string{
+				fmt.Sprintf("var %s %s = %s", goName, goType, expr),
+				fmt.Sprintf("_ = %s", goName),
+			}, true
 		}
 		existing, exists := ctx.lookup(name)
 		if !exists {
 			goName := sanitizeIdent(name)
 			ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType}
-			return []string{fmt.Sprintf("var %s %s = %s", goName, goType, expr)}, true
+			return []string{
+				fmt.Sprintf("var %s %s = %s", goName, goType, expr),
+				fmt.Sprintf("_ = %s", goName),
+			}, true
 		}
 		if !g.typeMatches(existing.GoType, goType) {
+			if existing.GoType == "runtime.Value" {
+				converted, ok := g.runtimeValueExpr(expr, goType)
+				if !ok {
+					ctx.setReason("pattern assignment type mismatch")
+					return nil, false
+				}
+				return []string{fmt.Sprintf("%s = %s", existing.GoName, converted)}, true
+			}
+			if goType == "runtime.Value" {
+				converted, ok := g.expectRuntimeValueExpr(expr, existing.GoType)
+				if !ok {
+					ctx.setReason("pattern assignment type mismatch")
+					return nil, false
+				}
+				return []string{fmt.Sprintf("%s = %s", existing.GoName, converted)}, true
+			}
 			ctx.setReason("pattern assignment type mismatch")
 			return nil, false
 		}
@@ -228,6 +250,22 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 	existing, exists := ctx.lookup(name)
 	if exists {
 		if !g.typeMatches(existing.GoType, goType) {
+			if existing.GoType == "runtime.Value" {
+				converted, ok := g.runtimeValueExpr(expr, goType)
+				if !ok {
+					ctx.setReason("pattern assignment type mismatch")
+					return nil, false
+				}
+				return []string{fmt.Sprintf("%s = %s", existing.GoName, converted)}, true
+			}
+			if goType == "runtime.Value" {
+				converted, ok := g.expectRuntimeValueExpr(expr, existing.GoType)
+				if !ok {
+					ctx.setReason("pattern assignment type mismatch")
+					return nil, false
+				}
+				return []string{fmt.Sprintf("%s = %s", existing.GoName, converted)}, true
+			}
 			ctx.setReason("pattern assignment type mismatch")
 			return nil, false
 		}
@@ -235,7 +273,10 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 	}
 	goName := sanitizeIdent(name)
 	ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType}
-	return []string{fmt.Sprintf("var %s %s = %s", goName, goType, expr)}, true
+	return []string{
+		fmt.Sprintf("var %s %s = %s", goName, goType, expr),
+		fmt.Sprintf("_ = %s", goName),
+	}, true
 }
 
 func (g *generator) compileRuntimeStructPatternAssignmentBindings(ctx *compileContext, pattern *ast.StructPattern, subjectTemp string, mode patternBindingMode) ([]string, bool) {

@@ -440,6 +440,17 @@ func (i *Interpreter) SetNodeOrigins(origins map[ast.Node]string) {
 	i.nodeOrigins = copied
 }
 
+// AddNodeOrigin registers a single node origin path for runtime diagnostics.
+func (i *Interpreter) AddNodeOrigin(node ast.Node, origin string) {
+	if i == nil || node == nil || origin == "" {
+		return
+	}
+	if i.nodeOrigins == nil {
+		i.nodeOrigins = make(map[ast.Node]string)
+	}
+	i.nodeOrigins[node] = origin
+}
+
 // EvaluateModule executes a module node and returns the last evaluated value and environment.
 func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtime.Environment, error) {
 	moduleEnv := i.global
