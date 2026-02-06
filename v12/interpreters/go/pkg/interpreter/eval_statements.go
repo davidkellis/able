@@ -302,8 +302,12 @@ func (i *Interpreter) iterateDynamicIterator(loop *ast.ForLoop, baseEnv *runtime
 
 func (i *Interpreter) runForLoopBody(loop *ast.ForLoop, baseEnv *runtime.Environment, element runtime.Value) (runtime.Value, bool, error) {
 	iterEnv := runtime.NewEnvironment(baseEnv)
-	if err := i.assignPattern(loop.Pattern, element, iterEnv, true, nil); err != nil {
+	assigned, err := i.assignPatternForLoop(loop.Pattern, element, iterEnv)
+	if err != nil {
 		return nil, false, err
+	}
+	if errVal, ok := asErrorValue(assigned); ok {
+		return errVal, false, nil
 	}
 	val, err := i.evaluateBlock(loop.Body, iterEnv)
 	if err != nil {

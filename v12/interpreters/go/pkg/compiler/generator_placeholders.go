@@ -549,7 +549,7 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 		implLines = append(implLines, fmt.Sprintf("return %s, nil", resultExpr))
 	}
 	implBody := strings.Join(implLines, "; ")
-	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) { %s }}", "<placeholder>", plan.paramCount, implBody)
+	lambdaExpr := fmt.Sprintf("runtime.Value(runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) { %s }})", "<placeholder>", plan.paramCount, implBody)
 	return lambdaExpr, "runtime.Value", true
 }
 

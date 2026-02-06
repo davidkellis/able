@@ -12,6 +12,250 @@ type bindingIntent struct {
 	allowFallback    bool
 }
 
+type patternBinding struct {
+	name  string
+	value runtime.Value
+}
+
+type patternMismatchError struct {
+	message string
+}
+
+func (e patternMismatchError) Error() string {
+	return e.message
+}
+
+func asPatternMismatch(err error) (string, bool) {
+	if err == nil {
+		return "", false
+	}
+	switch v := err.(type) {
+	case patternMismatchError:
+		return v.message, true
+	case *patternMismatchError:
+		if v == nil {
+			return "", false
+		}
+		return v.message, true
+	default:
+		return "", false
+	}
+}
+
+func (i *Interpreter) collectPatternBindings(pattern ast.Pattern, value runtime.Value, env *runtime.Environment, bindings *[]patternBinding) error {
+	switch p := pattern.(type) {
+	case *ast.Identifier:
+		if p == nil || p.Name == "" || p.Name == "_" {
+			return nil
+		}
+		*bindings = append(*bindings, patternBinding{name: p.Name, value: value})
+		return nil
+	case *ast.WildcardPattern:
+		return nil
+	case *ast.LiteralPattern:
+		litExpr, ok := p.Literal.(ast.Expression)
+		if !ok {
+			return fmt.Errorf("invalid literal in pattern: %T", p.Literal)
+		}
+		litVal, err := i.evaluateExpression(litExpr, env)
+		if err != nil {
+			return err
+		}
+		if !valuesEqual(litVal, value) {
+			return patternMismatchError{message: "pattern literal mismatch"}
+		}
+		return nil
+	case *ast.StructPattern:
+		switch value.(type) {
+		case runtime.IteratorEndValue, *runtime.IteratorEndValue:
+			if p.StructType != nil && p.StructType.Name == "IteratorEnd" && len(p.Fields) == 0 {
+				return nil
+			}
+			return patternMismatchError{message: "Cannot destructure non-struct value"}
+		}
+		if errVal, ok := value.(runtime.ErrorValue); ok {
+			value = errorValueToStructInstance(errVal)
+		}
+		if errValPtr, ok := value.(*runtime.ErrorValue); ok {
+			value = errorValueToStructInstance(*errValPtr)
+		}
+		structVal, ok := value.(*runtime.StructInstanceValue)
+		if !ok {
+			return patternMismatchError{message: "Cannot destructure non-struct value"}
+		}
+		if p.StructType != nil {
+			def := structVal.Definition
+			if def == nil || def.Node == nil || def.Node.ID == nil || def.Node.ID.Name != p.StructType.Name {
+				return patternMismatchError{message: "Struct type mismatch in destructuring"}
+			}
+		}
+		if structVal.Positional != nil {
+			if len(p.Fields) != len(structVal.Positional) {
+				return patternMismatchError{message: "Struct field count mismatch"}
+			}
+			for idx, field := range p.Fields {
+				if field == nil {
+					return fmt.Errorf("invalid positional struct pattern at index %d", idx)
+				}
+				fieldVal := structVal.Positional[idx]
+				if fieldVal == nil {
+					return patternMismatchError{message: fmt.Sprintf("missing positional struct value at index %d", idx)}
+				}
+				if err := i.collectPatternBindings(field.Pattern, fieldVal, env, bindings); err != nil {
+					return err
+				}
+				if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
+					*bindings = append(*bindings, patternBinding{name: field.Binding.Name, value: fieldVal})
+				}
+			}
+			return nil
+		}
+		if structVal.Fields == nil {
+			if len(p.Fields) == 0 {
+				return nil
+			}
+			return patternMismatchError{message: "Expected named struct"}
+		}
+		for _, field := range p.Fields {
+			if field.FieldName == nil {
+				return fmt.Errorf("Named struct pattern missing field name")
+			}
+			fieldVal, ok := structVal.Fields[field.FieldName.Name]
+			if !ok {
+				return patternMismatchError{message: fmt.Sprintf("Missing field '%s' during destructuring", field.FieldName.Name)}
+			}
+			if err := i.collectPatternBindings(field.Pattern, fieldVal, env, bindings); err != nil {
+				return err
+			}
+			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
+				*bindings = append(*bindings, patternBinding{name: field.Binding.Name, value: fieldVal})
+			}
+		}
+		return nil
+	case *ast.ArrayPattern:
+		var elements []runtime.Value
+		switch arr := value.(type) {
+		case *runtime.ArrayValue:
+			elements = arr.Elements
+		default:
+			return patternMismatchError{message: "Cannot destructure non-array value"}
+		}
+		if p.RestPattern == nil && len(elements) != len(p.Elements) {
+			return patternMismatchError{message: "Array length mismatch in destructuring"}
+		}
+		if len(elements) < len(p.Elements) {
+			return patternMismatchError{message: "Array too short for destructuring"}
+		}
+		for idx, elemPattern := range p.Elements {
+			if elemPattern == nil {
+				return fmt.Errorf("invalid array pattern at index %d", idx)
+			}
+			elemVal := elements[idx]
+			if err := i.collectPatternBindings(elemPattern, elemVal, env, bindings); err != nil {
+				return err
+			}
+		}
+		if p.RestPattern != nil {
+			switch rest := p.RestPattern.(type) {
+			case *ast.Identifier:
+				if rest.Name != "" && rest.Name != "_" {
+					restElems := append([]runtime.Value(nil), elements[len(p.Elements):]...)
+					restVal := i.newArrayValue(restElems, len(restElems))
+					*bindings = append(*bindings, patternBinding{name: rest.Name, value: restVal})
+				}
+			case *ast.WildcardPattern:
+				// ignore remaining elements
+			default:
+				return fmt.Errorf("unsupported rest pattern type %s", rest.NodeType())
+			}
+		} else if len(elements) != len(p.Elements) {
+			return patternMismatchError{message: "array length mismatch in destructuring"}
+		}
+		return nil
+	case *ast.TypedPattern:
+		if !i.matchesType(p.TypeAnnotation, value) {
+			expected := typeExpressionToString(p.TypeAnnotation)
+			actualExpr := i.typeExpressionFromValue(value)
+			actual := value.Kind().String()
+			if actualExpr != nil {
+				actual = typeExpressionToString(actualExpr)
+			}
+			return patternMismatchError{message: fmt.Sprintf("Typed pattern mismatch in assignment: expected %s, got %s", expected, actual)}
+		}
+		coerced, err := i.coerceValueToType(p.TypeAnnotation, value)
+		if err != nil {
+			return err
+		}
+		return i.collectPatternBindings(p.Pattern, coerced, env, bindings)
+	default:
+		return fmt.Errorf("unsupported pattern %s", pattern.NodeType())
+	}
+}
+
+func (i *Interpreter) assignPatternExpression(pattern ast.Pattern, value runtime.Value, env *runtime.Environment, op ast.AssignmentOperator) (runtime.Value, error) {
+	if pattern == nil {
+		return nil, fmt.Errorf("missing assignment pattern")
+	}
+	if env == nil {
+		return nil, fmt.Errorf("missing assignment environment")
+	}
+	switch op {
+	case ast.AssignmentDeclare, ast.AssignmentAssign:
+	default:
+		return nil, fmt.Errorf("unsupported assignment operator %s", op)
+	}
+	var intent *bindingIntent
+	isDeclaration := op == ast.AssignmentDeclare
+	if isDeclaration {
+		newNames, hasAny := analyzePatternDeclarationNames(env, pattern)
+		if !hasAny || len(newNames) == 0 {
+			return nil, fmt.Errorf(":= requires at least one new binding")
+		}
+		intent = &bindingIntent{declarationNames: newNames}
+	} else {
+		intent = &bindingIntent{allowFallback: true}
+	}
+	bindings := make([]patternBinding, 0)
+	if err := i.collectPatternBindings(pattern, value, env, &bindings); err != nil {
+		if msg, ok := asPatternMismatch(err); ok {
+			return runtime.ErrorValue{Message: msg}, nil
+		}
+		return nil, err
+	}
+	for _, binding := range bindings {
+		if err := declareOrAssign(env, binding.name, binding.value, isDeclaration, intent); err != nil {
+			return nil, err
+		}
+	}
+	if value == nil {
+		value = runtime.NilValue{}
+	}
+	return value, nil
+}
+
+func (i *Interpreter) assignPatternForLoop(pattern ast.Pattern, value runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+	if pattern == nil {
+		return nil, fmt.Errorf("missing assignment pattern")
+	}
+	if env == nil {
+		return nil, fmt.Errorf("missing assignment environment")
+	}
+	bindings := make([]patternBinding, 0)
+	if err := i.collectPatternBindings(pattern, value, env, &bindings); err != nil {
+		if msg, ok := asPatternMismatch(err); ok {
+			return runtime.ErrorValue{Message: msg}, nil
+		}
+		return nil, err
+	}
+	for _, binding := range bindings {
+		env.Define(binding.name, binding.value)
+	}
+	if value == nil {
+		value = runtime.NilValue{}
+	}
+	return value, nil
+}
+
 func (i *Interpreter) assignPattern(
 	pattern ast.Pattern,
 	value runtime.Value,

@@ -137,9 +137,9 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	}
 	lines = append(lines, "func() {")
 	if bindingName != "" {
-		lines = append(lines, fmt.Sprintf("\tdefer func() { if recovered := recover(); recovered != nil { if val, ok := recovered.(runtime.Value); ok { %s = val; %s = true; %s = true } else { panic(recovered) } } }()", failureTemp, failedTemp, errorTemp))
+		lines = append(lines, fmt.Sprintf("\tdefer func() { if recovered := recover(); recovered != nil { switch v := recovered.(type) { case runtime.Value: %s = v; %s = true; %s = true; case error: if val, ok := interpreter.RaisedValue(v); ok { %s = val; %s = true; %s = true } else { panic(recovered) }; default: panic(recovered) } } }()", failureTemp, failedTemp, errorTemp, failureTemp, failedTemp, errorTemp))
 	} else {
-		lines = append(lines, fmt.Sprintf("\tdefer func() { if recovered := recover(); recovered != nil { if _, ok := recovered.(runtime.Value); ok { %s = true } else { panic(recovered) } } }()", failedTemp))
+		lines = append(lines, fmt.Sprintf("\tdefer func() { if recovered := recover(); recovered != nil { switch v := recovered.(type) { case runtime.Value: %s = true; case error: if _, ok := interpreter.RaisedValue(v); ok { %s = true } else { panic(recovered) }; default: panic(recovered) } } }()", failedTemp, failedTemp))
 	}
 	lines = append(lines, indentLines(valueLines, 1)...)
 	lines = append(lines, fmt.Sprintf("\t%s := %s", valueTemp, valueExpr))

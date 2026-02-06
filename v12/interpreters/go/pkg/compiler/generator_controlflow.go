@@ -218,6 +218,9 @@ func (g *generator) compileBlockExpression(ctx *compileContext, block *ast.Block
 		if expected == "" || g.isVoidType(expected) {
 			return nil, "struct{}{}", "struct{}", true
 		}
+		if expected == "runtime.Value" {
+			return nil, "runtime.VoidValue{}", "runtime.Value", true
+		}
 		ctx.setReason("empty block requires void return")
 		return nil, "", "", false
 	}
@@ -229,10 +232,91 @@ func (g *generator) compileBlockExpression(ctx *compileContext, block *ast.Block
 			return nil, "", "", false
 		}
 		if isLast {
+			if raiseStmt, ok := stmt.(*ast.RaiseStatement); ok {
+				stmtLines, ok := g.compileRaiseStatement(child, raiseStmt)
+				if !ok {
+					return nil, "", "", false
+				}
+				lines = append(lines, stmtLines...)
+				returnType := "runtime.Value"
+				returnExpr := "runtime.NilValue{}"
+				switch {
+				case expected != "" && g.isVoidType(expected):
+					returnType = "struct{}"
+					returnExpr = "struct{}{}"
+				case expected != "" && expected != "runtime.Value":
+					zeroExpr, ok := g.zeroValueExpr(expected)
+					if !ok {
+						ctx.setReason("missing block return expression")
+						return nil, "", "", false
+					}
+					returnType = expected
+					returnExpr = zeroExpr
+				}
+				lines = append(lines, fmt.Sprintf("return %s", returnExpr))
+				blockExpr := fmt.Sprintf("func() %s { %s }()", returnType, strings.Join(lines, "; "))
+				return nil, blockExpr, returnType, true
+			}
+			if rethrowStmt, ok := stmt.(*ast.RethrowStatement); ok {
+				stmtLines, ok := g.compileRethrowStatement(child, rethrowStmt)
+				if !ok {
+					return nil, "", "", false
+				}
+				lines = append(lines, stmtLines...)
+				returnType := "runtime.Value"
+				returnExpr := "runtime.NilValue{}"
+				switch {
+				case expected != "" && g.isVoidType(expected):
+					returnType = "struct{}"
+					returnExpr = "struct{}{}"
+				case expected != "" && expected != "runtime.Value":
+					zeroExpr, ok := g.zeroValueExpr(expected)
+					if !ok {
+						ctx.setReason("missing block return expression")
+						return nil, "", "", false
+					}
+					returnType = expected
+					returnExpr = zeroExpr
+				}
+				lines = append(lines, fmt.Sprintf("return %s", returnExpr))
+				blockExpr := fmt.Sprintf("func() %s { %s }()", returnType, strings.Join(lines, "; "))
+				return nil, blockExpr, returnType, true
+			}
 			expr, ok := stmt.(ast.Expression)
 			if !ok || expr == nil {
-				ctx.setReason("missing block return expression")
-				return nil, "", "", false
+				if loop, ok := stmt.(*ast.ForLoop); ok && (expected == "" || expected == "runtime.Value") {
+					loopLines, loopResult, ok := g.compileForLoopInternal(child, loop, true)
+					if !ok {
+						return nil, "", "", false
+					}
+					lines = append(lines, loopLines...)
+					returnType := "runtime.Value"
+					returnExpr := loopResult
+					if returnExpr == "" {
+						returnExpr = "runtime.VoidValue{}"
+					}
+					lines = append(lines, fmt.Sprintf("return %s", returnExpr))
+					blockExpr := fmt.Sprintf("func() %s { %s }()", returnType, strings.Join(lines, "; "))
+					return nil, blockExpr, returnType, true
+				}
+				if expected != "" && !g.isVoidType(expected) && expected != "runtime.Value" {
+					ctx.setReason("missing block return expression")
+					return nil, "", "", false
+				}
+				stmtLines, ok := g.compileStatement(child, stmt)
+				if !ok {
+					return nil, "", "", false
+				}
+				lines = append(lines, stmtLines...)
+				returnType := "struct{}"
+				returnExpr := "struct{}{}"
+				if expected == "" || expected == "runtime.Value" {
+					returnType = "runtime.Value"
+					returnExpr = "runtime.VoidValue{}"
+				}
+				lines = append(lines, fmt.Sprintf("return %s", returnExpr))
+				blockExpr := fmt.Sprintf("func() %s { %s }()", returnType, strings.Join(lines, "; "))
+				return nil, blockExpr, returnType, true
 			}
 			returnLines, returnExpr, returnType, ok := g.compileTailExpression(child, expected, expr)
 			if !ok {
@@ -369,18 +453,23 @@ func (g *generator) compileWhileLoop(ctx *compileContext, loop *ast.WhileLoop) (
 }
 
 func (g *generator) compileForLoop(ctx *compileContext, loop *ast.ForLoop) ([]string, bool) {
+	lines, _, ok := g.compileForLoopInternal(ctx, loop, false)
+	return lines, ok
+}
+
+func (g *generator) compileForLoopInternal(ctx *compileContext, loop *ast.ForLoop, withResult bool) ([]string, string, bool) {
 	if loop == nil || loop.Iterable == nil || loop.Body == nil {
 		ctx.setReason("missing for loop")
-		return nil, false
+		return nil, "", false
 	}
 	iterExpr, iterType, ok := g.compileExpr(ctx, loop.Iterable, "")
 	if !ok {
-		return nil, false
+		return nil, "", false
 	}
 	iterRuntime, ok := g.runtimeValueExpr(iterExpr, iterType)
 	if !ok {
 		ctx.setReason("for loop iterable unsupported")
-		return nil, false
+		return nil, "", false
 	}
 	elementTemp := ctx.newTemp()
 	bodyCtx := ctx.child()
@@ -390,18 +479,27 @@ func (g *generator) compileForLoop(ctx *compileContext, loop *ast.ForLoop) ([]st
 	mode := patternBindingMode{declare: true, newNames: newNames}
 	cond, ok := g.compileMatchPatternCondition(bodyCtx, loop.Pattern, elementTemp, "runtime.Value")
 	if !ok {
-		return nil, false
+		return nil, "", false
 	}
 	bindLines, ok := g.compileAssignmentPatternBindings(bodyCtx, loop.Pattern, elementTemp, "runtime.Value", mode)
 	if !ok {
-		return nil, false
+		return nil, "", false
+	}
+	mismatchTemp := ctx.newTemp()
+	resultTemp := ""
+	if withResult {
+		resultTemp = ctx.newTemp()
 	}
 	if cond != "true" {
-		bindLines = append([]string{fmt.Sprintf("if !(%s) { panic(fmt.Errorf(\"pattern assignment mismatch\")) }", cond)}, bindLines...)
+		mismatchLine := fmt.Sprintf("%s = true; return", mismatchTemp)
+		if withResult {
+			mismatchLine = fmt.Sprintf("%s = runtime.ErrorValue{Message: \"pattern assignment mismatch\"}; %s", resultTemp, mismatchLine)
+		}
+		bindLines = append([]string{fmt.Sprintf("if !(%s) { %s }", cond, mismatchLine)}, bindLines...)
 	}
 	bodyLines, ok := g.compileBlockStatement(bodyCtx, loop.Body)
 	if !ok {
-		return nil, false
+		return nil, "", false
 	}
 	brokeTemp := ctx.newTemp()
 	contTemp := ctx.newTemp()
@@ -418,6 +516,12 @@ func (g *generator) compileForLoop(ctx *compileContext, loop *ast.ForLoop) ([]st
 	errTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s := %s", iterTemp, iterRuntime),
+	}
+	if withResult {
+		lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.VoidValue{}", resultTemp))
+	}
+	lines = append(lines,
+		fmt.Sprintf("var %s bool", mismatchTemp),
 		fmt.Sprintf("var %s bool", brokeTemp),
 		fmt.Sprintf("var %s bool", contTemp),
 		fmt.Sprintf("%s, %s := __able_array_values(%s)", valuesTemp, okTemp, iterTemp),
@@ -425,7 +529,9 @@ func (g *generator) compileForLoop(ctx *compileContext, loop *ast.ForLoop) ([]st
 		fmt.Sprintf("for _, %s := range %s {", elementTemp, valuesTemp),
 		fmt.Sprintf("%s = false", brokeTemp),
 		fmt.Sprintf("%s = false", contTemp),
+		fmt.Sprintf("%s = false", mismatchTemp),
 		fmt.Sprintf("func() { %s }()", strings.Join(innerLines, "; ")),
+		fmt.Sprintf("if %s { break }", mismatchTemp),
 		fmt.Sprintf("if %s { break }", brokeTemp),
 		fmt.Sprintf("if %s { continue }", contTemp),
 		"}",
@@ -438,13 +544,15 @@ func (g *generator) compileForLoop(ctx *compileContext, loop *ast.ForLoop) ([]st
 		fmt.Sprintf("if %s { break }", doneTemp),
 		fmt.Sprintf("%s = false", brokeTemp),
 		fmt.Sprintf("%s = false", contTemp),
+		fmt.Sprintf("%s = false", mismatchTemp),
 		fmt.Sprintf("func() { %s }()", strings.Join(innerLines, "; ")),
+		fmt.Sprintf("if %s { break }", mismatchTemp),
 		fmt.Sprintf("if %s { break }", brokeTemp),
 		fmt.Sprintf("if %s { continue }", contTemp),
 		"}",
 		"}",
-	}
-	return lines, true
+	)
+	return lines, resultTemp, true
 }
 
 func (g *generator) compileBreakStatement(ctx *compileContext, stmt *ast.BreakStatement) ([]string, bool) {
@@ -653,6 +761,9 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 	}
 	subjectTemp := ctx.newTemp()
 	resultType := expected
+	explicitExpected := expected != ""
+	inferredType := ""
+	mismatch := false
 	type matchClause struct {
 		cond      string
 		bindLines []string
@@ -679,15 +790,25 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 			}
 			guardExpr = guardValue
 		}
-		bodyLines, bodyExpr, bodyType, ok := g.compileTailExpression(clauseCtx, resultType, clause.Body)
+		clauseExpected := resultType
+		if !explicitExpected {
+			clauseExpected = ""
+		}
+		bodyLines, bodyExpr, bodyType, ok := g.compileTailExpression(clauseCtx, clauseExpected, clause.Body)
 		if !ok {
 			return "", "", false
 		}
-		if resultType == "" {
-			resultType = bodyType
-		} else if !g.typeMatches(resultType, bodyType) {
-			ctx.setReason("match clause type mismatch")
-			return "", "", false
+		if explicitExpected {
+			if !g.typeMatches(resultType, bodyType) {
+				ctx.setReason("match clause type mismatch")
+				return "", "", false
+			}
+		} else {
+			if inferredType == "" {
+				inferredType = bodyType
+			} else if bodyType != inferredType {
+				mismatch = true
+			}
 		}
 		clauses = append(clauses, matchClause{
 			cond:      cond,
@@ -698,8 +819,42 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 			bodyType:  bodyType,
 		})
 	}
+	if !explicitExpected {
+		if inferredType == "" || mismatch {
+			resultType = "runtime.Value"
+		} else {
+			resultType = inferredType
+		}
+	}
 	if resultType == "" {
 		resultType = "runtime.Value"
+	}
+	for idx := range clauses {
+		clause := &clauses[idx]
+		if clause.bodyType == resultType {
+			continue
+		}
+		switch {
+		case resultType == "runtime.Value" && clause.bodyType != "runtime.Value":
+			converted, ok := g.runtimeValueExpr(clause.bodyExpr, clause.bodyType)
+			if !ok {
+				ctx.setReason("match clause type mismatch")
+				return "", "", false
+			}
+			clause.bodyExpr = converted
+			clause.bodyType = resultType
+		case clause.bodyType == "runtime.Value" && resultType != "runtime.Value":
+			converted, ok := g.expectRuntimeValueExpr(clause.bodyExpr, resultType)
+			if !ok {
+				ctx.setReason("match clause type mismatch")
+				return "", "", false
+			}
+			clause.bodyExpr = converted
+			clause.bodyType = resultType
+		default:
+			ctx.setReason("match clause type mismatch")
+			return "", "", false
+		}
 	}
 	matchedTemp := ctx.newTemp()
 	resultTemp := ctx.newTemp()

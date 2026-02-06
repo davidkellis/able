@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -81,50 +82,9 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		return lines, computedTemp, "runtime.Value", true
 	}
 	if pattern, ok := assign.Left.(ast.Pattern); ok {
-		if assign.Operator != ast.AssignmentDeclare && assign.Operator != ast.AssignmentAssign {
-			ctx.setReason("compound assignment not supported with patterns")
-			return nil, "", "", false
+		if _, ok := pattern.(*ast.Identifier); !ok {
+			return g.compilePatternAssignment(ctx, assign, pattern)
 		}
-		newNames := map[string]struct{}{}
-		if assign.Operator == ast.AssignmentDeclare {
-			names := map[string]struct{}{}
-			collectPatternBindingNames(pattern, names)
-			if len(names) == 0 {
-				ctx.setReason(":= requires new binding")
-				return nil, "", "", false
-			}
-			for name := range names {
-				if _, ok := ctx.lookupCurrent(name); !ok {
-					newNames[name] = struct{}{}
-				}
-			}
-			if len(newNames) == 0 {
-				ctx.setReason(":= requires new binding")
-				return nil, "", "", false
-			}
-		}
-		expectedType := g.patternExpectedType(pattern)
-		valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, expectedType, assign.Right)
-		if !ok {
-			return nil, "", "", false
-		}
-		subjectTemp := ctx.newTemp()
-		lines := append([]string{}, valueLines...)
-		lines = append(lines, fmt.Sprintf("%s := %s", subjectTemp, valueExpr))
-		cond, ok := g.compileMatchPatternCondition(ctx, pattern, subjectTemp, valueType)
-		if !ok {
-			return nil, "", "", false
-		}
-		mode := patternBindingMode{declare: assign.Operator == ast.AssignmentDeclare, newNames: newNames}
-		bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, subjectTemp, valueType, mode)
-		if !ok {
-			return nil, "", "", false
-		}
-		if cond != "true" {
-			lines = append(lines, fmt.Sprintf("if !(%s) { panic(fmt.Errorf(\"pattern assignment mismatch\")) }", cond))
-		}
-		lines = append(lines, bindLines...)
-		return lines, subjectTemp, valueType, true
 	}
 	if memberTarget, ok := assign.Left.(*ast.MemberAccessExpression); ok {
 		if assign.Operator == ast.AssignmentDeclare {
@@ -349,6 +309,22 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		return nil, "", "", false
 	}
 	existing, exists := ctx.lookup(name)
+	if assign.Operator == ast.AssignmentAssign && !exists {
+		valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "runtime.Value", assign.Right)
+		if !ok {
+			return nil, "", "", false
+		}
+		if valueType != "runtime.Value" {
+			ctx.setReason("assignment type mismatch")
+			return nil, "", "", false
+		}
+		valueTemp := ctx.newTemp()
+		lines := append([]string{}, valueLines...)
+		lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
+		nodeName := g.diagNodeName(assign, "*ast.AssignmentExpression", "assign")
+		lines = append(lines, fmt.Sprintf("_ = __able_global_set(%q, %s, %s)", name, valueTemp, nodeName))
+		return lines, valueTemp, "runtime.Value", true
+	}
 	_, currentExists := ctx.lookupCurrent(name)
 	if assign.Operator == ast.AssignmentDeclare && currentExists {
 		ctx.setReason(":= requires new binding")
@@ -408,6 +384,105 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	return lines, goName, goType, true
 }
 
+func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.AssignmentExpression, pattern ast.Pattern) ([]string, string, string, bool) {
+	if assign == nil {
+		ctx.setReason("missing assignment")
+		return nil, "", "", false
+	}
+	if assign.Operator != ast.AssignmentDeclare && assign.Operator != ast.AssignmentAssign {
+		ctx.setReason("compound assignment not supported with patterns")
+		return nil, "", "", false
+	}
+	valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", assign.Right)
+	if !ok {
+		return nil, "", "", false
+	}
+	valueRuntime, ok := g.runtimeValueExpr(valueExpr, valueType)
+	if !ok {
+		ctx.setReason("pattern assignment value unsupported")
+		return nil, "", "", false
+	}
+	valueTemp := ctx.newTemp()
+	lines := append([]string{}, valueLines...)
+	lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
+
+	mode := patternBindingMode{declare: assign.Operator == ast.AssignmentDeclare}
+	if mode.declare {
+		newNames := map[string]struct{}{}
+		collectPatternBindingNames(pattern, newNames)
+		if len(newNames) == 0 {
+			ctx.setReason(":= requires new binding")
+			return nil, "", "", false
+		}
+		filtered := map[string]struct{}{}
+		for name := range newNames {
+			if _, ok := ctx.lookupCurrent(name); !ok {
+				filtered[name] = struct{}{}
+			}
+		}
+		if len(filtered) == 0 {
+			ctx.setReason(":= requires new binding")
+			return nil, "", "", false
+		}
+		mode.newNames = filtered
+	}
+
+	cond, ok := g.compileMatchPatternCondition(ctx, pattern, valueTemp, "runtime.Value")
+	if !ok {
+		return nil, "", "", false
+	}
+	bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, valueTemp, "runtime.Value", mode)
+	if !ok {
+		return nil, "", "", false
+	}
+	declLines, assignLines := splitPatternBindingLines(bindLines)
+	lines = append(lines, declLines...)
+	resultTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("var %s runtime.Value", resultTemp))
+	if cond != "true" {
+		lines = append(lines, fmt.Sprintf("if !(%s) { %s = runtime.ErrorValue{Message: \"pattern assignment mismatch\"} } else {", cond, resultTemp))
+		lines = append(lines, assignLines...)
+		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, valueTemp))
+		lines = append(lines, "}")
+	} else {
+		lines = append(lines, assignLines...)
+		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, valueTemp))
+	}
+	return lines, resultTemp, "runtime.Value", true
+}
+
+func splitPatternBindingLines(lines []string) ([]string, []string) {
+	if len(lines) == 0 {
+		return nil, nil
+	}
+	decls := make([]string, 0, len(lines))
+	assigns := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "var ") {
+			if idx := strings.Index(trimmed, " = "); idx != -1 {
+				decl := strings.TrimSpace(trimmed[:idx])
+				expr := strings.TrimSpace(trimmed[idx+3:])
+				fields := strings.Fields(decl)
+				if len(fields) >= 2 {
+					name := fields[1]
+					decls = append(decls, decl)
+					assigns = append(assigns, fmt.Sprintf("%s = %s", name, expr))
+					continue
+				}
+			}
+			decls = append(decls, line)
+			continue
+		}
+		if strings.HasPrefix(trimmed, "_ = ") || strings.HasPrefix(trimmed, "_=") {
+			decls = append(decls, line)
+			continue
+		}
+		assigns = append(assigns, line)
+	}
+	return decls, assigns
+}
+
 func binaryOpForAssignment(op ast.AssignmentOperator) (string, bool) {
 	switch op {
 	case ast.AssignmentAdd:
@@ -453,6 +528,21 @@ func (g *generator) assignmentTargetName(target ast.AssignmentTarget) (string, a
 	default:
 		return "", nil, false
 	}
+}
+
+func isSimpleAssignmentPattern(pattern ast.Pattern) bool {
+	switch p := pattern.(type) {
+	case *ast.Identifier:
+		return true
+	case *ast.TypedPattern:
+		if p == nil || p.Pattern == nil {
+			return false
+		}
+		if _, ok := p.Pattern.(*ast.Identifier); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *generator) isAddressableMemberObject(expr ast.Expression) bool {

@@ -22,6 +22,7 @@ type paramInfo struct {
 	Name      string
 	GoName    string
 	GoType    string
+	TypeExpr  ast.TypeExpression
 	Supported bool
 }
 
@@ -35,4 +36,24 @@ type functionInfo struct {
 	Definition     *ast.FunctionDefinition
 	Compileable    bool
 	Reason         string
+}
+
+type FallbackInfo struct {
+	Name   string
+	Reason string
+}
+
+type overloadInfo struct {
+	Name     string
+	Entries  []*functionInfo
+	MinArity int
+}
+
+type methodInfo struct {
+	TargetName   string
+	TargetType   ast.TypeExpression
+	MethodName   string
+	ReceiverType string
+	ExpectsSelf  bool
+	Info         *functionInfo
 }
