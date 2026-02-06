@@ -1,6 +1,10 @@
 {
-  "description": "compiler errors when for-loop typed pattern bindings mismatch",
+  "description": "for-loop typed pattern mismatches yield error values",
   "expect": {
-    "exit": 1
+    "stdout": [
+      "sum 1",
+      "done"
+    ],
+    "exit": 0
   }
 }

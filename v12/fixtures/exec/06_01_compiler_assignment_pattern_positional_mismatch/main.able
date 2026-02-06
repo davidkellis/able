@@ -1,11 +1,14 @@
 package exec_06_01_compiler_assignment_pattern_positional_mismatch
 
-## Semantics: compiler errors when positional struct patterns have mismatched arity.
+## Semantics: positional struct mismatches yield an Error value (falsy).
 
 struct Pair { i32, i32 }
 
 fn main() -> void {
   value := Pair { 1, 2 }
-  Pair { first, second, third } := value
-  print(first + second + third)
+  if Pair { first, second, third } := value {
+    print("ok")
+  } else {
+    print("error")
+  }
 }

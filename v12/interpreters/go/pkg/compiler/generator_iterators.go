@@ -39,3 +39,49 @@ func (g *generator) compileIteratorLiteral(ctx *compileContext, expr *ast.Iterat
 	g.needsIterator = true
 	return fmt.Sprintf("__able_new_iterator(%s)", run), "runtime.Value", true
 }
+
+func (g *generator) compileYieldStatement(ctx *compileContext, stmt *ast.YieldStatement) ([]string, bool) {
+	if stmt == nil {
+		ctx.setReason("missing yield statement")
+		return nil, false
+	}
+	genParam, ok := ctx.lookup("gen")
+	if !ok {
+		ctx.setReason("yield may only appear inside iterator literal")
+		return nil, false
+	}
+	genExpr := genParam.GoName
+	if genExpr == "" {
+		ctx.setReason("yield generator missing")
+		return nil, false
+	}
+	genValue := genExpr
+	if genParam.GoType != "runtime.Value" {
+		converted, ok := g.runtimeValueExpr(genExpr, genParam.GoType)
+		if !ok {
+			ctx.setReason("yield generator unsupported")
+			return nil, false
+		}
+		genValue = converted
+	}
+	yieldFnTemp := ctx.newTemp()
+	lines := []string{
+		fmt.Sprintf("%s := __able_member_get_method(%s, runtime.StringValue{Val: %q})", yieldFnTemp, genValue, "yield"),
+	}
+	args := []string{}
+	if stmt.Expression != nil {
+		expr, _, ok := g.compileExpr(ctx, stmt.Expression, "runtime.Value")
+		if !ok {
+			return nil, false
+		}
+		argTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", argTemp, expr))
+		args = append(args, argTemp)
+	}
+	argList := "nil"
+	if len(args) > 0 {
+		argList = "[]runtime.Value{" + strings.Join(args, ", ") + "}"
+	}
+	lines = append(lines, fmt.Sprintf("_ = __able_call_value(%s, %s, nil)", yieldFnTemp, argList))
+	return lines, true
+}

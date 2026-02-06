@@ -51,8 +51,3 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   - Add parser corpus cases that cover nested groups, alternation, and escaped quantifiers.
   - Update `spec/TODO_v12.md` with remaining regex syntax/semantics gaps.
   - Align stdlib regex implementation with parser outputs as grammar coverage expands.
-- Go compiler (initial)
-  - Continue expanding codegen beyond literal returns (comparisons, control flow, collections).
-  - Tighten interop conversion coverage for structs and primitive coercions.
-  - For-loop patterns now covered by compiler exec fixtures (array, struct, typed, mismatch, guard).
-  - Compiler now handles nullable/union/result returns, plus union/nullable params with runtime.Value coercions.

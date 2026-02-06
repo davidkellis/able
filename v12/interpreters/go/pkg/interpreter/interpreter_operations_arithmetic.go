@@ -25,6 +25,17 @@ func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right ru
 			}
 			return evaluateBitwise(op, rawLeft, rawRight)
 		}
+		if op == "+" {
+			if ls, ok := stringFromValue(rawLeft); ok {
+				if rs, ok := stringFromValue(rawRight); ok {
+					return runtime.StringValue{Val: ls + rs}, nil
+				}
+				return nil, fmt.Errorf("Arithmetic requires numeric operands")
+			}
+			if _, ok := stringFromValue(rawRight); ok {
+				return nil, fmt.Errorf("Arithmetic requires numeric operands")
+			}
+		}
 		if isNumericValue(rawLeft) && isNumericValue(rawRight) {
 			return evaluateArithmetic(i, op, rawLeft, rawRight)
 		}

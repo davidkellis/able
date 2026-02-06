@@ -327,6 +327,18 @@ func (c *Checker) checkTypeCastExpression(env *Environment, expr *ast.TypeCastEx
 	if isNumericType(valueType) && isNumericType(targetType) {
 		return diags, targetType
 	}
+	if iface, args, ok := interfaceFromType(targetType); ok {
+		if okImpl, _ := c.typeImplementsInterface(valueType, iface, args); okImpl {
+			return diags, targetType
+		}
+	}
+	if nullable, ok := targetType.(NullableType); ok {
+		if iface, args, ok := interfaceFromType(nullable.Inner); ok {
+			if okImpl, _ := c.typeImplementsInterface(valueType, iface, args); okImpl {
+				return diags, targetType
+			}
+		}
+	}
 	if iface, _, ok := interfaceFromType(targetType); ok && iface.InterfaceName == "Error" {
 		if isResultType(valueType) {
 			return diags, targetType

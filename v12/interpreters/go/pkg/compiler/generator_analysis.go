@@ -6,7 +6,7 @@ func (g *generator) detectAstNeeds() {
 	if g == nil {
 		return
 	}
-	for _, info := range g.functions {
+	for _, info := range g.allFunctionInfos() {
 		if info == nil || !info.Compileable || info.Definition == nil || info.Definition.Body == nil {
 			continue
 		}

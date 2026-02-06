@@ -1,6 +1,11 @@
 {
-  "description": "compiler errors on for-loop pattern mismatches",
+  "description": "for-loop pattern mismatches yield error values",
   "expect": {
-    "exit": 1
+    "stdout": [
+      "sum 0",
+      "error",
+      "done"
+    ],
+    "exit": 0
   }
 }

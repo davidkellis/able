@@ -235,6 +235,11 @@ func (i *Interpreter) CastValueToType(typeExpr ast.TypeExpression, value runtime
 	return i.castValueToType(typeExpr, value)
 }
 
+// CoerceValueToType exposes assignment-style coercion for compiler helpers.
+func (i *Interpreter) CoerceValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	return i.coerceValueToType(typeExpr, value)
+}
+
 func (i *Interpreter) interfaceDispatchSets(interfaceName string) (map[string]struct{}, map[string]struct{}) {
 	base := make(map[string]struct{})
 	impls := make(map[string]struct{})

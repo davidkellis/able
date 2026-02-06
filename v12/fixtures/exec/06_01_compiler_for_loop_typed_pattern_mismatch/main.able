@@ -1,6 +1,6 @@
 package exec_06_01_compiler_for_loop_typed_pattern_mismatch
 
-## Semantics: compiler errors when for-loop typed pattern bindings mismatch.
+## Semantics: for-loop typed pattern mismatches yield an Error value (falsy).
 
 union Val = i32 | String
 
@@ -11,4 +11,5 @@ fn main() -> void {
     sum = sum + value
   }
   print(`sum ${sum}`)
+  print("done")
 }

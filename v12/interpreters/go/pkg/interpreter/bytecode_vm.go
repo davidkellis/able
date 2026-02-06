@@ -677,6 +677,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			{
 				var pattern ast.Pattern
 				contextNode := instr.node
+				isForLoop := false
 				switch node := instr.node.(type) {
 				case ast.Pattern:
 					pattern = node
@@ -684,6 +685,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					if node != nil {
 						pattern = node.Pattern
 						contextNode = node
+						isForLoop = true
 					}
 				}
 				if pattern == nil {
@@ -693,8 +695,33 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				if err != nil {
 					return nil, err
 				}
+				if isForLoop {
+					assigned, err := vm.interp.assignPatternForLoop(pattern, val, vm.env)
+					if err != nil {
+						err = vm.interp.attachRuntimeContext(err, contextNode, vm.interp.stateFromEnv(vm.env))
+						if vm.handleLoopSignal(err) {
+							continue
+						}
+						return nil, err
+					}
+					if errVal, ok := asErrorValue(assigned); ok {
+						if len(vm.loopStack) == 0 {
+							return nil, fmt.Errorf("bytecode loop frame missing for pattern mismatch")
+						}
+						frame := vm.loopStack[len(vm.loopStack)-1]
+						vm.env = frame.env
+						vm.stack = append(vm.stack, errVal)
+						vm.ip = frame.breakTarget
+						continue
+					}
+					vm.ip++
+					continue
+				}
 				if err := vm.interp.assignPattern(pattern, val, vm.env, true, nil); err != nil {
 					err = vm.interp.attachRuntimeContext(err, contextNode, vm.interp.stateFromEnv(vm.env))
+					if vm.handleLoopSignal(err) {
+						continue
+					}
 					return nil, err
 				}
 				vm.ip++

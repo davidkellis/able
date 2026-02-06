@@ -186,7 +186,7 @@ Defines how raw text is converted into tokens.
     *   `methods`/`impl` bodies (`methods Type { ... }`)
     *   `do` blocks (`do { ... }`) (See Section [6.2](#62-block-expressions-do))
 *   **Expression Separation:** Within blocks, expressions are evaluated sequentially. They are separated by **newlines** or optionally by **semicolons** (`;`). The last expression in a block determines its value unless otherwise specified (e.g., loops).
-*   **Expression-Oriented:** Most constructs are expressions evaluating to a value (e.g., `if/elsif/else`, `match`, `breakpoint`, `rescue`, `do` blocks, assignment/declaration (`=`, `:=`)). Loops (`while`, `for`) evaluate to `void`.
+*   **Expression-Oriented:** Most constructs are expressions evaluating to a value (e.g., `if/elsif/else`, `match`, `breakpoint`, `rescue`, `do` blocks, assignment/declaration (`=`, `:=`)). Loops (`while`, `for`) evaluate to `void` on normal completion; a `break` can supply the loop's value.
 
 ## 4. Types
 
@@ -916,7 +916,7 @@ In both cases the type annotation narrows what values may be bound, while the op
 Key rules:
 
 1.  **Evaluation order:** The RHS always evaluates first. Errors raised before binding mean no mutation/declaration occurs.
-2.  **Type checking:** The evaluated value must be assignable to `Type`. Static checkers should enforce this, but runtimes must raise `"Typed pattern mismatch"` (or a specific diagnostic) if the value fails the annotation at execution time.
+2.  **Type checking:** The evaluated value must be assignable to `Type`. Static checkers should enforce this, but runtimes must evaluate to an `Error` value (e.g., `"Typed pattern mismatch"` or a specific diagnostic) if the value fails the annotation at execution time.
 3.  **Operator behavior:**
     -   `:=` enforces the “at least one new binding in the current scope” rule (§5.1). Typed names behave exactly like untyped names with the additional type assertion.
     -   `=` follows the rules described earlier: reuse an existing binding if present; otherwise implicitly declare one in the current scope. The annotation applies in either case, effectively declaring the static type when a new binding is created.
@@ -1083,7 +1083,7 @@ Typed patterns refine a match by requiring the value to conform to a given type.
 
 Typed patterns in `:=`/`=`:
 
-- Typed patterns are also permitted on the left-hand side of `:=` and `=` within struct, array, or standalone identifier patterns. The assignment/declaration succeeds only if the runtime value conforms to the annotated type; otherwise evaluation raises `"Typed pattern mismatch in assignment"`.
+- Typed patterns are also permitted on the left-hand side of `:=` and `=` within struct, array, or standalone identifier patterns. The assignment/declaration succeeds only if the runtime value conforms to the annotated type; otherwise evaluation yields an `Error` value (for example `"Typed pattern mismatch in assignment"`).
 - Compile-time checkers **may** surface diagnostics when they can statically prove the mismatch (e.g., in warn-mode runs), but these diagnostics are advisory. A program that proceeds will still evaluate according to the runtime rule above, producing an `Error` value if the value fails the annotation at execution time.
 
 ``` able
@@ -1530,7 +1530,7 @@ The `as` operator performs an **explicit, runtime cast** to a target type. It is
 
 All other casts are rejected by the typechecker.
 
-**Runtime semantics:** If any step below fails, the cast raises a runtime error (an `Error` value).
+**Runtime semantics:** If any step below fails, the cast raises a runtime exception (a value implementing `Error`).
 
 **N1. Already-compatible values (no-op).**
 If the value already matches the target type, the cast returns the value unchanged. This includes unions (e.g., `nil as ?T`) and alias-expanded matches.
@@ -1544,7 +1544,7 @@ If the value already matches the target type, the cast returns the value unchang
   - Out-of-range results raise `OverflowError { message: "integer overflow" }`.
 
 **N3. Interface upcast.**
-If the target is an interface type, the runtime checks whether the value implements that interface and, if so, returns an interface value that captures the implementation dictionary at the cast site (import-scoped). If the value does not implement the interface, the cast raises an error.
+If the target is an interface type, the runtime checks whether the value implements that interface and, if so, returns an interface value that captures the implementation dictionary at the cast site (import-scoped). If the value does not implement the interface, the cast raises an exception.
 
 **E2. Error payload unwrap (raised values).**
 If the value is an `Error` that carries a `payload["value"]` which is a struct or singleton of the target type, the cast yields that payload value. This supports typed recovery of values raised via `raise`.
@@ -1565,7 +1565,7 @@ See Section [7.4](#74-function-invocation).
 
 ### 6.5. Control Flow Expressions
 
-`if/elsif/else`, `match`, `breakpoint`, `rescue`, `do`, `:=`, `=` evaluate to values. See Section [8](#8-control-flow) and Section [11](#11-error-handling). Loops (`while`, `for`) evaluate to `void`.
+`if/elsif/else`, `match`, `breakpoint`, `rescue`, `do`, `:=`, `=` evaluate to values. See Section [8](#8-control-flow) and Section [11](#11-error-handling). Loops (`while`, `for`) evaluate to `void` on normal completion; `break` can supply the loop's value.
 
 Assignment/Declaration results: Both `=` and `:=` evaluate to the RHS value on successful matching/binding. If the pattern fails to match, the expression evaluates to an `Error` value (see §5.3).
 
@@ -2677,7 +2677,7 @@ description = maybe_num match {
 
 ### 8.2. Looping Constructs
 
-Loops execute blocks of code repeatedly. Loop expressions (`while`, `for`) evaluate to `void`.
+Loops execute blocks of code repeatedly. Loop expressions (`while`, `for`) evaluate to `void` on normal completion; `break` can supply the loop's value.
 
 #### 8.2.1. While Loop (`while`)
 
@@ -2698,7 +2698,7 @@ while Condition {
 ##### Semantics
 
 -   `Condition` checked. If `true`, body executes. Loop repeats. If `false`, loop terminates.
--   Always evaluates to `nil`.
+-   Evaluates to `void` when it completes without a `break`. If a `break` supplies a value, the loop expression evaluates to that value (or `nil` if the break omits a value) (see §8.3.5).
 -   Loop exit occurs when `Condition` is false or via a non-local jump (`break`).
 
 ##### Example
@@ -2708,7 +2708,7 @@ counter = 0
 while counter < 3 {
   print(counter)
   counter = counter + 1
-} ## Prints 0, 1, 2. Result is nil.
+} ## Prints 0, 1, 2. Result is void.
 ```
 
 #### 8.2.2. For Loop (`for`)
@@ -2733,9 +2733,9 @@ for Pattern in IterableExpression {
 
 -   The `IterableExpression` produces an iterator (details governed by the `Iterable` interface implementation, see Section [14](#14-standard-library-interfaces-conceptual--tbd)).
 -   The body executes once per element yielded by the iterator, matching the element against `Pattern`.
--   Always evaluates to `nil`.
+-   Evaluates to `void` when the iterator is exhausted. If a `break` supplies a value, the loop expression evaluates to that value (or `nil` if the break omits a value).
 -   Loop terminates when the iterator is exhausted or via a non-local jump (`break`).
--   If an element yielded by the iterator does not match the `Pattern`, the assignment expression evaluates to an `Error` value (some value implementating `Error`).
+-   If an element yielded by the iterator does not match the `Pattern`, the loop expression evaluates to an `Error` value (a value implementing `Error`).
 
 ##### Example
 
@@ -2894,7 +2894,7 @@ search_result = breakpoint 'finder {
 
 #### 8.3.5. Loop Break Result
 
-Loops evaluate to the value provided by the `break` that terminates them, which enables expression-oriented looping patterns.
+Loops evaluate to the value provided by the `break` that terminates them (or `void` on normal completion), which enables expression-oriented looping patterns.
 
 ##### Examples
 

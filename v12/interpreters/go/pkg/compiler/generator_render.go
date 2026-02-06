@@ -40,7 +40,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		fmt.Fprintf(&buf, ")\n\n")
 	}
 
-	if len(g.functions) > 0 {
+	if g.hasFunctions() {
 		fmt.Fprintf(&buf, "var __able_runtime *bridge.Runtime\n\n")
 		if len(g.diagNodes) > 0 {
 			for _, info := range g.diagNodes {
@@ -71,10 +71,14 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	}
 
 	g.renderStructs(&buf)
-	if len(g.functions) > 0 {
+	if g.hasFunctions() {
 		g.renderStructConverters(&buf)
+		g.renderCompiledMethods(&buf)
 		g.renderCompiledFunctions(&buf)
+		g.renderMethodWrappers(&buf)
 		g.renderWrappers(&buf)
+		g.renderOverloadDispatchers(&buf)
+		g.renderMethodThunks(&buf)
 		g.renderRegister(&buf)
 	}
 
@@ -196,6 +200,33 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn val\n")
 	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_global_get(name string, node ast.Node) runtime.Value {\n")
+	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tval, err := bridge.Get(__able_runtime, name)\n")
+	fmt.Fprintf(buf, "\tif err != nil {\n")
+	fmt.Fprintf(buf, "\t\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, err)\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif val == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn val\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_global_set(name string, value runtime.Value, node ast.Node) runtime.Value {\n")
+	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif err := bridge.Assign(__able_runtime, name, value); err != nil {\n")
+	fmt.Fprintf(buf, "\t\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, err)\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif value == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn value\n")
+	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_push_call_frame(call *ast.FunctionCall) {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn\n")
@@ -276,9 +307,6 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tif err == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tif val, ok := interpreter.RaisedValue(err); ok {\n")
-	fmt.Fprintf(buf, "\t\tpanic(val)\n")
-	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tpanic(err)\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_is_nil(val runtime.Value) bool {\n")
@@ -347,6 +375,20 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn val\n")
 		fmt.Fprintf(buf, "}\n\n")
+		fmt.Fprintf(buf, "func __able_try_cast(value runtime.Value, typeExpr ast.TypeExpression) (runtime.Value, bool) {\n")
+		fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+		fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tval, ok, err := bridge.MatchType(__able_runtime, typeExpr, value)\n")
+		fmt.Fprintf(buf, "\t__able_panic_on_error(err)\n")
+		fmt.Fprintf(buf, "\tif !ok {\n")
+		fmt.Fprintf(buf, "\t\treturn nil, false\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tif val == nil {\n")
+		fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, true\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\treturn val, true\n")
+		fmt.Fprintf(buf, "}\n\n")
 	}
 	fmt.Fprintf(buf, "func __able_stringify(val runtime.Value) string {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
@@ -356,11 +398,11 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t__able_panic_on_error(err)\n")
 	fmt.Fprintf(buf, "\treturn str\n")
 	fmt.Fprintf(buf, "}\n\n")
-fmt.Fprintf(buf, "func __able_raise_division_by_zero(node ast.Node) {\n")
+	fmt.Fprintf(buf, "func __able_raise_division_by_zero(node ast.Node) {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
-fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, fmt.Errorf(\"division by zero\"))\n")
+	fmt.Fprintf(buf, "\tbridge.RaiseWithContext(__able_runtime, node, bridge.DivisionByZeroError(__able_runtime))\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_raise_overflow() {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
@@ -368,12 +410,18 @@ fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, fm
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tbridge.Raise(bridge.OverflowError(__able_runtime, \"integer overflow\"))\n")
 	fmt.Fprintf(buf, "}\n\n")
-fmt.Fprintf(buf, "func __able_raise_shift_out_of_range(shift int64, node ast.Node) {\n")
+	fmt.Fprintf(buf, "func __able_raise_shift_out_of_range(shift int64, node ast.Node) {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
-fmt.Fprintf(buf, "\t_ = shift\n")
-fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, fmt.Errorf(\"shift out of range\"))\n")
+	fmt.Fprintf(buf, "\tbridge.RaiseWithContext(__able_runtime, node, bridge.ShiftOutOfRangeError(__able_runtime, shift))\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_raise_return_type_mismatch(node ast.Node, expected string, actual string) {\n")
+	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
+	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\terr := fmt.Errorf(\"Return type mismatch: expected %%s, got %%s\", expected, actual)\n")
+	fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, err)\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_signed_bounds(bits int) (int64, int64) {\n")
 	fmt.Fprintf(buf, "\tif bits >= 64 {\n")
@@ -390,9 +438,9 @@ fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, fm
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn (uint64(1) << uint(bits)) - 1\n")
 	fmt.Fprintf(buf, "}\n\n")
-fmt.Fprintf(buf, "func __able_shift_left_signed(value int64, shift int64, bits int, node ast.Node) int64 {\n")
+	fmt.Fprintf(buf, "func __able_shift_left_signed(value int64, shift int64, bits int, node ast.Node) int64 {\n")
 	fmt.Fprintf(buf, "\tif shift < 0 || shift >= int64(bits) {\n")
-fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift, node)\n")
+	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tmin, max := __able_signed_bounds(bits)\n")
@@ -404,21 +452,21 @@ fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift, node)\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn value << shift\n")
 	fmt.Fprintf(buf, "}\n\n")
-fmt.Fprintf(buf, "func __able_shift_right_signed(value int64, shift int64, bits int, node ast.Node) int64 {\n")
+	fmt.Fprintf(buf, "func __able_shift_right_signed(value int64, shift int64, bits int, node ast.Node) int64 {\n")
 	fmt.Fprintf(buf, "\tif shift < 0 || shift >= int64(bits) {\n")
-fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift, node)\n")
+	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(shift, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn value >> shift\n")
 	fmt.Fprintf(buf, "}\n\n")
-fmt.Fprintf(buf, "func __able_shift_left_unsigned(value uint64, shift uint64, bits int, node ast.Node) uint64 {\n")
+	fmt.Fprintf(buf, "func __able_shift_left_unsigned(value uint64, shift uint64, bits int, node ast.Node) uint64 {\n")
 	fmt.Fprintf(buf, "\tif shift > uint64(^uint64(0)>>1) {\n")
-fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(0, node)\n")
+	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(0, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\ts := int64(shift)\n")
 	fmt.Fprintf(buf, "\tif s < 0 || s >= int64(bits) {\n")
-fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s, node)\n")
+	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tmax := __able_unsigned_max(bits)\n")
@@ -428,14 +476,14 @@ fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s, node)\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn value << s\n")
 	fmt.Fprintf(buf, "}\n\n")
-fmt.Fprintf(buf, "func __able_shift_right_unsigned(value uint64, shift uint64, bits int, node ast.Node) uint64 {\n")
+	fmt.Fprintf(buf, "func __able_shift_right_unsigned(value uint64, shift uint64, bits int, node ast.Node) uint64 {\n")
 	fmt.Fprintf(buf, "\tif shift > uint64(^uint64(0)>>1) {\n")
-fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(0, node)\n")
+	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(0, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\ts := int64(shift)\n")
 	fmt.Fprintf(buf, "\tif s < 0 || s >= int64(bits) {\n")
-fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s, node)\n")
+	fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s, node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn value >> s\n")
@@ -462,9 +510,9 @@ fmt.Fprintf(buf, "\t\t__able_raise_shift_out_of_range(s, node)\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn val\n")
 	fmt.Fprintf(buf, "}\n\n")
-fmt.Fprintf(buf, "func __able_divmod_signed(a int64, b int64, node ast.Node) (int64, int64) {\n")
+	fmt.Fprintf(buf, "func __able_divmod_signed(a int64, b int64, node ast.Node) (int64, int64) {\n")
 	fmt.Fprintf(buf, "\tif b == 0 {\n")
-fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero(node)\n")
+	fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero(node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0, 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tq := a / b\n")
@@ -480,9 +528,9 @@ fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero(node)\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn q, r\n")
 	fmt.Fprintf(buf, "}\n\n")
-fmt.Fprintf(buf, "func __able_divmod_unsigned(a uint64, b uint64, node ast.Node) (uint64, uint64) {\n")
+	fmt.Fprintf(buf, "func __able_divmod_unsigned(a uint64, b uint64, node ast.Node) (uint64, uint64) {\n")
 	fmt.Fprintf(buf, "\tif b == 0 {\n")
-fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero(node)\n")
+	fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero(node)\n")
 	fmt.Fprintf(buf, "\t\treturn 0, 0\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn a / b, a %% b\n")
@@ -491,8 +539,8 @@ fmt.Fprintf(buf, "\t\t__able_raise_division_by_zero(node)\n")
 
 func (g *generator) importsForCompiled() []string {
 	importSet := map[string]struct{}{}
-	needsRuntime := len(g.functions) > 0 || g.structUsesRuntimeValue()
-	if len(g.functions) > 0 {
+	needsRuntime := g.hasFunctions() || g.structUsesRuntimeValue()
+	if g.hasFunctions() {
 		importSet["fmt"] = struct{}{}
 		importSet["able/interpreter-go/pkg/compiler/bridge"] = struct{}{}
 		importSet["able/interpreter-go/pkg/ast"] = struct{}{}
@@ -635,12 +683,52 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 }
 
 func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
-	for _, name := range g.sortedFunctionNames() {
-		info := g.functions[name]
+	for _, info := range g.sortedFunctionInfos() {
 		if info == nil || !info.Compileable {
 			continue
 		}
-		ctx := newCompileContext(info, g.functions)
+		ctx := newCompileContext(info, g.functions, g.overloads)
+		lines, retExpr, ok := g.compileBody(ctx, info)
+		if !ok {
+			continue
+		}
+		fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
+		for i, param := range info.Params {
+			if i > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
+		}
+		resultName := "__able_result"
+		fmt.Fprintf(buf, ") (%s %s) {\n", resultName, info.ReturnType)
+		recoverValue := fmt.Sprintf("val, ok := ret.value.(%s); if !ok { panic(fmt.Errorf(\"compiler: return type mismatch\")) }; %s = val", info.ReturnType, resultName)
+		if info.ReturnType == "runtime.Value" {
+			recoverValue = fmt.Sprintf("if ret.value == nil { %s = runtime.NilValue{}; return }; val, ok := ret.value.(%s); if !ok { panic(fmt.Errorf(\"compiler: return type mismatch\")) }; %s = val", resultName, info.ReturnType, resultName)
+		}
+		fmt.Fprintf(buf, "\tdefer func() {\n")
+		fmt.Fprintf(buf, "\t\tif recovered := recover(); recovered != nil {\n")
+		fmt.Fprintf(buf, "\t\t\tif ret, ok := recovered.(__able_return); ok {\n")
+		fmt.Fprintf(buf, "\t\t\t\t%s\n", recoverValue)
+		fmt.Fprintf(buf, "\t\t\t\treturn\n")
+		fmt.Fprintf(buf, "\t\t\t}\n")
+		fmt.Fprintf(buf, "\t\t\tpanic(recovered)\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t}()\n")
+		for _, line := range lines {
+			fmt.Fprintf(buf, "\t%s\n", line)
+		}
+		fmt.Fprintf(buf, "\treturn %s\n", retExpr)
+		fmt.Fprintf(buf, "}\n\n")
+	}
+}
+
+func (g *generator) renderCompiledMethods(buf *bytes.Buffer) {
+	for _, method := range g.sortedMethodInfos() {
+		if method == nil || method.Info == nil || !method.Info.Compileable {
+			continue
+		}
+		info := method.Info
+		ctx := newCompileContext(info, g.functions, g.overloads)
 		lines, retExpr, ok := g.compileBody(ctx, info)
 		if !ok {
 			continue
@@ -676,8 +764,7 @@ func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
 }
 
 func (g *generator) renderWrappers(buf *bytes.Buffer) {
-	for _, name := range g.sortedFunctionNames() {
-		info := g.functions[name]
+	for _, info := range g.sortedFunctionInfos() {
 		if info == nil {
 			continue
 		}
@@ -704,7 +791,7 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 			for idx, param := range info.Params {
 				argName := fmt.Sprintf("arg%d", idx)
 				fmt.Fprintf(buf, "\t%sValue := args[%d]\n", argName, idx)
-				g.renderArgConversion(buf, argName, param.GoType, param.GoName)
+				g.renderArgConversion(buf, argName, param, info.Name)
 			}
 			fmt.Fprintf(buf, "\tcompiledResult := __able_compiled_%s(", info.GoName)
 			for i, param := range info.Params {
@@ -714,11 +801,73 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 				fmt.Fprintf(buf, "%s", param.GoName)
 			}
 			fmt.Fprintf(buf, ")\n")
-			g.renderReturnConversion(buf, "compiledResult", info.ReturnType)
+			g.renderReturnConversion(buf, "compiledResult", info.ReturnType, info.Definition.ReturnType, info.Name)
 			fmt.Fprintf(buf, "}\n\n")
 			continue
 		}
 		fmt.Fprintf(buf, "\treturn rt.CallOriginal(%q, args)\n", info.Name)
+		fmt.Fprintf(buf, "}\n\n")
+	}
+}
+
+func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
+	for _, method := range g.sortedMethodInfos() {
+		if method == nil || method.Info == nil {
+			continue
+		}
+		if !g.registerableMethod(method) {
+			continue
+		}
+		info := method.Info
+		fmt.Fprintf(buf, "func __able_wrap_%s(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (result runtime.Value, err error) {\n", info.GoName)
+		fmt.Fprintf(buf, "\tdefer func() {\n")
+		fmt.Fprintf(buf, "\t\tif recovered := recover(); recovered != nil {\n")
+		fmt.Fprintf(buf, "\t\t\tresult = nil\n")
+		fmt.Fprintf(buf, "\t\t\terr = bridge.Recover(rt, ctx, recovered)\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t}()\n")
+		fmt.Fprintf(buf, "\tif rt != nil && ctx != nil && ctx.Env != nil {\n")
+		fmt.Fprintf(buf, "\t\tprevEnv := rt.SwapEnv(ctx.Env)\n")
+		fmt.Fprintf(buf, "\t\tdefer rt.SwapEnv(prevEnv)\n")
+		fmt.Fprintf(buf, "\t}\n")
+		if g.hasOptionalLastParam(info) && info.Arity > 0 {
+			fmt.Fprintf(buf, "\tif len(args) == %d {\n", info.Arity-1)
+			fmt.Fprintf(buf, "\t\targs = append(args, runtime.NilValue{})\n")
+			fmt.Fprintf(buf, "\t}\n")
+		}
+		fmt.Fprintf(buf, "\tif len(args) != %d {\n", info.Arity)
+		fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"arity mismatch calling %s: expected %d, got %%d\", len(args))\n", info.Name, info.Arity)
+		fmt.Fprintf(buf, "\t}\n")
+		for idx, param := range info.Params {
+			argName := fmt.Sprintf("arg%d", idx)
+			fmt.Fprintf(buf, "\t%sValue := args[%d]\n", argName, idx)
+			g.renderArgConversion(buf, argName, param, info.Name)
+		}
+		fmt.Fprintf(buf, "\tcompiledResult := __able_compiled_%s(", info.GoName)
+		for i, param := range info.Params {
+			if i > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			fmt.Fprintf(buf, "%s", param.GoName)
+		}
+		fmt.Fprintf(buf, ")\n")
+		g.renderReturnConversion(buf, "compiledResult", info.ReturnType, info.Definition.ReturnType, info.Name)
+		fmt.Fprintf(buf, "}\n\n")
+	}
+}
+
+func (g *generator) renderMethodThunks(buf *bytes.Buffer) {
+	for _, method := range g.sortedMethodInfos() {
+		if method == nil || method.Info == nil {
+			continue
+		}
+		if !g.registerableMethod(method) {
+			continue
+		}
+		info := method.Info
+		fmt.Fprintf(buf, "func __able_method_thunk_%s(env *runtime.Environment, args []runtime.Value) (runtime.Value, error) {\n", info.GoName)
+		fmt.Fprintf(buf, "\tctx := &runtime.NativeCallContext{Env: env}\n")
+		fmt.Fprintf(buf, "\treturn __able_wrap_%s(__able_runtime, ctx, args)\n", info.GoName)
 		fmt.Fprintf(buf, "}\n\n")
 	}
 }
@@ -743,7 +892,40 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	if len(g.diagNodes) > 0 {
 		fmt.Fprintf(buf, "\t__able_register_diag_nodes()\n")
 	}
-	for _, name := range g.sortedFunctionNames() {
+	for _, method := range g.sortedMethodInfos() {
+		if method == nil || method.Info == nil {
+			continue
+		}
+		if !g.registerableMethod(method) {
+			continue
+		}
+		targetExpr, ok := g.renderTypeExpression(method.TargetType)
+		if !ok {
+			return
+		}
+		paramExprs, ok := g.renderMethodParamTypes(method)
+		if !ok {
+			return
+		}
+		fmt.Fprintf(buf, "\tif err := interp.RegisterCompiledMethodOverload(%q, %q, %t, %s, %s, __able_method_thunk_%s); err != nil {\n", method.TargetName, method.MethodName, method.ExpectsSelf, targetExpr, paramExprs, method.Info.GoName)
+		fmt.Fprintf(buf, "\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
+	for _, name := range g.sortedCallableNames() {
+		if overload, ok := g.overloads[name]; ok && overload != nil {
+			fmt.Fprintf(buf, "\tif original, err := env.Get(%q); err == nil {\n", name)
+			fmt.Fprintf(buf, "\t\trt.RegisterOriginal(%q, original)\n", name)
+			fmt.Fprintf(buf, "\t}\n")
+			fmt.Fprintf(buf, "\t{\n")
+			fmt.Fprintf(buf, "\t\toverloadFn := &runtime.NativeFunctionValue{Name: %q, Arity: -1}\n", name)
+			fmt.Fprintf(buf, "\t\toverloadFn.Impl = func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n")
+			fmt.Fprintf(buf, "\t\t\treturn %s(overloadFn, ctx, args, nil)\n", g.overloadWrapperName(name))
+			fmt.Fprintf(buf, "\t\t}\n")
+			fmt.Fprintf(buf, "\t\t%s = overloadFn\n", g.overloadValueName(name))
+			fmt.Fprintf(buf, "\t\tenv.Define(%q, overloadFn)\n", name)
+			fmt.Fprintf(buf, "\t}\n")
+			continue
+		}
 		info := g.functions[name]
 		if info == nil {
 			continue
@@ -824,7 +1006,26 @@ func (g *generator) renderMain() ([]byte, error) {
 	return formatSource(buf.Bytes())
 }
 
-func (g *generator) renderArgConversion(buf *bytes.Buffer, argName, goType, target string) {
+func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param paramInfo, funcName string) {
+	goType := param.GoType
+	target := param.GoName
+	if g.typeCategory(goType) == "runtime" {
+		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok {
+			rendered, ok := g.renderTypeExpression(ifaceType)
+			if ok {
+				okName := fmt.Sprintf("%sOk", argName)
+				expected := typeExpressionToString(ifaceType)
+				fmt.Fprintf(buf, "\t%s, %s, err := bridge.MatchType(rt, %s, %sValue)\n", target, okName, rendered, argName)
+				fmt.Fprintf(buf, "\tif err != nil {\n")
+				fmt.Fprintf(buf, "\t\treturn nil, err\n")
+				fmt.Fprintf(buf, "\t}\n")
+				fmt.Fprintf(buf, "\tif !%s {\n", okName)
+				fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"type mismatch calling %s: expected %s\")\n", funcName, expected)
+				fmt.Fprintf(buf, "\t}\n")
+				return
+			}
+		}
+	}
 	switch g.typeCategory(goType) {
 	case "runtime":
 		fmt.Fprintf(buf, "\t%s := %sValue\n", target, argName)
@@ -874,7 +1075,25 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName, goType, targ
 	}
 }
 
-func (g *generator) renderReturnConversion(buf *bytes.Buffer, resultName, goType string) {
+func (g *generator) renderReturnConversion(buf *bytes.Buffer, resultName, goType string, returnType ast.TypeExpression, funcName string) {
+	if g.typeCategory(goType) == "runtime" {
+		if ifaceType, ok := g.interfaceTypeExpr(returnType); ok {
+			rendered, ok := g.renderTypeExpression(ifaceType)
+			if ok {
+				okName := fmt.Sprintf("%sOk", resultName)
+				expected := typeExpressionToString(ifaceType)
+				fmt.Fprintf(buf, "\t%s, %s, err := bridge.MatchType(rt, %s, %s)\n", resultName, okName, rendered, resultName)
+				fmt.Fprintf(buf, "\tif err != nil {\n")
+				fmt.Fprintf(buf, "\t\treturn nil, err\n")
+				fmt.Fprintf(buf, "\t}\n")
+				fmt.Fprintf(buf, "\tif !%s {\n", okName)
+				fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"return type mismatch in %s: expected %s\")\n", funcName, expected)
+				fmt.Fprintf(buf, "\t}\n")
+				fmt.Fprintf(buf, "\treturn %s, nil\n", resultName)
+				return
+			}
+		}
+	}
 	switch g.typeCategory(goType) {
 	case "runtime":
 		fmt.Fprintf(buf, "\treturn %s, nil\n", resultName)

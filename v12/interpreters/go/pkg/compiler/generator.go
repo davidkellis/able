@@ -10,8 +10,13 @@ import (
 type generator struct {
 	opts          Options
 	structs       map[string]*structInfo
+	interfaces    map[string]*ast.InterfaceDefinition
 	functions     map[string]*functionInfo
+	overloads     map[string]*overloadInfo
+	methods       map[string]map[string][]*methodInfo
+	methodList    []*methodInfo
 	warnings      []string
+	fallbacks     []FallbackInfo
 	mangler       *nameMangler
 	needsAst      bool
 	needsIterator bool
@@ -35,24 +40,30 @@ type compileContext struct {
 	params              map[string]paramInfo
 	locals              map[string]paramInfo
 	functions           map[string]*functionInfo
+	overloads           map[string]*overloadInfo
 	parent              *compileContext
 	temps               *int
 	reason              string
 	loopDepth           int
 	rethrowVar          string
+	rethrowErrVar       string
 	breakpoints         map[string]int
 	implicitReceiver    paramInfo
 	hasImplicitReceiver bool
 	placeholderParams   map[int]paramInfo
 	inPlaceholder       bool
 	returnType          string
+	returnTypeExpr      ast.TypeExpression
 }
 
 func newGenerator(opts Options) *generator {
 	return &generator{
 		opts:       opts,
 		structs:    make(map[string]*structInfo),
+		interfaces: make(map[string]*ast.InterfaceDefinition),
 		functions:  make(map[string]*functionInfo),
+		overloads:  make(map[string]*overloadInfo),
+		methods:    make(map[string]map[string][]*methodInfo),
 		mangler:    newNameMangler(),
 		awaitNames: make(map[*ast.AwaitExpression]string),
 	}
@@ -80,6 +91,35 @@ func (g *generator) collect(program *driver.Program) error {
 			if _, exists := g.nodeOrigins[node]; !exists {
 				g.nodeOrigins[node] = origin
 			}
+		}
+	}
+	modules := make([]*driver.Module, 0, len(program.Modules)+1)
+	if program.Entry != nil {
+		modules = append(modules, program.Entry)
+	}
+	modules = append(modules, program.Modules...)
+	seenModules := make(map[*driver.Module]struct{})
+	for _, module := range modules {
+		if module == nil || module.AST == nil {
+			continue
+		}
+		if _, ok := seenModules[module]; ok {
+			continue
+		}
+		seenModules[module] = struct{}{}
+		for _, stmt := range module.AST.Body {
+			def, ok := stmt.(*ast.InterfaceDefinition)
+			if !ok || def == nil || def.ID == nil {
+				continue
+			}
+			name := def.ID.Name
+			if name == "" {
+				continue
+			}
+			if _, exists := g.interfaces[name]; exists {
+				continue
+			}
+			g.interfaces[name] = def
 		}
 	}
 	module := program.Entry.AST
@@ -145,9 +185,42 @@ func (g *generator) collect(program *driver.Program) error {
 		functions[name] = append(functions[name], def)
 	}
 
+	for _, stmt := range module.Body {
+		def, ok := stmt.(*ast.MethodsDefinition)
+		if !ok || def == nil {
+			continue
+		}
+		g.collectMethodsDefinition(def, mapper)
+	}
+
 	for name, defs := range functions {
 		if len(defs) != 1 {
-			g.warnings = append(g.warnings, fmt.Sprintf("compiler: function %s has %d overloads; leaving in interpreter", name, len(defs)))
+			entries := make([]*functionInfo, 0, len(defs))
+			minArity := -1
+			for idx, def := range defs {
+				if def == nil {
+					continue
+				}
+				info := &functionInfo{
+					Name:       name,
+					GoName:     g.mangler.unique(fmt.Sprintf("fn_%s_overload_%d", sanitizeIdent(name), idx)),
+					Definition: def,
+				}
+				g.fillFunctionInfo(info, mapper)
+				entries = append(entries, info)
+				if arity := minArgsForDefinition(def); arity >= 0 {
+					if minArity < 0 || arity < minArity {
+						minArity = arity
+					}
+				}
+			}
+			if len(entries) > 0 {
+				g.overloads[name] = &overloadInfo{
+					Name:     name,
+					Entries:  entries,
+					MinArity: minArity,
+				}
+			}
 			continue
 		}
 		info := &functionInfo{
@@ -159,6 +232,7 @@ func (g *generator) collect(program *driver.Program) error {
 		g.functions[name] = info
 	}
 	g.resolveCompileableFunctions()
+	g.resolveCompileableMethods()
 	g.detectAstNeeds()
 	return nil
 }
@@ -226,6 +300,7 @@ func (g *generator) fillFunctionInfo(info *functionInfo, mapper *TypeMapper) {
 			Name:      name,
 			GoName:    goName,
 			GoType:    goType,
+			TypeExpr:  param.ParamType,
 			Supported: ok,
 		})
 	}
@@ -254,7 +329,7 @@ func (g *generator) bodyCompileable(info *functionInfo, retType string) bool {
 		info.Reason = "missing function body"
 		return false
 	}
-	ctx := newCompileContext(info, g.functions)
+	ctx := newCompileContext(info, g.functions, g.overloads)
 	_, _, ok := g.compileBody(ctx, info)
 	if !ok {
 		info.Reason = ctx.reason
@@ -266,8 +341,8 @@ func (g *generator) bodyCompileable(info *functionInfo, retType string) bool {
 }
 
 func (g *generator) resolveCompileableFunctions() {
-	pending := make(map[string]*functionInfo)
-	for name, info := range g.functions {
+	pending := make(map[*functionInfo]struct{})
+	for _, info := range g.allFunctionInfos() {
 		if info == nil {
 			continue
 		}
@@ -275,30 +350,27 @@ func (g *generator) resolveCompileableFunctions() {
 			info.Compileable = false
 			continue
 		}
-		pending[name] = info
+		pending[info] = struct{}{}
 	}
 	for {
 		progress := false
-		for name, info := range pending {
-			if info == nil {
-				delete(pending, name)
-				continue
-			}
+		for info := range pending {
 			if info.Compileable {
-				delete(pending, name)
+				delete(pending, info)
 				continue
 			}
 			if ok := g.bodyCompileable(info, info.ReturnType); ok {
 				info.Compileable = true
 				info.Reason = ""
 				progress = true
+				delete(pending, info)
 			}
 		}
 		if !progress {
 			break
 		}
 	}
-	for _, info := range pending {
+	for info := range pending {
 		if info == nil {
 			continue
 		}
@@ -307,6 +379,28 @@ func (g *generator) resolveCompileableFunctions() {
 		}
 		info.Compileable = false
 	}
+}
+
+func (g *generator) collectFallbacks() []FallbackInfo {
+	if g == nil {
+		return nil
+	}
+	fallbacks := make([]FallbackInfo, 0, len(g.fallbacks))
+	fallbacks = append(fallbacks, g.fallbacks...)
+	for _, info := range g.sortedFunctionInfos() {
+		if info == nil || info.Compileable {
+			continue
+		}
+		reason := info.Reason
+		if reason == "" {
+			reason = "unsupported function body"
+		}
+		fallbacks = append(fallbacks, FallbackInfo{
+			Name:   info.Name,
+			Reason: reason,
+		})
+	}
+	return fallbacks
 }
 
 func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]string, string, bool) {
@@ -326,10 +420,6 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 	for idx, stmt := range statements {
 		isLast := idx == len(statements)-1
 		if ret, ok := stmt.(*ast.ReturnStatement); ok {
-			if !isLast {
-				ctx.setReason("return must be final statement")
-				return nil, "", false
-			}
 			return g.compileReturnStatement(ctx, info.ReturnType, ret, lines)
 		}
 		if isLast {
@@ -380,9 +470,27 @@ func (g *generator) compileReturnStatement(ctx *compileContext, returnType strin
 		}
 		return lines, "struct{}{}", true
 	}
-	exprLines, expr, _, ok := g.compileTailExpression(ctx, returnType, ret.Argument)
+	exprLines, expr, exprType, ok := g.compileTailExpression(ctx, returnType, ret.Argument)
 	if !ok {
 		return nil, "", false
+	}
+	if returnType == "runtime.Value" {
+		if ifaceType, ok := g.interfaceTypeExpr(ctx.returnTypeExpr); ok {
+			if exprType != "runtime.Value" {
+				converted, ok := g.runtimeValueExpr(expr, exprType)
+				if !ok {
+					ctx.setReason("return type mismatch")
+					return nil, "", false
+				}
+				expr = converted
+			}
+			coerced, ok := g.interfaceReturnExpr(expr, ifaceType)
+			if !ok {
+				ctx.setReason("return type mismatch")
+				return nil, "", false
+			}
+			expr = coerced
+		}
 	}
 	lines = append(lines, exprLines...)
 	return lines, expr, true
@@ -408,6 +516,24 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 		ctx.setReason("assignment return type mismatch")
 		return nil, "", false
 	}
+	if returnType == "runtime.Value" {
+		if ifaceType, ok := g.interfaceTypeExpr(ctx.returnTypeExpr); ok {
+			if valueType != "runtime.Value" {
+				converted, ok := g.runtimeValueExpr(valueExpr, valueType)
+				if !ok {
+					ctx.setReason("return type mismatch")
+					return nil, "", false
+				}
+				valueExpr = converted
+			}
+			coerced, ok := g.interfaceReturnExpr(valueExpr, ifaceType)
+			if !ok {
+				ctx.setReason("return type mismatch")
+				return nil, "", false
+			}
+			valueExpr = coerced
+		}
+	}
 	lines = append(lines, stmtLines...)
 	return lines, valueExpr, true
 }
@@ -419,8 +545,48 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 	}
 	switch s := stmt.(type) {
 	case *ast.AssignmentExpression:
-		lines, _, _, ok := g.compileAssignment(ctx, s)
-		return lines, ok
+		lines, valueExpr, _, ok := g.compileAssignment(ctx, s)
+		if !ok {
+			return nil, false
+		}
+		if valueExpr != "" {
+			lines = append(lines, fmt.Sprintf("_ = %s", valueExpr))
+		}
+		return lines, true
+	case *ast.BinaryExpression:
+		if s.Operator == "|>" || s.Operator == "|>>" {
+			if assign, ok := s.Left.(*ast.AssignmentExpression); ok && assign != nil && assign.Operator == ast.AssignmentDeclare {
+				if name, _, ok := g.assignmentTargetName(assign.Left); ok && name != "" {
+					assignLines, _, _, ok := g.compileAssignment(ctx, assign)
+					if !ok {
+						return nil, false
+					}
+					pipeExpr := ast.NewBinaryExpression(s.Operator, ast.NewIdentifier(name), s.Right)
+					pipeValue, _, ok := g.compilePipeExpression(ctx, pipeExpr, "")
+					if !ok {
+						return nil, false
+					}
+					lines := append([]string{}, assignLines...)
+					if pipeValue != "" {
+						lines = append(lines, fmt.Sprintf("_ = %s", pipeValue))
+					}
+					return lines, true
+				}
+			}
+		}
+		if expr, ok := stmt.(ast.Expression); ok {
+			valueLines, valueExpr, _, ok := g.compileTailExpression(ctx, "", expr)
+			if !ok {
+				return nil, false
+			}
+			if valueExpr == "" {
+				return valueLines, true
+			}
+			lines := append(valueLines, fmt.Sprintf("_ = %s", valueExpr))
+			return lines, true
+		}
+		ctx.setReason("unsupported statement")
+		return nil, false
 	case *ast.WhileLoop:
 		return g.compileWhileLoop(ctx, s)
 	case *ast.ForLoop:
@@ -433,22 +599,33 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		return g.compileRaiseStatement(ctx, s)
 	case *ast.RethrowStatement:
 		return g.compileRethrowStatement(ctx, s)
+	case *ast.YieldStatement:
+		return g.compileYieldStatement(ctx, s)
 	case *ast.ReturnStatement:
 		if ctx == nil || ctx.returnType == "" {
 			ctx.setReason("return outside function")
 			return nil, false
 		}
-		if s.Argument == nil || g.isVoidType(ctx.returnType) {
+		if s.Argument == nil {
+			if !g.isVoidType(ctx.returnType) {
+				expected := typeExpressionToString(ctx.returnTypeExpr)
+				if expected == "" || expected == "<?>" {
+					expected = typeNameFromGoType(ctx.returnType)
+				}
+				nodeName := g.diagNodeName(s, "*ast.ReturnStatement", "return")
+				return []string{fmt.Sprintf("__able_raise_return_type_mismatch(%s, %q, %q)", nodeName, expected, "void")}, true
+			}
+			return []string{"panic(__able_return{value: struct{}{}})"}, true
+		}
+		if g.isVoidType(ctx.returnType) {
 			lines := []string{}
-			if s.Argument != nil {
-				stmtLines, valueExpr, _, ok := g.compileTailExpression(ctx, "", s.Argument)
-				if !ok {
-					return nil, false
-				}
-				lines = append(lines, stmtLines...)
-				if valueExpr != "" {
-					lines = append(lines, fmt.Sprintf("_ = %s", valueExpr))
-				}
+			stmtLines, valueExpr, _, ok := g.compileTailExpression(ctx, "", s.Argument)
+			if !ok {
+				return nil, false
+			}
+			lines = append(lines, stmtLines...)
+			if valueExpr != "" {
+				lines = append(lines, fmt.Sprintf("_ = %s", valueExpr))
 			}
 			lines = append(lines, "panic(__able_return{value: struct{}{}})")
 			return lines, true
@@ -485,18 +662,22 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 	}
 }
 
-func newCompileContext(info *functionInfo, functions map[string]*functionInfo) *compileContext {
+func newCompileContext(info *functionInfo, functions map[string]*functionInfo, overloads map[string]*overloadInfo) *compileContext {
 	counter := 0
 	ctx := &compileContext{
 		params:      make(map[string]paramInfo),
 		locals:      make(map[string]paramInfo),
 		functions:   functions,
+		overloads:   overloads,
 		temps:       &counter,
 		loopDepth:   0,
 		breakpoints: make(map[string]int),
 	}
 	if info != nil {
 		ctx.returnType = info.ReturnType
+		if info.Definition != nil {
+			ctx.returnTypeExpr = info.Definition.ReturnType
+		}
 		for _, param := range info.Params {
 			if param.Name == "" {
 				continue
@@ -558,10 +739,12 @@ func (c *compileContext) child() *compileContext {
 	return &compileContext{
 		locals:              make(map[string]paramInfo),
 		functions:           c.functions,
+		overloads:           c.overloads,
 		parent:              c,
 		temps:               c.temps,
 		loopDepth:           c.loopDepth,
 		rethrowVar:          c.rethrowVar,
+		rethrowErrVar:       c.rethrowErrVar,
 		breakpoints:         c.breakpoints,
 		implicitReceiver:    c.implicitReceiver,
 		hasImplicitReceiver: c.hasImplicitReceiver,

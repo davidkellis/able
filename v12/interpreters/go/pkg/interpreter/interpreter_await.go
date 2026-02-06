@@ -203,6 +203,11 @@ func (i *Interpreter) awaitWithState(payload *asyncContextPayload, expr *ast.Awa
 		payload.awaitBlocked = true
 
 		if _, ok := i.executor.(*SerialExecutor); ok {
+			if payload != nil && payload.compiled && payload.compiledYield != nil && payload.compiledResume != nil {
+				payload.compiledYield <- compiledYield{}
+				<-payload.compiledResume
+				continue
+			}
 			return nil, errSerialYield
 		}
 

@@ -1,9 +1,9 @@
 {
   "description": "Array destructuring fails when source shorter than pattern",
   "expect": {
-    "errors": [
-      "Array length mismatch in destructuring"
-    ]
+    "result": {
+      "kind": "error"
+    }
   },
   "entry": "module.json"
 }

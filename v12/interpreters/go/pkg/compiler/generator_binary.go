@@ -394,9 +394,11 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 }
 
 func (g *generator) pipeResultExpression(ctx *compileContext, expected string, lines []string, resultTemp string) (string, string, bool) {
+	body := strings.Join(lines, "\n")
 	if g.isVoidType(expected) {
 		lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
-		return fmt.Sprintf("func() struct{} { %s; return struct{}{} }()", strings.Join(lines, "; ")), "struct{}", true
+		body = strings.Join(lines, "\n")
+		return fmt.Sprintf("func() struct{} { %s\nreturn struct{}{} }()", body), "struct{}", true
 	}
 	resultType := "runtime.Value"
 	resultExpr := resultTemp
@@ -409,7 +411,7 @@ func (g *generator) pipeResultExpression(ctx *compileContext, expected string, l
 		resultType = expected
 		resultExpr = converted
 	}
-	return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
+	return fmt.Sprintf("func() %s { %s\nreturn %s }()", resultType, body, resultExpr), resultType, true
 }
 
 func runtimeValueSlice(args []string) string {
@@ -464,6 +466,20 @@ func (g *generator) compileRuntimeBinaryOperation(ctx *compileContext, op string
 }
 
 func (g *generator) compileBinaryOperands(ctx *compileContext, leftExpr ast.Expression, rightExpr ast.Expression) (string, string, string, string, bool) {
+	if g.isUntypedNumericLiteral(leftExpr) && g.isUntypedNumericLiteral(rightExpr) {
+		if g.isUntypedFloatLiteral(leftExpr) || g.isUntypedFloatLiteral(rightExpr) {
+			expected := "float64"
+			left, leftType, ok := g.compileExpr(ctx, leftExpr, expected)
+			if !ok {
+				return "", "", "", "", false
+			}
+			right, rightType, ok := g.compileExpr(ctx, rightExpr, expected)
+			if !ok {
+				return "", "", "", "", false
+			}
+			return left, leftType, right, rightType, true
+		}
+	}
 	if g.isUntypedNumericLiteral(leftExpr) && !g.isUntypedNumericLiteral(rightExpr) {
 		right, rightType, ok := g.compileExpr(ctx, rightExpr, "")
 		if !ok {
@@ -486,6 +502,15 @@ func (g *generator) compileBinaryOperands(ctx *compileContext, leftExpr ast.Expr
 	return left, leftType, right, rightType, true
 }
 
+func (g *generator) isUntypedFloatLiteral(expr ast.Expression) bool {
+	switch lit := expr.(type) {
+	case *ast.FloatLiteral:
+		return lit != nil && lit.FloatType == nil
+	default:
+		return false
+	}
+}
+
 func (g *generator) bitSizeExpr(goType string) string {
 	switch goType {
 	case "int", "uint":
@@ -501,7 +526,7 @@ func (g *generator) compileDivisionExpression(ctx *compileContext, left string, 
 	if g.isIntegerType(operandType) {
 		return fmt.Sprintf("func() %s { %s := %s; %s := %s; if %s == 0 { __able_raise_division_by_zero(%s) }; return float64(%s) / float64(%s) }()", resultType, leftTemp, left, rightTemp, right, rightTemp, nodeName, leftTemp, rightTemp)
 	}
-	return fmt.Sprintf("func() %s { %s := %s; %s := %s; if %s == 0 { __able_raise_division_by_zero(%s) }; return %s / %s }()", resultType, leftTemp, left, rightTemp, right, rightTemp, nodeName, leftTemp, rightTemp)
+	return fmt.Sprintf("func() %s { %s := %s; %s := %s; return %s / %s }()", resultType, leftTemp, left, rightTemp, right, leftTemp, rightTemp)
 }
 
 func (g *generator) compileDivModExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) string {

@@ -686,7 +686,36 @@ func (i *Interpreter) typeInfoFromStructInstance(inst *runtime.StructInstanceVal
 		return typeInfo{}, false
 	}
 	info := typeInfo{name: inst.Definition.Node.ID.Name}
-	if len(inst.TypeArguments) > 0 {
+	generics := inst.Definition.Node.GenericParams
+	if len(generics) > 0 {
+		typeArgs := inst.TypeArguments
+		needsInference := len(typeArgs) != len(generics)
+		if !needsInference {
+			genericNames := genericNameSet(generics)
+			for _, arg := range typeArgs {
+				if arg == nil {
+					needsInference = true
+					break
+				}
+				if _, ok := arg.(*ast.WildcardTypeExpression); ok {
+					needsInference = true
+					break
+				}
+				if simple, ok := arg.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+					if _, ok := genericNames[simple.Name.Name]; ok {
+						needsInference = true
+						break
+					}
+				}
+			}
+		}
+		if needsInference {
+			typeArgs = i.inferStructTypeArguments(inst.Definition.Node, inst.Fields, inst.Positional)
+		}
+		if len(typeArgs) > 0 {
+			info.typeArgs = append([]ast.TypeExpression(nil), typeArgs...)
+		}
+	} else if len(inst.TypeArguments) > 0 {
 		info.typeArgs = append([]ast.TypeExpression(nil), inst.TypeArguments...)
 	}
 	return info, true

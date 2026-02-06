@@ -1,10 +1,23 @@
 package exec_06_01_compiler_for_loop_pattern_mismatch
 
-## Semantics: compiler reports runtime errors for for-loop pattern mismatches.
+## Semantics: for-loop pattern mismatches yield an Error value (falsy).
 
 fn main() -> void {
   pairs := [[1], [2, 3]]
+  sum := 0
   for [x, y] in pairs {
-    print(x + y)
+    sum = sum + x + y
   }
+  print(`sum ${sum}`)
+  result := do {
+    for [x, y] in pairs {
+      sum = sum + x + y
+    }
+  }
+  if result {
+    print("ok")
+  } else {
+    print("error")
+  }
+  print("done")
 }

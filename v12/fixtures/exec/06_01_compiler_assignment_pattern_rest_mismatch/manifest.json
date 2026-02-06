@@ -1,6 +1,9 @@
 {
-  "description": "compiler errors when rest patterns require more elements",
+  "description": "rest pattern mismatches yield error values",
   "expect": {
-    "exit": 1
+    "stdout": [
+      "error"
+    ],
+    "exit": 0
   }
 }

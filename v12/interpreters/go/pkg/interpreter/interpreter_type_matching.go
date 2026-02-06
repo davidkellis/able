@@ -378,6 +378,11 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 	}
 }
 
+// MatchesType exposes runtime type matching for compiler helpers.
+func (i *Interpreter) MatchesType(typeExpr ast.TypeExpression, value runtime.Value) bool {
+	return i.matchesType(typeExpr, value)
+}
+
 func (i *Interpreter) isKnownTypeName(name string) bool {
 	if name == "" {
 		return false

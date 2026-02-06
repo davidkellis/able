@@ -314,7 +314,13 @@ func (i *Interpreter) runCompiledTask(payload *asyncContextPayload, env *runtime
 		return nil, i.asyncFailure(payload, err)
 	}
 	if payload != nil && payload.handle != nil && payload.handle.CancelRequested() {
-		return nil, i.asyncCancelled(payload)
+		cancelErr := i.asyncCancelled(payload)
+		if taskErr, ok := cancelErr.(taskStatusError); ok {
+			payload.handle.Cancel(taskErr.FailureValue())
+		} else {
+			payload.handle.Cancel(nil)
+		}
+		return nil, cancelErr
 	}
 	return result, nil
 }

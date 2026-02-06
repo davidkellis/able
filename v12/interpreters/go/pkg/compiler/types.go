@@ -12,7 +12,7 @@ func NewTypeMapper(structs map[string]*structInfo) *TypeMapper {
 
 func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 	if expr == nil {
-		return "", false
+		return "runtime.Value", true
 	}
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
@@ -30,9 +30,9 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 				return "runtime.Value", true
 			}
 		}
-		return "", false
+		return "runtime.Value", true
 	case *ast.FunctionTypeExpression:
-		return "", false
+		return "runtime.Value", true
 	case *ast.NullableTypeExpression:
 		return "runtime.Value", true
 	case *ast.ResultTypeExpression:
@@ -40,7 +40,7 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 	case *ast.UnionTypeExpression:
 		return "runtime.Value", true
 	case *ast.WildcardTypeExpression:
-		return "", false
+		return "runtime.Value", true
 	default:
 		return "", false
 	}
@@ -86,5 +86,5 @@ func (m *TypeMapper) mapSimple(name string) (string, bool) {
 	if info, ok := m.structs[name]; ok {
 		return "*" + info.GoName, info.Supported
 	}
-	return "runtime.Value", false
+	return "runtime.Value", true
 }

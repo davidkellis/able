@@ -1,6 +1,9 @@
 {
-  "description": "compiler errors on pattern assignment mismatches",
+  "description": "pattern assignment mismatches yield error values",
   "expect": {
-    "exit": 1
+    "stdout": [
+      "error"
+    ],
+    "exit": 0
   }
 }

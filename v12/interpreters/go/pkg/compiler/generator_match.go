@@ -23,6 +23,22 @@ func (g *generator) compileMatchPattern(ctx *compileContext, pattern ast.Pattern
 	return cond, bindLines, true
 }
 
+func (g *generator) isSingletonPattern(ctx *compileContext, name string) bool {
+	if name == "" {
+		return false
+	}
+	if ctx != nil {
+		if _, ok := ctx.lookup(name); ok {
+			return false
+		}
+	}
+	info, ok := g.structs[name]
+	if !ok || info == nil {
+		return false
+	}
+	return info.Kind == ast.StructKindSingleton
+}
+
 func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern ast.Pattern, subjectTemp string, subjectType string) (string, bool) {
 	if pattern == nil {
 		ctx.setReason("missing match pattern")
@@ -32,6 +48,31 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 	case *ast.WildcardPattern:
 		return "true", true
 	case *ast.Identifier:
+		if p.Name == "_" {
+			return "true", true
+		}
+		if g.isSingletonPattern(ctx, p.Name) {
+			if subjectType == "runtime.Value" {
+				nodeName := g.diagNodeName(p, "*ast.Identifier", "ident")
+				valueExpr := fmt.Sprintf("__able_global_get(%q, %s)", p.Name, nodeName)
+				condExpr := fmt.Sprintf("__able_binary_op(%q, %s, %s)", "==", subjectTemp, valueExpr)
+				converted, ok := g.expectRuntimeValueExpr(condExpr, "bool")
+				if !ok {
+					ctx.setReason("singleton pattern comparison")
+					return "", false
+				}
+				return converted, true
+			}
+			info := g.structs[p.Name]
+			baseType := subjectType
+			if name, ok := g.structBaseName(subjectType); ok {
+				baseType = name
+			}
+			if info != nil && info.GoName != "" && baseType != info.GoName {
+				ctx.setReason("singleton pattern type mismatch")
+				return "", false
+			}
+		}
 		return "true", true
 	case *ast.LiteralPattern:
 		cond, ok := g.compileLiteralMatch(ctx, p.Literal, subjectTemp, subjectType)
@@ -44,58 +85,40 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			ctx.setReason("missing typed pattern annotation")
 			return "", false
 		}
-		mapped, ok := g.mapTypeExpression(p.TypeAnnotation)
-		if !ok || mapped == "" || mapped == "struct{}" {
-			ctx.setReason("unsupported typed pattern")
-			return "", false
-		}
 		if subjectType != "runtime.Value" {
+			mapped, ok := g.mapTypeExpression(p.TypeAnnotation)
+			if !ok || mapped == "" || mapped == "struct{}" {
+				ctx.setReason("unsupported typed pattern")
+				return "", false
+			}
 			if mapped != subjectType {
 				ctx.setReason("typed pattern type mismatch")
 				return "", false
 			}
 			return g.compileMatchPatternCondition(ctx, p.Pattern, subjectTemp, subjectType)
 		}
-		if mapped == "runtime.Value" {
-			typeCheck, ok := g.runtimeTypeCheckForTypeExpression(ctx, p.TypeAnnotation, subjectTemp)
-			if !ok {
-				ctx.setReason("unsupported typed pattern")
-				return "", false
-			}
-			innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, subjectTemp, "runtime.Value")
-			if !ok {
-				return "", false
-			}
-			if innerCond == "true" {
-				return typeCheck, true
-			}
-			lines := []string{
-				fmt.Sprintf("if !%s { return false }", typeCheck),
-				fmt.Sprintf("return %s", innerCond),
-			}
-			return fmt.Sprintf("func() bool { %s }()", strings.Join(lines, "; ")), true
-		}
-		typeCheck, ok := g.runtimeTypeCheckExpr(ctx, subjectTemp, mapped)
+		typeExpr, ok := g.renderTypeExpression(p.TypeAnnotation)
 		if !ok {
 			ctx.setReason("unsupported typed pattern")
 			return "", false
 		}
-		convertedTemp := ctx.newTemp()
-		innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, convertedTemp, mapped)
+		g.needsAst = true
+		castTemp := ctx.newTemp()
+		okTemp := ctx.newTemp()
+		innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, castTemp, "runtime.Value")
 		if !ok {
 			return "", false
 		}
 		if innerCond == "true" {
-			return typeCheck, true
-		}
-		converted, ok := g.expectRuntimeValueExpr(subjectTemp, mapped)
-		if !ok {
-			ctx.setReason("unsupported typed pattern")
-			return "", false
+			lines := []string{
+				fmt.Sprintf("_, %s := __able_try_cast(%s, %s)", okTemp, subjectTemp, typeExpr),
+				fmt.Sprintf("return %s", okTemp),
+			}
+			return fmt.Sprintf("func() bool { %s }()", strings.Join(lines, "; ")), true
 		}
 		lines := []string{
-			fmt.Sprintf("if !%s { return false }", typeCheck),
-			fmt.Sprintf("%s := %s", convertedTemp, converted),
+			fmt.Sprintf("%s, %s := __able_try_cast(%s, %s)", castTemp, okTemp, subjectTemp, typeExpr),
+			fmt.Sprintf("if !%s { return false }", okTemp),
 			fmt.Sprintf("return %s", innerCond),
 		}
 		return fmt.Sprintf("func() bool { %s }()", strings.Join(lines, "; ")), true
@@ -195,6 +218,9 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 		if p.Name == "_" {
 			return nil, true
 		}
+		if g.isSingletonPattern(ctx, p.Name) {
+			return nil, true
+		}
 		goName := sanitizeIdent(p.Name)
 		ctx.locals[p.Name] = paramInfo{Name: p.Name, GoName: goName, GoType: subjectType}
 		return []string{
@@ -208,35 +234,33 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			ctx.setReason("missing typed pattern annotation")
 			return nil, false
 		}
-		mapped, ok := g.mapTypeExpression(p.TypeAnnotation)
-		if !ok || mapped == "" || mapped == "struct{}" {
-			ctx.setReason("unsupported typed pattern")
-			return nil, false
-		}
 		if subjectType != "runtime.Value" {
+			mapped, ok := g.mapTypeExpression(p.TypeAnnotation)
+			if !ok || mapped == "" || mapped == "struct{}" {
+				ctx.setReason("unsupported typed pattern")
+				return nil, false
+			}
 			if mapped != subjectType {
 				ctx.setReason("typed pattern type mismatch")
 				return nil, false
 			}
 			return g.compileMatchPatternBindings(ctx, p.Pattern, subjectTemp, subjectType)
 		}
-		if mapped == "runtime.Value" {
-			return g.compileMatchPatternBindings(ctx, p.Pattern, subjectTemp, "runtime.Value")
-		}
-		converted, ok := g.expectRuntimeValueExpr(subjectTemp, mapped)
+		typeExpr, ok := g.renderTypeExpression(p.TypeAnnotation)
 		if !ok {
 			ctx.setReason("unsupported typed pattern")
 			return nil, false
 		}
+		g.needsAst = true
 		convertedTemp := ctx.newTemp()
-		bindLines, ok := g.compileMatchPatternBindings(ctx, p.Pattern, convertedTemp, mapped)
+		bindLines, ok := g.compileMatchPatternBindings(ctx, p.Pattern, convertedTemp, "runtime.Value")
 		if !ok {
 			return nil, false
 		}
 		if len(bindLines) == 0 {
 			return nil, true
 		}
-		lines := []string{fmt.Sprintf("%s := %s", convertedTemp, converted)}
+		lines := []string{fmt.Sprintf("%s, _ := __able_try_cast(%s, %s)", convertedTemp, subjectTemp, typeExpr)}
 		lines = append(lines, bindLines...)
 		return lines, true
 	case *ast.StructPattern:
@@ -399,6 +423,10 @@ func (g *generator) compileRuntimeStructPatternCondition(ctx *compileContext, pa
 		fieldTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s, %s := %s", fieldTemp, fieldOk, fieldExpr))
 		lines = append(lines, fmt.Sprintf("if !%s { return false }", fieldOk))
+		fieldCond, ok = g.compileMatchPatternCondition(ctx, fieldPattern, fieldTemp, "runtime.Value")
+		if !ok {
+			return "", false
+		}
 		lines = append(lines, fmt.Sprintf("if !(%s) { return false }", fieldCond))
 	}
 	lines = append(lines, "return true")

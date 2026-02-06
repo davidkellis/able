@@ -2,10 +2,13 @@ package exec_06_01_compiler_assignment_pattern_typed_mismatch
 
 import able.collections.hash_map.*
 
-## Semantics: compiler errors when typed pattern assignment mismatches.
+## Semantics: typed pattern mismatches yield an Error value (falsy).
 
 fn main() -> void {
   value := 1
-  map_value: HashMap String i32 := value
-  print(map_value)
+  if map_value: HashMap String i32 := value {
+    print("ok")
+  } else {
+    print("error")
+  }
 }

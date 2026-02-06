@@ -62,7 +62,7 @@ func memberIndexFromLiteral(lit *ast.IntegerLiteral) (int, bool) {
 
 func safeParamName(name string, idx int) string {
 	candidate := sanitizeIdent(name)
-	if candidate == "" || candidate == "err" || candidate == "args" || candidate == "rt" || candidate == "ctx" {
+	if candidate == "" || candidate == "err" || candidate == "result" || candidate == "args" || candidate == "rt" || candidate == "ctx" {
 		return fmt.Sprintf("p%d", idx)
 	}
 	return candidate
