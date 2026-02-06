@@ -134,12 +134,16 @@ func TestInterfaceAssignmentMissingImplementation(t *testing.T) {
 		),
 	}, nil, nil)
 
-	_, _, err := interp.EvaluateModule(module)
-	if err == nil {
-		t.Fatalf("expected failure when assigning struct without impl to interface")
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if got := err.Error(); !strings.Contains(got, "Typed pattern mismatch in assignment") || !strings.Contains(got, "expected Display") {
-		t.Fatalf("unexpected error message: %v", err)
+	errVal, ok := asErrorValue(result)
+	if !ok {
+		t.Fatalf("expected error value, got %#v", result)
+	}
+	if got := errVal.Message; !strings.Contains(got, "Typed pattern mismatch in assignment") || !strings.Contains(got, "expected Display") {
+		t.Fatalf("unexpected error message: %v", got)
 	}
 }
 

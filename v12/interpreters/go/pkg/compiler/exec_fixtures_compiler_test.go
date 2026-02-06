@@ -125,7 +125,7 @@ func runCompilerExecFixture(t *testing.T, dir string, rel string) {
 		t.Fatalf("write output: %v", err)
 	}
 
-	harness := compilerHarnessSource(entryPath, searchPaths)
+	harness := compilerHarnessSource(entryPath, searchPaths, manifest.Executor)
 	if err := os.WriteFile(filepath.Join(workDir, "main.go"), []byte(harness), 0o600); err != nil {
 		t.Fatalf("write harness: %v", err)
 	}
@@ -166,13 +166,15 @@ func runCompilerExecFixture(t *testing.T, dir string, rel string) {
 	actualStderr := splitLines(stderr.String())
 	expected := manifest.Expect
 	if expected.Stdout != nil {
-		if !reflect.DeepEqual(actualStdout, expected.Stdout) {
-			t.Fatalf("stdout mismatch: expected %v, got %v", expected.Stdout, actualStdout)
+		expectedStdout := expandFixtureLines(expected.Stdout)
+		if !reflect.DeepEqual(actualStdout, expectedStdout) {
+			t.Fatalf("stdout mismatch: expected %v, got %v", expectedStdout, actualStdout)
 		}
 	}
 	if expected.Stderr != nil {
-		if !reflect.DeepEqual(actualStderr, expected.Stderr) {
-			t.Fatalf("stderr mismatch: expected %v, got %v", expected.Stderr, actualStderr)
+		expectedStderr := expandFixtureLines(expected.Stderr)
+		if !reflect.DeepEqual(actualStderr, expectedStderr) {
+			t.Fatalf("stderr mismatch: expected %v, got %v", expectedStderr, actualStderr)
 		}
 	}
 	if expected.Exit != nil {
@@ -184,7 +186,7 @@ func runCompilerExecFixture(t *testing.T, dir string, rel string) {
 	}
 }
 
-func compilerHarnessSource(entryPath string, searchPaths []driver.SearchPath) string {
+func compilerHarnessSource(entryPath string, searchPaths []driver.SearchPath, executorName string) string {
 	var buf strings.Builder
 	buf.WriteString("package main\n\n")
 	buf.WriteString("import (\n")
@@ -207,7 +209,8 @@ func compilerHarnessSource(entryPath string, searchPaths []driver.SearchPath) st
 	buf.WriteString("\tdefer loader.Close()\n")
 	buf.WriteString("\tprogram, err := loader.Load(entry)\n")
 	buf.WriteString("\tif err != nil {\n\t\tfmt.Fprintln(os.Stderr, err)\n\t\tos.Exit(1)\n\t}\n")
-	buf.WriteString("\tinterp := interpreter.New()\n")
+	buf.WriteString(fmt.Sprintf("\texecutor := selectFixtureExecutor(%q)\n", executorName))
+	buf.WriteString("\tinterp := interpreter.NewWithExecutor(executor)\n")
 	buf.WriteString("\tinterp.SetArgs(os.Args[1:])\n")
 	buf.WriteString("\tregisterPrint(interp)\n")
 	buf.WriteString("\tmode := resolveFixtureTypecheckMode()\n")
@@ -224,6 +227,18 @@ func compilerHarnessSource(entryPath string, searchPaths []driver.SearchPath) st
 	buf.WriteString("\t\tif code, ok := interpreter.ExitCodeFromError(err); ok {\n\t\t\tos.Exit(code)\n\t\t}\n")
 	buf.WriteString("\t\tfmt.Fprintln(os.Stderr, interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(err)))\n")
 	buf.WriteString("\t\tos.Exit(1)\n\t}\n")
+	buf.WriteString("}\n\n")
+	buf.WriteString("func selectFixtureExecutor(name string) interpreter.Executor {\n")
+	buf.WriteString("\tswitch strings.ToLower(strings.TrimSpace(name)) {\n")
+	buf.WriteString("\tcase \"\", \"serial\":\n")
+	buf.WriteString("\t\treturn interpreter.NewSerialExecutor(nil)\n")
+	buf.WriteString("\tcase \"goroutine\":\n")
+	buf.WriteString("\t\treturn interpreter.NewGoroutineExecutor(nil)\n")
+	buf.WriteString("\tdefault:\n")
+	buf.WriteString("\t\tfmt.Fprintf(os.Stderr, \"unknown fixture executor %q\\n\", name)\n")
+	buf.WriteString("\t\tos.Exit(1)\n")
+	buf.WriteString("\t}\n")
+	buf.WriteString("\treturn nil\n")
 	buf.WriteString("}\n\n")
 	buf.WriteString("func registerPrint(interp *interpreter.Interpreter) {\n")
 	buf.WriteString("\tprintFn := runtime.NativeFunctionValue{\n")
@@ -325,6 +340,11 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		"15_01_program_entry_hello_world",
 		"15_02_entry_args_signature",
 		"15_03_exit_status_return_value",
+		"15_04_background_work_flush",
+		"16_01_host_interop_inline_extern",
+		"02_lexical_comments_identifiers",
+		"03_blocks_expr_separation",
+		"04_01_type_inference_constraints",
 		"06_05_control_flow_expr_value",
 		"06_02_block_expression_value_scope",
 		"06_01_compiler_if_block_exprs",
@@ -393,17 +413,28 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		"07_01_function_definition_generics_inference",
 		"07_02_lambdas_closures_capture",
 		"07_02_01_verbose_anonymous_fn",
+		"07_02_bytecode_lambda_calls",
 		"07_03_explicit_return_flow",
 		"07_04_apply_callable_interface",
 		"07_04_trailing_lambda_method_syntax",
 		"07_05_partial_application",
 		"07_06_shorthand_member_placeholder_lambdas",
+		"07_07_bytecode_implicit_iterator",
+		"07_08_bytecode_placeholder_lambda",
+		"07_09_bytecode_iterator_yield",
 		"07_07_overload_resolution_runtime",
 		"07_08_return_context_generic_call_inference",
 		"06_01_literals_array_map_inference",
 		"06_01_literals_numeric_contextual",
+		"06_01_literals_numeric_contextual_diag",
 		"06_01_literals_string_char_escape",
+		"06_01_bytecode_map_spread",
+		"06_07_generator_yield_iterator_end",
+		"06_07_iterator_pipeline",
 		"06_08_array_ops_mutability",
+		"06_02_bytecode_unary_range_cast",
+		"06_09_lexical_trailing_commas_line_join",
+		"06_10_dynamic_metaprogramming_package_object",
 		"06_03_safe_navigation_nil_short_circuit",
 		"06_04_function_call_eval_order_trailing_lambda",
 		"06_06_string_interpolation",
@@ -413,10 +444,15 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		"06_03_operator_overloading_interfaces",
 		"14_01_operator_interfaces_arithmetic_comparison",
 		"14_01_language_interfaces_index_apply_iterable",
+		"14_02_hash_eq_primitives",
+		"14_02_hash_eq_float",
+		"14_02_hash_eq_custom",
+		"14_02_regex_core_match_streaming",
 		"10_01_interface_defaults_composites",
 		"10_02_impl_specificity_named_overrides",
 		"10_02_impl_where_clause",
 		"10_03_interface_type_dynamic_dispatch",
+		"10_04_interface_dispatch_defaults_generics",
 		"10_05_interface_named_impl_defaults",
 		"10_06_interface_generic_param_dispatch",
 		"10_07_interface_default_chain",
@@ -427,7 +463,15 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		"10_12_interface_union_target_dispatch",
 		"10_13_interface_param_generic_args",
 		"10_14_interface_return_generic_args",
+		"10_15_interface_default_generic_method",
 		"10_16_interface_value_storage",
+		"13_01_package_structure_modules",
+		"13_02_packages_visibility_diag",
+		"13_03_package_config_prelude",
+		"13_04_import_alias_selective_dynimport",
+		"13_05_dynimport_interface_dispatch",
+		"13_06_stdlib_package_resolution",
+		"13_07_search_path_env_override",
 		"12_01_bytecode_spawn_basic",
 		"12_01_bytecode_await_default",
 		"12_02_async_spawn_combo",
@@ -438,34 +482,68 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		"12_05_mutex_lock_unlock",
 		"12_06_await_fairness_cancellation",
 		"12_07_channel_mutex_error_types",
+		"12_08_blocking_io_concurrency",
 		"06_11_truthiness_boolean_context",
 		"06_12_01_stdlib_string_helpers",
 		"06_12_02_stdlib_array_helpers",
 		"06_12_03_stdlib_numeric_ratio_divmod",
 		"08_01_if_truthiness_value",
 		"08_01_control_flow_fizzbuzz",
+		"08_01_bytecode_if_indexing",
+		"08_01_bytecode_match_basic",
+		"08_01_bytecode_match_subject",
 		"08_01_match_guards_exhaustiveness",
 		"08_01_union_match_basic",
+		"08_02_bytecode_loop_basics",
 		"08_02_loop_expression_break_value",
 		"08_02_numeric_sum_loop",
 		"08_02_range_inclusive_exclusive",
 		"08_02_while_continue_break",
 		"08_03_breakpoint_nonlocal_jump",
+		"09_00_methods_generics_imports_combo",
+		"09_00_bytecode_member_calls",
+		"09_02_methods_instance_vs_static",
+		"09_04_methods_ufcs_basics",
+		"09_05_method_set_generics_where",
 		"04_02_primitives_truthiness_numeric",
+		"04_02_primitives_truthiness_numeric_diag",
+		"04_03_type_expression_syntax",
+		"04_03_type_expression_arity_diag",
+		"04_03_type_expression_associativity_diag",
+		"04_04_reserved_underscore_types",
 		"04_05_01_struct_singleton_usage",
 		"04_05_02_struct_named_update_mutation",
+		"04_05_02_struct_named_update_mutation_diag",
 		"04_05_03_struct_positional_named_tuple",
+		"04_05_04_struct_literal_generic_inference",
 		"05_00_mutability_declaration_vs_assignment",
 		"05_02_array_nested_patterns",
 		"05_02_identifier_wildcard_typed_patterns",
 		"05_02_struct_pattern_rename_typed",
 		"05_03_assignment_evaluation_order",
+		"05_03_bytecode_assignment_patterns",
 		"04_06_01_union_payload_patterns",
 		"04_06_02_nullable_truthiness",
 		"04_06_03_union_construction_result_option",
 		"04_06_04_union_guarded_match_exhaustive",
+		"04_06_04_union_guarded_match_exhaustive_diag",
+		"04_07_02_alias_generic_substitution",
+		"04_07_03_alias_scope_visibility_imports",
+		"04_07_04_alias_methods_impls_interaction",
+		"04_07_05_alias_recursion_termination",
+		"04_07_06_alias_reexport_methods_impls",
+		"04_07_types_alias_union_generic_combo",
+		"11_00_errors_match_loop_combo",
+		"11_01_return_statement_type_enforcement",
+		"11_01_return_statement_typecheck_diag",
+		"11_02_bytecode_or_else_basic",
 		"11_02_option_result_or_handlers",
 		"11_02_option_result_propagation",
+		"11_03_raise_exit_unhandled",
+		"11_03_bytecode_ensure_basic",
+		"11_03_bytecode_rescue_basic",
+		"11_03_rescue_ensure",
+		"11_03_rescue_rethrow_standard_errors",
 	}
 }
 
@@ -511,6 +589,21 @@ func splitLines(raw string) []string {
 		return []string{}
 	}
 	return strings.Split(trimmed, "\n")
+}
+
+func expandFixtureLines(lines []string) []string {
+	if len(lines) == 0 {
+		return []string{}
+	}
+	var out []string
+	for _, raw := range lines {
+		trimmed := strings.TrimRight(raw, "\n")
+		if strings.TrimSpace(trimmed) == "" {
+			continue
+		}
+		out = append(out, strings.Split(trimmed, "\n")...)
+	}
+	return out
 }
 
 func shouldSkipTarget(skip []string, target string) bool {

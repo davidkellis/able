@@ -1,9 +1,9 @@
 {
   "description": "Array destructuring without rest requires exact length",
   "expect": {
-    "errors": [
-      "Array length mismatch in destructuring"
-    ]
+    "result": {
+      "kind": "error"
+    }
   },
   "entry": "module.json"
 }

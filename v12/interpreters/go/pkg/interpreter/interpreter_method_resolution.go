@@ -335,6 +335,29 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 			return filtered[0], true
 		}
 		return &runtime.FunctionOverloadValue{Overloads: filtered}, true
+	case runtime.NativeFunctionValue:
+		if requireSelf {
+			return fn, true
+		}
+		if fn.Arity <= 0 {
+			return nil, false
+		}
+		adjusted := fn
+		adjusted.Arity--
+		return runtime.NativeBoundMethodValue{Receiver: receiver, Method: adjusted}, true
+	case *runtime.NativeFunctionValue:
+		if fn == nil {
+			return nil, false
+		}
+		if requireSelf {
+			return fn, true
+		}
+		if fn.Arity <= 0 {
+			return nil, false
+		}
+		adjusted := *fn
+		adjusted.Arity--
+		return runtime.NativeBoundMethodValue{Receiver: receiver, Method: adjusted}, true
 	default:
 		return nil, false
 	}

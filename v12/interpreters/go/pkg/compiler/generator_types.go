@@ -137,6 +137,39 @@ func (g *generator) mapTypeExpression(expr ast.TypeExpression) (string, bool) {
 	return mapper.Map(expr)
 }
 
+func (g *generator) interfaceTypeExpr(expr ast.TypeExpression) (ast.TypeExpression, bool) {
+	if expr == nil {
+		return nil, false
+	}
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t == nil || t.Name == nil {
+			return nil, false
+		}
+		if g.isInterfaceName(t.Name.Name) {
+			return expr, true
+		}
+	case *ast.GenericTypeExpression:
+		if t == nil {
+			return nil, false
+		}
+		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base != nil && base.Name != nil {
+			if g.isInterfaceName(base.Name.Name) {
+				return expr, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (g *generator) isInterfaceName(name string) bool {
+	if name == "" || g == nil || g.interfaces == nil {
+		return false
+	}
+	_, ok := g.interfaces[name]
+	return ok
+}
+
 func (g *generator) renderTypeExpression(expr ast.TypeExpression) (string, bool) {
 	if expr == nil {
 		return "", false
@@ -220,6 +253,80 @@ func (g *generator) renderTypeExpression(expr ast.TypeExpression) (string, bool)
 	default:
 		return "", false
 	}
+}
+
+func typeExpressionToString(expr ast.TypeExpression) string {
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return "<?>"
+		}
+		return t.Name.Name
+	case *ast.GenericTypeExpression:
+		base := typeExpressionToString(t.Base)
+		args := make([]string, 0, len(t.Arguments))
+		for _, arg := range t.Arguments {
+			args = append(args, typeExpressionToString(arg))
+		}
+		return fmt.Sprintf("%s<%s>", base, strings.Join(args, ", "))
+	case *ast.NullableTypeExpression:
+		return typeExpressionToString(t.InnerType) + "?"
+	case *ast.FunctionTypeExpression:
+		parts := make([]string, 0, len(t.ParamTypes))
+		for _, p := range t.ParamTypes {
+			parts = append(parts, typeExpressionToString(p))
+		}
+		return fmt.Sprintf("fn(%s) -> %s", strings.Join(parts, ", "), typeExpressionToString(t.ReturnType))
+	case *ast.UnionTypeExpression:
+		parts := make([]string, 0, len(t.Members))
+		for _, member := range t.Members {
+			parts = append(parts, typeExpressionToString(member))
+		}
+		return strings.Join(parts, " | ")
+	default:
+		return "<?>"
+	}
+}
+
+func typeNameFromGoType(goType string) string {
+	switch goType {
+	case "bool":
+		return "bool"
+	case "string":
+		return "String"
+	case "rune":
+		return "char"
+	case "int8":
+		return "i8"
+	case "int16":
+		return "i16"
+	case "int32":
+		return "i32"
+	case "int64":
+		return "i64"
+	case "uint8":
+		return "u8"
+	case "uint16":
+		return "u16"
+	case "uint32":
+		return "u32"
+	case "uint64":
+		return "u64"
+	case "int":
+		return "isize"
+	case "uint":
+		return "usize"
+	case "float32":
+		return "f32"
+	case "float64":
+		return "f64"
+	case "struct{}":
+		return "void"
+	}
+	if strings.HasPrefix(goType, "*") {
+		return strings.TrimPrefix(goType, "*")
+	}
+	return goType
 }
 
 func (g *generator) hasOptionalLastParam(info *functionInfo) bool {

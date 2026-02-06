@@ -26,30 +26,14 @@ func (vm *bytecodeVM) execAssignPattern(instr bytecodeInstruction) error {
 		err := fmt.Errorf("compound assignment not supported with patterns")
 		return vm.interp.attachRuntimeContext(err, assignExpr, vm.interp.stateFromEnv(vm.env))
 	}
-	switch op {
-	case ast.AssignmentDeclare:
-		newNames, hasAny := analyzePatternDeclarationNames(vm.env, pattern)
-		if !hasAny || len(newNames) == 0 {
-			err := fmt.Errorf(":= requires at least one new binding")
-			return vm.interp.attachRuntimeContext(err, assignExpr, vm.interp.stateFromEnv(vm.env))
-		}
-		intent := &bindingIntent{declarationNames: newNames}
-		if err := vm.interp.assignPattern(pattern, val, vm.env, true, intent); err != nil {
-			return vm.interp.attachRuntimeContext(err, assignExpr, vm.interp.stateFromEnv(vm.env))
-		}
-	case ast.AssignmentAssign:
-		intent := &bindingIntent{allowFallback: true}
-		if err := vm.interp.assignPattern(pattern, val, vm.env, false, intent); err != nil {
-			return vm.interp.attachRuntimeContext(err, assignExpr, vm.interp.stateFromEnv(vm.env))
-		}
-	default:
-		err := fmt.Errorf("unsupported assignment operator %s", op)
+	result, err := vm.interp.assignPatternExpression(pattern, val, vm.env, op)
+	if err != nil {
 		return vm.interp.attachRuntimeContext(err, assignExpr, vm.interp.stateFromEnv(vm.env))
 	}
-	if val == nil {
-		val = runtime.NilValue{}
+	if result == nil {
+		result = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.stack = append(vm.stack, result)
 	vm.ip++
 	return nil
 }

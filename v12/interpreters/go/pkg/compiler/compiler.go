@@ -15,6 +15,7 @@ type Options struct {
 type Result struct {
 	Files    map[string][]byte
 	Warnings []string
+	Fallbacks []FallbackInfo
 }
 
 type Compiler struct {
@@ -40,7 +41,7 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Result{Files: files, Warnings: gen.warnings}, nil
+	return &Result{Files: files, Warnings: gen.warnings, Fallbacks: gen.collectFallbacks()}, nil
 }
 
 func (r *Result) Write(dir string) error {

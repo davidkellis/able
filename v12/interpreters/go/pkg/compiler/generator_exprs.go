@@ -221,17 +221,19 @@ func (g *generator) compileFloatLiteral(ctx *compileContext, lit *ast.FloatLiter
 }
 
 func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLiteral, expected string) (string, string, bool) {
-	if lit == nil || lit.StructType == nil || len(lit.FunctionalUpdateSources) > 0 || len(lit.TypeArguments) > 0 {
+	if lit == nil || lit.StructType == nil {
 		ctx.setReason("unsupported struct literal")
 		return "", "", false
 	}
 	info, ok := g.structs[lit.StructType.Name]
-	if !ok || info == nil {
-		ctx.setReason("unknown struct literal type")
-		return "", "", false
+	if expected == "runtime.Value" || !ok || info == nil || !info.Supported || len(lit.TypeArguments) > 0 {
+		return g.compileStructLiteralRuntime(ctx, lit)
 	}
 	structType := "*" + info.GoName
 	if expected != "" {
+		if expected == "runtime.Value" {
+			return g.compileStructLiteralRuntime(ctx, lit)
+		}
 		baseExpected := expected
 		if baseName, ok := g.structBaseName(expected); ok {
 			baseExpected = baseName
@@ -250,7 +252,7 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 			ctx.setReason("functional update unsupported")
 			return "", "", false
 		}
-		if info.Kind != ast.StructKindPositional {
+		if info.Kind != ast.StructKindPositional && info.Kind != ast.StructKindSingleton {
 			ctx.setReason("struct literal positional mismatch")
 			return "", "", false
 		}
@@ -282,19 +284,44 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		ctx.setReason("struct literal positional mismatch")
 		return "", "", false
 	}
+	if updateCount > 0 {
+		if expr, exprType, ok, handled := g.compileStructUpdateFallback(ctx, lit, structType, expected); handled {
+			return expr, exprType, ok
+		}
+	}
 	fieldValues := make(map[string]string, len(lit.Fields))
 	for _, field := range lit.Fields {
-		if field == nil || field.Name == nil || field.Value == nil {
+		if field == nil {
 			ctx.setReason("unsupported struct field")
 			return "", "", false
 		}
-		fieldName := field.Name.Name
+		fieldName := ""
+		if field.Name != nil {
+			fieldName = field.Name.Name
+		}
+		if fieldName == "" && field.IsShorthand {
+			if ident, ok := field.Value.(*ast.Identifier); ok && ident != nil {
+				fieldName = ident.Name
+			}
+		}
+		if fieldName == "" {
+			ctx.setReason("unsupported struct field")
+			return "", "", false
+		}
+		valueExpr := field.Value
+		if valueExpr == nil && field.IsShorthand {
+			valueExpr = ast.NewIdentifier(fieldName)
+		}
+		if valueExpr == nil {
+			ctx.setReason("unsupported struct field")
+			return "", "", false
+		}
 		fieldInfo := g.fieldInfo(info, fieldName)
 		if fieldInfo == nil {
 			ctx.setReason("unknown struct field")
 			return "", "", false
 		}
-		expr, _, ok := g.compileExpr(ctx, field.Value, fieldInfo.GoType)
+		expr, _, ok := g.compileExpr(ctx, valueExpr, fieldInfo.GoType)
 		if !ok {
 			return "", "", false
 		}
@@ -343,6 +370,138 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		parts = append(parts, fmt.Sprintf("%s: %s", field.GoName, value))
 	}
 	return fmt.Sprintf("&%s{%s}", info.GoName, strings.Join(parts, ", ")), structType, true
+}
+
+func (g *generator) compileStructLiteralRuntime(ctx *compileContext, lit *ast.StructLiteral) (string, string, bool) {
+	if lit == nil || lit.StructType == nil || lit.StructType.Name == "" {
+		ctx.setReason("unsupported struct literal")
+		return "", "", false
+	}
+	structName := lit.StructType.Name
+	typeArgsExpr := "[]ast.TypeExpression(nil)"
+	if len(lit.TypeArguments) > 0 {
+		args := make([]string, 0, len(lit.TypeArguments))
+		for _, arg := range lit.TypeArguments {
+			rendered, ok := g.renderTypeExpression(arg)
+			if !ok {
+				ctx.setReason("unsupported struct literal type arguments")
+				return "", "", false
+			}
+			args = append(args, rendered)
+		}
+		typeArgsExpr = fmt.Sprintf("[]ast.TypeExpression{%s}", strings.Join(args, ", "))
+	}
+
+	lines := []string{
+		"if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }",
+	}
+	defTemp := ctx.newTemp()
+	structDefTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s, err := __able_runtime.StructDefinition(%q)", defTemp, structName))
+	lines = append(lines, "__able_panic_on_error(err)")
+	lines = append(lines, fmt.Sprintf("if %s == nil || %s.Node == nil || %s.Node.ID == nil { panic(fmt.Errorf(\"struct definition '%s' unavailable\")) }", defTemp, defTemp, defTemp, structName))
+	lines = append(lines, fmt.Sprintf("%s := %s.Node", structDefTemp, defTemp))
+
+	updateCount := len(lit.FunctionalUpdateSources)
+	if lit.IsPositional {
+		if updateCount > 0 {
+			lines = append(lines, "panic(fmt.Errorf(\"Functional update only supported for named structs\"))")
+		}
+		lines = append(lines, fmt.Sprintf("if %s.Kind != %q && %s.Kind != %q { panic(fmt.Errorf(\"Positional struct literal not allowed for struct '%s'\")) }", structDefTemp, "positional", structDefTemp, "singleton", structName))
+		values := make([]string, 0, len(lit.Fields))
+		for _, field := range lit.Fields {
+			if field == nil || field.Value == nil {
+				ctx.setReason("unsupported struct field")
+				return "", "", false
+			}
+			expr, _, ok := g.compileExpr(ctx, field.Value, "runtime.Value")
+			if !ok {
+				return "", "", false
+			}
+			values = append(values, expr)
+		}
+		valuesTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := []runtime.Value{%s}", valuesTemp, strings.Join(values, ", ")))
+		lines = append(lines, fmt.Sprintf("if len(%s) != len(%s.Fields) { panic(fmt.Errorf(\"Struct '%s' expects %%d fields, got %%d\", len(%s.Fields), len(%s))) }", valuesTemp, structDefTemp, structName, structDefTemp, valuesTemp))
+		expr := fmt.Sprintf("&runtime.StructInstanceValue{Definition: %s, Positional: %s, TypeArguments: %s}", defTemp, valuesTemp, typeArgsExpr)
+		return g.wrapLinesAsExpression(ctx, lines, expr, "runtime.Value")
+	}
+
+	if updateCount == 0 {
+		lines = append(lines, fmt.Sprintf("if %s.Kind == %q { panic(fmt.Errorf(\"Named struct literal not allowed for positional struct '%s'\")) }", structDefTemp, "positional", structName))
+	} else {
+		lines = append(lines, fmt.Sprintf("if %s.Kind == %q { panic(fmt.Errorf(\"Functional update only supported for named structs\")) }", structDefTemp, "positional"))
+	}
+
+	fieldsTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s := make(map[string]runtime.Value, %d)", fieldsTemp, len(lit.Fields)))
+	var baseTemp string
+	if updateCount > 0 {
+		baseTemp = ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("var %s *runtime.StructInstanceValue", baseTemp))
+		for _, source := range lit.FunctionalUpdateSources {
+			if source == nil {
+				ctx.setReason("functional update source missing")
+				return "", "", false
+			}
+			sourceExpr, _, ok := g.compileExpr(ctx, source, "runtime.Value")
+			if !ok {
+				return "", "", false
+			}
+			sourceTemp := ctx.newTemp()
+			instanceTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("%s := %s", sourceTemp, sourceExpr))
+			lines = append(lines, fmt.Sprintf("%s := __able_struct_instance(%s)", instanceTemp, sourceTemp))
+			lines = append(lines, fmt.Sprintf("if %s == nil { panic(fmt.Errorf(\"Functional update source must be a struct instance\")) }", instanceTemp))
+			lines = append(lines, fmt.Sprintf("if %s.Definition == nil || %s.Definition.Node == nil || %s.Definition.Node.ID == nil || %s.Definition.Node.ID.Name != %q { panic(fmt.Errorf(\"Functional update source must be same struct type\")) }", instanceTemp, instanceTemp, instanceTemp, instanceTemp, structName))
+			lines = append(lines, fmt.Sprintf("if %s.Fields == nil { panic(fmt.Errorf(\"Functional update only supported for named structs\")) }", instanceTemp))
+			lines = append(lines, fmt.Sprintf("if %s == nil { %s = %s }", baseTemp, baseTemp, instanceTemp))
+			lines = append(lines, fmt.Sprintf("for k, v := range %s.Fields { %s[k] = v }", instanceTemp, fieldsTemp))
+		}
+	}
+
+	for _, field := range lit.Fields {
+		if field == nil {
+			ctx.setReason("unsupported struct field")
+			return "", "", false
+		}
+		fieldName := ""
+		if field.Name != nil {
+			fieldName = field.Name.Name
+		}
+		if fieldName == "" && field.IsShorthand {
+			if ident, ok := field.Value.(*ast.Identifier); ok && ident != nil {
+				fieldName = ident.Name
+			}
+		}
+		if fieldName == "" {
+			ctx.setReason("unsupported struct field")
+			return "", "", false
+		}
+		valueExpr := field.Value
+		if valueExpr == nil && field.IsShorthand {
+			valueExpr = ast.NewIdentifier(fieldName)
+		}
+		if valueExpr == nil {
+			ctx.setReason("unsupported struct field")
+			return "", "", false
+		}
+		expr, _, ok := g.compileExpr(ctx, valueExpr, "runtime.Value")
+		if !ok {
+			return "", "", false
+		}
+		lines = append(lines, fmt.Sprintf("%s[%q] = %s", fieldsTemp, fieldName, expr))
+	}
+
+	lines = append(lines, fmt.Sprintf("if %s.Kind == %q { for _, defField := range %s.Fields { if defField == nil || defField.Name == nil { continue }; if _, ok := %s[defField.Name.Name]; !ok { panic(fmt.Errorf(\"Missing field '%%s' for struct '%s'\", defField.Name.Name)) } } }", structDefTemp, "named", structDefTemp, fieldsTemp, structName))
+
+	typeArgsTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s := %s", typeArgsTemp, typeArgsExpr))
+	if updateCount > 0 {
+		lines = append(lines, fmt.Sprintf("if len(%s) == 0 && %s != nil { %s = %s.TypeArguments }", typeArgsTemp, baseTemp, typeArgsTemp, baseTemp))
+	}
+	expr := fmt.Sprintf("&runtime.StructInstanceValue{Definition: %s, Fields: %s, TypeArguments: %s}", defTemp, fieldsTemp, typeArgsTemp)
+	return g.wrapLinesAsExpression(ctx, lines, expr, "runtime.Value")
 }
 
 func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryExpression, expected string) (string, string, bool) {
@@ -438,11 +597,13 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 		ctx.setReason("missing function call")
 		return "", "", false
 	}
-	if len(call.TypeArguments) > 0 {
-		ctx.setReason("generic calls unsupported")
-		return "", "", false
-	}
 	callNode := g.diagNodeName(call, "*ast.FunctionCall", "call")
+	if len(call.TypeArguments) > 0 {
+		if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
+			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
+		}
+		return g.compileDynamicCall(ctx, call, expected, "", callNode)
+	}
 	if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
 		if info, ok := ctx.functions[callee.Name]; ok && info != nil && info.Compileable {
 			if !g.typeMatches(expected, info.ReturnType) {
@@ -464,17 +625,39 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 			args := make([]string, 0, len(call.Arguments))
 			for idx, arg := range call.Arguments {
 				param := info.Params[idx]
-				expr, _, ok := g.compileExpr(ctx, arg, param.GoType)
+				expr, exprType, ok := g.compileExpr(ctx, arg, param.GoType)
 				if !ok {
 					return "", "", false
 				}
-				args = append(args, expr)
+				argExpr := expr
+				argType := exprType
+				if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok {
+					if argType != "runtime.Value" {
+						valueExpr, ok := g.runtimeValueExpr(argExpr, argType)
+						if !ok {
+							ctx.setReason("interface argument unsupported")
+							return "", "", false
+						}
+						argExpr = valueExpr
+						argType = "runtime.Value"
+					}
+					coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, callee.Name)
+					if !ok {
+						ctx.setReason("interface argument unsupported")
+						return "", "", false
+					}
+					argExpr = coerced
+				}
+				args = append(args, argExpr)
 			}
 			if missingOptional {
 				args = append(args, "runtime.NilValue{}")
 			}
 			callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
 			return fmt.Sprintf("func() %s { __able_push_call_frame(%s); defer __able_pop_call_frame(); return %s }()", info.ReturnType, callNode, callExpr), info.ReturnType, true
+		}
+		if _, ok := ctx.overloads[callee.Name]; ok {
+			return g.compileOverloadCall(ctx, call, expected, callee.Name, callNode)
 		}
 		if _, ok := ctx.lookup(callee.Name); !ok {
 			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
@@ -502,9 +685,23 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	if calleeName == "" {
 		switch callee := call.Callee.(type) {
 		case *ast.MemberAccessExpression:
+			if callee.Member != nil && !callee.Safe {
+				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+					if method, ok := g.resolveStaticMethodCall(ctx, callee.Object, ident.Name); ok {
+						return g.compileResolvedMethodCall(ctx, call, expected, method, "", callNode)
+					}
+				}
+			}
 			objExpr, objType, ok := g.compileExpr(ctx, callee.Object, "")
 			if !ok {
 				return "", "", false
+			}
+			if callee.Member != nil && !callee.Safe {
+				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+					if method := g.methodForReceiver(objType, ident.Name); method != nil {
+						return g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, callNode)
+					}
+				}
 			}
 			if callee.Safe && g.typeCategory(objType) == "runtime" {
 				return g.compileSafeMemberCall(ctx, call, callee, expected, objExpr, objType, callNode)
@@ -632,6 +829,106 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		return resultExpr, resultType, true
 	}
 	return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
+}
+
+func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expression, memberName string) (*methodInfo, bool) {
+	if g == nil || object == nil || memberName == "" {
+		return nil, false
+	}
+	ident, ok := object.(*ast.Identifier)
+	if !ok || ident == nil || ident.Name == "" {
+		return nil, false
+	}
+	if ctx != nil {
+		if _, ok := ctx.lookup(ident.Name); ok {
+			return nil, false
+		}
+	}
+	if _, ok := g.structs[ident.Name]; !ok {
+		return nil, false
+	}
+	method := g.methodForTypeName(ident.Name, memberName, false)
+	if method == nil {
+		return nil, false
+	}
+	return method, true
+}
+
+func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, method *methodInfo, receiverExpr string, callNode string) (string, string, bool) {
+	if call == nil || method == nil || method.Info == nil {
+		ctx.setReason("missing method call")
+		return "", "", false
+	}
+	info := method.Info
+	if !info.Compileable {
+		ctx.setReason("unsupported method call")
+		return "", "", false
+	}
+	if !g.typeMatches(expected, info.ReturnType) {
+		ctx.setReason("call return type mismatch")
+		return "", "", false
+	}
+	paramOffset := 0
+	args := make([]string, 0, len(call.Arguments)+1)
+	if method.ExpectsSelf {
+		if receiverExpr == "" {
+			ctx.setReason("method receiver missing")
+			return "", "", false
+		}
+		args = append(args, receiverExpr)
+		paramOffset = 1
+	}
+	params := info.Params
+	if paramOffset > len(params) {
+		ctx.setReason("method params missing")
+		return "", "", false
+	}
+	callArgCount := len(call.Arguments)
+	paramCount := len(params) - paramOffset
+	optionalLast := g.hasOptionalLastParam(info)
+	if callArgCount != paramCount {
+		if !(optionalLast && callArgCount == paramCount-1) {
+			ctx.setReason("call arity mismatch")
+			return "", "", false
+		}
+	}
+	missingOptional := optionalLast && callArgCount == paramCount-1
+	if missingOptional && paramCount > 0 && params[len(params)-1].GoType != "runtime.Value" {
+		ctx.setReason("call arity mismatch")
+		return "", "", false
+	}
+	for idx, arg := range call.Arguments {
+		param := params[paramOffset+idx]
+		expr, exprType, ok := g.compileExpr(ctx, arg, param.GoType)
+		if !ok {
+			return "", "", false
+		}
+		argExpr := expr
+		argType := exprType
+		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok {
+			if argType != "runtime.Value" {
+				valueExpr, ok := g.runtimeValueExpr(argExpr, argType)
+				if !ok {
+					ctx.setReason("interface argument unsupported")
+					return "", "", false
+				}
+				argExpr = valueExpr
+				argType = "runtime.Value"
+			}
+			coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, info.Name)
+			if !ok {
+				ctx.setReason("interface argument unsupported")
+				return "", "", false
+			}
+			argExpr = coerced
+		}
+		args = append(args, argExpr)
+	}
+	if missingOptional {
+		args = append(args, "runtime.NilValue{}")
+	}
+	callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
+	return fmt.Sprintf("func() %s { __able_push_call_frame(%s); defer __able_pop_call_frame(); return %s }()", info.ReturnType, callNode, callExpr), info.ReturnType, true
 }
 
 func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string, callNode string) (string, string, bool) {
@@ -801,10 +1098,6 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		ctx.setReason("lambda expression type mismatch")
 		return "", "", false
 	}
-	if len(expr.GenericParams) > 0 || len(expr.WhereClause) > 0 {
-		ctx.setReason("lambda generics unsupported")
-		return "", "", false
-	}
 	if expr.Body == nil {
 		ctx.setReason("missing lambda body")
 		return "", "", false
@@ -846,6 +1139,20 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		lambdaCtx.implicitReceiver = params[0]
 		lambdaCtx.hasImplicitReceiver = true
 	}
+	genericValueVars := make(map[string]string)
+	if len(expr.GenericParams) > 0 || len(expr.WhereClause) > 0 {
+		generics := genericNameSet(expr.GenericParams)
+		for idx, param := range expr.Params {
+			if param == nil || param.ParamType == nil {
+				continue
+			}
+			if simple, ok := param.ParamType.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
+				if _, ok := generics[simple.Name.Name]; ok {
+					genericValueVars[simple.Name.Name] = fmt.Sprintf("__able_lambda_arg_%d_value", idx)
+				}
+			}
+		}
+	}
 
 	desiredReturn := ""
 	if expr.ReturnType != nil {
@@ -872,6 +1179,9 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		bodyLines, bodyExpr, bodyType, ok = g.compileTailExpression(lambdaCtx, desiredReturn, expr.Body)
 	}
 	if !ok {
+		if ctx.reason == "" && lambdaCtx.reason != "" {
+			ctx.setReason(lambdaCtx.reason)
+		}
 		return "", "", false
 	}
 	if desiredReturn != "" && !g.typeMatches(desiredReturn, bodyType) {
@@ -893,6 +1203,17 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 			return "", "", false
 		}
 		implLines = append(implLines, convLines...)
+		if param.GoName != "_" {
+			implLines = append(implLines, fmt.Sprintf("_ = %s", param.GoName))
+		}
+	}
+	if len(genericValueVars) > 0 {
+		constraintLines, ok := g.lambdaConstraintLines(expr, genericValueVars)
+		if !ok {
+			ctx.setReason("unsupported lambda constraints")
+			return "", "", false
+		}
+		implLines = append(implLines, constraintLines...)
 	}
 
 	implLines = append(implLines, bodyLines...)
@@ -934,10 +1255,6 @@ func (g *generator) compileLambdaBlockBody(ctx *compileContext, returnType strin
 	for idx, stmt := range statements {
 		isLast := idx == len(statements)-1
 		if ret, ok := stmt.(*ast.ReturnStatement); ok {
-			if !isLast {
-				ctx.setReason("return must be final statement")
-				return nil, "", "", false
-			}
 			if ret.Argument == nil {
 				if returnType != "" && !g.isVoidType(returnType) {
 					ctx.setReason("missing return value")
@@ -945,15 +1262,25 @@ func (g *generator) compileLambdaBlockBody(ctx *compileContext, returnType strin
 				}
 				return lines, "struct{}{}", "struct{}", true
 			}
-			stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, returnType, ret.Argument)
+			compileExpected := returnType
+			if g.isVoidType(returnType) {
+				compileExpected = ""
+			}
+			stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, compileExpected, ret.Argument)
 			if !ok {
 				return nil, "", "", false
 			}
-			if returnType != "" && !g.typeMatches(returnType, valueType) {
+			if returnType != "" && !g.isVoidType(returnType) && !g.typeMatches(returnType, valueType) {
 				ctx.setReason("lambda return type mismatch")
 				return nil, "", "", false
 			}
 			lines = append(lines, stmtLines...)
+			if g.isVoidType(returnType) {
+				if valueExpr != "" {
+					lines = append(lines, fmt.Sprintf("_ = %s", valueExpr))
+				}
+				return lines, "struct{}{}", "struct{}", true
+			}
 			finalType := valueType
 			if returnType != "" {
 				finalType = returnType
@@ -962,11 +1289,15 @@ func (g *generator) compileLambdaBlockBody(ctx *compileContext, returnType strin
 		}
 		if isLast {
 			if expr, ok := stmt.(ast.Expression); ok && expr != nil {
-				stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, returnType, expr)
+				compileExpected := returnType
+				if g.isVoidType(returnType) {
+					compileExpected = ""
+				}
+				stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, compileExpected, expr)
 				if !ok {
 					return nil, "", "", false
 				}
-				if returnType != "" && !g.typeMatches(returnType, valueType) {
+				if returnType != "" && !g.isVoidType(returnType) && !g.typeMatches(returnType, valueType) {
 					ctx.setReason("lambda return type mismatch")
 					return nil, "", "", false
 				}

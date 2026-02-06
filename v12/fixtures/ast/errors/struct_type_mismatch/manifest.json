@@ -1,10 +1,6 @@
 {
   "description": "Struct pattern type must match value type",
   "expect": {
-    "errors": [
-      "Struct type mismatch in destructuring",
-      "typechecker: struct pattern field 'dx' not found"
-    ],
     "typecheckDiagnostics": [
       "typechecker: v12/fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
     ]

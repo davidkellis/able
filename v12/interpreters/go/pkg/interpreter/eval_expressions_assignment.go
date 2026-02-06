@@ -188,24 +188,11 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		if isCompound {
 			return nil, fmt.Errorf("compound assignment not supported with patterns")
 		}
-		switch assign.Operator {
-		case ast.AssignmentDeclare:
-			newNames, hasAny := analyzePatternDeclarationNames(env, lhs)
-			if !hasAny || len(newNames) == 0 {
-				return nil, fmt.Errorf(":= requires at least one new binding")
-			}
-			intent := &bindingIntent{declarationNames: newNames}
-			if err := i.assignPattern(lhs, value, env, true, intent); err != nil {
-				return nil, err
-			}
-		case ast.AssignmentAssign:
-			intent := &bindingIntent{allowFallback: true}
-			if err := i.assignPattern(lhs, value, env, false, intent); err != nil {
-				return nil, err
-			}
-		default:
-			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+		result, err := i.assignPatternExpression(lhs, value, env, assign.Operator)
+		if err != nil {
+			return nil, err
 		}
+		return result, nil
 	default:
 		return nil, fmt.Errorf("unsupported assignment target %s", lhs.NodeType())
 	}

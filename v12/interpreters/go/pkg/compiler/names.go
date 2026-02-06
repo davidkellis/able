@@ -13,6 +13,16 @@ var goKeywords = map[string]struct{}{
 	"continue": {}, "for": {}, "import": {}, "return": {}, "var": {},
 }
 
+var reservedIdents = map[string]struct{}{
+	"ast":         {},
+	"bridge":      {},
+	"errors":      {},
+	"fmt":         {},
+	"interpreter": {},
+	"runtime":     {},
+	"sync":        {},
+}
+
 func sanitizeIdent(name string) string {
 	if name == "" {
 		return "_"
@@ -30,6 +40,9 @@ func sanitizeIdent(name string) string {
 	}
 	out := b.String()
 	if _, ok := goKeywords[out]; ok {
+		return "_" + out
+	}
+	if _, ok := reservedIdents[out]; ok {
 		return "_" + out
 	}
 	return out

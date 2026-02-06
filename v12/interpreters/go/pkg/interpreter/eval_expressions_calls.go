@@ -232,6 +232,16 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			state.pushImplicitReceiver(implicitReceiver)
 			defer state.popImplicitReceiver()
 		}
+		if thunk, ok := fn.Bytecode.(CompiledThunk); ok && thunk != nil {
+			result, err := thunk(localEnv, args)
+			if err != nil {
+				return nil, err
+			}
+			if result == nil {
+				result = runtime.NilValue{}
+			}
+			return i.coerceReturnValue(decl.ReturnType, result, generics, localEnv)
+		}
 		if i.execMode == execModeBytecode {
 			if program, ok := fn.Bytecode.(*bytecodeProgram); ok && program != nil {
 				vm := newBytecodeVM(i, localEnv)

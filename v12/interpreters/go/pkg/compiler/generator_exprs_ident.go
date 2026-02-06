@@ -1,6 +1,10 @@
 package compiler
 
-import "able/interpreter-go/pkg/ast"
+import (
+	"fmt"
+
+	"able/interpreter-go/pkg/ast"
+)
 
 func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier, expected string) (string, string, bool) {
 	if ident == nil || ident.Name == "" {
@@ -9,8 +13,17 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 	}
 	param, ok := ctx.lookup(ident.Name)
 	if !ok {
-		ctx.setReason("unknown identifier")
-		return "", "", false
+		nodeName := g.diagNodeName(ident, "*ast.Identifier", "ident")
+		valueExpr := fmt.Sprintf("__able_global_get(%q, %s)", ident.Name, nodeName)
+		if expected == "" || expected == "runtime.Value" {
+			return valueExpr, "runtime.Value", true
+		}
+		converted, ok := g.expectRuntimeValueExpr(valueExpr, expected)
+		if !ok {
+			ctx.setReason("identifier type mismatch")
+			return "", "", false
+		}
+		return converted, expected, true
 	}
 	if !g.typeMatches(expected, param.GoType) {
 		if expected == "runtime.Value" && param.GoType != "runtime.Value" {

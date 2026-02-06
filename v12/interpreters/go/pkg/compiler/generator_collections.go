@@ -544,7 +544,7 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 	case "runtime":
 		return expr, true
 	case "void":
-		return "runtime.VoidValue{}", true
+		return fmt.Sprintf("func() runtime.Value { _ = %s; return runtime.VoidValue{} }()", expr), true
 	case "bool":
 		return fmt.Sprintf("bridge.ToBool(%s)", expr), true
 	case "string":

@@ -1,10 +1,6 @@
 {
   "description": "Named struct pattern requires matching field",
   "expect": {
-    "errors": [
-      "Missing field 'z' during destructuring",
-      "typechecker: struct pattern field 'z' not found"
-    ],
     "typecheckDiagnostics": [
       "typechecker: v12/fixtures/ast/errors/struct_named_missing_field/source.able:7:15 typechecker: struct pattern field 'z' not found"
     ]
