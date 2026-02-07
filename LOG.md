@@ -2112,6 +2112,14 @@ Open items (2025-11-02 audit):
 - Compiler tests: `go build` invocations now respect `ABLE_COMPILER_EXEC_GOCACHE`/`GOCACHE` for fixture builds.
 - Tests: `go test ./pkg/compiler -run TestCompilerExecHarness -count=1` in `v12/interpreters/go`.
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).
+- CLI: `able build` default output now roots under the current working directory (`./target/compiled`), even when building a file in another directory.
+- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
+- CLI: added `v12/able` wrapper for the main CLI; it passes `ABLE_BUILD_ROOT` so build outputs root at the caller's working directory.
+- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
+- CLI: skip `.gomodcache`/`.modcache` when copying the interpreter module for builds outside the module root.
+- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
+- Compiler: generated `main.go` now discovers search paths (stdlib/kernel/ABLE_PATH) and registers `print`, matching CLI behavior for compiled binaries.
+- Tests: `go test ./pkg/compiler -run TestCompilerExecHarness -count=1` in `v12/interpreters/go`.
 - Audit: compiler fallback audit over compiler exec fixture list reports 1 fallback (`04_05_02_struct_named_update_mutation_diag: main (identifier type mismatch)`).
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerFallbackAudit -count=1 -v` in `v12/interpreters/go`.
 - Audit: compiler fallback audit excluding fixtures with expected typecheck diagnostics reports 0 fallbacks (ad-hoc script run).

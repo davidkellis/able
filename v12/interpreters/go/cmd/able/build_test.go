@@ -14,26 +14,6 @@ func TestBuildTargetFromManifest(t *testing.T) {
 		t.Skip("go toolchain not available")
 	}
 
-	moduleRoot, err := filepath.Abs(filepath.Join(".", "..", ".."))
-	if err != nil {
-		t.Fatalf("module root: %v", err)
-	}
-	tmpRoot := filepath.Join(moduleRoot, "tmp")
-	if err := os.MkdirAll(tmpRoot, 0o755); err != nil {
-		t.Fatalf("mkdir tmp: %v", err)
-	}
-	buildRoot, err := os.MkdirTemp(tmpRoot, "able-build-")
-	if err != nil {
-		t.Fatalf("build root: %v", err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(buildRoot) })
-
-	outDir := filepath.Join(buildRoot, "out")
-	binPath := filepath.Join(buildRoot, "compiled-bin")
-	if runtime.GOOS == "windows" {
-		binPath += ".exe"
-	}
-
 	projectDir := t.TempDir()
 	writeFile(t, filepath.Join(projectDir, "package.yml"), `
 name: demo
@@ -61,9 +41,15 @@ fn main() -> void {
 		t.Fatalf("Chdir: %v", err)
 	}
 
-	code, _, stderr := captureCLI(t, []string{"build", "--out", outDir, "--bin", binPath, "app"})
+	code, _, stderr := captureCLI(t, []string{"build", "app"})
 	if code != 0 {
 		t.Fatalf("build returned exit code %d, stderr: %q", code, stderr)
+	}
+
+	outDir := filepath.Join(projectDir, "target", "compiled", "app")
+	binPath := filepath.Join(outDir, "app")
+	if runtime.GOOS == "windows" {
+		binPath += ".exe"
 	}
 	if _, err := os.Stat(binPath); err != nil {
 		t.Fatalf("expected binary at %s: %v", binPath, err)
