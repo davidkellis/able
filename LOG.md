@@ -2120,6 +2120,7 @@ Open items (2025-11-02 audit):
 - Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
 - Compiler: generated `main.go` now discovers search paths (stdlib/kernel/ABLE_PATH) and registers `print`, matching CLI behavior for compiled binaries.
 - Tests: `go test ./pkg/compiler -run TestCompilerExecHarness -count=1` in `v12/interpreters/go`.
+- Docs: added `v12/design/compiler-aot.md` with correctness-first compiler vision and full work breakdown; updated `PLAN.md` compiler AOT queue and flattened nested TODO bullets.
 - Audit: compiler fallback audit over compiler exec fixture list reports 1 fallback (`04_05_02_struct_named_update_mutation_diag: main (identifier type mismatch)`).
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerFallbackAudit -count=1 -v` in `v12/interpreters/go`.
 - Audit: compiler fallback audit excluding fixtures with expected typecheck diagnostics reports 0 fallbacks (ad-hoc script run).
