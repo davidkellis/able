@@ -68,14 +68,19 @@ node "$ROOT_DIR/scripts/check-exec-coverage.mjs"
 echo ">>> Running Go tests"
 (
   cd "$ROOT_DIR/interpreters/go"
-  tmp_gocache="$(mktemp -d)"
-  trap 'rm -rf "$tmp_gocache"' EXIT
+  gocache="$ROOT_DIR/interpreters/go/.gocache"
+  if [[ "${ABLE_GOCACHE:-}" == "tmp" ]]; then
+    gocache="$(mktemp -d)"
+    trap 'rm -rf "$gocache"' EXIT
+  elif [[ -n "${GOCACHE:-}" ]]; then
+    gocache="$GOCACHE"
+  fi
   if [[ "$FIXTURE_ONLY" == true ]]; then
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=treewalker
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=treewalker
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
   else
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./...
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./...
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
   fi
 )
 
