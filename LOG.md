@@ -27,6 +27,10 @@
 # 2026-02-06 — Full test run (v12, post cast fix)
 - Tests: `./run_all_tests.sh`.
 
+# 2026-02-06 — Ablec build integration test (v12)
+- CLI: `ablec` now has a testable `run` entrypoint and a build test covering go.mod + binary output.
+- Tests: `cd v12/interpreters/go && go test ./cmd/ablec -count=1`.
+
 # 2026-02-06 — Compiler multi-package build + native binary output (v12)
 - Compiler: collect/compile functions across packages, qualify overload helpers by package, and register compiled function thunks per package environment.
 - Compiler: add struct apply helpers + per-package env swaps so compiled methods update runtime struct instances and execute under the right package env.
@@ -2116,6 +2120,8 @@ Open items (2025-11-02 audit):
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=15_01_program_entry_hello_world go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
 - Audit: compiler fallback audit across all exec fixtures reports 0 fallbacks (using `ABLE_COMPILER_EXEC_FIXTURES=all`).
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
+- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
+- Tests: `./run_all_tests.sh` at repo root.
 - Compiler: collect structs/functions/overloads across all modules, emit per-package overload dispatchers, and register compiled function thunks by signature instead of overwriting env bindings (uses qualified original names for fallback calls).
 - Interpreter: track per-package environments (new `PackageEnvironment`) and register compiled function overloads by param signature on existing runtime function values.
 - CLI: `ablec` now supports `-build` (forces `-pkg=main`) and `-bin` to build a native binary after emitting Go code.
@@ -2149,3 +2155,9 @@ Open items (2025-11-02 audit):
 - Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
 - Tests: `go test ./cmd/ablec -count=1` in `v12/interpreters/go`.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).
+- Tests: `./run_all_tests.sh` at repo root.
+- CLI: `able build`/`ablec -build` now copy `v12/interpreters/go` plus parser sources into build outputs and wire `go.mod` `replace` to `./v12/interpreters/go` for self-contained binaries.
+- Tests: `go test ./cmd/ablec -count=1` in `v12/interpreters/go`.
+- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.

@@ -97,7 +97,7 @@ func runBuild(args []string) int {
 		fmt.Fprintf(os.Stderr, "able build: write output: %v\n", err)
 		return 1
 	}
-	if err := writeBuildGoMod(outputDir); err != nil {
+	if err := prepareBuildModule(outputDir); err != nil {
 		fmt.Fprintf(os.Stderr, "able build: %v\n", err)
 		return 1
 	}
