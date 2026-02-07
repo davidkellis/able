@@ -50,13 +50,16 @@ func runRepl(args []string, execMode interpreterMode) int {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(entryPath, manifest, lock, modeRun, execMode, nil)
+	return executeEntry(entryPath, manifest, lock, modeRun, execMode, nil, false)
 }
 
 func runEntryWithMode(args []string, mode executionMode, execMode interpreterMode) int {
 	var manifest *driver.Manifest
 	var manifestErr error
 	programArgs := []string{}
+
+	withTests, filtered := parseWithTests(args)
+	args = filtered
 
 	if len(args) > 1 {
 		if mode != modeRun {
@@ -103,7 +106,7 @@ func runEntryWithMode(args []string, mode executionMode, execMode interpreterMod
 			fmt.Fprintf(os.Stderr, "failed to resolve target entrypoint: %v\n", err)
 			return 1
 		}
-		return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs)
+		return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs, withTests)
 	}
 
 	candidate := args[0]
@@ -120,7 +123,7 @@ func runEntryWithMode(args []string, mode executionMode, execMode interpreterMod
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				return 1
 			}
-			return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs)
+			return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs, withTests)
 		}
 	}
 
@@ -147,10 +150,10 @@ func runEntryWithMode(args []string, mode executionMode, execMode interpreterMod
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(candidate, activeManifest, lock, mode, execMode, programArgs)
+	return executeEntry(candidate, activeManifest, lock, mode, execMode, programArgs, withTests)
 }
 
-func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode, execMode interpreterMode, programArgs []string) int {
+func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode, execMode interpreterMode, programArgs []string, withTests bool) int {
 	entry = strings.TrimSpace(entry)
 	if entry == "" {
 		fmt.Fprintf(os.Stderr, "%s requires a source file\n", modeCommandLabel(mode))
@@ -177,7 +180,7 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 	}
 	defer loader.Close()
 
-	program, err := loader.Load(entryAbs)
+	program, err := loader.LoadWithOptions(entryAbs, driver.LoadOptions{IncludeTests: withTests})
 	if err != nil {
 		var parseErr *driver.ParserDiagnosticError
 		if errors.As(err, &parseErr) {
@@ -286,4 +289,22 @@ func reportTypecheckDiagnostics(result interpreter.ProgramCheckResult) bool {
 	}
 	printPackageSummaries(os.Stderr, result.Packages)
 	return true
+}
+
+func parseWithTests(args []string) (bool, []string) {
+	withTests := false
+	remaining := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			remaining = append(remaining, args[i+1:]...)
+			break
+		}
+		if arg == "--with-tests" {
+			withTests = true
+			continue
+		}
+		remaining = append(remaining, arg)
+	}
+	return withTests, remaining
 }

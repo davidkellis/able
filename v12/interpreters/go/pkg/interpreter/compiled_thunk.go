@@ -130,6 +130,60 @@ func (i *Interpreter) RegisterCompiledMethodOverload(typeName, methodName string
 	return nil
 }
 
+// RegisterCompiledFunctionOverload wires a compiled thunk to a function overload that matches its signature.
+func (i *Interpreter) RegisterCompiledFunctionOverload(env *runtime.Environment, name string, paramTypes []ast.TypeExpression, thunk CompiledThunk) error {
+	if i == nil {
+		return fmt.Errorf("interpreter: nil interpreter")
+	}
+	if env == nil {
+		return fmt.Errorf("interpreter: missing environment")
+	}
+	if name == "" {
+		return fmt.Errorf("interpreter: missing function registration target")
+	}
+	if thunk == nil {
+		return fmt.Errorf("interpreter: missing compiled function thunk")
+	}
+	value, err := env.Get(name)
+	if err != nil {
+		return fmt.Errorf("interpreter: missing function %s", name)
+	}
+	matches := make([]*runtime.FunctionValue, 0, 1)
+	for _, fn := range runtime.FlattenFunctionOverloads(value) {
+		if fn == nil {
+			continue
+		}
+		def, ok := fn.Declaration.(*ast.FunctionDefinition)
+		if !ok || def == nil {
+			continue
+		}
+		if len(def.Params) != len(paramTypes) {
+			continue
+		}
+		match := true
+		for idx, param := range def.Params {
+			var defType ast.TypeExpression
+			if param != nil {
+				defType = param.ParamType
+			}
+			if !typeExpressionsEqual(defType, paramTypes[idx]) {
+				match = false
+				break
+			}
+		}
+		if match {
+			matches = append(matches, fn)
+		}
+	}
+	if len(matches) == 0 {
+		return fmt.Errorf("interpreter: no matching function for %s", name)
+	}
+	for _, match := range matches {
+		match.Bytecode = thunk
+	}
+	return nil
+}
+
 func methodDefinitionParamTypes(def *ast.FunctionDefinition, target ast.TypeExpression, expectsSelf bool) []ast.TypeExpression {
 	if def == nil {
 		return nil

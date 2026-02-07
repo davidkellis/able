@@ -35,6 +35,10 @@ func runTest(args []string, execMode interpreterMode) int {
 		return 0
 	}
 
+	if config.Compiled {
+		return runCompiledTests(config, testFiles)
+	}
+
 	loadResult, err := loadTestPrograms(testFiles)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "able test: %v\n", err)
@@ -132,6 +136,7 @@ func parseTestArguments(args []string) (TestCliConfig, error) {
 	format := reporterDoc
 	listOnly := false
 	dryRun := false
+	compiled := false
 	var shuffleSeed *int64
 	var targets []string
 
@@ -143,6 +148,8 @@ func parseTestArguments(args []string) (TestCliConfig, error) {
 		case "--dry-run":
 			dryRun = true
 			listOnly = true
+		case "--compiled":
+			compiled = true
 		case "--path":
 			val, err := expectFlagValue(arg, nextArg(args, &i))
 			if err != nil {
@@ -242,6 +249,7 @@ func parseTestArguments(args []string) (TestCliConfig, error) {
 		ReporterFormat: format,
 		ListOnly:       listOnly,
 		DryRun:         dryRun,
+		Compiled:       compiled,
 	}, nil
 }
 
