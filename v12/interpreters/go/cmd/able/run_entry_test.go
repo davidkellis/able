@@ -169,6 +169,58 @@ fn main() {
 	}
 }
 
+func TestRunIgnoresTestModulesUnlessWithTests(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	defer func() {
+		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
+			t.Fatalf("restore working directory: %v", chdirErr)
+		}
+	}()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+
+	writeFile(t, filepath.Join(dir, "package.yml"), `
+name: demo
+targets:
+  app: main.able
+`)
+	writeFile(t, filepath.Join(dir, "main.able"), `
+fn main() {
+  print("main")
+}
+`)
+	writeFile(t, filepath.Join(dir, "side.test.able"), `
+print("test")
+`)
+
+	code, stdout, stderr := captureCLI(t, []string{"run"})
+	if code != 0 {
+		t.Fatalf("run returned exit code %d, stderr: %q", code, stderr)
+	}
+	if strings.Contains(stdout, "test") {
+		t.Fatalf("expected test modules to be skipped, got stdout %q", stdout)
+	}
+	if !strings.Contains(stdout, "main") {
+		t.Fatalf("expected stdout to contain main, got %q", stdout)
+	}
+
+	code, stdout, stderr = captureCLI(t, []string{"run", "--with-tests"})
+	if code != 0 {
+		t.Fatalf("run --with-tests returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "test") {
+		t.Fatalf("expected test modules to run with --with-tests, got stdout %q", stdout)
+	}
+	if !strings.Contains(stdout, "main") {
+		t.Fatalf("expected stdout to contain main, got %q", stdout)
+	}
+}
+
 func TestCollectSearchPathsIncludesAbleModulePaths(t *testing.T) {
 	tempDir := t.TempDir()
 	extraOne := filepath.Join(tempDir, "depA")

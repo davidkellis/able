@@ -143,7 +143,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 	return i.callCallableValue(calleeVal, argValues, env, call)
 }
 
-func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.Value, call *ast.FunctionCall) (runtime.Value, error) {
+func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall) (runtime.Value, error) {
 	switch decl := fn.Declaration.(type) {
 	case *ast.FunctionDefinition:
 		if decl.Body == nil {
@@ -233,6 +233,23 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			defer state.popImplicitReceiver()
 		}
 		if thunk, ok := fn.Bytecode.(CompiledThunk); ok && thunk != nil {
+			var serialSync *SerialExecutor
+			if serial, ok := i.executor.(*SerialExecutor); ok {
+				var payload *asyncContextPayload
+				if env != nil {
+					payload = payloadFromState(env.RuntimeData())
+				}
+				if payload == nil {
+					payload = payloadFromState(localEnv.RuntimeData())
+				}
+				if payload == nil {
+					serialSync = serial
+					serialSync.beginSynchronousSection()
+				}
+			}
+			if serialSync != nil {
+				defer serialSync.endSynchronousSection()
+			}
 			result, err := thunk(localEnv, args)
 			if err != nil {
 				return nil, err
@@ -527,7 +544,7 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 		}
 		return nil, fmt.Errorf("No overloads of %s match provided arguments", overloadName(call))
 	}
-	return i.invokeFunction(selected, evalArgs, call)
+	return i.invokeFunction(selected, evalArgs, env, call)
 }
 
 func (i *Interpreter) reportOverloadMismatch(fn *runtime.FunctionValue, evalArgs []runtime.Value, call *ast.FunctionCall) error {

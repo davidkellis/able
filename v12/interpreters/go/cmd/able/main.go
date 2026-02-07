@@ -50,6 +50,8 @@ func run(args []string) int {
 		return runRepl(remaining[1:], execMode)
 	case "check":
 		return runCheck(remaining[1:], execMode)
+	case "build":
+		return runBuild(remaining[1:])
 	case "test":
 		return runTest(remaining[1:], execMode)
 	case "deps":

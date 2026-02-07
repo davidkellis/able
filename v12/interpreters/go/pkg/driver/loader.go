@@ -46,6 +46,7 @@ type Program struct {
 // LoadOptions configures optional loading behavior.
 type LoadOptions struct {
 	IncludePackages []string
+	IncludeTests    bool
 }
 
 type packageLocation struct {
@@ -163,7 +164,7 @@ func (l *Loader) LoadWithOptions(entry string, options LoadOptions) (*Program, e
 		return nil, fmt.Errorf("loader: package namespace 'able.*' is reserved for the standard library (path: %s)", entryRoot.rootDir)
 	}
 
-	entryPackages, fileIndex, err := indexSourceFiles(rootDir, rootName, entryKind)
+	entryPackages, fileIndex, err := indexSourceFiles(rootDir, rootName, entryKind, options.IncludeTests)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +179,7 @@ func (l *Loader) LoadWithOptions(entry string, options LoadOptions) (*Program, e
 		return nil, err
 	}
 
-	if err := l.indexAdditionalRoots(pkgIndex, origins, entryRoot); err != nil {
+	if err := l.indexAdditionalRoots(pkgIndex, origins, entryRoot, options.IncludeTests); err != nil {
 		return nil, err
 	}
 
@@ -280,7 +281,7 @@ type fileModule struct {
 	dynImports  []string
 }
 
-func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, origins map[string]packageOrigin, entryRoot rootInfo) error {
+func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, origins map[string]packageOrigin, entryRoot rootInfo, includeTests bool) error {
 	if len(l.searchPaths) == 0 {
 		return nil
 	}
@@ -328,7 +329,7 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 		} else if !ok {
 			continue
 		}
-		packages, _, err := indexSourceFiles(abs, rootName, kind)
+		packages, _, err := indexSourceFiles(abs, rootName, kind, includeTests)
 		if err != nil {
 			return err
 		}
@@ -540,7 +541,7 @@ func readPackageName(path string) (string, error) {
 	return "", nil
 }
 
-func indexSourceFiles(rootDir, rootPackage string, kind RootKind) (map[string][]string, map[string]string, error) {
+func indexSourceFiles(rootDir, rootPackage string, kind RootKind, includeTests bool) (map[string][]string, map[string]string, error) {
 	packages := make(map[string][]string)
 	fileToPackage := make(map[string]string)
 	err := filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
@@ -554,6 +555,9 @@ func indexSourceFiles(rootDir, rootPackage string, kind RootKind) (map[string][]
 			return nil
 		}
 		if filepath.Ext(path) != ".able" {
+			return nil
+		}
+		if !includeTests && isTestModulePath(path) {
 			return nil
 		}
 		declared, err := scanPackageDeclaration(path)
@@ -577,6 +581,11 @@ func indexSourceFiles(rootDir, rootPackage string, kind RootKind) (map[string][]
 		packages[pkg] = files
 	}
 	return packages, fileToPackage, nil
+}
+
+func isTestModulePath(path string) bool {
+	base := filepath.Base(path)
+	return strings.HasSuffix(base, ".test.able") || strings.HasSuffix(base, ".spec.able")
 }
 
 func scanPackageDeclaration(path string) ([]string, error) {

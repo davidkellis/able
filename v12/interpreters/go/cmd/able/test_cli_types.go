@@ -34,6 +34,7 @@ type TestCliConfig struct {
 	ReporterFormat TestReporterFormat
 	ListOnly       bool
 	DryRun         bool
+	Compiled       bool
 }
 
 type TestEventState struct {

@@ -227,10 +227,6 @@ func (g *generator) compileBlockExpression(ctx *compileContext, block *ast.Block
 	lines := make([]string, 0, len(block.Body)+1)
 	for idx, stmt := range block.Body {
 		isLast := idx == len(block.Body)-1
-		if _, ok := stmt.(*ast.ReturnStatement); ok {
-			ctx.setReason("return not allowed in block expression")
-			return nil, "", "", false
-		}
 		if isLast {
 			if raiseStmt, ok := stmt.(*ast.RaiseStatement); ok {
 				stmtLines, ok := g.compileRaiseStatement(child, raiseStmt)
@@ -886,4 +882,74 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 	lines = append(lines, fmt.Sprintf("return %s", resultTemp))
 	expr := fmt.Sprintf("func() %s { %s }()", resultType, strings.Join(lines, "; "))
 	return expr, resultType, true
+}
+
+func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchExpression) ([]string, bool) {
+	if match == nil || match.Subject == nil {
+		ctx.setReason("missing match expression")
+		return nil, false
+	}
+	subjectExpr, subjectType, ok := g.compileExpr(ctx, match.Subject, "")
+	if !ok {
+		return nil, false
+	}
+	subjectTemp := ctx.newTemp()
+	matchedTemp := ctx.newTemp()
+	matchNode := g.diagNodeName(match, "*ast.MatchExpression", "match")
+	lines := []string{
+		fmt.Sprintf("%s := %s", subjectTemp, subjectExpr),
+		fmt.Sprintf("%s := false", matchedTemp),
+	}
+	for _, clause := range match.Clauses {
+		if clause == nil {
+			continue
+		}
+		clauseCtx := ctx.child()
+		cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, subjectTemp, subjectType)
+		if !ok {
+			ctx.setReason(clauseCtx.reason)
+			return nil, false
+		}
+		guardExpr := ""
+		if clause.Guard != nil {
+			guardExpr, ok = g.compileCondition(clauseCtx, clause.Guard)
+			if !ok {
+				ctx.setReason(clauseCtx.reason)
+				return nil, false
+			}
+		}
+		bodyLines := []string{}
+		if block, ok := clause.Body.(*ast.BlockExpression); ok && block != nil {
+			bodyLines, ok = g.compileBlockStatement(clauseCtx, block)
+			if !ok {
+				ctx.setReason(clauseCtx.reason)
+				return nil, false
+			}
+		} else {
+			exprLines, expr, _, ok := g.compileTailExpression(clauseCtx, "", clause.Body)
+			if !ok {
+				ctx.setReason(clauseCtx.reason)
+				return nil, false
+			}
+			bodyLines = append(bodyLines, exprLines...)
+			if expr != "" {
+				bodyLines = append(bodyLines, fmt.Sprintf("_ = %s", expr))
+			}
+		}
+		branchLines := append([]string{}, bindLines...)
+		if guardExpr != "" {
+			branchLines = append(branchLines, fmt.Sprintf("if %s {", guardExpr))
+			branchLines = append(branchLines, indentLines(bodyLines, 1)...)
+			branchLines = append(branchLines, fmt.Sprintf("\t%s = true", matchedTemp))
+			branchLines = append(branchLines, "}")
+		} else {
+			branchLines = append(branchLines, bodyLines...)
+			branchLines = append(branchLines, fmt.Sprintf("%s = true", matchedTemp))
+		}
+		lines = append(lines, fmt.Sprintf("if !%s && %s {", matchedTemp, cond))
+		lines = append(lines, indentLines(branchLines, 1)...)
+		lines = append(lines, "}")
+	}
+	lines = append(lines, fmt.Sprintf("if !%s { bridge.RaiseRuntimeErrorWithContext(__able_runtime, %s, fmt.Errorf(\"Non-exhaustive match\")) }", matchedTemp, matchNode))
+	return lines, true
 }

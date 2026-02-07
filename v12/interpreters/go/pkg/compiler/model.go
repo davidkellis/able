@@ -28,6 +28,8 @@ type paramInfo struct {
 
 type functionInfo struct {
 	Name           string
+	Package        string
+	QualifiedName  string
 	GoName         string
 	Params         []paramInfo
 	ReturnType     string
@@ -45,6 +47,8 @@ type FallbackInfo struct {
 
 type overloadInfo struct {
 	Name     string
+	Package  string
+	QualifiedName string
 	Entries  []*functionInfo
 	MinArity int
 }

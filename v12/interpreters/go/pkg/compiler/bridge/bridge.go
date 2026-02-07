@@ -3,6 +3,7 @@ package bridge
 import (
 	"fmt"
 	"math/big"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ type Runtime struct {
 	originals map[string]runtime.Value
 	structs   map[string]*runtime.StructDefinitionValue
 	env       *runtime.Environment
+	envByGID  sync.Map
 }
 
 func New(interp *interpreter.Interpreter) *Runtime {
@@ -37,11 +39,17 @@ func (r *Runtime) SetEnv(env *runtime.Environment) {
 	r.mu.Lock()
 	r.env = env
 	r.mu.Unlock()
+	r.envByGID.Store(currentGID(), env)
 }
 
 func (r *Runtime) Env() *runtime.Environment {
 	if r == nil {
 		return nil
+	}
+	if env, ok := r.envByGID.Load(currentGID()); ok {
+		if typed, ok := env.(*runtime.Environment); ok {
+			return typed
+		}
 	}
 	r.mu.RLock()
 	env := r.env
@@ -53,16 +61,29 @@ func (r *Runtime) SwapEnv(env *runtime.Environment) *runtime.Environment {
 	if r == nil {
 		return nil
 	}
-	r.mu.Lock()
-	prev := r.env
-	r.env = env
-	r.mu.Unlock()
+	gid := currentGID()
+	var prev *runtime.Environment
+	if existing, ok := r.envByGID.Load(gid); ok {
+		if typed, ok := existing.(*runtime.Environment); ok {
+			prev = typed
+		}
+	} else {
+		r.mu.RLock()
+		prev = r.env
+		r.mu.RUnlock()
+	}
+	r.envByGID.Store(gid, env)
 	return prev
 }
 
 func (r *Runtime) currentEnv() *runtime.Environment {
 	if r == nil {
 		return nil
+	}
+	if env, ok := r.envByGID.Load(currentGID()); ok {
+		if typed, ok := env.(*runtime.Environment); ok && typed != nil {
+			return typed
+		}
 	}
 	r.mu.RLock()
 	env := r.env
@@ -71,6 +92,23 @@ func (r *Runtime) currentEnv() *runtime.Environment {
 		env = r.interp.GlobalEnvironment()
 	}
 	return env
+}
+
+func currentGID() uint64 {
+	var buf [64]byte
+	n := goruntime.Stack(buf[:], false)
+	if n <= 10 {
+		return 0
+	}
+	var id uint64
+	for i := 10; i < n; i++ {
+		c := buf[i]
+		if c < '0' || c > '9' {
+			break
+		}
+		id = id*10 + uint64(c-'0')
+	}
+	return id
 }
 
 func (r *Runtime) RegisterOriginal(name string, value runtime.Value) {

@@ -23,12 +23,13 @@ const PREC = {
   shift: 12,
   additive: 13,
   multiplicative: 14,
-  unary: 15,
-  exponent: 16,
-  call: 17,
-  member: 18,
-  type_application: 19,
-  return_stmt: 20,
+  cast: 15,
+  unary: 16,
+  exponent: 17,
+  call: 18,
+  member: 19,
+  type_application: 20,
+  return_stmt: 21,
 };
 
 const sep = ($, rule, separator) => optional(sep1($, rule, separator));
@@ -921,9 +922,10 @@ module.exports = grammar({
     ),
 
     cast_expression: $ => prec.left(
+      PREC.cast,
       seq(
         $.unary_expression,
-        repeat1(seq("as", $.type_expression)),
+        repeat1(seq("as", optional($._line_breaks), $.type_expression)),
       ),
     ),
 

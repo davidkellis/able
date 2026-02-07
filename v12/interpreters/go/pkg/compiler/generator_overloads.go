@@ -12,25 +12,34 @@ func (g *generator) allFunctionInfos() []*functionInfo {
 	if g == nil {
 		return nil
 	}
-	total := len(g.functions)
-	for _, info := range g.overloads {
-		if info != nil {
-			total += len(info.Entries)
+	total := 0
+	for _, pkgFuncs := range g.functions {
+		total += len(pkgFuncs)
+	}
+	for _, pkgOverloads := range g.overloads {
+		for _, info := range pkgOverloads {
+			if info != nil {
+				total += len(info.Entries)
+			}
 		}
 	}
 	all := make([]*functionInfo, 0, total)
-	for _, info := range g.functions {
-		if info != nil {
-			all = append(all, info)
+	for _, pkgFuncs := range g.functions {
+		for _, info := range pkgFuncs {
+			if info != nil {
+				all = append(all, info)
+			}
 		}
 	}
-	for _, overload := range g.overloads {
-		if overload == nil {
-			continue
-		}
-		for _, entry := range overload.Entries {
-			if entry != nil {
-				all = append(all, entry)
+	for _, pkgOverloads := range g.overloads {
+		for _, overload := range pkgOverloads {
+			if overload == nil {
+				continue
+			}
+			for _, entry := range overload.Entries {
+				if entry != nil {
+					all = append(all, entry)
+				}
 			}
 		}
 	}
@@ -46,6 +55,9 @@ func (g *generator) sortedFunctionInfos() []*functionInfo {
 		if all[i] == nil || all[j] == nil {
 			return false
 		}
+		if all[i].Package != all[j].Package {
+			return all[i].Package < all[j].Package
+		}
 		if all[i].GoName == all[j].GoName {
 			return all[i].Name < all[j].Name
 		}
@@ -54,16 +66,18 @@ func (g *generator) sortedFunctionInfos() []*functionInfo {
 	return all
 }
 
-func (g *generator) sortedCallableNames() []string {
+func (g *generator) sortedCallableNames(pkgName string) []string {
 	if g == nil {
 		return nil
 	}
-	names := make([]string, 0, len(g.functions)+len(g.overloads))
-	for name := range g.functions {
+	funcs := g.functions[pkgName]
+	overloads := g.overloads[pkgName]
+	names := make([]string, 0, len(funcs)+len(overloads))
+	for name := range funcs {
 		names = append(names, name)
 	}
-	for name := range g.overloads {
-		if _, exists := g.functions[name]; !exists {
+	for name := range overloads {
+		if _, exists := funcs[name]; !exists {
 			names = append(names, name)
 		}
 	}
@@ -75,7 +89,34 @@ func (g *generator) hasFunctions() bool {
 	if g == nil {
 		return false
 	}
-	return len(g.functions) > 0 || len(g.overloads) > 0 || len(g.methodList) > 0
+	if len(g.methodList) > 0 {
+		return true
+	}
+	for _, pkgFuncs := range g.functions {
+		if len(pkgFuncs) > 0 {
+			return true
+		}
+	}
+	for _, pkgOverloads := range g.overloads {
+		if len(pkgOverloads) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *generator) functionsForPackage(pkgName string) map[string]*functionInfo {
+	if g == nil {
+		return nil
+	}
+	return g.functions[pkgName]
+}
+
+func (g *generator) overloadsForPackage(pkgName string) map[string]*overloadInfo {
+	if g == nil {
+		return nil
+	}
+	return g.overloads[pkgName]
 }
 
 func minArgsForDefinition(def *ast.FunctionDefinition) int {
@@ -185,16 +226,24 @@ func genericNameSet(params []*ast.GenericParameter) map[string]struct{} {
 	return names
 }
 
-func (g *generator) overloadWrapperName(name string) string {
-	return fmt.Sprintf("__able_overload_%s", sanitizeIdent(name))
+func (g *generator) overloadWrapperName(pkgName string, name string) string {
+	return fmt.Sprintf("__able_overload_%s", g.overloadBase(pkgName, name))
 }
 
-func (g *generator) overloadCallName(name string) string {
-	return fmt.Sprintf("__able_call_overload_%s", sanitizeIdent(name))
+func (g *generator) overloadCallName(pkgName string, name string) string {
+	return fmt.Sprintf("__able_call_overload_%s", g.overloadBase(pkgName, name))
 }
 
-func (g *generator) overloadValueName(name string) string {
-	return fmt.Sprintf("__able_overload_value_%s", sanitizeIdent(name))
+func (g *generator) overloadValueName(pkgName string, name string) string {
+	return fmt.Sprintf("__able_overload_value_%s", g.overloadBase(pkgName, name))
+}
+
+func (g *generator) overloadBase(pkgName string, name string) string {
+	safeName := sanitizeIdent(name)
+	if pkgName == "" {
+		return safeName
+	}
+	return fmt.Sprintf("%s_%s", sanitizeIdent(pkgName), safeName)
 }
 
 func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionCall, expected string, name string, callNode string) (string, string, bool) {
@@ -228,7 +277,7 @@ func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionC
 	} else {
 		argList = "nil"
 	}
-	callExpr := fmt.Sprintf("%s(%s, %s)", g.overloadCallName(name), argList, callNode)
+	callExpr := fmt.Sprintf("%s(%s, %s)", g.overloadCallName(ctx.packageName, name), argList, callNode)
 	if g.isVoidType(expected) {
 		lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
 		return fmt.Sprintf("func() struct{} { %s; return struct{}{} }()", strings.Join(lines, "; ")), "struct{}", true

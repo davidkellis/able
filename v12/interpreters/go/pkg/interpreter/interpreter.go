@@ -198,6 +198,7 @@ type Interpreter struct {
 	unnamedImpls          map[string]map[string]map[string]bool
 	packageRegistry       map[string]map[string]runtime.Value
 	packageMetadata       map[string]packageMeta
+	packageEnvs           map[string]*runtime.Environment
 	externHostPackages    map[string]*externHostPackage
 	externSession         string
 	externHostMu          sync.Mutex
@@ -354,6 +355,7 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		unnamedImpls:         make(map[string]map[string]map[string]bool),
 		packageRegistry:      make(map[string]map[string]runtime.Value),
 		packageMetadata:      make(map[string]packageMeta),
+		packageEnvs:          make(map[string]*runtime.Environment),
 		externHostPackages:   make(map[string]*externHostPackage),
 		externSession:        fmt.Sprintf("sess_%d", sessionID),
 		dynamicPackageEnvs:   make(map[string]*runtime.Environment),
@@ -416,6 +418,24 @@ func NewBytecodeWithExecutor(exec Executor) *Interpreter {
 // GlobalEnvironment returns the interpreter’s global environment.
 func (i *Interpreter) GlobalEnvironment() *runtime.Environment {
 	return i.global
+}
+
+// PackageEnvironment returns the environment for a named package if known.
+// The empty package name resolves to the global environment.
+func (i *Interpreter) PackageEnvironment(name string) *runtime.Environment {
+	if i == nil {
+		return nil
+	}
+	if name == "" {
+		return i.global
+	}
+	if env, ok := i.packageEnvs[name]; ok {
+		return env
+	}
+	if env, ok := i.dynamicPackageEnvs[name]; ok {
+		return env
+	}
+	return nil
 }
 
 // SetArgs seeds os.args() for this interpreter run.
@@ -495,6 +515,7 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 		} else {
 			moduleEnv = runtime.NewEnvironment(i.global)
 		}
+		i.packageEnvs[pkgName] = moduleEnv
 		i.currentPackage = pkgName
 		if _, ok := i.packageRegistry[pkgName]; !ok {
 			i.packageRegistry[pkgName] = make(map[string]runtime.Value)
@@ -505,6 +526,7 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 		}
 	} else {
 		i.currentPackage = ""
+		i.packageEnvs[""] = moduleEnv
 	}
 	i.registerExternStatements(module)
 

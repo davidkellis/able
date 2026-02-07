@@ -242,15 +242,91 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 	if i == nil {
 		return nil, fmt.Errorf("interpreter: nil interpreter")
 	}
-	inst, ok := obj.(*runtime.StructInstanceValue)
-	if !ok || inst == nil {
-		return nil, fmt.Errorf("member assignment expects struct instance")
-	}
 	memberExpr, err := memberExpressionFromValue(member)
 	if err != nil {
 		return nil, err
 	}
-	return assignStructMember(i, inst, memberExpr, value, ast.AssignmentAssign, "", false)
+	switch inst := obj.(type) {
+	case *runtime.StructInstanceValue:
+		if inst == nil {
+			return nil, fmt.Errorf("member assignment expects struct instance")
+		}
+		return assignStructMember(i, inst, memberExpr, value, ast.AssignmentAssign, "", false)
+	case *runtime.ArrayValue:
+		if inst == nil {
+			return nil, fmt.Errorf("array receiver is nil")
+		}
+		switch member := memberExpr.(type) {
+		case *ast.IntegerLiteral:
+			if member.Value == nil {
+				return nil, fmt.Errorf("Array index out of bounds")
+			}
+			idx := int(member.Value.Int64())
+			state, err := i.ensureArrayState(inst, 0)
+			if err != nil {
+				return nil, err
+			}
+			if idx < 0 || idx >= len(state.values) {
+				return nil, fmt.Errorf("Array index out of bounds")
+			}
+			state.values[idx] = value
+			i.syncArrayValues(inst.Handle, state)
+			return value, nil
+		case *ast.Identifier:
+			state, err := i.ensureArrayState(inst, 0)
+			if err != nil {
+				return nil, err
+			}
+			switch member.Name {
+			case "storage_handle":
+				intVal, ok := value.(runtime.IntegerValue)
+				if !ok || intVal.Val == nil || !intVal.Val.IsInt64() {
+					return nil, fmt.Errorf("array storage_handle must be an integer")
+				}
+				handle := intVal.Val.Int64()
+				if handle <= 0 {
+					return nil, fmt.Errorf("array storage_handle must be positive")
+				}
+				newState, ok := i.arrayStates[handle]
+				if !ok {
+					newState = &arrayState{values: make([]runtime.Value, 0), capacity: 0}
+					i.arrayStates[handle] = newState
+				}
+				i.trackArrayValue(handle, inst)
+				inst.Elements = newState.values
+				i.syncArrayValues(handle, newState)
+				return value, nil
+			case "length":
+				newLen, err := arrayIndexFromValue(value)
+				if err != nil {
+					return nil, fmt.Errorf("array length must be a non-negative integer")
+				}
+				setArrayLength(state, newLen)
+				i.syncArrayValues(inst.Handle, state)
+				return value, nil
+			case "capacity":
+				newCap, err := arrayIndexFromValue(value)
+				if err != nil {
+					return nil, fmt.Errorf("array capacity must be a non-negative integer")
+				}
+				if newCap < len(state.values) {
+					newCap = len(state.values)
+				}
+				if ensureArrayCapacity(state, newCap) {
+				} else if newCap > state.capacity {
+					state.capacity = newCap
+				}
+				i.syncArrayValues(inst.Handle, state)
+				return value, nil
+			default:
+				return nil, fmt.Errorf("Array has no member '%s'", member.Name)
+			}
+		default:
+			return nil, fmt.Errorf("Array member assignment requires integer member")
+		}
+	default:
+		return nil, fmt.Errorf("member assignment expects struct instance")
+	}
 }
 
 // MemberGet is an exported wrapper for member access to support compiled interop.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -244,5 +245,38 @@ methods ProgressReporterState {
 	}
 	if !strings.Contains(stdout, "metadata=") {
 		t.Fatalf("expected stdout to include metadata when dry-run is set, got %q", stdout)
+	}
+}
+
+func TestTestCommandCompiledRuns(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "example.test.able"), `
+package sample_tests
+
+import able.spec.*
+
+describe("math") { suite =>
+  suite.it("adds") { _ctx =>
+    expect(1 + 1).to(eq(2))
+  }
+}
+`)
+
+	t.Setenv("ABLE_MODULE_PATHS", repoStdlibPath(t))
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", dir})
+	if code != 0 {
+		t.Fatalf("able test --compiled returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "adds") {
+		t.Fatalf("expected stdout to include test name, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "ok") {
+		t.Fatalf("expected stdout to include ok, got %q", stdout)
 	}
 }

@@ -100,7 +100,7 @@ fn validate_options(options: RegexOptions) -> ?RegexUnsupportedFeature {
 }
 
 fn to_u64(value: i32) -> u64 {
-  if value <= 0 { 0 } else { value }
+  if value <= 0 { 0_u64 } else { value as u64 }
 }
 
 fn clamp_offset(offset: u64, len: i32) -> i32 {

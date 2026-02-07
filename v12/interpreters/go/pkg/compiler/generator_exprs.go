@@ -181,6 +181,18 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 	if expected == "" {
 		expected = actual
 	}
+	if expected == "runtime.Value" {
+		if explicit {
+			actual = g.inferIntegerLiteralType(lit)
+		}
+		expr := fmt.Sprintf("%s(%s)", actual, lit.Value.String())
+		runtimeExpr, ok := g.runtimeValueExpr(expr, actual)
+		if !ok {
+			ctx.setReason("unsupported integer literal type")
+			return "", "", false
+		}
+		return runtimeExpr, "runtime.Value", true
+	}
 	if explicit && expected != actual {
 		ctx.setReason("integer literal type mismatch")
 		return "", "", false
@@ -193,7 +205,7 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 		return fmt.Sprintf("%s(%s)", expected, lit.Value.String()), expected, true
 	}
 	if !g.typeMatches(expected, actual) && !g.isIntegerType(expected) {
-		ctx.setReason("unsupported integer literal type")
+		ctx.setReason(fmt.Sprintf("unsupported integer literal type (%s)", expected))
 		return "", "", false
 	}
 	return fmt.Sprintf("%s(%s)", expected, lit.Value.String()), expected, true
@@ -606,7 +618,9 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 	}
 	if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
 		if info, ok := ctx.functions[callee.Name]; ok && info != nil && info.Compileable {
-			if !g.typeMatches(expected, info.ReturnType) {
+			needsRuntimeValue := expected == "runtime.Value" && info.ReturnType != "runtime.Value"
+			needsExpect := expected != "" && expected != "runtime.Value" && info.ReturnType == "runtime.Value"
+			if !g.typeMatches(expected, info.ReturnType) && !needsRuntimeValue && !needsExpect {
 				ctx.setReason("call return type mismatch")
 				return "", "", false
 			}
@@ -623,8 +637,32 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 				return "", "", false
 			}
 			args := make([]string, 0, len(call.Arguments))
+			preLines := make([]string, 0, len(call.Arguments))
+			postLines := make([]string, 0, len(call.Arguments))
 			for idx, arg := range call.Arguments {
 				param := info.Params[idx]
+				if g.typeCategory(param.GoType) == "struct" {
+					if ident, ok := arg.(*ast.Identifier); ok && ident != nil {
+						if binding, ok := ctx.lookup(ident.Name); ok && binding.GoType == "runtime.Value" {
+							runtimeTemp := ctx.newTemp()
+							preLines = append(preLines, fmt.Sprintf("%s := %s", runtimeTemp, binding.GoName))
+							structExpr, ok := g.expectRuntimeValueExpr(runtimeTemp, param.GoType)
+							if !ok {
+								ctx.setReason("call argument unsupported")
+								return "", "", false
+							}
+							structTemp := ctx.newTemp()
+							preLines = append(preLines, fmt.Sprintf("%s := %s", structTemp, structExpr))
+							args = append(args, structTemp)
+							baseName, ok := g.structBaseName(param.GoType)
+							if !ok {
+								baseName = strings.TrimPrefix(param.GoType, "*")
+							}
+							postLines = append(postLines, fmt.Sprintf("if err := __able_struct_%s_apply(__able_runtime, %s, %s); err != nil { panic(err) }", baseName, runtimeTemp, structTemp))
+							continue
+						}
+					}
+				}
 				expr, exprType, ok := g.compileExpr(ctx, arg, param.GoType)
 				if !ok {
 					return "", "", false
@@ -654,7 +692,37 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 				args = append(args, "runtime.NilValue{}")
 			}
 			callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
-			return fmt.Sprintf("func() %s { __able_push_call_frame(%s); defer __able_pop_call_frame(); return %s }()", info.ReturnType, callNode, callExpr), info.ReturnType, true
+			bodyLines := []string{
+				fmt.Sprintf("__able_push_call_frame(%s)", callNode),
+				"defer __able_pop_call_frame()",
+			}
+			bodyLines = append(bodyLines, preLines...)
+			if len(postLines) == 0 {
+				bodyLines = append(bodyLines, fmt.Sprintf("return %s", callExpr))
+			} else {
+				resultTemp := ctx.newTemp()
+				bodyLines = append(bodyLines, fmt.Sprintf("%s := %s", resultTemp, callExpr))
+				bodyLines = append(bodyLines, postLines...)
+				bodyLines = append(bodyLines, fmt.Sprintf("return %s", resultTemp))
+			}
+			wrapped := fmt.Sprintf("func() %s { %s }()", info.ReturnType, strings.Join(bodyLines, "; "))
+			if needsRuntimeValue {
+				converted, ok := g.runtimeValueExpr(wrapped, info.ReturnType)
+				if !ok {
+					ctx.setReason("call return type mismatch")
+					return "", "", false
+				}
+				return converted, "runtime.Value", true
+			}
+			if needsExpect {
+				converted, ok := g.expectRuntimeValueExpr(wrapped, expected)
+				if !ok {
+					ctx.setReason("call return type mismatch")
+					return "", "", false
+				}
+				return converted, expected, true
+			}
+			return wrapped, info.ReturnType, true
 		}
 		if _, ok := ctx.overloads[callee.Name]; ok {
 			return g.compileOverloadCall(ctx, call, expected, callee.Name, callNode)

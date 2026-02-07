@@ -362,6 +362,17 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 			}, nil
 		}
 	}
+	if inst, ok := value.(*runtime.StructInstanceValue); ok && inst != nil && (inst.Definition == nil || inst.Definition.Node == nil) {
+		methods, err := i.interfaceMethodDictionaryFromStruct(inst, ifaceDef)
+		if err == nil && methods != nil {
+			return &runtime.InterfaceValue{
+				Interface:     ifaceDef,
+				Underlying:    value,
+				Methods:       methods,
+				InterfaceArgs: ifaceArgs,
+			}, nil
+		}
+	}
 	info, ok := i.getTypeInfoForValue(value)
 	if !ok {
 		return nil, fmt.Errorf("Value does not implement interface %s", interfaceName)
@@ -428,6 +439,55 @@ func (i *Interpreter) iteratorInterfaceMethodDictionary(ifaceDef *runtime.Interf
 		return nil, nil
 	}
 	return methods, nil
+}
+
+func (i *Interpreter) interfaceMethodDictionaryFromStruct(inst *runtime.StructInstanceValue, ifaceDef *runtime.InterfaceDefinitionValue) (map[string]runtime.Value, error) {
+	if inst == nil || ifaceDef == nil || ifaceDef.Node == nil {
+		return nil, fmt.Errorf("interface is not defined")
+	}
+	if inst.Fields == nil {
+		return nil, fmt.Errorf("interface requires named struct instance")
+	}
+	methods := make(map[string]runtime.Value)
+	for _, sig := range ifaceDef.Node.Signatures {
+		if sig == nil || sig.Name == nil {
+			continue
+		}
+		name := sig.Name.Name
+		if name == "" || methods[name] != nil {
+			continue
+		}
+		if val, ok := inst.Fields[name]; ok {
+			if isCallableValue(val) {
+				methods[name] = val
+				continue
+			}
+			return nil, fmt.Errorf("Interface method '%s' is not callable", name)
+		}
+		if sig.DefaultImpl != nil {
+			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
+			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
+			if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
+				if i.execMode == execModeBytecode {
+					return nil, err
+				}
+			} else {
+				defaultVal.Bytecode = program
+			}
+			methods[name] = defaultVal
+			continue
+		}
+		return nil, fmt.Errorf("No method '%s' for interface %s", name, ifaceDef.Node.ID.Name)
+	}
+	if len(methods) == 0 {
+		return nil, nil
+	}
+	return methods, nil
+}
+
+func (i *Interpreter) structImplementsInterfaceByFields(inst *runtime.StructInstanceValue, ifaceDef *runtime.InterfaceDefinitionValue) bool {
+	methods, err := i.interfaceMethodDictionaryFromStruct(inst, ifaceDef)
+	return err == nil && methods != nil
 }
 
 func rangeEndpoint(val runtime.Value) (int, error) {
