@@ -194,7 +194,7 @@ func copyModuleTree(src, dst string) error {
 
 func shouldSkipModuleDir(name string) bool {
 	switch name {
-	case ".git", ".gocache", "tmp", "target", "node_modules", "vendor", ".tmp":
+	case ".git", ".gocache", ".gomodcache", ".modcache", "tmp", "target", "node_modules", "vendor", ".tmp":
 		return true
 	default:
 		return false
