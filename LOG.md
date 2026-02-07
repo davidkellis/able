@@ -1,5 +1,45 @@
 # Able Project Log
 
+# 2026-02-06 — Compiler match-statement lowering + stdlib explicit casts (v12)
+- Compiler: treat match expressions used as statements as void blocks so clause bodies can be statement-only (fixes regex parse_tokens compilation).
+- Stdlib: `to_u64` helpers now use explicit `u64` casts/literals to avoid implicit coercion.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`.
+
+# 2026-02-06 — Compiler struct arg writeback for runtime.Value callers (v12)
+- Compiler: when passing runtime.Value struct bindings to compiled functions, convert once and apply mutations back to the runtime struct instance (fixes assignment evaluation order fixture).
+- Tests:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_03_assignment_evaluation_order go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+  - Compiler exec fixtures sweep in 11 batches via `ABLE_COMPILER_EXEC_FIXTURES` (207 fixtures total).
+
+# 2026-02-06 — Stdlib test run (v12)
+- Tests: `./run_stdlib_tests.sh`.
+
+# 2026-02-06 — Full test run (v12)
+- Tests: `./run_all_tests.sh`.
+
+# 2026-02-06 — Parser cast line breaks (v12)
+- Parser: allow line breaks after `as` in cast expressions; restored cast fixture to newline form.
+- Tests:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser -count=1`
+  - `./v12/abletw v12/fixtures/exec/06_03_cast_semantics/main.able`
+  - `./v12/ablebc v12/fixtures/exec/06_03_cast_semantics/main.able`
+
+# 2026-02-06 — Full test run (v12, post cast fix)
+- Tests: `./run_all_tests.sh`.
+
+# 2026-02-06 — Compiler multi-package build + native binary output (v12)
+- Compiler: collect/compile functions across packages, qualify overload helpers by package, and register compiled function thunks per package environment.
+- Compiler: add struct apply helpers + per-package env swaps so compiled methods update runtime struct instances and execute under the right package env.
+- Runtime bridge: track per-goroutine env in compiled bridge (`SwapEnv`/`Env`) to support async execution.
+- Interpreter: track package environments, expose compiled function overload registration, and support array member assignment + interface matching by struct fields for compiled values.
+- CLI: `able build` command + `ablec -build` now emit `go.mod` in build output and run `go build -mod=mod` for native binaries; `--with-tests` loads test modules for run/check/build; compiled test runner avoids importing package names directly.
+- Tests:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (takes ~211s; exceeds 1-minute guideline)
+  - `cd v12/interpreters/go && go test ./cmd/able -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/ablec -count=1`
+  - `./run_stdlib_tests.sh`
+  - `./run_all_tests.sh`
+
 # 2026-02-04 — Compiler untyped param support (v12)
 - Compiler: map missing type annotations to `runtime.Value`, removing param/return-type fallbacks for untyped parameters.
 - Fallback audit (exec fixtures) after update:
@@ -1751,6 +1791,13 @@ Open items (2025-11-02 audit):
 - Fixtures: expanded `06_01_compiler_raise_error_interface` to cover nil Error.cause handling.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- Tests: `./run_stdlib_tests.sh` in repo root (treewalker + bytecode stdlib suites).
+- Tests: `./run_all_tests.sh` in repo root (completed successfully).
+- CLI: added `able build` to compile a target or entry file into a native binary (emits Go code + runs `go build`).
+- Tests: `go test ./cmd/able -run TestBuildTargetFromManifest -count=1` in `v12/interpreters/go`.
+- CLI/Loader: standard loads now skip `.test.able`/`.spec.able` modules unless `--with-tests` is provided; `able build` supports `--with-tests` and routes outputs under `target/test/compiled`.
+- Tests: `go test ./cmd/able -run TestRunIgnoresTestModulesUnlessWithTests -count=1` in `v12/interpreters/go`.
+- Tests: `go test ./cmd/able -run TestBuildTargetFromManifest -count=1` in `v12/interpreters/go` (after `--with-tests` changes).
 - Fixtures: added `06_01_compiler_raise_non_error` exec fixture and coverage entry.
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
 - Compiler: added lowering for propagation (`!`) and `or {}` with runtime error handling for raised interpreter errors.
@@ -2069,3 +2116,36 @@ Open items (2025-11-02 audit):
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=15_01_program_entry_hello_world go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
 - Audit: compiler fallback audit across all exec fixtures reports 0 fallbacks (using `ABLE_COMPILER_EXEC_FIXTURES=all`).
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
+- Compiler: collect structs/functions/overloads across all modules, emit per-package overload dispatchers, and register compiled function thunks by signature instead of overwriting env bindings (uses qualified original names for fallback calls).
+- Interpreter: track per-package environments (new `PackageEnvironment`) and register compiled function overloads by param signature on existing runtime function values.
+- CLI: `ablec` now supports `-build` (forces `-pkg=main`) and `-bin` to build a native binary after emitting Go code.
+- Tests: `go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1` in `v12/interpreters/go`.
+- Tests: `go test ./pkg/interpreter -run TestInterpreterEvaluateProgramSuccess -count=1` in `v12/interpreters/go`.
+- Interpreter: compiled member assignment now supports array receivers (length/capacity/storage_handle/index updates) to keep compiled stdlib methods from failing on runtime arrays.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `go test ./pkg/interpreter -run TestInterpreterEvaluateProgramSuccess -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (timed out at 120s).
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch,13_06_stdlib_package_resolution,13_07_search_path_env_override go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_01_interface_defaults_composites,10_02_impl_specificity_named_overrides,10_02_impl_where_clause,10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_05_interface_named_impl_defaults,10_06_interface_generic_param_dispatch,10_07_interface_default_chain go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_08_interface_default_override,10_09_interface_named_impl_inherent,10_10_interface_inheritance_defaults,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_13_interface_param_generic_args,10_14_interface_return_generic_args,10_15_interface_default_generic_method,10_16_interface_value_storage go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Interpreter: compiled thunks now enter the serial executor's synchronous section when invoked from non-async contexts, preserving deterministic spawn ordering for compiled code.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_02_async_spawn_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_spawn_basic,12_01_bytecode_await_default,12_02_async_spawn_combo,12_02_future_fairness_cancellation,12_03_spawn_future_status_error,12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types,12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- CLI: `ablec` now loads programs with the same search path discovery (entry dir + `ABLE_PATH`/`ABLE_MODULE_PATHS` + stdlib/kernel roots) as the main CLI.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./cmd/ablec -count=1` in `v12/interpreters/go`.
+- Compiler: compiled functions/methods now swap to their package environments; compiled struct method wrappers reapply mutated receivers via generated `__able_struct_<Name>_apply` helpers.
+- Interpreter: `matchesType` now accepts array struct instances by converting to `ArrayValue` for type matching.
+- Compiler: struct conversion rendering now scopes temp declarations to avoid redeclare errors.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types,12_08_blocking_io_concurrency,06_11_truthiness_boolean_context,06_12_01_stdlib_string_helpers,06_12_02_stdlib_array_helpers,06_12_03_stdlib_numeric_ratio_divmod,08_01_if_truthiness_value,08_01_control_flow_fizzbuzz,08_01_bytecode_if_indexing,08_01_bytecode_match_basic,08_01_bytecode_match_subject,08_01_match_guards_exhaustiveness,08_01_union_match_basic,08_02_bytecode_loop_basics,08_02_loop_expression_break_value,08_02_numeric_sum_loop go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_02_range_inclusive_exclusive,08_02_while_continue_break,08_03_breakpoint_nonlocal_jump,05_00_mutability_declaration_vs_assignment go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_02_array_nested_patterns,05_02_identifier_wildcard_typed_patterns,05_02_struct_pattern_rename_typed,05_03_assignment_evaluation_order,05_03_bytecode_assignment_patterns,11_02_option_result_or_handlers,11_02_option_result_propagation,11_02_bytecode_or_else_basic go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_00_errors_match_loop_combo,11_03_bytecode_ensure_basic,11_03_bytecode_rescue_basic,11_03_raise_exit_unhandled,11_03_rescue_ensure,11_03_rescue_rethrow_standard_errors go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~205s; exceeds the 1-minute guideline).
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
+- CLI: `able test --compiled` now writes temp build output under the Go module root (optional `ABLE_TEST_KEEP_WORKDIR`), loads test packages via `IncludePackages`, and avoids invalid imports in the runner source.
+- Compiler: wrapper arg/return interface MatchType checks now skip when unbound generic params are present (prevents false runtime mismatches like `Expectation.to`).
+- Tests: `go test ./cmd/able -run TestTestCommandCompiledRuns -count=1` in `v12/interpreters/go`.
+- CLI: `able build` and `ablec` now emit a `go.mod` into build outputs with a local `replace` to the interpreter module (self-contained builds outside the module tree).
+- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
+- Tests: `go test ./cmd/ablec -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).

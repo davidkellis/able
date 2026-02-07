@@ -48,3 +48,26 @@ func (g *generator) renderMethodParamTypes(method *methodInfo) (string, bool) {
 	}
 	return fmt.Sprintf("[]ast.TypeExpression{%s}", strings.Join(parts, ", ")), true
 }
+
+func (g *generator) renderFunctionParamTypes(info *functionInfo) (string, bool) {
+	if info == nil || info.Definition == nil {
+		return "nil", false
+	}
+	def := info.Definition
+	parts := make([]string, 0, len(def.Params))
+	for _, param := range def.Params {
+		if param == nil || param.ParamType == nil {
+			parts = append(parts, "nil")
+			continue
+		}
+		rendered, ok := g.renderTypeExpression(param.ParamType)
+		if !ok {
+			return "", false
+		}
+		parts = append(parts, rendered)
+	}
+	if len(parts) == 0 {
+		return "nil", true
+	}
+	return fmt.Sprintf("[]ast.TypeExpression{%s}", strings.Join(parts, ", ")), true
+}

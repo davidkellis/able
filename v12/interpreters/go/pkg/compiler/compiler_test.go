@@ -429,7 +429,7 @@ func TestCompilerEmitsStructsAndWrappers(t *testing.T) {
 	if !strings.Contains(code, "__able_compiled_fn_shadow") {
 		t.Fatalf("expected compiled function for shadow")
 	}
-	if !strings.Contains(code, "CallOriginal(\"complex\"") {
+	if !strings.Contains(code, "CallOriginal(\"app.complex\"") {
 		t.Fatalf("expected fallback wrapper for complex")
 	}
 	fset := token.NewFileSet()

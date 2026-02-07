@@ -8,7 +8,7 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper *TypeMapper) {
+func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper *TypeMapper, pkgName string) {
 	if def == nil || def.TargetType == nil || mapper == nil {
 		return
 	}
@@ -32,6 +32,7 @@ func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper 
 		goName := g.mangler.unique(fmt.Sprintf("method_%s_%s", sanitizeIdent(targetName), sanitizeIdent(methodName)))
 		info := &functionInfo{
 			Name:       fmt.Sprintf("%s.%s", targetName, methodName),
+			Package:    pkgName,
 			GoName:     goName,
 			Definition: fn,
 		}

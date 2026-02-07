@@ -2391,7 +2391,7 @@
       "members": [
         {
           "type": "PREC_LEFT",
-          "value": 20,
+          "value": 21,
           "content": {
             "type": "SEQ",
             "members": [
@@ -4611,7 +4611,7 @@
       "members": [
         {
           "type": "PREC_RIGHT",
-          "value": 15,
+          "value": 16,
           "content": {
             "type": "SEQ",
             "members": [
@@ -4659,7 +4659,7 @@
     },
     "cast_expression": {
       "type": "PREC_LEFT",
-      "value": 0,
+      "value": 15,
       "content": {
         "type": "SEQ",
         "members": [
@@ -4677,6 +4677,18 @@
                   "value": "as"
                 },
                 {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "_line_breaks"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                },
+                {
                   "type": "SYMBOL",
                   "name": "type_expression"
                 }
@@ -4691,7 +4703,7 @@
       "members": [
         {
           "type": "PREC_RIGHT",
-          "value": 16,
+          "value": 17,
           "content": {
             "type": "SEQ",
             "members": [
@@ -4760,7 +4772,7 @@
     },
     "postfix_expression": {
       "type": "PREC_LEFT",
-      "value": 17,
+      "value": 18,
       "content": {
         "type": "SEQ",
         "members": [
@@ -4834,7 +4846,7 @@
     },
     "_postfix_expression_without_match": {
       "type": "PREC_LEFT",
-      "value": 17,
+      "value": 18,
       "content": {
         "type": "SEQ",
         "members": [
@@ -4900,7 +4912,7 @@
     },
     "rescue_postfix_expression": {
       "type": "PREC_LEFT",
-      "value": 17,
+      "value": 18,
       "content": {
         "type": "SEQ",
         "members": [
@@ -4953,7 +4965,7 @@
     },
     "call_target": {
       "type": "PREC_LEFT",
-      "value": 17,
+      "value": 18,
       "content": {
         "type": "SEQ",
         "members": [
@@ -5348,7 +5360,7 @@
     },
     "member_access": {
       "type": "PREC_LEFT",
-      "value": 18,
+      "value": 19,
       "content": {
         "type": "SEQ",
         "members": [
@@ -7675,7 +7687,7 @@
       "members": [
         {
           "type": "PREC_LEFT",
-          "value": 19,
+          "value": 20,
           "content": {
             "type": "SEQ",
             "members": [
@@ -7731,7 +7743,7 @@
       "members": [
         {
           "type": "PREC_LEFT",
-          "value": 19,
+          "value": 20,
           "content": {
             "type": "SEQ",
             "members": [
@@ -7801,7 +7813,7 @@
     },
     "type_generic_application": {
       "type": "PREC_LEFT",
-      "value": 19,
+      "value": 20,
       "content": {
         "type": "SEQ",
         "members": [

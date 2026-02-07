@@ -37,7 +37,10 @@ func loadTestPrograms(testFiles []string) (*testLoadResult, error) {
 	}
 	programs := make([]*driver.Program, 0, len(testFiles))
 	for _, file := range testFiles {
-		program, err := loader.LoadWithOptions(file, driver.LoadOptions{IncludePackages: include})
+		program, err := loader.LoadWithOptions(file, driver.LoadOptions{
+			IncludePackages: include,
+			IncludeTests:    true,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to load tests from %s: %w", file, err)
 		}

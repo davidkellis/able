@@ -369,6 +369,15 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			return nil, "", "", false
 		}
 	}
+	if declaring && typeAnnotation == nil && goType != "runtime.Value" && g.typeCategory(goType) == "struct" {
+		converted, ok := g.runtimeValueExpr(expr, goType)
+		if !ok {
+			ctx.setReason("assignment type mismatch")
+			return nil, "", "", false
+		}
+		expr = converted
+		goType = "runtime.Value"
+	}
 	goName := existing.GoName
 	if declaring {
 		goName = sanitizeIdent(name)

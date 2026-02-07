@@ -2,29 +2,34 @@ package compiler
 
 import (
 	"fmt"
+	"sort"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/driver"
 )
 
 type generator struct {
-	opts          Options
-	structs       map[string]*structInfo
-	interfaces    map[string]*ast.InterfaceDefinition
-	functions     map[string]*functionInfo
-	overloads     map[string]*overloadInfo
-	methods       map[string]map[string][]*methodInfo
-	methodList    []*methodInfo
-	warnings      []string
-	fallbacks     []FallbackInfo
-	mangler       *nameMangler
-	needsAst      bool
-	needsIterator bool
-	awaitExprs    []string
-	awaitNames    map[*ast.AwaitExpression]string
-	diagNodes     []diagNodeInfo
-	diagNames     map[ast.Node]string
-	nodeOrigins   map[ast.Node]string
+	opts            Options
+	structs         map[string]*structInfo
+	interfaces      map[string]*ast.InterfaceDefinition
+	functions       map[string]map[string]*functionInfo
+	overloads       map[string]map[string]*overloadInfo
+	packages        []string
+	entryPackage    string
+	methods         map[string]map[string][]*methodInfo
+	methodList      []*methodInfo
+	warnings        []string
+	fallbacks       []FallbackInfo
+	mangler         *nameMangler
+	needsAst        bool
+	needsIterator   bool
+	awaitExprs      []string
+	awaitNames      map[*ast.AwaitExpression]string
+	diagNodes       []diagNodeInfo
+	diagNames       map[ast.Node]string
+	nodeOrigins     map[ast.Node]string
+	packageEnvVars  map[string]string
+	packageEnvOrder []string
 }
 
 type diagNodeInfo struct {
@@ -41,6 +46,7 @@ type compileContext struct {
 	locals              map[string]paramInfo
 	functions           map[string]*functionInfo
 	overloads           map[string]*overloadInfo
+	packageName         string
 	parent              *compileContext
 	temps               *int
 	reason              string
@@ -61,18 +67,70 @@ func newGenerator(opts Options) *generator {
 		opts:       opts,
 		structs:    make(map[string]*structInfo),
 		interfaces: make(map[string]*ast.InterfaceDefinition),
-		functions:  make(map[string]*functionInfo),
-		overloads:  make(map[string]*overloadInfo),
+		functions:  make(map[string]map[string]*functionInfo),
+		overloads:  make(map[string]map[string]*overloadInfo),
 		methods:    make(map[string]map[string][]*methodInfo),
 		mangler:    newNameMangler(),
 		awaitNames: make(map[*ast.AwaitExpression]string),
 	}
 }
 
+func (g *generator) ensurePackageEnvVars() {
+	if g.packageEnvVars != nil {
+		return
+	}
+	names := g.collectPackageNames()
+	g.packageEnvVars = make(map[string]string, len(names))
+	g.packageEnvOrder = names
+	for idx, name := range names {
+		g.packageEnvVars[name] = fmt.Sprintf("__able_pkg_env_%d", idx)
+	}
+}
+
+func (g *generator) packageEnvVar(name string) (string, bool) {
+	if g == nil {
+		return "", false
+	}
+	g.ensurePackageEnvVars()
+	envVar, ok := g.packageEnvVars[name]
+	return envVar, ok
+}
+
+func (g *generator) collectPackageNames() []string {
+	seen := make(map[string]struct{})
+	var names []string
+	add := func(name string) {
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	for _, name := range g.packages {
+		add(name)
+	}
+	add(g.entryPackage)
+	if len(names) == 0 {
+		for pkg := range g.functions {
+			add(pkg)
+		}
+		for pkg := range g.overloads {
+			add(pkg)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 func (g *generator) collect(program *driver.Program) error {
 	if program == nil || program.Entry == nil || program.Entry.AST == nil {
 		return fmt.Errorf("compiler: missing entry module")
 	}
+	g.entryPackage = program.Entry.Package
+	g.packages = nil
 	if g.nodeOrigins == nil {
 		g.nodeOrigins = make(map[ast.Node]string)
 	}
@@ -99,6 +157,7 @@ func (g *generator) collect(program *driver.Program) error {
 	}
 	modules = append(modules, program.Modules...)
 	seenModules := make(map[*driver.Module]struct{})
+	uniqueModules := make([]*driver.Module, 0, len(modules))
 	for _, module := range modules {
 		if module == nil || module.AST == nil {
 			continue
@@ -107,6 +166,10 @@ func (g *generator) collect(program *driver.Program) error {
 			continue
 		}
 		seenModules[module] = struct{}{}
+		uniqueModules = append(uniqueModules, module)
+	}
+
+	for _, module := range uniqueModules {
 		for _, stmt := range module.AST.Body {
 			def, ok := stmt.(*ast.InterfaceDefinition)
 			if !ok || def == nil || def.ID == nil {
@@ -122,26 +185,28 @@ func (g *generator) collect(program *driver.Program) error {
 			g.interfaces[name] = def
 		}
 	}
-	module := program.Entry.AST
-	for _, stmt := range module.Body {
-		def, ok := stmt.(*ast.StructDefinition)
-		if !ok || def == nil || def.ID == nil {
-			continue
-		}
-		name := def.ID.Name
-		if name == "" {
-			continue
-		}
-		if _, exists := g.structs[name]; exists {
-			g.warnings = append(g.warnings, fmt.Sprintf("compiler: duplicate struct %s; skipping", name))
-			continue
-		}
-		goName := g.mangler.unique(exportIdent(name))
-		g.structs[name] = &structInfo{
-			Name:   name,
-			GoName: goName,
-			Kind:   def.Kind,
-			Node:   def,
+
+	for _, module := range uniqueModules {
+		for _, stmt := range module.AST.Body {
+			def, ok := stmt.(*ast.StructDefinition)
+			if !ok || def == nil || def.ID == nil {
+				continue
+			}
+			name := def.ID.Name
+			if name == "" {
+				continue
+			}
+			if _, exists := g.structs[name]; exists {
+				g.warnings = append(g.warnings, fmt.Sprintf("compiler: duplicate struct %s; skipping", name))
+				continue
+			}
+			goName := g.mangler.unique(exportIdent(name))
+			g.structs[name] = &structInfo{
+				Name:   name,
+				GoName: goName,
+				Kind:   def.Kind,
+				Node:   def,
+			}
 		}
 	}
 
@@ -172,65 +237,88 @@ func (g *generator) collect(program *driver.Program) error {
 		info.Supported = supported
 	}
 
-	functions := make(map[string][]*ast.FunctionDefinition)
-	for _, stmt := range module.Body {
-		def, ok := stmt.(*ast.FunctionDefinition)
-		if !ok || def == nil || def.ID == nil {
-			continue
+	seenPackages := make(map[string]struct{})
+	for _, module := range uniqueModules {
+		pkgName := module.Package
+		if _, ok := seenPackages[pkgName]; !ok {
+			seenPackages[pkgName] = struct{}{}
+			g.packages = append(g.packages, pkgName)
 		}
-		name := def.ID.Name
-		if name == "" {
-			continue
-		}
-		functions[name] = append(functions[name], def)
-	}
 
-	for _, stmt := range module.Body {
-		def, ok := stmt.(*ast.MethodsDefinition)
-		if !ok || def == nil {
-			continue
-		}
-		g.collectMethodsDefinition(def, mapper)
-	}
-
-	for name, defs := range functions {
-		if len(defs) != 1 {
-			entries := make([]*functionInfo, 0, len(defs))
-			minArity := -1
-			for idx, def := range defs {
+		functions := make(map[string][]*ast.FunctionDefinition)
+		for _, stmt := range module.AST.Body {
+			switch def := stmt.(type) {
+			case *ast.FunctionDefinition:
+				if def == nil || def.ID == nil {
+					continue
+				}
+				name := def.ID.Name
+				if name == "" {
+					continue
+				}
+				functions[name] = append(functions[name], def)
+			case *ast.MethodsDefinition:
 				if def == nil {
 					continue
 				}
-				info := &functionInfo{
-					Name:       name,
-					GoName:     g.mangler.unique(fmt.Sprintf("fn_%s_overload_%d", sanitizeIdent(name), idx)),
-					Definition: def,
-				}
-				g.fillFunctionInfo(info, mapper)
-				entries = append(entries, info)
-				if arity := minArgsForDefinition(def); arity >= 0 {
-					if minArity < 0 || arity < minArity {
-						minArity = arity
+				g.collectMethodsDefinition(def, mapper, pkgName)
+			}
+		}
+
+		if g.functions[pkgName] == nil {
+			g.functions[pkgName] = make(map[string]*functionInfo)
+		}
+		if g.overloads[pkgName] == nil {
+			g.overloads[pkgName] = make(map[string]*overloadInfo)
+		}
+
+		for name, defs := range functions {
+			qualified := qualifiedName(pkgName, name)
+			if len(defs) != 1 {
+				entries := make([]*functionInfo, 0, len(defs))
+				minArity := -1
+				for idx, def := range defs {
+					if def == nil {
+						continue
+					}
+					info := &functionInfo{
+						Name:          name,
+						Package:       pkgName,
+						QualifiedName: qualified,
+						GoName:        g.mangler.unique(fmt.Sprintf("fn_%s_overload_%d", sanitizeIdent(name), idx)),
+						Definition:    def,
+					}
+					g.fillFunctionInfo(info, mapper)
+					entries = append(entries, info)
+					if arity := minArgsForDefinition(def); arity >= 0 {
+						if minArity < 0 || arity < minArity {
+							minArity = arity
+						}
 					}
 				}
-			}
-			if len(entries) > 0 {
-				g.overloads[name] = &overloadInfo{
-					Name:     name,
-					Entries:  entries,
-					MinArity: minArity,
+				if len(entries) > 0 {
+					g.overloads[pkgName][name] = &overloadInfo{
+						Name:          name,
+						Package:       pkgName,
+						QualifiedName: qualified,
+						Entries:       entries,
+						MinArity:      minArity,
+					}
 				}
+				continue
 			}
-			continue
+			info := &functionInfo{
+				Name:          name,
+				Package:       pkgName,
+				QualifiedName: qualified,
+				GoName:        g.mangler.unique("fn_" + sanitizeIdent(name)),
+				Definition:    defs[0],
+			}
+			g.fillFunctionInfo(info, mapper)
+			g.functions[pkgName][name] = info
 		}
-		info := &functionInfo{
-			Name:       name,
-			GoName:     g.mangler.unique("fn_" + sanitizeIdent(name)),
-			Definition: defs[0],
-		}
-		g.fillFunctionInfo(info, mapper)
-		g.functions[name] = info
 	}
+	sort.Strings(g.packages)
 	g.resolveCompileableFunctions()
 	g.resolveCompileableMethods()
 	g.detectAstNeeds()
@@ -329,7 +417,7 @@ func (g *generator) bodyCompileable(info *functionInfo, retType string) bool {
 		info.Reason = "missing function body"
 		return false
 	}
-	ctx := newCompileContext(info, g.functions, g.overloads)
+	ctx := newCompileContext(info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package)
 	_, _, ok := g.compileBody(ctx, info)
 	if !ok {
 		info.Reason = ctx.reason
@@ -395,8 +483,12 @@ func (g *generator) collectFallbacks() []FallbackInfo {
 		if reason == "" {
 			reason = "unsupported function body"
 		}
+		name := info.Name
+		if info.QualifiedName != "" {
+			name = info.QualifiedName
+		}
 		fallbacks = append(fallbacks, FallbackInfo{
-			Name:   info.Name,
+			Name:   name,
 			Reason: reason,
 		})
 	}
@@ -423,6 +515,32 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 			return g.compileReturnStatement(ctx, info.ReturnType, ret, lines)
 		}
 		if isLast {
+			if raiseStmt, ok := stmt.(*ast.RaiseStatement); ok {
+				stmtLines, ok := g.compileRaiseStatement(ctx, raiseStmt)
+				if !ok {
+					return nil, "", false
+				}
+				lines = append(lines, stmtLines...)
+				retExpr, ok := g.zeroValueExpr(info.ReturnType)
+				if !ok {
+					ctx.setReason("missing return expression")
+					return nil, "", false
+				}
+				return lines, retExpr, true
+			}
+			if rethrowStmt, ok := stmt.(*ast.RethrowStatement); ok {
+				stmtLines, ok := g.compileRethrowStatement(ctx, rethrowStmt)
+				if !ok {
+					return nil, "", false
+				}
+				lines = append(lines, stmtLines...)
+				retExpr, ok := g.zeroValueExpr(info.ReturnType)
+				if !ok {
+					ctx.setReason("missing return expression")
+					return nil, "", false
+				}
+				return lines, retExpr, true
+			}
 			if expr, ok := stmt.(ast.Expression); ok && expr != nil {
 				return g.compileImplicitReturn(ctx, info.ReturnType, expr, lines)
 			}
@@ -643,6 +761,8 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		return lines, true
 	case *ast.IfExpression:
 		return g.compileIfStatement(ctx, s)
+	case *ast.MatchExpression:
+		return g.compileMatchStatement(ctx, s)
 	case *ast.BlockExpression:
 		return g.compileBlockStatement(ctx, s)
 	default:
@@ -662,13 +782,14 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 	}
 }
 
-func newCompileContext(info *functionInfo, functions map[string]*functionInfo, overloads map[string]*overloadInfo) *compileContext {
+func newCompileContext(info *functionInfo, functions map[string]*functionInfo, overloads map[string]*overloadInfo, packageName string) *compileContext {
 	counter := 0
 	ctx := &compileContext{
 		params:      make(map[string]paramInfo),
 		locals:      make(map[string]paramInfo),
 		functions:   functions,
 		overloads:   overloads,
+		packageName: packageName,
 		temps:       &counter,
 		loopDepth:   0,
 		breakpoints: make(map[string]int),
@@ -690,6 +811,13 @@ func newCompileContext(info *functionInfo, functions map[string]*functionInfo, o
 		}
 	}
 	return ctx
+}
+
+func qualifiedName(pkg string, name string) string {
+	if pkg == "" {
+		return name
+	}
+	return pkg + "." + name
 }
 
 func (c *compileContext) setReason(reason string) {
@@ -740,6 +868,7 @@ func (c *compileContext) child() *compileContext {
 		locals:              make(map[string]paramInfo),
 		functions:           c.functions,
 		overloads:           c.overloads,
+		packageName:         c.packageName,
 		parent:              c,
 		temps:               c.temps,
 		loopDepth:           c.loopDepth,

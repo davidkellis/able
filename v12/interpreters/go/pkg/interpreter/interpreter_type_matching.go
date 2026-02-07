@@ -178,6 +178,13 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				case runtime.InterfaceValue:
 					return i.interfaceMatches(&v, name, nil)
 				default:
+					if inst, ok := value.(*runtime.StructInstanceValue); ok && inst != nil && (inst.Definition == nil || inst.Definition.Node == nil) {
+						if ifaceDef, ok := i.interfaces[name]; ok && ifaceDef != nil {
+							if i.structImplementsInterfaceByFields(inst, ifaceDef) {
+								return true
+							}
+						}
+					}
 					info, ok := i.getTypeInfoForValue(value)
 					if !ok {
 						return false
@@ -217,8 +224,20 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			}
 		}
 		if baseName == "Array" {
-			arr, ok := value.(*runtime.ArrayValue)
-			if !ok {
+			var arr *runtime.ArrayValue
+			switch v := value.(type) {
+			case *runtime.ArrayValue:
+				arr = v
+			case *runtime.StructInstanceValue:
+				if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil || v.Definition.Node.ID.Name != "Array" {
+					return false
+				}
+				converted, err := i.toArrayValue(v)
+				if err != nil {
+					return false
+				}
+				arr = converted
+			default:
 				return false
 			}
 			if len(t.Arguments) == 0 {
@@ -290,6 +309,13 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				case runtime.InterfaceValue:
 					return i.interfaceMatches(&v, baseName, t.Arguments)
 				default:
+					if inst, ok := value.(*runtime.StructInstanceValue); ok && inst != nil && (inst.Definition == nil || inst.Definition.Node == nil) {
+						if ifaceDef, ok := i.interfaces[baseName]; ok && ifaceDef != nil {
+							if i.structImplementsInterfaceByFields(inst, ifaceDef) {
+								return true
+							}
+						}
+					}
 					info, ok := i.getTypeInfoForValue(value)
 					if !ok {
 						return false
