@@ -75,9 +75,7 @@ fn main() {
 	binPath := filepath.Join(workDir, "compiled-bin")
 	build := exec.Command("go", "build", "-o", binPath, ".")
 	build.Dir = outputDir
-	build.Env = append(os.Environ(),
-		"GOCACHE="+filepath.Join(moduleRoot, ".gocache"),
-	)
+	build.Env = withEnv(os.Environ(), "GOCACHE", compilerExecGocache(moduleRoot))
 	if runtime.GOOS == "windows" {
 		binPath += ".exe"
 	}
