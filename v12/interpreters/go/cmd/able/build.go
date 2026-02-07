@@ -236,7 +236,11 @@ func resolveBuildEntry(args []string) (*driver.Manifest, *driver.Lockfile, strin
 
 func defaultBuildOutputDir(manifest *driver.Manifest, entryPath string, targetName string, withTests bool) string {
 	base := ""
-	if manifest != nil && manifest.Path != "" {
+	if envRoot := strings.TrimSpace(os.Getenv("ABLE_BUILD_ROOT")); envRoot != "" {
+		base = envRoot
+	} else if cwd, err := os.Getwd(); err == nil && cwd != "" {
+		base = cwd
+	} else if manifest != nil && manifest.Path != "" {
 		base = filepath.Dir(manifest.Path)
 	} else {
 		base = filepath.Dir(entryPath)
@@ -270,7 +274,7 @@ func printBuildUsage() {
 	fmt.Fprintln(os.Stderr, "  able build [target]")
 	fmt.Fprintln(os.Stderr, "  able build <file.able>")
 	fmt.Fprintln(os.Stderr, "Options:")
-	fmt.Fprintln(os.Stderr, "  -o, --out <dir>   output directory for generated Go code")
-	fmt.Fprintln(os.Stderr, "      --bin <path>  output path for the compiled binary")
+	fmt.Fprintln(os.Stderr, "  -o, --out <dir>   output directory for generated Go code (default: ./target/compiled)")
+	fmt.Fprintln(os.Stderr, "      --bin <path>  output path for the compiled binary (default: <out>/<name>)")
 	fmt.Fprintln(os.Stderr, "      --with-tests  include test modules in the build")
 }

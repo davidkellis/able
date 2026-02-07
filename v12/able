@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+GO_CACHE="$GO_DIR/.gocache"
+
+usage() {
+  cat <<'EOF'
+Usage: able [--wrapper-help] [--] <command-or-entry> [args...]
+
+Runs the Able v12 CLI (cmd/able). Defaults to the tree-walker exec mode unless
+you pass --exec-mode=bytecode or use ./v12/ablebc.
+
+Examples:
+  # Build a source file (output in ./target/compiled)
+  ./v12/able build examples/hello_world.able
+
+  # Run a source file
+  ./v12/able run examples/hello_world.able
+
+  # Run with bytecode
+  ./v12/able --exec-mode=bytecode run examples/hello_world.able
+EOF
+}
+
+resolve_path() {
+  local candidate="$1"
+  if [[ -z "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  if [[ -f "$candidate" || -d "$candidate" ]]; then
+    realpath "$candidate"
+    return 0
+  fi
+  if [[ -f "$SCRIPT_DIR/$candidate" || -d "$SCRIPT_DIR/$candidate" ]]; then
+    realpath "$SCRIPT_DIR/$candidate"
+    return 0
+  fi
+  printf '%s\n' "$candidate"
+}
+
+build_test_args() {
+  local args=("$@")
+  local idx=0
+  local skip_next=0
+  while [[ $idx -lt ${#args[@]} ]]; do
+    local arg="${args[$idx]}"
+    if [[ $skip_next -eq 1 ]]; then
+      GO_ARGS+=("$arg")
+      skip_next=0
+      ((idx+=1))
+      continue
+    fi
+    case "$arg" in
+      --path|--exclude-path|--name|--exclude-name|--tag|--exclude-tag|--format|--repeat|--parallel)
+        GO_ARGS+=("$arg")
+        skip_next=1
+        ((idx+=1))
+        continue
+        ;;
+      --shuffle)
+        GO_ARGS+=("$arg")
+        if [[ $((idx + 1)) -lt ${#args[@]} ]]; then
+          local next="${args[$((idx + 1))]}"
+          if [[ "$next" != -* ]]; then
+            GO_ARGS+=("$next")
+            ((idx+=2))
+            continue
+          fi
+        fi
+        ((idx+=1))
+        continue
+        ;;
+    esac
+    if [[ "$arg" == -- ]]; then
+      GO_ARGS+=("$arg")
+      ((idx+=1))
+      continue
+    fi
+    if [[ "$arg" == -* ]]; then
+      GO_ARGS+=("$arg")
+      ((idx+=1))
+      continue
+    fi
+    GO_ARGS+=("$(resolve_path "$arg")")
+    ((idx+=1))
+  done
+}
+
+build_go_args() {
+  GO_ARGS=()
+  if [[ $# -eq 0 ]]; then
+    return
+  fi
+
+  local first="$1"
+  shift || true
+  if [[ "$first" == "--wrapper-help" ]]; then
+    usage
+    exit 0
+  fi
+
+  case "$first" in
+    run|check|build)
+      GO_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        local candidate="$1"
+        shift || true
+        if [[ "$candidate" == -* ]]; then
+          GO_ARGS+=("$candidate")
+        else
+          GO_ARGS+=("$(resolve_path "$candidate")")
+        fi
+      fi
+      if [[ $# -gt 0 ]]; then
+        GO_ARGS+=("$@")
+      fi
+      ;;
+    test)
+      GO_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        build_test_args "$@"
+      fi
+      ;;
+    repl|deps|--help|-h|--version|-V|version)
+      GO_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        GO_ARGS+=("$@")
+      fi
+      ;;
+    *)
+      if [[ "$first" == -* ]]; then
+        GO_ARGS+=("$first")
+        if [[ $# -gt 0 ]]; then
+          GO_ARGS+=("$@")
+        fi
+      else
+        GO_ARGS+=("$(resolve_path "$first")")
+        if [[ $# -gt 0 ]]; then
+          GO_ARGS+=("$@")
+        fi
+      fi
+      ;;
+  esac
+}
+
+ensure_go_dir() {
+  if [[ ! -d "$GO_DIR" ]]; then
+    echo "Able v12 Go interpreter directory not found at $GO_DIR" >&2
+    exit 1
+  fi
+}
+
+ensure_go_dir
+mkdir -p "$GO_CACHE"
+build_go_args "$@"
+
+echo "[Able v12] go run ./cmd/able ${GO_ARGS[*]}"
+if env GOCACHE="$GO_CACHE" ABLE_BUILD_ROOT="$PWD" go run -C "$GO_DIR" ./cmd/able "${GO_ARGS[@]}"; then
+  exit 0
+else
+  code=$?
+  echo "Able v12 CLI exited with status $code" >&2
+  exit "$code"
+fi
