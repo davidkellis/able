@@ -133,7 +133,7 @@ func runCompilerExecFixture(t *testing.T, dir string, rel string) {
 	binPath := filepath.Join(workDir, "compiled-fixture")
 	build := exec.Command("go", "build", "-o", binPath, ".")
 	build.Dir = workDir
-	build.Env = append(os.Environ(), "GOCACHE="+filepath.Join(moduleRoot, ".gocache"))
+	build.Env = withEnv(os.Environ(), "GOCACHE", compilerExecGocache(moduleRoot))
 	if runtime.GOOS == "windows" {
 		binPath += ".exe"
 	}

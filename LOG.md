@@ -2108,6 +2108,10 @@ Open items (2025-11-02 audit):
 - Compiler/Interpreter: compiled method registration now tolerates generic target mismatches (base name + generic params) and applies thunks to all matching overloads to avoid failures when kernel/fixture method sets overlap.
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_05_concurrency_channel_ping_pong,12_06_await_fairness_cancellation,15_04_background_work_flush go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
 - Tests: `./run_all_tests.sh` at repo root.
+- Tooling: `run_all_tests.sh` now reuses a shared Go build cache by default (set `ABLE_GOCACHE=tmp` for isolated runs) and propagates `ABLE_COMPILER_EXEC_GOCACHE`.
+- Compiler tests: `go build` invocations now respect `ABLE_COMPILER_EXEC_GOCACHE`/`GOCACHE` for fixture builds.
+- Tests: `go test ./pkg/compiler -run TestCompilerExecHarness -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).
 - Audit: compiler fallback audit over compiler exec fixture list reports 1 fallback (`04_05_02_struct_named_update_mutation_diag: main (identifier type mismatch)`).
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerFallbackAudit -count=1 -v` in `v12/interpreters/go`.
 - Audit: compiler fallback audit excluding fixtures with expected typecheck diagnostics reports 0 fallbacks (ad-hoc script run).
