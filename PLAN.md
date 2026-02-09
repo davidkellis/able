@@ -32,6 +32,15 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Historical notes + completed milestones live in `LOG.md`.
 - Keep this `PLAN.md` file up to date with current progress and immediate next actions, but move completed items to `LOG.md`.
 
+## Iteration Loop (AOT Completion)
+Repeat this loop until the AOT compiler is complete:
+1. Select the next smallest correctness-critical Compiler AOT slice from the TODO list (or split a larger item into smaller verifiable slices first).
+2. Implement the slice with no silent fallbacks; compiled output must either handle the behavior or raise an explicit diagnostic.
+3. Run targeted tests that complete in under one minute.
+4. Log the change and tests in `LOG.md`.
+5. Update this `PLAN.md` by marking completed slices or decomposing remaining work into smaller verified steps.
+6. **Follow-through step:** immediately execute the next required actions that would normally be suggested, without waiting for a separate prompt, unless a blocking decision or long-running test is required.
+
 ## Guardrails (must stay true)
 - `./run_all_tests.sh` (v12 default) must stay green for the Go suites and fixtures.
 - `./run_stdlib_tests.sh` must stay green (tree-walker + bytecode).
@@ -40,13 +49,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - It is expected that some new fixtures will fail due to interpreter bugs/deficiencies. Implement fixtures strictly in accordance with the v12 spec semantics. Do not weaken or sidestep the behavior under test to "make tests pass".
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
-- Compiler AOT vision and correctness plan (see `v12/design/compiler-aot.md`).
-- Compiler AOT: define explicit dynamic boundary semantics in `spec/full_spec_v12.md`.
-- Compiler AOT: add compiler gap tracking entries in `spec/TODO_v12.md`.
-- Compiler AOT: build full module dependency graph and preserve typechecker outputs.
-- Compiler AOT: dynamic feature detection per module and function with tests.
-- Compiler AOT: define typed IR with explicit evaluation order and error flow.
-- Compiler AOT: lower AST to typed IR with match, patterns, and control flow semantics.
+- Compiler AOT: expand IR lowering coverage to full AST (control flow, patterns, error handling, concurrency, interop).
 - Compiler AOT: implement compiled runtime core types (Array, BigInt, Ratio, String, Channel, Mutex, Future).
 - Compiler AOT: emit Go packages per Able package with direct static calls.
 - Compiler AOT: compile stdlib and kernel packages as Go code and wire into builds.

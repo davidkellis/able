@@ -411,6 +411,13 @@ func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value)
 		switch v := rawOperand.(type) {
 		case runtime.IntegerValue:
 			neg := new(big.Int).Neg(v.Val)
+			info, err := getIntegerInfo(v.TypeSuffix)
+			if err != nil {
+				return nil, err
+			}
+			if err := ensureFitsInteger(info, neg); err != nil {
+				return nil, err
+			}
 			return runtime.IntegerValue{Val: neg, TypeSuffix: v.TypeSuffix}, nil
 		case runtime.FloatValue:
 			return runtime.FloatValue{Val: -v.Val, TypeSuffix: v.TypeSuffix}, nil

@@ -107,6 +107,14 @@ func (c *Checker) SetPrelude(env *Environment, impls []ImplementationSpec, metho
 	c.preludeMethodSets = append(c.preludeMethodSets[:0], methods...)
 }
 
+// Inference exposes the last inferred types for the checked module.
+func (c *Checker) Inference() InferenceMap {
+	if c == nil {
+		return nil
+	}
+	return c.infer.Clone()
+}
+
 // CheckModule performs typechecking on a module AST and returns diagnostics.
 func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	if module == nil {

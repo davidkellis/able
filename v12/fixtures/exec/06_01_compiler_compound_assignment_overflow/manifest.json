@@ -1,0 +1,10 @@
+{
+  "description": "compiler raises OverflowError for compound assignment",
+  "expect": {
+    "stderr": [
+      "runtime: v12/fixtures/exec/06_01_compiler_compound_assignment_overflow/main.able:15:3 integer overflow",
+      "note: v12/fixtures/exec/06_01_compiler_compound_assignment_overflow/main.able:21:3 called from here"
+    ],
+    "exit": 1
+  }
+}

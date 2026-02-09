@@ -38,6 +38,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 		return CheckResult{}, fmt.Errorf("typechecker: program is nil")
 	}
 	var diagnostics []ModuleDiagnostic
+	inferred := make(map[string]InferenceMap)
 	seenAliases := make(map[string]aliasDeclInfo)
 	for _, mod := range program.Modules {
 		if mod == nil || mod.AST == nil {
@@ -51,6 +52,9 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 		moduleDiags, err := checker.CheckModule(mod.AST)
 		if err != nil {
 			return CheckResult{Diagnostics: diagnostics}, err
+		}
+		if mod.Package != "" {
+			inferred[mod.Package] = checker.Inference()
 		}
 
 		for _, diag := range importDiags {
@@ -78,6 +82,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 	return CheckResult{
 		Diagnostics: diagnostics,
 		Packages:    pc.clonePackageSummaries(),
+		Inferred:    inferred,
 	}, nil
 }
 

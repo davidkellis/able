@@ -1,0 +1,10 @@
+{
+  "description": "iterator.next errors on re-entrancy while suspended at yield",
+  "expect": {
+    "stderr": [
+      "runtime: v12/fixtures/exec/07_10_iterator_reentrancy/main.able:9:32 iterator.next re-entered while suspended at yield",
+      "note: v12/fixtures/exec/07_10_iterator_reentrancy/main.able:16:3 called from here"
+    ],
+    "exit": 1
+  }
+}

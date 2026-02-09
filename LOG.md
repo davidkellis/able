@@ -2121,6 +2121,9 @@ Open items (2025-11-02 audit):
 - Compiler: generated `main.go` now discovers search paths (stdlib/kernel/ABLE_PATH) and registers `print`, matching CLI behavior for compiled binaries.
 - Tests: `go test ./pkg/compiler -run TestCompilerExecHarness -count=1` in `v12/interpreters/go`.
 - Docs: added `v12/design/compiler-aot.md` with correctness-first compiler vision and full work breakdown; updated `PLAN.md` compiler AOT queue and flattened nested TODO bullets.
+- Spec: added compiled execution boundary semantics in `spec/full_spec_v12.md` and added compiler AOT gaps in `spec/TODO_v12.md`; removed completed compiler vision item from `PLAN.md`.
+- Compiler AOT: added program analysis with module dependency graph and preserved typechecker outputs (`program_analysis.go`) plus tests; removed completed items from `PLAN.md`.
+- Tests: `go test ./pkg/compiler -run TestAnalyzeProgramBuildsGraphAndTypecheck -count=1` in `v12/interpreters/go`.
 - Audit: compiler fallback audit over compiler exec fixture list reports 1 fallback (`04_05_02_struct_named_update_mutation_diag: main (identifier type mismatch)`).
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerFallbackAudit -count=1 -v` in `v12/interpreters/go`.
 - Audit: compiler fallback audit excluding fixtures with expected typecheck diagnostics reports 0 fallbacks (ad-hoc script run).
@@ -2133,6 +2136,95 @@ Open items (2025-11-02 audit):
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=15_01_program_entry_hello_world go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
 - Audit: compiler fallback audit across all exec fixtures reports 0 fallbacks (using `ABLE_COMPILER_EXEC_FIXTURES=all`).
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
+- Compiler: compiled integer `+`/`-`/`*` now emit overflow-checked helpers (signed/unsigned, width-aware) and overflow errors attach runtime diagnostics context.
+- Tests: `go test ./pkg/compiler -run TestDetectDynamicFeatures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_integer_overflow` to cover compiled integer overflow diagnostics.
+- Fixtures: added `06_01_compiler_integer_overflow_sub` and `06_01_compiler_integer_overflow_mul` to cover compiled `-`/`*` overflow diagnostics.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_integer_overflow,06_01_compiler_integer_overflow_sub,06_01_compiler_integer_overflow_mul go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: compound assignments now pass diagnostic node context into compiled numeric helpers (division/overflow/shift) instead of using `nil`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_compound_assignment go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Fixtures: added `06_01_compiler_compound_assignment_overflow` to cover overflow errors on `+=` in compiled output.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_compound_assignment_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler/Interpreter: unary integer negation now checks overflow; negating the minimum value raises `OverflowError`.
+- Fixtures: added `06_01_compiler_unary_overflow` for unary negation overflow diagnostics.
+- Spec: documented unary negation overflow in `spec/full_spec_v12.md`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_unary_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `go test ./pkg/interpreter -run TestBytecodeVM_UnaryNegate -count=1` in `v12/interpreters/go`.
+- Compiler: compiled `//`/`%` overflow now checks signed bounds (including `min_int // -1`) and raises `OverflowError`.
+- Fixtures: added `06_01_compiler_divmod_overflow` for compiled division overflow diagnostics.
+- Spec: documented `//`/`%` overflow behavior in `spec/full_spec_v12.md`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: `//`/`%` helpers now enforce overflow for signed/unsigned bounds (including `min_int // -1`) and `^` uses shared float pow helpers to keep imports consistent.
+- Fixtures: added `06_01_compiler_divmod_overflow`, `06_01_compiler_pow_overflow`, and `06_01_compiler_pow_negative_exponent`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_pow_overflow,06_01_compiler_pow_negative_exponent go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: `/%` now lowers to compiled divmod helpers and constructs `DivMod` results without interpreter operator dispatch (falls back to placeholder struct definition if missing).
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod,06_01_compiler_divmod_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: IR iterator helper now enforces re-entrancy errors (`iterator.next re-entered while suspended at yield`) to match spec/interpreter semantics.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunctionIteratorLiteral -count=1` in `v12/interpreters/go`.
+- Compiler: iterator helper in AOT generator now enforces re-entrancy errors to avoid deadlocks and match spec semantics.
+- Fixtures: added exec fixture `07_10_iterator_reentrancy` for iterator re-entrancy errors.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_10_iterator_reentrancy go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: build output `main` now formats runtime errors via `DescribeRuntimeDiagnostic` (restores location/notes in compiled binaries).
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_iterator_literal,06_07_generator_yield_iterator_end,06_07_iterator_pipeline,07_07_bytecode_implicit_iterator,07_09_bytecode_iterator_yield,07_10_iterator_reentrancy go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler IR: assignment lowering now implicitly declares missing bindings for `=` (matches spec), with pattern assignments only declaring when no existing binding is found.
+- Tests: `go test ./pkg/compiler -run TestLowerAssignmentAllowsImplicitBinding -count=1` in `v12/interpreters/go`.
+- Compiler IR: pattern destructure bindings now flow through IRDestructure bindings map, avoiding missing slot errors for `=` reassignments to existing bindings.
+- Tests: `go test ./pkg/compiler -run TestIREmitPatternAssignmentExistingBinding -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_00_mutability_declaration_vs_assignment,06_01_compiler_assignment_patterns,06_01_compiler_assignment_pattern_errors,06_01_compiler_assignment_pattern_typed_mismatch,06_01_compiler_assignment_pattern_rest_mismatch,06_01_compiler_assignment_pattern_struct_mismatch,06_01_compiler_assignment_pattern_positional_mismatch,05_02_array_nested_patterns,05_02_identifier_wildcard_typed_patterns,05_02_struct_pattern_rename_typed go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_match_patterns,08_01_match_guards_exhaustiveness,08_01_union_match_basic,11_03_bytecode_rescue_basic,11_03_rescue_ensure,11_03_raise_exit_unhandled go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop,06_01_compiler_for_loop_pattern,06_01_compiler_for_loop_pattern_mismatch,06_01_compiler_for_loop_struct_pattern,06_01_compiler_for_loop_pattern_guard,06_01_compiler_for_loop_typed_pattern,06_01_compiler_for_loop_typed_pattern_mismatch,08_02_loop_expression_break_value,08_02_numeric_sum_loop,08_02_while_continue_break go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: added dynamic feature warnings during compile to flag modules using dynimport/dynamic calls.
+- Tests: `go test ./pkg/compiler -run TestDetectDynamicFeatures -count=1` in `v12/interpreters/go`.
+- Compiler: spawn lowering now captures visible slots, builds a nested IR function body, and emits `IRSpawn` with explicit error flow (codegen still unsupported).
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler: IR codegen now emits `IRSpawn` by generating a task closure and calling `bridge.Spawn`; IR emission now includes nested spawn body functions and memoized IR function names.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunctionSpawn -count=1` in `v12/interpreters/go`.
+- Compiler: IR codegen now treats slots as mutable cells (`*runtime.Value`), loading via `__able_cell_value` and storing via `*slot` to preserve by-reference capture semantics for spawn bodies.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler: spawn bodies now capture slots by reference (captured slots passed as `*runtime.Value` into spawn IR functions); IR await codegen now calls `bridge.Await` with a per-site `ast.AwaitExpression`.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler: split IR Go codegen helpers into `ir_codegen_helpers.go` to keep files under 1000 lines.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler: iterator literals now lower into nested IR functions with by-reference captured slots; IR codegen emits iterator helpers and compiles iterator bodies via `__able_new_iterator`.
+- Compiler: added IR await and iterator literal codegen tests.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler AOT: added IR-to-Go emission scaffold with helper runtime shims and minimal instruction coverage (compute/invoke/branch/iter next), plus parser-based smoke tests for emitted Go.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR codegen now emits array/struct/map literals, string interpolation, and limited destructuring; added literal-focused IR emit tests and fixed lowering to treat array/map literals as non-const IR nodes.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler AOT: expanded IR destructuring codegen to handle struct/array/nested patterns with typed/literal checks and rest binding temps; added error-to-struct matching helper for parity with interpreter pattern semantics.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR struct literal lowering/codegen now carries explicit type arguments (including functional update inheritance).
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR codegen now emits casts via bridge.Cast; added a cast-focused IR emit test.
+- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
+- Compiler AOT: dynamic feature detection now scans module/function bodies (dynimport, dyn member calls, control-flow blocks) and reports per-function usage.
+- Tests: `go test ./pkg/compiler -run TestDetectDynamicFeatures -count=1` in `v12/interpreters/go`.
+- Compiler AOT: added typed IR scaffolding (ANF blocks, instructions, explicit error flow terminators) with block invariant tests.
+- Tests: `go test ./pkg/compiler -run TestIRBlock -count=1` in `v12/interpreters/go`.
+- Compiler AOT: added initial AST-to-IR lowerer for control flow (`if`, `match`), assignments, and basic expressions.
+- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
+- Typechecker: program checks now expose per-package inferred type maps for compiler use.
+- Compiler: lowering can consume `ProgramAnalysis` inference map; program analysis test asserts inference presence.
+- Tests: `go test ./pkg/compiler -run TestAnalyzeProgramBuildsGraphAndTypecheck -count=1` in `v12/interpreters/go`.
+- Tests: `go test ./pkg/typechecker -run TestProgramCheckerResolvesDependencies -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR lowering now handles `while`, `loop`, `break`, and `continue`, and skips writes on terminated control-flow paths.
+- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR lowering now covers `for` loops with iterator steps and pattern destructuring, using `IRIterNext`.
+- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR lowering now handles `raise`, `rescue`, `ensure`, `or`, and `!` (propagation), with explicit error handler routing.
+- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR lowering now supports `spawn`, `await`, and `breakpoint`, plus global identifier references.
+- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR lowering now handles casts, ranges, collections (array/map/struct), iterators, and string interpolation (scaffolded).
+- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR lowering now emits explicit literal nodes for arrays/maps/structs/string interpolation and iterator literals.
+- Tests: `go test ./pkg/compiler -run TestLowerLiteralExpressions -count=1` in `v12/interpreters/go`.
+- Compiler AOT: added basic IR validation (terminator presence) and enabled it across lowerer tests.
+- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
+- Compiler AOT: IR validation now checks reachability and missing block references.
+- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
 - Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
 - Tests: `./run_all_tests.sh` at repo root.
 - Compiler: collect structs/functions/overloads across all modules, emit per-package overload dispatchers, and register compiled function thunks by signature instead of overwriting env bindings (uses qualified original names for fallback calls).
@@ -2174,3 +2266,26 @@ Open items (2025-11-02 audit):
 - Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
+- Compiler: compiled runtime helpers now fast-path array indexing/assignment and array element access for handle-0 arrays, including index coercion + IndexError payload construction for direct array access.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler: split `generator_render.go` into smaller render files (`generator_render_runtime.go`, `generator_render_structs.go`, `generator_render_functions.go`, `generator_render_main.go`, `generator_render_helpers.go`) to keep files under 1000 lines.
+- Tests: `go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_integer_overflow,06_01_compiler_integer_overflow_sub,06_01_compiler_integer_overflow_mul,06_01_compiler_unary_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod_overflow,06_01_compiler_pow_overflow,06_01_compiler_pow_negative_exponent,06_01_compiler_compound_assignment_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod,06_01_compiler_array_struct_literal,06_01_literals_array_map_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_01_stdlib_string_helpers,06_12_03_stdlib_numeric_ratio_divmod go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_11_truthiness_boolean_context,08_01_if_truthiness_value,08_01_control_flow_fizzbuzz go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_01_bytecode_if_indexing,08_01_bytecode_match_basic,08_01_bytecode_match_subject go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_01_match_guards_exhaustiveness,08_01_union_match_basic,08_02_bytecode_loop_basics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_02_loop_expression_break_value,08_02_numeric_sum_loop,08_02_range_inclusive_exclusive go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_02_while_continue_break,08_03_breakpoint_nonlocal_jump,05_00_mutability_declaration_vs_assignment go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_02_array_nested_patterns,05_02_identifier_wildcard_typed_patterns,05_02_struct_pattern_rename_typed go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_03_assignment_evaluation_order,05_03_bytecode_assignment_patterns,11_02_option_result_or_handlers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_02_option_result_propagation,11_02_bytecode_or_else_basic,11_00_errors_match_loop_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_03_bytecode_ensure_basic,11_03_bytecode_rescue_basic,11_03_raise_exit_unhandled go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_03_rescue_ensure,11_03_rescue_rethrow_standard_errors,12_02_async_spawn_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_spawn_basic,12_01_bytecode_await_default,12_02_future_fairness_cancellation go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_03_spawn_future_status_error,12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.

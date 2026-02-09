@@ -132,11 +132,12 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				if baseName, ok := g.structBaseName(objType); ok && objType != baseName {
 					needsAddr = false
 				}
+				nodeName := g.diagNodeName(assign, "*ast.AssignmentExpression", "assign")
 				if g.isAddressableMemberObject(memberTarget.Object) && needsAddr {
 					objTemp := ctx.newTemp()
 					lines = append(lines, fmt.Sprintf("%s := &%s", objTemp, objExpr))
 					lines = append(lines, fmt.Sprintf("%s := %s.%s", currentTemp, objTemp, field.GoName))
-					expr, resultType, ok := g.compileBinaryOperation(ctx, op, currentTemp, field.GoType, valueTemp, valueType, field.GoType)
+					expr, resultType, ok := g.compileBinaryOperation(ctx, op, currentTemp, field.GoType, valueTemp, valueType, field.GoType, nodeName)
 					if !ok {
 						return nil, "", "", false
 					}
@@ -151,7 +152,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				objTemp := ctx.newTemp()
 				lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
 				lines = append(lines, fmt.Sprintf("%s := %s.%s", currentTemp, objTemp, field.GoName))
-				expr, resultType, ok := g.compileBinaryOperation(ctx, op, currentTemp, field.GoType, valueTemp, valueType, field.GoType)
+				expr, resultType, ok := g.compileBinaryOperation(ctx, op, currentTemp, field.GoType, valueTemp, valueType, field.GoType, nodeName)
 				if !ok {
 					return nil, "", "", false
 				}
@@ -287,7 +288,8 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		lines := append([]string{}, valueLines...)
 		lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
 		lines = append(lines, fmt.Sprintf("%s := %s", currentTemp, existing.GoName))
-		expr, resultType, ok := g.compileBinaryOperation(ctx, op, currentTemp, goType, valueTemp, valueType, goType)
+		nodeName := g.diagNodeName(assign, "*ast.AssignmentExpression", "assign")
+		expr, resultType, ok := g.compileBinaryOperation(ctx, op, currentTemp, goType, valueTemp, valueType, goType, nodeName)
 		if !ok {
 			return nil, "", "", false
 		}
