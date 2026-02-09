@@ -18,3 +18,14 @@ func (m InferenceMap) get(node ast.Node) (Type, bool) {
 	typ, ok := m[node]
 	return typ, ok
 }
+
+func (m InferenceMap) Clone() InferenceMap {
+	if m == nil {
+		return nil
+	}
+	out := make(InferenceMap, len(m))
+	for node, typ := range m {
+		out[node] = typ
+	}
+	return out
+}

@@ -1394,6 +1394,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
         -   `//` (Euclidean integer division): integers only. Defines `q` and `r` such that `a = b * q + r` and `0 <= r < |b|` when `b != 0`. If `b > 0`, this matches `q = floor(a / b)`; if `b < 0`, it matches `q = ceil(a / b)`. Zero divisor **raises** `DivisionByZeroError`. Examples: `5 // 3 = 1`; `-5 // 3 = -2`; `5 // -3 = -1`; `-5 // -3 = 2`.
         -   `%` (Euclidean remainder): integers only. `r` is the non-negative remainder from the Euclidean pair above. Zero divisor **raises** `DivisionByZeroError`. Examples: `5 % 3 = 2`; `-5 % 3 = 1`; `5 % -3 = 2`; `-5 % -3 = 1`.
         -   `/%` (Euclidean div-with-remainder): integers only. Returns `DivMod<T> { quotient: T, remainder: T }` where `T` matches the operand integer type. Uses the same `q`/`r` as `//`/`%`; zero divisor **raises** `DivisionByZeroError`.
+        -   If the computed quotient or remainder does not fit in the operand integer type (e.g., `min_int // -1`), **raise** `OverflowError`.
     *   **Exponentiation (`^`):**
         -   Floats: follows IEEE-754; negative exponents allowed; `NaN`/`Inf` propagate per host rules.
         -   Integers: defined for non-negative exponents; negative exponents on integers are a runtime error. Overflow raises `OverflowError`.
@@ -1422,6 +1423,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
         -   Right shift of signed integers is arithmetic (sign-extending), matching Go semantics; right shift of unsigned integers is logical (zero-filling).
     *   `.~` (Bitwise NOT): Unary operator, performs bitwise complement on integer types.
 *   **Unary (`-`):** Arithmetic negation for numeric types.
+    *   Negating the minimum value of a fixed-width integer raises `OverflowError { message: "integer overflow" }`.
 *   **Member Access (`.`):** Access fields/methods, UFCS, static methods. See Section [9.4](#94-method-call-syntax-resolution).
 *   **Function Call (`()`):** Invokes functions/methods. See Section [7.4](#74-function-invocation).
 *   **Indexing (`[]`):** Access elements within indexable collections (e.g., `Array`). Relies on standard library interfaces (`Index`, `IndexMut`). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
@@ -1855,6 +1857,14 @@ Special-form block sugar:
 
 -   The interpreter is part of the standard Able runtime when dynamic features are used; dynamic facilities are available whenever the interpreter is present.
 -   Implementations may JIT or bytecode-compile dynamic functions internally; this is not visible at the language level.
+
+#### Compiled Execution Boundary (AOT Targets)
+
+-   **Static execution:** In compiled targets, all statically-resolved code (imports via `import`, ordinary functions/methods/operators/control flow) must execute as compiled code, without interpreter involvement.
+-   **Dynamic-only interpreter use:** The interpreter is invoked only when dynamic features are exercised (`dynimport`, `dyn.package`, `dyn.def_package`, `dyn.eval`, or other dynamic metaprogramming facilities).
+-   **Explicit boundary:** Crossing from compiled code into dynamic execution is explicit at the call site (no silent fallback). If the compiler cannot compile a static construct, it is a compile-time error rather than a runtime fallback.
+-   **Bidirectional interop:** Dynamic code may call compiled functions through a host binding table. Compiled values must be convertible to dynamic values and back; conversion failures raise `Error`.
+-   **No interpreter without dynamic features:** A compiled program that does not use dynamic features must not initialize or depend on the interpreter at runtime.
 
 #### Examples
 

@@ -527,6 +527,21 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 		if !ok {
 			return "", "", false
 		}
+		if g.isIntegerType(operandType) {
+			if !g.typeMatches(expected, operandType) {
+				ctx.setReason("unary expression type mismatch")
+				return "", "", false
+			}
+			nodeName := g.diagNodeName(expr, "*ast.UnaryExpression", "unary")
+			temp := ctx.newTemp()
+			bitsExpr := g.bitSizeExpr(operandType)
+			if g.isUnsignedIntegerType(operandType) {
+				expr := fmt.Sprintf("func() %s { %s := %s; return %s(__able_checked_sub_unsigned(uint64(0), uint64(%s), %s, %s)) }()", operandType, temp, operand, operandType, temp, bitsExpr, nodeName)
+				return expr, operandType, true
+			}
+			expr := fmt.Sprintf("func() %s { %s := %s; return %s(__able_checked_sub_signed(int64(0), int64(%s), %s, %s)) }()", operandType, temp, operand, operandType, temp, bitsExpr, nodeName)
+			return expr, operandType, true
+		}
 		if !g.isNumericType(operandType) {
 			operandRuntime, ok := g.runtimeValueExpr(operand, operandType)
 			if !ok {
