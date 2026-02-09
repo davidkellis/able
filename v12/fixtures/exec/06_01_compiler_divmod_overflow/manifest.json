@@ -1,0 +1,10 @@
+{
+  "description": "compiler raises OverflowError for integer // overflow",
+  "expect": {
+    "stderr": [
+      "runtime: v12/fixtures/exec/06_01_compiler_divmod_overflow/main.able:15:10 integer overflow",
+      "note: v12/fixtures/exec/06_01_compiler_divmod_overflow/main.able:20:3 called from here"
+    ],
+    "exit": 1
+  }
+}

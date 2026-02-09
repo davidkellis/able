@@ -37,6 +37,11 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	if err := gen.collect(program); err != nil {
 		return nil, err
 	}
+	if report, err := DetectDynamicFeatures(program); err != nil {
+		return nil, err
+	} else {
+		appendDynamicFeatureWarnings(gen, report)
+	}
 	files, err := gen.render()
 	if err != nil {
 		return nil, err

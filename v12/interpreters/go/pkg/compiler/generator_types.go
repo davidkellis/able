@@ -81,6 +81,33 @@ func (g *generator) intBits(goType string) int {
 	return 64
 }
 
+func (g *generator) integerTypeSuffix(goType string) (string, bool) {
+	switch goType {
+	case "int8":
+		return "i8", true
+	case "int16":
+		return "i16", true
+	case "int32":
+		return "i32", true
+	case "int64":
+		return "i64", true
+	case "uint8":
+		return "u8", true
+	case "uint16":
+		return "u16", true
+	case "uint32":
+		return "u32", true
+	case "uint64":
+		return "u64", true
+	case "int":
+		return "isize", true
+	case "uint":
+		return "usize", true
+	default:
+		return "", false
+	}
+}
+
 func (g *generator) isUntypedNumericLiteral(expr ast.Expression) bool {
 	switch lit := expr.(type) {
 	case *ast.IntegerLiteral:

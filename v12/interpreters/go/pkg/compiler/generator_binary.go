@@ -124,6 +124,15 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			ctx.setReason("binary expression type mismatch")
 			return "", "", false
 		}
+		nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
+		if g.isIntegerType(leftType) {
+			expr := g.compilePowExpression(ctx, left, right, leftType, nodeName)
+			return expr, leftType, true
+		}
+		if g.isFloatType(leftType) {
+			expr := g.compileFloatPowExpression(ctx, left, right, leftType)
+			return expr, leftType, true
+		}
 		return g.compileRuntimeBinaryOperation(ctx, expr.Operator, left, leftType, right, rightType, leftType)
 	case ".&", ".|", ".^", "&", "|":
 		left, leftType, right, rightType, ok := g.compileBinaryOperands(ctx, expr.Left, expr.Right)
@@ -195,6 +204,11 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			ctx.setReason("binary expression type mismatch")
 			return "", "", false
 		}
+		if g.isIntegerType(resultType) {
+			nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
+			expr := g.compileCheckedIntegerBinaryExpression(ctx, left, right, resultType, expr.Operator, nodeName)
+			return expr, resultType, true
+		}
 		return fmt.Sprintf("(%s %s %s)", left, expr.Operator, right), resultType, true
 	case "-", "*":
 		left, leftType, right, rightType, ok := g.compileBinaryOperands(ctx, expr.Left, expr.Right)
@@ -212,6 +226,11 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 		if !g.typeMatches(expected, resultType) {
 			ctx.setReason("binary expression type mismatch")
 			return "", "", false
+		}
+		if g.isIntegerType(resultType) {
+			nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
+			expr := g.compileCheckedIntegerBinaryExpression(ctx, left, right, resultType, expr.Operator, nodeName)
+			return expr, resultType, true
 		}
 		return fmt.Sprintf("(%s %s %s)", left, expr.Operator, right), resultType, true
 	case "/":
@@ -277,7 +296,8 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			ctx.setReason("binary expression type mismatch")
 			return "", "", false
 		}
-		expr := g.compileDivModResultExpression(ctx, left, right, leftType)
+		nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
+		expr := g.compileDivModResultExpression(ctx, left, right, leftType, nodeName)
 		if expr == "" {
 			ctx.setReason("unsupported /% operands")
 			return "", "", false
@@ -532,6 +552,7 @@ func (g *generator) compileDivisionExpression(ctx *compileContext, left string, 
 func (g *generator) compileDivModExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) string {
 	leftTemp := ctx.newTemp()
 	rightTemp := ctx.newTemp()
+	bitsExpr := g.bitSizeExpr(operandType)
 	helper := "__able_divmod_signed"
 	cast := "int64"
 	if g.isUnsignedIntegerType(operandType) {
@@ -539,23 +560,37 @@ func (g *generator) compileDivModExpression(ctx *compileContext, left string, ri
 		cast = "uint64"
 	}
 	if op == "//" {
-		return fmt.Sprintf("func() %s { %s := %s; %s := %s; q, _ := %s(%s(%s), %s(%s), %s); return %s(q) }()", operandType, leftTemp, left, rightTemp, right, helper, cast, leftTemp, cast, rightTemp, nodeName, operandType)
+		return fmt.Sprintf("func() %s { %s := %s; %s := %s; q, _ := %s(%s(%s), %s(%s), %s, %s); return %s(q) }()", operandType, leftTemp, left, rightTemp, right, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName, operandType)
 	}
-	return fmt.Sprintf("func() %s { %s := %s; %s := %s; _, r := %s(%s(%s), %s(%s), %s); return %s(r) }()", operandType, leftTemp, left, rightTemp, right, helper, cast, leftTemp, cast, rightTemp, nodeName, operandType)
+	return fmt.Sprintf("func() %s { %s := %s; %s := %s; _, r := %s(%s(%s), %s(%s), %s, %s); return %s(r) }()", operandType, leftTemp, left, rightTemp, right, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName, operandType)
 }
 
-func (g *generator) compileDivModResultExpression(ctx *compileContext, left string, right string, operandType string) string {
+func (g *generator) compileDivModResultExpression(ctx *compileContext, left string, right string, operandType string, nodeName string) string {
 	leftTemp := ctx.newTemp()
 	rightTemp := ctx.newTemp()
-	leftVal, ok := g.runtimeValueExpr(left, operandType)
+	bitsExpr := g.bitSizeExpr(operandType)
+	helper := "__able_divmod_signed"
+	cast := "int64"
+	if g.isUnsignedIntegerType(operandType) {
+		helper = "__able_divmod_unsigned"
+		cast = "uint64"
+	}
+	suffix, ok := g.integerTypeSuffix(operandType)
 	if !ok {
 		return ""
 	}
-	rightVal, ok := g.runtimeValueExpr(right, operandType)
+	quotTemp := ctx.newTemp()
+	remTemp := ctx.newTemp()
+	quotVal, ok := g.runtimeValueExpr(quotTemp, operandType)
 	if !ok {
 		return ""
 	}
-	return fmt.Sprintf("func() runtime.Value { %s := %s; %s := %s; return __able_binary_op(\"/%%\", %s, %s) }()", leftTemp, leftVal, rightTemp, rightVal, leftTemp, rightTemp)
+	remVal, ok := g.runtimeValueExpr(remTemp, operandType)
+	if !ok {
+		return ""
+	}
+	typeExpr := fmt.Sprintf("ast.Ty(%q)", suffix)
+	return fmt.Sprintf("func() runtime.Value { %s := %s; %s := %s; q, r := %s(%s(%s), %s(%s), %s, %s); %s := %s(q); %s := %s(r); return __able_divmod_result(%s, %s, %s) }()", leftTemp, left, rightTemp, right, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName, quotTemp, operandType, remTemp, operandType, quotVal, remVal, typeExpr)
 }
 
 func (g *generator) compileShiftExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) string {
@@ -576,7 +611,50 @@ func (g *generator) compileShiftExpression(ctx *compileContext, left string, rig
 	return fmt.Sprintf("func() %s { %s := %s; %s := %s; return %s(%s(int64(%s), int64(%s), %s, %s)) }()", operandType, leftTemp, left, rightTemp, right, operandType, helper, leftTemp, rightTemp, bitsExpr, nodeName)
 }
 
-func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftExpr string, leftType string, rightExpr string, rightType string, expected string) (string, string, bool) {
+func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) string {
+	leftTemp := ctx.newTemp()
+	rightTemp := ctx.newTemp()
+	bitsExpr := g.bitSizeExpr(operandType)
+	if g.isUnsignedIntegerType(operandType) {
+		helper := "__able_checked_add_unsigned"
+		switch op {
+		case "-":
+			helper = "__able_checked_sub_unsigned"
+		case "*":
+			helper = "__able_checked_mul_unsigned"
+		}
+		return fmt.Sprintf("func() %s { %s := %s; %s := %s; return %s(%s(uint64(%s), uint64(%s), %s, %s)) }()", operandType, leftTemp, left, rightTemp, right, operandType, helper, leftTemp, rightTemp, bitsExpr, nodeName)
+	}
+	helper := "__able_checked_add_signed"
+	switch op {
+	case "-":
+		helper = "__able_checked_sub_signed"
+	case "*":
+		helper = "__able_checked_mul_signed"
+	}
+	return fmt.Sprintf("func() %s { %s := %s; %s := %s; return %s(%s(int64(%s), int64(%s), %s, %s)) }()", operandType, leftTemp, left, rightTemp, right, operandType, helper, leftTemp, rightTemp, bitsExpr, nodeName)
+}
+
+func (g *generator) compilePowExpression(ctx *compileContext, left string, right string, operandType string, nodeName string) string {
+	leftTemp := ctx.newTemp()
+	rightTemp := ctx.newTemp()
+	bitsExpr := g.bitSizeExpr(operandType)
+	if g.isUnsignedIntegerType(operandType) {
+		return fmt.Sprintf("func() %s { %s := %s; %s := %s; return %s(__able_pow_unsigned(uint64(%s), uint64(%s), %s, %s)) }()", operandType, leftTemp, left, rightTemp, right, operandType, leftTemp, rightTemp, bitsExpr, nodeName)
+	}
+	return fmt.Sprintf("func() %s { %s := %s; %s := %s; return %s(__able_pow_signed(int64(%s), int64(%s), %s, %s)) }()", operandType, leftTemp, left, rightTemp, right, operandType, leftTemp, rightTemp, bitsExpr, nodeName)
+}
+
+func (g *generator) compileFloatPowExpression(ctx *compileContext, left string, right string, operandType string) string {
+	leftTemp := ctx.newTemp()
+	rightTemp := ctx.newTemp()
+	if operandType == "float32" {
+		return fmt.Sprintf("func() float32 { %s := %s; %s := %s; return __able_pow_float32(%s, %s) }()", leftTemp, left, rightTemp, right, leftTemp, rightTemp)
+	}
+	return fmt.Sprintf("func() float64 { %s := %s; %s := %s; return __able_pow_float64(%s, %s) }()", leftTemp, left, rightTemp, right, leftTemp, rightTemp)
+}
+
+func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftExpr string, leftType string, rightExpr string, rightType string, expected string, nodeName string) (string, string, bool) {
 	if leftType == "runtime.Value" || rightType == "runtime.Value" {
 		return g.compileRuntimeBinaryOperation(ctx, op, leftExpr, leftType, rightExpr, rightType, expected)
 	}
@@ -594,6 +672,10 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			ctx.setReason("binary expression type mismatch")
 			return "", "", false
 		}
+		if g.isIntegerType(leftType) {
+			expr := g.compileCheckedIntegerBinaryExpression(ctx, leftExpr, rightExpr, leftType, "+", nodeName)
+			return expr, leftType, true
+		}
 		return fmt.Sprintf("(%s + %s)", leftExpr, rightExpr), leftType, true
 	case "-", "*":
 		if !g.isNumericType(leftType) {
@@ -603,6 +685,10 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 		if !g.typeMatches(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return "", "", false
+		}
+		if g.isIntegerType(leftType) {
+			expr := g.compileCheckedIntegerBinaryExpression(ctx, leftExpr, rightExpr, leftType, op, nodeName)
+			return expr, leftType, true
 		}
 		return fmt.Sprintf("(%s %s %s)", leftExpr, op, rightExpr), leftType, true
 	case "/":
@@ -618,7 +704,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			ctx.setReason("binary expression type mismatch")
 			return "", "", false
 		}
-		expr := g.compileDivisionExpression(ctx, leftExpr, rightExpr, leftType, resultType, "nil")
+		expr := g.compileDivisionExpression(ctx, leftExpr, rightExpr, leftType, resultType, nodeName)
 		return expr, resultType, true
 	case "//", "%":
 		if !g.isIntegerType(leftType) {
@@ -629,7 +715,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			ctx.setReason("binary expression type mismatch")
 			return "", "", false
 		}
-		expr := g.compileDivModExpression(ctx, leftExpr, rightExpr, leftType, op, "nil")
+		expr := g.compileDivModExpression(ctx, leftExpr, rightExpr, leftType, op, nodeName)
 		return expr, leftType, true
 	case ".&", ".|", ".^", "&", "|", "^":
 		if !g.isIntegerType(leftType) {
@@ -663,7 +749,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 		} else if op == ".>>" {
 			op = ">>"
 		}
-		expr := g.compileShiftExpression(ctx, leftExpr, rightExpr, leftType, op, "nil")
+		expr := g.compileShiftExpression(ctx, leftExpr, rightExpr, leftType, op, nodeName)
 		return expr, leftType, true
 	default:
 		ctx.setReason("unsupported operator")

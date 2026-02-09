@@ -1,0 +1,17 @@
+package exec_07_10_iterator_reentrancy
+
+struct Holder { iter: (Iterator i32) | nil }
+
+fn main() -> void {
+  holder := Holder { iter: nil }
+  iter := Iterator i32 { gen =>
+    holder.iter match {
+      case it: Iterator i32 => it.next(),
+      case _ => {}
+    }
+    gen.yield(1)
+  }
+
+  holder.iter = iter
+  iter.next()
+}

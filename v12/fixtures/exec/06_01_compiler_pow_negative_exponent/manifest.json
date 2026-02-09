@@ -1,0 +1,10 @@
+{
+  "description": "compiler raises error for negative integer exponent",
+  "expect": {
+    "stderr": [
+      "runtime: v12/fixtures/exec/06_01_compiler_pow_negative_exponent/main.able:15:10 Negative integer exponent is not supported",
+      "note: v12/fixtures/exec/06_01_compiler_pow_negative_exponent/main.able:20:3 called from here"
+    ],
+    "exit": 1
+  }
+}
