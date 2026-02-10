@@ -241,8 +241,8 @@ func (i *Interpreter) collectAwaitArms(iterable runtime.Value, env *runtime.Envi
 		if err != nil {
 			return nil, err
 		}
-		arms := make([]*awaitArmState, 0, len(state.values))
-		for _, el := range state.values {
+		arms := make([]*awaitArmState, 0, len(state.Values))
+		for _, el := range state.Values {
 			arms = append(arms, &awaitArmState{
 				awaitable: el,
 				isDefault: i.awaitArmIsDefault(el, env),

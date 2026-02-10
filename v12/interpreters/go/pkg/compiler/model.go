@@ -38,6 +38,7 @@ type functionInfo struct {
 	Definition     *ast.FunctionDefinition
 	Compileable    bool
 	Reason         string
+	HasOriginal    bool
 }
 
 type FallbackInfo struct {
@@ -46,11 +47,11 @@ type FallbackInfo struct {
 }
 
 type overloadInfo struct {
-	Name     string
-	Package  string
+	Name          string
+	Package       string
 	QualifiedName string
-	Entries  []*functionInfo
-	MinArity int
+	Entries       []*functionInfo
+	MinArity      int
 }
 
 type methodInfo struct {
@@ -60,4 +61,22 @@ type methodInfo struct {
 	ReceiverType string
 	ExpectsSelf  bool
 	Info         *functionInfo
+}
+
+type implMethodInfo struct {
+	InterfaceName     string
+	InterfaceArgs     []ast.TypeExpression
+	InterfaceGenerics []*ast.GenericParameter
+	TargetType        ast.TypeExpression
+	ImplName          string
+	ImplGenerics      []*ast.GenericParameter
+	WhereClause       []*ast.WhereClauseConstraint
+	MethodName        string
+	Info              *functionInfo
+	ImplDefinition    *ast.ImplementationDefinition
+}
+
+type implDefinitionInfo struct {
+	Definition *ast.ImplementationDefinition
+	Package    string
 }

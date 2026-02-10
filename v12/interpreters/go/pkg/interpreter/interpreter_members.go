@@ -266,10 +266,10 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 			if err != nil {
 				return nil, err
 			}
-			if idx < 0 || idx >= len(state.values) {
+			if idx < 0 || idx >= len(state.Values) {
 				return nil, fmt.Errorf("Array index out of bounds")
 			}
-			state.values[idx] = value
+			state.Values[idx] = value
 			i.syncArrayValues(inst.Handle, state)
 			return value, nil
 		case *ast.Identifier:
@@ -287,13 +287,12 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 				if handle <= 0 {
 					return nil, fmt.Errorf("array storage_handle must be positive")
 				}
-				newState, ok := i.arrayStates[handle]
-				if !ok {
-					newState = &arrayState{values: make([]runtime.Value, 0), capacity: 0}
-					i.arrayStates[handle] = newState
+				newState, err := runtime.ArrayStoreEnsureHandle(handle, 0, 0)
+				if err != nil {
+					return nil, err
 				}
 				i.trackArrayValue(handle, inst)
-				inst.Elements = newState.values
+				inst.Elements = newState.Values
 				i.syncArrayValues(handle, newState)
 				return value, nil
 			case "length":
@@ -309,12 +308,12 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 				if err != nil {
 					return nil, fmt.Errorf("array capacity must be a non-negative integer")
 				}
-				if newCap < len(state.values) {
-					newCap = len(state.values)
+				if newCap < len(state.Values) {
+					newCap = len(state.Values)
 				}
 				if ensureArrayCapacity(state, newCap) {
-				} else if newCap > state.capacity {
-					state.capacity = newCap
+				} else if newCap > state.Capacity {
+					state.Capacity = newCap
 				}
 				i.syncArrayValues(inst.Handle, state)
 				return value, nil

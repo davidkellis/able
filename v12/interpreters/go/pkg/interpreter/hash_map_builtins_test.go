@@ -398,7 +398,7 @@ func TestHashMapCustomHash(t *testing.T) {
 		t.Fatalf("expected struct instance, got %T", keyVal)
 	}
 
-	hash, err := interp.hashMapHashValue(keyInst)
+	hash, err := interp.HashMapHashValue(keyInst)
 	if err != nil {
 		t.Fatalf("hash computation failed: %v", err)
 	}

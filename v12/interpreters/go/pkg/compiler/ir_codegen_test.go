@@ -128,8 +128,8 @@ func TestIREmitFunctionSpawn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("emit IR: %v", err)
 	}
-	if !strings.Contains(string(src), "bridge.Spawn") {
-		t.Fatalf("expected spawn codegen to call bridge.Spawn")
+	if !strings.Contains(string(src), "__able_spawn") {
+		t.Fatalf("expected spawn codegen to call __able_spawn")
 	}
 	fset := token.NewFileSet()
 	if _, err := parser.ParseFile(fset, "ir_generated.go", src, parser.AllErrors); err != nil {

@@ -685,6 +685,15 @@ func (i *Interpreter) typeInfoFromStructInstance(inst *runtime.StructInstanceVal
 	if inst == nil || inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
 		return typeInfo{}, false
 	}
+	if inst.Definition.Node.ID.Name == "Array" {
+		if arr, err := i.arrayValueFromStructFields(inst.Fields); err == nil && arr != nil {
+			if typeExpr := i.typeExpressionFromValue(arr); typeExpr != nil {
+				if info, ok := parseTypeExpression(typeExpr); ok {
+					return info, true
+				}
+			}
+		}
+	}
 	info := typeInfo{name: inst.Definition.Node.ID.Name}
 	generics := inst.Definition.Node.GenericParams
 	if len(generics) > 0 {

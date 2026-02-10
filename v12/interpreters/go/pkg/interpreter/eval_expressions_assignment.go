@@ -75,23 +75,23 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 				if err != nil {
 					return nil, err
 				}
-				if idx < 0 || idx >= len(state.values) {
+				if idx < 0 || idx >= len(state.Values) {
 					return nil, fmt.Errorf("Array index out of bounds")
 				}
 				if assign.Operator == ast.AssignmentAssign {
-					state.values[idx] = value
+					state.Values[idx] = value
 					i.syncArrayValues(arrayVal.Handle, state)
 					return value, nil
 				}
 				if !isCompound {
 					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
 				}
-				current := state.values[idx]
+				current := state.Values[idx]
 				computed, err := applyBinaryOperator(i, binaryOp, current, value)
 				if err != nil {
 					return nil, err
 				}
-				state.values[idx] = computed
+				state.Values[idx] = computed
 				i.syncArrayValues(arrayVal.Handle, state)
 				return computed, nil
 			case *ast.Identifier:
@@ -112,13 +112,12 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 					if handle <= 0 {
 						return nil, fmt.Errorf("array storage_handle must be positive")
 					}
-					newState, ok := i.arrayStates[handle]
-					if !ok {
-						newState = &arrayState{values: make([]runtime.Value, 0), capacity: 0}
-						i.arrayStates[handle] = newState
+					newState, err := runtime.ArrayStoreEnsureHandle(handle, 0, 0)
+					if err != nil {
+						return nil, err
 					}
 					i.trackArrayValue(handle, arrayVal)
-					arrayVal.Elements = newState.values
+					arrayVal.Elements = newState.Values
 					i.syncArrayValues(handle, newState)
 					return value, nil
 				case "length":
@@ -134,13 +133,13 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 					if err != nil {
 						return nil, fmt.Errorf("array capacity must be a non-negative integer")
 					}
-					if newCap < len(state.values) {
-						newCap = len(state.values)
+					if newCap < len(state.Values) {
+						newCap = len(state.Values)
 					}
 					if ensureArrayCapacity(state, newCap) {
 						// ensureArrayCapacity already sets capacity and sync handles reallocations
-					} else if newCap > state.capacity {
-						state.capacity = newCap
+					} else if newCap > state.Capacity {
+						state.Capacity = newCap
 					}
 					i.syncArrayValues(arrayVal.Handle, state)
 					return value, nil
@@ -218,12 +217,12 @@ func (i *Interpreter) indexGet(obj runtime.Value, idxVal runtime.Value) (runtime
 	if err != nil {
 		return nil, err
 	}
-	if idx < 0 || idx >= len(state.values) {
-		return i.makeIndexErrorValue(idx, len(state.values)), nil
+	if idx < 0 || idx >= len(state.Values) {
+		return i.makeIndexErrorValue(idx, len(state.Values)), nil
 	}
-	val := state.values[idx]
+	val := state.Values[idx]
 	if val == nil {
-		return i.makeIndexErrorValue(idx, len(state.values)), nil
+		return i.makeIndexErrorValue(idx, len(state.Values)), nil
 	}
 	return val, nil
 }
@@ -284,23 +283,23 @@ func (i *Interpreter) assignIndex(obj runtime.Value, idxVal runtime.Value, value
 	if err != nil {
 		return nil, err
 	}
-	if idx < 0 || idx >= len(state.values) {
+	if idx < 0 || idx >= len(state.Values) {
 		return nil, fmt.Errorf("Array index out of bounds")
 	}
 	if op == ast.AssignmentAssign {
-		state.values[idx] = value
+		state.Values[idx] = value
 		i.syncArrayValues(arr.Handle, state)
 		return value, nil
 	}
 	if !isCompound {
 		return nil, fmt.Errorf("unsupported assignment operator %s", op)
 	}
-	current := state.values[idx]
+	current := state.Values[idx]
 	computed, err := applyBinaryOperator(i, binaryOp, current, value)
 	if err != nil {
 		return nil, err
 	}
-	state.values[idx] = computed
+	state.Values[idx] = computed
 	i.syncArrayValues(arr.Handle, state)
 	return computed, nil
 }

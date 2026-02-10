@@ -211,6 +211,11 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 		}
 	}
 	if !ok || def == nil {
+		if alt, found := r.interp.LookupStructDefinition(name); found && alt != nil {
+			def, ok = alt, true
+		}
+	}
+	if !ok || def == nil {
 		return nil, fmt.Errorf("compiler bridge: struct %s not found", name)
 	}
 	r.mu.Lock()
@@ -231,6 +236,20 @@ func IndexAssign(rt *Runtime, obj runtime.Value, idx runtime.Value, value runtim
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	return rt.interp.IndexAssign(obj, idx, value, nil)
+}
+
+func HashMapHashValue(rt *Runtime, val runtime.Value) (uint64, error) {
+	if rt == nil || rt.interp == nil {
+		return 0, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.HashMapHashValue(val)
+}
+
+func HashMapKeysEqual(rt *Runtime, a runtime.Value, b runtime.Value) (bool, error) {
+	if rt == nil || rt.interp == nil {
+		return false, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.HashMapKeysEqual(a, b)
 }
 
 func MemberAssign(rt *Runtime, obj runtime.Value, member runtime.Value, value runtime.Value) (runtime.Value, error) {
@@ -500,6 +519,38 @@ func MatchType(rt *Runtime, typeExpr ast.TypeExpression, value runtime.Value) (r
 		coerced = runtime.NilValue{}
 	}
 	return coerced, true, nil
+}
+
+// TypeExpressionFromValue exposes runtime type expression inference for compiler helpers.
+func TypeExpressionFromValue(rt *Runtime, value runtime.Value) (ast.TypeExpression, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.TypeExpressionFromValue(value), nil
+}
+
+// ExpandTypeAliases expands type aliases using the interpreter alias table.
+func ExpandTypeAliases(rt *Runtime, expr ast.TypeExpression) (ast.TypeExpression, error) {
+	if rt == nil || rt.interp == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.ExpandTypeAliases(expr), nil
+}
+
+// EnsureTypeSatisfiesInterface checks interface constraints using the interpreter.
+func EnsureTypeSatisfiesInterface(rt *Runtime, subject ast.TypeExpression, iface ast.TypeExpression, context string) error {
+	if rt == nil || rt.interp == nil {
+		return fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	return rt.interp.EnsureTypeSatisfiesInterface(subject, iface, context)
+}
+
+// IsKnownConstraintTypeName reports if a type name is known for constraint enforcement.
+func IsKnownConstraintTypeName(rt *Runtime, name string) bool {
+	if rt == nil || rt.interp == nil {
+		return false
+	}
+	return rt.interp.IsKnownConstraintTypeName(name)
 }
 
 // Raise panics with the provided value so compiled code can signal a runtime error.

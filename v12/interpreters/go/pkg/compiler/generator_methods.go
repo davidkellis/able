@@ -333,3 +333,28 @@ func (g *generator) methodSignatureKey(method *methodInfo) (string, bool) {
 	}
 	return fmt.Sprintf("%s|%t|%s|%s", method.TargetName, method.ExpectsSelf, typeExpressionToString(resolveSelfTypeExpr(target, target)), strings.Join(parts, ",")), true
 }
+
+func methodDefinitionParamTypes(def *ast.FunctionDefinition, target ast.TypeExpression, expectsSelf bool) []ast.TypeExpression {
+	if def == nil {
+		return nil
+	}
+	params := make([]ast.TypeExpression, 0, len(def.Params)+1)
+	if expectsSelf && def.IsMethodShorthand {
+		params = append(params, resolveSelfTypeExpr(target, target))
+	}
+	for _, param := range def.Params {
+		if param == nil {
+			params = append(params, nil)
+			continue
+		}
+		paramType := param.ParamType
+		if paramType == nil {
+			if ident, ok := param.Name.(*ast.Identifier); ok && ident != nil && strings.EqualFold(ident.Name, "self") {
+				paramType = target
+			}
+		}
+		paramType = resolveSelfTypeExpr(paramType, target)
+		params = append(params, paramType)
+	}
+	return params
+}

@@ -9,27 +9,31 @@ import (
 )
 
 type generator struct {
-	opts            Options
-	structs         map[string]*structInfo
-	interfaces      map[string]*ast.InterfaceDefinition
-	functions       map[string]map[string]*functionInfo
-	overloads       map[string]map[string]*overloadInfo
-	packages        []string
-	entryPackage    string
-	methods         map[string]map[string][]*methodInfo
-	methodList      []*methodInfo
-	warnings        []string
-	fallbacks       []FallbackInfo
-	mangler         *nameMangler
-	needsAst        bool
-	needsIterator   bool
-	awaitExprs      []string
-	awaitNames      map[*ast.AwaitExpression]string
-	diagNodes       []diagNodeInfo
-	diagNames       map[ast.Node]string
-	nodeOrigins     map[ast.Node]string
-	packageEnvVars  map[string]string
-	packageEnvOrder []string
+	opts              Options
+	structs           map[string]*structInfo
+	interfaces        map[string]*ast.InterfaceDefinition
+	interfacePackages map[string]string
+	functions         map[string]map[string]*functionInfo
+	overloads         map[string]map[string]*overloadInfo
+	packages          []string
+	entryPackage      string
+	methods           map[string]map[string][]*methodInfo
+	methodList        []*methodInfo
+	implMethodList    []*implMethodInfo
+	implDefinitions   []*implDefinitionInfo
+	implMethodByInfo  map[*functionInfo]*implMethodInfo
+	warnings          []string
+	fallbacks         []FallbackInfo
+	mangler           *nameMangler
+	needsAst          bool
+	needsIterator     bool
+	awaitExprs        []string
+	awaitNames        map[*ast.AwaitExpression]string
+	diagNodes         []diagNodeInfo
+	diagNames         map[ast.Node]string
+	nodeOrigins       map[ast.Node]string
+	packageEnvVars    map[string]string
+	packageEnvOrder   []string
 }
 
 type diagNodeInfo struct {
@@ -64,14 +68,16 @@ type compileContext struct {
 
 func newGenerator(opts Options) *generator {
 	return &generator{
-		opts:       opts,
-		structs:    make(map[string]*structInfo),
-		interfaces: make(map[string]*ast.InterfaceDefinition),
-		functions:  make(map[string]map[string]*functionInfo),
-		overloads:  make(map[string]map[string]*overloadInfo),
-		methods:    make(map[string]map[string][]*methodInfo),
-		mangler:    newNameMangler(),
-		awaitNames: make(map[*ast.AwaitExpression]string),
+		opts:              opts,
+		structs:           make(map[string]*structInfo),
+		interfaces:        make(map[string]*ast.InterfaceDefinition),
+		interfacePackages: make(map[string]string),
+		functions:         make(map[string]map[string]*functionInfo),
+		overloads:         make(map[string]map[string]*overloadInfo),
+		methods:           make(map[string]map[string][]*methodInfo),
+		mangler:           newNameMangler(),
+		awaitNames:        make(map[*ast.AwaitExpression]string),
+		implMethodByInfo:  make(map[*functionInfo]*implMethodInfo),
 	}
 }
 
@@ -183,6 +189,9 @@ func (g *generator) collect(program *driver.Program) error {
 				continue
 			}
 			g.interfaces[name] = def
+			if g.interfacePackages != nil {
+				g.interfacePackages[name] = module.Package
+			}
 		}
 	}
 
@@ -262,6 +271,11 @@ func (g *generator) collect(program *driver.Program) error {
 					continue
 				}
 				g.collectMethodsDefinition(def, mapper, pkgName)
+			case *ast.ImplementationDefinition:
+				if def == nil {
+					continue
+				}
+				g.collectImplDefinition(def, mapper, pkgName)
 			}
 		}
 
@@ -287,6 +301,7 @@ func (g *generator) collect(program *driver.Program) error {
 						QualifiedName: qualified,
 						GoName:        g.mangler.unique(fmt.Sprintf("fn_%s_overload_%d", sanitizeIdent(name), idx)),
 						Definition:    def,
+						HasOriginal:   true,
 					}
 					g.fillFunctionInfo(info, mapper)
 					entries = append(entries, info)
@@ -313,11 +328,13 @@ func (g *generator) collect(program *driver.Program) error {
 				QualifiedName: qualified,
 				GoName:        g.mangler.unique("fn_" + sanitizeIdent(name)),
 				Definition:    defs[0],
+				HasOriginal:   true,
 			}
 			g.fillFunctionInfo(info, mapper)
 			g.functions[pkgName][name] = info
 		}
 	}
+	g.collectDefaultImplMethods(mapper)
 	sort.Strings(g.packages)
 	g.resolveCompileableFunctions()
 	g.resolveCompileableMethods()

@@ -15,6 +15,21 @@ func (g *generator) functionGenericNames(info *functionInfo) map[string]struct{}
 	return genericParamNameSet(info.Definition.GenericParams)
 }
 
+func (g *generator) callableGenericNames(info *functionInfo) map[string]struct{} {
+	if info == nil {
+		return nil
+	}
+	if g != nil && g.implMethodByInfo != nil {
+		if impl, ok := g.implMethodByInfo[info]; ok && impl != nil {
+			names := genericParamNameSet(info.Definition.GenericParams)
+			names = addGenericParams(names, impl.ImplGenerics)
+			names = addGenericParams(names, impl.InterfaceGenerics)
+			return names
+		}
+	}
+	return g.functionGenericNames(info)
+}
+
 func (g *generator) methodGenericNames(method *methodInfo) map[string]struct{} {
 	if method == nil || method.Info == nil {
 		return nil

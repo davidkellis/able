@@ -1,5 +1,50 @@
 # Able Project Log
 
+## 2026-02-09 — Compiled mutex runtime + await helpers
+- Runtime: added a compiled mutex handle store (`MutexStoreNew/State`) with sync.Cond-backed state.
+- Compiler: implemented compiled `__able_mutex_new`, `__able_mutex_lock`, `__able_mutex_unlock`, and `__able_mutex_await_lock` with awaiter tracking.
+- Compiler: mapped mutex extern calls to compiled wrappers (no interpreter fallback).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1`.
+
+## 2026-02-09 — Compiled channel await helpers
+- Compiler: added compiled `Awaitable` plumbing for channel await helpers (`__able_channel_await_try_recv`, `__able_channel_await_try_send`) with waiters/awaiters tracking and waker registration.
+- Compiler: wired channel send/receive operations to notify awaiters and respect close signals without interpreter fallback.
+- Runtime: changed channel store to signal closure via `CloseCh` (no close on value channel) to avoid send panics.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1`.
+
+## 2026-02-09 — Compiled channel send/receive helpers
+- Compiler: implemented compiled runtime helpers for `__able_channel_send`, `__able_channel_receive`, `__able_channel_try_send`, and `__able_channel_try_receive` with channel-close error mapping.
+- Compiler: mapped channel send/receive extern calls to compiled wrappers (no interpreter fallback).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1`.
+
+## 2026-02-09 — Compiled channel lifecycle helpers
+- Compiler: added compiled runtime helpers for `__able_channel_new`, `__able_channel_close`, and `__able_channel_is_closed`, including concurrency error value construction.
+- Runtime: added a shared channel handle store for compiled code (`ChannelStoreNew/Close/IsClosed`).
+- Compiler: mapped channel lifecycle extern calls to compiled wrappers (no interpreter fallback).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1`.
+
+## 2026-02-09 — Compiled string/char + numeric extern bridges
+- Compiler: added compiled runtime implementations for `__able_String_from_builtin`, `__able_String_to_builtin`, `__able_char_from_codepoint`, and `__able_char_to_codepoint` using the shared array store (no interpreter bridge).
+- Compiler: added compiled runtime implementations for `__able_ratio_from_float`, `__able_f32_bits`, `__able_f64_bits`, and `__able_u64_mul`, raising standard error values for overflow/div-by-zero.
+- Compiler: mapped string/char/numeric extern calls to compiled wrappers and added required Go imports in generated output.
+- Docs: noted the extern transition in `design/compiler-aot.md`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1`.
+
+## 2026-02-09 — Compiler AOT plan alignment for BigInt
+- Docs: clarified that `BigInt` is a stdlib type compiled with stdlib packages, not a dedicated runtime primitive, and adjusted the compiled-runtime checklist accordingly.
+- Plan: moved BigInt work under stdlib compilation in `PLAN.md`.
+- Tests not run (plan/doc update only).
+
+## 2026-02-09 — Compiled Ratio arithmetic fast-path
+- Compiler: added compiled runtime Ratio arithmetic/comparison handling, plus Ratio coercion helpers, to avoid interpreter fallback for Ratio operations.
+- Compiler: upgraded `__able_panic_on_error` to raise runtime error values emitted by compiled helpers.
+- Docs: noted the Ratio fast-path in `design/compiler-aot.md`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1`.
+
+## 2026-02-09 — AOT channel/mutex/future task decomposition
+- Plan: split the Channel/Mutex/Future runtime work into smaller, verifiable slices in `PLAN.md`.
+- Tests not run (plan update only).
+
 ## 2026-01-25 — Exec-mode flag + fixture mode runs
 - CLI: added `--exec-mode=treewalker|bytecode` global flag and wired treewalker/bytecode wrappers to pass it.
 - Tests: added an exec-mode flag for interpreter fixture tests and updated `v12/run_all_tests.sh` to run fixtures in bytecode mode.
@@ -280,3 +325,73 @@ Open items (2025-11-02 audit):
 - Renamed async scheduler helpers to `future_*` across v12 runtimes, docs, fixtures, and tests (`future_yield`, `future_cancelled`, `future_flush`, `future_pending_tasks`) while keeping fixture IDs intact.
 - Updated typechecker diagnostics for `future_yield` to reference async tasks rather than `proc` bodies.
 - Tests: `./run_all_tests.sh --version=v12 --fixture`.
+
+### 2026-02-09
+- Routed compiled `__able_array_*` externs through the interpreter bridge so array handles stay consistent with runtime `ArrayValue` literals in compiled runs.
+- Dropped the unconditional `math/big` import from compiled output generation to avoid unused-import build failures.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Lowered compiled array literals to kernel `Array` handles (struct instances) and extended array pattern extraction to read kernel-backed arrays.
+- Bridge struct lookups now fall back to interpreter package registries so kernel types resolve without explicit imports in compiled code.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers,06_01_compiler_match_patterns,05_02_array_nested_patterns,06_01_compiler_for_loop_pattern,06_01_literals_array_map_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added a shared runtime array store so compiled and interpreted array handles share storage; compiled `__able_array_*` externs now use the runtime store directly (no interpreter bridge), and compiled array value extraction reads from the runtime store.
+- Compiled output only imports `sync` when iterator helpers are emitted.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers,06_01_compiler_match_patterns,05_02_array_nested_patterns,06_01_compiler_for_loop_pattern,06_01_literals_array_map_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM -count=1`.
+- Compiled index get/set now handle kernel-backed Array values directly via the runtime store (no interpreter fallback), returning `IndexError` values for out-of-bounds assignment semantics.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers,06_01_compiler_match_patterns,05_02_array_nested_patterns,06_01_compiler_for_loop_pattern,06_01_literals_array_map_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiled member get/set now handle Array metadata directly (storage handle/length/capacity) without interpreter fallback, syncing kernel Array metadata to the runtime store.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers,06_01_compiler_match_patterns,05_02_array_nested_patterns,06_01_compiler_for_loop_pattern,06_01_literals_array_map_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added a shared runtime hash map store so interpreter hash map handles use the runtime store instead of interpreter-local state.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run TestHashMapBuiltins -count=1`.
+- Exported interpreter HashMap hashing/equality helpers for compiler bridge use and added compiled hash map extern helpers backed by the runtime store.
+- Compiler map literal + IR map literal lowering now call compiled hash map helpers instead of interpreter bridge calls.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_map_literal,06_01_compiler_map_literal_spread go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`; `cd v12/interpreters/go && go test ./pkg/interpreter -run TestHashMapBuiltins -count=1`.
+- Added interpreter-level fast paths for numeric/string binary ops and numeric unary ops, and wired compiled runtime helpers to use them before falling back to interpreter dispatch.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=04_02_primitives_truthiness_numeric go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`; `cd v12/interpreters/go && go test ./pkg/interpreter -run TestEvaluateBinaryAddition -count=1`.
+- IR array literal lowering now calls compiled array helpers directly instead of `rt.Call`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestIREmitFunctionLiterals -count=1`.
+- Compiled index get/set now handle kernel HashMap values directly using the runtime hash map store (returning IndexError for missing keys) before falling back to interpreter dispatch.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_map_literal,08_01_bytecode_if_indexing go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiled member access now returns the HashMap `handle` field directly without interpreter fallback.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_map_literal go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiled member assignment now handles HashMap `handle` updates directly (ensuring a runtime store entry) without interpreter fallback.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_map_literal go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added compiled Future scheduler helpers (spawn, future_yield/cancelled/flush/pending_tasks), Future member access bindings, and serial executor to keep compiled futures deterministic without interpreter fallback.
+- Refactored compiler runtime helper emission to keep files under 1000 lines and added `__able_member` alias for await wakers.
+- Fixed compiled helper generation to avoid non-pointer StructInstanceValue cases and deduplicated `__able_int64_from_value`; serial executor now blocks tasks until explicitly flushed to preserve expected spawn ordering.
+- Implemented compiled await execution (arm selection, registration, waker wakeups, cancellation, and fairness) so compiled await no longer relies on interpreter dispatch.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_spawn_await,06_01_compiler_await_future,12_06_await_fairness_cancellation go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1`; `cd v12/interpreters/go && go test ./pkg/compiler -run TestIREmitFunctionSpawn -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_02_async_spawn_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added compiled helpers for `__able_await_default` and `__able_await_sleep_ms` (duration parsing + timer awaitable) and routed named calls to those helpers so compiled awaitables no longer fall back to the interpreter.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_await_default go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Fixed compiler type mapping to treat struct references as supported regardless of definition order (avoids false unsupported param/return types) while keeping unknown types marked unsupported; verified regex fixture and fallback audit now pass.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=14_02_regex_core_match_streaming go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added a compiled call registry so `__able_call_named` dispatches directly to compiled wrappers per package environment (with correct partial/optional-arg handling) before falling back to the interpreter.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_05_partial_application go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added fast-path native function/method invocation in `__able_call_value` (with partial/arity checks and context-aware errors) to avoid interpreter dispatch for native/compiled callables.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_05_partial_application,06_01_compiler_bound_method_value go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added a compiled method registry and `__able_member_get_method` fast-paths for inherent method lookup (instance/static) so member access can return compiled bound methods without interpreter dispatch when unambiguous.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=09_02_methods_instance_vs_static go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiled `main` now prefers the generated wrapper (compiled execution path) instead of dispatching through `interp.CallFunction` when available, preserving exit-code handling.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecHarness -count=1`.
+- Registered compiled call entries for overloaded functions using the overload dispatcher (and added partial handling for arity -1) so `__able_call_named` can stay in compiled space.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_07_overload_resolution_runtime go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added compiled method overload dispatchers (type-based selection + partial handling) and registered overload wrappers in the compiled method registry for instance/static methods when all overloads are compileable.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=09_02_methods_instance_vs_static go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiled impl methods now emit Go wrappers/thunks and register them with the interpreter for interface dispatch; `__able_call_value` fast-paths compiled thunks on function/bound-method values to avoid interpreter execution when available.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiled interface default methods per impl (using interface package environments) and ensured impl wrappers treat interface/impl generics as generic for runtime type checks.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_04_interface_dispatch_defaults_generics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added a compiled interface dispatch table for concrete impls (no impl generics/constraints/union targets), with bound-method caching that mirrors interpreter behavior and avoids partial application on interface member calls.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_04_interface_dispatch_defaults_generics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Extended compiled interface dispatch to generic impl targets and interface-arg template matching (still skipping where-clause constraints and union targets).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_04_interface_dispatch_defaults_generics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_06_interface_generic_param_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+
+### 2026-02-10
+- Made compiled impl thunk registration constraint-aware so generic impls with identical targets no longer overwrite each other (restores correct constraint-based impl selection in compiled runs).
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_02_impl_specificity_named_overrides go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiled interface dispatch now handles impl method overloads by emitting per-group overload dispatchers; added exec fixture `10_17_interface_overload_dispatch`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_17_interface_overload_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Verified compiled interface dispatch handles where-clause constraints and union target variants in exec fixtures.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_02_impl_where_clause,10_12_interface_union_target_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Added a strict interface dispatch flag in compiled output (enabled only when all unnamed impl methods are compileable) to reduce interpreter fallback once coverage is complete.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_17_interface_overload_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.

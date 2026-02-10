@@ -42,7 +42,7 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 	case *ast.WildcardTypeExpression:
 		return "runtime.Value", true
 	default:
-		return "", false
+		return "runtime.Value", false
 	}
 }
 
@@ -84,7 +84,7 @@ func (m *TypeMapper) mapSimple(name string) (string, bool) {
 		return "struct{}", true
 	}
 	if info, ok := m.structs[name]; ok {
-		return "*" + info.GoName, info.Supported
+		return "*" + info.GoName, true
 	}
 	return "runtime.Value", true
 }

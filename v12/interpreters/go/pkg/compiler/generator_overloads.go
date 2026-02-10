@@ -8,6 +8,14 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+type methodOverloadGroup struct {
+	TargetName  string
+	MethodName  string
+	ExpectsSelf bool
+	Entries     []*methodInfo
+	MinArity    int
+}
+
 func (g *generator) allFunctionInfos() []*functionInfo {
 	if g == nil {
 		return nil
@@ -21,6 +29,11 @@ func (g *generator) allFunctionInfos() []*functionInfo {
 			if info != nil {
 				total += len(info.Entries)
 			}
+		}
+	}
+	for _, impl := range g.implMethodList {
+		if impl != nil && impl.Info != nil {
+			total++
 		}
 	}
 	all := make([]*functionInfo, 0, total)
@@ -41,6 +54,11 @@ func (g *generator) allFunctionInfos() []*functionInfo {
 					all = append(all, entry)
 				}
 			}
+		}
+	}
+	for _, impl := range g.implMethodList {
+		if impl != nil && impl.Info != nil {
+			all = append(all, impl.Info)
 		}
 	}
 	return all
@@ -92,6 +110,9 @@ func (g *generator) hasFunctions() bool {
 	if len(g.methodList) > 0 {
 		return true
 	}
+	if len(g.implMethodList) > 0 {
+		return true
+	}
 	for _, pkgFuncs := range g.functions {
 		if len(pkgFuncs) > 0 {
 			return true
@@ -128,6 +149,24 @@ func minArgsForDefinition(def *ast.FunctionDefinition) int {
 		return 0
 	}
 	if isNullableParam(def.Params[paramCount-1]) {
+		return paramCount - 1
+	}
+	return paramCount
+}
+
+func minArgsForMethod(method *methodInfo) int {
+	if method == nil || method.Info == nil || method.Info.Definition == nil {
+		return 0
+	}
+	def := method.Info.Definition
+	paramCount := len(def.Params)
+	if method.ExpectsSelf && def.IsMethodShorthand {
+		paramCount++
+	}
+	if paramCount == 0 {
+		return 0
+	}
+	if len(def.Params) > 0 && isNullableParam(def.Params[len(def.Params)-1]) {
 		return paramCount - 1
 	}
 	return paramCount
@@ -223,6 +262,25 @@ func genericNameSet(params []*ast.GenericParameter) map[string]struct{} {
 		}
 		names[gp.Name.Name] = struct{}{}
 	}
+	if len(names) == 0 {
+		return nil
+	}
+	return names
+}
+
+func combinedGenericNameSet(params ...[]*ast.GenericParameter) map[string]struct{} {
+	names := make(map[string]struct{})
+	for _, list := range params {
+		for _, gp := range list {
+			if gp == nil || gp.Name == nil {
+				continue
+			}
+			names[gp.Name.Name] = struct{}{}
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
 	return names
 }
 
@@ -244,6 +302,104 @@ func (g *generator) overloadBase(pkgName string, name string) string {
 		return safeName
 	}
 	return fmt.Sprintf("%s_%s", sanitizeIdent(pkgName), safeName)
+}
+
+func (g *generator) methodOverloadWrapperName(targetName string, methodName string, expectsSelf bool) string {
+	return fmt.Sprintf("__able_method_overload_%s", g.methodOverloadBase(targetName, methodName, expectsSelf))
+}
+
+func (g *generator) methodOverloadValueName(targetName string, methodName string, expectsSelf bool) string {
+	return fmt.Sprintf("__able_method_overload_value_%s", g.methodOverloadBase(targetName, methodName, expectsSelf))
+}
+
+func (g *generator) methodOverloadBase(targetName string, methodName string, expectsSelf bool) string {
+	base := fmt.Sprintf("%s_%s", sanitizeIdent(targetName), sanitizeIdent(methodName))
+	if expectsSelf {
+		return base + "_self"
+	}
+	return base + "_static"
+}
+
+func (g *generator) methodOverloadKey(targetName string, methodName string, expectsSelf bool) string {
+	return fmt.Sprintf("%s|%s|%t", targetName, methodName, expectsSelf)
+}
+
+func (g *generator) methodOverloadGroups() []*methodOverloadGroup {
+	if g == nil || len(g.methodList) == 0 {
+		return nil
+	}
+	totalCounts := make(map[string]int)
+	invalid := make(map[string]bool)
+	groups := make(map[string]*methodOverloadGroup)
+	for _, method := range g.methodList {
+		if method == nil || method.Info == nil {
+			continue
+		}
+		key := g.methodOverloadKey(method.TargetName, method.MethodName, method.ExpectsSelf)
+		totalCounts[key]++
+		if !g.registerableMethod(method) {
+			invalid[key] = true
+			continue
+		}
+		group := groups[key]
+		if group == nil {
+			group = &methodOverloadGroup{
+				TargetName:  method.TargetName,
+				MethodName:  method.MethodName,
+				ExpectsSelf: method.ExpectsSelf,
+				MinArity:    -1,
+			}
+			groups[key] = group
+		}
+		group.Entries = append(group.Entries, method)
+		if minArgs := minArgsForMethod(method); minArgs >= 0 {
+			if group.MinArity < 0 || minArgs < group.MinArity {
+				group.MinArity = minArgs
+			}
+		}
+	}
+	result := make([]*methodOverloadGroup, 0, len(groups))
+	for key, group := range groups {
+		if invalid[key] {
+			continue
+		}
+		if totalCounts[key] <= 1 {
+			continue
+		}
+		if len(group.Entries) != totalCounts[key] {
+			continue
+		}
+		sort.Slice(group.Entries, func(i, j int) bool {
+			left := group.Entries[i]
+			right := group.Entries[j]
+			if left == nil || right == nil {
+				return left != nil
+			}
+			if left.Info == nil || right.Info == nil {
+				return left.Info != nil
+			}
+			return left.Info.GoName < right.Info.GoName
+		})
+		result = append(result, group)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		left := result[i]
+		right := result[j]
+		if left == nil || right == nil {
+			return left != nil
+		}
+		if left.TargetName != right.TargetName {
+			return left.TargetName < right.TargetName
+		}
+		if left.MethodName != right.MethodName {
+			return left.MethodName < right.MethodName
+		}
+		if left.ExpectsSelf != right.ExpectsSelf {
+			return left.ExpectsSelf
+		}
+		return false
+	})
+	return result
 }
 
 func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionCall, expected string, name string, callNode string) (string, string, bool) {

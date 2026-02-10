@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/typechecker"
 )
 
 type Options struct {
@@ -13,8 +14,8 @@ type Options struct {
 }
 
 type Result struct {
-	Files    map[string][]byte
-	Warnings []string
+	Files     map[string][]byte
+	Warnings  []string
 	Fallbacks []FallbackInfo
 }
 
@@ -33,6 +34,16 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	if program == nil || program.Entry == nil || program.Entry.AST == nil {
 		return nil, fmt.Errorf("compiler: missing entry program")
 	}
+	checker := typechecker.NewProgramChecker()
+	check, err := checker.Check(program)
+	if err != nil {
+		return nil, err
+	}
+	var warnings []string
+	for _, diag := range check.Diagnostics {
+		message := typechecker.DescribeModuleDiagnostic(diag)
+		warnings = append(warnings, message)
+	}
 	gen := newGenerator(c.opts)
 	if err := gen.collect(program); err != nil {
 		return nil, err
@@ -46,6 +57,7 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	gen.warnings = append(warnings, gen.warnings...)
 	return &Result{Files: files, Warnings: gen.warnings, Fallbacks: gen.collectFallbacks()}, nil
 }
 

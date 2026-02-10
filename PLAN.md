@@ -6,6 +6,9 @@ Read AGENTS, PLAN, and the v12 spec, then start on the highest priority PLAN wor
 ## Standard next steps prompt
 Proceed with next steps as suggested; don't talk about doing it - do it. We need to correct any bugs if bugs or broken tests are outstanding. We want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. Remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. Tests should run quickly; no test should take more than one minute to complete.
 
+## Looping Commands
+- `/todo-all`: Run the Iteration Loop (AOT Completion) repeatedly over the TODO list in this file until all items are complete or a blocking decision/long-running test is required. When blocked, stop and report the specific blocker plus the smallest next action needed.
+
 ## Scope
 - Keep the frozen Able v10/v11 toolchains available for historical reference while driving all new language, spec, and runtime work in v12.
 - Use the Go tree-walking interpreter as the behavioral reference and keep the Go bytecode interpreter in strict semantic parity.
@@ -50,10 +53,10 @@ Repeat this loop until the AOT compiler is complete:
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 - Compiler AOT: expand IR lowering coverage to full AST (control flow, patterns, error handling, concurrency, interop).
-- Compiler AOT: implement compiled runtime core types (Array, BigInt, Ratio, String, Channel, Mutex, Future).
 - Compiler AOT: emit Go packages per Able package with direct static calls.
 - Compiler AOT: compile stdlib and kernel packages as Go code and wire into builds.
-- Compiler AOT: implement interface dispatch dictionaries and overload resolution in compiled code.
+- Compiler AOT: compile `able.numbers.bigint` as part of stdlib compilation (relies on compiled arrays + numeric ops; no dedicated runtime primitive).
+- Compiler AOT: fully bypass interpreter interface lookup once compiled dispatch covers all impl shapes (strict dispatch flag is in place when all unnamed impl methods are compileable).
 - Compiler AOT: implement dynamic boundary bridge for compiled ↔ interpreter values and calls.
 - Compiler AOT: compiled main executes compiled code directly and only invokes interpreter for dynamic features.
 - Compiler AOT: fixture parity tests for compiled output over all exec fixtures.
