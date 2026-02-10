@@ -19,13 +19,6 @@ func (i *Interpreter) initHashMapBuiltins() {
 		return
 	}
 
-	if i.hashMapStates == nil {
-		i.hashMapStates = make(map[int64]*runtime.HashMapValue)
-	}
-	if i.nextHashMapHandle == 0 {
-		i.nextHashMapHandle = 1
-	}
-
 	parseHandle := func(val runtime.Value) (int64, error) {
 		intVal, ok := val.(runtime.IntegerValue)
 		if !ok || intVal.Val == nil {
@@ -80,7 +73,7 @@ func (i *Interpreter) initHashMapBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			hash, err := i.hashMapHashValue(args[1])
+			hash, err := i.HashMapHashValue(args[1])
 			if err != nil {
 				return nil, err
 			}
@@ -132,7 +125,7 @@ func (i *Interpreter) initHashMapBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			hash, err := i.hashMapHashValue(args[1])
+			hash, err := i.HashMapHashValue(args[1])
 			if err != nil {
 				return nil, err
 			}
@@ -164,7 +157,7 @@ func (i *Interpreter) initHashMapBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			hash, err := i.hashMapHashValue(args[1])
+			hash, err := i.HashMapHashValue(args[1])
 			if err != nil {
 				return nil, err
 			}
@@ -251,14 +244,10 @@ func (i *Interpreter) initHashMapBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			state, err := i.hashMapStateForHandle(handle)
+			newHandle, err := runtime.HashMapStoreClone(handle)
 			if err != nil {
 				return nil, err
 			}
-			cloned := make([]runtime.HashMapEntry, len(state.Entries))
-			copy(cloned, state.Entries)
-			newHandle := i.newHashMapHandle(len(cloned))
-			i.hashMapStates[newHandle].Entries = cloned
 			return runtime.IntegerValue{Val: big.NewInt(newHandle), TypeSuffix: runtime.IntegerI64}, nil
 		},
 	}
@@ -277,30 +266,11 @@ func (i *Interpreter) initHashMapBuiltins() {
 }
 
 func (i *Interpreter) newHashMapHandle(capacity int) int64 {
-	if i.hashMapStates == nil {
-		i.hashMapStates = make(map[int64]*runtime.HashMapValue)
-	}
-	if i.nextHashMapHandle == 0 {
-		i.nextHashMapHandle = 1
-	}
-	if capacity < 0 {
-		capacity = 0
-	}
-	handle := i.nextHashMapHandle
-	i.nextHashMapHandle++
-	i.hashMapStates[handle] = &runtime.HashMapValue{Entries: make([]runtime.HashMapEntry, 0, capacity)}
-	return handle
+	return runtime.HashMapStoreNewWithCapacity(capacity)
 }
 
 func (i *Interpreter) hashMapStateForHandle(handle int64) (*runtime.HashMapValue, error) {
-	if i.hashMapStates == nil {
-		return nil, fmt.Errorf("hash map state is not initialized")
-	}
-	state, ok := i.hashMapStates[handle]
-	if !ok || state == nil {
-		return nil, fmt.Errorf("hash map handle %d is not defined", handle)
-	}
-	return state, nil
+	return runtime.HashMapStoreState(handle)
 }
 
 func (i *Interpreter) hashMapFindEntryWithHash(hm *runtime.HashMapValue, hash uint64, key runtime.Value) (int, bool, error) {
@@ -308,7 +278,7 @@ func (i *Interpreter) hashMapFindEntryWithHash(hm *runtime.HashMapValue, hash ui
 		if entry.Hash != hash {
 			continue
 		}
-		equal, err := i.hashMapKeysEqual(entry.Key, key)
+		equal, err := i.HashMapKeysEqual(entry.Key, key)
 		if err != nil {
 			return -1, false, err
 		}
@@ -320,7 +290,7 @@ func (i *Interpreter) hashMapFindEntryWithHash(hm *runtime.HashMapValue, hash ui
 }
 
 func (i *Interpreter) hashMapInsertEntry(hm *runtime.HashMapValue, key runtime.Value, value runtime.Value) error {
-	hash, err := i.hashMapHashValue(key)
+	hash, err := i.HashMapHashValue(key)
 	if err != nil {
 		return err
 	}
@@ -338,7 +308,8 @@ func (i *Interpreter) hashMapInsertEntry(hm *runtime.HashMapValue, key runtime.V
 	return nil
 }
 
-func (i *Interpreter) hashMapKeysEqual(a, b runtime.Value) (bool, error) {
+// HashMapKeysEqual compares hash map keys using Eq.eq.
+func (i *Interpreter) HashMapKeysEqual(a, b runtime.Value) (bool, error) {
 	receiver := unwrapInterfaceValue(a)
 	other := unwrapInterfaceValue(b)
 	method, err := i.resolveInterfaceMethod(receiver, "Eq", "eq")
@@ -365,7 +336,8 @@ func (i *Interpreter) hashMapKeysEqual(a, b runtime.Value) (bool, error) {
 	return boolResult.Val, nil
 }
 
-func (i *Interpreter) hashMapHashValue(val runtime.Value) (uint64, error) {
+// HashMapHashValue computes the hash for a map key using Hash.hash.
+func (i *Interpreter) HashMapHashValue(val runtime.Value) (uint64, error) {
 	receiver := unwrapInterfaceValue(val)
 	method, err := i.resolveInterfaceMethod(receiver, "Hash", "hash")
 	if err != nil {

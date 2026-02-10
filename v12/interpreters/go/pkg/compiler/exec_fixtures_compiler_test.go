@@ -474,6 +474,7 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		"10_14_interface_return_generic_args",
 		"10_15_interface_default_generic_method",
 		"10_16_interface_value_storage",
+		"10_17_interface_overload_dispatch",
 		"13_01_package_structure_modules",
 		"13_02_packages_visibility_diag",
 		"13_03_package_config_prelude",

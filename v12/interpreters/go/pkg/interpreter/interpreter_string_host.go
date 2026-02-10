@@ -67,8 +67,8 @@ func (i *Interpreter) initStringHostBuiltins() {
 		if err != nil {
 			return nil, err
 		}
-		cloned := make([]runtime.Value, len(state.values))
-		copy(cloned, state.values)
+		cloned := make([]runtime.Value, len(state.Values))
+		copy(cloned, state.Values)
 		return i.newArrayValue(cloned, len(cloned)), nil
 	}
 

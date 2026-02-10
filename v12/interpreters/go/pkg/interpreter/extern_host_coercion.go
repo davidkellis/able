@@ -390,6 +390,14 @@ func (i *Interpreter) lookupStructDefinition(name string) (*runtime.StructDefini
 	return nil, false
 }
 
+// LookupStructDefinition searches all known environments and packages for a struct definition.
+func (i *Interpreter) LookupStructDefinition(name string) (*runtime.StructDefinitionValue, bool) {
+	if i == nil {
+		return nil, false
+	}
+	return i.lookupStructDefinition(name)
+}
+
 func (i *Interpreter) lookupStructDefinitionInPackage(pkgName, name string) (*runtime.StructDefinitionValue, bool) {
 	if i == nil || name == "" || pkgName == "" {
 		return nil, false

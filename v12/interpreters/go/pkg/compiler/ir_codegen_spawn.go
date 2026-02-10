@@ -69,16 +69,13 @@ func (e *irGoEmitter) emitSpawn(node *IRSpawn) error {
 	}
 	bodyName := e.functionName(node.Body)
 	taskVar := e.mangler.unique("spawn_task")
-	futureVar := e.mangler.unique("spawn_future")
 	fmt.Fprintf(&e.buf, "\t%s := func(_ *runtime.Environment) (runtime.Value, error) {\n", taskVar)
 	fmt.Fprintf(&e.buf, "\t\treturn %s(rt", bodyName)
 	for _, arg := range args {
 		fmt.Fprintf(&e.buf, ", %s", arg)
 	}
 	fmt.Fprintf(&e.buf, ")\n\t}\n")
-	fmt.Fprintf(&e.buf, "\tvar %s *runtime.FutureValue\n", futureVar)
-	fmt.Fprintf(&e.buf, "\t%s, err = bridge.Spawn(rt, %s)\n", futureVar, taskVar)
-	fmt.Fprintf(&e.buf, "\t%s = __able_error_from_go(err)\n", errDest)
-	fmt.Fprintf(&e.buf, "\tif %s == nil {\n\t\t%s = runtime.NilValue{}\n\t} else {\n\t\t%s = %s\n\t}\n", futureVar, dest, dest, futureVar)
+	fmt.Fprintf(&e.buf, "\t%s = __able_spawn(%s)\n", dest, taskVar)
+	fmt.Fprintf(&e.buf, "\t%s = runtime.NilValue{}\n", errDest)
 	return nil
 }

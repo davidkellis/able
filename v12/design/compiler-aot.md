@@ -65,10 +65,20 @@ Emit Go packages for each Able package. Generated code uses fully typed values a
 Implement core types and operations in Go:
 
 - `Array`
-- `BigInt`
 - `Ratio`
 - `String`
 - `Channel`, `Mutex`, `Future`
+
+`BigInt` is a stdlib type (`able.numbers.bigint`) implemented in Able. It is compiled as part of stdlib compilation and does not require a dedicated runtime primitive beyond compiled arrays and numeric ops.
+
+### Transition Notes (Current Work)
+
+- Array literals now lower to kernel `Array` handles in compiled output. Compiled `__able_array_*` externs now use the shared runtime array store (no interpreter bridge).
+- Compiled `__able_hash_map_*` externs now use the runtime hash map store, with hashing/equality dispatched through the compiler bridge.
+- Compiled runtime helpers use interpreter fast-path operators for numeric/string ops before falling back to interpreter dispatch.
+- Compiled string/char externs (`__able_String_*`, `__able_char_*`) now execute in the compiled runtime without interpreter calls.
+- Compiled numeric externs (`__able_ratio_from_float`, `__able_f32_bits`, `__able_f64_bits`, `__able_u64_mul`) now execute in the compiled runtime without interpreter calls.
+- Compiled runtime now handles Ratio arithmetic and comparisons directly (no interpreter fallback).
 
 ### Dynamic Bridge
 
@@ -185,11 +195,10 @@ The work below is exhaustive. Each item must be completed to reach the vision.
 ### Phase 3: Compiled Runtime Core
 
 1. Implement compiled Array with correct semantics.
-2. Implement compiled BigInt with correct semantics.
-3. Implement compiled Ratio with correct semantics.
-4. Implement compiled String helpers with correct semantics.
-5. Implement compiled Channel, Mutex, Future with correct semantics.
-6. Add parity tests against interpreter and stdlib fixtures.
+2. Implement compiled Ratio with correct semantics.
+3. Implement compiled String helpers with correct semantics.
+4. Implement compiled Channel, Mutex, Future with correct semantics.
+5. Add parity tests against interpreter and stdlib fixtures.
 
 ### Phase 4: Codegen Core
 
@@ -253,4 +262,3 @@ The compiler is complete when:
 - Stdlib and kernel are compiled and called directly.
 - All fixtures and tests are green in compiled mode.
 - `spec/full_spec_v12.md` is fully implemented.
-

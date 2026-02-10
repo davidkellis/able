@@ -21,7 +21,7 @@ func (vm *bytecodeVM) pushForIterator(value runtime.Value) error {
 		if err != nil {
 			return err
 		}
-		vm.iterStack = append(vm.iterStack, forLoopIterator{values: state.values})
+		vm.iterStack = append(vm.iterStack, forLoopIterator{values: state.Values})
 		return nil
 	case *runtime.IteratorValue:
 		vm.iterStack = append(vm.iterStack, forLoopIterator{iter: it})

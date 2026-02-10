@@ -850,7 +850,11 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 
 	callExpr := ""
 	if calleeName != "" {
-		callExpr = fmt.Sprintf("__able_call_named(%q, %s, %s)", calleeName, argList, callNode)
+		if wrapper, ok := g.externCallWrapper(calleeName); ok {
+			callExpr = fmt.Sprintf("%s(%s, %s)", wrapper, argList, callNode)
+		} else {
+			callExpr = fmt.Sprintf("__able_call_named(%q, %s, %s)", calleeName, argList, callNode)
+		}
 	} else {
 		callExpr = fmt.Sprintf("__able_call_value(%s, %s, %s)", calleeTemp, argList, callNode)
 	}
@@ -912,6 +916,93 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		return resultExpr, resultType, true
 	}
 	return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
+}
+
+func (g *generator) externCallWrapper(name string) (string, bool) {
+	switch name {
+	case "__able_array_new":
+		return "__able_extern_array_new", true
+	case "__able_array_with_capacity":
+		return "__able_extern_array_with_capacity", true
+	case "__able_array_size":
+		return "__able_extern_array_size", true
+	case "__able_array_capacity":
+		return "__able_extern_array_capacity", true
+	case "__able_array_set_len":
+		return "__able_extern_array_set_len", true
+	case "__able_array_read":
+		return "__able_extern_array_read", true
+	case "__able_array_write":
+		return "__able_extern_array_write", true
+	case "__able_array_reserve":
+		return "__able_extern_array_reserve", true
+	case "__able_array_clone":
+		return "__able_extern_array_clone", true
+	case "__able_hash_map_new":
+		return "__able_extern_hash_map_new", true
+	case "__able_hash_map_with_capacity":
+		return "__able_extern_hash_map_with_capacity", true
+	case "__able_hash_map_get":
+		return "__able_extern_hash_map_get", true
+	case "__able_hash_map_set":
+		return "__able_extern_hash_map_set", true
+	case "__able_hash_map_remove":
+		return "__able_extern_hash_map_remove", true
+	case "__able_hash_map_contains":
+		return "__able_extern_hash_map_contains", true
+	case "__able_hash_map_size":
+		return "__able_extern_hash_map_size", true
+	case "__able_hash_map_clear":
+		return "__able_extern_hash_map_clear", true
+	case "__able_hash_map_for_each":
+		return "__able_extern_hash_map_for_each", true
+	case "__able_hash_map_clone":
+		return "__able_extern_hash_map_clone", true
+	case "__able_String_from_builtin":
+		return "__able_extern_string_from_builtin", true
+	case "__able_String_to_builtin":
+		return "__able_extern_string_to_builtin", true
+	case "__able_char_from_codepoint":
+		return "__able_extern_char_from_codepoint", true
+	case "__able_char_to_codepoint":
+		return "__able_extern_char_to_codepoint", true
+	case "__able_ratio_from_float":
+		return "__able_extern_ratio_from_float", true
+	case "__able_f32_bits":
+		return "__able_extern_f32_bits", true
+	case "__able_f64_bits":
+		return "__able_extern_f64_bits", true
+	case "__able_u64_mul":
+		return "__able_extern_u64_mul", true
+	case "__able_channel_new":
+		return "__able_extern_channel_new", true
+	case "__able_channel_send":
+		return "__able_extern_channel_send", true
+	case "__able_channel_receive":
+		return "__able_extern_channel_receive", true
+	case "__able_channel_try_send":
+		return "__able_extern_channel_try_send", true
+	case "__able_channel_try_receive":
+		return "__able_extern_channel_try_receive", true
+	case "__able_channel_await_try_recv":
+		return "__able_extern_channel_await_try_recv", true
+	case "__able_channel_await_try_send":
+		return "__able_extern_channel_await_try_send", true
+	case "__able_channel_close":
+		return "__able_extern_channel_close", true
+	case "__able_channel_is_closed":
+		return "__able_extern_channel_is_closed", true
+	case "__able_mutex_new":
+		return "__able_extern_mutex_new", true
+	case "__able_mutex_lock":
+		return "__able_extern_mutex_lock", true
+	case "__able_mutex_unlock":
+		return "__able_extern_mutex_unlock", true
+	case "__able_mutex_await_lock":
+		return "__able_extern_mutex_await_lock", true
+	default:
+		return "", false
+	}
 }
 
 func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expression, memberName string) (*methodInfo, bool) {

@@ -96,9 +96,18 @@ func (g *generator) importsForCompiled() []string {
 	importSet := map[string]struct{}{}
 	needsRuntime := g.hasFunctions() || g.structUsesRuntimeValue()
 	if g.hasFunctions() {
+		importSet["context"] = struct{}{}
+		importSet["errors"] = struct{}{}
 		importSet["fmt"] = struct{}{}
 		importSet["math"] = struct{}{}
+		importSet["math/big"] = struct{}{}
 		importSet["math/bits"] = struct{}{}
+		importSet["sort"] = struct{}{}
+		importSet["strings"] = struct{}{}
+		importSet["sync"] = struct{}{}
+		importSet["sync/atomic"] = struct{}{}
+		importSet["time"] = struct{}{}
+		importSet["unicode/utf8"] = struct{}{}
 		importSet["able/interpreter-go/pkg/compiler/bridge"] = struct{}{}
 		importSet["able/interpreter-go/pkg/ast"] = struct{}{}
 		importSet["able/interpreter-go/pkg/interpreter"] = struct{}{}
@@ -108,6 +117,8 @@ func (g *generator) importsForCompiled() []string {
 	}
 	if g.needsIterator {
 		importSet["errors"] = struct{}{}
+	}
+	if g.hasFunctions() && g.needsIterator {
 		importSet["sync"] = struct{}{}
 	}
 	imports := make([]string, 0, len(importSet))
