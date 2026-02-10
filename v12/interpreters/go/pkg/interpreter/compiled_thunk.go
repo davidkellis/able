@@ -130,6 +130,180 @@ func (i *Interpreter) RegisterCompiledMethodOverload(typeName, methodName string
 	return nil
 }
 
+// RegisterCompiledImplMethodOverload wires a compiled thunk to an impl method overload that matches its signature.
+func (i *Interpreter) RegisterCompiledImplMethodOverload(interfaceName string, targetType ast.TypeExpression, interfaceArgs []ast.TypeExpression, constraintSig string, implName string, methodName string, paramTypes []ast.TypeExpression, thunk CompiledThunk) error {
+	if i == nil {
+		return fmt.Errorf("interpreter: nil interpreter")
+	}
+	if interfaceName == "" || methodName == "" {
+		return fmt.Errorf("interpreter: missing impl method registration target")
+	}
+	if thunk == nil {
+		return fmt.Errorf("interpreter: missing compiled impl method thunk")
+	}
+	if targetType == nil {
+		return fmt.Errorf("interpreter: missing impl method target type")
+	}
+	if constraintSig == "" {
+		constraintSig = "<none>"
+	}
+	normalizedTarget := expandTypeAliases(targetType, i.typeAliases, nil)
+	normalizedArgs := interfaceArgs
+	entries := make([]*implEntry, 0, len(i.implMethods)+len(i.genericImpls))
+	for _, bucket := range i.implMethods {
+		for idx := range bucket {
+			entries = append(entries, &bucket[idx])
+		}
+	}
+	for idx := range i.genericImpls {
+		entries = append(entries, &i.genericImpls[idx])
+	}
+	matches := 0
+	for _, entry := range entries {
+		if entry == nil || entry.definition == nil {
+			continue
+		}
+		if entry.interfaceName != interfaceName {
+			continue
+		}
+		if implName != "" {
+			if entry.definition.ImplName == nil || entry.definition.ImplName.Name != implName {
+				continue
+			}
+		} else if entry.definition.ImplName != nil {
+			continue
+		}
+		entryTarget := expandTypeAliases(entry.definition.TargetType, i.typeAliases, nil)
+		if !typeExpressionsEqual(entryTarget, normalizedTarget) {
+			continue
+		}
+		if !interfaceArgsEqual(i, entry.definition.InterfaceArgs, normalizedArgs) {
+			continue
+		}
+		if constraintSignature(collectConstraintSpecs(entry.genericParams, entry.whereClause), typeExpressionToString) != constraintSig {
+			continue
+		}
+		method := entry.methods[methodName]
+		if method == nil {
+			continue
+		}
+		applyThunk := func(fn *runtime.FunctionValue) {
+			if fn == nil || fn.Declaration == nil {
+				return
+			}
+			def, ok := fn.Declaration.(*ast.FunctionDefinition)
+			if !ok || def == nil {
+				return
+			}
+			expectsSelf := functionDefinitionExpectsSelf(def)
+			defParams := methodDefinitionParamTypes(def, entry.definition.TargetType, expectsSelf)
+			if len(defParams) != len(paramTypes) {
+				return
+			}
+			for idx := range defParams {
+				left := expandTypeAliases(defParams[idx], i.typeAliases, nil)
+				right := expandTypeAliases(paramTypes[idx], i.typeAliases, nil)
+				if !typeExpressionsEqual(left, right) {
+					return
+				}
+			}
+			fn.Bytecode = thunk
+			matches++
+		}
+		switch v := method.(type) {
+		case *runtime.FunctionValue:
+			applyThunk(v)
+		case *runtime.FunctionOverloadValue:
+			if v != nil {
+				for _, entry := range v.Overloads {
+					applyThunk(entry)
+				}
+			}
+		}
+	}
+	if matches == 0 {
+		return fmt.Errorf("interpreter: no matching impl method for %s.%s", interfaceName, methodName)
+	}
+	return nil
+}
+
+// RegisterCompiledImplNamespaceMethod wires a compiled thunk to a named impl namespace method.
+func (i *Interpreter) RegisterCompiledImplNamespaceMethod(env *runtime.Environment, implName string, methodName string, paramTypes []ast.TypeExpression, thunk CompiledThunk) error {
+	if i == nil {
+		return fmt.Errorf("interpreter: nil interpreter")
+	}
+	if env == nil {
+		return fmt.Errorf("interpreter: missing environment")
+	}
+	if implName == "" || methodName == "" {
+		return fmt.Errorf("interpreter: missing impl namespace registration target")
+	}
+	if thunk == nil {
+		return fmt.Errorf("interpreter: missing compiled impl namespace thunk")
+	}
+	val, err := env.Get(implName)
+	if err != nil {
+		return fmt.Errorf("interpreter: missing impl namespace %s", implName)
+	}
+	var ns runtime.ImplementationNamespaceValue
+	switch v := val.(type) {
+	case runtime.ImplementationNamespaceValue:
+		ns = v
+	case *runtime.ImplementationNamespaceValue:
+		if v == nil {
+			return fmt.Errorf("interpreter: missing impl namespace %s", implName)
+		}
+		ns = *v
+	default:
+		return fmt.Errorf("interpreter: %s is not an impl namespace", implName)
+	}
+	if ns.Methods == nil {
+		return fmt.Errorf("interpreter: impl namespace %s missing methods", implName)
+	}
+	method := ns.Methods[methodName]
+	if method == nil {
+		return fmt.Errorf("interpreter: impl namespace %s missing method %s", implName, methodName)
+	}
+	matches := 0
+	applyThunk := func(fn *runtime.FunctionValue) {
+		if fn == nil || fn.Declaration == nil {
+			return
+		}
+		def, ok := fn.Declaration.(*ast.FunctionDefinition)
+		if !ok || def == nil {
+			return
+		}
+		expectsSelf := functionDefinitionExpectsSelf(def)
+		defParams := methodDefinitionParamTypes(def, ns.TargetType, expectsSelf)
+		if len(defParams) != len(paramTypes) {
+			return
+		}
+		for idx := range defParams {
+			left := expandTypeAliases(defParams[idx], i.typeAliases, nil)
+			right := expandTypeAliases(paramTypes[idx], i.typeAliases, nil)
+			if !typeExpressionsEqual(left, right) {
+				return
+			}
+		}
+		fn.Bytecode = thunk
+		matches++
+	}
+	switch v := method.(type) {
+	case *runtime.FunctionValue:
+		applyThunk(v)
+	case *runtime.FunctionOverloadValue:
+		if v != nil {
+			for _, entry := range v.Overloads {
+				applyThunk(entry)
+			}
+		}
+	}
+	if matches == 0 {
+		return fmt.Errorf("interpreter: no matching impl namespace method for %s.%s", implName, methodName)
+	}
+	return nil
+}
+
 // RegisterCompiledFunctionOverload wires a compiled thunk to a function overload that matches its signature.
 func (i *Interpreter) RegisterCompiledFunctionOverload(env *runtime.Environment, name string, paramTypes []ast.TypeExpression, thunk CompiledThunk) error {
 	if i == nil {

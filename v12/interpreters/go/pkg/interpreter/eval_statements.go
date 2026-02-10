@@ -252,7 +252,7 @@ func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environmen
 		if err != nil {
 			return nil, err
 		}
-		return i.iterateStaticValues(loop, baseEnv, state.values)
+		return i.iterateStaticValues(loop, baseEnv, state.Values)
 	case *runtime.IteratorValue:
 		return i.iterateDynamicIterator(loop, baseEnv, it)
 	default:

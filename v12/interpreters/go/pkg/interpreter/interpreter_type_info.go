@@ -101,6 +101,13 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 			return nil
 		}
 		base := ast.Ty(v.Definition.Node.ID.Name)
+		if v.Definition.Node.ID.Name == "Array" {
+			if arr, err := i.arrayValueFromStructFields(v.Fields); err == nil && arr != nil {
+				if inferred := i.typeExpressionFromValue(arr); inferred != nil {
+					return inferred
+				}
+			}
+		}
 		generics := v.Definition.Node.GenericParams
 		if len(generics) > 0 {
 			typeArgs := v.TypeArguments

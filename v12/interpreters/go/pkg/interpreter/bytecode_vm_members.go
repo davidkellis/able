@@ -206,23 +206,23 @@ func (vm *bytecodeVM) assignMemberValue(target runtime.Value, member ast.Express
 			if err != nil {
 				return nil, err
 			}
-			if idx < 0 || idx >= len(state.values) {
+			if idx < 0 || idx >= len(state.Values) {
 				return nil, fmt.Errorf("Array index out of bounds")
 			}
 			if op == ast.AssignmentAssign {
-				state.values[idx] = value
+				state.Values[idx] = value
 				vm.interp.syncArrayValues(arrayVal.Handle, state)
 				return value, nil
 			}
 			if !isCompound {
 				return nil, fmt.Errorf("unsupported assignment operator %s", op)
 			}
-			current := state.values[idx]
+			current := state.Values[idx]
 			computed, err := applyBinaryOperator(vm.interp, binaryOp, current, value)
 			if err != nil {
 				return nil, err
 			}
-			state.values[idx] = computed
+			state.Values[idx] = computed
 			vm.interp.syncArrayValues(arrayVal.Handle, state)
 			return computed, nil
 		case *ast.Identifier:
@@ -243,13 +243,12 @@ func (vm *bytecodeVM) assignMemberValue(target runtime.Value, member ast.Express
 				if handle <= 0 {
 					return nil, fmt.Errorf("array storage_handle must be positive")
 				}
-				newState, ok := vm.interp.arrayStates[handle]
-				if !ok {
-					newState = &arrayState{values: make([]runtime.Value, 0), capacity: 0}
-					vm.interp.arrayStates[handle] = newState
+				newState, err := runtime.ArrayStoreEnsureHandle(handle, 0, 0)
+				if err != nil {
+					return nil, err
 				}
 				vm.interp.trackArrayValue(handle, arrayVal)
-				arrayVal.Elements = newState.values
+				arrayVal.Elements = newState.Values
 				vm.interp.syncArrayValues(handle, newState)
 				return value, nil
 			case "length":
@@ -265,13 +264,13 @@ func (vm *bytecodeVM) assignMemberValue(target runtime.Value, member ast.Express
 				if err != nil {
 					return nil, fmt.Errorf("array capacity must be a non-negative integer")
 				}
-				if newCap < len(state.values) {
-					newCap = len(state.values)
+				if newCap < len(state.Values) {
+					newCap = len(state.Values)
 				}
 				if ensureArrayCapacity(state, newCap) {
 					// ensureArrayCapacity already syncs handle reallocations
-				} else if newCap > state.capacity {
-					state.capacity = newCap
+				} else if newCap > state.Capacity {
+					state.Capacity = newCap
 				}
 				vm.interp.syncArrayValues(arrayVal.Handle, state)
 				return value, nil

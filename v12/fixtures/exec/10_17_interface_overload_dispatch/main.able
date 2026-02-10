@@ -1,0 +1,22 @@
+package exec_10_17_interface_overload_dispatch
+
+interface Formatter {
+  fn format(self: Self, value: i32) -> String
+  fn format(self: Self, value: String) -> String
+}
+
+struct Printer { tag: String }
+
+impl Formatter for Printer {
+  fn format(self: Self, value: i32) -> String { `I:${self.tag}:${value}` }
+  fn format(self: Self, value: String) -> String { `S:${self.tag}:${value}` }
+}
+
+fn use(f: Formatter) -> void {
+  print(f.format(7))
+  print(f.format("hi"))
+}
+
+fn main() -> void {
+  use(Printer { tag: "p" })
+}

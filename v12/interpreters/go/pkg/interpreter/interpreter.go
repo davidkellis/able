@@ -242,13 +242,9 @@ type Interpreter struct {
 	divModStruct    *runtime.StructDefinitionValue
 	ratioStruct     *runtime.StructDefinitionValue
 
-	arrayReady        bool
-	arrayStates       map[int64]*arrayState
-	arraysByHandle    map[int64]map[*runtime.ArrayValue]struct{}
-	nextArrayHandle   int64
-	hashMapReady      bool
-	hashMapStates     map[int64]*runtime.HashMapValue
-	nextHashMapHandle int64
+	arrayReady     bool
+	arraysByHandle map[int64]map[*runtime.ArrayValue]struct{}
+	hashMapReady   bool
 
 	errorNativeMethods map[string]runtime.NativeFunctionValue
 
@@ -375,11 +371,7 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
 		standardErrorStructs:    make(map[string]*runtime.StructDefinitionValue),
 		orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
-		arrayStates:             make(map[int64]*arrayState),
 		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
-		nextArrayHandle:         1,
-		hashMapStates:           make(map[int64]*runtime.HashMapValue),
-		nextHashMapHandle:       1,
 		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
 	}
 	i.initConcurrencyBuiltins()

@@ -49,6 +49,31 @@ func (g *generator) renderMethodParamTypes(method *methodInfo) (string, bool) {
 	return fmt.Sprintf("[]ast.TypeExpression{%s}", strings.Join(parts, ", ")), true
 }
 
+func (g *generator) renderImplMethodParamTypes(method *implMethodInfo) (string, bool) {
+	if method == nil || method.Info == nil || method.Info.Definition == nil {
+		return "nil", false
+	}
+	def := method.Info.Definition
+	expectsSelf := methodDefinitionExpectsSelf(def)
+	params := methodDefinitionParamTypes(def, method.TargetType, expectsSelf)
+	parts := make([]string, 0, len(params))
+	for _, paramType := range params {
+		if paramType == nil {
+			parts = append(parts, "nil")
+			continue
+		}
+		rendered, ok := g.renderTypeExpression(paramType)
+		if !ok {
+			return "", false
+		}
+		parts = append(parts, rendered)
+	}
+	if len(parts) == 0 {
+		return "nil", true
+	}
+	return fmt.Sprintf("[]ast.TypeExpression{%s}", strings.Join(parts, ", ")), true
+}
+
 func (g *generator) renderFunctionParamTypes(info *functionInfo) (string, bool) {
 	if info == nil || info.Definition == nil {
 		return "nil", false
@@ -61,6 +86,28 @@ func (g *generator) renderFunctionParamTypes(info *functionInfo) (string, bool) 
 			continue
 		}
 		rendered, ok := g.renderTypeExpression(param.ParamType)
+		if !ok {
+			return "", false
+		}
+		parts = append(parts, rendered)
+	}
+	if len(parts) == 0 {
+		return "nil", true
+	}
+	return fmt.Sprintf("[]ast.TypeExpression{%s}", strings.Join(parts, ", ")), true
+}
+
+func (g *generator) renderTypeExpressionList(exprs []ast.TypeExpression) (string, bool) {
+	if len(exprs) == 0 {
+		return "nil", true
+	}
+	parts := make([]string, 0, len(exprs))
+	for _, expr := range exprs {
+		if expr == nil {
+			parts = append(parts, "nil")
+			continue
+		}
+		rendered, ok := g.renderTypeExpression(expr)
 		if !ok {
 			return "", false
 		}

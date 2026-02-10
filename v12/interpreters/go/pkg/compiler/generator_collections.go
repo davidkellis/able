@@ -16,8 +16,14 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 		ctx.setReason("array literal type mismatch")
 		return "", "", false
 	}
-	elements := make([]string, 0, len(lit.Elements))
-	for _, element := range lit.Elements {
+	callNode := g.diagNodeName(lit, "*ast.ArrayLiteral", "array")
+	lines := []string{
+		"if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }",
+	}
+	handleTemp := ctx.newTemp()
+	capacityExpr := fmt.Sprintf("bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\"))", len(lit.Elements))
+	lines = append(lines, fmt.Sprintf("%s := __able_extern_array_with_capacity([]runtime.Value{%s}, %s)", handleTemp, capacityExpr, callNode))
+	for idx, element := range lit.Elements {
 		expr, goType, ok := g.compileExpr(ctx, element, "")
 		if !ok {
 			return "", "", false
@@ -27,10 +33,15 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 			ctx.setReason("array literal element unsupported")
 			return "", "", false
 		}
-		elements = append(elements, valueExpr)
+		valueTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
+		indexExpr := fmt.Sprintf("bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\"))", idx)
+		lines = append(lines, fmt.Sprintf("_ = __able_extern_array_write([]runtime.Value{%s, %s, %s}, %s)", handleTemp, indexExpr, valueTemp, callNode))
 	}
-	expr := fmt.Sprintf("&runtime.ArrayValue{Elements: []runtime.Value{%s}}", strings.Join(elements, ", "))
-	return expr, "runtime.Value", true
+	arrTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s, err := __able_struct_Array_to(__able_runtime, &Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: %s})", arrTemp, len(lit.Elements), len(lit.Elements), handleTemp))
+	lines = append(lines, "if err != nil { panic(err) }")
+	return fmt.Sprintf("func() runtime.Value { %s; return %s }()", strings.Join(lines, "; "), arrTemp), "runtime.Value", true
 }
 
 func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, expected string) (string, string, bool) {
@@ -297,7 +308,7 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 	buf.WriteString("\tif err != nil {\n")
 	buf.WriteString("\t\tpanic(err)\n")
 	buf.WriteString("\t}\n")
-	buf.WriteString("\thandleVal, err := __able_runtime.Call(\"__able_hash_map_new\", nil)\n")
+	buf.WriteString("\thandleVal, err := __able_hash_map_new_impl(nil)\n")
 	buf.WriteString("\tif err != nil {\n")
 	buf.WriteString("\t\tpanic(err)\n")
 	buf.WriteString("\t}\n")
@@ -311,7 +322,7 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 			buf.WriteString(fmt.Sprintf("\t%s := %s\n", valueTemp, element.value))
 			buf.WriteString(fmt.Sprintf("\tkeyType = mergeType(keyType, typeFromValue(%s))\n", keyTemp))
 			buf.WriteString(fmt.Sprintf("\tvalueType = mergeType(valueType, typeFromValue(%s))\n", valueTemp))
-			buf.WriteString(fmt.Sprintf("\t_, err = __able_runtime.Call(\"__able_hash_map_set\", []runtime.Value{%s, %s, %s})\n", "handleVal", keyTemp, valueTemp))
+			buf.WriteString(fmt.Sprintf("\t_, err = __able_hash_map_set_impl([]runtime.Value{%s, %s, %s})\n", "handleVal", keyTemp, valueTemp))
 			buf.WriteString("\tif err != nil {\n")
 			buf.WriteString("\t\tpanic(err)\n")
 			buf.WriteString("\t}\n")
@@ -357,14 +368,14 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 			buf.WriteString("\t\t\t}\n")
 			buf.WriteString("\t\t\tkeyType = mergeType(keyType, typeFromValue(args[0]))\n")
 			buf.WriteString("\t\t\tvalueType = mergeType(valueType, typeFromValue(args[1]))\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t_, err := __able_runtime.Call(\"__able_hash_map_set\", []runtime.Value{%s, args[0], args[1]})\n", "handleVal"))
+			buf.WriteString(fmt.Sprintf("\t\t\t_, err := __able_hash_map_set_impl([]runtime.Value{%s, args[0], args[1]})\n", "handleVal"))
 			buf.WriteString("\t\t\tif err != nil {\n")
 			buf.WriteString("\t\t\t\treturn nil, err\n")
 			buf.WriteString("\t\t\t}\n")
 			buf.WriteString("\t\t\treturn runtime.NilValue{}, nil\n")
 			buf.WriteString("\t\t},\n")
 			buf.WriteString("\t}\n")
-			buf.WriteString(fmt.Sprintf("\t_, err = __able_runtime.Call(\"__able_hash_map_for_each\", []runtime.Value{%s, %s})\n", handleTemp, callbackTemp))
+			buf.WriteString(fmt.Sprintf("\t_, err = __able_hash_map_for_each_impl([]runtime.Value{%s, %s})\n", handleTemp, callbackTemp))
 			buf.WriteString("\tif err != nil {\n")
 			buf.WriteString("\t\tpanic(err)\n")
 			buf.WriteString("\t}\n")

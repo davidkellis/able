@@ -1,0 +1,10 @@
+{
+  "description": "interface method overload dispatch for interface-typed values",
+  "expect": {
+    "stdout": [
+      "I:p:7",
+      "S:p:hi"
+    ],
+    "exit": 0
+  }
+}

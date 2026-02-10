@@ -133,7 +133,7 @@ func seedHashMapStruct(t *testing.T, interp *Interpreter, env *runtime.Environme
 
 func mapStateValue(t *testing.T, interp *Interpreter, state *runtime.HashMapValue, key runtime.Value) runtime.Value {
 	t.Helper()
-	hash, err := interp.hashMapHashValue(key)
+	hash, err := interp.HashMapHashValue(key)
 	if err != nil {
 		t.Fatalf("hash key failed: %v", err)
 	}

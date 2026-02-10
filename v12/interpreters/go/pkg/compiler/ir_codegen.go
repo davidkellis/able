@@ -711,15 +711,23 @@ func (e *irGoEmitter) emitArrayLiteral(node *IRArrayLiteral) error {
 		return fmt.Errorf("compiler: IR array literal missing destination")
 	}
 	dest := e.nameForValue(node.Dest)
-	elements := make([]string, 0, len(node.Elements))
-	for _, elem := range node.Elements {
+	defTemp := e.mangler.unique("array_def")
+	handleTemp := e.mangler.unique("array_handle")
+	fmt.Fprintf(&e.buf, "\tif rt == nil {\n\t\treturn nil, fmt.Errorf(\"compiler: missing runtime\")\n\t}\n")
+	fmt.Fprintf(&e.buf, "\t%s, err := rt.StructDefinition(\"Array\")\n", defTemp)
+	fmt.Fprintf(&e.buf, "\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+	fmt.Fprintf(&e.buf, "\tif %s == nil {\n\t\treturn nil, fmt.Errorf(\"array definition unavailable\")\n\t}\n", defTemp)
+	fmt.Fprintf(&e.buf, "\t%s, err := __able_array_with_capacity_impl([]runtime.Value{bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\"))})\n", handleTemp, len(node.Elements))
+	fmt.Fprintf(&e.buf, "\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+	for idx, elem := range node.Elements {
 		expr, err := e.emitValueRef(elem)
 		if err != nil {
 			return err
 		}
-		elements = append(elements, expr)
+		fmt.Fprintf(&e.buf, "\t_, err = __able_array_write_impl([]runtime.Value{%s, bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\")), %s})\n", handleTemp, idx, expr)
+		fmt.Fprintf(&e.buf, "\tif err != nil { return nil, err }\n")
 	}
-	fmt.Fprintf(&e.buf, "\t%s = &runtime.ArrayValue{Elements: []runtime.Value{%s}}\n", dest, strings.Join(elements, ", "))
+	fmt.Fprintf(&e.buf, "\t%s = &runtime.StructInstanceValue{Definition: %s, Fields: map[string]runtime.Value{\"length\": bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\")), \"capacity\": bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\")), \"storage_handle\": %s}, TypeArguments: []ast.TypeExpression{ast.NewWildcardTypeExpression()}}\n", dest, defTemp, len(node.Elements), len(node.Elements), handleTemp)
 	return nil
 }
 
@@ -845,7 +853,7 @@ func (e *irGoEmitter) emitMapLiteral(node *IRMapLiteral) error {
 	fmt.Fprintf(&e.buf, "\t%s, err := rt.StructDefinition(\"HashMap\")\n", defTemp)
 	fmt.Fprintf(&e.buf, "\tif err != nil {\n\t\treturn nil, err\n\t}\n")
 	fmt.Fprintf(&e.buf, "\tif %s == nil {\n\t\treturn nil, fmt.Errorf(\"hash map definition unavailable\")\n\t}\n", defTemp)
-	fmt.Fprintf(&e.buf, "\t%s, err := rt.Call(\"__able_hash_map_new\", nil)\n", handleTemp)
+	fmt.Fprintf(&e.buf, "\t%s, err := __able_hash_map_new_impl(nil)\n", handleTemp)
 	fmt.Fprintf(&e.buf, "\tif err != nil {\n\t\treturn nil, err\n\t}\n")
 	fmt.Fprintf(&e.buf, "\t%s := &runtime.StructInstanceValue{Definition: %s, Fields: map[string]runtime.Value{\"handle\": %s}, TypeArguments: []ast.TypeExpression{ast.NewWildcardTypeExpression(), ast.NewWildcardTypeExpression()}}\n", instTemp, defTemp, handleTemp)
 
@@ -860,7 +868,7 @@ func (e *irGoEmitter) emitMapLiteral(node *IRMapLiteral) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(&e.buf, "\t_, err = rt.Call(\"__able_hash_map_set\", []runtime.Value{%s, %s, %s})\n", handleTemp, keyExpr, valExpr)
+			fmt.Fprintf(&e.buf, "\t_, err = __able_hash_map_set_impl([]runtime.Value{%s, %s, %s})\n", handleTemp, keyExpr, valExpr)
 			fmt.Fprintf(&e.buf, "\tif err != nil { return nil, err }\n")
 		case IRMapSpread:
 			spreadExpr, err := e.emitValueRef(entry.Value)
@@ -889,14 +897,14 @@ func (e *irGoEmitter) emitMapLiteral(node *IRMapLiteral) error {
 			fmt.Fprintf(&e.buf, "\t\t\tif len(args) != 2 {\n")
 			fmt.Fprintf(&e.buf, "\t\t\t\treturn nil, fmt.Errorf(\"map literal spread callback expects key and value\")\n")
 			fmt.Fprintf(&e.buf, "\t\t\t}\n")
-			fmt.Fprintf(&e.buf, "\t\t\t_, err := rt.Call(\"__able_hash_map_set\", []runtime.Value{%s, args[0], args[1]})\n", handleTemp)
+			fmt.Fprintf(&e.buf, "\t\t\t_, err := __able_hash_map_set_impl([]runtime.Value{%s, args[0], args[1]})\n", handleTemp)
 			fmt.Fprintf(&e.buf, "\t\t\tif err != nil {\n")
 			fmt.Fprintf(&e.buf, "\t\t\t\treturn nil, err\n")
 			fmt.Fprintf(&e.buf, "\t\t\t}\n")
 			fmt.Fprintf(&e.buf, "\t\t\treturn runtime.NilValue{}, nil\n")
 			fmt.Fprintf(&e.buf, "\t\t},\n")
 			fmt.Fprintf(&e.buf, "\t}\n")
-			fmt.Fprintf(&e.buf, "\t_, err = rt.Call(\"__able_hash_map_for_each\", []runtime.Value{%s, %s})\n", handleVar, callbackTemp)
+			fmt.Fprintf(&e.buf, "\t_, err = __able_hash_map_for_each_impl([]runtime.Value{%s, %s})\n", handleVar, callbackTemp)
 			fmt.Fprintf(&e.buf, "\tif err != nil { return nil, err }\n")
 		default:
 			return fmt.Errorf("compiler: unsupported map literal element %T", element)
