@@ -1,0 +1,52 @@
+package process_smoke_tests
+
+import able.io
+import able.io.{IOError, NotFound}
+import able.os
+import able.process
+import able.process.{with_cwd, with_env}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn main() -> void {
+  base := process.ProcessSpec.new("/bin/sh", ["-c", "printf %s \"$ABLE_PROCESS_SMOKE\""])
+  with_cwd_spec := base.with_cwd(os.cwd())
+  env := [process.ProcessEnv.new("ABLE_PROCESS_SMOKE", "process-ok")]
+  spec := with_cwd_spec.with_env(env)
+  saw_cwd := false
+  spec.cwd match {
+    case value: String => {
+      saw_cwd = true
+      assert(value == os.cwd(), "with_cwd should set cwd field")
+    },
+    case nil => {}
+  }
+  assert(saw_cwd, "with_cwd should set a non-nil cwd")
+  handle := process.spawn(spec)
+  out := io.bytes_to_string(io.read_all(process.stdout(handle), 128))
+  status := process.wait(handle)
+  assert(status.code == 0, "spawned process should exit with code 0")
+  assert(out == "process-ok", "stdout should contain process output")
+
+  io.try_close(process.stdin(handle))
+  io.try_close(process.stdout(handle))
+  io.try_close(process.stderr(handle))
+
+  missing := process.try_spawn(process.ProcessSpec.new("/definitely/missing/able-process-smoke-bin", nil))
+  saw_not_found := false
+  missing match {
+    case err: IOError => {
+      err.kind match {
+        case NotFound => { saw_not_found = true },
+        case _ => {}
+      }
+    },
+    case _ => {}
+  }
+  assert(saw_not_found, "try_spawn should return NotFound for missing command")
+}
+
+main()

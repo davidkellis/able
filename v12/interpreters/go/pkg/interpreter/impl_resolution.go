@@ -13,12 +13,16 @@ type implEntry struct {
 	interfaceName string
 	methods       map[string]runtime.Value
 	definition    *ast.ImplementationDefinition
-	argTemplates  []ast.TypeExpression
-	genericParams []*ast.GenericParameter
-	whereClause   []*ast.WhereClauseConstraint
-	unionVariants []string
-	defaultOnly   bool
-	isBuiltin     bool
+	// registrationTarget keeps the source-form target expression used at
+	// declaration sites (before canonicalization), so compiled thunk
+	// registration can match source aliases as well as canonical names.
+	registrationTarget ast.TypeExpression
+	argTemplates       []ast.TypeExpression
+	genericParams      []*ast.GenericParameter
+	whereClause        []*ast.WhereClauseConstraint
+	unionVariants      []string
+	defaultOnly        bool
+	isBuiltin          bool
 }
 
 type implCandidate struct {

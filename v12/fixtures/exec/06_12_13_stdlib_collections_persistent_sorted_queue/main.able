@@ -1,0 +1,49 @@
+package exec_06_12_13_stdlib_collections_persistent_sorted_queue
+
+import able.collections.persistent_sorted_set.{PersistentSortedSet}
+import able.collections.persistent_queue.{PersistentQueue}
+
+## Semantics: persistent sorted-set/queue helpers compile through stdlib persistent collection impls.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  set: PersistentSortedSet i32 = PersistentSortedSet.empty()
+  set = set.insert(2).insert(1).insert(3).insert(2)
+  print(`set_len ${set.len()}`)
+  print_optional_i32("set_first", set.first())
+  print_optional_i32("set_last", set.last())
+  print(`set_contains_2 ${set.contains(2)}`)
+
+  trimmed := set.remove(2)
+  print(`trimmed_contains_2 ${trimmed.contains(2)}`)
+  print(`set_still_contains_2 ${set.contains(2)}`)
+
+  slice := set.range(1, 2)
+  print(`range_len ${slice.len()}`)
+  print_optional_i32("range_first", slice.get(0))
+  print_optional_i32("range_last", slice.get(1))
+
+  queue: PersistentQueue i32 = PersistentQueue.empty()
+  queue = queue.enqueue(10).enqueue(20).enqueue(30)
+  print(`queue_len ${queue.len()}`)
+  print_optional_i32("queue_peek", queue.peek())
+
+  next_queue := queue.dequeue()
+  print(`next_queue_len ${next_queue.len()}`)
+  print_optional_i32("next_queue_peek", next_queue.peek())
+  print_optional_i32("queue_still_peek", queue.peek())
+
+  queue_sum := 0
+  queue.each(fn(value: i32) -> void { queue_sum = queue_sum + value })
+  print(`queue_sum ${queue_sum}`)
+
+  next_sum := 0
+  next_queue.each(fn(value: i32) -> void { next_sum = next_sum + value })
+  print(`next_queue_sum ${next_sum}`)
+}

@@ -72,9 +72,12 @@ func (g *generator) zeroValueExpr(goType string) (string, bool) {
 	return "", false
 }
 
-func (g *generator) interfaceArgExpr(argExpr string, ifaceType ast.TypeExpression, context string) (string, bool) {
+func (g *generator) interfaceArgExpr(argExpr string, ifaceType ast.TypeExpression, context string, genericNames map[string]struct{}) (string, bool) {
 	if argExpr == "" {
 		return "", false
+	}
+	if g.typeExprHasGeneric(ifaceType, genericNames) {
+		return fmt.Sprintf("func() runtime.Value { if %s == nil { return runtime.NilValue{} }; return %s }()", argExpr, argExpr), true
 	}
 	rendered, ok := g.renderTypeExpression(ifaceType)
 	if !ok {
@@ -87,9 +90,12 @@ func (g *generator) interfaceArgExpr(argExpr string, ifaceType ast.TypeExpressio
 	return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; val, ok, err := bridge.MatchType(__able_runtime, %s, %s); __able_panic_on_error(err); if !ok { panic(fmt.Errorf(\"type mismatch calling %s: expected %s\")) }; if val == nil { return runtime.NilValue{} }; return val }()", rendered, argExpr, context, expected), true
 }
 
-func (g *generator) interfaceReturnExpr(valueExpr string, ifaceType ast.TypeExpression) (string, bool) {
+func (g *generator) interfaceReturnExpr(valueExpr string, ifaceType ast.TypeExpression, genericNames map[string]struct{}) (string, bool) {
 	if valueExpr == "" {
 		return "", false
+	}
+	if g.typeExprHasGeneric(ifaceType, genericNames) {
+		return fmt.Sprintf("func() runtime.Value { if %s == nil { return runtime.NilValue{} }; return %s }()", valueExpr, valueExpr), true
 	}
 	rendered, ok := g.renderTypeExpression(ifaceType)
 	if !ok {

@@ -77,7 +77,15 @@ func runCompiledTests(config TestCliConfig, testFiles []string) int {
 		return 2
 	}
 
-	result, err := compiler.New(compiler.Options{PackageName: "main"}).Compile(program)
+	requireNoFallbacks, err := resolveCompilerRequireNoFallbacksFromEnv()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
+		return 2
+	}
+	result, err := compiler.New(compiler.Options{
+		PackageName:        "main",
+		RequireNoFallbacks: requireNoFallbacks,
+	}).Compile(program)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "able test --compiled: compile: %v\n", err)
 		return 2
@@ -293,11 +301,10 @@ func compiledTestHarnessSource(entryPath string, searchPaths []driver.SearchPath
 	buf.WriteString("\t\tif code, ok := interpreter.ExitCodeFromError(err); ok {\n\t\t\tos.Exit(code)\n\t\t}\n")
 	buf.WriteString("\t\tfmt.Fprintln(os.Stderr, interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(err)))\n")
 	buf.WriteString("\t\tos.Exit(1)\n\t}\n")
-	buf.WriteString("\tif _, err := RegisterIn(interp, entryEnv); err != nil {\n\t\tfmt.Fprintln(os.Stderr, err)\n\t\tos.Exit(1)\n\t}\n")
-	buf.WriteString("\tif entryEnv == nil {\n\t\tentryEnv = interp.GlobalEnvironment()\n\t}\n")
-	buf.WriteString("\tmainValue, err := entryEnv.Get(\"main\")\n")
+	buf.WriteString("\trt, err := RegisterIn(interp, entryEnv)\n")
 	buf.WriteString("\tif err != nil {\n\t\tfmt.Fprintln(os.Stderr, err)\n\t\tos.Exit(1)\n\t}\n")
-	buf.WriteString("\tif _, err := interp.CallFunction(mainValue, nil); err != nil {\n")
+	buf.WriteString("\tif entryEnv == nil {\n\t\tentryEnv = interp.GlobalEnvironment()\n\t}\n")
+	buf.WriteString("\tif err := RunRegisteredMain(rt, interp, entryEnv); err != nil {\n")
 	buf.WriteString("\t\tif code, ok := interpreter.ExitCodeFromError(err); ok {\n\t\t\tos.Exit(code)\n\t\t}\n")
 	buf.WriteString("\t\tfmt.Fprintln(os.Stderr, interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(err)))\n")
 	buf.WriteString("\t\tos.Exit(1)\n\t}\n")

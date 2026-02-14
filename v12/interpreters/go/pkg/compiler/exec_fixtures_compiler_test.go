@@ -116,7 +116,10 @@ func runCompilerExecFixture(t *testing.T, dir string, rel string) {
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(workDir) })
 
-	comp := New(Options{PackageName: "main"})
+	comp := New(Options{
+		PackageName:        "main",
+		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
+	})
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)
@@ -219,14 +222,35 @@ func compilerHarnessSource(entryPath string, searchPaths []driver.SearchPath, ex
 	buf.WriteString("\t\tif code, ok := interpreter.ExitCodeFromError(err); ok {\n\t\t\tos.Exit(code)\n\t\t}\n")
 	buf.WriteString("\t\tfmt.Fprintln(os.Stderr, interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(err)))\n")
 	buf.WriteString("\t\tos.Exit(1)\n\t}\n")
-	buf.WriteString("\tif _, err := RegisterIn(interp, entryEnv); err != nil {\n\t\tfmt.Fprintln(os.Stderr, err)\n\t\tos.Exit(1)\n\t}\n")
-	buf.WriteString("\tif entryEnv == nil {\n\t\tentryEnv = interp.GlobalEnvironment()\n\t}\n")
-	buf.WriteString("\tmainValue, err := entryEnv.Get(\"main\")\n")
+	buf.WriteString("\trt, err := RegisterIn(interp, entryEnv)\n")
 	buf.WriteString("\tif err != nil {\n\t\tfmt.Fprintln(os.Stderr, err)\n\t\tos.Exit(1)\n\t}\n")
-	buf.WriteString("\tif _, err := interp.CallFunction(mainValue, nil); err != nil {\n")
+	buf.WriteString("\tprintBoundaryMarkers := func() {\n")
+	buf.WriteString("\t\tif os.Getenv(\"ABLE_COMPILER_BOUNDARY_MARKER\") == \"\" {\n")
+	buf.WriteString("\t\t\treturn\n")
+	buf.WriteString("\t\t}\n")
+	buf.WriteString("\t\tcount := int64(0)\n")
+	buf.WriteString("\t\texplicitCount := int64(0)\n")
+	buf.WriteString("\t\tif rt != nil {\n")
+	buf.WriteString("\t\t\tcount = __able_boundary_fallback_count_get()\n")
+	buf.WriteString("\t\t\texplicitCount = __able_boundary_explicit_count_get()\n")
+	buf.WriteString("\t\t}\n")
+	buf.WriteString("\t\tfmt.Fprintf(os.Stderr, \"__ABLE_BOUNDARY_FALLBACK_CALLS=%d\\n\", count)\n")
+	buf.WriteString("\t\tfmt.Fprintf(os.Stderr, \"__ABLE_BOUNDARY_EXPLICIT_CALLS=%d\\n\", explicitCount)\n")
+	buf.WriteString("\t\tif os.Getenv(\"ABLE_COMPILER_BOUNDARY_MARKER_VERBOSE\") != \"\" {\n")
+	buf.WriteString("\t\t\tfmt.Fprintf(os.Stderr, \"__ABLE_BOUNDARY_FALLBACK_NAMES=%s\\n\", __able_boundary_fallback_snapshot())\n")
+	buf.WriteString("\t\t\tfmt.Fprintf(os.Stderr, \"__ABLE_BOUNDARY_EXPLICIT_NAMES=%s\\n\", __able_boundary_explicit_snapshot())\n")
+	buf.WriteString("\t\t}\n")
+	buf.WriteString("\t}\n")
+	buf.WriteString("\tif os.Getenv(\"ABLE_COMPILER_STRICT_DISPATCH_MARKER\") != \"\" {\n")
+	buf.WriteString("\t\tfmt.Fprintf(os.Stderr, \"__ABLE_STRICT=%v\\n\", __able_interface_dispatch_strict)\n")
+	buf.WriteString("\t}\n")
+	buf.WriteString("\tif entryEnv == nil {\n\t\tentryEnv = interp.GlobalEnvironment()\n\t}\n")
+	buf.WriteString("\tif err := RunRegisteredMain(rt, interp, entryEnv); err != nil {\n")
+	buf.WriteString("\t\tprintBoundaryMarkers()\n")
 	buf.WriteString("\t\tif code, ok := interpreter.ExitCodeFromError(err); ok {\n\t\t\tos.Exit(code)\n\t\t}\n")
 	buf.WriteString("\t\tfmt.Fprintln(os.Stderr, interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(err)))\n")
 	buf.WriteString("\t\tos.Exit(1)\n\t}\n")
+	buf.WriteString("\tprintBoundaryMarkers()\n")
 	buf.WriteString("}\n\n")
 	buf.WriteString("func selectFixtureExecutor(name string) interpreter.Executor {\n")
 	buf.WriteString("\tswitch strings.ToLower(strings.TrimSpace(name)) {\n")
@@ -336,224 +360,60 @@ func resolveCompilerFixtures(t *testing.T, root string) []string {
 		}
 		return fixtures
 	}
+	return defaultCompilerExecFixtures()
+}
+
+func defaultCompilerExecFixtures() []string {
 	return []string{
 		"15_01_program_entry_hello_world",
 		"15_02_entry_args_signature",
 		"15_03_exit_status_return_value",
 		"15_04_background_work_flush",
 		"16_01_host_interop_inline_extern",
-		"02_lexical_comments_identifiers",
-		"03_blocks_expr_separation",
-		"04_01_type_inference_constraints",
-		"06_05_control_flow_expr_value",
-		"06_02_block_expression_value_scope",
 		"06_01_compiler_if_block_exprs",
-		"06_01_compiler_index_statement",
-		"06_01_compiler_index_assignment",
-		"06_01_compiler_index_assignment_value",
-		"06_01_compiler_array_struct_literal",
 		"06_01_compiler_struct_update",
 		"06_01_compiler_struct_positional",
-		"06_01_compiler_map_literal",
-		"06_01_compiler_map_literal_spread",
 		"06_01_compiler_map_literal_typed",
-		"06_01_compiler_member_assignment",
-		"06_01_compiler_division_by_zero",
-		"06_01_compiler_integer_overflow",
-		"06_01_compiler_integer_overflow_sub",
-		"06_01_compiler_integer_overflow_mul",
-		"06_01_compiler_unary_overflow",
-		"06_01_compiler_division_ops",
-		"06_01_compiler_divmod_overflow",
-		"06_01_compiler_pow_overflow",
-		"06_01_compiler_pow_negative_exponent",
-		"06_01_compiler_bitwise_shift",
-		"06_01_compiler_divmod",
-		"06_01_compiler_shift_out_of_range",
-		"06_01_compiler_compound_assignment",
-		"06_01_compiler_compound_assignment_overflow",
-		"06_01_compiler_dynamic_member_compound",
-		"06_01_compiler_dynamic_member_access",
-		"06_01_compiler_bound_method_value",
-		"06_01_compiler_safe_navigation",
-		"06_01_compiler_breakpoint",
-		"06_01_compiler_loops",
-		"06_01_compiler_for_loop",
-		"06_01_compiler_for_loop_pattern",
-		"06_01_compiler_for_loop_pattern_mismatch",
-		"06_01_compiler_for_loop_struct_pattern",
-		"06_01_compiler_for_loop_pattern_guard",
-		"06_01_compiler_for_loop_typed_pattern",
-		"06_01_compiler_for_loop_typed_pattern_mismatch",
-		"06_01_compiler_nullable_return",
-		"06_01_compiler_union_return",
-		"06_01_compiler_result_return",
-		"06_01_compiler_union_param",
-		"06_01_compiler_nullable_param",
-		"06_01_compiler_struct_param_bridge",
 		"06_01_compiler_match_patterns",
 		"06_01_compiler_assignment_patterns",
-		"06_01_compiler_assignment_pattern_errors",
-		"06_01_compiler_assignment_pattern_typed_mismatch",
-		"06_01_compiler_assignment_pattern_rest_mismatch",
-		"06_01_compiler_assignment_pattern_struct_mismatch",
-		"06_01_compiler_assignment_pattern_positional_mismatch",
-		"06_01_compiler_iterator_literal",
 		"06_01_compiler_spawn_await",
 		"06_01_compiler_await_future",
-		"06_01_compiler_placeholder_lambda",
-		"06_01_compiler_pipe",
 		"06_01_compiler_rescue",
 		"06_01_compiler_ensure_rethrow",
-		"06_01_compiler_ensure_error_passthrough",
-		"06_01_compiler_raise_error_interface",
-		"06_01_compiler_raise_non_error",
-		"06_01_compiler_or_else",
-		"06_01_compiler_or_else_mixed",
-		"06_01_compiler_or_else_struct_mix",
-		"06_01_compiler_or_else_error_union",
-		"06_01_compiler_string_interpolation",
-		"06_01_compiler_string_interpolation_display",
-		"06_01_compiler_method_call",
-		"06_01_compiler_type_qualified_method",
-		"06_01_compiler_lambda_closure",
-		"06_01_compiler_verbose_anonymous_fn",
-		"07_01_function_definition_generics_inference",
-		"07_02_lambdas_closures_capture",
-		"07_02_01_verbose_anonymous_fn",
-		"07_02_bytecode_lambda_calls",
-		"07_03_explicit_return_flow",
-		"07_04_apply_callable_interface",
-		"07_04_trailing_lambda_method_syntax",
-		"07_05_partial_application",
-		"07_06_shorthand_member_placeholder_lambdas",
-		"07_07_bytecode_implicit_iterator",
-		"07_08_bytecode_placeholder_lambda",
-		"07_09_bytecode_iterator_yield",
-		"07_10_iterator_reentrancy",
-		"07_07_overload_resolution_runtime",
-		"07_08_return_context_generic_call_inference",
-		"06_01_literals_array_map_inference",
-		"06_01_literals_numeric_contextual",
-		"06_01_literals_numeric_contextual_diag",
-		"06_01_literals_string_char_escape",
-		"06_01_bytecode_map_spread",
-		"06_07_generator_yield_iterator_end",
-		"06_07_iterator_pipeline",
-		"06_08_array_ops_mutability",
-		"06_02_bytecode_unary_range_cast",
-		"06_09_lexical_trailing_commas_line_join",
-		"06_10_dynamic_metaprogramming_package_object",
-		"06_03_safe_navigation_nil_short_circuit",
-		"06_04_function_call_eval_order_trailing_lambda",
-		"06_06_string_interpolation",
-		"06_03_cast_semantics",
-		"06_03_cast_error_payload_recovery",
-		"06_03_operator_precedence_associativity",
-		"06_03_operator_overloading_interfaces",
-		"14_01_operator_interfaces_arithmetic_comparison",
 		"14_01_language_interfaces_index_apply_iterable",
-		"14_02_hash_eq_primitives",
-		"14_02_hash_eq_float",
-		"14_02_hash_eq_custom",
 		"14_02_regex_core_match_streaming",
-		"10_01_interface_defaults_composites",
-		"10_02_impl_specificity_named_overrides",
-		"10_02_impl_where_clause",
-		"10_03_interface_type_dynamic_dispatch",
-		"10_04_interface_dispatch_defaults_generics",
-		"10_05_interface_named_impl_defaults",
-		"10_06_interface_generic_param_dispatch",
-		"10_07_interface_default_chain",
-		"10_08_interface_default_override",
-		"10_09_interface_named_impl_inherent",
-		"10_10_interface_inheritance_defaults",
-		"10_11_interface_generic_args_dispatch",
-		"10_12_interface_union_target_dispatch",
-		"10_13_interface_param_generic_args",
-		"10_14_interface_return_generic_args",
-		"10_15_interface_default_generic_method",
-		"10_16_interface_value_storage",
 		"10_17_interface_overload_dispatch",
-		"13_01_package_structure_modules",
-		"13_02_packages_visibility_diag",
-		"13_03_package_config_prelude",
 		"13_04_import_alias_selective_dynimport",
 		"13_05_dynimport_interface_dispatch",
 		"13_06_stdlib_package_resolution",
-		"13_07_search_path_env_override",
-		"12_01_bytecode_spawn_basic",
-		"12_01_bytecode_await_default",
-		"12_02_async_spawn_combo",
 		"12_02_future_fairness_cancellation",
-		"12_03_spawn_future_status_error",
-		"12_04_future_handle_value_view",
-		"12_05_concurrency_channel_ping_pong",
-		"12_05_mutex_lock_unlock",
-		"12_06_await_fairness_cancellation",
-		"12_07_channel_mutex_error_types",
 		"12_08_blocking_io_concurrency",
-		"06_11_truthiness_boolean_context",
 		"06_12_01_stdlib_string_helpers",
 		"06_12_02_stdlib_array_helpers",
 		"06_12_03_stdlib_numeric_ratio_divmod",
-		"08_01_if_truthiness_value",
-		"08_01_control_flow_fizzbuzz",
-		"08_01_bytecode_if_indexing",
-		"08_01_bytecode_match_basic",
-		"08_01_bytecode_match_subject",
-		"08_01_match_guards_exhaustiveness",
-		"08_01_union_match_basic",
-		"08_02_bytecode_loop_basics",
-		"08_02_loop_expression_break_value",
-		"08_02_numeric_sum_loop",
-		"08_02_range_inclusive_exclusive",
-		"08_02_while_continue_break",
-		"08_03_breakpoint_nonlocal_jump",
-		"09_00_methods_generics_imports_combo",
-		"09_00_bytecode_member_calls",
-		"09_02_methods_instance_vs_static",
-		"09_04_methods_ufcs_basics",
-		"09_05_method_set_generics_where",
-		"04_02_primitives_truthiness_numeric",
-		"04_02_primitives_truthiness_numeric_diag",
-		"04_03_type_expression_syntax",
-		"04_03_type_expression_arity_diag",
-		"04_03_type_expression_associativity_diag",
-		"04_04_reserved_underscore_types",
-		"04_05_01_struct_singleton_usage",
-		"04_05_02_struct_named_update_mutation",
-		"04_05_02_struct_named_update_mutation_diag",
-		"04_05_03_struct_positional_named_tuple",
-		"04_05_04_struct_literal_generic_inference",
-		"05_00_mutability_declaration_vs_assignment",
-		"05_02_array_nested_patterns",
-		"05_02_identifier_wildcard_typed_patterns",
-		"05_02_struct_pattern_rename_typed",
-		"05_03_assignment_evaluation_order",
-		"05_03_bytecode_assignment_patterns",
-		"04_06_01_union_payload_patterns",
-		"04_06_02_nullable_truthiness",
-		"04_06_03_union_construction_result_option",
-		"04_06_04_union_guarded_match_exhaustive",
-		"04_06_04_union_guarded_match_exhaustive_diag",
-		"04_07_02_alias_generic_substitution",
-		"04_07_03_alias_scope_visibility_imports",
-		"04_07_04_alias_methods_impls_interaction",
-		"04_07_05_alias_recursion_termination",
-		"04_07_06_alias_reexport_methods_impls",
-		"04_07_types_alias_union_generic_combo",
-		"11_00_errors_match_loop_combo",
-		"11_01_return_statement_type_enforcement",
-		"11_01_return_statement_typecheck_diag",
-		"11_02_bytecode_or_else_basic",
-		"11_02_option_result_or_handlers",
-		"11_02_option_result_propagation",
-		"11_03_raise_exit_unhandled",
-		"11_03_bytecode_ensure_basic",
-		"11_03_bytecode_rescue_basic",
-		"11_03_rescue_ensure",
-		"11_03_rescue_rethrow_standard_errors",
+		"06_12_04_stdlib_numbers_bigint",
+		"06_12_05_stdlib_numbers_biguint",
+		"06_12_06_stdlib_numbers_int128",
+		"06_12_07_stdlib_numbers_uint128",
+		"06_12_08_stdlib_numbers_rational",
+		"06_12_09_stdlib_numbers_primitives",
+		"06_12_10_stdlib_collections_list_vector",
+		"06_12_11_stdlib_collections_tree_map_set",
+		"06_12_12_stdlib_collections_persistent_map_set",
+		"06_12_13_stdlib_collections_persistent_sorted_queue",
+		"06_12_14_stdlib_collections_linked_list_lazy_seq",
+		"06_12_15_stdlib_collections_hash_map_set",
+		"06_12_16_stdlib_collections_deque_queue",
+		"06_12_17_stdlib_collections_bit_set_heap",
+		"06_12_18_stdlib_collections_array_range",
+		"06_12_19_stdlib_concurrency_channel_mutex_queue",
+		"06_12_20_stdlib_math_core_numeric",
+		"06_12_21_stdlib_fs_path",
+		"06_12_22_stdlib_io_temp",
+		"06_12_23_stdlib_os",
+		"06_12_24_stdlib_process",
+		"06_12_25_stdlib_term",
+		"06_12_26_stdlib_test_harness_reporters",
 	}
 }
 

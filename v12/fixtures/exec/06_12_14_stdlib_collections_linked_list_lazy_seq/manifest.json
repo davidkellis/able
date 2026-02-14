@@ -1,0 +1,22 @@
+{
+  "description": "stdlib LinkedList/LazySeq node ops and cache-aware iterable iteration",
+  "expect": {
+    "stdout": [
+      "list_len 3",
+      "list_pop_front 1",
+      "list_pop_back 3",
+      "list_pop_back2 2",
+      "list_empty true",
+      "list2_removed 20",
+      "list2_len 2",
+      "list2_sum 40",
+      "seq_get0 5",
+      "seq_get0_again 5",
+      "seq_get1 6",
+      "taken_len 2",
+      "seq_total 18",
+      "seq_array_len 3"
+    ],
+    "exit": 0
+  }
+}

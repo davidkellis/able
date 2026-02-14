@@ -1,0 +1,95 @@
+package exec_06_12_12_stdlib_collections_persistent_map_set
+
+import able.collections.persistent_map.{PersistentMap, PersistentSet, PersistentMapBuilder}
+import able.core.interfaces.{Hash, Hasher, Eq, Clone}
+
+## Semantics: persistent hash map/set helpers compile through stdlib HAMT collection impls.
+
+struct BadKey {
+  label: String
+}
+
+impl Clone for BadKey {
+  fn clone(self: Self) -> BadKey { BadKey { label: self.label } }
+}
+
+impl Eq for BadKey {
+  fn eq(self: Self, other: BadKey) -> bool { self.label == other.label }
+}
+
+impl Hash for BadKey {
+  fn hash(self: Self, hasher: Hasher) -> void {
+    hasher.write_string("collision")
+  }
+}
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn print_optional_string(label: String, value: ?String) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case text: String => print(`${label} ${text}`)
+  }
+}
+
+fn main() -> void {
+  map: PersistentMap String i32 = PersistentMap.empty()
+  map = map.set("a", 1)
+  map = map.set("b", 2)
+  print(`map_len ${map.len()}`)
+  print_optional_i32("map_a", map.get("a"))
+
+  updated := map.set("b", 20)
+  print_optional_i32("map_updated_b", updated.get("b"))
+  print_optional_i32("map_original_b", map.get("b"))
+
+  smaller := map.remove("a")
+  print(`map_smaller_len ${smaller.len()}`)
+  print(`map_smaller_contains_a ${smaller.contains("a")}`)
+  print(`map_original_contains_a ${map.contains("a")}`)
+
+  key1 := BadKey { label: "x" }
+  key2 := BadKey { label: "y" }
+  coll: PersistentMap BadKey String = PersistentMap.empty()
+  coll = coll.set(key1, "first")
+  coll = coll.set(key2, "second")
+  print_optional_string("coll_x", coll.get(key1))
+  print_optional_string("coll_y", coll.get(key2))
+
+  coll2 := coll.set(key1, "updated")
+  print_optional_string("coll2_x", coll2.get(key1))
+  print_optional_string("coll2_y", coll2.get(key2))
+
+  map_builder := PersistentMapBuilder.new<String, i32>()
+  map_builder.insert("x", 10)
+  map_builder.insert("y", 20)
+  built_map := map_builder.finish()
+  print(`built_map_len ${built_map.len()}`)
+  print_optional_i32("built_map_y", built_map.get("y"))
+
+  set: PersistentSet i32 = PersistentSet.empty()
+  set = set.insert(1)
+  set = set.insert(2)
+  print(`set_len ${set.len()}`)
+  print(`set_contains_1 ${set.contains(1)}`)
+
+  trimmed := set.remove(1)
+  print(`trimmed_contains_1 ${trimmed.contains(1)}`)
+  print(`set_still_contains_1 ${set.contains(1)}`)
+
+  left: PersistentSet i32 = PersistentSet.empty().insert(1).insert(2)
+  right: PersistentSet i32 = PersistentSet.empty().insert(2).insert(3)
+  union_set := left.union(right)
+  intersection := left.intersect(right)
+  print(`union_len ${union_set.len()}`)
+  print(`union_contains_3 ${union_set.contains(3)}`)
+  print(`intersection_len ${intersection.len()}`)
+  print(`intersection_contains_2 ${intersection.contains(2)}`)
+  print(`intersection_contains_1 ${intersection.contains(1)}`)
+
+}

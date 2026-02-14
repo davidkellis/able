@@ -1,0 +1,17 @@
+{
+  "description": "stdlib BigInt arithmetic, comparison, clamp, and conversion error behavior",
+  "expect": {
+    "stdout": [
+      "value 2000000005",
+      "sum 2000000000",
+      "diff 1000000000",
+      "product -121932631112635269",
+      "cmp less",
+      "to_u64 err",
+      "clamp 5",
+      "max cmp greater",
+      "to_i64 err"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,73 @@
+package harness_reporters_smoke_tests
+
+import able.kernel.{Array}
+import able.spec.*
+import able.test.harness.{discover_all, run_all}
+import able.test.protocol.{DiscoveryRequest, Failure, RunOptions, TestDescriptor}
+import able.test.reporters.{DocReporter, ProgressReporter, finish}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn empty_filters() -> DiscoveryRequest {
+  DiscoveryRequest {
+    include_paths: Array.new(),
+    exclude_paths: Array.new(),
+    include_names: Array.new(),
+    exclude_names: Array.new(),
+    include_tags: Array.new(),
+    exclude_tags: Array.new(),
+    list_only: false
+  }
+}
+
+fn default_options() -> RunOptions {
+  RunOptions { shuffle_seed: nil, fail_fast: false, parallelism: 1, repeat: 1 }
+}
+
+fn make_emit_buffer(out: Array String) -> (String -> void) {
+  fn(message: String) -> void { out.push(message) }
+}
+
+fn main() -> void {
+  __clear_examples_for_tests()
+
+  describe("harness/reporters smoke") { suite =>
+    suite.module_path("stdlib/harness_reporters_smoke")
+    suite.it("passes") { _ctx => { expect(1 + 1).to(eq(2)) } }
+    suite.it_skip("skip marker") { _ctx => {} }
+  }
+
+  request := empty_filters()
+
+  discover_all(request) match {
+    case failure: Failure => { raise failure.message },
+    case descriptors: Array TestDescriptor => {
+      assert(descriptors.len() >= 2, "discover_all should return at least the smoke examples")
+    }
+  }
+
+  doc_lines: Array String := Array.new()
+  doc := DocReporter(make_emit_buffer(doc_lines))
+  run_all(request, default_options(), doc) match {
+    case nil => {},
+    case failure: Failure => { raise failure.message }
+  }
+  assert(doc_lines.len() > 0, "DocReporter should emit at least one line")
+
+  progress_lines: Array String := Array.new()
+  progress := ProgressReporter(make_emit_buffer(progress_lines))
+  run_all(request, default_options(), progress) match {
+    case nil => {},
+    case failure: Failure => { raise failure.message }
+  }
+  progress.finish()
+  assert(progress_lines.len() > 0, "ProgressReporter should emit at least one line after finish")
+
+  ## Keep this smoke module non-framework-facing for CLI gating.
+  __clear_examples_for_tests()
+}
+
+main()

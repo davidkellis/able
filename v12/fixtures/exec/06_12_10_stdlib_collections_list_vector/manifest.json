@@ -1,0 +1,24 @@
+{
+  "description": "stdlib List/Vector persistent operations and accessors",
+  "expect": {
+    "stdout": [
+      "list_len 3",
+      "list_head 1",
+      "list_tail_head 2",
+      "list_last 3",
+      "list_nth2 3",
+      "list_concat_len 5",
+      "list_reverse_head 3",
+      "vector_len 3",
+      "vector_first 10",
+      "vector_last 30",
+      "vector_get1 20",
+      "vector_original_get1 20",
+      "vector_set_get1 25",
+      "vector_pop_len 2",
+      "vector_pop_last 25",
+      "vector_original_len 3"
+    ],
+    "exit": 0
+  }
+}

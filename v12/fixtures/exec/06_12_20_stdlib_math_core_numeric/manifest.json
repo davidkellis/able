@@ -1,0 +1,17 @@
+{
+  "description": "stdlib math helpers and core numeric ratio conversions",
+  "expect": {
+    "stdout": [
+      "abs_i64 12",
+      "sign_i64_neg -1",
+      "clamp_i64 10",
+      "gcd 6",
+      "lcm 42",
+      "ratio_whole 7/1",
+      "ratio_half 1/2",
+      "ratio_to_i32 3",
+      "ratio_to_i32_fraction error"
+    ],
+    "exit": 0
+  }
+}

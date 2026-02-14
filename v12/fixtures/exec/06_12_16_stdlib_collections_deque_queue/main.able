@@ -1,0 +1,74 @@
+package exec_06_12_16_stdlib_collections_deque_queue
+
+import able.collections.deque.{Deque}
+import able.collections.queue.{Queue}
+
+## Semantics: deque/queue push-pop and iteration semantics compile through stdlib collection wrappers.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  deque: Deque i32 = Deque.new()
+  deque.push_back(2)
+  deque.push_front(1)
+  deque.push_back(3)
+  print(`deque_len ${deque.len()}`)
+  print_optional_i32("deque_front", deque.front())
+  print_optional_i32("deque_back", deque.back())
+  print_optional_i32("deque_pop_front", deque.pop_front())
+  print_optional_i32("deque_pop_back", deque.pop_back())
+  print_optional_i32("deque_pop_back2", deque.pop_back())
+  print(`deque_empty ${deque.is_empty()}`)
+
+  growth: Deque i32 = Deque.with_capacity(2)
+  i := 0
+  loop {
+    if i >= 5 { break }
+    growth.push_back(i)
+    i = i + 1
+  }
+  print(`growth_len ${growth.len()}`)
+  print_optional_i32("growth_front", growth.front())
+  print_optional_i32("growth_back", growth.back())
+
+  growth_sum := 0
+  for value in growth {
+    growth_sum = growth_sum + value
+  }
+  print(`growth_sum ${growth_sum}`)
+
+  growth.pop_front()
+  growth.push_front(-1)
+  growth.push_back(5)
+  print(`growth_len2 ${growth.len()}`)
+  print_optional_i32("growth_front2", growth.front())
+  print_optional_i32("growth_back2", growth.back())
+
+  queue: Queue i32 = Queue.new()
+  queue.enqueue(1)
+  queue.enqueue(2)
+  queue.enqueue(3)
+  print(`queue_size ${queue.size()}`)
+  print_optional_i32("queue_peek", queue.peek())
+  print_optional_i32("queue_dequeue1", queue.dequeue())
+  print_optional_i32("queue_peek2", queue.peek())
+  print_optional_i32("queue_dequeue2", queue.dequeue())
+  print_optional_i32("queue_dequeue3", queue.dequeue())
+  print(`queue_empty ${queue.is_empty()}`)
+  print_optional_i32("queue_dequeue_empty", queue.dequeue())
+
+  queue.enqueue(7)
+  queue.enqueue(9)
+  queue_sum := 0
+  queue.each(fn(value: i32) -> void {
+    queue_sum = queue_sum + value
+  })
+  print(`queue_sum ${queue_sum}`)
+  queue.clear()
+  print(`queue_cleared ${queue.is_empty()}`)
+}

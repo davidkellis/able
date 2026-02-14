@@ -1,0 +1,12 @@
+{
+  "description": "stdlib process spawn/wait/stdio, method-chain spec setup, and missing-command error semantics",
+  "expect": {
+    "stdout": [
+      "spawn_exit_zero true",
+      "spawn_stdout process-ok",
+      "spec_cwd_set true",
+      "missing_not_found true"
+    ],
+    "exit": 0
+  }
+}

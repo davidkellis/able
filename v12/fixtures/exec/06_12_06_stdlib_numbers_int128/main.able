@@ -1,0 +1,63 @@
+package exec_06_12_06_stdlib_numbers_int128
+
+import able.numbers.int128.{Int128}
+import able.core.interfaces.{Error, Less, Greater, Equal}
+
+## Semantics: Int128 compiles through stdlib paths with arithmetic, comparisons, clamp, and conversion/division diagnostics.
+
+fn print_as_i128(label: String, value: Int128) -> void {
+  print(`${label} ${value.to_i128()}`)
+}
+
+fn main() -> void {
+  base := Int128.from_i128(9223372036854775808_i128)
+  sum := base.add(Int128.from_i128(5_i128))
+  print_as_i128("sum", sum)
+
+  diff := sum.sub(Int128.from_i128(5_i128))
+  print_as_i128("diff", diff)
+
+  x := Int128.from_i128(-12345678901234567890_i128)
+  y := Int128.from_i128(987654321_i128)
+  product := x.mul(y)
+  print_as_i128("product", product)
+
+  quotient := product.div(x)
+  print_as_i128("quotient", quotient)
+
+  remainder := product.rem(x)
+  print_as_i128("remainder", remainder)
+
+  Int128.from_i128(0_i128).compare(Int128.from_i128(-1_i128)) match {
+    case Greater => print("cmp greater"),
+    case Less => print("cmp less"),
+    case Equal => print("cmp equal")
+  }
+
+  clamped := Int128.from_i128(10_i128).clamp(Int128.from_i128(-5_i128), Int128.from_i128(0_i128))
+  print_as_i128("clamp", clamped)
+
+  div_zero_status := "div_zero ok"
+  do {
+    Int128.from_i128(1_i128).div(Int128.zero())
+  } rescue {
+    case _: Error => { div_zero_status = "div_zero err" }
+  }
+  print(div_zero_status)
+
+  to_i64_status := "to_i64 ok"
+  do {
+    base.to_i64()
+  } rescue {
+    case _: Error => { to_i64_status = "to_i64 err" }
+  }
+  print(to_i64_status)
+
+  to_u64_status := "to_u64 ok"
+  do {
+    Int128.from_i128(-1_i128).to_u64()
+  } rescue {
+    case _: Error => { to_u64_status = "to_u64 err" }
+  }
+  print(to_u64_status)
+}

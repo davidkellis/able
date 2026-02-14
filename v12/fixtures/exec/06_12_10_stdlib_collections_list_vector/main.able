@@ -1,0 +1,42 @@
+package exec_06_12_10_stdlib_collections_list_vector
+
+import able.collections.list.{List}
+import able.collections.vector.{Vector}
+
+## Semantics: persistent list/vector helpers compile through stdlib collection impls.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  list_values := List.empty().prepend(3).prepend(2).prepend(1)
+  print(`list_len ${list_values.len()}`)
+  print_optional_i32("list_head", list_values.head())
+  print_optional_i32("list_tail_head", list_values.tail().head())
+  print_optional_i32("list_last", list_values.last())
+  print_optional_i32("list_nth2", list_values.nth(2))
+
+  other := List.empty().prepend(5).prepend(4)
+  joined := list_values.concat(other)
+  print(`list_concat_len ${joined.len()}`)
+  print_optional_i32("list_reverse_head", list_values.reverse().head())
+
+  vector_values := Vector.new().push(10).push(20).push(30)
+  print(`vector_len ${vector_values.len()}`)
+  print_optional_i32("vector_first", vector_values.first())
+  print_optional_i32("vector_last", vector_values.last())
+  print_optional_i32("vector_get1", vector_values.get(1))
+
+  replaced := vector_values.set(1, 25)
+  print_optional_i32("vector_original_get1", vector_values.get(1))
+  print_optional_i32("vector_set_get1", replaced.get(1))
+
+  popped := replaced.pop()
+  print(`vector_pop_len ${popped.len()}`)
+  print_optional_i32("vector_pop_last", popped.last())
+  print(`vector_original_len ${vector_values.len()}`)
+}

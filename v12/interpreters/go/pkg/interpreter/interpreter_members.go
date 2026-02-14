@@ -105,6 +105,11 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 		}
 		return i.stringMemberWithOverrides(*v, member, env)
 	default:
+		if resolved, ok, err := i.resolveZeroArgBoundMethodForMemberAccess(obj, env); err != nil {
+			return nil, err
+		} else if ok {
+			return i.memberAccessOnValueWithOptions(resolved, member, env, preferMethods)
+		}
 		if ident, ok := member.(*ast.Identifier); ok {
 			if bound, err := i.resolveMethodFromPool(env, ident.Name, obj, ""); err != nil {
 				return nil, err
@@ -113,6 +118,49 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 			}
 		}
 		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone (got %s)", obj.Kind())
+	}
+}
+
+func (i *Interpreter) resolveZeroArgBoundMethodForMemberAccess(obj runtime.Value, env *runtime.Environment) (runtime.Value, bool, error) {
+	call := func(target runtime.Value) (runtime.Value, bool, error) {
+		result, err := i.CallFunctionIn(target, nil, env)
+		if err != nil {
+			return nil, false, err
+		}
+		switch result.(type) {
+		case runtime.PartialFunctionValue, *runtime.PartialFunctionValue:
+			return nil, false, nil
+		}
+		return result, true, nil
+	}
+	switch method := obj.(type) {
+	case runtime.NativeBoundMethodValue:
+		if method.Method.Arity != 0 {
+			return nil, false, nil
+		}
+		return call(method)
+	case *runtime.NativeBoundMethodValue:
+		if method == nil || method.Method.Arity != 0 {
+			return nil, false, nil
+		}
+		return call(method)
+	case runtime.BoundMethodValue:
+		overloads := functionOverloads(method.Method)
+		if len(overloads) == 0 || minArgsForOverloads(overloads) > 1 {
+			return nil, false, nil
+		}
+		return call(method)
+	case *runtime.BoundMethodValue:
+		if method == nil {
+			return nil, false, nil
+		}
+		overloads := functionOverloads(method.Method)
+		if len(overloads) == 0 || minArgsForOverloads(overloads) > 1 {
+			return nil, false, nil
+		}
+		return call(method)
+	default:
+		return nil, false, nil
 	}
 }
 

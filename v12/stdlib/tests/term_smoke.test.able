@@ -1,0 +1,37 @@
+package term_smoke_tests
+
+import able.io
+import able.io.{IOError}
+import able.term
+import able.term.{TermSize}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn main() -> void {
+  handle := io.stdout()
+  tty := term.is_tty(handle)
+  assert(tty == true || tty == false, "is_tty should return a boolean")
+
+  size_checked := false
+  term.try_size(handle) match {
+    case size: TermSize => {
+      size_checked = size.rows >= 0 && size.cols >= 0
+    },
+    case err: IOError => {
+      size_checked = err.message != ""
+    }
+  }
+  assert(size_checked, "try_size should return either size or IOError")
+
+  raw_checked := false
+  term.try_set_raw_mode(handle, false) match {
+    case _: void => { raw_checked = true },
+    case err: IOError => { raw_checked = err.message != "" }
+  }
+  assert(raw_checked, "try_set_raw_mode should return either void or IOError")
+}
+
+main()

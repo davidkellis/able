@@ -68,6 +68,15 @@ func (i *Interpreter) coerceRuntimeToHost(typeExpr ast.TypeExpression, value run
 			return nil, nil
 		}
 		if targetType.Kind() != reflect.Pointer {
+			// Struct-to-map coercion routes field targets through interface{},
+			// so nullable values should flow through the inner coercion path.
+			if targetType.Kind() == reflect.Interface {
+				return i.coerceRuntimeToHost(t.InnerType, value, reflect.TypeOf((*any)(nil)).Elem())
+			}
+			innerVal, err := i.coerceRuntimeToHost(t.InnerType, value, targetType)
+			if err == nil {
+				return innerVal, nil
+			}
 			return nil, fmt.Errorf("extern nullable type expects pointer target")
 		}
 		elemVal, err := i.coerceRuntimeToHost(t.InnerType, value, targetType.Elem())
@@ -88,19 +97,39 @@ func (i *Interpreter) coerceRuntimeToHost(typeExpr ast.TypeExpression, value run
 			if err != nil {
 				return nil, err
 			}
-			elemType := targetType.Elem()
-			slice := reflect.MakeSlice(targetType, len(arr.Elements), len(arr.Elements))
 			var elemExpr ast.TypeExpression
 			if len(t.Arguments) > 0 {
 				elemExpr = t.Arguments[0]
 			}
+			// Struct-to-map coercion routes field targets through interface{}, so array
+			// element coercion must tolerate non-slice targets.
+			if targetType.Kind() != reflect.Slice {
+				out := make([]any, len(arr.Elements))
+				for idx, elem := range arr.Elements {
+					hostElem, err := i.coerceRuntimeToHost(elemExpr, elem, reflect.TypeOf((*any)(nil)).Elem())
+					if err != nil {
+						return nil, err
+					}
+					out[idx] = hostElem
+				}
+				return out, nil
+			}
+			elemType := targetType.Elem()
+			slice := reflect.MakeSlice(targetType, len(arr.Elements), len(arr.Elements))
 			for idx, elem := range arr.Elements {
 				hostElem, err := i.coerceRuntimeToHost(elemExpr, elem, elemType)
 				if err != nil {
 					return nil, err
 				}
 				ev := reflect.ValueOf(hostElem)
-				if ev.IsValid() && ev.Type().ConvertibleTo(elemType) {
+				if !ev.IsValid() {
+					continue
+				}
+				if ev.Type().AssignableTo(elemType) {
+					slice.Index(idx).Set(ev)
+					continue
+				}
+				if ev.Type().ConvertibleTo(elemType) {
 					slice.Index(idx).Set(ev.Convert(elemType))
 				}
 			}

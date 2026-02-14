@@ -432,6 +432,12 @@ func TestCompilerEmitsStructsAndWrappers(t *testing.T) {
 	if !strings.Contains(code, "CallOriginal(\"app.complex\"") {
 		t.Fatalf("expected fallback wrapper for complex")
 	}
+	if !strings.Contains(code, "__able_mark_boundary_explicit(\"call_original\", \"app.complex\")") {
+		t.Fatalf("expected explicit boundary marker for call_original fallback wrapper")
+	}
+	if !strings.Contains(code, "__able_mark_boundary_explicit(\"call_named\", name)") {
+		t.Fatalf("expected explicit boundary marker for call_named bridge path")
+	}
 	fset := token.NewFileSet()
 	if _, err := parser.ParseFile(fset, "compiled.go", code, parser.AllErrors); err != nil {
 		t.Fatalf("generated code parse error: %v", err)
@@ -451,5 +457,102 @@ func annotatedModule(pkg string, module *ast.Module, file string, imports []stri
 		Files:       files,
 		Imports:     imports,
 		NodeOrigins: origins,
+	}
+}
+
+func TestCompilerRequireNoFallbacksFails(t *testing.T) {
+	fallback := ast.Fn(
+		"complex",
+		nil,
+		[]ast.Statement{
+			ast.Ret(ast.Bin("/", ast.Int(1), ast.Int(2))),
+		},
+		ast.Ty("i64"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	mainFn := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{
+			ast.Call("complex"),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod(
+		[]ast.Statement{fallback, mainFn},
+		nil,
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+	entry := annotatedModule("app", module, "app.able", nil)
+	program := &driver.Program{Entry: entry, Modules: []*driver.Module{entry}}
+
+	comp := New(Options{PackageName: "compiled", RequireNoFallbacks: true})
+	_, err := comp.Compile(program)
+	if err == nil {
+		t.Fatalf("expected compile error when fallbacks are disallowed")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "fallback not allowed") {
+		t.Fatalf("expected fallback guard error, got %q", msg)
+	}
+	if !strings.Contains(msg, "app.complex") {
+		t.Fatalf("expected fallback guard error to include fallback name, got %q", msg)
+	}
+}
+
+func TestCompilerRescueStatementMixedResultTypesNoFallback(t *testing.T) {
+	mainFn := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("status"), ast.Str("ok")),
+			ast.Rescue(
+				ast.Block(
+					ast.Raise(ast.Str("boom")),
+					ast.Int(0),
+				),
+				ast.Mc(
+					ast.TypedP(ast.Wc(), ast.Ty("Error")),
+					ast.Block(
+						ast.AssignOp(ast.AssignmentAssign, ast.ID("status"), ast.Str("err")),
+					),
+				),
+			),
+			ast.Ret(ast.NewIfExpression(
+				ast.Bin("==", ast.ID("status"), ast.Str("err")),
+				ast.Block(ast.Int(0)),
+				nil,
+				ast.Block(ast.Int(1)),
+			)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	module := ast.Mod(
+		[]ast.Statement{mainFn},
+		nil,
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+	entry := annotatedModule("app", module, "app.able", nil)
+	program := &driver.Program{Entry: entry, Modules: []*driver.Module{entry}}
+
+	comp := New(Options{PackageName: "compiled", RequireNoFallbacks: true})
+	result, err := comp.Compile(program)
+	if err != nil {
+		t.Fatalf("compile rescue statement without fallback: %v", err)
+	}
+	if len(result.Fallbacks) != 0 {
+		t.Fatalf("expected no fallbacks, got %v", result.Fallbacks)
 	}
 }

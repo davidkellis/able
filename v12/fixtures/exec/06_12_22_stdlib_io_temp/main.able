@@ -1,0 +1,75 @@
+package exec_06_12_22_stdlib_io_temp
+
+import able.core.interfaces.{Error}
+import able.fs
+import able.io
+import able.io.{IOError, NotFound}
+import able.io.path
+import able.io.path.{Path}
+import able.io.temp
+
+## Semantics: stdlib io read/write helpers and temp file/dir helpers compile via host-backed io modules.
+
+fn print_optional_string(label: String, value: ?String) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case text: String => print(`${label} ${text}`)
+  }
+}
+
+fn cleanup_path(path_value: String) -> void {
+  do {
+    fs.remove(path_value, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  roundtrip := io.bytes_to_string(io.string_to_bytes("hello"))
+  print(`roundtrip ${roundtrip}`)
+
+  root := temp.dir("able-fixture-io-").path
+  root_path: Path := path.parse(root)
+  file := root_path.join("data.txt").to_string()
+
+  do {
+    fs.mkdir(root, true)
+    writer := fs.open(file, fs.write_only(true, true), nil)
+    io.write_all(writer, io.string_to_bytes("alpha"))
+    io.close(writer)
+    print(`read_text ${fs.read_text(file)}`)
+
+    reader := fs.open(file, fs.read_only(), nil)
+    all := io.read_all(reader, nil)
+    io.close(reader)
+    print(`read_all_len ${all.len()}`)
+
+    writer = fs.open(file, fs.write_only(true, true), nil)
+    io.write_all(writer, io.string_to_bytes("x\ny\n"))
+    io.close(writer)
+    lines := fs.read_lines(file)
+    print(`line_count ${lines.len()}`)
+    print_optional_string("line0", lines.get(0))
+    print_optional_string("line1", lines.get(1))
+
+    tmpf := temp.file("able-fixture-io-file-")
+    io.write_all(tmpf.handle, io.string_to_bytes("tmp"))
+    io.close(tmpf.handle)
+    print(`tmp_text ${fs.read_text(tmpf.path)}`)
+    temp.cleanup(tmpf)
+    print(`tmp_exists ${fs.exists(tmpf.path)}`)
+  } ensure {
+    cleanup_path(root)
+  }
+}

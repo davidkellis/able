@@ -1,0 +1,70 @@
+package exec_06_12_05_stdlib_numbers_biguint
+
+import able.numbers.biguint.{BigUint}
+import able.core.interfaces.{Error, Less, Greater, Equal}
+
+## Semantics: BigUint compiles through stdlib paths with arithmetic, comparisons, clamp, and conversion diagnostics.
+
+fn print_as_i64(label: String, value: BigUint) -> void {
+  value.to_i64() match {
+    case number: i64 => print(`${label} ${number}`),
+    case err: Error => { raise err }
+  }
+}
+
+fn main() -> void {
+  base := BigUint.from_u64(1000000000_u64)
+  value := (base * BigUint.from_u64(2_u64)) + BigUint.from_u64(5_u64)
+  print_as_i64("value", value)
+
+  sum := value - BigUint.from_u64(5_u64)
+  print_as_i64("sum", sum)
+
+  diff := sum - base
+  print_as_i64("diff", diff)
+
+  a := BigUint.from_u64(123456789_u64)
+  b := BigUint.from_u64(987654321_u64)
+  product := a * b
+  print_as_i64("product", product)
+
+  product.compare(BigUint.zero()) match {
+    case Greater => print("cmp greater"),
+    case Less => print("cmp less"),
+    case Equal => print("cmp equal")
+  }
+
+  from_i64_status := "from_i64 ok"
+  do {
+    BigUint.from_i64(-1)
+  } rescue {
+    case _: Error => { from_i64_status = "from_i64 err" }
+  }
+  print(from_i64_status)
+
+  clamped := BigUint.from_u64(10_u64).clamp(BigUint.from_u64(1_u64), BigUint.from_u64(5_u64))
+  print_as_i64("clamp", clamped)
+
+  maxu := BigUint.from_u64(18446744073709551615_u64)
+  maxu.compare(BigUint.zero()) match {
+    case Greater => print("max cmp greater"),
+    case Less => print("max cmp less"),
+    case Equal => print("max cmp equal")
+  }
+
+  to_i64_status := "to_i64 ok"
+  do {
+    maxu.to_i64()
+  } rescue {
+    case _: Error => { to_i64_status = "to_i64 err" }
+  }
+  print(to_i64_status)
+
+  underflow_status := "underflow ok"
+  do {
+    BigUint.from_u64(1_u64).sub(BigUint.from_u64(2_u64))
+  } rescue {
+    case _: Error => { underflow_status = "underflow err" }
+  }
+  print(underflow_status)
+}

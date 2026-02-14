@@ -39,6 +39,11 @@ Combined test suites:
 
 # Fixture-only sweep (Go fixture runner)
 ./run_all_tests.sh --version=v12 --fixture
+
+# Full compiler fixture matrix (manual/nightly)
+./run_all_tests.sh --version=v12 --compiler-full-matrix
+# or directly:
+./v12/run_compiler_full_matrix.sh
 ```
 
 

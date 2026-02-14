@@ -116,6 +116,14 @@ fn main() -> void {
 	if _, err := os.Stat(parserCopy); err != nil {
 		t.Fatalf("expected parser sources at %s: %v", parserCopy, err)
 	}
+	stdlibCopy := filepath.Join(outDir, "v12", "stdlib", "src", "io.able")
+	if _, err := os.Stat(stdlibCopy); err != nil {
+		t.Fatalf("expected stdlib sources at %s: %v", stdlibCopy, err)
+	}
+	kernelCopy := filepath.Join(outDir, "v12", "kernel", "src", "kernel.able")
+	if _, err := os.Stat(kernelCopy); err != nil {
+		t.Fatalf("expected kernel sources at %s: %v", kernelCopy, err)
+	}
 
 	relocated := filepath.Join(buildRoot, "relocated")
 	if err := os.Rename(outDir, relocated); err != nil {
@@ -126,4 +134,87 @@ fn main() -> void {
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build failed in relocated output: %v\n%s", err, string(output))
 	}
+}
+
+func TestBuildNoFallbacksFlagFailsWhenFallbackRequired(t *testing.T) {
+	entryPath := writeFallbackBuildEntry(t)
+	code, _, stderr := captureCLI(t, []string{"build", "--no-fallbacks", entryPath})
+	if code == 0 {
+		t.Fatalf("expected non-zero exit code when --no-fallbacks is set")
+	}
+	if !strings.Contains(stderr, "fallback not allowed") {
+		t.Fatalf("expected fallback guard error, got %q", stderr)
+	}
+}
+
+func TestBuildNoFallbacksEnvFailsWhenFallbackRequired(t *testing.T) {
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+	entryPath := writeFallbackBuildEntry(t)
+	code, _, stderr := captureCLI(t, []string{"build", entryPath})
+	if code == 0 {
+		t.Fatalf("expected non-zero exit code when ABLE_COMPILER_REQUIRE_NO_FALLBACKS is set")
+	}
+	if !strings.Contains(stderr, "fallback not allowed") {
+		t.Fatalf("expected fallback guard error, got %q", stderr)
+	}
+}
+
+func TestBuildNoFallbacksInvalidEnvFailsArgumentParsing(t *testing.T) {
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "sometimes")
+	entryPath := writeFallbackBuildEntry(t)
+	code, _, stderr := captureCLI(t, []string{"build", entryPath})
+	if code == 0 {
+		t.Fatalf("expected non-zero exit code for invalid ABLE_COMPILER_REQUIRE_NO_FALLBACKS")
+	}
+	if !strings.Contains(stderr, "invalid ABLE_COMPILER_REQUIRE_NO_FALLBACKS value") {
+		t.Fatalf("expected invalid env parse error, got %q", stderr)
+	}
+}
+
+func TestBuildAllowFallbacksOverridesEnv(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+	entryPath := writeFallbackBuildEntry(t)
+	outRoot := t.TempDir()
+	outDir := filepath.Join(outRoot, "out")
+	binPath := filepath.Join(outRoot, "app")
+	if runtime.GOOS == "windows" {
+		binPath += ".exe"
+	}
+
+	code, _, stderr := captureCLI(t, []string{
+		"build",
+		"--allow-fallbacks",
+		"--out", outDir,
+		"--bin", binPath,
+		entryPath,
+	})
+	if code != 0 {
+		t.Fatalf("expected --allow-fallbacks to override env strict mode, got code %d (stderr=%q)", code, stderr)
+	}
+	if _, err := os.Stat(binPath); err != nil {
+		t.Fatalf("expected compiled binary at %s: %v", binPath, err)
+	}
+}
+
+func writeFallbackBuildEntry(t *testing.T) string {
+	t.Helper()
+	projectDir := t.TempDir()
+	entryPath := filepath.Join(projectDir, "main.able")
+	writeFile(t, entryPath, `
+extern go fn __able_os_exit(code: i32) -> void {}
+
+fn needs_fallback() -> i64 {
+  1 / 2
+}
+
+fn main() -> void {
+  needs_fallback()
+  __able_os_exit(0)
+}
+`)
+	return entryPath
 }

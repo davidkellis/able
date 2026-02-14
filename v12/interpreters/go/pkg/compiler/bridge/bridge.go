@@ -32,6 +32,13 @@ func New(interp *interpreter.Interpreter) *Runtime {
 	}
 }
 
+func ExecutorKind(r *Runtime) string {
+	if r == nil || r.interp == nil {
+		return "serial"
+	}
+	return r.interp.ExecutorKind()
+}
+
 func (r *Runtime) SetEnv(env *runtime.Environment) {
 	if r == nil || env == nil {
 		return
@@ -47,7 +54,7 @@ func (r *Runtime) Env() *runtime.Environment {
 		return nil
 	}
 	if env, ok := r.envByGID.Load(currentGID()); ok {
-		if typed, ok := env.(*runtime.Environment); ok {
+		if typed, ok := env.(*runtime.Environment); ok && typed != nil {
 			return typed
 		}
 	}
@@ -72,7 +79,11 @@ func (r *Runtime) SwapEnv(env *runtime.Environment) *runtime.Environment {
 		prev = r.env
 		r.mu.RUnlock()
 	}
-	r.envByGID.Store(gid, env)
+	if env == nil {
+		r.envByGID.Delete(gid)
+	} else {
+		r.envByGID.Store(gid, env)
+	}
 	return prev
 }
 
@@ -145,6 +156,13 @@ func (r *Runtime) Call(name string, args []runtime.Value) (runtime.Value, error)
 		return nil, fmt.Errorf("compiler bridge: missing global environment")
 	}
 	value, err := env.Get(name)
+	if err != nil && env != r.interp.GlobalEnvironment() {
+		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
+			if alt, altErr := fallback.Get(name); altErr == nil {
+				value, err = alt, nil
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -192,16 +210,17 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 	if r == nil || r.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	r.mu.RLock()
-	if def, ok := r.structs[name]; ok {
-		r.mu.RUnlock()
-		return def, nil
-	}
 	env := r.currentEnv()
-	r.mu.RUnlock()
 	if env == nil {
 		return nil, fmt.Errorf("compiler bridge: missing global environment")
 	}
+	cacheKey := structCacheKey(env, name)
+	r.mu.RLock()
+	if def, ok := r.structs[cacheKey]; ok {
+		r.mu.RUnlock()
+		return def, nil
+	}
+	r.mu.RUnlock()
 	def, ok := env.StructDefinition(name)
 	if (!ok || def == nil) && env != r.interp.GlobalEnvironment() {
 		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
@@ -219,9 +238,16 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 		return nil, fmt.Errorf("compiler bridge: struct %s not found", name)
 	}
 	r.mu.Lock()
-	r.structs[name] = def
+	r.structs[cacheKey] = def
 	r.mu.Unlock()
 	return def, nil
+}
+
+func structCacheKey(env *runtime.Environment, name string) string {
+	if env == nil {
+		return "<nil>:" + name
+	}
+	return fmt.Sprintf("%p:%s", env, name)
 }
 
 func Index(rt *Runtime, obj runtime.Value, idx runtime.Value) (runtime.Value, error) {
@@ -300,7 +326,17 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := rt.currentEnv()
+	if env == nil {
+		return nil, fmt.Errorf("compiler bridge: missing global environment")
+	}
 	value, err := env.Get(name)
+	if err != nil && env != rt.interp.GlobalEnvironment() {
+		if fallback := rt.interp.GlobalEnvironment(); fallback != nil {
+			if alt, altErr := fallback.Get(name); altErr == nil {
+				value, err = alt, nil
+			}
+		}
+	}
 	if err == nil {
 		val, callErr := rt.interp.CallFunctionInWithCallNode(value, args, env, call)
 		if callErr != nil && call != nil {
@@ -313,11 +349,28 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 		tail := name[dot+1:]
 		receiver, recvErr := env.Get(head)
 		if recvErr != nil {
+			if fallback := rt.interp.GlobalEnvironment(); fallback != nil && fallback != env {
+				if alt, altErr := fallback.Get(head); altErr == nil {
+					receiver, recvErr = alt, nil
+				}
+			}
+		}
+		if recvErr != nil {
 			if def, ok := env.StructDefinition(head); ok {
 				receiver = def
-			} else {
-				receiver = runtime.TypeRefValue{TypeName: head}
+				recvErr = nil
+			} else if fallback := rt.interp.GlobalEnvironment(); fallback != nil && fallback != env {
+				if def, ok := fallback.StructDefinition(head); ok {
+					receiver = def
+					recvErr = nil
+				}
 			}
+		}
+		if recvErr != nil {
+			receiver = runtime.TypeRefValue{TypeName: head}
+		}
+		if receiver == nil {
+			receiver = runtime.TypeRefValue{TypeName: head}
 		}
 		member := runtime.StringValue{Val: tail}
 		candidate, err := rt.interp.MemberGetPreferMethods(receiver, member, env)
@@ -824,14 +877,42 @@ func unwrapInterface(value runtime.Value) runtime.Value {
 }
 
 func arrayValueFromRuntime(value runtime.Value) (*runtime.ArrayValue, error) {
+	value = unwrapInterface(value)
 	switch v := value.(type) {
 	case *runtime.ArrayValue:
 		if v == nil {
 			return nil, fmt.Errorf("string bytes are missing")
 		}
 		return v, nil
+	case *runtime.StructInstanceValue:
+		if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil || v.Definition.Node.ID.Name != "Array" {
+			return nil, fmt.Errorf("string bytes must be an array (got %T)", value)
+		}
+		var handleVal runtime.Value
+		if v.Fields != nil {
+			handleVal = v.Fields["storage_handle"]
+		}
+		if handleVal == nil && len(v.Positional) >= 3 {
+			handleVal = v.Positional[2]
+		}
+		if handleVal == nil {
+			return nil, fmt.Errorf("array value missing storage_handle")
+		}
+		handleInt, err := extractInteger(handleVal)
+		if err != nil {
+			return nil, err
+		}
+		if !handleInt.IsInt64() {
+			return nil, fmt.Errorf("array handle is out of range")
+		}
+		handle := handleInt.Int64()
+		arr, _, err := runtime.ArrayStoreValueFromHandle(handle, 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		return arr, nil
 	default:
-		return nil, fmt.Errorf("string bytes must be an array")
+		return nil, fmt.Errorf("string bytes must be an array (got %T)", value)
 	}
 }
 

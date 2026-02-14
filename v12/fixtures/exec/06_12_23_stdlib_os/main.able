@@ -1,0 +1,73 @@
+package exec_06_12_23_stdlib_os
+
+import able.core.interfaces.{Error}
+import able.fs
+import able.io.{IOError, NotFound}
+import able.io.temp
+import able.io.path
+import able.io.path.{Path}
+import able.os
+
+## Semantics: stdlib os helpers expose args/env/cwd/chdir/temp-dir behavior with typed IOError results.
+
+fn cleanup_path(path_value: String) -> void {
+  do {
+    fs.remove(path_value, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  args_len := os.args().len()
+  print(`args_stable ${args_len == os.args().len()}`)
+
+  name := "ABLE_OS_FIXTURE_ENV"
+  prior := os.env(name)
+  os.set_env(name, "ok")
+  print(`env_value ${os.env(name)}`)
+  prior match {
+    case nil => {},
+    case value: String => os.set_env(name, value)
+  }
+
+  original := os.cwd()
+  root := temp.dir("able-os-fixture-").path
+  do {
+    os.chdir(root)
+    current_path: Path := path.parse(os.cwd())
+    root_path: Path := path.parse(root)
+    changed := current_path.basename() == root_path.basename()
+    print(`cwd_changed ${changed}`)
+  } ensure {
+    os.chdir(original)
+    cleanup_path(root)
+  }
+
+  missing := `${root}-missing`
+  cleanup_path(missing)
+  result := os.try_chdir(missing)
+  saw_not_found := false
+  result match {
+    case err: IOError => {
+      err.kind match {
+        case NotFound => { saw_not_found = true },
+        case _ => {}
+      }
+    },
+    case _ => {}
+  }
+  print(`try_chdir_missing ${saw_not_found}`)
+
+  print(`temp_nonempty ${os.temp_dir() != ""}`)
+}
