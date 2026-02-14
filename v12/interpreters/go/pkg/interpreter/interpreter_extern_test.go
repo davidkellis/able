@@ -63,3 +63,118 @@ func TestExternPreservesExistingBinding(t *testing.T) {
 		t.Fatalf("expected existing binding to remain")
 	}
 }
+
+func TestExternStructArrayFieldCoercesIntoHostMap(t *testing.T) {
+	interp := New()
+
+	specDef := ast.StructDef("Spec", []*ast.StructFieldDefinition{
+		ast.FieldDef(ast.Gen(ast.Ty("Array"), ast.Ty("String")), "args"),
+	}, ast.StructKindNamed, nil, nil, false)
+	sig := ast.Fn(
+		"accept_spec",
+		[]*ast.FunctionParameter{ast.Param("spec", ast.Ty("Spec"))},
+		nil,
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	mod := ast.Mod([]ast.Statement{
+		specDef,
+		ast.Extern(ast.HostTargetGo, sig, `
+specMap, ok := spec.(map[string]any)
+if !ok {
+	return int32(-1)
+}
+args, ok := specMap["args"].([]any)
+if !ok {
+	return int32(-2)
+}
+return int32(len(args))
+`),
+	}, nil, nil)
+
+	_, env, err := interp.EvaluateModule(mod)
+	if err != nil {
+		t.Fatalf("evaluate module: %v", err)
+	}
+
+	value, err := interp.evaluateExpression(ast.Call("accept_spec",
+		ast.StructLit([]*ast.StructFieldInitializer{
+			ast.FieldInit(ast.Arr(ast.Str("a"), ast.Str("b")), "args"),
+		}, false, "Spec", nil, nil),
+	), env)
+	if err != nil {
+		t.Fatalf("call extern: %v", err)
+	}
+
+	iv, ok := value.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %T", value)
+	}
+	if iv.Val.Int64() != 2 {
+		t.Fatalf("expected extern to receive two args, got %s", iv.Val.String())
+	}
+}
+
+func TestExternStructNullableArrayFieldCoercesIntoHostMap(t *testing.T) {
+	interp := New()
+
+	specDef := ast.StructDef("Spec", []*ast.StructFieldDefinition{
+		ast.FieldDef(ast.Nullable(ast.Gen(ast.Ty("Array"), ast.Ty("String"))), "args"),
+	}, ast.StructKindNamed, nil, nil, false)
+	sig := ast.Fn(
+		"accept_spec",
+		[]*ast.FunctionParameter{ast.Param("spec", ast.Ty("Spec"))},
+		nil,
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	mod := ast.Mod([]ast.Statement{
+		specDef,
+		ast.Extern(ast.HostTargetGo, sig, `
+specMap, ok := spec.(map[string]any)
+if !ok {
+	return int32(-1)
+}
+raw, ok := specMap["args"]
+if !ok {
+	return int32(-2)
+}
+if raw == nil {
+	return int32(-3)
+}
+args, ok := raw.([]any)
+if !ok {
+	return int32(-4)
+}
+return int32(len(args))
+`),
+	}, nil, nil)
+
+	_, env, err := interp.EvaluateModule(mod)
+	if err != nil {
+		t.Fatalf("evaluate module: %v", err)
+	}
+
+	value, err := interp.evaluateExpression(ast.Call("accept_spec",
+		ast.StructLit([]*ast.StructFieldInitializer{
+			ast.FieldInit(ast.Arr(ast.Str("x"), ast.Str("y"), ast.Str("z")), "args"),
+		}, false, "Spec", nil, nil),
+	), env)
+	if err != nil {
+		t.Fatalf("call extern: %v", err)
+	}
+
+	iv, ok := value.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %T", value)
+	}
+	if iv.Val.Int64() != 3 {
+		t.Fatalf("expected extern to receive three args, got %s", iv.Val.String())
+	}
+}

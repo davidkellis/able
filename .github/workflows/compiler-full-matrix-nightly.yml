@@ -1,0 +1,56 @@
+name: Compiler Full Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      typecheck_mode:
+        description: "Fixture typechecking mode (off|warn|strict)"
+        required: false
+        default: "strict"
+      exec_fixtures:
+        description: "Override ABLE_COMPILER_EXEC_FIXTURES (default: all)"
+        required: false
+        default: "all"
+      strict_dispatch_fixtures:
+        description: "Override ABLE_COMPILER_STRICT_DISPATCH_FIXTURES (default: all)"
+        required: false
+        default: "all"
+      boundary_audit_fixtures:
+        description: "Override ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES (default: all)"
+        required: false
+        default: "all"
+  schedule:
+    - cron: "20 6 * * *"
+
+concurrency:
+  group: compiler-full-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  compiler-full-matrix:
+    name: Full Matrix Sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ABLE_TYPECHECK_MODE: ${{ github.event.inputs.typecheck_mode || 'strict' }}
+      ABLE_COMPILER_EXEC_FIXTURES: ${{ github.event.inputs.exec_fixtures || 'all' }}
+      ABLE_COMPILER_STRICT_DISPATCH_FIXTURES: ${{ github.event.inputs.strict_dispatch_fixtures || 'all' }}
+      ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES: ${{ github.event.inputs.boundary_audit_fixtures || 'all' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: v12/interpreters/go/go.mod
+          cache: true
+          cache-dependency-path: |
+            v12/interpreters/go/go.sum
+            v12/interpreters/go/go.mod
+
+      - name: Run Compiler Full Matrix
+        working-directory: v12
+        run: |
+          ./run_compiler_full_matrix.sh --typecheck-fixtures="${ABLE_TYPECHECK_MODE}"
+

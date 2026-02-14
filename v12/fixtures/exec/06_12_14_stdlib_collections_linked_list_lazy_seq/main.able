@@ -1,0 +1,58 @@
+package exec_06_12_14_stdlib_collections_linked_list_lazy_seq
+
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.linked_list.{LinkedList}
+import able.collections.lazy_seq.{LazySeq}
+
+## Semantics: linked-list node operations and lazy sequence iterable/caching paths compile through stdlib collection impls.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  list: LinkedList i32 = LinkedList.new()
+  list.push_front(2)
+  list.push_front(1)
+  list.push_back(3)
+  print(`list_len ${list.len()}`)
+  print_optional_i32("list_pop_front", list.pop_front())
+  print_optional_i32("list_pop_back", list.pop_back())
+  print_optional_i32("list_pop_back2", list.pop_back())
+  print(`list_empty ${list.is_empty()}`)
+
+  list2: LinkedList i32 = LinkedList.new()
+  head := list2.push_back(10)
+  middle := list2.insert_after(head, 20)
+  list2.insert_after(middle, 30)
+  removed := list2.remove_node(middle)
+  print(`list2_removed ${removed}`)
+  print(`list2_len ${list2.len()}`)
+  list2_sum := 0
+  list2.for_each(fn(value: i32) -> void { list2_sum = list2_sum + value })
+  print(`list2_sum ${list2_sum}`)
+
+  values: Array i32 = Array.new()
+  values.push(5)
+  values.push(6)
+  values.push(7)
+  seq: LazySeq i32 = LazySeq { source: nil, cache: values, exhausted: true }
+
+  print_optional_i32("seq_get0", seq.get(0))
+  print_optional_i32("seq_get0_again", seq.get(0))
+  print_optional_i32("seq_get1", seq.get(1))
+
+  taken := seq.take(2)
+  print(`taken_len ${taken.len()}`)
+
+  total := 0
+  seq.each(fn(value: i32) -> void { total = total + value })
+  print(`seq_total ${total}`)
+
+  arr := seq.to_array()
+  print(`seq_array_len ${arr.len()}`)
+}

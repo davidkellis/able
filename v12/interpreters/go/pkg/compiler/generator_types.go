@@ -132,6 +132,8 @@ func (g *generator) inferIntegerLiteralType(lit *ast.IntegerLiteral) string {
 		return "int32"
 	case ast.IntegerTypeI64:
 		return "int64"
+	case ast.IntegerTypeI128:
+		return "runtime.Value"
 	case ast.IntegerTypeU8:
 		return "uint8"
 	case ast.IntegerTypeU16:
@@ -140,6 +142,8 @@ func (g *generator) inferIntegerLiteralType(lit *ast.IntegerLiteral) string {
 		return "uint32"
 	case ast.IntegerTypeU64:
 		return "uint64"
+	case ast.IntegerTypeU128:
+		return "runtime.Value"
 	default:
 		return "int32"
 	}
@@ -160,7 +164,11 @@ func (g *generator) inferFloatLiteralType(lit *ast.FloatLiteral) string {
 }
 
 func (g *generator) mapTypeExpression(expr ast.TypeExpression) (string, bool) {
-	mapper := NewTypeMapper(g.structs)
+	return g.mapTypeExpressionInPackage("", expr)
+}
+
+func (g *generator) mapTypeExpressionInPackage(pkgName string, expr ast.TypeExpression) (string, bool) {
+	mapper := NewTypeMapper(g.structs, pkgName)
 	return mapper.Map(expr)
 }
 
@@ -187,6 +195,18 @@ func (g *generator) interfaceTypeExpr(expr ast.TypeExpression) (ast.TypeExpressi
 		}
 	}
 	return nil, false
+}
+
+func (g *generator) isResultVoidTypeExpr(expr ast.TypeExpression) bool {
+	res, ok := expr.(*ast.ResultTypeExpression)
+	if !ok || res == nil || res.InnerType == nil {
+		return false
+	}
+	inner, ok := res.InnerType.(*ast.SimpleTypeExpression)
+	if !ok || inner == nil || inner.Name == nil {
+		return false
+	}
+	return inner.Name.Name == "void" || inner.Name.Name == "Void"
 }
 
 func (g *generator) isInterfaceName(name string) bool {

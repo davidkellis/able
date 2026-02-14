@@ -264,7 +264,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		}
 		goType := existing.GoType
 		if typeAnnotation != nil {
-			mapped, ok := g.mapTypeExpression(typeAnnotation)
+			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, typeAnnotation)
 			if !ok {
 				ctx.setReason("unsupported type annotation")
 				return nil, "", "", false
@@ -335,7 +335,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	declaring := assign.Operator == ast.AssignmentDeclare || !exists
 	var goType string
 	if typeAnnotation != nil {
-		mapped, ok := g.mapTypeExpression(typeAnnotation)
+		mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, typeAnnotation)
 		if !ok {
 			ctx.setReason("unsupported type annotation")
 			return nil, "", "", false

@@ -1,0 +1,25 @@
+{
+  "description": "stdlib BitSet/Heap set-ops and min-heap ordering semantics",
+  "expect": {
+    "stdout": [
+      "bits_contains_1 true",
+      "bits_contains_3 false",
+      "bits_contains_4 true",
+      "bits_contains_65 false",
+      "bits_each_sum 5",
+      "bits_for_sum 5",
+      "bits_after_clear_count 0",
+      "heap_len 4",
+      "heap_peek 1",
+      "heap_pop1 1",
+      "heap_pop2 2",
+      "heap_pop3 3",
+      "heap_pop4 4",
+      "heap_pop_empty nil",
+      "heap_empty true",
+      "heap_peek2 -2",
+      "heap_len2 1"
+    ],
+    "exit": 0
+  }
+}

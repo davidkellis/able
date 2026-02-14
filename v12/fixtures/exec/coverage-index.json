@@ -635,6 +635,62 @@
     "focus": "compiler handles /% div-mod struct results"
   },
   {
+    "id": "exec/06_01_compiler_divmod_overflow",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler raises integer overflow errors for div-mod edge cases"
+  },
+  {
+    "id": "exec/06_01_compiler_integer_overflow",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler raises integer overflow errors for addition"
+  },
+  {
+    "id": "exec/06_01_compiler_integer_overflow_sub",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler raises integer overflow errors for subtraction"
+  },
+  {
+    "id": "exec/06_01_compiler_integer_overflow_mul",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler raises integer overflow errors for multiplication"
+  },
+  {
+    "id": "exec/06_01_compiler_pow_overflow",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler raises integer overflow errors for exponentiation"
+  },
+  {
+    "id": "exec/06_01_compiler_pow_negative_exponent",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler rejects negative integer exponents"
+  },
+  {
+    "id": "exec/06_01_compiler_unary_overflow",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "compiler raises integer overflow for unary negation on minimum values"
+  },
+  {
     "id": "exec/06_01_compiler_compound_assignment",
     "status": "seeded",
     "spec_sections": [
@@ -642,6 +698,15 @@
       "6.3.2"
     ],
     "focus": "compiler handles compound assignments with RHS-first evaluation"
+  },
+  {
+    "id": "exec/06_01_compiler_compound_assignment_overflow",
+    "status": "seeded",
+    "spec_sections": [
+      "5.3.1",
+      "6.3.2"
+    ],
+    "focus": "compiler raises integer overflow errors for compound assignments"
   },
   {
     "id": "exec/06_01_compiler_dynamic_member_compound",
@@ -1266,6 +1331,190 @@
     "focus": "Ratio normalization and divmod quotient/remainder semantics"
   },
   {
+    "id": "exec/06_12_04_stdlib_numbers_bigint",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.3"
+    ],
+    "focus": "BigInt arithmetic, comparison, clamp behavior, and conversion error handling"
+  },
+  {
+    "id": "exec/06_12_05_stdlib_numbers_biguint",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.3"
+    ],
+    "focus": "BigUint arithmetic, comparison, clamp behavior, and conversion/underflow error handling"
+  },
+  {
+    "id": "exec/06_12_06_stdlib_numbers_int128",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.3"
+    ],
+    "focus": "Int128 arithmetic, comparison, clamp behavior, and conversion/division error handling"
+  },
+  {
+    "id": "exec/06_12_07_stdlib_numbers_uint128",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.3"
+    ],
+    "focus": "UInt128 arithmetic, comparison, bit-helper, clamp behavior, and conversion/division/underflow error handling"
+  },
+  {
+    "id": "exec/06_12_08_stdlib_numbers_rational",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.3"
+    ],
+    "focus": "Rational normalization, arithmetic, comparison, rounding, and conversion/division/clamp-order error handling"
+  },
+  {
+    "id": "exec/06_12_09_stdlib_numbers_primitives",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.3"
+    ],
+    "focus": "primitive numeric helper methods and conversion/clamp/division diagnostics from able.numbers.primitives"
+  },
+  {
+    "id": "exec/06_12_10_stdlib_collections_list_vector",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "persistent list/vector prepend/append/set/pop/read semantics from able.collections.list and able.collections.vector"
+  },
+  {
+    "id": "exec/06_12_11_stdlib_collections_tree_map_set",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "ordered tree map/set insert/update/remove/access semantics from able.collections.tree_map and able.collections.tree_set"
+  },
+  {
+    "id": "exec/06_12_12_stdlib_collections_persistent_map_set",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "persistent hash map/set HAMT insert/update/remove/access, collision handling, and builder semantics from able.collections.persistent_map"
+  },
+  {
+    "id": "exec/06_12_13_stdlib_collections_persistent_sorted_queue",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "persistent sorted-set/queue ordering, persistence, range, and FIFO iteration semantics from able.collections.persistent_sorted_set and able.collections.persistent_queue"
+  },
+  {
+    "id": "exec/06_12_14_stdlib_collections_linked_list_lazy_seq",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "linked-list node-handle mutation and lazy-seq cache-backed get/take/each semantics from able.collections.linked_list and able.collections.lazy_seq"
+  },
+  {
+    "id": "exec/06_12_15_stdlib_collections_hash_map_set",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "hash-map key/value operations and hash-set set-algebra semantics from able.collections.hash_map and able.collections.hash_set"
+  },
+  {
+    "id": "exec/06_12_16_stdlib_collections_deque_queue",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "deque/queue push-pop, growth, and iteration semantics from able.collections.deque and able.collections.queue"
+  },
+  {
+    "id": "exec/06_12_17_stdlib_collections_bit_set_heap",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "bit-set membership/iteration and heap ordering semantics from able.collections.bit_set and able.collections.heap"
+  },
+  {
+    "id": "exec/06_12_18_stdlib_collections_array_range",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "array helper methods and range factory iteration semantics from able.collections.array and able.collections.range"
+  },
+  {
+    "id": "exec/06_12_19_stdlib_concurrency_channel_mutex_queue",
+    "status": "seeded",
+    "spec_sections": [
+      "12.5"
+    ],
+    "focus": "stdlib channel/mutex wrappers and concurrent_queue enqueue/dequeue/close semantics from able.concurrency modules"
+  },
+  {
+    "id": "exec/06_12_20_stdlib_math_core_numeric",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12.3"
+    ],
+    "focus": "math helper functions and core numeric ratio conversion semantics from able.math and able.core.numeric"
+  },
+  {
+    "id": "exec/06_12_21_stdlib_fs_path",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "path normalization helpers and fs read/write/rename/remove semantics from able.io.path and able.fs"
+  },
+  {
+    "id": "exec/06_12_22_stdlib_io_temp",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "io read/write and temp file/dir lifecycle semantics from able.io and able.io.temp"
+  },
+  {
+    "id": "exec/06_12_23_stdlib_os",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "os args/env/cwd/chdir helpers and typed missing-directory error semantics from able.os"
+  },
+  {
+    "id": "exec/06_12_24_stdlib_process",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "process spawn/wait/stdio helpers, method-chain ProcessSpec setup, and missing-command IOError mapping from able.process"
+  },
+  {
+    "id": "exec/06_12_25_stdlib_term",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "term tty/size/raw-mode helpers with typed IOError fallbacks from able.term"
+  },
+  {
+    "id": "exec/06_12_26_stdlib_test_harness_reporters",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "test harness discovery and doc/progress reporter emission semantics from able.test.harness and able.test.reporters"
+  },
+  {
     "id": "exec/04_07_types_alias_union_generic_combo",
     "status": "seeded",
     "spec_sections": [
@@ -1551,6 +1800,14 @@
     "focus": "bytecode-friendly iterator yields with while-loop control"
   },
   {
+    "id": "exec/07_10_iterator_reentrancy",
+    "status": "seeded",
+    "spec_sections": [
+      "6.7"
+    ],
+    "focus": "iterator.next raises an error when re-entered while suspended at yield"
+  },
+  {
     "id": "exec/07_07_overload_resolution_runtime",
     "status": "seeded",
     "spec_sections": [
@@ -1768,6 +2025,15 @@
       "10.3.4"
     ],
     "focus": "interface-typed values retain dispatch when stored in structs"
+  },
+  {
+    "id": "exec/10_17_interface_overload_dispatch",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "interface-typed values dispatch correctly across overloaded interface methods"
   },
   {
     "id": "exec/13_01_package_structure_modules",

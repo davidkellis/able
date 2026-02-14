@@ -1,0 +1,16 @@
+{
+  "description": "stdlib fs/path host-backed helpers for path normalization and file operations",
+  "expect": {
+    "stdout": [
+      "path_norm foo/baz",
+      "path_base baz",
+      "path_ext txt",
+      "fs_exists true",
+      "fs_read hello",
+      "fs_renamed_exists true",
+      "fs_entries 1",
+      "fs_root_exists false"
+    ],
+    "exit": 0
+  }
+}

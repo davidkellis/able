@@ -139,12 +139,19 @@ impl Iterator T for ArrayIterator T {
 
 impl Index i32 T for Array T {
   fn get(self: Self, idx: i32) -> !T {
-    if idx < 0 || idx >= self.len() { IndexError { index: idx, length: self.len() } } else { self.read_slot(idx) }
+    arr := self
+    arr.refresh_metadata()
+    count := arr.len()
+    if idx < 0 || idx >= count { return IndexError { index: idx, length: count } }
+    arr.read_slot(idx)
   }
 }
 
 impl IndexMut i32 T for Array T {
   fn set(self: Self, idx: i32, value: T) -> !void {
-    if idx < 0 || idx >= self.len() { IndexError { index: idx, length: self.len() } } else { self.write_slot(idx, value) }
+    self.set(idx, value) match {
+      case nil => {},
+      case err => err
+    }
   }
 }

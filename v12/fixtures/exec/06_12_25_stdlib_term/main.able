@@ -1,0 +1,32 @@
+package exec_06_12_25_stdlib_term
+
+import able.io
+import able.io.{IOError}
+import able.term
+import able.term.{TermSize}
+
+## Semantics: stdlib term helpers expose tty/size/raw-mode behavior with typed IOError fallbacks.
+
+fn main() -> void {
+  handle := io.stdout()
+  tty := term.is_tty(handle)
+  print(`tty_bool ${tty == true || tty == false}`)
+
+  size_checked := false
+  term.try_size(handle) match {
+    case size: TermSize => {
+      size_checked = size.rows >= 0 && size.cols >= 0
+    },
+    case err: IOError => {
+      size_checked = err.message != ""
+    }
+  }
+  print(`size_checked ${size_checked}`)
+
+  raw_checked := false
+  term.try_set_raw_mode(handle, false) match {
+    case _: void => { raw_checked = true },
+    case err: IOError => { raw_checked = err.message != "" }
+  }
+  print(`raw_checked ${raw_checked}`)
+}

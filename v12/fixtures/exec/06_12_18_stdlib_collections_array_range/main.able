@@ -1,0 +1,62 @@
+package exec_06_12_18_stdlib_collections_array_range
+
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.range.{RangeFactory}
+import able.core.iteration.{IteratorEnd}
+
+## Semantics: array helpers and range factory re-exports compile through stdlib collection wrappers.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  source := [1, 2]
+  arr: Array i32 = Array.new()
+  arr.push(0)
+  arr.push_all(source)
+  print(`arr_len ${arr.len()}`)
+  print_optional_i32("arr_first", arr.first())
+  print_optional_i32("arr_last", arr.last())
+  print_optional_i32("arr_get1", arr.get(1))
+  arr.write_slot(1, 9)
+  print_optional_i32("arr_get1_after_write", arr.get(1))
+  print_optional_i32("arr_pop", arr.pop())
+  print(`arr_len_after_pop ${arr.len()}`)
+  arr.clear()
+  print(`arr_len_after_clear ${arr.len()}`)
+
+  inc := RangeFactory.inclusive_range(1, 4).iterator()
+  inc_sum := 0
+  inc_count := 0
+  loop {
+    inc.next() match {
+      case value: i32 => {
+        inc_sum = inc_sum + value
+        inc_count = inc_count + 1
+      },
+      case IteratorEnd {} => { break }
+    }
+  }
+  print(`inc_sum ${inc_sum}`)
+  print(`inc_count ${inc_count}`)
+
+  desc := RangeFactory.exclusive_range(5, 2).iterator()
+  desc_sum := 0
+  desc_count := 0
+  loop {
+    desc.next() match {
+      case value: i32 => {
+        desc_sum = desc_sum + value
+        desc_count = desc_count + 1
+      },
+      case IteratorEnd {} => { break }
+    }
+  }
+  print(`desc_sum ${desc_sum}`)
+  print(`desc_count ${desc_count}`)
+}

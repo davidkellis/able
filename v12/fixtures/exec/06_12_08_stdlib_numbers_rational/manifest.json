@@ -1,0 +1,22 @@
+{
+  "description": "stdlib Rational normalization, arithmetic, comparison, rounding, and conversion/division errors",
+  "expect": {
+    "stdout": [
+      "norm -3/4",
+      "sum 5/6",
+      "diff 1/6",
+      "product 1/6",
+      "quotient 3/2",
+      "cmp less",
+      "clamp -3/4",
+      "floor 2",
+      "ceil 3",
+      "round 2",
+      "to_i32 err",
+      "to_u32 err",
+      "div_zero err",
+      "clamp_order err"
+    ],
+    "exit": 0
+  }
+}

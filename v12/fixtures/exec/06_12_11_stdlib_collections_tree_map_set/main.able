@@ -1,0 +1,56 @@
+package exec_06_12_11_stdlib_collections_tree_map_set
+
+import able.collections.tree_map.{TreeMap, TreeEntry}
+import able.collections.tree_set.{TreeSet}
+
+## Semantics: ordered map/set helpers compile through stdlib tree collection impls.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn print_optional_entry(label: String, value: ?TreeEntry String i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case entry: TreeEntry String i32 => print(`${label} ${entry.key}:${entry.value}`)
+  }
+}
+
+fn print_optional_set_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  map: TreeMap String i32 = TreeMap.new()
+  map.set("beta", 2)
+  map.set("alpha", 1)
+  map.set("gamma", 3)
+  map.set("alpha", 10)
+
+  print(`map_len ${map.len()}`)
+  print_optional_i32("map_alpha", map.get("alpha"))
+  print_optional_entry("map_first", map.first())
+  print_optional_entry("map_last", map.last())
+  print(`map_remove_beta ${map.remove("beta")}`)
+  print(`map_remove_missing ${map.remove("missing")}`)
+  print(`map_contains_beta ${map.contains("beta")}`)
+
+  set: TreeSet i32 = TreeSet.new()
+  print(`set_insert_2_first ${set.insert(2)}`)
+  print(`set_insert_1 ${set.insert(1)}`)
+  print(`set_insert_2_second ${set.insert(2)}`)
+  print(`set_insert_3 ${set.insert(3)}`)
+  print(`set_len ${set.len()}`)
+  print(`set_contains_1 ${set.contains(1)}`)
+  print_optional_set_i32("set_first", set.first())
+  print_optional_set_i32("set_last", set.last())
+  print(`set_remove_1 ${set.remove(1)}`)
+  print(`set_remove_9 ${set.remove(9)}`)
+  print(`set_len_after_remove ${set.len()}`)
+}

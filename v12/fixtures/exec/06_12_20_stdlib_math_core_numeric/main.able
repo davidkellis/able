@@ -1,0 +1,32 @@
+package exec_06_12_20_stdlib_math_core_numeric
+
+import able.math.{abs_i64, clamp_i64, gcd, lcm, sign_i64}
+import able.kernel.{Ratio}
+import able.core.numeric
+
+## Semantics: math helpers and core numeric conversions compile through stdlib modules.
+
+fn main() -> void {
+  print(`abs_i64 ${abs_i64(-12)}`)
+  print(`sign_i64_neg ${sign_i64(-9)}`)
+  print(`clamp_i64 ${clamp_i64(15, 0, 10)}`)
+  print(`gcd ${gcd(54, 24)}`)
+  print(`lcm ${lcm(21, 6)}`)
+
+  ratio := 7_i64.to_r()
+  print(`ratio_whole ${ratio.numerator()}/${ratio.denominator()}`)
+
+  half := 0.5.to_r()
+  print(`ratio_half ${half.numerator()}/${half.denominator()}`)
+
+  int_ok := Ratio.new(9, 3).to_i32()
+  print(`ratio_to_i32 ${int_ok}`)
+
+  conversion_status := (do {
+    Ratio.new(1, 2).to_i32()
+    "ok"
+  } rescue {
+    case _ => "error"
+  })
+  print(`ratio_to_i32_fraction ${conversion_status}`)
+}

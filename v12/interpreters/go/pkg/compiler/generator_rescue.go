@@ -34,13 +34,6 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 	if !ok {
 		return "", "", false
 	}
-	resultType := expected
-	if resultType == "" {
-		resultType = monitoredType
-	}
-	if resultType == "" {
-		resultType = "runtime.Value"
-	}
 	if len(expr.Clauses) == 0 {
 		ctx.setReason("rescue requires clauses")
 		return "", "", false
@@ -75,14 +68,8 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			}
 			guardExpr = guardValue
 		}
-		bodyLines, bodyExpr, bodyType, ok := g.compileTailExpression(clauseCtx, resultType, clause.Body)
+		bodyLines, bodyExpr, bodyType, ok := g.compileTailExpression(clauseCtx, expected, clause.Body)
 		if !ok {
-			return "", "", false
-		}
-		if resultType == "" {
-			resultType = bodyType
-		} else if !g.typeMatches(resultType, bodyType) {
-			ctx.setReason("rescue clause type mismatch")
 			return "", "", false
 		}
 		clauses = append(clauses, rescueClause{
@@ -93,6 +80,40 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			bodyExpr:  bodyExpr,
 			bodyType:  bodyType,
 		})
+	}
+	resultType := expected
+	if resultType == "" {
+		resultType = monitoredType
+		if resultType == "" && len(clauses) > 0 {
+			resultType = clauses[0].bodyType
+		}
+		for _, clause := range clauses {
+			if resultType == "" {
+				resultType = clause.bodyType
+				continue
+			}
+			if !g.typeMatches(resultType, clause.bodyType) {
+				resultType = "runtime.Value"
+				break
+			}
+		}
+		if resultType == "" {
+			resultType = "runtime.Value"
+		} else if !g.typeMatches(resultType, monitoredType) {
+			resultType = "runtime.Value"
+		}
+	}
+	monitoredExpr, ok = g.coerceRescueBranch(ctx, resultType, monitoredExpr, monitoredType)
+	if !ok {
+		return "", "", false
+	}
+	for i := range clauses {
+		coerced, ok := g.coerceRescueBranch(ctx, resultType, clauses[i].bodyExpr, clauses[i].bodyType)
+		if !ok {
+			return "", "", false
+		}
+		clauses[i].bodyExpr = coerced
+		clauses[i].bodyType = resultType
 	}
 	resultTemp := ctx.newTemp()
 	recoveredTemp := ctx.newTemp()
@@ -136,6 +157,34 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 	lines = append(lines, fmt.Sprintf("return %s", resultTemp))
 	exprValue := fmt.Sprintf("func() %s { %s }()", resultType, strings.Join(lines, "; "))
 	return exprValue, resultType, true
+}
+
+func (g *generator) coerceRescueBranch(ctx *compileContext, resultType string, expr string, exprType string) (string, bool) {
+	if resultType == "" || exprType == "" || expr == "" {
+		ctx.setReason("rescue clause type mismatch")
+		return "", false
+	}
+	if resultType == exprType {
+		return expr, true
+	}
+	if resultType == "runtime.Value" && exprType != "runtime.Value" {
+		converted, ok := g.runtimeValueExpr(expr, exprType)
+		if !ok {
+			ctx.setReason("rescue clause type mismatch")
+			return "", false
+		}
+		return converted, true
+	}
+	if resultType != "runtime.Value" && exprType == "runtime.Value" {
+		converted, ok := g.expectRuntimeValueExpr(expr, resultType)
+		if !ok {
+			ctx.setReason("rescue clause type mismatch")
+			return "", false
+		}
+		return converted, true
+	}
+	ctx.setReason("rescue clause type mismatch")
+	return "", false
 }
 
 func (g *generator) compileRethrowStatement(ctx *compileContext, stmt *ast.RethrowStatement) ([]string, bool) {

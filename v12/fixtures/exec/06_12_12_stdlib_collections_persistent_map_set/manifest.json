@@ -1,0 +1,30 @@
+{
+  "description": "stdlib PersistentMap/PersistentSet HAMT operations, collisions, and builders",
+  "expect": {
+    "stdout": [
+      "map_len 2",
+      "map_a 1",
+      "map_updated_b 20",
+      "map_original_b 2",
+      "map_smaller_len 1",
+      "map_smaller_contains_a false",
+      "map_original_contains_a true",
+      "coll_x first",
+      "coll_y second",
+      "coll2_x updated",
+      "coll2_y second",
+      "built_map_len 2",
+      "built_map_y 20",
+      "set_len 2",
+      "set_contains_1 true",
+      "trimmed_contains_1 false",
+      "set_still_contains_1 true",
+      "union_len 3",
+      "union_contains_3 true",
+      "intersection_len 1",
+      "intersection_contains_2 true",
+      "intersection_contains_1 false"
+    ],
+    "exit": 0
+  }
+}

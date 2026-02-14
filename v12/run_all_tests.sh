@@ -7,6 +7,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TYPECHECK_FIXTURES_MODE="strict"
 FIXTURE_ONLY=false
 EXPORT_FIXTURES=false
+COMPILER_FULL_MATRIX=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       EXPORT_FIXTURES=true
       shift
       ;;
+    --compiler-full-matrix)
+      COMPILER_FULL_MATRIX=true
+      shift
+      ;;
     --help|-h)
       cat <<'EOF'
 Usage: run_all_tests.sh [options]
@@ -41,6 +46,7 @@ Usage: run_all_tests.sh [options]
 Options:
   --fixture                 Run only Go fixture tests.
   --export-fixtures         Run fixture export step (Go-based exporter).
+  --compiler-full-matrix    Run full compiler fixture matrix sweep (`...=all`).
   --typecheck-fixtures[=MODE]  Set fixture typechecking (MODE: off|warn|strict, default strict).
   --typecheck-fixtures-warn    Shorthand for --typecheck-fixtures=warn.
   --typecheck-fixtures-strict  Shorthand for --typecheck-fixtures=strict.
@@ -83,5 +89,13 @@ echo ">>> Running Go tests"
     ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
   fi
 )
+
+if [[ "$COMPILER_FULL_MATRIX" == true ]]; then
+  echo ">>> Running compiler full matrix sweep"
+  ABLE_COMPILER_EXEC_FIXTURES="${ABLE_COMPILER_EXEC_FIXTURES:-all}" \
+    ABLE_COMPILER_STRICT_DISPATCH_FIXTURES="${ABLE_COMPILER_STRICT_DISPATCH_FIXTURES:-all}" \
+    ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES="${ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES:-all}" \
+    "$ROOT_DIR/run_compiler_full_matrix.sh" --typecheck-fixtures="$TYPECHECK_FIXTURES_MODE"
+fi
 
 echo "All tests completed successfully."

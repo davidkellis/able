@@ -1,0 +1,23 @@
+{
+  "description": "stdlib numeric primitive helpers and conversion errors from able.numbers.primitives",
+  "expect": {
+    "stdout": [
+      "abs 5",
+      "sign -1",
+      "divmod 3 2",
+      "bit_count 4",
+      "bit_length 5",
+      "leading 28",
+      "trailing 3",
+      "floor 3",
+      "ceil 4",
+      "round 4",
+      "fract_ok true",
+      "to_u32 err",
+      "f64_to_i32 err",
+      "reciprocal err",
+      "clamp err"
+    ],
+    "exit": 0
+  }
+}

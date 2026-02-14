@@ -13,6 +13,12 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 	}
 	param, ok := ctx.lookup(ident.Name)
 	if !ok {
+		if info, found := g.structs[ident.Name]; found && info != nil && info.Supported && len(info.Fields) == 0 {
+			structType := "*" + info.GoName
+			if expected == "" || expected == structType {
+				return "&" + info.GoName + "{}", structType, true
+			}
+		}
 		nodeName := g.diagNodeName(ident, "*ast.Identifier", "ident")
 		valueExpr := fmt.Sprintf("__able_global_get(%q, %s)", ident.Name, nodeName)
 		if expected == "" || expected == "runtime.Value" {
@@ -41,6 +47,17 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 				return "", "", false
 			}
 			return converted, expected, true
+		}
+		if expected != "" && expected != "runtime.Value" && param.GoType != "runtime.Value" {
+			// Preserve runtime coercion semantics for typed locals, including
+			// integer-width adjustments used by stdlib error structs.
+			valueExpr, ok := g.runtimeValueExpr(param.GoName, param.GoType)
+			if ok {
+				converted, ok := g.expectRuntimeValueExpr(valueExpr, expected)
+				if ok {
+					return converted, expected, true
+				}
+			}
 		}
 		ctx.setReason("identifier type mismatch")
 		return "", "", false
