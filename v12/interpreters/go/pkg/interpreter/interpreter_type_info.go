@@ -49,6 +49,10 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 }
 
 func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpression {
+	return i.typeExpressionFromValueWithSeen(value, make(map[*runtime.StructInstanceValue]struct{}))
+}
+
+func (i *Interpreter) typeExpressionFromValueWithSeen(value runtime.Value, seen map[*runtime.StructInstanceValue]struct{}) ast.TypeExpression {
 	switch v := value.(type) {
 	case *runtime.StructDefinitionValue:
 		if v == nil || v.Node == nil || v.Node.ID == nil || !isSingletonStructDef(v.Node) {
@@ -56,7 +60,7 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 		}
 		return ast.Ty(v.Node.ID.Name)
 	case runtime.StructDefinitionValue:
-		return i.typeExpressionFromValue(&v)
+		return i.typeExpressionFromValueWithSeen(&v, seen)
 	case runtime.StringValue:
 		return ast.Ty("String")
 	case runtime.BoolValue:
@@ -101,9 +105,17 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 			return nil
 		}
 		base := ast.Ty(v.Definition.Node.ID.Name)
+		if seen == nil {
+			seen = make(map[*runtime.StructInstanceValue]struct{})
+		}
+		if _, ok := seen[v]; ok {
+			return base
+		}
+		seen[v] = struct{}{}
+		defer delete(seen, v)
 		if v.Definition.Node.ID.Name == "Array" {
 			if arr, err := i.arrayValueFromStructFields(v.Fields); err == nil && arr != nil {
-				if inferred := i.typeExpressionFromValue(arr); inferred != nil {
+				if inferred := i.typeExpressionFromValueWithSeen(arr, seen); inferred != nil {
 					return inferred
 				}
 			}
@@ -131,12 +143,12 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 					}
 				}
 			}
-			if needsInference {
-				typeArgs = i.inferStructTypeArguments(v.Definition.Node, v.Fields, v.Positional)
-			}
-			if len(typeArgs) > 0 {
-				return ast.Gen(base, typeArgs...)
-			}
+				if needsInference {
+					typeArgs = i.inferStructTypeArgumentsWithSeen(v.Definition.Node, v.Fields, v.Positional, seen)
+				}
+				if len(typeArgs) > 0 {
+					return ast.Gen(base, typeArgs...)
+				}
 		}
 		return base
 	case *runtime.InterfaceValue:
@@ -145,14 +157,14 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 		}
 		return ast.Ty(v.Interface.Node.ID.Name)
 	case runtime.InterfaceValue:
-		return i.typeExpressionFromValue(&v)
+		return i.typeExpressionFromValueWithSeen(&v, seen)
 	case *runtime.ArrayValue:
 		if v == nil {
 			return nil
 		}
 		var elemType ast.TypeExpression
 		for _, el := range v.Elements {
-			inferred := i.typeExpressionFromValue(el)
+			inferred := i.typeExpressionFromValueWithSeen(el, seen)
 			if inferred == nil {
 				continue
 			}

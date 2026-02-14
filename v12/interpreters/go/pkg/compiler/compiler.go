@@ -8,9 +8,10 @@ import (
 )
 
 type Options struct {
-	PackageName string
-	EmitMain    bool
-	EntryPath   string
+	PackageName        string
+	EmitMain           bool
+	EntryPath          string
+	RequireNoFallbacks bool
 }
 
 type Result struct {
@@ -51,14 +52,28 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	if report, err := DetectDynamicFeatures(program); err != nil {
 		return nil, err
 	} else {
+		gen.setDynamicFeatureReport(report)
 		appendDynamicFeatureWarnings(gen, report)
 	}
 	files, err := gen.render()
 	if err != nil {
 		return nil, err
 	}
+	fallbacks := gen.collectFallbacks()
+	if c.opts.RequireNoFallbacks && len(fallbacks) > 0 {
+		first := fallbacks[0]
+		name := first.Name
+		if name == "" {
+			name = "<unknown>"
+		}
+		reason := first.Reason
+		if reason == "" {
+			reason = "unspecified fallback reason"
+		}
+		return nil, fmt.Errorf("compiler: fallback not allowed (count=%d, first=%s: %s)", len(fallbacks), name, reason)
+	}
 	gen.warnings = append(warnings, gen.warnings...)
-	return &Result{Files: files, Warnings: gen.warnings, Fallbacks: gen.collectFallbacks()}, nil
+	return &Result{Files: files, Warnings: gen.warnings, Fallbacks: fallbacks}, nil
 }
 
 func (r *Result) Write(dir string) error {

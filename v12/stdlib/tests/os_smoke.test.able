@@ -1,0 +1,75 @@
+package os_smoke_tests
+
+import able.core.interfaces.{Error}
+import able.fs
+import able.io.{IOError, NotFound}
+import able.io.temp
+import able.io.path
+import able.io.path.{Path}
+import able.os
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn cleanup_path(path_value: String) -> void {
+  do {
+    fs.remove(path_value, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  args_len := os.args().len()
+  assert(args_len == os.args().len(), "os.args should be stable across reads")
+
+  name := "ABLE_OS_SMOKE_ENV"
+  prior := os.env(name)
+  os.set_env(name, "ok")
+  assert(os.env(name) == "ok", "set_env should update env lookup")
+  prior match {
+    case nil => {},
+    case value: String => os.set_env(name, value)
+  }
+
+  original := os.cwd()
+  root := temp.dir("able-os-smoke-").path
+  do {
+    os.chdir(root)
+    current_path: Path := path.parse(os.cwd())
+    root_path: Path := path.parse(root)
+    assert(current_path.basename() == root_path.basename(), "chdir should change cwd")
+  } ensure {
+    os.chdir(original)
+    cleanup_path(root)
+  }
+
+  missing := `${root}-missing`
+  cleanup_path(missing)
+  result := os.try_chdir(missing)
+  saw_not_found := false
+  result match {
+    case err: IOError => {
+      err.kind match {
+        case NotFound => { saw_not_found = true },
+        case _ => {}
+      }
+    },
+    case _ => {}
+  }
+  assert(saw_not_found, "try_chdir should report NotFound for missing directory")
+}
+
+main()

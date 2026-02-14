@@ -1,0 +1,22 @@
+package path_smoke_tests
+
+import able.io.path
+import able.io.path.{Path}
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn main() -> void {
+  parsed: Path := path.parse("foo//bar/../baz")
+  assert(parsed.to_string() == "foo/baz", "parse should normalize separators and dot segments")
+
+  base: Path := path.parse("/tmp")
+  joined := base.join("a/b.txt")
+  assert(joined.to_string() == "/tmp/a/b.txt", "join should append relative segments")
+  assert(joined.basename() == "b.txt", "basename should return final segment")
+  assert(joined.extension() == "txt", "extension should return file extension")
+}
+
+main()

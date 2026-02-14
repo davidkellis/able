@@ -1,0 +1,47 @@
+package exec_06_12_24_stdlib_process
+
+import able.io
+import able.io.{IOError, NotFound}
+import able.os
+import able.process
+import able.process.{with_cwd, with_env}
+
+## Semantics: stdlib process spawn/wait/stdio helpers, method-chain process spec setup, and missing-command IOError mapping.
+
+fn main() -> void {
+  base := process.ProcessSpec.new("/bin/sh", ["-c", "printf %s \"$ABLE_PROCESS_SMOKE\""])
+  with_cwd_spec := base.with_cwd(os.cwd())
+  env := [process.ProcessEnv.new("ABLE_PROCESS_SMOKE", "process-ok")]
+  spec := with_cwd_spec.with_env(env)
+  saw_cwd := false
+  spec.cwd match {
+    case value: String => {
+      if value == os.cwd() { saw_cwd = true }
+    },
+    case nil => {}
+  }
+  handle := process.spawn(spec)
+  out := io.bytes_to_string(io.read_all(process.stdout(handle), 128))
+  status := process.wait(handle)
+
+  print(`spawn_exit_zero ${status.code == 0}`)
+  print(`spawn_stdout ${out}`)
+  print(`spec_cwd_set ${saw_cwd}`)
+
+  io.try_close(process.stdin(handle))
+  io.try_close(process.stdout(handle))
+  io.try_close(process.stderr(handle))
+
+  missing := process.try_spawn(process.ProcessSpec.new("/definitely/missing/able-process-smoke-bin", nil))
+  saw_not_found := false
+  missing match {
+    case err: IOError => {
+      err.kind match {
+        case NotFound => { saw_not_found = true },
+        case _ => {}
+      }
+    },
+    case _ => {}
+  }
+  print(`missing_not_found ${saw_not_found}`)
+}

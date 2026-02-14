@@ -1,0 +1,18 @@
+{
+  "description": "stdlib BigUint arithmetic, comparison, clamp, and conversion/underflow errors",
+  "expect": {
+    "stdout": [
+      "value 2000000005",
+      "sum 2000000000",
+      "diff 1000000000",
+      "product 121932631112635269",
+      "cmp greater",
+      "from_i64 err",
+      "clamp 5",
+      "max cmp greater",
+      "to_i64 err",
+      "underflow err"
+    ],
+    "exit": 0
+  }
+}

@@ -280,3 +280,627 @@ describe("math") { suite =>
 		t.Fatalf("expected stdout to include ok, got %q", stdout)
 	}
 }
+
+func TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	bigintSpec := filepath.Join(stdlibTests, "bigint.test.able")
+	biguintSpec := filepath.Join(stdlibTests, "biguint.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", bigintSpec, biguintSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled stdlib bigint/biguint returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "BigInt") {
+		t.Fatalf("expected stdout to include BigInt suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "BigUint") {
+		t.Fatalf("expected stdout to include BigUint suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "raises on underflow") {
+		t.Fatalf("expected stdout to include BigUint underflow test, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibExtendedNumericSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	int128Spec := filepath.Join(stdlibTests, "int128.test.able")
+	uint128Spec := filepath.Join(stdlibTests, "uint128.test.able")
+	rationalSpec := filepath.Join(stdlibTests, "rational.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", int128Spec, uint128Spec, rationalSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled stdlib int128/uint128/rational returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "Int128") {
+		t.Fatalf("expected stdout to include Int128 suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "UInt128") {
+		t.Fatalf("expected stdout to include UInt128 suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Rational") {
+		t.Fatalf("expected stdout to include Rational suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "round-trips through display helpers") {
+		t.Fatalf("expected stdout to include Rational display helper coverage, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibNumbersNumericSuite(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	numericSpec := filepath.Join(stdlibTests, "numbers_numeric.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", numericSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled stdlib numbers_numeric returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "Numeric primitives") {
+		t.Fatalf("expected stdout to include numeric suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "covers f64 fractional helpers") {
+		t.Fatalf("expected stdout to include fractional helper coverage, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibFoundationalSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	simpleSpec := filepath.Join(stdlibTests, "simple.test.able")
+	assertionsSpec := filepath.Join(stdlibTests, "assertions.test.able")
+	enumerableSpec := filepath.Join(stdlibTests, "enumerable.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", simpleSpec, assertionsSpec, enumerableSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled foundational stdlib suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "simple suite verifies addition works") {
+		t.Fatalf("expected stdout to include simple suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "able.spec assertions passes equality matcher") {
+		t.Fatalf("expected stdout to include assertions suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Enumerable helpers maps and filters arrays") {
+		t.Fatalf("expected stdout to include enumerable suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsListVectorSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	listSpec := filepath.Join(stdlibTests, "list.test.able")
+	vectorSpec := filepath.Join(stdlibTests, "vector.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", listSpec, vectorSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections list/vector suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "List supports prepend/head/tail with structural sharing") {
+		t.Fatalf("expected stdout to include list suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Vector supports set without mutating prior versions") {
+		t.Fatalf("expected stdout to include vector suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsTreeMapTreeSetSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	treeMapSpec := filepath.Join(stdlibTests, "tree_map.test.able")
+	treeSetSpec := filepath.Join(stdlibTests, "tree_set.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", treeMapSpec, treeSetSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections tree_map/tree_set suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "TreeMap inserts, updates, and retrieves entries") {
+		t.Fatalf("expected stdout to include tree_map suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "TreeSet inserts unique values and iterates in order") {
+		t.Fatalf("expected stdout to include tree_set suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsPersistentMapPersistentSetSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	persistentMapSpec := filepath.Join(stdlibTests, "persistent_map.test.able")
+	persistentSetSpec := filepath.Join(stdlibTests, "persistent_set.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", persistentMapSpec, persistentSetSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections persistent_map/persistent_set suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "PersistentMap stores, reads, and updates entries") {
+		t.Fatalf("expected stdout to include persistent_map suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "PersistentSet unions and intersects") {
+		t.Fatalf("expected stdout to include persistent_set suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsPersistentSortedSetAndQueueSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	persistentSortedSetSpec := filepath.Join(stdlibTests, "persistent_sorted_set.test.able")
+	persistentQueueSpec := filepath.Join(stdlibTests, "persistent_queue.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", persistentSortedSetSpec, persistentQueueSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections persistent_sorted_set/persistent_queue suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "PersistentSortedSet keeps values ordered and unique") {
+		t.Fatalf("expected stdout to include persistent_sorted_set suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "PersistentQueue iterates values in FIFO order") {
+		t.Fatalf("expected stdout to include persistent_queue suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsLinkedListAndLazySeqSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	linkedListSpec := filepath.Join(stdlibTests, "linked_list.test.able")
+	lazySeqSpec := filepath.Join(stdlibTests, "lazy_seq.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", linkedListSpec, lazySeqSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections linked_list/lazy_seq suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "LinkedList pushes and pops from both ends") {
+		t.Fatalf("expected stdout to include linked_list suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "LazySeq iterates with caching and produces arrays") {
+		t.Fatalf("expected stdout to include lazy_seq suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsHashMapSmokeAndHashSetSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	hashMapSmokeSpec := filepath.Join(stdlibTests, "collections", "hash_map_smoke.test.able")
+	hashSetSpec := filepath.Join(stdlibTests, "collections", "hash_set.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", hashMapSmokeSpec, hashSetSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections hash_map_smoke/hash_set suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "HashSet adds, removes, and checks membership") {
+		t.Fatalf("expected stdout to include hash_set suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "HashSet subset, superset, and disjoint checks") {
+		t.Fatalf("expected stdout to include hash_set relation coverage, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsDequeAndQueueSmokeSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	dequeSmokeSpec := filepath.Join(stdlibTests, "collections", "deque_smoke.test.able")
+	queueSmokeSpec := filepath.Join(stdlibTests, "collections", "queue_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", dequeSmokeSpec, queueSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections deque_smoke/queue_smoke suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able test: no tests to run") {
+		t.Fatalf("expected stdout to report no tests for smoke suites, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsBitSetAndHeapSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	bitSetSpec := filepath.Join(stdlibTests, "bit_set.test.able")
+	heapSpec := filepath.Join(stdlibTests, "heap.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", bitSetSpec, heapSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections bit_set/heap suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "BitSet sets, checks, and resets bits") {
+		t.Fatalf("expected stdout to include bit_set suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Heap pushes and pops smallest values first") {
+		t.Fatalf("expected stdout to include heap suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsArrayAndRangeSmokeSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	arraySmokeSpec := filepath.Join(stdlibTests, "collections", "array_smoke.test.able")
+	rangeSmokeSpec := filepath.Join(stdlibTests, "collections", "range_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", arraySmokeSpec, rangeSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled collections array_smoke/range_smoke suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able test: no tests to run") {
+		t.Fatalf("expected stdout to report no tests for smoke suites, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibConcurrencyChannelMutexAndQueueSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	channelMutexSpec := filepath.Join(stdlibTests, "concurrency", "channel_mutex.test.able")
+	concurrentQueueSpec := filepath.Join(stdlibTests, "concurrency", "concurrent_queue.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", channelMutexSpec, concurrentQueueSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled concurrency channel_mutex/concurrent_queue suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "Channel supports send/receive/close operations") {
+		t.Fatalf("expected stdout to include channel_mutex suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "ConcurrentQueue supports try operations and close") {
+		t.Fatalf("expected stdout to include concurrent_queue suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibMathAndCoreNumericSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	mathSpec := filepath.Join(stdlibTests, "math.test.able")
+	numericSmokeSpec := filepath.Join(stdlibTests, "core", "numeric_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", mathSpec, numericSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled math/core numeric suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able.math computes gcd/lcm for integers") {
+		t.Fatalf("expected stdout to include math suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "able.math offers rounding helpers") {
+		t.Fatalf("expected stdout to include math rounding coverage, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibFsAndPathSmokeSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	fsSmokeSpec := filepath.Join(stdlibTests, "fs_smoke.test.able")
+	pathSmokeSpec := filepath.Join(stdlibTests, "path_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", fsSmokeSpec, pathSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled fs/path smoke suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able test: no tests to run") {
+		t.Fatalf("expected stdout to report no tests for smoke suites, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibIoSmokeSuite(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	ioSmokeSpec := filepath.Join(stdlibTests, "io_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", ioSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled io smoke suite returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able test: no tests to run") {
+		t.Fatalf("expected stdout to report no tests for smoke suite, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibOsSmokeSuite(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	osSmokeSpec := filepath.Join(stdlibTests, "os_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", osSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled os smoke suite returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able test: no tests to run") {
+		t.Fatalf("expected stdout to report no tests for smoke suite, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibProcessSmokeSuite(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	processSmokeSpec := filepath.Join(stdlibTests, "process_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", processSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled process smoke suite returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able test: no tests to run") {
+		t.Fatalf("expected stdout to report no tests for smoke suite, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibTermSmokeSuite(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	termSmokeSpec := filepath.Join(stdlibTests, "term_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", termSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled term smoke suite returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able test: no tests to run") {
+		t.Fatalf("expected stdout to report no tests for smoke suite, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRunsStdlibHarnessReportersSmokeSuite(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests")
+	smokeSpec := filepath.Join(stdlibTests, "harness_reporters_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", smokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled harness/reporters smoke suite returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "able test: no tests to run") {
+		t.Fatalf("expected stdout to report no tests for smoke suite, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
+func TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "example.test.able"), `
+package sample_tests
+
+import able.spec.*
+
+describe("math") { suite =>
+  suite.it("adds") { _ctx =>
+    expect(1 + 1).to(eq(2))
+  }
+}
+`)
+
+	t.Setenv("ABLE_MODULE_PATHS", repoStdlibPath(t))
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "sometimes")
+
+	code, _, stderr := captureCLI(t, []string{"test", "--compiled", dir})
+	if code != 2 {
+		t.Fatalf("able test --compiled expected exit code 2, got %d (stderr=%q)", code, stderr)
+	}
+	if !strings.Contains(stderr, "invalid ABLE_COMPILER_REQUIRE_NO_FALLBACKS value") {
+		t.Fatalf("expected invalid env error, got %q", stderr)
+	}
+}

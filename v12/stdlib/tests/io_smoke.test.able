@@ -1,0 +1,67 @@
+package io_smoke_tests
+
+import able.core.interfaces.{Error}
+import able.fs
+import able.io
+import able.io.{IOError, NotFound}
+import able.io.path
+import able.io.path.{Path}
+import able.io.temp
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn cleanup_path(path_value: String) -> void {
+  do {
+    fs.remove(path_value, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  root := temp.dir("able-io-smoke-").path
+  root_path: Path := path.parse(root)
+  file := root_path.join("data.txt").to_string()
+
+  do {
+    fs.mkdir(root, true)
+    writer := fs.open(file, fs.write_only(true, true), nil)
+    io.write_all(writer, io.string_to_bytes("alpha"))
+    io.close(writer)
+    assert(fs.read_text(file) == "alpha", "write_all should persist bytes")
+
+    reader := fs.open(file, fs.read_only(), nil)
+    all := io.read_all(reader, nil)
+    io.close(reader)
+    assert(io.bytes_to_string(all) == "alpha", "read_all should return full file content")
+
+    writer = fs.open(file, fs.write_only(true, true), nil)
+    io.write_all(writer, io.string_to_bytes("x\ny\n"))
+    io.close(writer)
+    assert(fs.read_text(file) == "x\ny\n", "write_all should persist line writes")
+
+    tmpf := temp.file("able-io-smoke-file-")
+    io.write_all(tmpf.handle, io.string_to_bytes("tmp"))
+    io.close(tmpf.handle)
+    assert(fs.read_text(tmpf.path) == "tmp", "temp.file should create writable file")
+    temp.cleanup(tmpf)
+    assert(!fs.exists(tmpf.path), "temp.cleanup should remove temp file")
+  } ensure {
+    cleanup_path(root)
+  }
+}
+
+main()

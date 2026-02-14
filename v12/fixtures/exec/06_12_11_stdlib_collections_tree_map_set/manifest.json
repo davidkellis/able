@@ -1,0 +1,26 @@
+{
+  "description": "stdlib TreeMap/TreeSet ordered insert/update/remove/access semantics",
+  "expect": {
+    "stdout": [
+      "map_len 3",
+      "map_alpha 10",
+      "map_first alpha:10",
+      "map_last gamma:3",
+      "map_remove_beta true",
+      "map_remove_missing false",
+      "map_contains_beta false",
+      "set_insert_2_first true",
+      "set_insert_1 true",
+      "set_insert_2_second false",
+      "set_insert_3 true",
+      "set_len 3",
+      "set_contains_1 true",
+      "set_first 1",
+      "set_last 3",
+      "set_remove_1 true",
+      "set_remove_9 false",
+      "set_len_after_remove 2"
+    ],
+    "exit": 0
+  }
+}

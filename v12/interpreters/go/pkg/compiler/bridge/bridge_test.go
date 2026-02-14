@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/interpreter"
 	"able/interpreter-go/pkg/runtime"
 )
 
@@ -42,5 +43,130 @@ func TestAsStringAcceptsStringStruct(t *testing.T) {
 	}
 	if out != "Hi" {
 		t.Fatalf("AsString = %q, want %q", out, "Hi")
+	}
+}
+
+func TestAsStringAcceptsInterfaceWrappedArrayBytes(t *testing.T) {
+	byteArr := &runtime.ArrayValue{
+		Elements: []runtime.Value{
+			runtime.IntegerValue{Val: big.NewInt(72), TypeSuffix: runtime.IntegerU8},
+			runtime.IntegerValue{Val: big.NewInt(105), TypeSuffix: runtime.IntegerU8},
+		},
+	}
+	definition := &runtime.StructDefinitionValue{
+		Node: ast.StructDef("String", nil, ast.StructKindNamed, nil, nil, false),
+	}
+	inst := &runtime.StructInstanceValue{
+		Definition: definition,
+		Fields: map[string]runtime.Value{
+			"bytes": runtime.InterfaceValue{Underlying: byteArr},
+		},
+	}
+	out, err := AsString(inst)
+	if err != nil {
+		t.Fatalf("AsString error: %v", err)
+	}
+	if out != "Hi" {
+		t.Fatalf("AsString = %q, want %q", out, "Hi")
+	}
+}
+
+func TestRuntimeEnvFallsBackAfterSwapNil(t *testing.T) {
+	rt := New(interpreter.New())
+	base := runtime.NewEnvironment(nil)
+	rt.SetEnv(base)
+	prev := rt.SwapEnv(nil)
+	if prev != base {
+		t.Fatalf("SwapEnv(nil) previous = %p, want %p", prev, base)
+	}
+	if got := rt.Env(); got != base {
+		t.Fatalf("Env() = %p, want fallback %p", got, base)
+	}
+}
+
+func TestExecutorKind(t *testing.T) {
+	if got := ExecutorKind(nil); got != "serial" {
+		t.Fatalf("ExecutorKind(nil) = %q, want serial", got)
+	}
+	serial := New(interpreter.New())
+	if got := ExecutorKind(serial); got != "serial" {
+		t.Fatalf("ExecutorKind(serial) = %q, want serial", got)
+	}
+	goroutine := New(interpreter.NewWithExecutor(interpreter.NewGoroutineExecutor(nil)))
+	if got := ExecutorKind(goroutine); got != "goroutine" {
+		t.Fatalf("ExecutorKind(goroutine) = %q, want goroutine", got)
+	}
+}
+
+func TestStructDefinitionCacheScopesByEnvironment(t *testing.T) {
+	interp := interpreter.New()
+	rt := New(interp)
+
+	envA := runtime.NewEnvironment(nil)
+	envB := runtime.NewEnvironment(nil)
+
+	defA := &runtime.StructDefinitionValue{Node: ast.StructDef("String", nil, ast.StructKindNamed, nil, nil, false)}
+	defB := &runtime.StructDefinitionValue{Node: ast.StructDef("String", nil, ast.StructKindNamed, nil, nil, false)}
+	envA.DefineStruct("String", defA)
+	envB.DefineStruct("String", defB)
+
+	rt.SetEnv(envA)
+	gotA, err := rt.StructDefinition("String")
+	if err != nil {
+		t.Fatalf("StructDefinition envA error: %v", err)
+	}
+	if gotA != defA {
+		t.Fatalf("StructDefinition envA = %p, want %p", gotA, defA)
+	}
+
+	rt.SetEnv(envB)
+	gotB, err := rt.StructDefinition("String")
+	if err != nil {
+		t.Fatalf("StructDefinition envB error: %v", err)
+	}
+	if gotB != defB {
+		t.Fatalf("StructDefinition envB = %p, want %p", gotB, defB)
+	}
+}
+
+func TestRuntimeCallFallsBackToGlobalEnvironment(t *testing.T) {
+	interp := interpreter.New()
+	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{
+		Name:  "greet",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			return runtime.StringValue{Val: "hello"}, nil
+		},
+	})
+	rt := New(interp)
+	rt.SetEnv(runtime.NewEnvironment(nil))
+
+	value, err := rt.Call("greet", nil)
+	if err != nil {
+		t.Fatalf("Call error: %v", err)
+	}
+	if got, ok := value.(runtime.StringValue); !ok || got.Val != "hello" {
+		t.Fatalf("Call = %#v, want String(\"hello\")", value)
+	}
+}
+
+func TestCallNamedFallsBackToGlobalEnvironment(t *testing.T) {
+	interp := interpreter.New()
+	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{
+		Name:  "greet",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			return runtime.StringValue{Val: "hello"}, nil
+		},
+	})
+	rt := New(interp)
+	rt.SetEnv(runtime.NewEnvironment(nil))
+
+	value, err := CallNamed(rt, "greet", nil)
+	if err != nil {
+		t.Fatalf("CallNamed error: %v", err)
+	}
+	if got, ok := value.(runtime.StringValue); !ok || got.Val != "hello" {
+		t.Fatalf("CallNamed = %#v, want String(\"hello\")", value)
 	}
 }

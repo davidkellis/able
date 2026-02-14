@@ -1,0 +1,21 @@
+{
+  "description": "stdlib UInt128 arithmetic, comparison, bit helpers, clamp, and conversion/overflow errors",
+  "expect": {
+    "stdout": [
+      "sum 18446744073709551616",
+      "diff 18446744073709551615",
+      "product 121932631112635269",
+      "quotient 987654321",
+      "remainder 0",
+      "cmp greater",
+      "clamp 5",
+      "leading 63",
+      "trailing 64",
+      "from_i64 err",
+      "underflow err",
+      "to_i64 err",
+      "div_zero err"
+    ],
+    "exit": 0
+  }
+}

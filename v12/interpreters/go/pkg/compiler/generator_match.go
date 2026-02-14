@@ -86,7 +86,7 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			return "", false
 		}
 		if subjectType != "runtime.Value" {
-			mapped, ok := g.mapTypeExpression(p.TypeAnnotation)
+			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, p.TypeAnnotation)
 			if !ok || mapped == "" || mapped == "struct{}" {
 				ctx.setReason("unsupported typed pattern")
 				return "", false
@@ -235,7 +235,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			return nil, false
 		}
 		if subjectType != "runtime.Value" {
-			mapped, ok := g.mapTypeExpression(p.TypeAnnotation)
+			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, p.TypeAnnotation)
 			if !ok || mapped == "" || mapped == "struct{}" {
 				ctx.setReason("unsupported typed pattern")
 				return nil, false
@@ -447,7 +447,10 @@ func (g *generator) compileRuntimeStructPatternBindings(ctx *compileContext, pat
 	}
 	positionalTemp := ""
 	positionalTemp = ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp))
+	lines = append(lines,
+		fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp),
+		fmt.Sprintf("_ = %s", positionalTemp),
+	)
 	for idx, field := range pattern.Fields {
 		fieldPattern, ok := positionalStructFieldPattern(field)
 		if !ok {
@@ -535,6 +538,7 @@ func (g *generator) compileRuntimeArrayPatternBindings(ctx *compileContext, patt
 	valuesTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s, _ := __able_array_values(%s)", valuesTemp, subjectTemp),
+		fmt.Sprintf("_ = %s", valuesTemp),
 	}
 	for idx, elem := range pattern.Elements {
 		if elem == nil {

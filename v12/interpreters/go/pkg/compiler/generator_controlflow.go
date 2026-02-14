@@ -355,6 +355,7 @@ func (g *generator) compileBlockStatement(ctx *compileContext, block *ast.BlockE
 	for _, stmt := range block.Body {
 		stmtLines, ok := g.compileStatement(child, stmt)
 		if !ok {
+			ctx.setReason(child.reason)
 			return nil, false
 		}
 		lines = append(lines, stmtLines...)
@@ -375,8 +376,10 @@ func (g *generator) compileIfStatement(ctx *compileContext, expr *ast.IfExpressi
 	if !ok {
 		return nil, false
 	}
-	bodyLines, ok := g.compileBlockStatement(ctx.child(), expr.IfBody)
+	bodyCtx := ctx.child()
+	bodyLines, ok := g.compileBlockStatement(bodyCtx, expr.IfBody)
 	if !ok {
+		ctx.setReason(bodyCtx.reason)
 		return nil, false
 	}
 	lines := []string{fmt.Sprintf("if %s {", condExpr)}
@@ -393,16 +396,20 @@ func (g *generator) compileIfStatement(ctx *compileContext, expr *ast.IfExpressi
 		if !ok {
 			return nil, false
 		}
-		clauseLines, ok := g.compileBlockStatement(ctx.child(), clause.Body)
+		clauseCtx := ctx.child()
+		clauseLines, ok := g.compileBlockStatement(clauseCtx, clause.Body)
 		if !ok {
+			ctx.setReason(clauseCtx.reason)
 			return nil, false
 		}
 		lines = append(lines, fmt.Sprintf("} else if %s {", clauseCondExpr))
 		lines = append(lines, indentLines(clauseLines, 1)...)
 	}
 	if expr.ElseBody != nil {
-		elseLines, ok := g.compileBlockStatement(ctx.child(), expr.ElseBody)
+		elseCtx := ctx.child()
+		elseLines, ok := g.compileBlockStatement(elseCtx, expr.ElseBody)
 		if !ok {
+			ctx.setReason(elseCtx.reason)
 			return nil, false
 		}
 		lines = append(lines, "} else {")

@@ -1,0 +1,88 @@
+package exec_06_12_15_stdlib_collections_hash_map_set
+
+import able.collections.hash_map.{HashMap}
+import able.collections.hash_set.{HashSet}
+
+## Semantics: hash map/set operations compile through stdlib collection wrappers over kernel hash primitives.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  map: HashMap String i32 = HashMap.new()
+  map.set("a", 1)
+  map.set("b", 2)
+  map.set("a", 3)
+
+  print(`map_size ${map.size()}`)
+  print_optional_i32("map_a", map.get("a"))
+  print(`map_contains_b ${map.contains("b")}`)
+  print_optional_i32("map_remove_b", map.remove("b"))
+  print(`map_size_after_remove ${map.size()}`)
+
+  key_sum := 0
+  value_sum := 0
+  map.for_each(fn(key: String, value: i32) -> void {
+    if key == "a" { key_sum = key_sum + 1 }
+    if key == "b" { key_sum = key_sum + 2 }
+    value_sum = value_sum + value
+  })
+  print(`map_key_sum ${key_sum}`)
+  print(`map_value_sum ${value_sum}`)
+
+  doubled: HashMap String i32 = HashMap.new()
+  map.for_each(fn(key: String, value: i32) -> void {
+    doubled.set(key, value * 2)
+  })
+  print_optional_i32("doubled_a", doubled.get("a"))
+  print_optional_i32("map_a_after_map", map.get("a"))
+
+  set: HashSet i32 = HashSet.new()
+  print(`set_add_1 ${set.add(1)}`)
+  print(`set_add_1_again ${set.add(1)}`)
+  print(`set_add_2 ${set.add(2)}`)
+  print(`set_contains_1 ${set.contains(1)}`)
+  print(`set_remove_1 ${set.remove(1)}`)
+  print(`set_contains_1_after_remove ${set.contains(1)}`)
+  print(`set_size ${set.size()}`)
+
+  left: HashSet String = HashSet.new()
+  left.add("a")
+  left.add("b")
+  right: HashSet String = HashSet.new()
+  right.add("b")
+  right.add("c")
+
+  merged := left.union(right)
+  print(`merged_size ${merged.size()}`)
+  print(`merged_contains_c ${merged.contains("c")}`)
+  print(`left_size ${left.size()}`)
+
+  common := left.intersect(right)
+  print(`common_size ${common.size()}`)
+  print(`common_contains_b ${common.contains("b")}`)
+
+  diff := left.difference(right)
+  print(`diff_size ${diff.size()}`)
+  print(`diff_contains_a ${diff.contains("a")}`)
+  print(`diff_contains_b ${diff.contains("b")}`)
+
+  sym := left.symmetric_difference(right)
+  print(`sym_size ${sym.size()}`)
+  print(`sym_contains_a ${sym.contains("a")}`)
+  print(`sym_contains_c ${sym.contains("c")}`)
+  print(`sym_contains_b ${sym.contains("b")}`)
+
+  print(`subset ${left.is_subset(merged)}`)
+  print(`superset ${merged.is_superset(left)}`)
+
+  disjoint: HashSet String = HashSet.new()
+  disjoint.add("z")
+  print(`disjoint_true ${left.is_disjoint(disjoint)}`)
+  disjoint.add("a")
+  print(`disjoint_false ${left.is_disjoint(disjoint)}`)
+}

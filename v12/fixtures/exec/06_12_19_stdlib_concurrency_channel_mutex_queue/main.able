@@ -1,0 +1,51 @@
+package exec_06_12_19_stdlib_concurrency_channel_mutex_queue
+
+import able.kernel.{Channel, Mutex}
+import able.concurrency
+import able.concurrency.{with_lock}
+import able.concurrency.concurrent_queue.{ConcurrentQueue}
+
+## Semantics: channel/mutex/concurrent_queue stdlib wrappers preserve kernel concurrency behavior.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  channel: Channel i32 = Channel.new(3)
+  channel.send(1)
+  channel.send(2)
+  channel.close()
+
+  channel_sum := 0
+  for value in channel {
+    channel_sum = channel_sum + value
+  }
+  print(`channel_sum ${channel_sum}`)
+  print(`channel_closed ${channel.is_closed()}`)
+  print_optional_i32("channel_receive_after_close", channel.receive())
+
+  mutex := Mutex.new()
+  counter := 0
+  with_lock_result := with_lock(mutex, fn() -> i32 {
+    counter = counter + 3
+    counter
+  })
+  print(`with_lock_result ${with_lock_result}`)
+  print(`counter ${counter}`)
+  mutex.lock()
+  mutex.unlock()
+  print("mutex_manual ok")
+
+  queue: ConcurrentQueue i32 = ConcurrentQueue.new(2)
+  queue.enqueue(7)
+  print(`queue_try_enqueue ${queue.try_enqueue(8)}`)
+  print_optional_i32("queue_dequeue1", queue.dequeue())
+  print_optional_i32("queue_try_dequeue", queue.try_dequeue())
+  queue.close()
+  print(`queue_closed ${queue.is_closed()}`)
+  print_optional_i32("queue_dequeue_after_close", queue.dequeue())
+}

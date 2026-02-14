@@ -59,9 +59,31 @@ func (i *Interpreter) initStringHostBuiltins() {
 		if bytesVal == nil {
 			return nil, fmt.Errorf("string bytes are missing")
 		}
+		for {
+			switch v := bytesVal.(type) {
+			case *runtime.InterfaceValue:
+				if v == nil {
+					bytesVal = nil
+				} else {
+					bytesVal = v.Underlying
+				}
+			case runtime.InterfaceValue:
+				bytesVal = v.Underlying
+			default:
+				goto resolvedBytes
+			}
+		}
+	resolvedBytes:
+		if bytesVal == nil {
+			return nil, fmt.Errorf("string bytes are missing")
+		}
 		arr, err := i.toArrayValue(bytesVal)
 		if err != nil {
-			return nil, fmt.Errorf("string bytes must be an array: %w", err)
+			kind := "<nil>"
+			if bytesVal != nil {
+				kind = fmt.Sprintf("%v", bytesVal.Kind())
+			}
+			return nil, fmt.Errorf("string bytes must be an array (got %T kind=%s): %w", bytesVal, kind, err)
 		}
 		state, err := i.ensureArrayState(arr, 0)
 		if err != nil {

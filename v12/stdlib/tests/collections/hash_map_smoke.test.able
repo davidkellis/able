@@ -87,11 +87,10 @@ fn check_for_each() -> void {
 
   key_sum := 0
   value_sum := 0
-  fn accumulate(key: i32, value: i32) -> void {
+  map.for_each(fn(key: i32, value: i32) -> void {
     key_sum = key_sum + key
     value_sum = value_sum + value
-  }
-  map.for_each(accumulate)
+  })
 
   assert(key_sum == 7, "for_each should visit every key")
   assert(value_sum == 25, "for_each should visit every value")

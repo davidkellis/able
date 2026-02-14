@@ -11,8 +11,11 @@ import (
 type generator struct {
 	opts              Options
 	structs           map[string]*structInfo
+	unions            map[string]*ast.UnionDefinition
+	unionPackages     map[string]string
 	interfaces        map[string]*ast.InterfaceDefinition
 	interfacePackages map[string]string
+	staticImports     map[string][]staticImportBinding
 	functions         map[string]map[string]*functionInfo
 	overloads         map[string]map[string]*overloadInfo
 	packages          []string
@@ -34,6 +37,7 @@ type generator struct {
 	nodeOrigins       map[ast.Node]string
 	packageEnvVars    map[string]string
 	packageEnvOrder   []string
+	hasDynamicFeature bool
 }
 
 type diagNodeInfo struct {
@@ -64,14 +68,18 @@ type compileContext struct {
 	inPlaceholder       bool
 	returnType          string
 	returnTypeExpr      ast.TypeExpression
+	genericNames        map[string]struct{}
 }
 
 func newGenerator(opts Options) *generator {
 	return &generator{
 		opts:              opts,
 		structs:           make(map[string]*structInfo),
+		unions:            make(map[string]*ast.UnionDefinition),
+		unionPackages:     make(map[string]string),
 		interfaces:        make(map[string]*ast.InterfaceDefinition),
 		interfacePackages: make(map[string]string),
+		staticImports:     make(map[string][]staticImportBinding),
 		functions:         make(map[string]map[string]*functionInfo),
 		overloads:         make(map[string]map[string]*overloadInfo),
 		methods:           make(map[string]map[string][]*methodInfo),
@@ -79,6 +87,13 @@ func newGenerator(opts Options) *generator {
 		awaitNames:        make(map[*ast.AwaitExpression]string),
 		implMethodByInfo:  make(map[*functionInfo]*implMethodInfo),
 	}
+}
+
+func (g *generator) setDynamicFeatureReport(report *DynamicFeatureReport) {
+	if g == nil {
+		return
+	}
+	g.hasDynamicFeature = report != nil && report.UsesDynamic()
 }
 
 func (g *generator) ensurePackageEnvVars() {
@@ -137,6 +152,11 @@ func (g *generator) collect(program *driver.Program) error {
 	}
 	g.entryPackage = program.Entry.Package
 	g.packages = nil
+	g.staticImports = make(map[string][]staticImportBinding)
+	g.unions = make(map[string]*ast.UnionDefinition)
+	g.unionPackages = make(map[string]string)
+	g.interfaces = make(map[string]*ast.InterfaceDefinition)
+	g.interfacePackages = make(map[string]string)
 	if g.nodeOrigins == nil {
 		g.nodeOrigins = make(map[ast.Node]string)
 	}
@@ -177,6 +197,24 @@ func (g *generator) collect(program *driver.Program) error {
 
 	for _, module := range uniqueModules {
 		for _, stmt := range module.AST.Body {
+			def, ok := stmt.(*ast.UnionDefinition)
+			if !ok || def == nil || def.ID == nil {
+				continue
+			}
+			name := def.ID.Name
+			if name == "" {
+				continue
+			}
+			if _, exists := g.unions[name]; exists {
+				continue
+			}
+			g.unions[name] = def
+			g.unionPackages[name] = module.Package
+		}
+	}
+
+	for _, module := range uniqueModules {
+		for _, stmt := range module.AST.Body {
 			def, ok := stmt.(*ast.InterfaceDefinition)
 			if !ok || def == nil || def.ID == nil {
 				continue
@@ -211,16 +249,17 @@ func (g *generator) collect(program *driver.Program) error {
 			}
 			goName := g.mangler.unique(exportIdent(name))
 			g.structs[name] = &structInfo{
-				Name:   name,
-				GoName: goName,
-				Kind:   def.Kind,
-				Node:   def,
+				Name:    name,
+				Package: module.Package,
+				GoName:  goName,
+				Kind:    def.Kind,
+				Node:    def,
 			}
 		}
 	}
 
-	mapper := NewTypeMapper(g.structs)
 	for _, info := range g.structs {
+		mapper := NewTypeMapper(g.structs, info.Package)
 		fields := make([]fieldInfo, 0, len(info.Node.Fields))
 		supported := true
 		for idx, field := range info.Node.Fields {
@@ -248,11 +287,13 @@ func (g *generator) collect(program *driver.Program) error {
 
 	seenPackages := make(map[string]struct{})
 	for _, module := range uniqueModules {
+		g.collectStaticImportsForPackage(module.Package, module.AST.Imports)
 		pkgName := module.Package
 		if _, ok := seenPackages[pkgName]; !ok {
 			seenPackages[pkgName] = struct{}{}
 			g.packages = append(g.packages, pkgName)
 		}
+		mapper := NewTypeMapper(g.structs, pkgName)
 
 		functions := make(map[string][]*ast.FunctionDefinition)
 		for _, stmt := range module.AST.Body {
@@ -334,7 +375,7 @@ func (g *generator) collect(program *driver.Program) error {
 			g.functions[pkgName][name] = info
 		}
 	}
-	g.collectDefaultImplMethods(mapper)
+	g.collectDefaultImplMethods()
 	sort.Strings(g.packages)
 	g.resolveCompileableFunctions()
 	g.resolveCompileableMethods()
@@ -434,7 +475,7 @@ func (g *generator) bodyCompileable(info *functionInfo, retType string) bool {
 		info.Reason = "missing function body"
 		return false
 	}
-	ctx := newCompileContext(info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package)
+	ctx := newCompileContext(info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
 	_, _, ok := g.compileBody(ctx, info)
 	if !ok {
 		info.Reason = ctx.reason
@@ -591,6 +632,9 @@ func (g *generator) compileReturnStatement(ctx *compileContext, returnType strin
 		if g.isVoidType(returnType) {
 			return lines, "struct{}{}", true
 		}
+		if returnType == "runtime.Value" && g.isResultVoidTypeExpr(ctx.returnTypeExpr) {
+			return lines, "runtime.VoidValue{}", true
+		}
 		ctx.setReason("missing return expression")
 		return nil, "", false
 	}
@@ -619,7 +663,7 @@ func (g *generator) compileReturnStatement(ctx *compileContext, returnType strin
 				}
 				expr = converted
 			}
-			coerced, ok := g.interfaceReturnExpr(expr, ifaceType)
+			coerced, ok := g.interfaceReturnExpr(expr, ifaceType, ctx.genericNames)
 			if !ok {
 				ctx.setReason("return type mismatch")
 				return nil, "", false
@@ -661,7 +705,7 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 				}
 				valueExpr = converted
 			}
-			coerced, ok := g.interfaceReturnExpr(valueExpr, ifaceType)
+			coerced, ok := g.interfaceReturnExpr(valueExpr, ifaceType, ctx.genericNames)
 			if !ok {
 				ctx.setReason("return type mismatch")
 				return nil, "", false
@@ -743,6 +787,9 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		}
 		if s.Argument == nil {
 			if !g.isVoidType(ctx.returnType) {
+				if ctx.returnType == "runtime.Value" && g.isResultVoidTypeExpr(ctx.returnTypeExpr) {
+					return []string{"panic(__able_return{value: runtime.VoidValue{}})"}, true
+				}
 				expected := typeExpressionToString(ctx.returnTypeExpr)
 				if expected == "" || expected == "<?>" {
 					expected = typeNameFromGoType(ctx.returnType)
@@ -799,17 +846,18 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 	}
 }
 
-func newCompileContext(info *functionInfo, functions map[string]*functionInfo, overloads map[string]*overloadInfo, packageName string) *compileContext {
+func newCompileContext(info *functionInfo, functions map[string]*functionInfo, overloads map[string]*overloadInfo, packageName string, genericNames map[string]struct{}) *compileContext {
 	counter := 0
 	ctx := &compileContext{
-		params:      make(map[string]paramInfo),
-		locals:      make(map[string]paramInfo),
-		functions:   functions,
-		overloads:   overloads,
-		packageName: packageName,
-		temps:       &counter,
-		loopDepth:   0,
-		breakpoints: make(map[string]int),
+		params:       make(map[string]paramInfo),
+		locals:       make(map[string]paramInfo),
+		functions:    functions,
+		overloads:    overloads,
+		packageName:  packageName,
+		temps:        &counter,
+		loopDepth:    0,
+		breakpoints:  make(map[string]int),
+		genericNames: genericNames,
 	}
 	if info != nil {
 		ctx.returnType = info.ReturnType
@@ -897,6 +945,8 @@ func (c *compileContext) child() *compileContext {
 		placeholderParams:   c.placeholderParams,
 		inPlaceholder:       c.inPlaceholder,
 		returnType:          c.returnType,
+		returnTypeExpr:      c.returnTypeExpr,
+		genericNames:        c.genericNames,
 	}
 }
 

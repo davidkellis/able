@@ -35,6 +35,18 @@ type DynamicFeatureReport struct {
 	DynBindings map[string]map[string]struct{}
 }
 
+func (r *DynamicFeatureReport) UsesDynamic() bool {
+	if r == nil {
+		return false
+	}
+	for _, usage := range r.Modules {
+		if usage.UsesDynamic() {
+			return true
+		}
+	}
+	return false
+}
+
 // DetectDynamicFeatures scans a program for dynamic feature usage.
 func DetectDynamicFeatures(program *driver.Program) (*DynamicFeatureReport, error) {
 	if program == nil {

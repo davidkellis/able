@@ -1,0 +1,20 @@
+{
+  "description": "stdlib Array and RangeFactory helper semantics",
+  "expect": {
+    "stdout": [
+      "arr_len 3",
+      "arr_first 0",
+      "arr_last 2",
+      "arr_get1 1",
+      "arr_get1_after_write 9",
+      "arr_pop 2",
+      "arr_len_after_pop 2",
+      "arr_len_after_clear 0",
+      "inc_sum 10",
+      "inc_count 4",
+      "desc_sum 12",
+      "desc_count 3"
+    ],
+    "exit": 0
+  }
+}

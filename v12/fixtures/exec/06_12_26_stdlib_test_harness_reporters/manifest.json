@@ -1,0 +1,13 @@
+{
+  "description": "stdlib test harness/reporters discovery and reporting semantics",
+  "expect": {
+    "stdout": [
+      "discover_nonzero true",
+      "doc_run_ok true",
+      "doc_lines_nonzero true",
+      "progress_run_ok true",
+      "progress_lines_nonzero true"
+    ],
+    "exit": 0
+  }
+}

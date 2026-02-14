@@ -30,6 +30,20 @@ func (g *generator) callableGenericNames(info *functionInfo) map[string]struct{}
 	return g.functionGenericNames(info)
 }
 
+func (g *generator) compileContextGenericNames(info *functionInfo) map[string]struct{} {
+	names := g.callableGenericNames(info)
+	if g == nil || info == nil {
+		return names
+	}
+	for _, method := range g.methodList {
+		if method == nil || method.Info != info {
+			continue
+		}
+		return mergeGenericNameSets(names, g.methodGenericNames(method))
+	}
+	return names
+}
+
 func (g *generator) methodGenericNames(method *methodInfo) map[string]struct{} {
 	if method == nil || method.Info == nil {
 		return nil
@@ -46,6 +60,27 @@ func (g *generator) methodGenericNames(method *methodInfo) map[string]struct{} {
 		names = addGenericParams(names, iface.GenericParams)
 	}
 	return names
+}
+
+func mergeGenericNameSets(left map[string]struct{}, right map[string]struct{}) map[string]struct{} {
+	if len(right) == 0 {
+		return left
+	}
+	if len(left) == 0 {
+		out := make(map[string]struct{}, len(right))
+		for name := range right {
+			out[name] = struct{}{}
+		}
+		return out
+	}
+	out := make(map[string]struct{}, len(left)+len(right))
+	for name := range left {
+		out[name] = struct{}{}
+	}
+	for name := range right {
+		out[name] = struct{}{}
+	}
+	return out
 }
 
 func genericParamNameSet(params []*ast.GenericParameter) map[string]struct{} {

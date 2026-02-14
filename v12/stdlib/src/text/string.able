@@ -20,16 +20,19 @@ struct StringBuilder {
   buffer: Array u8
 }
 private struct StringBytesIter {
-  string: String,
-  offset: i32
+  bytes: Array u8,
+  offset: i32,
+  len_bytes: i32
 }
 private struct StringCharsIter {
-  string: String,
-  offset: i32
+  bytes: Array u8,
+  offset: i32,
+  len_bytes: i32
 }
 private struct StringGraphemesIter {
-  string: String,
-  offset: i32
+  bytes: Array u8,
+  offset: i32,
+  len_bytes: i32
 }
 private struct RawStringBytesIter {
   bytes: Array u8,
@@ -67,7 +70,7 @@ methods String {
     String { bytes: Array.with_capacity(0), len_bytes: 0 }
   }
 
-  fn from_bytes_unchecked(bytes: Array u8) -> String { String { len_bytes: bytes.len(), bytes } }
+  fn from_bytes_unchecked(bytes: Array u8) -> String { String { len_bytes: bytes.len(), bytes: bytes } }
 
   fn from_bytes(bytes: Array u8) -> Result String {
     utf8_validate(bytes) match {
@@ -87,12 +90,12 @@ methods String {
   fn is_empty(self: Self) -> bool { self.len_bytes == 0 }
 
   fn to_builtin(self: Self) -> Result String {
-    __able_String_to_builtin(self.bytes.clone())
+    __able_String_to_builtin(__able_String_from_builtin(self))
   }
 
   fn to_builder(self: Self) -> StringBuilder {
     builder := StringBuilder.with_capacity(self.len_bytes)
-    builder.push_bytes(self.bytes.clone())
+    builder.push_bytes(__able_String_from_builtin(self))
     builder
   }
 
@@ -128,10 +131,7 @@ methods String {
 }
 
 private fn to_result_string(value: Result String) -> Result String {
-  value match {
-    case err: Error => err,
-    case s: String => s.to_builtin()
-  }
+  value
 }
 
 private fn validated_bytes(value: String) -> Array u8 {
@@ -546,11 +546,11 @@ impl Iterable u8 for RawStringBytesIter {
 
 impl Iterator u8 for StringBytesIter {
   fn next(self: Self) -> u8 | IteratorEnd {
-    if self.offset >= self.string.len_bytes {
+    if self.offset >= self.len_bytes {
       return IteratorEnd {}
     }
 
-    read_byte(self.string.bytes, self.offset) match {
+    read_byte(self.bytes, self.offset) match {
       case nil => IteratorEnd {},
       case value: u8 => {
         self.offset = self.offset + 1
@@ -560,8 +560,8 @@ impl Iterator u8 for StringBytesIter {
   }
 
   fn size(self: Self) -> u64 {
-    remaining := self.string.len_bytes - self.offset
-    if remaining <= 0 { 0 } else { remaining }
+    remaining := self.len_bytes - self.offset
+    if remaining <= 0 { 0_u64 } else { to_u64(remaining) }
   }
 }
 
@@ -601,11 +601,11 @@ impl Iterable u8 for StringBytesIter {
 
 impl Iterator char for StringCharsIter {
   fn next(self: Self) -> char | IteratorEnd {
-    if self.offset >= self.string.len_bytes {
+    if self.offset >= self.len_bytes {
       return IteratorEnd {}
     }
 
-    utf8_decode(self.string.bytes, self.offset, self.string.len_bytes) match {
+    utf8_decode(self.bytes, self.offset, self.len_bytes) match {
       case err: StringEncodingError => { raise err },
       case result: Utf8DecodeResult => {
         self.offset = result.next_offset
@@ -618,8 +618,8 @@ impl Iterator char for StringCharsIter {
     count := 0
     idx := self.offset
     loop {
-      if idx >= self.string.len_bytes { break }
-      utf8_decode(self.string.bytes, idx, self.string.len_bytes) match {
+      if idx >= self.len_bytes { break }
+      utf8_decode(self.bytes, idx, self.len_bytes) match {
         case err: StringEncodingError => { raise err },
         case result: Utf8DecodeResult => {
           idx = result.next_offset
@@ -627,7 +627,7 @@ impl Iterator char for StringCharsIter {
         }
       }
     }
-    count
+    to_u64(count)
   }
 }
 
@@ -665,19 +665,19 @@ impl Iterable char for StringCharsIter {
 
 impl Iterator Grapheme for StringGraphemesIter {
   fn next(self: Self) -> Grapheme | IteratorEnd {
-    if self.offset >= self.string.len_bytes {
+    if self.offset >= self.len_bytes {
       return IteratorEnd {}
     }
 
     start := self.offset
 
-    utf8_decode(self.string.bytes, self.offset, self.string.len_bytes) match {
+    utf8_decode(self.bytes, self.offset, self.len_bytes) match {
       case err: StringEncodingError => { raise err },
       case result: Utf8DecodeResult => {
         end := result.next_offset
         ## TODO: expand to full grapheme cluster detection once unicode tables land.
         self.offset = end
-        Grapheme { bytes: slice_bytes(self.string.bytes, start, end) }
+        Grapheme { bytes: slice_bytes(self.bytes, start, end) }
       }
     }
   }
@@ -686,8 +686,8 @@ impl Iterator Grapheme for StringGraphemesIter {
     count := 0
     idx := self.offset
     loop {
-      if idx >= self.string.len_bytes { break }
-      utf8_decode(self.string.bytes, idx, self.string.len_bytes) match {
+      if idx >= self.len_bytes { break }
+      utf8_decode(self.bytes, idx, self.len_bytes) match {
         case err: StringEncodingError => { raise err },
         case result: Utf8DecodeResult => {
           idx = result.next_offset
@@ -695,7 +695,7 @@ impl Iterator Grapheme for StringGraphemesIter {
         }
       }
     }
-    count
+    to_u64(count)
   }
 }
 

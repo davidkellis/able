@@ -72,8 +72,8 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 	}
 }
 
-func (g *generator) collectDefaultImplMethods(mapper *TypeMapper) {
-	if g == nil || mapper == nil || len(g.implDefinitions) == 0 {
+func (g *generator) collectDefaultImplMethods() {
+	if g == nil || len(g.implDefinitions) == 0 {
 		return
 	}
 	for _, entry := range g.implDefinitions {
@@ -104,6 +104,7 @@ func (g *generator) collectDefaultImplMethods(mapper *TypeMapper) {
 		if pkgName == "" {
 			pkgName = entry.Package
 		}
+		mapper := NewTypeMapper(g.structs, pkgName)
 		if g.implMethodList == nil {
 			g.implMethodList = make([]*implMethodInfo, 0, len(iface.Signatures))
 		}
@@ -129,6 +130,7 @@ func (g *generator) collectDefaultImplMethods(mapper *TypeMapper) {
 				InterfaceGenerics: iface.GenericParams,
 				TargetType:        def.TargetType,
 				ImplName:          implName,
+				IsDefault:         true,
 				ImplGenerics:      def.GenericParams,
 				WhereClause:       def.WhereClause,
 				MethodName:        sig.Name.Name,

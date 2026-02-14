@@ -41,6 +41,9 @@ Combined test suites:
 # Target legacy toolchains only when directed
 ./run_all_tests.sh --version=v10
 ./run_all_tests.sh --version=v11
+
+# Run full compiler fixture matrix (manual/nightly)
+./run_all_tests.sh --version=v12 --compiler-full-matrix
 ```
 
 ## Contributing

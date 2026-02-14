@@ -1,0 +1,40 @@
+{
+  "description": "stdlib HashMap/HashSet map/set operations and set algebra",
+  "expect": {
+    "stdout": [
+      "map_size 2",
+      "map_a 3",
+      "map_contains_b true",
+      "map_remove_b 2",
+      "map_size_after_remove 1",
+      "map_key_sum 1",
+      "map_value_sum 3",
+      "doubled_a 6",
+      "map_a_after_map 3",
+      "set_add_1 true",
+      "set_add_1_again false",
+      "set_add_2 true",
+      "set_contains_1 true",
+      "set_remove_1 true",
+      "set_contains_1_after_remove false",
+      "set_size 1",
+      "merged_size 3",
+      "merged_contains_c true",
+      "left_size 2",
+      "common_size 1",
+      "common_contains_b true",
+      "diff_size 1",
+      "diff_contains_a true",
+      "diff_contains_b false",
+      "sym_size 2",
+      "sym_contains_a true",
+      "sym_contains_c true",
+      "sym_contains_b false",
+      "subset true",
+      "superset true",
+      "disjoint_true true",
+      "disjoint_false false"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "description": "stdlib io read/write and temp helper semantics",
+  "expect": {
+    "stdout": [
+      "roundtrip hello",
+      "read_text alpha",
+      "read_all_len 5",
+      "line_count 2",
+      "line0 x",
+      "line1 y",
+      "tmp_text tmp",
+      "tmp_exists false"
+    ],
+    "exit": 0
+  }
+}

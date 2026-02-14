@@ -1,0 +1,66 @@
+package exec_06_12_17_stdlib_collections_bit_set_heap
+
+import able.collections.bit_set.{BitSet}
+import able.collections.heap.{Heap}
+
+## Semantics: bit-set and heap operations compile through stdlib collection wrappers.
+
+fn print_optional_i32(label: String, value: ?i32) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case number: i32 => print(`${label} ${number}`)
+  }
+}
+
+fn main() -> void {
+  bits := BitSet.new()
+  bits.set(1)
+  bits.set(3)
+  bits.set(65)
+  bits.flip(3)
+  bits.flip(4)
+  bits.reset(65)
+
+  print(`bits_contains_1 ${bits.contains(1)}`)
+  print(`bits_contains_3 ${bits.contains(3)}`)
+  print(`bits_contains_4 ${bits.contains(4)}`)
+  print(`bits_contains_65 ${bits.contains(65)}`)
+
+  bit_sum := 0
+  bits.each(fn(bit: i32) -> void {
+    bit_sum = bit_sum + bit
+  })
+  print(`bits_each_sum ${bit_sum}`)
+
+  bit_sum_for := 0
+  for bit in bits {
+    bit_sum_for = bit_sum_for + bit
+  }
+  print(`bits_for_sum ${bit_sum_for}`)
+
+  bits.clear()
+  bits_after_clear_count := 0
+  bits.each(fn(_bit: i32) -> void {
+    bits_after_clear_count = bits_after_clear_count + 1
+  })
+  print(`bits_after_clear_count ${bits_after_clear_count}`)
+
+  heap: Heap i32 = Heap.new()
+  heap.push(4)
+  heap.push(1)
+  heap.push(3)
+  heap.push(2)
+
+  print(`heap_len ${heap.len()}`)
+  print_optional_i32("heap_peek", heap.peek())
+  print_optional_i32("heap_pop1", heap.pop())
+  print_optional_i32("heap_pop2", heap.pop())
+  print_optional_i32("heap_pop3", heap.pop())
+  print_optional_i32("heap_pop4", heap.pop())
+  print_optional_i32("heap_pop_empty", heap.pop())
+  print(`heap_empty ${heap.is_empty()}`)
+
+  heap.push(-2)
+  print_optional_i32("heap_peek2", heap.peek())
+  print(`heap_len2 ${heap.len()}`)
+}

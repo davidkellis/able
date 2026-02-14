@@ -13,10 +13,12 @@ import (
 )
 
 type buildConfig struct {
-	OutputDir string
-	BinPath   string
-	WithTests bool
-	ShowHelp  bool
+	OutputDir          string
+	BinPath            string
+	WithTests          bool
+	PrecompileStdlib   bool
+	RequireNoFallbacks bool
+	ShowHelp           bool
 }
 
 func runBuild(args []string) int {
@@ -60,7 +62,16 @@ func runBuild(args []string) int {
 	}
 	defer loader.Close()
 
-	program, err := loader.LoadWithOptions(entryAbs, driver.LoadOptions{IncludeTests: config.WithTests})
+	loadOptions := driver.LoadOptions{IncludeTests: config.WithTests}
+	if config.PrecompileStdlib {
+		includePackages, err := discoverPrecompilePackages(searchPaths, config.WithTests)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "able build: resolve precompiled stdlib/kernel package set: %v\n", err)
+			return 1
+		}
+		loadOptions.IncludePackages = includePackages
+	}
+	program, err := loader.LoadWithOptions(entryAbs, loadOptions)
 	if err != nil {
 		var parseErr *driver.ParserDiagnosticError
 		if errors.As(err, &parseErr) {
@@ -81,9 +92,10 @@ func runBuild(args []string) int {
 	}
 
 	comp := compiler.New(compiler.Options{
-		PackageName: "main",
-		EmitMain:    true,
-		EntryPath:   entryAbs,
+		PackageName:        "main",
+		EmitMain:           true,
+		EntryPath:          entryAbs,
+		RequireNoFallbacks: config.RequireNoFallbacks,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {
@@ -124,6 +136,16 @@ func runBuild(args []string) int {
 
 func parseBuildArguments(args []string) (buildConfig, []string, error) {
 	config := buildConfig{}
+	precompileStdlib, err := resolveBuildPrecompileStdlibFromEnv()
+	if err != nil {
+		return buildConfig{}, nil, err
+	}
+	config.PrecompileStdlib = precompileStdlib
+	requireNoFallbacks, err := resolveCompilerRequireNoFallbacksFromEnv()
+	if err != nil {
+		return buildConfig{}, nil, err
+	}
+	config.RequireNoFallbacks = requireNoFallbacks
 	remaining := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -140,6 +162,14 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 			config.OutputDir = strings.TrimPrefix(arg, "--out=")
 		case arg == "--with-tests":
 			config.WithTests = true
+		case arg == "--precompile-stdlib":
+			config.PrecompileStdlib = true
+		case arg == "--no-precompile-stdlib":
+			config.PrecompileStdlib = false
+		case arg == "--no-fallbacks":
+			config.RequireNoFallbacks = true
+		case arg == "--allow-fallbacks":
+			config.RequireNoFallbacks = false
 		case arg == "--bin":
 			val, err := expectFlagValue(arg, nextArg(args, &i))
 			if err != nil {
@@ -277,4 +307,11 @@ func printBuildUsage() {
 	fmt.Fprintln(os.Stderr, "  -o, --out <dir>   output directory for generated Go code (default: ./target/compiled)")
 	fmt.Fprintln(os.Stderr, "      --bin <path>  output path for the compiled binary (default: <out>/<name>)")
 	fmt.Fprintln(os.Stderr, "      --with-tests  include test modules in the build")
+	fmt.Fprintln(os.Stderr, "      --precompile-stdlib  precompile stdlib/kernel package graph into generated output (default)")
+	fmt.Fprintln(os.Stderr, "      --no-precompile-stdlib  disable stdlib/kernel package precompile discovery")
+	fmt.Fprintln(os.Stderr, "      --no-fallbacks  fail compile when any fallback wrappers are required")
+	fmt.Fprintln(os.Stderr, "      --allow-fallbacks  allow fallback wrappers (overrides env)")
+	fmt.Fprintln(os.Stderr, "Environment:")
+	fmt.Fprintln(os.Stderr, "  ABLE_BUILD_PRECOMPILE_STDLIB=1|true|yes|on")
+	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_REQUIRE_NO_FALLBACKS=1|true|yes|on")
 }

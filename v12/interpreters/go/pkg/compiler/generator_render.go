@@ -14,6 +14,56 @@ func (g *generator) render() (map[string][]byte, error) {
 		return nil, err
 	}
 	files["compiled.go"] = compiled
+	if g.hasFunctions() {
+		registerSrc, err := g.renderCompiledRegisterFile()
+		if err != nil {
+			return nil, err
+		}
+		files["compiled_register.go"] = registerSrc
+		importSeedingSrc, err := g.renderCompiledImportSeedingFile()
+		if err != nil {
+			return nil, err
+		}
+		files["compiled_import_seeding.go"] = importSeedingSrc
+		interfaceDispatchSrc, err := g.renderCompiledInterfaceDispatchFile()
+		if err != nil {
+			return nil, err
+		}
+		files["compiled_interface_dispatch.go"] = interfaceDispatchSrc
+		methodImplFiles, err := g.renderCompiledPackageMethodImplFiles()
+		if err != nil {
+			return nil, err
+		}
+		for name, src := range methodImplFiles {
+			files[name] = src
+		}
+		definitionFiles, err := g.renderCompiledPackageDefinitionFiles()
+		if err != nil {
+			return nil, err
+		}
+		for name, src := range definitionFiles {
+			files[name] = src
+		}
+		registrarFiles, err := g.renderCompiledPackageRegistrarFiles()
+		if err != nil {
+			return nil, err
+		}
+		for name, src := range registrarFiles {
+			files[name] = src
+		}
+		callableFiles, err := g.renderCompiledPackageCallableFiles()
+		if err != nil {
+			return nil, err
+		}
+		for name, src := range callableFiles {
+			files[name] = src
+		}
+		compiledPackageAggregators, err := g.renderCompiledPackageAggregatorsFile()
+		if err != nil {
+			return nil, err
+		}
+		files["compiled_package_aggregators.go"] = compiledPackageAggregators
+	}
 	if g.opts.EmitMain {
 		mainSrc, err := g.renderMain()
 		if err != nil {
@@ -48,31 +98,6 @@ func (g *generator) renderCompiled() ([]byte, error) {
 			}
 			fmt.Fprintf(&buf, "\n")
 		}
-		if len(g.diagNodes) > 0 {
-			for _, info := range g.diagNodes {
-				initExpr := ""
-				switch {
-				case info.CallName != "":
-					initExpr = fmt.Sprintf("&ast.FunctionCall{Callee: ast.NewIdentifier(%q)}", info.CallName)
-				case info.CallMember != "":
-					initExpr = fmt.Sprintf("&ast.FunctionCall{Callee: ast.NewMemberAccessExpression(ast.NewIdentifier(\"\"), ast.NewIdentifier(%q))}", info.CallMember)
-				default:
-					goType := info.GoType
-					if strings.HasPrefix(goType, "*") {
-						goType = "&" + strings.TrimPrefix(goType, "*")
-					}
-					initExpr = fmt.Sprintf("%s{}", goType)
-				}
-				fmt.Fprintf(&buf, "var %s = %s\n", info.Name, initExpr)
-			}
-			fmt.Fprintf(&buf, "\n")
-		}
-		if len(g.awaitExprs) > 0 {
-			for _, name := range g.awaitExprs {
-				fmt.Fprintf(&buf, "var %s = &ast.AwaitExpression{}\n", name)
-			}
-			fmt.Fprintf(&buf, "\n")
-		}
 		g.renderRuntimeHelpers(&buf)
 	}
 
@@ -86,10 +111,41 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderFunctionThunks(&buf)
 		g.renderOverloadDispatchers(&buf)
 		g.renderMethodThunks(&buf)
-		g.renderRegister(&buf)
+		g.renderDiagnosticGlobals(&buf)
 	}
 
 	return formatSource(buf.Bytes())
+}
+
+func (g *generator) renderDiagnosticGlobals(buf *bytes.Buffer) {
+	if g == nil || buf == nil {
+		return
+	}
+	if len(g.diagNodes) > 0 {
+		for _, info := range g.diagNodes {
+			initExpr := ""
+			switch {
+			case info.CallName != "":
+				initExpr = fmt.Sprintf("&ast.FunctionCall{Callee: ast.NewIdentifier(%q)}", info.CallName)
+			case info.CallMember != "":
+				initExpr = fmt.Sprintf("&ast.FunctionCall{Callee: ast.NewMemberAccessExpression(ast.NewIdentifier(\"\"), ast.NewIdentifier(%q))}", info.CallMember)
+			default:
+				goType := info.GoType
+				if strings.HasPrefix(goType, "*") {
+					goType = "&" + strings.TrimPrefix(goType, "*")
+				}
+				initExpr = fmt.Sprintf("%s{}", goType)
+			}
+			fmt.Fprintf(buf, "var %s = %s\n", info.Name, initExpr)
+		}
+		fmt.Fprintf(buf, "\n")
+	}
+	if len(g.awaitExprs) > 0 {
+		for _, name := range g.awaitExprs {
+			fmt.Fprintf(buf, "var %s = &ast.AwaitExpression{}\n", name)
+		}
+		fmt.Fprintf(buf, "\n")
+	}
 }
 
 func (g *generator) importsForCompiled() []string {
@@ -124,6 +180,27 @@ func (g *generator) importsForCompiled() []string {
 	imports := make([]string, 0, len(importSet))
 	for imp := range importSet {
 		imports = append(imports, imp)
+	}
+	sort.Strings(imports)
+	return imports
+}
+
+func (g *generator) importsForCompiledPackageAggregators() []string {
+	imports := []string{
+		"able/interpreter-go/pkg/compiler/bridge",
+		"able/interpreter-go/pkg/interpreter",
+		"able/interpreter-go/pkg/runtime",
+	}
+	sort.Strings(imports)
+	return imports
+}
+
+func (g *generator) importsForCompiledRegister() []string {
+	imports := []string{
+		"able/interpreter-go/pkg/compiler/bridge",
+		"able/interpreter-go/pkg/interpreter",
+		"able/interpreter-go/pkg/runtime",
+		"fmt",
 	}
 	sort.Strings(imports)
 	return imports

@@ -1,0 +1,64 @@
+package exec_06_12_08_stdlib_numbers_rational
+
+import able.numbers.rational.{Rational}
+import able.core.interfaces.{Error, Less, Greater, Equal}
+
+## Semantics: Rational compiles through stdlib paths with normalization, arithmetic, comparisons, rounding, and conversion diagnostics.
+
+fn main() -> void {
+  value := Rational.new(6, -8)
+  print(`norm ${value.to_string()}`)
+
+  half := Rational.new(1, 2)
+  third := Rational.new(1, 3)
+  print(`sum ${half.add(third).to_string()}`)
+  print(`diff ${half.sub(third).to_string()}`)
+  print(`product ${half.mul(third).to_string()}`)
+  print(`quotient ${half.div(third).to_string()}`)
+
+  value.compare(Rational.new(2, 3)) match {
+    case Less => print("cmp less"),
+    case Greater => print("cmp greater"),
+    case Equal => print("cmp equal")
+  }
+
+  clamped := value.clamp(Rational.new(-1, 1), Rational.new(1, 2))
+  print(`clamp ${clamped.to_string()}`)
+
+  wide := Rational.new(7, 3)
+  print(`floor ${wide.floor().to_string()}`)
+  print(`ceil ${wide.ceil().to_string()}`)
+  print(`round ${wide.round().to_string()}`)
+
+  to_i32_status := "to_i32 ok"
+  do {
+    Rational.new(1, 2).to_i32()
+  } rescue {
+    case _: Error => { to_i32_status = "to_i32 err" }
+  }
+  print(to_i32_status)
+
+  to_u32_status := "to_u32 ok"
+  do {
+    Rational.new(-1, 2).to_u32()
+  } rescue {
+    case _: Error => { to_u32_status = "to_u32 err" }
+  }
+  print(to_u32_status)
+
+  div_zero_status := "div_zero ok"
+  do {
+    half.div(Rational.new(0, 1))
+  } rescue {
+    case _: Error => { div_zero_status = "div_zero err" }
+  }
+  print(div_zero_status)
+
+  clamp_order_status := "clamp_order ok"
+  do {
+    value.clamp(Rational.new(2, 1), Rational.new(1, 2))
+  } rescue {
+    case _: Error => { clamp_order_status = "clamp_order err" }
+  }
+  print(clamp_order_status)
+}

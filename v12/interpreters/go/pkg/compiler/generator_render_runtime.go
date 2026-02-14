@@ -368,7 +368,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, fmt.Errorf(message))\n")
+	fmt.Fprintf(buf, "\tbridge.RaiseRuntimeErrorWithContext(__able_runtime, node, fmt.Errorf(\"%%s\", message))\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_raise_return_type_mismatch(node ast.Node, expected string, actual string) {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")

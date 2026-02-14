@@ -1,0 +1,65 @@
+package exec_06_12_21_stdlib_fs_path
+
+import able.core.interfaces.{Error}
+import able.fs
+import able.io.{IOError, NotFound}
+import able.io.path
+import able.io.path.{Path}
+import able.io.temp
+
+## Semantics: stdlib fs/path helpers compile and execute host-backed file/path operations.
+
+fn print_optional_string(label: String, value: ?String) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case text: String => print(`${label} ${text}`)
+  }
+}
+
+fn next_temp_path(label: String) -> String {
+  temp.dir(`able-fixture-${label}-`).path
+}
+
+fn cleanup_path(path_value: String) -> void {
+  do {
+    fs.remove(path_value, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  parsed: Path := path.parse("foo//bar/../baz")
+  print(`path_norm ${parsed.to_string()}`)
+  print(`path_base ${parsed.basename()}`)
+  print_optional_string("path_ext", path.parse("demo.txt").extension())
+
+  root := next_temp_path("fs-path")
+  root_path: Path := path.parse(root)
+  file := root_path.join("nested/alpha.txt").to_string()
+  renamed := root_path.join("nested/beta.txt").to_string()
+
+  do {
+    fs.write_text(file, "hello", true)
+    print(`fs_exists ${fs.exists(file)}`)
+    print(`fs_read ${fs.read_text(file)}`)
+    fs.rename(file, renamed)
+    print(`fs_renamed_exists ${fs.exists(renamed)}`)
+    entries := fs.read_dir(root_path.join("nested"))
+    print(`fs_entries ${entries.len()}`)
+    fs.remove(root, true)
+    print(`fs_root_exists ${fs.exists(root)}`)
+  } ensure {
+    cleanup_path(root)
+  }
+}

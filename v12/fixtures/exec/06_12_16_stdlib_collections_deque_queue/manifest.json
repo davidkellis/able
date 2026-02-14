@@ -1,0 +1,32 @@
+{
+  "description": "stdlib Deque/Queue push-pop, growth, and iteration semantics",
+  "expect": {
+    "stdout": [
+      "deque_len 3",
+      "deque_front 1",
+      "deque_back 3",
+      "deque_pop_front 1",
+      "deque_pop_back 3",
+      "deque_pop_back2 2",
+      "deque_empty true",
+      "growth_len 5",
+      "growth_front 0",
+      "growth_back 4",
+      "growth_sum 10",
+      "growth_len2 6",
+      "growth_front2 -1",
+      "growth_back2 5",
+      "queue_size 3",
+      "queue_peek 1",
+      "queue_dequeue1 1",
+      "queue_peek2 2",
+      "queue_dequeue2 2",
+      "queue_dequeue3 3",
+      "queue_empty true",
+      "queue_dequeue_empty nil",
+      "queue_sum 16",
+      "queue_cleared true"
+    ],
+    "exit": 0
+  }
+}

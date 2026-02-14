@@ -1,0 +1,18 @@
+{
+  "description": "stdlib Int128 arithmetic, comparison, clamp, and conversion/division errors",
+  "expect": {
+    "stdout": [
+      "sum 9223372036854775813",
+      "diff 9223372036854775808",
+      "product -12193263112482853211126352690",
+      "quotient 987654321",
+      "remainder 0",
+      "cmp greater",
+      "clamp 0",
+      "div_zero err",
+      "to_i64 err",
+      "to_u64 err"
+    ],
+    "exit": 0
+  }
+}

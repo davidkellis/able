@@ -1,0 +1,67 @@
+package exec_06_12_09_stdlib_numbers_primitives
+
+import able.numbers.primitives
+import able.core.interfaces.{Error}
+
+## Semantics: primitive numeric helpers and conversion diagnostics compile through stdlib numeric trait impls.
+
+fn print_f64_as_i32(label: String, value: f64) -> void {
+  value.to_i32() match {
+    case number: i32 => print(`${label} ${number}`),
+    case err: Error => { raise err }
+  }
+}
+
+fn main() -> void {
+  print(`abs ${(-5).abs()}`)
+  print(`sign ${(-5).sign()}`)
+
+  divmod := 17.div_mod(5)
+  print(`divmod ${divmod.quotient} ${divmod.remainder}`)
+
+  print(`bit_count ${15.bit_count()}`)
+  print(`bit_length ${16.bit_length()}`)
+
+  value: u32 = 8_u32
+  print(`leading ${value.leading_zeros()}`)
+  print(`trailing ${value.trailing_zeros()}`)
+
+  print_f64_as_i32("floor", 3.75.floor())
+  print_f64_as_i32("ceil", 3.25.ceil())
+  print_f64_as_i32("round", 3.6.round())
+
+  fract_ok := ((2.75.fract() - 0.75).abs()) < 0.000000000001
+  print(`fract_ok ${fract_ok}`)
+
+  to_u32_status := "to_u32 ok"
+  do {
+    (-1).to_u32()
+  } rescue {
+    case _: Error => { to_u32_status = "to_u32 err" }
+  }
+  print(to_u32_status)
+
+  f64_to_i32_status := "f64_to_i32 ok"
+  do {
+    1.5.to_i32()
+  } rescue {
+    case _: Error => { f64_to_i32_status = "f64_to_i32 err" }
+  }
+  print(f64_to_i32_status)
+
+  reciprocal_status := "reciprocal ok"
+  do {
+    0.0.reciprocal()
+  } rescue {
+    case _: Error => { reciprocal_status = "reciprocal err" }
+  }
+  print(reciprocal_status)
+
+  clamp_status := "clamp ok"
+  do {
+    1.0.clamp(2.0, 0.0)
+  } rescue {
+    case _: Error => { clamp_status = "clamp err" }
+  }
+  print(clamp_status)
+}

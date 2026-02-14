@@ -56,12 +56,23 @@ func (g *generator) renderImplMethodParamTypes(method *implMethodInfo) (string, 
 	def := method.Info.Definition
 	expectsSelf := methodDefinitionExpectsSelf(def)
 	params := methodDefinitionParamTypes(def, method.TargetType, expectsSelf)
+	interfaceBindings := make(map[string]ast.TypeExpression)
+	for idx, gp := range method.InterfaceGenerics {
+		if gp == nil || gp.Name == nil || gp.Name.Name == "" {
+			continue
+		}
+		if idx >= len(method.InterfaceArgs) || method.InterfaceArgs[idx] == nil {
+			continue
+		}
+		interfaceBindings[gp.Name.Name] = method.InterfaceArgs[idx]
+	}
 	parts := make([]string, 0, len(params))
 	for _, paramType := range params {
 		if paramType == nil {
 			parts = append(parts, "nil")
 			continue
 		}
+		paramType = substituteTypeParams(paramType, interfaceBindings)
 		rendered, ok := g.renderTypeExpression(paramType)
 		if !ok {
 			return "", false

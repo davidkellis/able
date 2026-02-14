@@ -1,0 +1,24 @@
+{
+  "description": "stdlib PersistentSortedSet/PersistentQueue ordering, persistence, and iteration semantics",
+  "expect": {
+    "stdout": [
+      "set_len 3",
+      "set_first 1",
+      "set_last 3",
+      "set_contains_2 true",
+      "trimmed_contains_2 false",
+      "set_still_contains_2 true",
+      "range_len 2",
+      "range_first 1",
+      "range_last 2",
+      "queue_len 3",
+      "queue_peek 10",
+      "next_queue_len 2",
+      "next_queue_peek 20",
+      "queue_still_peek 10",
+      "queue_sum 60",
+      "next_queue_sum 50"
+    ],
+    "exit": 0
+  }
+}

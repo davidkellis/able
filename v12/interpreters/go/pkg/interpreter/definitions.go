@@ -286,14 +286,15 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				}
 			}
 			entry := implEntry{
-				interfaceName: ifaceName,
-				methods:       methods,
-				definition:    &canonicalDef,
-				argTemplates:  variant.argTemplates,
-				genericParams: mergedGenerics,
-				whereClause:   canonicalDef.WhereClause,
-				defaultOnly:   !hasExplicit,
-				isBuiltin:     isBuiltin,
+				interfaceName:      ifaceName,
+				methods:            methods,
+				definition:         &canonicalDef,
+				registrationTarget: def.TargetType,
+				argTemplates:       variant.argTemplates,
+				genericParams:      mergedGenerics,
+				whereClause:        canonicalDef.WhereClause,
+				defaultOnly:        !hasExplicit,
+				isBuiltin:          isBuiltin,
 			}
 			if len(unionSignatures) > 0 {
 				entry.unionVariants = append([]string(nil), unionSignatures...)
@@ -740,6 +741,10 @@ func (i *Interpreter) resolveStructTypeArguments(def *ast.StructDefinition, expl
 }
 
 func (i *Interpreter) inferStructTypeArguments(def *ast.StructDefinition, named map[string]runtime.Value, positional []runtime.Value) []ast.TypeExpression {
+	return i.inferStructTypeArgumentsWithSeen(def, named, positional, nil)
+}
+
+func (i *Interpreter) inferStructTypeArgumentsWithSeen(def *ast.StructDefinition, named map[string]runtime.Value, positional []runtime.Value, seen map[*runtime.StructInstanceValue]struct{}) []ast.TypeExpression {
 	if def == nil || len(def.GenericParams) == 0 {
 		return nil
 	}
@@ -751,7 +756,7 @@ func (i *Interpreter) inferStructTypeArguments(def *ast.StructDefinition, named 
 			if field == nil || field.FieldType == nil || idx >= len(positional) {
 				continue
 			}
-			actual := i.typeExpressionFromValue(positional[idx])
+			actual := i.typeExpressionFromValueWithSeen(positional[idx], seen)
 			if actual == nil {
 				continue
 			}
@@ -766,7 +771,7 @@ func (i *Interpreter) inferStructTypeArguments(def *ast.StructDefinition, named 
 			if !ok {
 				continue
 			}
-			actual := i.typeExpressionFromValue(val)
+			actual := i.typeExpressionFromValueWithSeen(val, seen)
 			if actual == nil {
 				continue
 			}

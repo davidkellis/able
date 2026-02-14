@@ -1,0 +1,62 @@
+package fs_smoke_tests
+
+import able.core.interfaces.{Error}
+import able.fs
+import able.io
+import able.io.{IOError, NotFound}
+import able.io.path
+import able.io.path.{Path}
+import able.io.temp
+
+fn assert(condition: bool, message: String) -> void {
+  if condition { return }
+  raise message
+}
+
+fn next_temp_path(label: String) -> String {
+  temp.dir(`able-fs-smoke-${label}-`).path
+}
+
+fn cleanup_path(path_value: String) -> void {
+  do {
+    fs.remove(path_value, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  root := next_temp_path("basic")
+  root_path: Path := path.parse(root)
+  file := root_path.join("nested/file.txt").to_string()
+  renamed := root_path.join("nested/file2.txt").to_string()
+
+  do {
+    fs.write_text(file, "hello", true)
+    assert(fs.exists(file), "written file should exist")
+    assert(fs.read_text(file) == "hello", "read_text should round-trip write_text")
+
+    fs.rename(file, renamed)
+    assert(!fs.exists(file), "rename should remove source")
+    assert(fs.exists(renamed), "rename should create destination")
+
+    bytes := fs.read_bytes(renamed)
+    assert(bytes.len() == 5, "read_bytes should return expected byte count")
+    fs.remove(root, true)
+    assert(!fs.exists(root), "remove recursive should delete root directory")
+  } ensure {
+    cleanup_path(root)
+  }
+}
+
+main()

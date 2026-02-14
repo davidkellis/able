@@ -1,0 +1,75 @@
+package exec_06_12_07_stdlib_numbers_uint128
+
+import able.numbers.uint128.{UInt128}
+import able.core.interfaces.{Error, Less, Greater, Equal}
+
+## Semantics: UInt128 compiles through stdlib paths with arithmetic, comparisons, bit helpers, clamp, and conversion diagnostics.
+
+fn print_as_u128(label: String, value: UInt128) -> void {
+  print(`${label} ${value.to_u128()}`)
+}
+
+fn main() -> void {
+  base := UInt128.from_u128(18446744073709551615_u128)
+  sum := base.add(UInt128.one())
+  print_as_u128("sum", sum)
+
+  diff := sum.sub(UInt128.one())
+  print_as_u128("diff", diff)
+
+  a := UInt128.from_u128(123456789_u128)
+  b := UInt128.from_u128(987654321_u128)
+  product := a.mul(b)
+  print_as_u128("product", product)
+
+  quotient := product.div(a)
+  print_as_u128("quotient", quotient)
+
+  remainder := product.rem(a)
+  print_as_u128("remainder", remainder)
+
+  UInt128.from_u128(5_u128).compare(UInt128.from_u128(1_u128)) match {
+    case Greater => print("cmp greater"),
+    case Less => print("cmp less"),
+    case Equal => print("cmp equal")
+  }
+
+  clamped := UInt128.from_u128(10_u128).clamp(UInt128.from_u128(1_u128), UInt128.from_u128(5_u128))
+  print_as_u128("clamp", clamped)
+
+  probe := UInt128.new(0x0000000000000001_u64, 0_u64)
+  print(`leading ${probe.leading_zeros()}`)
+  print(`trailing ${probe.trailing_zeros()}`)
+
+  from_i64_status := "from_i64 ok"
+  do {
+    UInt128.from_i64(-1)
+  } rescue {
+    case _: Error => { from_i64_status = "from_i64 err" }
+  }
+  print(from_i64_status)
+
+  underflow_status := "underflow ok"
+  do {
+    UInt128.from_u128(1_u128).sub(UInt128.from_u128(2_u128))
+  } rescue {
+    case _: Error => { underflow_status = "underflow err" }
+  }
+  print(underflow_status)
+
+  to_i64_status := "to_i64 ok"
+  do {
+    UInt128.from_u128(9223372036854775808_u128).to_i64()
+  } rescue {
+    case _: Error => { to_i64_status = "to_i64 err" }
+  }
+  print(to_i64_status)
+
+  div_zero_status := "div_zero ok"
+  do {
+    UInt128.from_u128(1_u128).div(UInt128.zero())
+  } rescue {
+    case _: Error => { div_zero_status = "div_zero err" }
+  }
+  print(div_zero_status)
+}

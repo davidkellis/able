@@ -1,0 +1,13 @@
+{
+  "description": "stdlib os args/env/cwd/chdir/temp-dir semantics",
+  "expect": {
+    "stdout": [
+      "args_stable true",
+      "env_value ok",
+      "cwd_changed true",
+      "try_chdir_missing true",
+      "temp_nonempty true"
+    ],
+    "exit": 0
+  }
+}

@@ -1,5 +1,1210 @@
 # Able Project Log
 
+# 2026-02-13 — CI workflow for compiler full-matrix sweeps (v12)
+- Added GitHub Actions workflow:
+  - `.github/workflows/compiler-full-matrix-nightly.yml`
+  - schedule: daily (`20 6 * * *`) plus `workflow_dispatch`.
+  - runs `v12/run_compiler_full_matrix.sh` with configurable fixture env overrides (defaults to `all`).
+  - sets Go via `v12/interpreters/go/go.mod` and enables module cache.
+- Validation:
+  - `ABLE_COMPILER_EXEC_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_26_stdlib_test_harness_reporters ./v12/run_compiler_full_matrix.sh --typecheck-fixtures=strict`
+  - `ABLE_FIXTURE_FILTER=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_EXEC_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_26_stdlib_test_harness_reporters ./run_all_tests.sh --version=v12 --fixture --compiler-full-matrix --typecheck-fixtures=strict`
+
+# 2026-02-13 — Compiler full-matrix wrapper target for nightly/manual sweeps (v12)
+- Added dedicated compiler full-matrix runner:
+  - `v12/run_compiler_full_matrix.sh`
+  - runs:
+    - `TestCompilerExecFixtures`
+    - `TestCompilerStrictDispatchForStdlibHeavyFixtures`
+    - `TestCompilerBoundaryFallbackMarkerForStaticFixtures`
+  - defaults to `ABLE_COMPILER_EXEC_FIXTURES=all`, `ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=all`, `ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all`, with env overrides supported for narrowed local sweeps.
+- Added `run_all_tests` target flag:
+  - `v12/run_all_tests.sh --compiler-full-matrix`
+  - executes normal v12 test flow, then invokes `run_compiler_full_matrix.sh`.
+  - fixed option wiring to preserve caller fixture env overrides (`...=${...:-all}`) instead of force-overwriting to `all`.
+- Documentation updates:
+  - `README.md` and `v12/README.md` now include full-matrix command examples.
+- Validation:
+  - `bash -n v12/run_compiler_full_matrix.sh v12/run_all_tests.sh`
+  - `./v12/run_compiler_full_matrix.sh --help`
+  - `./v12/run_all_tests.sh --help`
+  - `ABLE_COMPILER_EXEC_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_26_stdlib_test_harness_reporters ./v12/run_compiler_full_matrix.sh --typecheck-fixtures=strict`
+  - `ABLE_FIXTURE_FILTER=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_EXEC_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_26_stdlib_test_harness_reporters ./v12/run_all_tests.sh --fixture --compiler-full-matrix --typecheck-fixtures=strict`
+
+# 2026-02-13 — Compiler AOT full-matrix `...=all` sweep + strict runner expectation fix (v12)
+- Ran explicit full-matrix compiler fixture sweeps (separate from reduced default CI-speed gates):
+  - `ABLE_COMPILER_EXEC_FIXTURES=all` with `TestCompilerExecFixtures` (~506s) passed.
+  - `ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=all` with `TestCompilerStrictDispatchForStdlibHeavyFixtures` (~533s) passed.
+  - `ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all` with `TestCompilerBoundaryFallbackMarkerForStaticFixtures` (~463s) passed.
+- Fixed strict-dispatch runner behavior for full fixture coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `runCompilerStrictDispatchFixture` now:
+    - enforces `__ABLE_STRICT=true` marker presence as before,
+    - but validates fixture outcomes using manifest expectations (`stdout`, `stderr`, `exit`) instead of failing unconditionally on non-zero exits.
+  - this allows strict-dispatch auditing across fixtures that intentionally assert runtime/type errors.
+- Post-fix default gate sanity:
+  - `go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (~160s) passed.
+  - `go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (~63s) passed.
+  - `go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (~63s) passed.
+
+# 2026-02-13 — Compiler AOT strict/boundary default suite runtime reduction (v12)
+- Reduced default fixture sets for strict-dispatch + boundary-audit gates:
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+  - both now use shared high-signal defaults from:
+    - `v12/interpreters/go/pkg/compiler/compiler_heavy_fixture_defaults_test.go`
+- Fixed full-matrix opt-in semantics:
+  - `ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=all` and `ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all` now use `collectExecFixtures(...)` directly (true full fixture discovery), independent of the reduced default exec suite.
+- Improved fixture list parsing consistency:
+  - strict-dispatch + boundary-audit selectors now accept comma/semicolon/whitespace-separated lists.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -count=1`
+- Result:
+  - strict-dispatch default gate ~54s.
+  - boundary-audit default gate ~54s.
+  - full `./pkg/compiler` package ~377s (previously ~386s after initial strict/boundary reduction, ~489s after exec-fixture reduction, and earlier timed out at default 10m).
+
+# 2026-02-13 — Compiler AOT exec fixture default suite runtime reduction (v12)
+- Reduced default `TestCompilerExecFixtures` matrix to a high-signal subset:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - extracted default fixture list into `defaultCompilerExecFixtures()`.
+  - kept full fixture matrix available via existing env control:
+    - `ABLE_COMPILER_EXEC_FIXTURES=all` (filesystem discovery with `collectExecFixtures`).
+- Scope preserved in default suite:
+  - entry/interop smoke fixtures.
+  - core compiler control-flow/pattern/rescue/concurrency fixtures.
+  - interface/import/regex heavy fixtures.
+  - complete `06_12_01` through `06_12_26` stdlib compiled fixture set.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -count=1`
+- Result:
+  - `TestCompilerExecFixtures` completed in ~154s.
+  - full `./pkg/compiler` package completed in ~489s (previously timed out at Go default 10m).
+
+# 2026-02-13 — Compiler AOT boundary marker strictness fix for call_original parity (v12)
+- Fixed dynamic boundary parity regression introduced by strict fixture no-fallback defaults:
+  - `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`
+  - `TestCompilerDynamicBoundaryCallOriginalMarkers` now sets `ABLE_COMPILER_FIXTURE_REQUIRE_NO_FALLBACKS=0` for that test only.
+  - rationale: this test intentionally uses an uncompileable function body to exercise explicit `call_original` boundary markers; strict no-fallback compilation should stay enabled by default elsewhere.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerDynamicBoundaryCallOriginalMarkers -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerConcurrencyParityFixtures -count=1`
+- Follow-up note:
+  - package timeout pressure from `TestCompilerExecFixtures` was subsequently reduced by narrowing the default exec fixture suite while keeping `ABLE_COMPILER_EXEC_FIXTURES=all` for full-matrix runs.
+
+# 2026-02-13 — Compiler AOT stdlib harness/reporters strict smoke gate (v12)
+- Added new stdlib smoke suite for strict compiled harness/reporters coverage:
+  - `v12/stdlib/tests/harness_reporters_smoke.test.able`
+  - smoke module exercises:
+    - `able.test.harness` discovery and run flow (`discover_all`, `run_all`).
+    - `able.test.reporters` doc/progress reporter output buffering.
+  - smoke module now clears example registrations at start/end so `able test --compiled` remains deterministic (`able test: no tests to run`).
+- Added new exec fixture `v12/fixtures/exec/06_12_26_stdlib_test_harness_reporters`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers:
+    - harness discovery returns descriptors for fixture-defined examples.
+    - `DocReporter` and `ProgressReporter` produce output through custom emit buffers.
+    - reporter run paths complete without framework failures.
+- Fixed reporter method selector lookup in fixture/smoke modules:
+  - `v12/stdlib/tests/harness_reporters_smoke.test.able`
+  - `v12/fixtures/exec/06_12_26_stdlib_test_harness_reporters/main.able`
+  - both modules now import `finish` from `able.test.reporters` so `progress.finish()` resolves under interpreter/compiled execution.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_26_stdlib_test_harness_reporters`.
+- Added strict compiled CLI gate for harness/reporters smoke suite:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibHarnessReportersSmokeSuite`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/harness_reporters_smoke.test.able`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_26_stdlib_test_harness_reporters go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_26_stdlib_test_harness_reporters go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_26_stdlib_test_harness_reporters go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_26_stdlib_test_harness_reporters go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibHarnessReportersSmokeSuite' -count=1`
+
+# 2026-02-13 — Compiler AOT stdlib term strict smoke gate (v12)
+- Added new stdlib smoke suite for fast strict compiled gating:
+  - `v12/stdlib/tests/term_smoke.test.able`
+  - smoke module validates `able.term` tty/size/raw-mode helper behavior with non-interactive checks.
+- Added new exec fixture `v12/fixtures/exec/06_12_25_stdlib_term`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers:
+    - `term.is_tty` boolean behavior.
+    - `term.try_size` and `term.try_set_raw_mode` typed `IOError` fallback behavior.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_25_stdlib_term`.
+- Added strict compiled CLI gate for term smoke suite:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibTermSmokeSuite`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/term_smoke.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.term`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_25_stdlib_term go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_25_stdlib_term go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_25_stdlib_term go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_25_stdlib_term go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibTermSmokeSuite' -count=1`
+
+# 2026-02-13 — Compiler AOT stdlib process strict smoke gate (v12)
+- Fixed strict compiled `process.spawn` host coercion panic:
+  - `v12/interpreters/go/pkg/interpreter/extern_host_coercion.go`
+  - array coercion for extern struct fields now tolerates interface-typed host targets (used by struct-to-map conversion), avoiding `reflect: Elem of invalid type interface {}`.
+  - nullable field coercion now also tolerates interface-typed host targets by delegating to inner-type coercion for non-`nil` values.
+- Added interpreter regression test for extern struct-array coercion:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_extern_test.go`
+  - new test: `TestExternStructArrayFieldCoercesIntoHostMap`
+  - new test: `TestExternStructNullableArrayFieldCoercesIntoHostMap`
+- Added new stdlib smoke suite for strict compiled process coverage:
+  - `v12/stdlib/tests/process_smoke.test.able`
+  - covers spawn/wait/stdio output, method-chain process-spec setup (`with_cwd`, `with_env` with selector imports), and missing-command `IOError(NotFound)` mapping.
+- Added new exec fixture `v12/fixtures/exec/06_12_24_stdlib_process`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers:
+    - `able.process` spawn/wait/stdio behavior for a successful command with method-chain `ProcessSpec` setup.
+    - typed `IOError(NotFound)` behavior from `process.try_spawn` on missing commands.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_24_stdlib_process`.
+- Added strict compiled CLI gate for process smoke suite:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibProcessSmokeSuite`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/process_smoke.test.able`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run 'TestExternStructArrayFieldCoercesIntoHostMap|TestExternStructNullableArrayFieldCoercesIntoHostMap' -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_24_stdlib_process go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_24_stdlib_process go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_24_stdlib_process go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_24_stdlib_process go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibProcessSmokeSuite' -count=1`
+- Note:
+  - `with_cwd` / `with_env` member calls require selector imports in scope (per method lookup rules), so the smoke/fixture modules import `able.process.{with_cwd, with_env}` when exercising method-chain coverage.
+
+# 2026-02-13 — Compiler AOT stdlib os strict smoke gate (v12)
+- Added new stdlib smoke suite for fast strict compiled gating:
+  - `v12/stdlib/tests/os_smoke.test.able`
+  - smoke module validates `able.os` args/env/cwd/chdir/try_chdir/temp-dir behavior.
+- Added new exec fixture `v12/fixtures/exec/06_12_23_stdlib_os`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers:
+    - `able.os` env mutation/readback and cwd/chdir behavior.
+    - typed `IOError(NotFound)` behavior from `os.try_chdir` on missing paths.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_23_stdlib_os`.
+- Added strict compiled CLI gate for os smoke suite:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibOsSmokeSuite`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/os_smoke.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.os`
+    - `able.process`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_23_stdlib_os go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_23_stdlib_os go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_23_stdlib_os go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_23_stdlib_os go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibOsSmokeSuite' -count=1`
+- Follow-up status:
+  - this blocker was resolved in the `06_12_24_stdlib_process` slice via extern host coercion fixes; remaining process work is method-chain coverage for `ProcessSpec.with_cwd` / `ProcessSpec.with_env` under strict compiled lookup.
+
+# 2026-02-13 — Compiler AOT stdlib io/temp strict smoke gates (v12)
+- Added new stdlib smoke suite for fast strict compiled gating:
+  - `v12/stdlib/tests/io_smoke.test.able`
+  - smoke module validates `able.io` read/write helpers plus `able.io.temp` temp file lifecycle.
+- Added new exec fixture `v12/fixtures/exec/06_12_22_stdlib_io_temp`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers:
+    - `able.io` string/bytes conversion plus `read_all`/`write_all` helper semantics.
+    - `able.io.temp` temp directory/file creation and cleanup behavior.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_22_stdlib_io_temp`.
+- Added strict compiled CLI gate for io smoke suite:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibIoSmokeSuite`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/io_smoke.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.io.temp`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_22_stdlib_io_temp go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_22_stdlib_io_temp go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_22_stdlib_io_temp go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_22_stdlib_io_temp go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibIoSmokeSuite' -count=1`
+
+# 2026-02-13 — Compiler AOT stdlib fs/path strict smoke gates (v12)
+- Added new stdlib smoke suites for fast strict compiled gating:
+  - `v12/stdlib/tests/fs_smoke.test.able`
+  - `v12/stdlib/tests/path_smoke.test.able`
+  - both are non-framework smoke modules (assertion-style `main()`), so `able test --compiled` reports `able test: no tests to run` on success.
+- Added new exec fixture `v12/fixtures/exec/06_12_21_stdlib_fs_path`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers:
+    - `able.io.path` normalization/join/extension behavior.
+    - `able.fs` write/read/rename/read_dir/remove behavior on temp paths.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_21_stdlib_fs_path`.
+- Added strict compiled CLI gate for fs/path smoke suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibFsAndPathSmokeSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/fs_smoke.test.able`
+    - `v12/stdlib/tests/path_smoke.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.fs`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_21_stdlib_fs_path go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_21_stdlib_fs_path go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_21_stdlib_fs_path go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_21_stdlib_fs_path go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibFsAndPathSmokeSuites' -count=1`
+
+# 2026-02-13 — Compiler AOT stdlib math/core-numeric strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_20_stdlib_math_core_numeric`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers stdlib math/core numeric behavior:
+    - `able.math` integer-safe helpers (`abs_i64`, `sign_i64`, `clamp_i64`, `gcd`, `lcm`).
+    - `able.core.numeric` conversion helpers (`to_r`, `Ratio.to_i32`) including fractional conversion error path.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_20_stdlib_math_core_numeric`.
+- Added strict compiled CLI gate for stdlib math/core numeric suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibMathAndCoreNumericSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/math.test.able`
+    - `v12/stdlib/tests/core/numeric_smoke.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.math`
+    - `able.core.numeric`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_20_stdlib_math_core_numeric go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_20_stdlib_math_core_numeric go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_20_stdlib_math_core_numeric go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_20_stdlib_math_core_numeric go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibMathAndCoreNumericSuites' -count=1`
+
+# 2026-02-13 — Compiler AOT stdlib concurrency channel/mutex/concurrent_queue strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_19_stdlib_concurrency_channel_mutex_queue`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers stdlib concurrency wrappers:
+    - `Channel` send/receive/close/iterable behavior through `able.concurrency`.
+    - `Mutex` `with_lock` and manual lock/unlock behavior through `able.concurrency`.
+    - `ConcurrentQueue` enqueue/dequeue/try/close semantics through `able.concurrency.concurrent_queue`.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_19_stdlib_concurrency_channel_mutex_queue`.
+- Added strict compiled CLI gate for stdlib concurrency suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibConcurrencyChannelMutexAndQueueSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/concurrency/channel_mutex.test.able`
+    - `v12/stdlib/tests/concurrency/concurrent_queue.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.concurrency`
+    - `able.concurrency.concurrent_queue`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_19_stdlib_concurrency_channel_mutex_queue go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_19_stdlib_concurrency_channel_mutex_queue go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_19_stdlib_concurrency_channel_mutex_queue go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_19_stdlib_concurrency_channel_mutex_queue go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibConcurrencyChannelMutexAndQueueSuites' -count=1`
+
+# 2026-02-13 — Compiler AOT collections array/range strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_18_stdlib_collections_array_range`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers array/range behavior through stdlib wrappers:
+    - `Array` push/push_all/get/write_slot/pop/clear helpers and length/optional accessors.
+    - `RangeFactory` inclusive/exclusive ranges via stdlib `able.collections.range` re-exports.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_18_stdlib_collections_array_range`.
+- Added strict compiled CLI gate for array/range smoke suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsArrayAndRangeSmokeSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/collections/array_smoke.test.able`
+    - `v12/stdlib/tests/collections/range_smoke.test.able`
+  - asserts successful run and expected `able test: no tests to run` output for smoke modules.
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.array`
+    - `able.collections.range`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_FIXTURE_FILTER=06_12_18_stdlib_collections_array_range go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_18_stdlib_collections_array_range go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_18_stdlib_collections_array_range go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_18_stdlib_collections_array_range go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsArrayAndRangeSmokeSuites' -count=1`
+
+# 2026-02-13 — Compiler AOT collections bit_set/heap strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_17_stdlib_collections_bit_set_heap`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers bit-set/heap behavior through stdlib wrappers:
+    - `BitSet` set/reset/flip/contains, `each`, `Iterable` iteration, and clear semantics.
+    - `Heap` min-heap push/pop ordering, `peek`, `len`, and empty-state semantics.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_17_stdlib_collections_bit_set_heap`.
+- Added strict compiled CLI gate for bit_set/heap suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsBitSetAndHeapSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/bit_set.test.able`
+    - `v12/stdlib/tests/heap.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.bit_set`
+    - `able.collections.heap`
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_17_stdlib_collections_bit_set_heap go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_17_stdlib_collections_bit_set_heap go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_17_stdlib_collections_bit_set_heap go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_17_stdlib_collections_bit_set_heap go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsBitSetAndHeapSuites' -count=1`
+
+# 2026-02-12 — Compiler AOT collections deque/queue strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_16_stdlib_collections_deque_queue`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers deque/queue behavior through stdlib wrappers:
+    - `Deque` push/pop from both ends, growth past initial capacity, and iterable traversal ordering.
+    - `Queue` FIFO enqueue/dequeue/peek semantics, enumerable iteration, and clear behavior.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_16_stdlib_collections_deque_queue`.
+- Added strict compiled CLI gate for deque/queue smoke suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsDequeAndQueueSmokeSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/collections/deque_smoke.test.able`
+    - `v12/stdlib/tests/collections/queue_smoke.test.able`
+  - asserts successful run and expected `able test: no tests to run` output for smoke modules.
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.deque`
+    - `able.collections.queue`
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_16_stdlib_collections_deque_queue go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_16_stdlib_collections_deque_queue go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_16_stdlib_collections_deque_queue go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_16_stdlib_collections_deque_queue go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsDequeAndQueueSmokeSuites' -count=1`
+
+# 2026-02-12 — Compiler AOT collections hash_map/hash_set strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_15_stdlib_collections_hash_map_set`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers hash-backed collection behavior through stdlib wrappers:
+    - `HashMap` set/get/remove/contains/for_each/map semantics.
+    - `HashSet` add/remove/contains/union/intersect/difference/symmetric_difference/subset/superset/disjoint semantics.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_15_stdlib_collections_hash_map_set`.
+- Added strict compiled CLI gate for hash collection suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsHashMapSmokeAndHashSetSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/collections/hash_map_smoke.test.able`
+    - `v12/stdlib/tests/collections/hash_set.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.hash_map`
+    - `able.collections.hash_set`
+- Updated stdlib hash-map smoke test callback shape for strict compilation compatibility:
+  - `v12/stdlib/tests/collections/hash_map_smoke.test.able`
+  - replaced local named callback declaration in `check_for_each` with an inline lambda passed to `map.for_each`, preserving test semantics while avoiding compiler fallback on unsupported local function statements.
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_15_stdlib_collections_hash_map_set go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_15_stdlib_collections_hash_map_set go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_15_stdlib_collections_hash_map_set go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_15_stdlib_collections_hash_map_set go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsHashMapSmokeAndHashSetSuites' -count=1`
+
+# 2026-02-12 — Compiler AOT collections linked_list/lazy_seq strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_14_stdlib_collections_linked_list_lazy_seq`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers linked and lazy collection behavior through stdlib implementations:
+    - `LinkedList` push/pop on both ends, node-handle insert/remove, and deterministic traversal.
+    - `LazySeq` cache-backed get/take/each/to_array behavior over array-seeded state.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_14_stdlib_collections_linked_list_lazy_seq`.
+- Added strict compiled CLI gate for linked/lazy suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsLinkedListAndLazySeqSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/linked_list.test.able`
+    - `v12/stdlib/tests/lazy_seq.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.linked_list`
+    - `able.collections.lazy_seq`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/06_12_14_stdlib_collections_linked_list_lazy_seq$' -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_14_stdlib_collections_linked_list_lazy_seq go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_14_stdlib_collections_linked_list_lazy_seq go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_14_stdlib_collections_linked_list_lazy_seq go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsLinkedListAndLazySeqSuites' -count=1`
+
+# 2026-02-12 — Compiler AOT collections persistent_sorted_set/persistent_queue strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_13_stdlib_collections_persistent_sorted_queue`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers persistent ordered/FIFO collection behavior through stdlib implementations:
+    - `PersistentSortedSet` ordered uniqueness, first/last access, remove persistence, and range extraction.
+    - `PersistentQueue` FIFO enqueue/dequeue/peek persistence plus deterministic iteration order.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_13_stdlib_collections_persistent_sorted_queue`.
+- Added strict compiled CLI gate for persistent sorted/FIFO suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsPersistentSortedSetAndQueueSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/persistent_sorted_set.test.able`
+    - `v12/stdlib/tests/persistent_queue.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.persistent_sorted_set`
+    - `able.collections.persistent_queue`
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_13_stdlib_collections_persistent_sorted_queue go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_13_stdlib_collections_persistent_sorted_queue go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_13_stdlib_collections_persistent_sorted_queue go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_13_stdlib_collections_persistent_sorted_queue go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsPersistentSortedSetAndQueueSuites' -count=1`
+
+# 2026-02-12 — Compiler AOT collections persistent_map/persistent_set strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_12_stdlib_collections_persistent_map_set`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers persistent HAMT collection behavior through stdlib implementations:
+    - `PersistentMap` insert/update/remove/get/contains semantics, collision handling, and builder-based construction.
+    - `PersistentSet` structural-sharing insert/remove semantics plus union/intersect behavior.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_12_stdlib_collections_persistent_map_set`.
+- Added strict compiled CLI gate for persistent collections suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsPersistentMapPersistentSetSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/persistent_map.test.able`
+    - `v12/stdlib/tests/persistent_set.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.persistent_map`
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_12_stdlib_collections_persistent_map_set go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_12_stdlib_collections_persistent_map_set go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_12_stdlib_collections_persistent_map_set go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_12_stdlib_collections_persistent_map_set go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsPersistentMapPersistentSetSuites' -count=1`
+
+# 2026-02-12 — Compiler AOT collections tree_map/tree_set strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_11_stdlib_collections_tree_map_set`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers ordered collection behavior through stdlib tree collection impls:
+    - `TreeMap` ordered insert/update/remove/get/contains plus `first`/`last` entry access.
+    - `TreeSet` uniqueness-aware insertion plus ordered `first`/`last`, `contains`, and remove semantics.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_11_stdlib_collections_tree_map_set`.
+- Added strict compiled CLI gate for ordered collections suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsTreeMapTreeSetSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/tree_map.test.able`
+    - `v12/stdlib/tests/tree_set.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.tree_map`
+    - `able.collections.tree_set`
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_11_stdlib_collections_tree_map_set go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_11_stdlib_collections_tree_map_set go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_11_stdlib_collections_tree_map_set go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_11_stdlib_collections_tree_map_set go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsTreeMapTreeSetSuites' -count=1`
+
+# 2026-02-12 — Compiler AOT collections list/vector strict gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_10_stdlib_collections_list_vector`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers persistent collection behavior through stdlib collection impls:
+    - `List` accessors and structural transforms (`prepend`, `tail`, `last`, `nth`, `concat`, `reverse`)
+    - `Vector` accessors and persistence operations (`push`, `set`, `pop`, `first/last/get`) with explicit old/new value assertions.
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_10_stdlib_collections_list_vector`.
+- Added strict compiled CLI gate for stdlib collections suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibCollectionsListVectorSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/list.test.able`
+    - `v12/stdlib/tests/vector.test.able`
+- Extended build precompile discovery assertions:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now also checks:
+    - `able.collections.list`
+    - `able.collections.vector`
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_10_stdlib_collections_list_vector go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_10_stdlib_collections_list_vector go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_10_stdlib_collections_list_vector go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_10_stdlib_collections_list_vector go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibCollectionsListVectorSuites' -count=1`
+
+# 2026-02-12 — Compiler AOT foundational stdlib compiled CLI gate (v12)
+- Added strict compiled CLI coverage for foundational stdlib suites in `v12/interpreters/go/cmd/able/test_cli_test.go`:
+  - new test: `TestTestCommandCompiledRunsStdlibFoundationalSuites`
+  - runs `able test --compiled` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` against:
+    - `v12/stdlib/tests/simple.test.able`
+    - `v12/stdlib/tests/assertions.test.able`
+    - `v12/stdlib/tests/enumerable.test.able`
+  - asserts suite output markers are present and stderr is empty.
+- Validation:
+  - `cd v12/interpreters/go && go test ./cmd/able -run TestTestCommandCompiledRunsStdlibFoundationalSuites -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledRunsStdlibFoundationalSuites|TestTestCommandCompiledRunsStdlibNumbersNumericSuite|TestTestCommandCompiledRunsStdlibExtendedNumericSuites|TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites|TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv|TestDiscoverPrecompilePackagesIncludesStdlibAndKernel' -count=1`
+
+# 2026-02-12 — Compiler AOT precompile discovery assertions expanded for numeric + foundational stdlib sets (v12)
+- Extended build precompile discovery assertions in `v12/interpreters/go/cmd/able/build_precompile_test.go`:
+  - `TestDiscoverPrecompilePackagesIncludesStdlibAndKernel` now verifies:
+    - `able.spec`
+    - `able.collections.enumerable`
+    - `able.test.protocol`
+    - `able.test.harness`
+    - `able.test.reporters`
+    - `able.numbers.bigint`
+    - `able.numbers.biguint`
+    - `able.numbers.int128`
+    - `able.numbers.uint128`
+    - `able.numbers.rational`
+    - `able.numbers.primitives`
+  alongside existing `able.io`, `able.io.path`, and `able.kernel`.
+- Validation:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibFoundationalSuites|TestTestCommandCompiledRunsStdlibNumbersNumericSuite|TestTestCommandCompiledRunsStdlibExtendedNumericSuites|TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites|TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv' -count=1`
+
+# 2026-02-12 — Compiler AOT numeric primitives strict gates (`numbers_numeric`) (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_09_stdlib_numbers_primitives`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers primitive numeric helpers from `able.numbers.primitives`:
+    - i32 helpers (`abs`, `sign`, `div_mod`, `bit_count`, `bit_length`)
+    - u32 bit helpers (`leading_zeros`, `trailing_zeros`)
+    - f64 fractional helpers (`floor`, `ceil`, `round`, `fract`)
+    - conversion/error paths (`to_u32`, `f64.to_i32`, reciprocal zero, invalid clamp bounds).
+- Wired fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_09_stdlib_numbers_primitives`.
+- Added compiled CLI stdlib gate for aggregate numeric suite:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibNumbersNumericSuite`
+  - runs `able test --compiled v12/stdlib/tests/numbers_numeric.test.able` with `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true`.
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_09_stdlib_numbers_primitives go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_09_stdlib_numbers_primitives go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_09_stdlib_numbers_primitives go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_09_stdlib_numbers_primitives go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledRunsStdlibNumbersNumericSuite|TestTestCommandCompiledRunsStdlibExtendedNumericSuites|TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites|TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv' -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_04_stdlib_numbers_bigint,06_12_05_stdlib_numbers_biguint,06_12_06_stdlib_numbers_int128,06_12_07_stdlib_numbers_uint128,06_12_08_stdlib_numbers_rational,06_12_09_stdlib_numbers_primitives go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_04_stdlib_numbers_bigint,06_12_05_stdlib_numbers_biguint,06_12_06_stdlib_numbers_int128,06_12_07_stdlib_numbers_uint128,06_12_08_stdlib_numbers_rational,06_12_09_stdlib_numbers_primitives go test ./pkg/interpreter -run TestExecFixtures -count=1`
+
+# 2026-02-12 — Compiler AOT extended numeric stdlib strict gates (int128/uint128/rational) (v12)
+- Added new exec fixtures:
+  - `v12/fixtures/exec/06_12_06_stdlib_numbers_int128`
+  - `v12/fixtures/exec/06_12_07_stdlib_numbers_uint128`
+  - `v12/fixtures/exec/06_12_08_stdlib_numbers_rational`
+- Coverage:
+  - `Int128`: arithmetic (`add/sub/mul/div/rem`), comparison, clamp, division-by-zero and conversion error paths.
+  - `UInt128`: arithmetic (`add/sub/mul/div/rem`), comparison, clamp, bit helpers (`leading_zeros`, `trailing_zeros`), conversion/underflow/div-zero error paths.
+  - `Rational`: normalization, arithmetic, comparison, clamp, floor/ceil/round, conversion/div-zero/clamp-order error paths.
+- Wired all three fixtures into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` includes `exec/06_12_06_stdlib_numbers_int128`, `exec/06_12_07_stdlib_numbers_uint128`, `exec/06_12_08_stdlib_numbers_rational`.
+- Added compiled CLI stdlib gate for extended numeric suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibExtendedNumericSuites`
+  - runs `able test --compiled` against:
+    - `v12/stdlib/tests/int128.test.able`
+    - `v12/stdlib/tests/uint128.test.able`
+    - `v12/stdlib/tests/rational.test.able`
+  - enforces `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true`.
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_06_stdlib_numbers_int128,06_12_07_stdlib_numbers_uint128,06_12_08_stdlib_numbers_rational go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_06_stdlib_numbers_int128,06_12_07_stdlib_numbers_uint128,06_12_08_stdlib_numbers_rational go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_06_stdlib_numbers_int128,06_12_07_stdlib_numbers_uint128,06_12_08_stdlib_numbers_rational go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_06_stdlib_numbers_int128,06_12_07_stdlib_numbers_uint128,06_12_08_stdlib_numbers_rational go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledRunsStdlibExtendedNumericSuites|TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites|TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv' -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_04_stdlib_numbers_bigint,06_12_05_stdlib_numbers_biguint,06_12_06_stdlib_numbers_int128,06_12_07_stdlib_numbers_uint128,06_12_08_stdlib_numbers_rational go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_04_stdlib_numbers_bigint,06_12_05_stdlib_numbers_biguint,06_12_06_stdlib_numbers_int128,06_12_07_stdlib_numbers_uint128,06_12_08_stdlib_numbers_rational go test ./pkg/interpreter -run TestExecFixtures -count=1`
+
+# 2026-02-12 — Compiler AOT rescue mixed-result coercion + restored biguint error assertions (v12)
+- Fixed compiler rescue lowering in `v12/interpreters/go/pkg/compiler/generator_rescue.go`:
+  - rescue expression result typing now supports mixed monitored/clause result types in statement contexts by coercing branches to `runtime.Value` when required.
+  - added explicit rescue-branch coercion helper `coerceRescueBranch`.
+  - keeps strict `RequireNoFallbacks` compilation green for rescue flows that previously forced fallback via `rescue clause type mismatch`.
+- Added compiler regression coverage in `v12/interpreters/go/pkg/compiler/compiler_test.go`:
+  - `TestCompilerRescueStatementMixedResultTypesNoFallback`
+  - asserts mixed-type rescue used as a statement compiles successfully with `RequireNoFallbacks: true` and emits zero fallbacks.
+- Restored explicit BigUint error-path assertions in fixture `v12/fixtures/exec/06_12_05_stdlib_numbers_biguint`:
+  - `from_i64` negative conversion rescue
+  - `to_i64` overflow rescue
+  - subtraction underflow rescue
+  - updated `manifest.json` expected output and `v12/fixtures/exec/coverage-index.json` focus text accordingly.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRescueStatementMixedResultTypesNoFallback|TestCompilerRequireNoFallbacksFails' -count=1`
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_05_stdlib_numbers_biguint go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_05_stdlib_numbers_biguint go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_05_stdlib_numbers_biguint go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_05_stdlib_numbers_biguint go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_rescue,11_03_bytecode_rescue_basic,11_03_rescue_ensure,11_03_rescue_rethrow_standard_errors,06_12_05_stdlib_numbers_biguint go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites -count=1`
+
+# 2026-02-12 — Compiler AOT biguint stdlib fixture coverage under strict compiled gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_05_stdlib_numbers_biguint`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers `BigUint` arithmetic (`add/sub/mul`), comparison ordering, and clamp behavior with deterministic output assertions.
+- Wired the biguint fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go` default fixture list now includes `06_12_05_stdlib_numbers_biguint`.
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go` default strict-dispatch fixture list now includes `06_12_05_stdlib_numbers_biguint`.
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go` default boundary-audit fixture list now includes `06_12_05_stdlib_numbers_biguint`.
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_05_stdlib_numbers_biguint`.
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_05_stdlib_numbers_biguint go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_05_stdlib_numbers_biguint go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_05_stdlib_numbers_biguint go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_05_stdlib_numbers_biguint go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+
+# 2026-02-12 — Compiler AOT compiled stdlib bigint/biguint CLI gate (v12)
+- Added strict compiled-mode CLI coverage for stdlib bigint/biguint suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - new test: `TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites`
+  - runs `able test --compiled` against:
+    - `v12/stdlib/tests/bigint.test.able`
+    - `v12/stdlib/tests/biguint.test.able`
+  - enforces `ABLE_COMPILER_REQUIRE_NO_FALLBACKS=true` to keep this path as an AOT no-fallback gate.
+- Validation:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites|TestTestCommandCompiledRuns|TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv' -count=1`
+
+# 2026-02-12 — Compiler AOT bigint stdlib fixture coverage under strict compiled gates (v12)
+- Added new exec fixture `v12/fixtures/exec/06_12_04_stdlib_numbers_bigint`:
+  - files: `package.yml`, `manifest.json`, `main.able`
+  - covers `BigInt` arithmetic (`add/sub/mul`), comparison ordering, clamp behavior, and conversion error paths (`to_u64`, `to_i64` overflow) with deterministic output assertions.
+- Wired the bigint fixture into compiler strict/parity defaults:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go` default fixture list now includes `06_12_04_stdlib_numbers_bigint`.
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go` default strict-dispatch fixture list now includes `06_12_04_stdlib_numbers_bigint`.
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go` default boundary-audit fixture list now includes `06_12_04_stdlib_numbers_bigint`.
+- Extended build precompile discovery assertion to include bigint package coverage:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go` now checks `able.numbers.bigint` is present in discovered precompile package sets.
+- Updated fixture coverage index:
+  - `v12/fixtures/exec/coverage-index.json` now includes `exec/06_12_04_stdlib_numbers_bigint`.
+- Validation:
+  - `cd v12/interpreters/go && ABLE_FIXTURE_FILTER=06_12_04_stdlib_numbers_bigint go test ./pkg/interpreter -run TestExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_12_04_stdlib_numbers_bigint go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_04_stdlib_numbers_bigint go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_04_stdlib_numbers_bigint go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestResolveBuildPrecompileStdlibFromEnvMissingDefaultsTrue' -count=1`
+
+# 2026-02-12 — Compiler AOT build wiring for stdlib/kernel precompile + bundled sources (v12)
+- `able build` now precompiles stdlib/kernel package graphs by default by discovering packages from stdlib search roots and passing them through loader `IncludePackages`:
+  - added `v12/interpreters/go/cmd/able/build_precompile.go`
+  - build toggle env: `ABLE_BUILD_PRECOMPILE_STDLIB=1|true|yes|on|0|false|no|off` (default: enabled)
+  - build flags: `--precompile-stdlib` and `--no-precompile-stdlib`
+- `able build` argument parsing and usage now include the stdlib precompile controls (`v12/interpreters/go/cmd/able/build.go`).
+- External build outputs (outside module root) now bundle stdlib/kernel sources alongside copied interpreter/parser module trees:
+  - `v12/interpreters/go/cmd/able/go_mod_root.go` now copies:
+    - `v12/stdlib/src` -> `<out>/v12/stdlib/src`
+    - `v12/kernel/src` -> `<out>/v12/kernel/src`
+- Added coverage:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go`
+    - env parsing (default/explicit/invalid)
+    - package discovery includes `able.io`, `able.io.path`, `able.kernel`
+    - CLI arg override for `--no-precompile-stdlib`
+  - updated `v12/interpreters/go/cmd/able/build_test.go` to assert bundled stdlib/kernel sources exist in external outputs.
+- Validation:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestResolveBuildPrecompileStdlibFromEnvExplicitValues|TestResolveBuildPrecompileStdlibFromEnvMissingDefaultsTrue|TestResolveBuildPrecompileStdlibFromEnvInvalid|TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestParseBuildArgumentsPrecompileStdlibFlagOverridesEnv' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestBuildTargetFromManifest|TestBuildOutputOutsideModuleRoot' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestBuildNoFallbacksFlagFailsWhenFallbackRequired|TestBuildNoFallbacksEnvFailsWhenFallbackRequired|TestBuildNoFallbacksInvalidEnvFailsArgumentParsing|TestBuildAllowFallbacksOverridesEnv|TestTestCommandCompiledRuns|TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRequireNoFallbacksFails|TestCompilerEmitsStructsAndWrappers' -count=1`
+
+# 2026-02-12 — Compiler AOT strict no-fallback fixture/parity gates (v12)
+- Added shared fixture-gate strictness helper in `v12/interpreters/go/pkg/compiler/compiler_fixture_strictness_test.go`:
+  - fixture/parity compiler paths now default to `RequireNoFallbacks=true`;
+  - optional local override via `ABLE_COMPILER_FIXTURE_REQUIRE_NO_FALLBACKS=0|false|off|no`;
+  - invalid override values fail fast with a clear test error.
+- Applied strict compile options across fixture/parity harnesses:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go` (`runCompilerExecFixture`)
+  - `v12/interpreters/go/pkg/compiler/compiler_diagnostics_parity_test.go` (`runCompiledFixtureOutcome`; shared by diagnostics + concurrency parity)
+  - `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go` (`runCompiledFixtureBoundaryOutcome`)
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go` (`runCompilerBoundaryAuditFixture`)
+  - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go` (`runCompilerStrictDispatchFixture`)
+  - `v12/interpreters/go/pkg/compiler/compiler_concurrency_parity_test.go` (`TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks`)
+- Validation:
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_struct_positional go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_01_compiler_struct_positional go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_DYNAMIC_BOUNDARY_FIXTURES=13_04_import_alias_selective_dynimport go test ./pkg/compiler -run TestCompilerDynamicBoundaryParityFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_DIAGNOSTICS_FIXTURES=06_01_compiler_division_by_zero go test ./pkg/compiler -run TestCompilerDiagnosticsParityFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_CONCURRENCY_PARITY_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerConcurrencyParityFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_struct_positional ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_01_compiler_struct_positional ABLE_COMPILER_DYNAMIC_BOUNDARY_FIXTURES=13_04_import_alias_selective_dynimport ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=13_06_stdlib_package_resolution ABLE_COMPILER_DIAGNOSTICS_FIXTURES=06_01_compiler_division_by_zero ABLE_COMPILER_CONCURRENCY_PARITY_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundaryParityFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerDiagnosticsParityFixtures|TestCompilerConcurrencyParityFixtures|TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks' -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic boundary native bound-method callback gates (v12)
+- Added native-bound-method boundary coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_native_methods_test.go`:
+  - `TestCompilerDynamicBoundaryNativeBoundMethodCallbackSuccessMarkers`
+  - `TestCompilerDynamicBoundaryNativeBoundMethodCallbackFailureMarkers`
+- These tests pass dynamic package native bound methods (e.g. `pkg.def`) through dynamic callback invocation and assert:
+  - tree-walker vs compiled parity (success/failure),
+  - explicit `call_value` marker presence,
+  - fallback marker count remains zero.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundary(NativeBoundMethodCallbackSuccessMarkers|NativeBoundMethodCallbackFailureMarkers|BoundMethodCallbackSuccessMarkers|BoundMethodCallbackFailureMarkers|CallbackArrayConversionSuccessMarkers|CallbackArrayConversionFailureMarkers|CallbackHashMapConversionSuccessMarkers|CallbackHashMapConversionFailureMarkers|CallbackInterfaceConversionSuccessMarkers|CallbackInterfaceConversionFailureMarkers|CallbackUnionConversionSuccessMarkers|CallbackUnionConversionFailureMarkers|CallbackNullableConversionSuccessMarkers|CallbackNullableConversionFailureMarkers|CallbackNilStringConversionFailureMarkers|CallbackCharConversionFailureMarkers|CallbackStructConversionFailureMarkers|CallbackBoolConversionFailureMarkers|CallbackStringConversionFailureMarkers|CallbackStringConversionSuccessMarkers|CallbackOverflowConversionFailureMarkers|CallbackUnsignedConversionFailureMarkers|CallbackConversionFailureMarkers|CallbackRoundtrip|CallNamedMarkers|CallOriginalMarkers|ParityFixtures)|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerEmitsStructsAndWrappers' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic boundary bound-method callback gates (v12)
+- Added method-value boundary coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_methods_test.go`:
+  - `TestCompilerDynamicBoundaryBoundMethodCallbackSuccessMarkers`
+  - `TestCompilerDynamicBoundaryBoundMethodCallbackFailureMarkers`
+- These tests pass a bound method value (`counter.add`) through dynamic callback invocation and assert:
+  - tree-walker vs compiled parity (success/failure),
+  - explicit `call_value` marker presence,
+  - fallback marker count remains zero.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundary(BoundMethodCallbackSuccessMarkers|BoundMethodCallbackFailureMarkers|CallbackArrayConversionSuccessMarkers|CallbackArrayConversionFailureMarkers|CallbackHashMapConversionSuccessMarkers|CallbackHashMapConversionFailureMarkers|CallbackInterfaceConversionSuccessMarkers|CallbackInterfaceConversionFailureMarkers|CallbackUnionConversionSuccessMarkers|CallbackUnionConversionFailureMarkers|CallbackNullableConversionSuccessMarkers|CallbackNullableConversionFailureMarkers|CallbackNilStringConversionFailureMarkers|CallbackCharConversionFailureMarkers|CallbackStructConversionFailureMarkers|CallbackBoolConversionFailureMarkers|CallbackStringConversionFailureMarkers|CallbackStringConversionSuccessMarkers|CallbackOverflowConversionFailureMarkers|CallbackUnsignedConversionFailureMarkers|CallbackConversionFailureMarkers|CallbackRoundtrip|CallNamedMarkers|CallOriginalMarkers|ParityFixtures)|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerEmitsStructsAndWrappers' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic boundary composite payload conversion gates (v12)
+- Added container/composite boundary conversion coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_composites_test.go`:
+  - `TestCompilerDynamicBoundaryCallbackArrayConversionSuccessMarkers`
+  - `TestCompilerDynamicBoundaryCallbackArrayConversionFailureMarkers`
+  - `TestCompilerDynamicBoundaryCallbackHashMapConversionSuccessMarkers`
+  - `TestCompilerDynamicBoundaryCallbackHashMapConversionFailureMarkers`
+- These tests exercise dynamic→compiled callback payloads with `Array i32` and `HashMap String i32` shapes and assert:
+  - tree-walker vs compiled parity (success/failure),
+  - explicit `call_value` boundary markers present,
+  - fallback marker count remains zero.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundaryCallback(ArrayConversionSuccessMarkers|ArrayConversionFailureMarkers|HashMapConversionSuccessMarkers|HashMapConversionFailureMarkers|InterfaceConversionSuccessMarkers|InterfaceConversionFailureMarkers|UnionConversionSuccessMarkers|UnionConversionFailureMarkers|NullableConversionSuccessMarkers|NullableConversionFailureMarkers)|TestCompilerDynamicBoundary(CallbackNilStringConversionFailureMarkers|CallbackCharConversionFailureMarkers|CallbackStructConversionFailureMarkers|CallbackBoolConversionFailureMarkers|CallbackStringConversionFailureMarkers|CallbackStringConversionSuccessMarkers|CallbackOverflowConversionFailureMarkers|CallbackUnsignedConversionFailureMarkers|CallbackConversionFailureMarkers|CallbackRoundtrip|CallNamedMarkers|CallOriginalMarkers|ParityFixtures)|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerEmitsStructsAndWrappers' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic boundary interface/union/nullable conversion gates (v12)
+- Added boundary conversion coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_type_shapes_test.go`:
+  - `TestCompilerDynamicBoundaryCallbackInterfaceConversionSuccessMarkers`
+  - `TestCompilerDynamicBoundaryCallbackInterfaceConversionFailureMarkers`
+  - `TestCompilerDynamicBoundaryCallbackUnionConversionSuccessMarkers`
+  - `TestCompilerDynamicBoundaryCallbackUnionConversionFailureMarkers`
+  - `TestCompilerDynamicBoundaryCallbackNullableConversionSuccessMarkers`
+  - `TestCompilerDynamicBoundaryCallbackNullableConversionFailureMarkers`
+- All tests assert boundary marker behavior (`call_value` explicit markers present, fallback markers zero) plus tree-walker vs compiled parity for success/failure outcomes.
+- Added local helper assertions/utilities in the same file:
+  - `assertBoundaryCallValueMarkers`
+  - `joinLines`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundaryCallback(InterfaceConversionSuccessMarkers|InterfaceConversionFailureMarkers|UnionConversionSuccessMarkers|UnionConversionFailureMarkers|NullableConversionSuccessMarkers|NullableConversionFailureMarkers)|TestCompilerDynamicBoundary(CallbackNilStringConversionFailureMarkers|CallbackCharConversionFailureMarkers|CallbackStructConversionFailureMarkers|CallbackBoolConversionFailureMarkers|CallbackStringConversionFailureMarkers|CallbackStringConversionSuccessMarkers|CallbackOverflowConversionFailureMarkers|CallbackUnsignedConversionFailureMarkers|CallbackConversionFailureMarkers|CallbackRoundtrip|CallNamedMarkers|CallOriginalMarkers|ParityFixtures)|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerEmitsStructsAndWrappers' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic boundary nil/char/struct conversion gates (v12)
+- Added additional dynamic boundary conversion coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`:
+  - `TestCompilerDynamicBoundaryCallbackNilStringConversionFailureMarkers`
+    - dynamic callback passes `nil` to compiled `String` callback; asserts runtime failure parity + explicit `call_value` marker + zero fallback markers.
+  - `TestCompilerDynamicBoundaryCallbackCharConversionFailureMarkers`
+    - dynamic callback passes string literal to compiled `char` callback; asserts runtime failure parity + explicit `call_value` marker + zero fallback markers.
+  - `TestCompilerDynamicBoundaryCallbackStructConversionFailureMarkers`
+    - dynamic callback passes `nil` to compiled struct-typed callback; asserts runtime failure parity + explicit `call_value` marker + zero fallback markers.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundary(CallbackNilStringConversionFailureMarkers|CallbackCharConversionFailureMarkers|CallbackStructConversionFailureMarkers|CallbackBoolConversionFailureMarkers|CallbackStringConversionFailureMarkers|CallbackStringConversionSuccessMarkers|CallbackOverflowConversionFailureMarkers|CallbackUnsignedConversionFailureMarkers|CallbackConversionFailureMarkers|CallbackRoundtrip|CallNamedMarkers|CallOriginalMarkers|ParityFixtures)|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerEmitsStructsAndWrappers' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic boundary non-numeric conversion gates (v12)
+- Added non-numeric dynamic boundary conversion coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`:
+  - `TestCompilerDynamicBoundaryCallbackBoolConversionFailureMarkers`
+    - dynamic callback passes integer to compiled `bool` callback; asserts runtime failure parity + explicit `call_value` marker + zero fallback markers.
+  - `TestCompilerDynamicBoundaryCallbackStringConversionFailureMarkers`
+    - dynamic callback passes `bool` to compiled `String` callback; asserts runtime failure parity + explicit `call_value` marker + zero fallback markers.
+  - `TestCompilerDynamicBoundaryCallbackStringConversionSuccessMarkers`
+    - dynamic callback passes string to compiled `String` callback; asserts successful parity (`able!`) + explicit `call_value` marker + zero fallback markers.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundary(CallbackBoolConversionFailureMarkers|CallbackStringConversionFailureMarkers|CallbackStringConversionSuccessMarkers|CallbackOverflowConversionFailureMarkers|CallbackUnsignedConversionFailureMarkers|CallbackConversionFailureMarkers|CallbackRoundtrip|CallNamedMarkers|CallOriginalMarkers|ParityFixtures)|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerEmitsStructsAndWrappers' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic boundary numeric conversion edge-case gates (v12)
+- Expanded dynamic boundary conversion-failure coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`:
+  - `TestCompilerDynamicBoundaryCallbackOverflowConversionFailureMarkers`
+    - dynamic callback invokes compiled `i32` callback with out-of-range integer (`2147483648`) and asserts runtime failure parity plus explicit `call_value` marker emission.
+  - `TestCompilerDynamicBoundaryCallbackUnsignedConversionFailureMarkers`
+    - dynamic callback invokes compiled `u8` callback with negative integer (`-1`) and asserts runtime failure parity plus explicit `call_value` marker emission.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundary(CallbackOverflowConversionFailureMarkers|CallbackUnsignedConversionFailureMarkers|CallbackConversionFailureMarkers|CallbackRoundtrip|CallNamedMarkers|CallOriginalMarkers|ParityFixtures)|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerEmitsStructsAndWrappers' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT call-family boundary marker coverage completion (v12)
+- Extended dynamic boundary test coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go` with:
+  - `TestCompilerDynamicBoundaryCallNamedMarkers`:
+    - unresolved named call path (typecheck off) to exercise runtime `call_named` explicit marker emission.
+  - `TestCompilerDynamicBoundaryCallOriginalMarkers`:
+    - non-compileable function wrapper path to exercise runtime `call_original` explicit marker emission.
+- Added helper utilities in the same test file:
+  - `withTypecheckFixturesOff`
+  - `hasBoundaryMarkerPrefix`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundaryCallNamedMarkers|TestCompilerDynamicBoundaryCallOriginalMarkers|TestCompilerDynamicBoundaryCallbackRoundtrip|TestCompilerDynamicBoundaryCallbackConversionFailureMarkers|TestCompilerDynamicBoundaryParityFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerEmitsStructsAndWrappers' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT callback conversion-failure boundary gate (v12)
+- Added dynamic callback conversion-failure coverage in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`:
+  - `TestCompilerDynamicBoundaryCallbackConversionFailureMarkers`
+  - synthesizes a dynamic function that invokes a compiled callback with a bad argument type and asserts:
+    - runtime failure occurs in both tree-walker and compiled runs,
+    - zero fallback markers,
+    - explicit boundary markers include `call_value`.
+- Updated generated compiler test harness emission (`v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`) so boundary markers are printed for runtime-error exits after registration (not only successful exits), enabling boundary auditing for failing dynamic-boundary scenarios.
+- Added compiler codegen assertions for boundary marker presence in generated output (`v12/interpreters/go/pkg/compiler/compiler_test.go`):
+  - `call_original` wrapper marker emission
+  - `call_named` bridge marker emission
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerEmitsStructsAndWrappers|TestCompilerDynamicBoundaryCallbackRoundtrip|TestCompilerDynamicBoundaryCallbackConversionFailureMarkers|TestCompilerDynamicBoundaryParityFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic callback roundtrip boundary coverage (v12)
+- Added `TestCompilerDynamicBoundaryCallbackRoundtrip` in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`.
+- The new test builds a synthetic dynamic program that:
+  - defines a dyn package function `apply_twice` at runtime via `dyn.def_package(...).def(...)`,
+  - passes a compiled callback (`fn(x: i32) -> i32`) into interpreted dynamic code,
+  - validates compiled vs tree-walker output parity (`value 42`).
+- Boundary marker assertions now cover callback roundtrip behavior by requiring explicit boundary markers (`call_value`) and zero fallback markers for the scenario.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundaryParityFixtures|TestCompilerDynamicBoundaryCallbackRoundtrip|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`
+
+# 2026-02-12 — Compiler AOT explicit dynamic-boundary marker accounting (v12)
+- Compiler generated runtime now tracks explicit compiled→interpreter bridge calls separately from fallback calls:
+  - explicit counter/snapshot helpers in generated runtime call layer:
+    - `__able_boundary_explicit_count_get()`
+    - `__able_boundary_explicit_snapshot()`
+  - explicit call-family markers:
+    - `call_value`
+    - `call_named`
+    - `call_original`
+  - fallback marker semantics remain focused on unexpected fallback routing.
+- Harness marker output now includes explicit boundary markers when `ABLE_COMPILER_BOUNDARY_MARKER` is enabled:
+  - `__ABLE_BOUNDARY_EXPLICIT_CALLS=...`
+  - `__ABLE_BOUNDARY_EXPLICIT_NAMES=...` (verbose mode)
+  (`v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`).
+- Dynamic boundary parity gate now asserts:
+  - tree-walker vs compiled parity for dynamic fixtures,
+  - `fallback` marker count remains zero,
+  - explicit boundary marker count is positive with non-empty names
+  (`v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`).
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerDynamicBoundaryParityFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerDynamicBoundaryParityFixtures' -count=1`
+
+# 2026-02-12 — Compiler AOT dynamic-boundary parity + bridge call fallback hardening (v12)
+- Added dynamic boundary parity coverage for compiled mode with explicit dynamic fixtures (`06_10_dynamic_metaprogramming_package_object`, `13_04_import_alias_selective_dynimport`, `13_05_dynimport_interface_dispatch`, `13_07_search_path_env_override`) in `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`.
+- The new gate compares tree-walker vs compiled outcomes (`stdout`, `stderr`, `exit`) and additionally asserts that these dynamic fixtures execute via explicit boundary paths without generic fallback-call marker hits.
+- Compiler bridge call semantics now fall back to global environment lookup when current environment misses function symbols, aligning `Runtime.Call`/`CallNamedWithNode` behavior with existing `Get` fallback semantics (`v12/interpreters/go/pkg/compiler/bridge/bridge.go`).
+- Added bridge regressions:
+  - `TestRuntimeCallFallsBackToGlobalEnvironment`
+  - `TestCallNamedFallsBackToGlobalEnvironment`
+  in `v12/interpreters/go/pkg/compiler/bridge/bridge_test.go`.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerDynamicBoundaryParityFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundaryParityFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`
+
+# 2026-02-11 — Compiled main dispatch path consolidation (v12)
+- Compiler codegen now emits reusable entrypoint helpers in generated `compiled.go`:
+  - `RunMain(interp)`
+  - `RunMainIn(interp, env)`
+  - `RunRegisteredMain(rt, interp, entryEnv)`
+- `RunRegisteredMain` prefers compiled dispatch for `main` via the compiled call table (`__able_lookup_compiled_call`) and only falls back to interpreter callable invocation when no compiled entry is registered.
+- Generated `main.go` now invokes `RunRegisteredMain` instead of directly branching between wrapper calls and `interp.CallFunction`.
+- Updated compiled harness callers to use the same entrypoint helper:
+  - compiler exec fixture harness (`v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`)
+  - `able test --compiled` harness source (`v12/interpreters/go/cmd/able/test_cli_compiled.go`)
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecHarness|TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks|TestCompilerConcurrencyParityFixtures|TestCompilerDiagnosticsParityFixtures' -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=15_01_program_entry_hello_world,12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+
+# 2026-02-11 — Compiler performance baseline harness (v12)
+- Added `BenchmarkCompilerExecFixtureBinary` for repeatable compiled-runtime execution baseline runs using exec fixtures (`v12/interpreters/go/pkg/compiler/compiler_performance_bench_test.go`).
+- Benchmark flow:
+  - resolve fixture (`ABLE_COMPILER_BENCH_FIXTURE`, default `v12/fixtures/exec/07_09_bytecode_iterator_yield`)
+  - compile fixture once to generated Go
+  - build one compiled benchmark binary
+  - benchmark binary execution (`b.N` runs) with fixture env applied
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run '^$' -bench BenchmarkCompilerExecFixtureBinary -benchtime=1x -count=1`
+  - sample result on this host:
+    - `BenchmarkCompilerExecFixtureBinary-16  1  63310648 ns/op`
+- Plan updates:
+  - removed completed Compiler AOT TODO item for performance baseline from `PLAN.md`.
+
+# 2026-02-11 — Compiler concurrency parity fixture gate expansion (v12)
+- Added `TestCompilerConcurrencyParityFixtures` to compare tree-walker vs compiled outcomes (`stdout`, `stderr`, `exit`) for core concurrency/scheduler fixtures plus spawn/await compiler fixtures:
+  - `06_01_compiler_spawn_await`
+  - `06_01_compiler_await_future`
+  - `12_01_bytecode_spawn_basic`
+  - `12_01_bytecode_await_default`
+  - `12_02_async_spawn_combo`
+  - `12_02_future_fairness_cancellation`
+  - `12_03_spawn_future_status_error`
+  - `12_04_future_handle_value_view`
+  - `12_05_concurrency_channel_ping_pong`
+  - `12_05_mutex_lock_unlock`
+  - `12_06_await_fairness_cancellation`
+  - `12_07_channel_mutex_error_types`
+  - `12_08_blocking_io_concurrency`
+  - `15_04_background_work_flush`
+- Added env override support via `ABLE_COMPILER_CONCURRENCY_PARITY_FIXTURES`.
+- Expanded `TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks` to assert the same blocked-flush behavior in tree-walker goroutine mode for the synthetic nil-channel blocked-task program, keeping the compiler regression tied to reference runtime semantics.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerConcurrencyParityFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks|TestCompilerConcurrencyParityFixtures' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerConcurrencyParityFixtures|TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks|TestCompilerDiagnosticsParityFixtures' -count=1`
+- Plan updates:
+  - removed completed Compiler AOT TODO item for compiled concurrency semantics parity (including scheduler helpers) from `PLAN.md`.
+
+# 2026-02-11 — Compiler goroutine `future_flush` blocked-task parity (v12)
+- Compiler generated runtime: added blocked-task accounting to the goroutine future executor (`pending` + `blocked` + per-handle blocked state) and updated `Flush()` to short-circuit when all pending tasks are blocked, matching interpreter goroutine executor behavior (`v12/interpreters/go/pkg/compiler/generator_render_runtime_future.go`).
+- Compiler generated concurrency helpers now mark async tasks blocked/unblocked around channel/mutex blocking waits and nil-channel waits, so goroutine executor accounting reflects real blocking states (`v12/interpreters/go/pkg/compiler/generator_render_runtime_concurrency.go`).
+- Compiler generated nil-channel blocking now respects async context cancellation and reports an error outside async context, aligning with interpreter behavior (`v12/interpreters/go/pkg/compiler/generator_render_runtime_concurrency.go`).
+- Added regression coverage to ensure compiled goroutine-mode `future_flush()` returns when pending tasks are blocked:
+  - `v12/interpreters/go/pkg/compiler/compiler_concurrency_parity_test.go` (`TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks`)
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerFutureFlushReturnsWithBlockedGoroutineTasks -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,15_04_background_work_flush go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerDiagnosticsParityFixtures -count=1`
+- Plan updates:
+  - removed completed optional Compiler AOT follow-up for goroutine blocked-task accounting from `PLAN.md`.
+
+# 2026-02-11 — Compiler diagnostics parity fixture gate (v12)
+- Added `TestCompilerDiagnosticsParityFixtures` to compare tree-walker vs compiled runtime outcomes (stdout, stderr diagnostics, exit code) for arithmetic/runtime diagnostic fixtures (`v12/interpreters/go/pkg/compiler/compiler_diagnostics_parity_test.go`).
+- The new diagnostics gate currently covers:
+  - `04_02_primitives_truthiness_numeric_diag`
+  - `06_01_compiler_division_by_zero`
+  - `06_01_compiler_integer_overflow`
+  - `06_01_compiler_integer_overflow_sub`
+  - `06_01_compiler_integer_overflow_mul`
+  - `06_01_compiler_unary_overflow`
+  - `06_01_compiler_divmod_overflow`
+  - `06_01_compiler_pow_overflow`
+  - `06_01_compiler_pow_negative_exponent`
+  - `06_01_compiler_shift_out_of_range`
+  - `06_01_compiler_compound_assignment_overflow`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerDiagnosticsParityFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+- Plan updates:
+  - removed completed Compiler AOT diagnostics parity TODO item from `PLAN.md`.
+
+# 2026-02-11 — Compiler AOT parity gates verified (v12)
+- Verified compiler fixture parity and boundary behavior remain green across the current fixture set:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+  - `./v12/able test --compiled v12/stdlib/tests`
+- Plan updates:
+  - removed completed Compiler AOT TODO items for exec-fixture parity, compiled stdlib parity, and no-silent-fallback enforcement from `PLAN.md`.
+
+# 2026-02-11 — Compiler AOT singleton static-overload dispatch parity (v12)
+- Compiler runtime member lookup: fixed compiled `__able_member_get_method` fallback so singleton struct receivers can resolve compiled static overload wrappers (e.g. `AutomataDSL.union`) without redirecting all singleton instance lookups to static/type-ref mode (`v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`).
+- Compiler runtime interface dispatch: unwrap nested interface receivers before compiled interface method binding/selection to keep impl receiver typing stable (`v12/interpreters/go/pkg/compiler/generator_render_runtime_interface.go`).
+- Tests added/updated:
+  - `v12/interpreters/go/pkg/compiler/compiler_singleton_struct_test.go` (`TestCompilerSingletonStaticOverloadDispatch`)
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerZeroFieldStructIdentifierValue|TestCompilerSingletonStaticOverloadDispatch' -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+  - `./v12/able test --compiled v12/stdlib/tests/assertions.test.able`
+  - `./v12/able test --compiled v12/stdlib/tests/automata.test.able`
+  - `./v12/able test --compiled v12/stdlib/tests/persistent_map.test.able`
+  - `./v12/able test --compiled v12/stdlib/tests` (passes)
+
+# 2026-02-11 — Compiler AOT stdlib-compiled-mode unblockers (v12)
+- Compiler integer literal lowering: fixed `_i128`/`_u128` handling so runtime-value contexts now emit `runtime.IntegerValue` via `big.Int` parsing instead of narrow Go casts, preventing generated-code overflow failures during compiled stdlib builds (`v12/interpreters/go/pkg/compiler/generator_exprs.go`, `v12/interpreters/go/pkg/compiler/generator_types.go`).
+- Compiler identifier lowering: zero-field struct identifiers now materialize direct struct instances in typed contexts (instead of loading struct definitions via global lookup), fixing singleton-style matcher constructors in compiled stdlib/spec paths (`v12/interpreters/go/pkg/compiler/generator_exprs_ident.go`).
+- Compiler bridge: `StructDefinition` cache is now environment-scoped (`env pointer + name`) instead of bare-name scoped, avoiding cross-environment collisions for same-named structs (`v12/interpreters/go/pkg/compiler/bridge/bridge.go`).
+- Tests added:
+  - `v12/interpreters/go/pkg/compiler/compiler_integer_literals_test.go` (`TestCompilerBuildsLargeI128AndU128Literals`)
+  - `v12/interpreters/go/pkg/compiler/compiler_singleton_struct_test.go` (`TestCompilerZeroFieldStructIdentifierValue`)
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_test.go` (`TestStructDefinitionCacheScopesByEnvironment`)
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerBuildsLargeI128AndU128Literals -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerZeroFieldStructIdentifierValue -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `./run_all_tests.sh` (passes)
+- Progress on compiled stdlib parity: `able test --compiled v12/stdlib/tests` now gets past previous literal/singleton constructor failures and advances to a later blocker (`v12/stdlib/src/collections/persistent_map.able:533:16 Ambiguous overload for insert`).
+
+# 2026-02-10 — Compiler AOT boundary audit expansion (v12)
+- Compiler runtime call dispatch: `__able_call_named` now attempts `env.Get(name)` and routes through `__able_call_value` before interpreter bridge fallback, eliminating avoidable named-call fallback when compiled call tables are not directly keyed for the current scope (`pkg/compiler/generator_render_runtime_calls.go`).
+- Compiler runtime boundary lookup: compiled call lookup now walks environment parent chain (`__able_lookup_compiled_call`) to respect lexical scope nesting (`pkg/compiler/generator_render_runtime_calls.go`).
+- Compiler runtime boundary diagnostics: boundary marker now supports an optional verbose breakdown (`ABLE_COMPILER_BOUNDARY_MARKER_VERBOSE=1`) with per-name fallback counts (`__ABLE_BOUNDARY_FALLBACK_NAMES=...`) for targeted debugging (`pkg/compiler/generator_render_runtime_calls.go`, `pkg/compiler/exec_fixtures_compiler_test.go`).
+- Boundary audit coverage: promoted previously failing fixtures into default zero-fallback audit set after fixes:
+  - `12_08_blocking_io_concurrency`
+  - `14_02_regex_core_match_streaming`
+  (`pkg/compiler/compiler_boundary_audit_test.go`)
+- Validation:
+  - `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_MARKER_VERBOSE=1 ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=12_08_blocking_io_concurrency,14_02_regex_core_match_streaming GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1 -v`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1 -v`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1 -v`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+  - `./run_all_tests.sh` (passes)
+
+# 2026-02-10 — Compiler AOT boundary fallback audit marker (v12)
+- Compiler runtime call helpers now track fallback calls that route from compiled call sites into interpreter execution for names the compiler registered as compiled callables (`pkg/compiler/generator_render_runtime_calls.go`).
+- Compiler fixture harness now supports `ABLE_COMPILER_BOUNDARY_MARKER=1` and emits `__ABLE_BOUNDARY_FALLBACK_CALLS=<count>` on stderr after execution (`pkg/compiler/exec_fixtures_compiler_test.go`).
+- Added `TestCompilerBoundaryFallbackMarkerForStaticFixtures` with env override support (`ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all|a,b,c`) to assert zero unexpected compiled→interpreter fallback calls on a curated static fixture set (`pkg/compiler/compiler_boundary_audit_test.go`).
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1 -v`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1 -v`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+  - `./run_all_tests.sh` (passes)
+
+# 2026-02-10 — Compiler AOT dynamic boundary bridge hardening (v12)
+- Bridge runtime: fixed goroutine env fallback semantics so `Runtime.Env()` no longer returns a sticky nil after `SwapEnv(nil)`; nil swaps now clear goroutine-local override and fall back to the registered base env (`pkg/compiler/bridge/bridge.go`).
+- Bridge conversion: `AsString` now accepts interface-wrapped `Array` byte storage when decoding `String` struct values across compiled/interpreter boundaries (`pkg/compiler/bridge/bridge.go`).
+- Tests: added bridge regressions for interface-wrapped String byte arrays and env fallback after nil env swap (`pkg/compiler/bridge/bridge_test.go`).
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_10_dynamic_metaprogramming_package_object,13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -v`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1 -v`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+  - `./run_all_tests.sh` (passes)
+
+# 2026-02-10 — Compiler AOT strict dispatch hard-fail path (v12)
+- Compiler: removed silent strict-dispatch downgrade in generated `RegisterIn`; compiled impl-thunk registration errors now fail immediately instead of flipping a hidden blocked flag (`pkg/compiler/generator_render_functions.go`).
+- Compiler tests: strict-dispatch fixture audit now supports `ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=all|a,b,c` for broader gating while keeping a focused default set (`pkg/compiler/compiler_strict_dispatch_test.go`).
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1 -v`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency,13_06_stdlib_package_resolution,14_02_regex_core_match_streaming,14_01_language_interfaces_index_apply_iterable GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -v`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+  - `./run_all_tests.sh` (passes)
+
+# 2026-02-10 — Compiler AOT strict interface-dispatch registration parity (v12)
+- Interpreter: fixed compiled impl-thunk registration for canonicalized impl targets by preserving source-form impl targets and matching registration against both source and canonical target expressions (`pkg/interpreter/impl_resolution.go`, `pkg/interpreter/definitions.go`, `pkg/interpreter/compiled_thunk.go`).
+- Interpreter: compiled impl-thunk registration now accepts both raw and alias-expanded constraint signatures and substitutes interface bindings on both sides of param matching (`pkg/interpreter/compiled_thunk.go`).
+- Compiler tests: added `TestCompilerStrictDispatchForStdlibHeavyFixtures` to assert `__able_interface_dispatch_strict == true` at runtime for stdlib-heavy compiled fixtures, and added a harness marker hook used by this audit (`pkg/compiler/compiler_strict_dispatch_test.go`, `pkg/compiler/exec_fixtures_compiler_test.go`).
+- Plan: removed completed Compiler AOT TODO item for impl-thunk registration parity gaps (`PLAN.md`).
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1 -v`
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency,13_06_stdlib_package_resolution,14_02_regex_core_match_streaming,14_01_language_interfaces_index_apply_iterable GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -v`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+  - `./run_all_tests.sh` (passes)
+
+# 2026-02-10 — Compiler AOT fallback closure + `!void` return parity (v12)
+- Compiler AOT: removed remaining compiler fallback audit failures in stdlib-heavy and interface fixtures:
+  - identifier lowering now supports typed-local coercion via runtime bridge conversion when an expected static type differs (`generator_exprs_ident.go`);
+  - control-flow statement compilation now propagates nested failure reasons (`generator_controlflow.go`).
+- Compiler AOT: added explicit `Result<void>` return handling for bare `return`:
+  - compile-body return lowering now treats bare returns in `-> !void` functions as `runtime.VoidValue{}` (not missing-return fallback / nil value);
+  - statement-mode `return` in `Result<void>` contexts now emits `__able_return{value: runtime.VoidValue{}}` (`generator.go`, `generator_types.go` helper).
+- Validation:
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1`
+  - `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=06_03_operator_overloading_interfaces,14_01_language_interfaces_index_apply_iterable GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -v`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able -run TestTestCommandCompiledRuns -count=1`
+  - `./run_all_tests.sh` (passes)
+
+# 2026-02-10 — v12 test blockers cleared (coverage index + compiler/runtime parity)
+- Fixtures: added missing seeded entries to `v12/fixtures/exec/coverage-index.json` for new compiler/iterator/interface fixtures so the exec coverage guard passes.
+- Compiler codegen:
+  - fixed generated runtime errors to avoid `fmt.Errorf(message)` vet failures (`generator_render_runtime.go`);
+  - fixed impl-method wrapper receiver writeback so compiled iterator state mutations persist (`generator_render_functions.go`);
+  - fixed generic local-lambda calls with type arguments to call local values instead of unresolved global names (`generator_exprs.go`);
+  - added call-frame push/pop in dynamic value calls to preserve caller notes in runtime diagnostics (`generator_render_runtime_calls.go`);
+  - fixed match-binding temp declarations to avoid unused-temp compile failures without changing match semantics (`generator_match.go`).
+- Stdlib: updated `Array` `Index.get` to return `IndexError` for out-of-bounds access (`v12/stdlib/src/collections/array.able`) so `arr[idx]!` rescue/rethrow fixtures behave per spec.
+- Tests:
+  - `ABLE_COMPILER_EXEC_FIXTURES=07_02_01_verbose_anonymous_fn ... go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `ABLE_COMPILER_EXEC_FIXTURES=07_10_iterator_reentrancy ... go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`
+  - `go test ./pkg/interpreter -run 'TestExecFixtures/11_03_rescue_rethrow_standard_errors' -count=1 -exec-mode=treewalker`
+  - `go test ./pkg/interpreter -run 'TestExecFixtures/11_03_rescue_rethrow_standard_errors' -count=1 -exec-mode=bytecode`
+  - `./run_all_tests.sh` (passes)
+
 # 2026-02-06 — Compiler match-statement lowering + stdlib explicit casts (v12)
 - Compiler: treat match expressions used as statements as void blocks so clause bodies can be statement-only (fixes regex parse_tokens compilation).
 - Stdlib: `to_u64` helpers now use explicit `u64` casts/literals to avoid implicit coercion.
@@ -2289,3 +3494,142 @@ Open items (2025-11-02 audit):
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_03_spawn_future_status_error,12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
 - Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Compiler AOT: enumerated remaining unnamed impl fallback blockers in stdlib-heavy fixtures; fixed compileability for `IndexMut Array<T>.set` and String iterator unnamed impl methods (`StringBytesIter`, `StringCharsIter`, `StringGraphemesIter`) to reduce strict-dispatch blockers.
+- Compiler AOT: `Index Array<T>.get` now lowers to a compileable direct slot-read path; fallback audit for `13_06_stdlib_package_resolution`, `12_08_blocking_io_concurrency`, and `06_08_array_ops_mutability` no longer reports unnamed impl method fallbacks.
+- Compiler AOT: impl-method param-type rendering now substitutes interface generic arguments before registration, and synthetic default impl methods are skipped for interpreter thunk registration (they are still available in compiled interface-dispatch tables).
+- Compiler AOT: deferred strict interface dispatch when impl thunk registration mismatches are detected during registration (`__able_interface_dispatch_blocked`) to avoid unsafe strict-mode activation in programs with unresolved registration parity.
+- Compiler AOT: moved diagnostic/await AST global emission to the end of generated source so nodes discovered during render are always declared (fixes missing `__able_binary_node_*` declarations in stdlib-heavy compiled outputs).
+- Interpreter: improved compiled impl-thunk mismatch diagnostics and added interface-generic substitution during impl-thunk param matching.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=13_06_stdlib_package_resolution,06_08_array_ops_mutability,10_02_impl_where_clause,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,08_01_bytecode_if_indexing,06_12_02_stdlib_array_helpers,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_02_impl_where_clause,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1` in `v12/interpreters/go`.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestInterpreterEvaluateProgramSuccess -count=1` in `v12/interpreters/go`.
+- Blocker: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=60s` times out waiting on the compiled fixture subprocess (no stdout/stderr), so this fixture still needs dedicated follow-up before claiming full strict-dispatch parity in stdlib-heavy concurrency paths.
+- Compiler AOT: compiled future runtime now selects executor mode from host interpreter (`bridge.ExecutorKind`), enabling compiled goroutine scheduling when fixtures/programs use goroutine executor (fixes compiled `12_08_blocking_io_concurrency` hang path while preserving serial default behavior).
+- Compiler AOT: compiled async failure normalization now wraps generic async task errors into `Future failed: ...` runtime errors while preserving cancellation (`context.Canceled`) status, restoring parity for failed/cancelled future value/status behavior.
+- Compiler bridge/interpreter: added `Interpreter.ExecutorKind()` plus bridge coverage (`TestExecutorKind`) so compiled runtime can safely query scheduler mode without fallback heuristics.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler/bridge -count=1`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=70s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_03_spawn_future_status_error,12_04_future_handle_value_view,12_06_await_fairness_cancellation,12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=70s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_spawn_basic,12_01_bytecode_await_default,12_02_async_spawn_combo,12_02_future_fairness_cancellation,12_03_spawn_future_status_error,12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types,12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=70s`.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_17_interface_overload_dispatch,10_02_impl_where_clause,10_12_interface_union_target_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=70s`.
+- Compiler AOT: completed dynamic boundary hardening audit coverage by running `TestCompilerBoundaryFallbackMarkerForStaticFixtures` across `ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all` (full exec fixture corpus) with zero compiled->interpreter fallback marker regressions.
+- Compiler AOT: generated `main.go` now includes a guarded static fast-path that skips `interp.EvaluateProgram(...)` for safe `main`-only, fallback-free, non-dynamic programs; dynamic/complex programs keep the interpreter bootstrap path.
+- Compiler runtime: compiled-call registration now defines callable bindings directly in each package runtime environment (`env.Define(name, fn)`) in addition to compiled-call table registration.
+- Compiler tests: added `pkg/compiler/compiler_main_bootstrap_test.go` to assert static launcher generation skips evaluation while dynamic launcher generation retains interpreter bootstrap.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerCompiledHashSetUnionStdlib|TestCompilerZeroFieldStructIdentifierValue|TestCompilerSingletonStaticOverloadDispatch|TestCompilerBuildsLargeI128AndU128Literals|TestCompilerEmitsStructsAndWrappers' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all go test -v ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (full-corpus audit; ~339s aggregate).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
+- Compiler AOT: expanded compiled main no-bootstrap eligibility from `main`-only to static function graphs where all discovered functions are compileable and the module set remains fallback-free/non-dynamic with no struct/method/impl bootstrap requirements.
+- Compiler AOT: generated registration now conditionally installs compiled function overload thunks only when a matching runtime declaration already exists in the package environment, avoiding no-bootstrap hard-fail paths while preserving strict checks for bootstrapped environments.
+- Compiler tests: added `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers` in `pkg/compiler/compiler_main_bootstrap_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerCompiledHashSetUnionStdlib|TestCompilerZeroFieldStructIdentifierValue|TestCompilerSingletonStaticOverloadDispatch|TestCompilerBuildsLargeI128AndU128Literals|TestCompilerEmitsStructsAndWrappers' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
+- Compiler AOT: expanded no-bootstrap launch support to safe single-package programs with compileable functions/methods/impls (still requiring no dynamic usage and no compiler fallbacks).
+- Compiler AOT: `RegisterIn` now detects whether interpreter metadata was preloaded (`__able_bootstrapped_metadata`) and gates interpreter thunk-registration APIs accordingly, while always registering compiled call/method/interface dispatch tables.
+- Compiler AOT: per-package struct definitions are now seeded into runtime environments during registration when missing, using generated `runtime.StructDefinitionValue` placeholders with preserved struct kind/field/generic shape metadata.
+- Compiler AOT: overload thunk registration now executes before compiled-call env replacement, preserving bootstrap registration against interpreted declarations.
+- Compiler tests: added `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls` in `pkg/compiler/compiler_main_bootstrap_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
+- Compiler AOT: expanded no-bootstrap main gating from single-package-only to a statically-seedable multi-package path (`noBootstrapImportsSeedable`), still requiring non-dynamic code with zero fallbacks and fully compileable functions/methods/impls.
+- Compiler AOT: generator now collects module static import metadata (`ImportStatement`) per package and records selector/package/wildcard forms for launch-time seeding decisions.
+- Compiler runtime registration: added no-bootstrap-only static import seeding in `RegisterIn` that constructs per-package public symbol maps (public compiled callables + public struct defs) and replays package/selector/wildcard bindings into package envs without interpreter bootstrap.
+- Compiler runtime registration: seeded package callable exports via generated `NativeFunctionValue` proxies that swap into source package env and dispatch through `__able_call_named`, preserving compiled-call dispatch semantics.
+- Compiler tests: added `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports` to verify generated `main.go` skips `EvaluateProgram(...)` for a static multi-package import case and that generated registration emits import-seeding code.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
+- Compiler AOT: expanded no-bootstrap import seedability to include wildcard imports and named impl namespace imports (in addition to package/selector imports), while preserving fallback/dynamic/compileability guards.
+- Compiler generator: now tracks union definitions/packages alongside interface metadata so no-bootstrap import seeding can expose public unions/interfaces consistently.
+- Compiler registration (`RegisterIn`): per-package env seeding now covers missing interface and union definitions in no-bootstrap flows (struct seeding remained in place).
+- Compiler registration (`RegisterIn`): added named impl namespace seeding for packages without bootstrapped metadata, constructing `runtime.ImplementationNamespaceValue` with compiled native method wrappers.
+- Compiler registration no-bootstrap import seeding: source package public maps now include public functions, structs, interfaces, unions, and named impl namespaces; wildcard seeding replays all importable names.
+- Safety gate: no-bootstrap now rejects ambiguous named impl namespace shapes (mixed targets/interfaces per impl name or overloaded impl namespace methods). These cases continue to bootstrap.
+- Compiler tests: added
+  - `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport`
+  - `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport`
+  in `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_05_interface_named_impl_defaults,10_09_interface_named_impl_inherent,06_12_01_stdlib_string_helpers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Refactor: split compiler render helpers to maintain file-size guardrails (<1000 lines) by moving struct-definition helpers into `generator_render_struct_defs.go` and thunk emitters into `generator_render_thunks.go`; `generator_render_functions.go` is now under 1000 lines.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
+- Compiler AOT: no-bootstrap named impl namespace seeding now supports overloaded methods by emitting per-namespace overload dispatch closures (type-match scoring + ambiguity/no-match errors + partial application via `runtime.PartialFunctionValue`).
+- Compiler AOT: removed the no-bootstrap seedability rejection for overloaded named impl namespace methods; the safety gate now validates overload dispatchability (compileable entries + renderable concrete param types).
+- Compiler tests: added `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads` in `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_05_interface_named_impl_defaults,10_09_interface_named_impl_inherent,10_17_interface_overload_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiler AOT: no-bootstrap import callable seeding now binds imported callables directly to compiled call table entries (`__able_lookup_compiled_call`) rather than routing through `__able_call_named`, reducing boundary indirection for static cross-package calls.
+- Compiler tests: strengthened `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports` to assert direct compiled-call binding in generated seeding logic.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiler AOT: started package-output partitioning by adding a dedicated generated artifact `compiled_packages.go` that emits per-package registrar helpers plus a shared `__able_register_compiled_packages(...)` entrypoint.
+- Compiler AOT: `compiled.go` registration now delegates package seeding/callable registration to the generated package registrar entrypoint, preserving runtime behavior while separating package-scoped emission.
+- Compiler tests: `compiler_main_bootstrap_test` now inspects combined generated compiled sources (`compiled.go` + `compiled_packages.go`) so no-bootstrap assertions cover split output.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Compiler AOT: continued package-output partitioning by moving function/overload callable registration emission into per-package generated files (`compiled_pkg_callables_*.go`) via package-scoped helpers (`__able_register_compiled_package_callables_*`).
+- Compiler AOT: package registrars in `compiled_packages.go` now focus on package env/bootstrap seeding and delegate callable registration to per-package callable helpers.
+- Compiler tests: bootstrap source inspection now aggregates all `compiled*.go` outputs so assertions stay valid as generated artifacts split across files.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiler AOT: continued package-output partitioning by moving method/impl registration emission into per-package generated files (`compiled_pkg_methods_impls_*.go`) via package-scoped helpers (`__able_register_compiled_package_methods_impls_*`).
+- Compiler AOT: `RegisterIn` now invokes generated `__able_register_compiled_method_impl_packages(...)` for method/impl registration before interface-dispatch table setup, preserving registration order while removing inline monolithic emission.
+- Compiler AOT: package registrars in `compiled_packages.go` now focus on package env/bootstrap/definition seeding and delegate methods+impls and callables to dedicated per-package generated helpers.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiler AOT: continued generated-output partitioning by moving interface-dispatch and method-overload registration emission out of `compiled.go` into dedicated generated artifact `compiled_interface_dispatch.go`.
+- Compiler AOT: `RegisterIn` now delegates dispatch setup to `__able_register_compiled_interface_dispatch(rt)` after per-package method/impl registration, preserving registration order while reducing monolithic `compiled.go` emission.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
+- CLI/compiler integration: added shared `ABLE_COMPILER_REQUIRE_NO_FALLBACKS` parsing helper in `v12/interpreters/go/cmd/able/compiler_options.go` with strict token validation and explicit error messages for invalid values.
+- CLI/compiler integration: `able test --compiled` now applies the same `RequireNoFallbacks` setting (via env) before compilation, matching `able build` strict fallback behavior.
+- CLI tests: added `TestBuildNoFallbacksFlagFailsWhenFallbackRequired`, `TestBuildNoFallbacksEnvFailsWhenFallbackRequired`, and `TestBuildNoFallbacksInvalidEnvFailsArgumentParsing` in `v12/interpreters/go/cmd/able/build_test.go`.
+- CLI tests: added `TestBuildAllowFallbacksOverridesEnv` in `v12/interpreters/go/cmd/able/build_test.go` and `TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv` in `v12/interpreters/go/cmd/able/test_cli_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./cmd/able -run 'TestBuildNoFallbacksFlagFailsWhenFallbackRequired|TestBuildNoFallbacksEnvFailsWhenFallbackRequired|TestBuildNoFallbacksInvalidEnvFailsArgumentParsing|TestBuildAllowFallbacksOverridesEnv|TestBuildTargetFromManifest|TestBuildOutputOutsideModuleRoot|TestTestCommandCompiledRuns|TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./cmd/able -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRequireNoFallbacksFails|TestCompilerEmitsStructsAndWrappers' -count=1`.
+- Compiler AOT: continued generated-output partitioning by moving no-bootstrap static import seeding emission out of `compiled_packages.go` into dedicated generated artifact `compiled_import_seeding.go`.
+- Compiler AOT: package registration now calls `__able_seed_no_bootstrap_imports(__able_bootstrapped_metadata)` so `compiled_packages.go` focuses on package registrar orchestration.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Compiler AOT: continued generated-output partitioning by moving per-package definition seeding (struct/interface/union + named impl namespace seeds) out of `compiled_packages.go` into per-package generated artifacts (`compiled_pkg_defs_*.go`).
+- Compiler AOT: package registrars now delegate definition seeding to generated helpers (`__able_register_compiled_package_defs_*`) before callable registration, reducing monolithic package registrar emission.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
+- Compiler AOT: continued generated-output partitioning by moving per-package package-registrar emission out of `compiled_packages.go` into per-package generated artifacts (`compiled_pkg_registrar_*.go`).
+- Compiler AOT: `compiled_packages.go` now focuses on aggregator orchestration (`__able_register_compiled_method_impl_packages`, `__able_register_compiled_packages`) and delegates per-package registration to generated registrar helpers.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
+- Compiler AOT: continued generated-output partitioning by moving register/run entrypoint emission (`Register`, `RegisterIn`, `RunMain`, `RunMainIn`, `RunRegisteredMain`) out of `compiled.go` into dedicated generated artifact `compiled_register.go`.
+- Compiler AOT: `compiled.go` now focuses on runtime helpers, compiled bodies/wrappers, thunks, overload dispatchers, and diagnostics, while registration entrypoint orchestration is emitted separately.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
+- Compiler AOT: continued generated-output partitioning by moving package-registration aggregator emission out of `compiled_packages.go` into dedicated generated artifact `compiled_package_aggregators.go`.
+- Compiler AOT: generated output no longer emits `compiled_packages.go`; aggregator orchestration now lives in `compiled_package_aggregators.go` while per-package registration remains in `compiled_pkg_registrar_*.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
+- Compiler AOT: added compiler option `RequireNoFallbacks` to fail compilation when any fallback wrappers would be emitted, providing an explicit no-silent-fallback guardrail for strict builds.
+- Compiler tests: added `TestCompilerRequireNoFallbacksFails` in `v12/interpreters/go/pkg/compiler/compiler_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerEmitsStructsAndWrappers|TestCompilerRequireNoFallbacksFails' -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.

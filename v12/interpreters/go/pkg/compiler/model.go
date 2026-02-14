@@ -4,6 +4,7 @@ import "able/interpreter-go/pkg/ast"
 
 type structInfo struct {
 	Name      string
+	Package   string
 	GoName    string
 	Kind      ast.StructKind
 	Fields    []fieldInfo
@@ -69,6 +70,7 @@ type implMethodInfo struct {
 	InterfaceGenerics []*ast.GenericParameter
 	TargetType        ast.TypeExpression
 	ImplName          string
+	IsDefault         bool
 	ImplGenerics      []*ast.GenericParameter
 	WhereClause       []*ast.WhereClauseConstraint
 	MethodName        string

@@ -1,0 +1,19 @@
+{
+  "description": "stdlib channel/mutex/concurrent_queue helper semantics",
+  "expect": {
+    "stdout": [
+      "channel_sum 3",
+      "channel_closed true",
+      "channel_receive_after_close nil",
+      "with_lock_result 3",
+      "counter 3",
+      "mutex_manual ok",
+      "queue_try_enqueue true",
+      "queue_dequeue1 7",
+      "queue_try_dequeue 8",
+      "queue_closed true",
+      "queue_dequeue_after_close nil"
+    ],
+    "exit": 0
+  }
+}

@@ -84,7 +84,7 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 			return nil, false
 		}
 		if subjectType != "runtime.Value" {
-			mapped, ok := g.mapTypeExpression(p.TypeAnnotation)
+			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, p.TypeAnnotation)
 			if !ok || mapped == "" || mapped == "struct{}" {
 				ctx.setReason("unsupported typed pattern")
 				return nil, false

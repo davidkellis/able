@@ -1,0 +1,11 @@
+{
+  "description": "stdlib term tty/size/raw-mode semantics",
+  "expect": {
+    "stdout": [
+      "tty_bool true",
+      "size_checked true",
+      "raw_checked true"
+    ],
+    "exit": 0
+  }
+}

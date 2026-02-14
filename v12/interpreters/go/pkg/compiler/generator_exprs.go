@@ -182,16 +182,13 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 		expected = actual
 	}
 	if expected == "runtime.Value" {
-		if explicit {
-			actual = g.inferIntegerLiteralType(lit)
-		}
-		expr := fmt.Sprintf("%s(%s)", actual, lit.Value.String())
-		runtimeExpr, ok := g.runtimeValueExpr(expr, actual)
-		if !ok {
-			ctx.setReason("unsupported integer literal type")
-			return "", "", false
-		}
-		return runtimeExpr, "runtime.Value", true
+		literalText := lit.Value.String()
+		return fmt.Sprintf(
+			"func() runtime.Value { val, ok := new(big.Int).SetString(%q, 10); if !ok { panic(fmt.Errorf(\"invalid integer literal: %%s\", %q)) }; return runtime.IntegerValue{Val: val, TypeSuffix: %s} }()",
+			literalText,
+			literalText,
+			integerSuffix(lit),
+		), "runtime.Value", true
 	}
 	if explicit && expected != actual {
 		ctx.setReason("integer literal type mismatch")
@@ -627,6 +624,11 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 	callNode := g.diagNodeName(call, "*ast.FunctionCall", "call")
 	if len(call.TypeArguments) > 0 {
 		if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
+			// Generic calls on local values (e.g. generic lambdas) must call the
+			// bound value, not global name lookup.
+			if _, ok := ctx.lookup(callee.Name); ok {
+				return g.compileDynamicCall(ctx, call, expected, "", callNode)
+			}
 			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 		}
 		return g.compileDynamicCall(ctx, call, expected, "", callNode)
@@ -694,7 +696,7 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 						argExpr = valueExpr
 						argType = "runtime.Value"
 					}
-					coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, callee.Name)
+					coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, callee.Name, ctx.genericNames)
 					if !ok {
 						ctx.setReason("interface argument unsupported")
 						return "", "", false
@@ -1089,7 +1091,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 				argExpr = valueExpr
 				argType = "runtime.Value"
 			}
-			coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, info.Name)
+				coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, info.Name, ctx.genericNames)
 			if !ok {
 				ctx.setReason("interface argument unsupported")
 				return "", "", false
@@ -1201,7 +1203,7 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 	desiredType := "runtime.Value"
 	if expected != "" && expected != "runtime.Value" {
 		desiredType = expected
-	} else if mapped, ok := g.mapTypeExpression(expr.TargetType); ok && mapped != "" {
+	} else if mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, expr.TargetType); ok && mapped != "" {
 		desiredType = mapped
 	}
 	if desiredType == "struct{}" {
@@ -1298,7 +1300,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		goName := safeParamName(ident.Name, idx)
 		goType := "runtime.Value"
 		if param.ParamType != nil {
-			mapped, ok := g.mapTypeExpression(param.ParamType)
+			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, param.ParamType)
 			if !ok {
 				ctx.setReason("unsupported lambda parameter type")
 				return "", "", false
@@ -1330,7 +1332,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 
 	desiredReturn := ""
 	if expr.ReturnType != nil {
-		mapped, ok := g.mapTypeExpression(expr.ReturnType)
+		mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, expr.ReturnType)
 		if !ok {
 			ctx.setReason("unsupported lambda return type")
 			return "", "", false
@@ -1363,8 +1365,10 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		return "", "", false
 	}
 
+	lambdaResultName := lambdaCtx.newTemp()
+	lambdaErrName := lambdaCtx.newTemp()
 	implLines := make([]string, 0, len(bodyLines)+len(params)*4+7)
-	implLines = append(implLines, "defer func() { if recovered := recover(); recovered != nil { switch recovered.(type) { case __able_break, __able_break_label_signal, __able_continue_signal, __able_continue_label_signal: panic(recovered) }; result = nil; err = bridge.Recover(__able_runtime, callCtx, recovered) } }()")
+	implLines = append(implLines, fmt.Sprintf("defer func() { if recovered := recover(); recovered != nil { switch recovered.(type) { case __able_break, __able_break_label_signal, __able_continue_signal, __able_continue_label_signal: panic(recovered) }; %s = nil; %s = bridge.Recover(__able_runtime, callCtx, recovered) } }()", lambdaResultName, lambdaErrName))
 	implLines = append(implLines, "if __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }")
 	implLines = append(implLines, fmt.Sprintf("if len(args) != %d { return nil, fmt.Errorf(\"lambda expects %d arguments, got %%d\", len(args)) }", len(params), len(params)))
 	for idx, param := range params {
@@ -1408,7 +1412,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 	}
 
 	implBody := strings.Join(implLines, "; ")
-	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (result runtime.Value, err error) { %s }}", "<lambda>", len(params), implBody)
+	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (%s runtime.Value, %s error) { %s }}", "<lambda>", len(params), lambdaResultName, lambdaErrName, implBody)
 	return lambdaExpr, "runtime.Value", true
 }
 

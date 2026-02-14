@@ -3,11 +3,12 @@ package compiler
 import "able/interpreter-go/pkg/ast"
 
 type TypeMapper struct {
-	structs map[string]*structInfo
+	structs     map[string]*structInfo
+	packageName string
 }
 
-func NewTypeMapper(structs map[string]*structInfo) *TypeMapper {
-	return &TypeMapper{structs: structs}
+func NewTypeMapper(structs map[string]*structInfo, packageName string) *TypeMapper {
+	return &TypeMapper{structs: structs, packageName: packageName}
 }
 
 func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {

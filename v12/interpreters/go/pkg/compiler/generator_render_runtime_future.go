@@ -50,12 +50,46 @@ type __able_serial_executor struct {
 	forceAuto int
 }
 
-var __able_future_executor_once sync.Once
-var __able_future_executor_instance *__able_serial_executor
+type __able_future_executor_iface interface {
+	RunFuture(env *runtime.Environment, task func(*runtime.Environment) (runtime.Value, error)) *runtime.FutureValue
+	Flush()
+	PendingTasks() int
+	Drive(handle *runtime.FutureValue)
+	ResumeHandle(handle *runtime.FutureValue)
+	MarkBlocked(handle *runtime.FutureValue)
+	MarkUnblocked(handle *runtime.FutureValue)
+}
 
-func __able_future_executor() *__able_serial_executor {
+type __able_goroutine_executor struct {
+	pending atomic.Int64
+	blocked atomic.Int64
+	handles sync.Map
+}
+
+type __able_goroutine_handle_state struct {
+	blocked atomic.Bool
+}
+
+var __able_future_executor_once sync.Once
+var __able_future_executor_instance __able_future_executor_iface
+
+func __able_future_executor_mode() string {
+	if __able_runtime == nil {
+		return "serial"
+	}
+	if strings.EqualFold(bridge.ExecutorKind(__able_runtime), "goroutine") {
+		return "goroutine"
+	}
+	return "serial"
+}
+
+func __able_future_executor() __able_future_executor_iface {
 	__able_future_executor_once.Do(func() {
-		__able_future_executor_instance = __able_new_serial_executor()
+		if __able_future_executor_mode() == "goroutine" {
+			__able_future_executor_instance = __able_new_goroutine_executor()
+		} else {
+			__able_future_executor_instance = __able_new_serial_executor()
+		}
 	})
 	return __able_future_executor_instance
 }
@@ -468,7 +502,8 @@ func __able_future_yield() (runtime.Value, error) {
 		return nil, fmt.Errorf("future_yield must be called inside an asynchronous task")
 	}
 	if payload.yield == nil || payload.resume == nil {
-		return nil, fmt.Errorf("future_yield must be called inside an asynchronous task")
+		time.Sleep(0)
+		return runtime.NilValue{}, nil
 	}
 	payload.yield <- __able_compiled_yield{}
 	<-payload.resume
@@ -501,6 +536,26 @@ func __able_future_pending_tasks() runtime.Value {
 	return runtime.IntegerValue{
 		Val:        big.NewInt(int64(pending)),
 		TypeSuffix: runtime.IntegerI32,
+	}
+}
+
+func __able_mark_current_task_blocked() {
+	payload := __able_current_payload()
+	if payload == nil || payload.handle == nil {
+		return
+	}
+	if exec := __able_future_executor(); exec != nil {
+		exec.MarkBlocked(payload.handle)
+	}
+}
+
+func __able_mark_current_task_unblocked() {
+	payload := __able_current_payload()
+	if payload == nil || payload.handle == nil {
+		return
+	}
+	if exec := __able_future_executor(); exec != nil {
+		exec.MarkUnblocked(payload.handle)
 	}
 }
 
@@ -544,12 +599,15 @@ func __able_async_failure(err error) error {
 	if err == nil {
 		return nil
 	}
+	if errors.Is(err, context.Canceled) {
+		return context.Canceled
+	}
 	switch err.(type) {
 	case __able_task_error, *__able_task_error:
 		return err
 	}
 	failure := runtime.ErrorValue{Message: err.Error()}
-	return __able_task_failure(failure, failure.Message)
+	return __able_future_failure(failure, "task failed")
 }
 
 func __able_async_cancelled() error {
@@ -593,9 +651,9 @@ func __able_run_compiled_task(payload *__able_async_payload, env *runtime.Enviro
 					err = fmt.Errorf("panic: %v", r)
 				}
 			case error:
-				err = v
+				err = __able_async_failure(v)
 			default:
-				err = fmt.Errorf("panic: %v", r)
+				err = __able_async_failure(fmt.Errorf("panic: %v", r))
 			}
 			result = nil
 		}
@@ -658,6 +716,107 @@ func __able_apply_task_outcome(handle *runtime.FutureValue, result runtime.Value
 			handle.Fail(runtime.ErrorValue{Message: err.Error()})
 		default:
 			handle.Fail(runtime.ErrorValue{Message: err.Error()})
+		}
+	}
+}
+
+func __able_new_goroutine_executor() *__able_goroutine_executor {
+	return &__able_goroutine_executor{}
+}
+
+func (e *__able_goroutine_executor) RunFuture(env *runtime.Environment, task func(*runtime.Environment) (runtime.Value, error)) *runtime.FutureValue {
+	if task == nil {
+		return nil
+	}
+	if env == nil && __able_runtime != nil {
+		env = __able_runtime.Env()
+	}
+	if env != nil {
+		env = runtime.NewEnvironment(env)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	handle := runtime.NewFutureWithContext(ctx, cancel)
+	payload := &__able_async_payload{handle: handle}
+	e.registerHandle(handle)
+	e.pending.Add(1)
+	go func() {
+		defer e.unregisterHandle(handle)
+		defer e.pending.Add(-1)
+		handle.MarkStarted()
+		result, err := __able_run_compiled_task(payload, env, task)
+		__able_apply_task_outcome(handle, result, err)
+	}()
+	return handle
+}
+
+func (e *__able_goroutine_executor) Flush() {
+	for {
+		pending := e.pending.Load()
+		if pending <= 0 {
+			return
+		}
+		blocked := e.blocked.Load()
+		if blocked >= pending && pending > 0 {
+			return
+		}
+		time.Sleep(0)
+	}
+}
+
+func (e *__able_goroutine_executor) PendingTasks() int {
+	pending := e.pending.Load()
+	if pending < 0 {
+		return 0
+	}
+	return int(pending)
+}
+
+func (e *__able_goroutine_executor) Drive(_ *runtime.FutureValue) {}
+
+func (e *__able_goroutine_executor) ResumeHandle(_ *runtime.FutureValue) {}
+
+func (e *__able_goroutine_executor) registerHandle(handle *runtime.FutureValue) {
+	if handle == nil {
+		return
+	}
+	e.handles.Store(handle, &__able_goroutine_handle_state{})
+}
+
+func (e *__able_goroutine_executor) unregisterHandle(handle *runtime.FutureValue) {
+	if handle == nil {
+		return
+	}
+	if stateAny, ok := e.handles.LoadAndDelete(handle); ok {
+		if state, ok := stateAny.(*__able_goroutine_handle_state); ok {
+			if state.blocked.Load() {
+				e.blocked.Add(-1)
+			}
+		}
+	}
+}
+
+func (e *__able_goroutine_executor) MarkBlocked(handle *runtime.FutureValue) {
+	if handle == nil {
+		return
+	}
+	if stateAny, ok := e.handles.Load(handle); ok {
+		if state, ok := stateAny.(*__able_goroutine_handle_state); ok {
+			if state.blocked.CompareAndSwap(false, true) {
+				e.blocked.Add(1)
+			}
+		}
+	}
+}
+
+func (e *__able_goroutine_executor) MarkUnblocked(handle *runtime.FutureValue) {
+	if handle == nil {
+		return
+	}
+	if stateAny, ok := e.handles.Load(handle); ok {
+		if state, ok := stateAny.(*__able_goroutine_handle_state); ok {
+			if state.blocked.CompareAndSwap(true, false) {
+				e.blocked.Add(-1)
+			}
 		}
 	}
 }
@@ -804,6 +963,10 @@ func (e *__able_serial_executor) ResumeHandle(handle *runtime.FutureValue) {
 		e.enqueue(task)
 	}
 }
+
+func (e *__able_serial_executor) MarkBlocked(_ *runtime.FutureValue) {}
+
+func (e *__able_serial_executor) MarkUnblocked(_ *runtime.FutureValue) {}
 
 func (e *__able_serial_executor) stealTask(handle *runtime.FutureValue) (__able_serial_task, bool) {
 	e.mu.Lock()

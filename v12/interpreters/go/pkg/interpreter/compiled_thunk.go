@@ -159,6 +159,18 @@ func (i *Interpreter) RegisterCompiledImplMethodOverload(interfaceName string, t
 		entries = append(entries, &i.genericImpls[idx])
 	}
 	matches := 0
+	ifaceBindings := make(map[string]ast.TypeExpression)
+	if ifaceDef := i.interfaces[interfaceName]; ifaceDef != nil && ifaceDef.Node != nil {
+		for idx, gp := range ifaceDef.Node.GenericParams {
+			if gp == nil || gp.Name == nil || gp.Name.Name == "" {
+				continue
+			}
+			if idx >= len(normalizedArgs) || normalizedArgs[idx] == nil {
+				continue
+			}
+			ifaceBindings[gp.Name.Name] = normalizedArgs[idx]
+		}
+	}
 	for _, entry := range entries {
 		if entry == nil || entry.definition == nil {
 			continue
@@ -173,14 +185,21 @@ func (i *Interpreter) RegisterCompiledImplMethodOverload(interfaceName string, t
 		} else if entry.definition.ImplName != nil {
 			continue
 		}
-		entryTarget := expandTypeAliases(entry.definition.TargetType, i.typeAliases, nil)
-		if !typeExpressionsEqual(entryTarget, normalizedTarget) {
+		matchedTarget, ok := i.matchCompiledImplTarget(entry, normalizedTarget)
+		if !ok {
 			continue
 		}
 		if !interfaceArgsEqual(i, entry.definition.InterfaceArgs, normalizedArgs) {
 			continue
 		}
-		if constraintSignature(collectConstraintSpecs(entry.genericParams, entry.whereClause), typeExpressionToString) != constraintSig {
+		constraints := collectConstraintSpecs(entry.genericParams, entry.whereClause)
+		// Compiler-side registration can still reference source aliases while
+		// runtime impl entries are canonicalized. Accept either signature form.
+		entryConstraintSig := constraintSignature(constraints, typeExpressionToString)
+		entryConstraintExpandedSig := constraintSignature(constraints, func(expr ast.TypeExpression) string {
+			return typeExpressionToString(expandTypeAliases(expr, i.typeAliases, nil))
+		})
+		if entryConstraintSig != constraintSig && entryConstraintExpandedSig != constraintSig {
 			continue
 		}
 		method := entry.methods[methodName]
@@ -196,13 +215,15 @@ func (i *Interpreter) RegisterCompiledImplMethodOverload(interfaceName string, t
 				return
 			}
 			expectsSelf := functionDefinitionExpectsSelf(def)
-			defParams := methodDefinitionParamTypes(def, entry.definition.TargetType, expectsSelf)
+			defParams := methodDefinitionParamTypes(def, matchedTarget, expectsSelf)
 			if len(defParams) != len(paramTypes) {
 				return
 			}
 			for idx := range defParams {
 				left := expandTypeAliases(defParams[idx], i.typeAliases, nil)
+				left = substituteCompiledThunkTypeParams(left, ifaceBindings)
 				right := expandTypeAliases(paramTypes[idx], i.typeAliases, nil)
+				right = substituteCompiledThunkTypeParams(right, ifaceBindings)
 				if !typeExpressionsEqual(left, right) {
 					return
 				}
@@ -222,9 +243,40 @@ func (i *Interpreter) RegisterCompiledImplMethodOverload(interfaceName string, t
 		}
 	}
 	if matches == 0 {
-		return fmt.Errorf("interpreter: no matching impl method for %s.%s", interfaceName, methodName)
+		return fmt.Errorf(
+			"interpreter: no matching impl method for %s.%s target=%s ifaceArgs=%s constraints=%s params=%s",
+			interfaceName,
+			methodName,
+			typeExpressionToString(targetType),
+			typeExpressionListString(interfaceArgs),
+			constraintSig,
+			typeExpressionListString(paramTypes),
+		)
 	}
 	return nil
+}
+
+func (i *Interpreter) matchCompiledImplTarget(entry *implEntry, target ast.TypeExpression) (ast.TypeExpression, bool) {
+	if i == nil || entry == nil || target == nil {
+		return nil, false
+	}
+	candidates := make([]ast.TypeExpression, 0, 2)
+	if entry.registrationTarget != nil {
+		candidates = append(candidates, entry.registrationTarget)
+	}
+	if entry.definition != nil && entry.definition.TargetType != nil {
+		candidates = append(candidates, entry.definition.TargetType)
+	}
+	for _, candidate := range candidates {
+		if candidate == nil {
+			continue
+		}
+		normalizedCandidate := expandTypeAliases(candidate, i.typeAliases, nil)
+		if typeExpressionsEqual(normalizedCandidate, target) {
+			return candidate, true
+		}
+	}
+	return nil, false
 }
 
 // RegisterCompiledImplNamespaceMethod wires a compiled thunk to a named impl namespace method.
@@ -464,5 +516,72 @@ func argsAreGenericParams(expr ast.TypeExpression, params []*ast.GenericParamete
 		return true
 	default:
 		return false
+	}
+}
+
+func typeExpressionListString(exprs []ast.TypeExpression) string {
+	if len(exprs) == 0 {
+		return "[]"
+	}
+	parts := make([]string, 0, len(exprs))
+	for _, expr := range exprs {
+		parts = append(parts, typeExpressionToString(expr))
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+func substituteCompiledThunkTypeParams(expr ast.TypeExpression, bindings map[string]ast.TypeExpression) ast.TypeExpression {
+	if expr == nil || len(bindings) == 0 {
+		return expr
+	}
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t == nil || t.Name == nil {
+			return expr
+		}
+		if bound, ok := bindings[t.Name.Name]; ok && bound != nil {
+			return bound
+		}
+		return expr
+	case *ast.GenericTypeExpression:
+		if t == nil {
+			return expr
+		}
+		base := substituteCompiledThunkTypeParams(t.Base, bindings)
+		args := make([]ast.TypeExpression, len(t.Arguments))
+		for idx, arg := range t.Arguments {
+			args[idx] = substituteCompiledThunkTypeParams(arg, bindings)
+		}
+		return ast.NewGenericTypeExpression(base, args)
+	case *ast.FunctionTypeExpression:
+		if t == nil {
+			return expr
+		}
+		params := make([]ast.TypeExpression, len(t.ParamTypes))
+		for idx, param := range t.ParamTypes {
+			params[idx] = substituteCompiledThunkTypeParams(param, bindings)
+		}
+		return ast.NewFunctionTypeExpression(params, substituteCompiledThunkTypeParams(t.ReturnType, bindings))
+	case *ast.NullableTypeExpression:
+		if t == nil {
+			return expr
+		}
+		return ast.NewNullableTypeExpression(substituteCompiledThunkTypeParams(t.InnerType, bindings))
+	case *ast.ResultTypeExpression:
+		if t == nil {
+			return expr
+		}
+		return ast.NewResultTypeExpression(substituteCompiledThunkTypeParams(t.InnerType, bindings))
+	case *ast.UnionTypeExpression:
+		if t == nil {
+			return expr
+		}
+		members := make([]ast.TypeExpression, len(t.Members))
+		for idx, member := range t.Members {
+			members[idx] = substituteCompiledThunkTypeParams(member, bindings)
+		}
+		return ast.NewUnionTypeExpression(members)
+	default:
+		return expr
 	}
 }
