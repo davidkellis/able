@@ -17,6 +17,10 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 	if def.TargetType == nil {
 		return
 	}
+	targetType := g.expandTypeAliasForPackage(pkgName, def.TargetType)
+	if targetType == nil {
+		targetType = def.TargetType
+	}
 	if g.implDefinitions == nil {
 		g.implDefinitions = make([]*implDefinitionInfo, 0, 4)
 	}
@@ -31,7 +35,7 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 		g.implMethodList = make([]*implMethodInfo, 0, len(def.Definitions))
 	}
 	ifaceName := def.InterfaceName.Name
-	targetDesc := typeExpressionToString(def.TargetType)
+	targetDesc := typeExpressionToString(targetType)
 	implName := ""
 	if def.ImplName != nil {
 		implName = def.ImplName.Name
@@ -52,12 +56,12 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 			Definition:  fn,
 			HasOriginal: false,
 		}
-		g.fillImplMethodInfo(info, mapper, def.TargetType)
+		g.fillImplMethodInfo(info, mapper, targetType)
 		implInfo := &implMethodInfo{
 			InterfaceName:     ifaceName,
 			InterfaceArgs:     def.InterfaceArgs,
 			InterfaceGenerics: ifaceGenerics,
-			TargetType:        def.TargetType,
+			TargetType:        targetType,
 			ImplName:          implName,
 			ImplGenerics:      def.GenericParams,
 			WhereClause:       def.WhereClause,
@@ -105,6 +109,10 @@ func (g *generator) collectDefaultImplMethods() {
 			pkgName = entry.Package
 		}
 		mapper := NewTypeMapper(g.structs, pkgName)
+		targetType := g.expandTypeAliasForPackage(entry.Package, def.TargetType)
+		if targetType == nil {
+			targetType = def.TargetType
+		}
 		if g.implMethodList == nil {
 			g.implMethodList = make([]*implMethodInfo, 0, len(iface.Signatures))
 		}
@@ -117,18 +125,18 @@ func (g *generator) collectDefaultImplMethods() {
 			}
 			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
 			info := &functionInfo{
-				Name:        fmt.Sprintf("impl %s for %s.%s", ifaceName, typeExpressionToString(def.TargetType), sig.Name.Name),
+				Name:        fmt.Sprintf("impl %s for %s.%s", ifaceName, typeExpressionToString(targetType), sig.Name.Name),
 				Package:     pkgName,
 				GoName:      g.mangler.unique(fmt.Sprintf("impl_%s_%s_default_%d", sanitizeIdent(ifaceName), sanitizeIdent(sig.Name.Name), idx)),
 				Definition:  defaultDef,
 				HasOriginal: false,
 			}
-			g.fillImplMethodInfo(info, mapper, def.TargetType)
+			g.fillImplMethodInfo(info, mapper, targetType)
 			implInfo := &implMethodInfo{
 				InterfaceName:     ifaceName,
 				InterfaceArgs:     def.InterfaceArgs,
 				InterfaceGenerics: iface.GenericParams,
-				TargetType:        def.TargetType,
+				TargetType:        targetType,
 				ImplName:          implName,
 				IsDefault:         true,
 				ImplGenerics:      def.GenericParams,
@@ -188,7 +196,16 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 		})
 	}
 	retExpr := resolveSelfTypeExpr(def.ReturnType, target)
-	retType, ok := mapper.Map(retExpr)
+	expectsSelf := methodDefinitionExpectsSelf(def)
+	retType := ""
+	ok := false
+	if forcedType, forced := g.staticMethodNominalStructReturnType(target, expectsSelf, retExpr); forced {
+		retType = forcedType
+		ok = true
+	}
+	if !ok {
+		retType, ok = mapper.Map(retExpr)
+	}
 	if !ok || retType == "" {
 		supported = false
 	}
