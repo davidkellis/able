@@ -382,9 +382,26 @@ func unwrapInterfaceValue(val runtime.Value) runtime.Value {
 func (i *Interpreter) resolveInterfaceMethod(receiver runtime.Value, interfaceName string, methodName string) (runtime.Value, error) {
 	info, ok := i.getTypeInfoForValue(receiver)
 	if !ok {
+		if i.interfaceMethodResolver != nil {
+			if method, found := i.interfaceMethodResolver(receiver, interfaceName, methodName); found {
+				return method, nil
+			}
+		}
 		return nil, nil
 	}
-	return i.findMethod(info, methodName, interfaceName, nil)
+	method, err := i.findMethod(info, methodName, interfaceName, nil)
+	if err != nil {
+		return nil, err
+	}
+	if method != nil {
+		return method, nil
+	}
+	if i.interfaceMethodResolver != nil {
+		if resolved, found := i.interfaceMethodResolver(receiver, interfaceName, methodName); found {
+			return resolved, nil
+		}
+	}
+	return nil, nil
 }
 
 func (i *Interpreter) newKernelHasher() (runtime.Value, error) {

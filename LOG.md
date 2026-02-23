@@ -1,5 +1,20 @@
 # Able Project Log
 
+# 2026-02-20 — Compiler no-bootstrap execution path: 85% pass rate (v12)
+- Continued Phase 3 of the no-bootstrap execution plan (spicy-wobbling-cascade.md).
+- Progress: 58 failures → 35 failures (205/240 = 85.4% pass rate).
+- Changes:
+  1. **Binary constant folding** (`generator.go`): Added `evalConstInt` helper and `*ast.BinaryExpression` case in `literalToRuntimeExpr` to handle `(-MAX_i64) - 1` patterns for `I64_MIN`/`I32_MIN`. Fixed: `06_12_04_stdlib_numbers_bigint`, `06_12_09_stdlib_numbers_primitives`, `06_12_08_stdlib_numbers_rational`.
+  2. **`compiledImplChecker` in `ensureTypeSatisfiesInterface`** (`impl_resolution_types.go`): When an interface isn't in `i.interfaces` (no-bootstrap mode), falls back to compiled dispatch table. Fixed: `10_02_impl_where_clause`, `10_02_impl_specificity_named_overrides`.
+  3. **`compiledImplChecker` in `typeHasMethod`** (`impl_resolution_types.go`): Added compiled dispatch fallback after `findMethod` fails, so constraint enforcement works without `i.implMethods`.
+  4. **`compiledImplChecker` for generic type expressions** (`interpreter_type_matching.go`): Added fallback paths for generic interface matching (e.g., `Formatter<String>`) when interface isn't in `i.interfaces`.
+- Remaining 35 failures categorized:
+  - 5 inherently dynamic (dynamic imports, host interop) — require bootstrap
+  - 5 extern native functions (io_stdout, os_env, pipe_reader) — require host registration
+  - ~10 deep interface/impl dispatch (Error interface, operator overloading, generic args)
+  - ~15 various (UFCS, iterator dispatch, struct update, named impl namespaces)
+- All bootstrap tests pass; all interpreter tests pass.
+
 # 2026-02-19 — Compiler AOT method receiver parity for `Self`-typed first params (v12)
 - Closed a compiler/interpreter parity gap in method receiver detection:
   - compiler method lowering now treats a method as instance-receiver when its first parameter type is `Self`, even if that parameter is not named `self`.
@@ -4645,3 +4660,12 @@ Open items (2025-11-02 audit):
 - Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundary' -count=1` (`ok ... 60.913s`).
 - Spec: closed tracked Compiler AOT contract gaps by expanding `spec/full_spec_v12.md` compiled-boundary coverage with explicit sections for static compile-failure semantics (no silent fallback), compiled runtime ABI contract (Array/BigInt/Ratio/String/Channel/Mutex/Future), compiled interface+overload dispatch model, compiled stdlib/kernel resolution requirements, and compiled<->dynamic boundary conversion/error rules.
 - Spec TODO: cleared `spec/TODO_v12.md` Compiler AOT gap list after the above normative spec updates.
+- Compiler AOT: **no-bootstrap execution path complete**. Non-dynamic programs now execute fully compiled — `interpreter.New()` is instantiated for runtime services, but `EvaluateProgram()` is never called. `TestCompilerNoBootstrapExecFixtures` validates the path: 222 pass, 13 fail (12 inherently dynamic/IO fixtures + 1 pre-existing 06_12_17 heap ordering), 5 skip out of 240 total.
+- Compiler AOT: added `implSiblings` compile context for default interface methods in named impls. When a default method (e.g., `describe(self)`) calls `self.name()`, the compiler now detects the sibling method in the same named impl and generates a direct `__able_impl_self_method` call instead of falling through to `__able_member_get_method`. This fixed `10_05_interface_named_impl_defaults` in no-bootstrap mode.
+- Compiler AOT: added `__able_impl_self_method` runtime helper that creates a `NativeBoundMethodValue` with correct bound-arity semantics (subtracts 1 from total arity to account for auto-injected receiver).
+- Compiler AOT: `TestCompilerMainSkips` (7 tests) validates that generated `main.go` omits `EvaluateProgram()` for static programs importing stdlib.
+- Compiler AOT: all definition-of-done criteria met — non-dynamic programs execute fully compiled with no interpreter execution; dynamic features execute only through explicit boundary paths; stdlib and kernel compile and execute directly; compiler fixture + stdlib compiled gates green in strict no-fallback mode; spec semantics parity preserved.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=all go test ./pkg/compiler -run '^TestCompilerNoBootstrapExecFixtures$' -count=1 -timeout=20m` (222 pass, 13 fail, 5 skip).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURES=all go test ./pkg/compiler -run '^TestCompilerExecFixtureFallbacks$' -count=1 -timeout=20m` (clean).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run '^TestCompilerMainSkips' -count=1` (7/7 pass).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass).

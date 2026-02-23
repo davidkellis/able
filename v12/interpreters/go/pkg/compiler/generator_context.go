@@ -71,6 +71,7 @@ func (c *compileContext) child() *compileContext {
 		returnType:          c.returnType,
 		returnTypeExpr:      c.returnTypeExpr,
 		genericNames:        c.genericNames,
+		implSiblings:        c.implSiblings,
 	}
 }
 

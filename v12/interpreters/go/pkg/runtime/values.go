@@ -172,7 +172,9 @@ const (
 	IntegerU16  IntegerType = "u16"
 	IntegerU32  IntegerType = "u32"
 	IntegerU64  IntegerType = "u64"
-	IntegerU128 IntegerType = "u128"
+	IntegerU128  IntegerType = "u128"
+	IntegerIsize IntegerType = "isize"
+	IntegerUsize IntegerType = "usize"
 )
 
 type IntegerValue struct {

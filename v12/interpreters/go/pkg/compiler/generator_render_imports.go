@@ -159,10 +159,16 @@ func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageLis
 				fmt.Fprintf(buf, "\t\t%s.Define(%q, runtime.PackageValue{Name: %q, NamePath: %s, Public: %s})\n",
 					targetEnvVar, binding.LocalName, binding.SourcePackage, namePath, publicVar)
 			case staticImportBindingSelector:
+				sourceEnvVar, sourceOk := g.packageEnvVar(binding.SourcePackage)
 				fmt.Fprintf(buf, "\t\tif !%s.HasInCurrentScope(%q) {\n", targetEnvVar, binding.LocalName)
 				fmt.Fprintf(buf, "\t\t\tif val, ok := %s[%q]; ok && val != nil {\n", publicVar, binding.SourceName)
 				fmt.Fprintf(buf, "\t\t\t\t%s.Define(%q, val)\n", targetEnvVar, binding.LocalName)
 				fmt.Fprintf(buf, "\t\t\t\t__able_define_struct_binding(%s, %q, val)\n", targetEnvVar, binding.LocalName)
+				if sourceOk {
+					fmt.Fprintf(buf, "\t\t\t} else if def, ok := %s.StructDefinition(%q); ok && def != nil {\n", sourceEnvVar, binding.SourceName)
+					fmt.Fprintf(buf, "\t\t\t\t%s.Define(%q, def)\n", targetEnvVar, binding.LocalName)
+					fmt.Fprintf(buf, "\t\t\t\t%s.DefineStruct(%q, def)\n", targetEnvVar, binding.LocalName)
+				}
 				fmt.Fprintf(buf, "\t\t\t}\n")
 				fmt.Fprintf(buf, "\t\t}\n")
 			case staticImportBindingWildcard:

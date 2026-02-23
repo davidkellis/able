@@ -590,6 +590,10 @@ func (i *Interpreter) ensureTypeSatisfiesInterface(tInfo typeInfo, ifaceExpr ast
 	visited[ifaceInfo.name] = struct{}{}
 	ifaceDef, ok := i.interfaces[ifaceInfo.name]
 	if !ok {
+		// In compiled no-bootstrap mode, trust the compiled dispatch table
+		if i.compiledImplChecker != nil && i.compiledImplChecker(tInfo.name, ifaceInfo.name) {
+			return nil
+		}
 		return fmt.Errorf("Unknown interface '%s' in constraint on '%s'", ifaceInfo.name, context)
 	}
 	if ifaceDef.Node != nil {
@@ -626,7 +630,13 @@ func (i *Interpreter) typeHasMethod(info typeInfo, methodName, ifaceName string)
 		}
 	}
 	method, err := i.findMethod(info, methodName, ifaceName, nil)
-	return err == nil && method != nil
+	if err == nil && method != nil {
+		return true
+	}
+	if i.compiledImplChecker != nil && ifaceName != "" && i.compiledImplChecker(info.name, ifaceName) {
+		return true
+	}
+	return false
 }
 
 func parseTypeExpression(expr ast.TypeExpression) (typeInfo, bool) {

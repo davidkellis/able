@@ -53,15 +53,8 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 		}
 		if g.isSingletonPattern(ctx, p.Name) {
 			if subjectType == "runtime.Value" {
-				nodeName := g.diagNodeName(p, "*ast.Identifier", "ident")
-				valueExpr := fmt.Sprintf("__able_global_get(%q, %s)", p.Name, nodeName)
-				condExpr := fmt.Sprintf("__able_binary_op(%q, %s, %s)", "==", subjectTemp, valueExpr)
-				converted, ok := g.expectRuntimeValueExpr(condExpr, "bool")
-				if !ok {
-					ctx.setReason("singleton pattern comparison")
-					return "", false
-				}
-				return converted, true
+				condExpr := fmt.Sprintf("__able_match_singleton(%s, %q)", subjectTemp, p.Name)
+				return condExpr, true
 			}
 			info := g.structs[p.Name]
 			baseType := subjectType

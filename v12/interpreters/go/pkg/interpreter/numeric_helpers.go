@@ -40,7 +40,9 @@ var integerInfos = map[runtime.IntegerType]integerInfo{
 	runtime.IntegerU16:  unsignedInfo(runtime.IntegerU16, 16),
 	runtime.IntegerU32:  unsignedInfo(runtime.IntegerU32, 32),
 	runtime.IntegerU64:  unsignedInfo(runtime.IntegerU64, 64),
-	runtime.IntegerU128: unsignedInfo(runtime.IntegerU128, 128),
+	runtime.IntegerU128:  unsignedInfo(runtime.IntegerU128, 128),
+	runtime.IntegerIsize: signedInfo(runtime.IntegerIsize, 64),
+	runtime.IntegerUsize: unsignedInfo(runtime.IntegerUsize, 64),
 }
 
 var signedSequence = []runtime.IntegerType{

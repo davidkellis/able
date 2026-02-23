@@ -479,15 +479,31 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 		return i.callCallableValue(resolved, args, env, call)
 	case runtime.BoundMethodValue:
 		injected = append(injected, fn.Receiver)
-		overloads = functionOverloads(fn.Method)
-		partialTarget = fn.Method
+		if nfv, ok := fn.Method.(*runtime.NativeFunctionValue); ok && nfv != nil {
+			native = nfv
+			partialTarget = nfv
+		} else if nfv, ok := fn.Method.(runtime.NativeFunctionValue); ok {
+			native = &nfv
+			partialTarget = native
+		} else {
+			overloads = functionOverloads(fn.Method)
+			partialTarget = fn.Method
+		}
 	case *runtime.BoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("bound method is nil")
 		}
 		injected = append(injected, fn.Receiver)
-		overloads = functionOverloads(fn.Method)
-		partialTarget = fn.Method
+		if nfv, ok := fn.Method.(*runtime.NativeFunctionValue); ok && nfv != nil {
+			native = nfv
+			partialTarget = nfv
+		} else if nfv, ok := fn.Method.(runtime.NativeFunctionValue); ok {
+			native = &nfv
+			partialTarget = native
+		} else {
+			overloads = functionOverloads(fn.Method)
+			partialTarget = fn.Method
+		}
 	default:
 		overloads = functionOverloads(callee)
 	}

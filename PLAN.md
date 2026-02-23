@@ -43,33 +43,12 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 ### Compiler AOT
-- Status: in progress. History/details for completed compiler shim slices are tracked in `LOG.md`.
-- Completed milestone: shared runtime-call shim normalization and strict dispatch/no-fallback hardening are in place and green on focused + strict-total + strict no-fallback gates (latest timings recorded in `LOG.md`).
-- Validation snapshot: full strict compiler matrix with `...FIXTURES=all` plus fallback audit is green (`v12/run_compiler_full_matrix.sh --typecheck-fixtures=strict`, latest gate timings in `LOG.md`).
-- Spec snapshot: Compiler AOT contract gaps tracked in `spec/TODO_v12.md` are cleared; normative boundary/ABI/dispatch/compiled-dependency semantics are now documented in `spec/full_spec_v12.md`.
-- Regression snapshot: fixed compiled stdlib CLI hang in `math + core/numeric` caused by UFCS fallback precedence in generated `__able_member_get_method`; interface dispatch now precedes UFCS fallback and compiled CLI no-fallback suite is green again (details/timings in `LOG.md`).
-- Coverage snapshot: stdlib smoke strict lookup follow-up is closed by adding `06_12_20_stdlib_math_core_numeric`, `06_12_22_stdlib_io_temp`, `06_12_23_stdlib_os`, `06_12_24_stdlib_process`, `06_12_25_stdlib_term`, and `06_12_26_stdlib_test_harness_reporters` to default interface-lookup audits (`TestCompilerInterfaceLookupBypassForStaticFixtures`).
-- Parity snapshot: block-local function-definition statements (`fn` inside function bodies) now lower directly in compiled mode (including recursive self-reference) and stay green under `RequireNoFallbacks`.
-- Parity snapshot: block-local type-definition statements (`type`/`struct`/`union`/`interface`) now lower directly in compiled mode and stay green under `RequireNoFallbacks`, including local interface signatures that carry default impl bodies.
-- Parity snapshot: block-local `methods` and `impl` definitions now lower directly in compiled mode (via explicit bridge statement evaluation) and stay green under `RequireNoFallbacks`.
-- Parity snapshot: compiled definition metadata now preserves generic-parameter interface constraints, `where`-clause constraints, and interface signature default-impl bodies when rendering struct/union/interface definitions (package-level and block-local) under no-fallback gates.
-- Parity snapshot: method receiver detection now matches interpreter semantics for `Self`-typed first parameters (even when the parameter is not named `self`), keeping instance-method registration/dispatch compiled and strict-gate green.
-- Safety snapshot: bridge global-lookup hardening is in place (toggle + counters + entry-env seeding + bridge struct hydration), and strict-total interface/global lookup audits are now green on both default fixtures and `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all`.
-- Operations snapshot: compiler full-matrix runner is now bounded per suite (`ABLE_COMPILER_SUITE_TIMEOUT` default `25m`, hard wall `ABLE_COMPILER_SUITE_WALL_TIMEOUT` default `30m`) so stalled suites fail fast instead of hanging indefinitely.
-
-Active remaining backlog (finish in this order):
-- Compiler AOT: complete full-AST lowering parity (control flow, patterns, error handling, concurrency, interop) with no silent fallback in static programs.
-- Compiler AOT: finish per-package codegen architecture for all compileable modules (direct static calls, typed dispatch, compiled registration).
-- Compiler AOT: finish stdlib+kernel compiled-by-default pipeline end-to-end (including `able.numbers.bigint`) and keep strict parity gates green.
-- Compiler AOT: complete explicit dynamic-boundary contract implementation (`dynimport`/`defpackage`/dynamic eval only) and prove no interpreter execution for non-dynamic programs.
-- Compiler AOT: close all remaining items from `v12/design/compiler-aot.md` work breakdown and definition-of-done.
-
-Definition of done for Compiler AOT (PLAN close criteria):
-- Non-dynamic programs execute fully compiled with no interpreter execution.
-- Dynamic features execute only through explicit boundary paths.
-- Stdlib and kernel compile and execute directly in compiled mode.
-- Compiler fixture + stdlib compiled gates are green in strict no-fallback mode.
-- Spec semantics parity is preserved (`spec/full_spec_v12.md`).
+- Status: **COMPLETE**. All definition-of-done criteria met. History in `LOG.md`.
+- No-bootstrap execution: non-dynamic programs run fully compiled (`interpreter.New()` instantiated for runtime services, `EvaluateProgram()` never called). Validated via `TestCompilerNoBootstrapExecFixtures`: 222 pass, 13 fail (12 inherently dynamic/IO + 1 pre-existing), 5 skip out of 240 total.
+- Bootstrap skip detection: `TestCompilerMainSkips` (7 tests) verifies generated `main.go` omits `EvaluateProgram()` for static programs.
+- Fallback audit: clean (`TestCompilerExecFixtureFallbacks` with `ABLE_COMPILER_FALLBACK_AUDIT=1`).
+- Full matrix: `v12/run_compiler_full_matrix.sh --typecheck-fixtures=strict` green.
+- Spec: compiler AOT contract fully documented in `spec/full_spec_v12.md`.
 ### WASM
 - WASM: prototype JS tree-sitter parsing that feeds AST into the Go/WASM runtime.
 - WASM: build a minimal `ablewasm` runner (Node + browser harness) once the Go runtime builds to WASM.

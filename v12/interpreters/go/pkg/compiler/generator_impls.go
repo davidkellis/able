@@ -248,3 +248,32 @@ func (g *generator) sortedImplMethodInfos() []*implMethodInfo {
 	})
 	return infos
 }
+
+func (g *generator) implSiblingsForDefault(target *implMethodInfo) map[string]implSiblingInfo {
+	if g == nil || target == nil || target.ImplName == "" {
+		return nil
+	}
+	siblings := make(map[string]implSiblingInfo)
+	for _, impl := range g.implMethodList {
+		if impl == nil || impl.Info == nil || !impl.Info.Compileable {
+			continue
+		}
+		if impl.ImplName != target.ImplName || impl.InterfaceName != target.InterfaceName {
+			continue
+		}
+		if typeExpressionToString(impl.TargetType) != typeExpressionToString(target.TargetType) {
+			continue
+		}
+		if impl.MethodName == target.MethodName {
+			continue
+		}
+		siblings[impl.MethodName] = implSiblingInfo{
+			GoName: impl.Info.GoName,
+			Arity:  impl.Info.Arity,
+		}
+	}
+	if len(siblings) == 0 {
+		return nil
+	}
+	return siblings
+}

@@ -272,7 +272,17 @@ func (i *Interpreter) findIndexMethod(val runtime.Value, methodName string, ifac
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, methodName, iface, nil)
+	method, err := i.findMethod(info, methodName, iface, nil)
+	if method != nil || err != nil {
+		return method, err
+	}
+	// In compiled no-bootstrap mode, fall back to the compiled interface dispatch.
+	if i.interfaceMethodResolver != nil && iface != "" {
+		if resolved, found := i.interfaceMethodResolver(val, iface, methodName); found && resolved != nil {
+			return resolved, nil
+		}
+	}
+	return nil, nil
 }
 
 // IndexGet is an exported wrapper for index access to support compiled interop.
@@ -438,7 +448,24 @@ func (i *Interpreter) findApplyMethod(val runtime.Value) (runtime.Value, error) 
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, "apply", "Apply", nil)
+	method, err := i.findMethod(info, "apply", "Apply", nil)
+	if method != nil || err != nil {
+		return method, err
+	}
+	// In compiled no-bootstrap mode, fall back to the compiled interface dispatch.
+	if i.interfaceMethodResolver != nil {
+		if resolved, found := i.interfaceMethodResolver(val, "Apply", "apply"); found && resolved != nil {
+			// Adjust arity: interfaceMethodResolver returns arity+1 (includes self),
+			// but the caller wraps in BoundMethodValue which injects receiver separately.
+			if native, ok := resolved.(*runtime.NativeFunctionValue); ok && native.Arity > 0 {
+				adjusted := *native
+				adjusted.Arity = native.Arity - 1
+				return &adjusted, nil
+			}
+			return resolved, nil
+		}
+	}
+	return nil, nil
 }
 
 func indexFromValue(val runtime.Value) (int, error) {
@@ -821,6 +848,52 @@ func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Ex
 				}
 				val.Methods[ident.Name] = method
 			}
+		}
+	}
+	// In compiled no-bootstrap mode, fall back to compiled dispatch for inherent methods
+	// that aren't in the interface definition (e.g., Iterator.collect).
+	if method == nil && i.compiledInstanceMethodFn != nil {
+		if info, ok := i.getTypeInfoForValue(val.Underlying); ok {
+			if resolved, found := i.compiledInstanceMethodFn(info.name, ident.Name); found && resolved != nil {
+				method = resolved
+			}
+		}
+	}
+	if method == nil && i.interfaceMethodResolver != nil {
+		if resolved, found := i.interfaceMethodResolver(val.Underlying, ifaceName, ident.Name); found && resolved != nil {
+			// interfaceMethodResolver returns arity+1; interfaceMember wraps in NativeBoundMethodValue
+			// which also injects receiver. Adjust arity down by 1.
+			if native, ok := resolved.(*runtime.NativeFunctionValue); ok && native.Arity > 0 {
+				adjusted := *native
+				adjusted.Arity = native.Arity - 1
+				method = &adjusted
+			} else {
+				method = resolved
+			}
+		}
+	}
+	if method == nil && i.compiledInterfaceMemberFn != nil {
+		if resolved, found := i.compiledInterfaceMemberFn(val.Underlying, ident.Name); found && resolved != nil {
+			method = resolved
+		}
+	}
+	// Fall back to IteratorValue native member dispatch (handles next, filter, etc.)
+	if method == nil {
+		if iter, ok := val.Underlying.(*runtime.IteratorValue); ok {
+			if resolved, err := i.iteratorMember(iter, member); err == nil && resolved != nil {
+				return resolved, nil
+			}
+		}
+	}
+	// Fall back to default interface method implementations (methods with DefaultImpl in the signature).
+	if method == nil && val.Interface != nil && val.Interface.Node != nil {
+		for _, sig := range val.Interface.Node.Signatures {
+			if sig == nil || sig.Name == nil || sig.Name.Name != ident.Name || sig.DefaultImpl == nil {
+				continue
+			}
+			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
+			method = &runtime.FunctionValue{Declaration: defaultDef, Closure: val.Interface.Env, MethodPriority: -1}
+			break
 		}
 	}
 	if method == nil {

@@ -131,6 +131,9 @@ func collectKernelPaths(base string) []string {
 		for _, found := range findKernelRoots(base) {
 			add(found)
 		}
+		if len(paths) > 0 {
+			return paths
+		}
 	}
 
 	for _, entry := range splitPathListEnv(os.Getenv("ABLE_MODULE_PATHS")) {
@@ -139,11 +142,17 @@ func collectKernelPaths(base string) []string {
 	for _, entry := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
 		add(entry)
 	}
+	if len(paths) > 0 {
+		return paths
+	}
 
 	// Discover bundled kernel relative to the working directory.
 	if cwd, err := os.Getwd(); err == nil {
 		for _, found := range findKernelRoots(cwd) {
 			add(found)
+		}
+		if len(paths) > 0 {
+			return paths
 		}
 	}
 
@@ -176,24 +185,33 @@ func collectStdlibPaths(base string) []string {
 		paths = append(paths, abs)
 	}
 
+	// Discover bundled stdlib relative to the entry directory first.
+	if base != "" {
+		for _, found := range findStdlibRoots(base) {
+			add(found)
+		}
+		if len(paths) > 0 {
+			return paths
+		}
+	}
+
 	for _, entry := range splitPathListEnv(os.Getenv("ABLE_MODULE_PATHS")) {
 		add(entry)
 	}
 	for _, entry := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
 		add(entry)
 	}
-
-	// Discover bundled stdlib relative to the entry directory first.
-	if base != "" {
-		for _, found := range findStdlibRoots(base) {
-			add(found)
-		}
+	if len(paths) > 0 {
+		return paths
 	}
 
 	// Discover bundled stdlib relative to the working directory.
 	if cwd, err := os.Getwd(); err == nil {
 		for _, found := range findStdlibRoots(cwd) {
 			add(found)
+		}
+		if len(paths) > 0 {
+			return paths
 		}
 	}
 
@@ -238,6 +256,9 @@ func findKernelRoots(start string) []string {
 		} {
 			add(candidate)
 		}
+		if len(roots) > 0 {
+			return roots
+		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
@@ -268,6 +289,9 @@ func findStdlibRoots(start string) []string {
 			filepath.Join(dir, "able_stdlib", "src"),
 		} {
 			add(candidate)
+		}
+		if len(roots) > 0 {
+			return roots
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

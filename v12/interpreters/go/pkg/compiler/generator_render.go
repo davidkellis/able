@@ -197,6 +197,7 @@ func (g *generator) importsForCompiledPackageAggregators() []string {
 
 func (g *generator) importsForCompiledRegister() []string {
 	imports := []string{
+		"able/interpreter-go/pkg/ast",
 		"able/interpreter-go/pkg/compiler/bridge",
 		"able/interpreter-go/pkg/interpreter",
 		"able/interpreter-go/pkg/runtime",

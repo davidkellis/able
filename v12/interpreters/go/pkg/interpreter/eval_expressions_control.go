@@ -44,6 +44,9 @@ func (i *Interpreter) isTruthy(val runtime.Value) bool {
 		if entry, _ := i.lookupImplEntry(info, "Error", nil); entry != nil {
 			return false
 		}
+		if i.compiledImplChecker != nil && i.compiledImplChecker(info.name, "Error") {
+			return false
+		}
 	}
 	return true
 }
