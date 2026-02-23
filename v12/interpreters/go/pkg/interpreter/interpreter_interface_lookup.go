@@ -215,7 +215,14 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 	}
 	entry, err := i.lookupImplEntry(info, interfaceName, ifaceArgs)
 	if err != nil {
+		// In compiled no-bootstrap mode, trust the compiled dispatch table.
+		if i.compiledImplChecker != nil && i.compiledImplChecker(info.name, interfaceName) {
+			return true, nil
+		}
 		return false, err
+	}
+	if entry == nil && i.compiledImplChecker != nil && i.compiledImplChecker(info.name, interfaceName) {
+		return true, nil
 	}
 	return entry != nil, nil
 }

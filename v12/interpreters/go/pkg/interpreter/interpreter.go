@@ -256,6 +256,13 @@ type Interpreter struct {
 	typecheckerStrict    bool
 	typechecker          *typechecker.Checker
 	typecheckDiagnostics []typechecker.Diagnostic
+
+	interfaceMethodResolver  func(receiver runtime.Value, interfaceName string, methodName string) (runtime.Value, bool)
+	compiledImplChecker      func(typeName string, interfaceName string) bool
+	compiledInstanceMethodFn func(typeName string, methodName string) (runtime.Value, bool)
+	// compiledInterfaceMemberFn searches all compiled interface dispatch tables
+	// for a method by name, regardless of interface. Maps to __able_interface_dispatch_member.
+	compiledInterfaceMemberFn func(receiver runtime.Value, methodName string) (runtime.Value, bool)
 }
 
 func identifiersToStrings(ids []*ast.Identifier) []string {
@@ -450,6 +457,57 @@ func (i *Interpreter) SetNodeOrigins(origins map[ast.Node]string) {
 		copied[node] = origin
 	}
 	i.nodeOrigins = copied
+}
+
+// SetInterfaceMethodResolver registers a fallback resolver for interface methods.
+// This is used by the AOT compiler to provide compiled interface dispatch when
+// the interpreter's own impl registry has not been populated (no-bootstrap mode).
+func (i *Interpreter) SetInterfaceMethodResolver(resolver func(receiver runtime.Value, interfaceName string, methodName string) (runtime.Value, bool)) {
+	if i == nil {
+		return
+	}
+	i.interfaceMethodResolver = resolver
+}
+
+// SetCompiledImplChecker registers a callback that checks whether a given type
+// implements a given interface via compiled dispatch tables. Used by the AOT
+// compiler in no-bootstrap mode for truthiness checks (Error interface).
+func (i *Interpreter) SetCompiledImplChecker(checker func(typeName string, interfaceName string) bool) {
+	if i == nil {
+		return
+	}
+	i.compiledImplChecker = checker
+}
+
+// SetCompiledInstanceMethodResolver registers a callback that resolves compiled
+// instance methods by type and method name. Used for to_string and other inherent
+// methods that are compiled but not in the interpreter's inherentMethods registry.
+func (i *Interpreter) SetCompiledInstanceMethodResolver(resolver func(typeName string, methodName string) (runtime.Value, bool)) {
+	if i == nil {
+		return
+	}
+	i.compiledInstanceMethodFn = resolver
+}
+
+// SetCompiledInterfaceMemberResolver registers a callback that searches all
+// compiled interface dispatch tables for a method by name, regardless of interface.
+func (i *Interpreter) SetCompiledInterfaceMemberResolver(resolver func(receiver runtime.Value, methodName string) (runtime.Value, bool)) {
+	if i == nil {
+		return
+	}
+	i.compiledInterfaceMemberFn = resolver
+}
+
+// RegisterTypeAlias registers a type alias definition. Used by the AOT compiler
+// in no-bootstrap mode to provide type alias expansion for bridge.MatchType.
+func (i *Interpreter) RegisterTypeAlias(name string, alias *ast.TypeAliasDefinition) {
+	if i == nil || name == "" || alias == nil {
+		return
+	}
+	if i.typeAliases == nil {
+		i.typeAliases = make(map[string]*ast.TypeAliasDefinition)
+	}
+	i.typeAliases[name] = alias
 }
 
 // AddNodeOrigin registers a single node origin path for runtime diagnostics.

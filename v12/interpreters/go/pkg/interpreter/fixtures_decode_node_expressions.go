@@ -12,6 +12,12 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 	case "Identifier":
 		name, _ := node["name"].(string)
 		return ast.NewIdentifier(name), true, nil
+	case "TypedPattern":
+		pat, err := decodePattern(node)
+		if err != nil {
+			return nil, true, err
+		}
+		return pat, true, nil
 	case "AssignmentExpression":
 		op, _ := node["operator"].(string)
 		leftNode, err := decodeNode(node["left"].(map[string]any))
@@ -521,6 +527,24 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 			}
 		}
 		return ast.NewPlaceholderExpression(nil), true, nil
+	case "TypeCastExpression":
+		exprNode, err := decodeNode(node["expression"].(map[string]any))
+		if err != nil {
+			return nil, true, err
+		}
+		expr, ok := exprNode.(ast.Expression)
+		if !ok {
+			return nil, true, fmt.Errorf("invalid type cast expression %T", exprNode)
+		}
+		targetNode, ok := node["targetType"].(map[string]any)
+		if !ok {
+			return nil, true, fmt.Errorf("invalid type cast target type")
+		}
+		targetType, err := decodeTypeExpression(targetNode)
+		if err != nil {
+			return nil, true, err
+		}
+		return ast.NewTypeCastExpression(expr, targetType), true, nil
 	default:
 		return nil, false, nil
 	}

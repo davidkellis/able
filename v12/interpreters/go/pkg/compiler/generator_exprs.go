@@ -791,27 +791,54 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			if callee.Safe && g.typeCategory(objType) == "runtime" {
 				return g.compileSafeMemberCall(ctx, call, callee, expected, objExpr, objType, callNode)
 			}
-			objValue, ok := g.runtimeValueExpr(objExpr, objType)
-			if !ok {
-				ctx.setReason("method call receiver unsupported")
-				return "", "", false
+			// Check for impl sibling methods: default interface methods calling
+			// sibling methods on self (e.g., describe() calling self.name())
+			siblingHandled := false
+			if len(ctx.implSiblings) > 0 && ctx.hasImplicitReceiver && !callee.Safe {
+				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil {
+					if sibling, hasSibling := ctx.implSiblings[ident.Name]; hasSibling {
+						if objIdent, ok := callee.Object.(*ast.Identifier); ok && objIdent != nil && objIdent.Name == ctx.implicitReceiver.Name {
+							objValue, ok := g.runtimeValueExpr(objExpr, objType)
+							if ok {
+								objTemp := ctx.newTemp()
+								calleeTemp = ctx.newTemp()
+								lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
+								lines = append(lines, fmt.Sprintf("%s := __able_impl_self_method(%s, %q, %d, __able_wrap_%s)", calleeTemp, objTemp, ident.Name, sibling.Arity, sibling.GoName))
+								if g.typeCategory(objType) == "struct" && g.isAddressableMemberObject(callee.Object) {
+									writebackNeeded = true
+									writebackObjExpr = objExpr
+									writebackObjType = objType
+									writebackObjTemp = objTemp
+								}
+								siblingHandled = true
+							}
+						}
+					}
+				}
 			}
-			memberValue, ok := g.memberAssignmentRuntimeValue(ctx, callee.Member)
-			if !ok {
-				ctx.setReason("method call target unsupported")
-				return "", "", false
-			}
-			objTemp := ctx.newTemp()
-			memberTemp := ctx.newTemp()
-			calleeTemp = ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
-			lines = append(lines, fmt.Sprintf("%s := %s", memberTemp, memberValue))
-			lines = append(lines, fmt.Sprintf("%s := __able_member_get_method(%s, %s)", calleeTemp, objTemp, memberTemp))
-			if g.typeCategory(objType) == "struct" && g.isAddressableMemberObject(callee.Object) {
-				writebackNeeded = true
-				writebackObjExpr = objExpr
-				writebackObjType = objType
-				writebackObjTemp = objTemp
+			if !siblingHandled {
+				objValue, ok := g.runtimeValueExpr(objExpr, objType)
+				if !ok {
+					ctx.setReason("method call receiver unsupported")
+					return "", "", false
+				}
+				memberValue, ok := g.memberAssignmentRuntimeValue(ctx, callee.Member)
+				if !ok {
+					ctx.setReason("method call target unsupported")
+					return "", "", false
+				}
+				objTemp := ctx.newTemp()
+				memberTemp := ctx.newTemp()
+				calleeTemp = ctx.newTemp()
+				lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
+				lines = append(lines, fmt.Sprintf("%s := %s", memberTemp, memberValue))
+				lines = append(lines, fmt.Sprintf("%s := __able_member_get_method(%s, %s)", calleeTemp, objTemp, memberTemp))
+				if g.typeCategory(objType) == "struct" && g.isAddressableMemberObject(callee.Object) {
+					writebackNeeded = true
+					writebackObjExpr = objExpr
+					writebackObjType = objType
+					writebackObjTemp = objTemp
+				}
 			}
 		default:
 			calleeExpr, calleeType, ok := g.compileExpr(ctx, call.Callee, "")

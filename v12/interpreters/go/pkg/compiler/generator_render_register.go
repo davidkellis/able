@@ -17,6 +17,7 @@ func (g *generator) renderCompiledRegisterFile() ([]byte, error) {
 		}
 		fmt.Fprintf(&buf, ")\n\n")
 	}
+	fmt.Fprintf(&buf, "var _ = ast.NewIdentifier\n\n")
 
 	g.renderRegister(&buf)
 	return formatSource(buf.Bytes())

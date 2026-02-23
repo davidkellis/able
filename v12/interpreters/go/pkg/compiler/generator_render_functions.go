@@ -15,6 +15,9 @@ func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
 			continue
 		}
 		ctx := newCompileContext(info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+		if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault && implInfo.ImplName != "" {
+			ctx.implSiblings = g.implSiblingsForDefault(implInfo)
+		}
 		lines, retExpr, ok := g.compileBody(ctx, info)
 		if !ok {
 			if info.Reason == "" {
@@ -444,6 +447,38 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\treturn nil, err\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\trt.SetQualifiedCallableResolver(__able_resolve_qualified_callable)\n")
+	fmt.Fprintf(buf, "\tinterp.SetInterfaceMethodResolver(func(receiver runtime.Value, interfaceName string, methodName string) (runtime.Value, bool) {\n")
+	fmt.Fprintf(buf, "\t\treturn __able_resolve_compiled_interface_method(rt, receiver, interfaceName, methodName)\n")
+	fmt.Fprintf(buf, "\t})\n")
+	fmt.Fprintf(buf, "\tinterp.SetCompiledImplChecker(func(typeName string, interfaceName string) bool {\n")
+	fmt.Fprintf(buf, "\t\tentries, ok := __able_interface_dispatch[interfaceName]\n")
+	fmt.Fprintf(buf, "\t\tif !ok {\n")
+	fmt.Fprintf(buf, "\t\t\treturn false\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\tfor _, methodEntries := range entries {\n")
+	fmt.Fprintf(buf, "\t\t\tfor _, entry := range methodEntries {\n")
+	fmt.Fprintf(buf, "\t\t\t\tif simple, ok := entry.targetType.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == typeName {\n")
+	fmt.Fprintf(buf, "\t\t\t\t\treturn true\n")
+	fmt.Fprintf(buf, "\t\t\t\t}\n")
+	fmt.Fprintf(buf, "\t\t\t\tfor _, v := range entry.unionVariants {\n")
+	fmt.Fprintf(buf, "\t\t\t\t\tif v == typeName {\n")
+	fmt.Fprintf(buf, "\t\t\t\t\t\treturn true\n")
+	fmt.Fprintf(buf, "\t\t\t\t\t}\n")
+	fmt.Fprintf(buf, "\t\t\t\t}\n")
+	fmt.Fprintf(buf, "\t\t\t}\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\treturn false\n")
+	fmt.Fprintf(buf, "\t})\n")
+	fmt.Fprintf(buf, "\tinterp.SetCompiledInstanceMethodResolver(func(typeName string, methodName string) (runtime.Value, bool) {\n")
+	fmt.Fprintf(buf, "\t\tentry := __able_lookup_compiled_method(typeName, methodName, true)\n")
+	fmt.Fprintf(buf, "\t\tif entry == nil || entry.fn == nil {\n")
+	fmt.Fprintf(buf, "\t\t\treturn nil, false\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\treturn entry.fn, true\n")
+	fmt.Fprintf(buf, "\t})\n")
+	fmt.Fprintf(buf, "\tinterp.SetCompiledInterfaceMemberResolver(func(receiver runtime.Value, methodName string) (runtime.Value, bool) {\n")
+	fmt.Fprintf(buf, "\t\treturn __able_interface_dispatch_member(receiver, methodName)\n")
+	fmt.Fprintf(buf, "\t})\n")
 	fmt.Fprintf(buf, "\treturn rt, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_seed_entry_struct_defs(interp *interpreter.Interpreter, entryEnv *runtime.Environment) {\n")
@@ -456,6 +491,20 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 		fmt.Fprintf(buf, "\t\tif def, found := interp.LookupStructDefinition(%q); found && def != nil {\n", name)
 		fmt.Fprintf(buf, "\t\t\tentryEnv.DefineStruct(%q, def)\n", name)
 		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
+	// Direct struct definition seeding for no-bootstrap mode
+	for _, name := range seedStructNames {
+		info := g.structs[name]
+		if info == nil {
+			continue
+		}
+		defExpr, ok := g.renderStructDefinitionExpr(info)
+		if !ok {
+			continue
+		}
+		fmt.Fprintf(buf, "\tif _, ok := entryEnv.StructDefinition(%q); !ok {\n", name)
+		fmt.Fprintf(buf, "\t\tentryEnv.DefineStruct(%q, %s)\n", name, defExpr)
 		fmt.Fprintf(buf, "\t}\n")
 	}
 	fmt.Fprintf(buf, "}\n\n")

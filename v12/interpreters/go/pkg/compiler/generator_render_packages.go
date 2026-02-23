@@ -96,6 +96,9 @@ func (g *generator) renderRegisterPackageRegistrar(buf *bytes.Buffer, pkgName st
 	} else {
 		fmt.Fprintf(buf, "\tpkgEnv := interp.PackageEnvironment(%q)\n", pkgName)
 		fmt.Fprintf(buf, "\tif pkgEnv == nil {\n")
+		fmt.Fprintf(buf, "\t\tif __able_bootstrapped_metadata {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil // package not loaded during bootstrap\n")
+		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\tpkgEnv = runtime.NewEnvironment(entryEnv)\n")
 		fmt.Fprintf(buf, "\t}\n")
 	}
@@ -326,6 +329,9 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 	if pkgName != g.entryPackage {
 		fmt.Fprintf(&buf, "\tpkgEnv = interp.PackageEnvironment(%q)\n", pkgName)
 		fmt.Fprintf(&buf, "\tif pkgEnv == nil {\n")
+		fmt.Fprintf(&buf, "\t\tif __able_bootstrapped_metadata {\n")
+		fmt.Fprintf(&buf, "\t\t\treturn nil // package not loaded during bootstrap\n")
+		fmt.Fprintf(&buf, "\t\t}\n")
 		fmt.Fprintf(&buf, "\t\tpkgEnv = runtime.NewEnvironment(entryEnv)\n")
 		fmt.Fprintf(&buf, "\t}\n")
 	}
@@ -368,6 +374,16 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 				minArgs = 0
 			}
 			fmt.Fprintf(&buf, "\t__able_register_compiled_method(%q, %q, %t, %d, %d, __able_wrap_%s)\n", method.TargetName, method.MethodName, method.ExpectsSelf, arity, minArgs, method.Info.GoName)
+		if !method.ExpectsSelf {
+			// Define static method into both package and entry environments for interpreter lookup
+			qualified := method.TargetName + "." + method.MethodName
+			fmt.Fprintf(&buf, "\tif entry := __able_lookup_compiled_method(%q, %q, false); entry != nil && entry.fn != nil {\n", method.TargetName, method.MethodName)
+			fmt.Fprintf(&buf, "\t\tpkgEnv.Define(%q, entry.fn)\n", qualified)
+			fmt.Fprintf(&buf, "\t\tif entryEnv != nil && entryEnv != pkgEnv {\n")
+			fmt.Fprintf(&buf, "\t\t\tentryEnv.Define(%q, entry.fn)\n", qualified)
+			fmt.Fprintf(&buf, "\t\t}\n")
+			fmt.Fprintf(&buf, "\t}\n")
+		}
 		}
 	}
 	for _, implMethod := range g.sortedImplMethodInfos() {
