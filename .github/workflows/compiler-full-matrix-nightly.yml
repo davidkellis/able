@@ -15,10 +15,26 @@ on:
         description: "Override ABLE_COMPILER_STRICT_DISPATCH_FIXTURES (default: all)"
         required: false
         default: "all"
+      interface_lookup_fixtures:
+        description: "Override ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES (default: all)"
+        required: false
+        default: "all"
+      global_lookup_strict_total:
+        description: "Set ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL for interface audit (default: 1)"
+        required: false
+        default: "1"
       boundary_audit_fixtures:
         description: "Override ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES (default: all)"
         required: false
         default: "all"
+      suite_timeout:
+        description: "Go test -timeout value for each matrix suite (default: 25m)"
+        required: false
+        default: "25m"
+      suite_wall_timeout:
+        description: "Hard wall timeout per suite via timeout(1) (default: 30m)"
+        required: false
+        default: "30m"
   schedule:
     - cron: "20 6 * * *"
 
@@ -35,7 +51,11 @@ jobs:
       ABLE_TYPECHECK_MODE: ${{ github.event.inputs.typecheck_mode || 'strict' }}
       ABLE_COMPILER_EXEC_FIXTURES: ${{ github.event.inputs.exec_fixtures || 'all' }}
       ABLE_COMPILER_STRICT_DISPATCH_FIXTURES: ${{ github.event.inputs.strict_dispatch_fixtures || 'all' }}
+      ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES: ${{ github.event.inputs.interface_lookup_fixtures || 'all' }}
+      ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL: ${{ github.event.inputs.global_lookup_strict_total || '1' }}
       ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES: ${{ github.event.inputs.boundary_audit_fixtures || 'all' }}
+      ABLE_COMPILER_SUITE_TIMEOUT: ${{ github.event.inputs.suite_timeout || '25m' }}
+      ABLE_COMPILER_SUITE_WALL_TIMEOUT: ${{ github.event.inputs.suite_wall_timeout || '30m' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,4 +73,3 @@ jobs:
         working-directory: v12
         run: |
           ./run_compiler_full_matrix.sh --typecheck-fixtures="${ABLE_TYPECHECK_MODE}"
-

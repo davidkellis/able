@@ -1866,6 +1866,59 @@ Special-form block sugar:
 -   **Bidirectional interop:** Dynamic code may call compiled functions through a host binding table. Compiled values must be convertible to dynamic values and back; conversion failures raise `Error`.
 -   **No interpreter without dynamic features:** A compiled program that does not use dynamic features must not initialize or depend on the interpreter at runtime.
 
+#### Compiler Failure Semantics for Static Code (AOT Targets)
+
+-   If a construct is statically analyzable but cannot be lowered by the compiler, compilation MUST fail.
+-   The compiler MUST NOT silently route static code through interpreter evaluation to "make it work."
+-   At minimum, failures report:
+    -   the source location (module + span),
+    -   the construct/call site that failed lowering,
+    -   the semantic reason category (`unsupported_static_lowering`, `unresolved_static_dispatch`, `missing_compiled_dependency`, or equivalent implementation-defined wording).
+-   This rule applies to static calls, static method dispatch, interface dispatch generation, overload lowering, and static stdlib/kernel references.
+
+#### Compiled Runtime ABI Contract (AOT Targets)
+
+The compiled ABI is a language-level contract (not a public memory-layout guarantee). Backing representations may vary by runtime, but these observable behaviors are required:
+
+-   `Array T`: mutable indexed sequence with stable runtime identity, preserving semantics for allocation, indexing, slicing/ranging, length/capacity, and iteration.
+-   `BigInt`: stdlib-defined numeric type compiled as ordinary Able code (not a required kernel primitive); it relies on compiled arrays/numeric operators and must not require interpreter fallback for static programs.
+-   `Ratio`: runtime/core numeric type preserving normalized ratio arithmetic/comparison semantics defined in this spec.
+-   `String`: immutable UTF-8 text value preserving string/char/byte semantics defined in this spec.
+-   `Channel T`, `Mutex`, `Future T`: runtime-managed concurrency values preserving Section 12 semantics for scheduling, cancellation, synchronization, visibility, and error behavior.
+
+Compiled code and dynamic code must exchange these values through the explicit boundary without changing language semantics.
+
+#### Compiled Interface Dispatch and Overload Model
+
+-   For statically-known concrete receivers/arguments, implementations MAY emit specialized direct-call paths (monomorphized lowering).
+-   For interface-typed/runtime-polymorphic values, compiled output MUST use generated interface dispatch tables (dictionary-style dispatch) that preserve the same coherence/specificity rules as Section 10.
+-   Overload resolution in compiled code MUST be semantically equivalent to interpreter/typechecker resolution:
+    -   statically-resolved overloads dispatch directly,
+    -   runtime-checked overload dispatchers preserve the same deterministic selection and error behavior.
+-   Missing interface implementation or overload match in compiled execution must raise the same category of runtime `Error` as interpreter execution for the same program state.
+
+#### Compiled Stdlib/Kernel Resolution Requirements
+
+-   Compiled targets MUST resolve and include the canonical kernel and required stdlib packages as compiled artifacts.
+-   Resolution order follows Section 13 package search rules; the selected roots are fixed at compile time for a given build.
+-   If a required kernel/stdlib module cannot be resolved for compiled linking, compilation MUST fail (`missing_compiled_dependency` class).
+-   User packages cannot shadow canonical kernel/stdlib identities in compiled builds; collisions are build-time errors.
+
+#### Compiled <-> Dynamic Boundary Conversion Rules
+
+Conversions across the explicit boundary are required for:
+
+-   primitives (`bool`, integers, floats, `char`, `String`, `nil`, `void`-equivalent),
+-   structured values (`Array`, maps/sets, structs/unions),
+-   callable values (functions/methods/closures where supported),
+-   error values (`Error`).
+
+Normative requirements:
+
+-   Successful conversions preserve language-visible semantics (value meaning, callable behavior, and required identity/aliasing properties for mutable/shared runtime values).
+-   Numeric narrowing/sign or shape mismatches, interface/type mismatches, unsupported value kinds, or invalid callable adaptation MUST raise `Error` at the boundary (never silently coerce to unrelated values).
+-   Boundary conversion failures are runtime errors surfaced at the explicit dynamic call site.
+
 #### Examples
 
 Package-oriented usage with relative nesting:

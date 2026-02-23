@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"math/big"
 	goruntime "runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/interpreter"
@@ -15,21 +17,57 @@ import (
 
 const NativeIntBits = strconv.IntSize
 
+var (
+	memberGetPreferMethodsCalls          int64
+	memberGetPreferMethodsInterfaceCalls int64
+	memberGetPreferMethodsMu             sync.Mutex
+	memberGetPreferMethodsNames          map[string]int64
+	globalLookupFallbackCalls            int64
+	globalLookupFallbackEnvCalls         int64
+	globalLookupFallbackRegistryCalls    int64
+	globalLookupFallbackMu               sync.Mutex
+	globalLookupFallbackNames            map[string]int64
+)
+
 type Runtime struct {
-	interp    *interpreter.Interpreter
-	mu        sync.RWMutex
-	originals map[string]runtime.Value
-	structs   map[string]*runtime.StructDefinitionValue
-	env       *runtime.Environment
-	envByGID  sync.Map
+	interp                      *interpreter.Interpreter
+	mu                          sync.RWMutex
+	originals                   map[string]runtime.Value
+	structs                     map[string]*runtime.StructDefinitionValue
+	env                         *runtime.Environment
+	envByGID                    sync.Map
+	resolver                    QualifiedCallableResolver
+	globalLookupFallbackEnabled bool
 }
+
+type QualifiedCallableResolver func(name string, env *runtime.Environment) (runtime.Value, bool, error)
 
 func New(interp *interpreter.Interpreter) *Runtime {
 	return &Runtime{
-		interp:    interp,
-		originals: make(map[string]runtime.Value),
-		structs:   make(map[string]*runtime.StructDefinitionValue),
+		interp:                      interp,
+		originals:                   make(map[string]runtime.Value),
+		structs:                     make(map[string]*runtime.StructDefinitionValue),
+		globalLookupFallbackEnabled: true,
 	}
+}
+
+func (r *Runtime) SetGlobalLookupFallbackEnabled(enabled bool) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.globalLookupFallbackEnabled = enabled
+	r.mu.Unlock()
+}
+
+func (r *Runtime) globalLookupFallback() bool {
+	if r == nil {
+		return true
+	}
+	r.mu.RLock()
+	enabled := r.globalLookupFallbackEnabled
+	r.mu.RUnlock()
+	return enabled
 }
 
 func ExecutorKind(r *Runtime) string {
@@ -133,6 +171,28 @@ func (r *Runtime) RegisterOriginal(name string, value runtime.Value) {
 	r.mu.Unlock()
 }
 
+func (r *Runtime) SetQualifiedCallableResolver(resolver QualifiedCallableResolver) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.resolver = resolver
+	r.mu.Unlock()
+}
+
+func (r *Runtime) resolveQualifiedCallable(name string, env *runtime.Environment) (runtime.Value, bool, error) {
+	if r == nil {
+		return nil, false, nil
+	}
+	r.mu.RLock()
+	resolver := r.resolver
+	r.mu.RUnlock()
+	if resolver == nil {
+		return nil, false, nil
+	}
+	return resolver(name, env)
+}
+
 func (r *Runtime) CallOriginal(name string, args []runtime.Value) (runtime.Value, error) {
 	if r == nil || r.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
@@ -156,9 +216,10 @@ func (r *Runtime) Call(name string, args []runtime.Value) (runtime.Value, error)
 		return nil, fmt.Errorf("compiler bridge: missing global environment")
 	}
 	value, err := env.Get(name)
-	if err != nil && env != r.interp.GlobalEnvironment() {
+	if err != nil && env != r.interp.GlobalEnvironment() && r.globalLookupFallback() {
 		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
 			if alt, altErr := fallback.Get(name); altErr == nil {
+				recordGlobalLookupFallback("call", name)
 				value, err = alt, nil
 			}
 		}
@@ -181,9 +242,10 @@ func Get(rt *Runtime, name string) (runtime.Value, error) {
 	if err == nil {
 		return value, nil
 	}
-	if env != rt.interp.GlobalEnvironment() {
+	if env != rt.interp.GlobalEnvironment() && rt.globalLookupFallback() {
 		if fallback := rt.interp.GlobalEnvironment(); fallback != nil {
 			if value, err := fallback.Get(name); err == nil {
+				recordGlobalLookupFallback("get", name)
 				return value, nil
 			}
 		}
@@ -222,15 +284,28 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 	}
 	r.mu.RUnlock()
 	def, ok := env.StructDefinition(name)
-	if (!ok || def == nil) && env != r.interp.GlobalEnvironment() {
+	if !ok || def == nil {
+		if seeded, found := r.interp.LookupStructDefinition(name); found && seeded != nil {
+			def, ok = seeded, true
+			env.DefineStruct(name, seeded)
+			if seeded.Node != nil && seeded.Node.ID != nil {
+				if canonical := strings.TrimSpace(seeded.Node.ID.Name); canonical != "" && canonical != name {
+					env.DefineStruct(canonical, seeded)
+				}
+			}
+		}
+	}
+	if (!ok || def == nil) && env != r.interp.GlobalEnvironment() && r.globalLookupFallback() {
 		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
 			if alt, found := fallback.StructDefinition(name); found && alt != nil {
+				recordGlobalLookupFallback("struct_global", name)
 				def, ok = alt, true
 			}
 		}
 	}
-	if !ok || def == nil {
+	if (!ok || def == nil) && r.globalLookupFallback() {
 		if alt, found := r.interp.LookupStructDefinition(name); found && alt != nil {
+			recordGlobalLookupFallback("struct_registry", name)
 			def, ok = alt, true
 		}
 	}
@@ -297,8 +372,217 @@ func MemberGetPreferMethods(rt *Runtime, obj runtime.Value, member runtime.Value
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
+	atomic.AddInt64(&memberGetPreferMethodsCalls, 1)
+	if isInterfaceReceiver(obj) {
+		atomic.AddInt64(&memberGetPreferMethodsInterfaceCalls, 1)
+	}
+	if name := memberGetPreferMethodsName(obj, member); name != "" {
+		memberGetPreferMethodsMu.Lock()
+		if memberGetPreferMethodsNames == nil {
+			memberGetPreferMethodsNames = make(map[string]int64)
+		}
+		memberGetPreferMethodsNames[name]++
+		memberGetPreferMethodsMu.Unlock()
+	}
 	env := rt.currentEnv()
 	return rt.interp.MemberGetPreferMethods(obj, member, env)
+}
+
+func ResetMemberGetPreferMethodsCounters() {
+	atomic.StoreInt64(&memberGetPreferMethodsCalls, 0)
+	atomic.StoreInt64(&memberGetPreferMethodsInterfaceCalls, 0)
+	memberGetPreferMethodsMu.Lock()
+	memberGetPreferMethodsNames = nil
+	memberGetPreferMethodsMu.Unlock()
+}
+
+func MemberGetPreferMethodsStats() (calls int64, interfaceCalls int64) {
+	calls = atomic.LoadInt64(&memberGetPreferMethodsCalls)
+	interfaceCalls = atomic.LoadInt64(&memberGetPreferMethodsInterfaceCalls)
+	return calls, interfaceCalls
+}
+
+func MemberGetPreferMethodsSnapshot() string {
+	memberGetPreferMethodsMu.Lock()
+	defer memberGetPreferMethodsMu.Unlock()
+	if len(memberGetPreferMethodsNames) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(memberGetPreferMethodsNames))
+	for name := range memberGetPreferMethodsNames {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, name := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%d", name, memberGetPreferMethodsNames[name]))
+	}
+	return strings.Join(parts, ",")
+}
+
+func recordGlobalLookupFallback(kind string, name string) {
+	key := strings.TrimSpace(kind)
+	if key == "" {
+		key = "unknown"
+	}
+	trimmedName := strings.TrimSpace(name)
+	if trimmedName != "" {
+		key = key + ":" + trimmedName
+	}
+	atomic.AddInt64(&globalLookupFallbackCalls, 1)
+	if key == "struct_registry" || strings.HasPrefix(key, "struct_registry:") {
+		atomic.AddInt64(&globalLookupFallbackRegistryCalls, 1)
+	} else {
+		atomic.AddInt64(&globalLookupFallbackEnvCalls, 1)
+	}
+	globalLookupFallbackMu.Lock()
+	if globalLookupFallbackNames == nil {
+		globalLookupFallbackNames = make(map[string]int64)
+	}
+	globalLookupFallbackNames[key]++
+	globalLookupFallbackMu.Unlock()
+}
+
+func ResetGlobalLookupFallbackCounters() {
+	atomic.StoreInt64(&globalLookupFallbackCalls, 0)
+	atomic.StoreInt64(&globalLookupFallbackEnvCalls, 0)
+	atomic.StoreInt64(&globalLookupFallbackRegistryCalls, 0)
+	globalLookupFallbackMu.Lock()
+	globalLookupFallbackNames = nil
+	globalLookupFallbackMu.Unlock()
+}
+
+func GlobalLookupFallbackStats() int64 {
+	return atomic.LoadInt64(&globalLookupFallbackCalls)
+}
+
+func GlobalLookupFallbackBucketStats() (envCalls int64, registryCalls int64) {
+	envCalls = atomic.LoadInt64(&globalLookupFallbackEnvCalls)
+	registryCalls = atomic.LoadInt64(&globalLookupFallbackRegistryCalls)
+	return envCalls, registryCalls
+}
+
+func GlobalLookupFallbackSnapshot() string {
+	globalLookupFallbackMu.Lock()
+	defer globalLookupFallbackMu.Unlock()
+	if len(globalLookupFallbackNames) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(globalLookupFallbackNames))
+	for name := range globalLookupFallbackNames {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, name := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%d", name, globalLookupFallbackNames[name]))
+	}
+	return strings.Join(parts, ",")
+}
+
+func isInterfaceReceiver(value runtime.Value) bool {
+	switch value.(type) {
+	case runtime.InterfaceValue, *runtime.InterfaceValue:
+		return true
+	default:
+		return false
+	}
+}
+
+func memberGetPreferMethodsName(obj runtime.Value, member runtime.Value) string {
+	memberName := ""
+	switch typed := member.(type) {
+	case runtime.StringValue:
+		memberName = strings.TrimSpace(typed.Val)
+	case *runtime.StringValue:
+		if typed == nil {
+			return ""
+		}
+		memberName = strings.TrimSpace(typed.Val)
+	default:
+		return ""
+	}
+	if memberName == "" {
+		return ""
+	}
+	receiverName := memberGetPreferMethodsReceiverName(obj)
+	if receiverName == "" {
+		return memberName
+	}
+	return receiverName + "." + memberName
+}
+
+func memberGetPreferMethodsReceiverName(value runtime.Value) string {
+	for value != nil {
+		switch typed := value.(type) {
+		case runtime.InterfaceValue:
+			value = typed.Underlying
+			continue
+		case *runtime.InterfaceValue:
+			if typed == nil {
+				return ""
+			}
+			value = typed.Underlying
+			continue
+		}
+		break
+	}
+	switch typed := value.(type) {
+	case *runtime.StructInstanceValue:
+		if typed == nil || typed.Definition == nil || typed.Definition.Node == nil || typed.Definition.Node.ID == nil {
+			return "*struct"
+		}
+		return typed.Definition.Node.ID.Name
+	case runtime.IntegerValue:
+		return string(typed.TypeSuffix)
+	case *runtime.IntegerValue:
+		if typed == nil {
+			return "*int"
+		}
+		return string(typed.TypeSuffix)
+	case runtime.FloatValue:
+		return string(typed.TypeSuffix)
+	case *runtime.FloatValue:
+		if typed == nil {
+			return "*float"
+		}
+		return string(typed.TypeSuffix)
+	case runtime.ImplementationNamespaceValue:
+		if typed.Name != nil && typed.Name.Name != "" {
+			return "impl:" + typed.Name.Name
+		}
+		return "impl"
+	case *runtime.ImplementationNamespaceValue:
+		if typed == nil {
+			return "*impl"
+		}
+		if typed.Name != nil && typed.Name.Name != "" {
+			return "impl:" + typed.Name.Name
+		}
+		return "impl"
+	case runtime.TypeRefValue:
+		return typed.TypeName
+	case *runtime.TypeRefValue:
+		if typed == nil {
+			return "*type"
+		}
+		return typed.TypeName
+	case runtime.StringValue:
+		return "String"
+	case *runtime.StringValue:
+		return "String"
+	case runtime.BoolValue:
+		return "bool"
+	case *runtime.BoolValue:
+		return "bool"
+	case runtime.NilValue, *runtime.NilValue:
+		return "nil"
+	default:
+		if value == nil {
+			return ""
+		}
+		return fmt.Sprintf("%T", value)
+	}
 }
 
 func CallValue(rt *Runtime, fn runtime.Value, args []runtime.Value) (runtime.Value, error) {
@@ -330,9 +614,10 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 		return nil, fmt.Errorf("compiler bridge: missing global environment")
 	}
 	value, err := env.Get(name)
-	if err != nil && env != rt.interp.GlobalEnvironment() {
+	if err != nil && env != rt.interp.GlobalEnvironment() && rt.globalLookupFallback() {
 		if fallback := rt.interp.GlobalEnvironment(); fallback != nil {
 			if alt, altErr := fallback.Get(name); altErr == nil {
+				recordGlobalLookupFallback("call_named", name)
 				value, err = alt, nil
 			}
 		}
@@ -345,12 +630,22 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 		return val, callErr
 	}
 	if dot := strings.Index(name, "."); dot > 0 && dot < len(name)-1 {
+		if resolved, ok, resolveErr := rt.resolveQualifiedCallable(name, env); resolveErr != nil {
+			return nil, resolveErr
+		} else if ok && resolved != nil {
+			val, callErr := rt.interp.CallFunctionInWithCallNode(resolved, args, env, call)
+			if callErr != nil && call != nil {
+				callErr = rt.interp.AttachRuntimeContext(callErr, call, env)
+			}
+			return val, callErr
+		}
 		head := name[:dot]
 		tail := name[dot+1:]
 		receiver, recvErr := env.Get(head)
-		if recvErr != nil {
+		if recvErr != nil && rt.globalLookupFallback() {
 			if fallback := rt.interp.GlobalEnvironment(); fallback != nil && fallback != env {
 				if alt, altErr := fallback.Get(head); altErr == nil {
+					recordGlobalLookupFallback("call_named_head", head)
 					receiver, recvErr = alt, nil
 				}
 			}
@@ -359,10 +654,13 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 			if def, ok := env.StructDefinition(head); ok {
 				receiver = def
 				recvErr = nil
-			} else if fallback := rt.interp.GlobalEnvironment(); fallback != nil && fallback != env {
-				if def, ok := fallback.StructDefinition(head); ok {
-					receiver = def
-					recvErr = nil
+			} else if rt.globalLookupFallback() {
+				if fallback := rt.interp.GlobalEnvironment(); fallback != nil && fallback != env {
+					if def, ok := fallback.StructDefinition(head); ok {
+						recordGlobalLookupFallback("call_named_head_struct", head)
+						receiver = def
+						recvErr = nil
+					}
 				}
 			}
 		}
@@ -373,7 +671,7 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 			receiver = runtime.TypeRefValue{TypeName: head}
 		}
 		member := runtime.StringValue{Val: tail}
-		candidate, err := rt.interp.MemberGetPreferMethods(receiver, member, env)
+		candidate, err := MemberGetPreferMethods(rt, receiver, member)
 		if err != nil {
 			return nil, err
 		}

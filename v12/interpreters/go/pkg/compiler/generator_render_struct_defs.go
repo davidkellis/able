@@ -34,6 +34,14 @@ func (g *generator) renderStructDefinitionExpr(info *structInfo) (string, bool) 
 	if g == nil || info == nil || info.Node == nil || info.Name == "" {
 		return "", false
 	}
+	genericExpr, ok := g.renderGenericParamsExpr(info.Node.GenericParams)
+	if !ok {
+		return "", false
+	}
+	whereExpr, ok := g.renderWhereClauseExpr(info.Node.WhereClause)
+	if !ok {
+		return "", false
+	}
 	fieldExprs := make([]string, 0, len(info.Node.Fields))
 	for _, field := range info.Node.Fields {
 		fieldTypeExpr := "ast.WildT()"
@@ -52,18 +60,5 @@ func (g *generator) renderStructDefinitionExpr(info *structInfo) (string, bool) 
 	if len(fieldExprs) > 0 {
 		fieldsExpr = "[]*ast.StructFieldDefinition{" + strings.Join(fieldExprs, ", ") + "}"
 	}
-	genericExpr := "nil"
-	if len(info.Node.GenericParams) > 0 {
-		parts := make([]string, 0, len(info.Node.GenericParams))
-		for _, param := range info.Node.GenericParams {
-			if param == nil || param.Name == nil || strings.TrimSpace(param.Name.Name) == "" {
-				continue
-			}
-			parts = append(parts, fmt.Sprintf("ast.NewGenericParameter(ast.NewIdentifier(%q), nil)", param.Name.Name))
-		}
-		if len(parts) > 0 {
-			genericExpr = "[]*ast.GenericParameter{" + strings.Join(parts, ", ") + "}"
-		}
-	}
-	return fmt.Sprintf("&runtime.StructDefinitionValue{Node: ast.NewStructDefinition(ast.NewIdentifier(%q), %s, ast.StructKind(%q), %s, nil, %t)}", info.Name, fieldsExpr, string(info.Kind), genericExpr, info.Node.IsPrivate), true
+	return fmt.Sprintf("&runtime.StructDefinitionValue{Node: ast.NewStructDefinition(ast.NewIdentifier(%q), %s, ast.StructKind(%q), %s, %s, %t)}", info.Name, fieldsExpr, string(info.Kind), genericExpr, whereExpr, info.Node.IsPrivate), true
 }

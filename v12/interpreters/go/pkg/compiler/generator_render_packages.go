@@ -187,7 +187,7 @@ func (g *generator) renderCompiledPackageCallableFile(pkgName string, idx int) (
 				fmt.Fprintf(&buf, "\t\t}\n")
 				fmt.Fprintf(&buf, "\t}\n")
 			}
-			fmt.Fprintf(&buf, "\t__able_register_compiled_call(pkgEnv, %q, -1, %d, func(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n", name, overload.MinArity)
+			fmt.Fprintf(&buf, "\t__able_register_compiled_call(pkgEnv, %q, -1, %d, %q, func(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n", name, overload.MinArity, "")
 			fmt.Fprintf(&buf, "\t\treturn %s(%s, ctx, args, nil)\n", g.overloadWrapperName(pkgName, name), g.overloadValueName(pkgName, name))
 			fmt.Fprintf(&buf, "\t})\n")
 			continue
@@ -221,7 +221,8 @@ func (g *generator) renderCompiledPackageCallableFile(pkgName string, idx int) (
 			if g.hasOptionalLastParam(info) && info.Arity > 0 {
 				minArgs = info.Arity - 1
 			}
-			fmt.Fprintf(&buf, "\t__able_register_compiled_call(pkgEnv, %q, %d, %d, __able_wrap_%s)\n", info.Name, info.Arity, minArgs, info.GoName)
+			ufcsTarget := g.ufcsTargetName(info)
+			fmt.Fprintf(&buf, "\t__able_register_compiled_call(pkgEnv, %q, %d, %d, %q, __able_wrap_%s)\n", info.Name, info.Arity, minArgs, ufcsTarget, info.GoName)
 		}
 	}
 	fmt.Fprintf(&buf, "\treturn nil\n")
@@ -245,6 +246,37 @@ func (g *generator) methodRegistrationKeyCounts() map[string]int {
 		counts[key]++
 	}
 	return counts
+}
+
+func (g *generator) ufcsTargetName(info *functionInfo) string {
+	if g == nil || info == nil || info.Definition == nil || len(info.Params) == 0 {
+		return ""
+	}
+	if info.Definition.IsMethodShorthand {
+		return ""
+	}
+	targetExpr := g.expandTypeAliasForPackage(info.Package, info.Params[0].TypeExpr)
+	targetName, ok := g.methodTargetName(targetExpr)
+	if !ok {
+		return ""
+	}
+	targetName = strings.TrimSpace(targetName)
+	if targetName == "" {
+		return ""
+	}
+	if _, ok := g.structs[targetName]; ok {
+		return targetName
+	}
+	switch targetName {
+	case "String", "Array", "HashMap", "Error", "Iterator",
+		"bool", "char", "nil", "void",
+		"i8", "i16", "i32", "i64", "i128",
+		"u8", "u16", "u32", "u64", "u128",
+		"f32", "f64":
+		return targetName
+	default:
+		return ""
+	}
 }
 
 func (g *generator) renderCompiledPackageMethodImplFiles() (map[string][]byte, error) {

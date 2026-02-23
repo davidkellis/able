@@ -1,5 +1,684 @@
 # Able Project Log
 
+# 2026-02-19 — Compiler AOT method receiver parity for `Self`-typed first params (v12)
+- Closed a compiler/interpreter parity gap in method receiver detection:
+  - compiler method lowering now treats a method as instance-receiver when its first parameter type is `Self`, even if that parameter is not named `self`.
+  - this matches interpreter semantics and prevents misclassification as static methods in compiled registration/dispatch.
+- Files:
+  - `v12/interpreters/go/pkg/compiler/generator_methods.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_method_self_param_detection_test.go`
+- Added focused regression coverage:
+  - `TestCompilerTreatsSelfTypedFirstMethodParamAsInstanceReceiver`
+  - asserts `methods Counter { fn bump(this: Self) ... }` registers as `__able_register_compiled_method("Counter", "bump", true, ...)` (not static).
+- Validation (all bounded below 30 minutes per suite):
+  - `cd v12/interpreters/go && timeout 900s go test ./pkg/compiler -run 'TestCompilerTreatsSelfTypedFirstMethodParamAsInstanceReceiver|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod' -count=1 -timeout=14m` (pass, `ok ... 0.046s`)
+  - `cd v12/interpreters/go && timeout 900s go test ./pkg/compiler -run 'TestCompilerNoFallbacksForLocalTypeDefinitions|TestCompilerNoFallbacksForLocalFunctionDefinitionStatement|TestCompilerNoFallbacksForLocalFunctionDefinitionShadowingTypedBinding' -count=1 -timeout=14m` (pass, `ok ... 0.061s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 timeout 1800s go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=28m` (pass, `ok ... 92.448s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all timeout 1800s go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=28m` (pass, `ok ... 566.381s`)
+  - `cd v12/interpreters/go && ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURE_REQUIRE_NO_FALLBACKS=1 timeout 1800s go test ./pkg/compiler -run '^(TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures)$' -count=1 -timeout=28m` (pass, `ok ... 97.949s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURES=all timeout 1800s go test ./pkg/compiler -run '^TestCompilerExecFixtureFallbacks$' -count=1 -timeout=28m` (pass, `ok ... 10.250s`)
+
+# 2026-02-19 — Compiler AOT interface default-impl body metadata preservation (v12)
+- Closed the remaining metadata parity gap for rendered interface signatures by preserving default-implementation bodies instead of emitting `nil`.
+- Implementation:
+  - added shared default-impl block renderer that serializes AST blocks to JSON and decodes them in generated code:
+    - `v12/interpreters/go/pkg/compiler/generator_export_defs.go`
+  - wired default-impl body preservation into:
+    - package-level interface definition rendering (`renderInterfaceDefinitionExpr`)
+    - block-local interface definition rendering (`renderLocalInterfaceDefinitionExpr`)
+  - files:
+    - `v12/interpreters/go/pkg/compiler/generator_export_defs.go`
+    - `v12/interpreters/go/pkg/compiler/generator_local_type_decls.go`
+  - exported interpreter decoder helper used by generated metadata:
+    - `v12/interpreters/go/pkg/interpreter/fixtures_public.go`
+    - new: `DecodeNodeJSON(data []byte) (ast.Node, error)`
+- Extended focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_definition_metadata_render_test.go`
+  - package-level + local assertions now require signature default-impl metadata to contain decode-backed block construction (`interpreter.DecodeNodeJSON(...)`).
+- Validation (all bounded below 30 minutes per suite):
+  - `cd v12/interpreters/go && timeout 900s go test ./pkg/compiler -run 'TestCompilerPreservesDefinitionGenericConstraintsAndWhereClauses|TestCompilerNoFallbacksForLocalDefinitionConstraintsAndWhereClauses|TestCompilerNoFallbacksForLocalTypeDefinitions|TestCompilerNoFallbacksForLocalInterfaceDefinitionWithDefaultImpl' -count=1` (pass, `ok ... 0.073s`)
+  - `cd v12/interpreters/go && timeout 600s go test ./pkg/interpreter -count=1` (pass, `ok ... 69.504s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 timeout 1800s go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=28m` (pass, `ok ... 91.493s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all timeout 1800s go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=28m` (pass, `ok ... 524.221s`)
+  - `cd v12/interpreters/go && ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURE_REQUIRE_NO_FALLBACKS=1 timeout 1800s go test ./pkg/compiler -run '^(TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures)$' -count=1 -timeout=28m` (pass, `ok ... 94.285s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURES=all timeout 1800s go test ./pkg/compiler -run '^TestCompilerExecFixtureFallbacks$' -count=1 -timeout=28m` (pass, `ok ... 10.658s`)
+
+# 2026-02-19 — Compiler AOT definition metadata parity for generics/where constraints (v12)
+- Closed a definition-metadata parity gap in compiled package/local definition rendering:
+  - generic parameter interface constraints are now preserved when emitting AST metadata for struct/union/interface definitions.
+  - `where`-clause constraints are now preserved when emitting AST metadata for struct/union/interface definitions and interface signatures.
+- Files:
+  - `v12/interpreters/go/pkg/compiler/generator_export_defs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_struct_defs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_local_type_decls.go`
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_definition_metadata_render_test.go`
+  - `TestCompilerPreservesDefinitionGenericConstraintsAndWhereClauses`
+  - `TestCompilerNoFallbacksForLocalDefinitionConstraintsAndWhereClauses`
+- Validation (all bounded below 30 minutes per suite):
+  - `cd v12/interpreters/go && timeout 900s go test ./pkg/compiler -run 'TestCompilerPreservesDefinitionGenericConstraintsAndWhereClauses|TestCompilerNoFallbacksForLocalDefinitionConstraintsAndWhereClauses|TestCompilerNoFallbacksForLocalTypeDefinitions|TestCompilerNoFallbacksForLocalInterfaceDefinitionWithDefaultImpl' -count=1` (pass, `ok ... 0.073s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 timeout 1800s go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=28m` (pass, `ok ... 87.435s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all timeout 1800s go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=28m` (pass, `ok ... 525.507s`)
+  - `cd v12/interpreters/go && ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURE_REQUIRE_NO_FALLBACKS=1 timeout 1800s go test ./pkg/compiler -run '^(TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures)$' -count=1 -timeout=28m` (pass, `ok ... 94.918s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURES=all timeout 1800s go test ./pkg/compiler -run '^TestCompilerExecFixtureFallbacks$' -count=1 -timeout=28m` (pass, `ok ... 9.996s`)
+
+# 2026-02-19 — Compiler AOT local interface default-impl signature no-fallback parity (v12)
+- Closed the remaining local type-definition sub-gap by allowing block-local `interface` declarations with default-impl signatures to lower in compiled mode instead of being marked unsupported.
+  - file: `v12/interpreters/go/pkg/compiler/generator_local_type_decls.go`
+  - change: local interface signature rendering no longer rejects `sig.DefaultImpl != nil`.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_local_type_definition_no_fallback_test.go`
+  - `TestCompilerNoFallbacksForLocalInterfaceDefinitionWithDefaultImpl`
+  - validates local interface default-impl signatures compile under `RequireNoFallbacks: true` and avoid `CallOriginal("demo.main", ...)`.
+- Validation (all bounded below 30 minutes per suite):
+  - `cd v12/interpreters/go && timeout 600s go test ./pkg/compiler -run 'TestCompilerNoFallbacksForLocalTypeDefinitions|TestCompilerNoFallbacksForLocalInterfaceDefinitionWithDefaultImpl|TestCompilerNoFallbacksForLocalFunctionDefinitionStatement|TestCompilerNoFallbacksForLocalFunctionDefinitionShadowingTypedBinding' -count=1` (pass, `ok ... 0.077s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 timeout 1800s go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=28m` (pass, `ok ... 88.930s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all timeout 1800s go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=28m` (pass, `ok ... 504.874s`)
+  - `cd v12/interpreters/go && ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURE_REQUIRE_NO_FALLBACKS=1 timeout 1800s go test ./pkg/compiler -run '^(TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures)$' -count=1 -timeout=28m` (pass, `ok ... 100.949s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURES=all timeout 1800s go test ./pkg/compiler -run '^TestCompilerExecFixtureFallbacks$' -count=1 -timeout=28m` (pass, `ok ... 10.032s`)
+
+# 2026-02-19 — Compiler AOT local type-definition statement no-fallback lowering (v12)
+- Removed another unsupported-statement fallback source by compiling block-local type declarations (`type`/`struct`/`union`/`interface`) directly in compiled function bodies:
+  - added local type statement lowering in `v12/interpreters/go/pkg/compiler/generator_local_type_decls.go`.
+  - wired into statement compilation switch in `v12/interpreters/go/pkg/compiler/generator.go`.
+- Lowering behavior:
+  - local `struct` definitions emit `runtime.StructDefinitionValue` and bind both value + struct table in the current runtime env (`env.Define(...)`, `env.DefineStruct(...)`).
+  - local `union` definitions emit `runtime.UnionDefinitionValue` bindings in the current runtime env.
+  - local `interface` definitions emit `runtime.InterfaceDefinitionValue` bindings in the current runtime env.
+  - local `type` alias statements are compile-time-only in compiled mode once target type rendering succeeds (no fallback wrappers).
+  - at this milestone, interface signatures with default impl bodies were still conservatively rejected for the local-lowering path; that sub-gap was closed in the follow-up entry dated 2026-02-19 above.
+- Added focused no-fallback regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_local_type_definition_no_fallback_test.go`
+  - `TestCompilerNoFallbacksForLocalTypeDefinitions`
+  - validates local `type`/`struct`/`union`/`interface` statements compile under `RequireNoFallbacks: true`, emit direct env/runtime bindings, and avoid `CallOriginal("demo.main", ...)`.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNoFallbacksForLocalTypeDefinitions|TestCompilerNoFallbacksForLocalFunctionDefinitionStatement|TestCompilerNoFallbacksForLocalFunctionDefinitionShadowingTypedBinding|TestCompilerNoFallbacksStringDefaultImplStaticEmpty|TestCompilerRequireNoFallbacksFails' -count=1` (pass, `ok ... 0.091s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run '^TestCompilerExecFixtureFallbacks$' -count=1` (pass, `ok ... 11.632s`)
+  - `cd v12/interpreters/go && ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run '^(TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures)$' -count=1 -timeout=12m` (pass, `ok ... 97.642s`)
+
+# 2026-02-19 — Compiler AOT local function-definition statement no-fallback lowering (v12)
+- Removed a remaining static-program fallback source by compiling block-local `fn` statements directly instead of marking them unsupported:
+  - added local function statement lowering in `v12/interpreters/go/pkg/compiler/generator_local_functions.go`
+    - local `fn name(...) { ... }` now lowers to a local `runtime.Value` callable binding using compiled lambda lowering.
+    - binding is installed before body compilation so recursive local functions resolve without fallback.
+  - wired into statement compilation switch:
+    - `v12/interpreters/go/pkg/compiler/generator.go`
+- Refactored compile-context helpers out of `generator.go` into:
+  - `v12/interpreters/go/pkg/compiler/generator_context.go`
+  - keeps `generator.go` below the 1000-line cap (now 900 lines).
+- Added focused no-fallback regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_local_function_definition_no_fallback_test.go`
+  - `TestCompilerNoFallbacksForLocalFunctionDefinitionStatement`
+  - `TestCompilerNoFallbacksForLocalFunctionDefinitionShadowingTypedBinding`
+  - validates recursive local function definition compiles with `RequireNoFallbacks: true`, emits a local runtime function binding, and avoids `CallOriginal("demo.main", ...)`.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNoFallbacksForLocalFunctionDefinitionStatement|TestCompilerNoFallbacksForLocalFunctionDefinitionShadowingTypedBinding|TestCompilerNoFallbacksStringDefaultImplStaticEmpty|TestCompilerRequireNoFallbacksFails' -count=1` (pass, `ok ... 0.073s`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run '^TestCompilerExecFixtureFallbacks$' -count=1` (pass, `ok ... 9.962s`)
+  - `cd v12/interpreters/go && ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run '^(TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures)$' -count=1 -timeout=12m` (pass, `ok ... 94.385s`)
+
+# 2026-02-19 — Compiler AOT full-matrix timeout hardening (v12)
+- Hardened compiler matrix runner to prevent indefinite/stalled suites:
+  - `v12/run_compiler_full_matrix.sh` now applies:
+    - `go test -timeout` via `ABLE_COMPILER_SUITE_TIMEOUT` (default `25m`),
+    - hard wall timeout wrapper via `ABLE_COMPILER_SUITE_WALL_TIMEOUT` (default `30m`, through `timeout(1)` when available).
+  - each gate now runs through a shared `run_suite` helper that prints the suite currently running.
+- Wired timeout controls into manual CI runs:
+  - `.github/workflows/compiler-full-matrix-nightly.yml` now exposes `suite_timeout` and `suite_wall_timeout` workflow-dispatch inputs and maps them to `ABLE_COMPILER_SUITE_TIMEOUT` / `ABLE_COMPILER_SUITE_WALL_TIMEOUT`.
+- Updated operator docs:
+  - `v12/docs/compiler-full-matrix.md` now documents the new timeout env vars and workflow inputs.
+- Validation:
+  - `cd v12 && ./run_compiler_full_matrix.sh --help` (shows the new timeout defaults).
+  - `cd v12 && ABLE_COMPILER_EXEC_FIXTURES=10_06_interface_generic_param_dispatch ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=10_06_interface_generic_param_dispatch ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=10_06_interface_generic_param_dispatch ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=10_06_interface_generic_param_dispatch ABLE_COMPILER_SUITE_TIMEOUT=4m ABLE_COMPILER_SUITE_WALL_TIMEOUT=6m ./run_compiler_full_matrix.sh --typecheck-fixtures=strict --skip-fallback-audit` (pass; all four suites complete in ~2s each with timeout controls active).
+
+# 2026-02-19 — Compiler AOT compiled member-dispatch UFCS precedence fix (v12)
+- Fixed a compiled-runtime recursion/hang in stdlib compiled CLI tests (`math` + `core/numeric_smoke`) caused by generated `__able_member_get_method(...)` attempting UFCS fallback before interface/member dispatch:
+  - symptom: compiled `able-test` stalled after math cases; goroutine dump showed deep recursion in `__able_compiled_fn_floor` (`floor(value)` -> `value.floor()` -> UFCS to `floor(value)`).
+  - root cause: in generated member-get-method order, UFCS partial binding ran before `__able_interface_dispatch_member(base, name)`.
+  - fix: reordered generated dispatch so interface member resolution runs before UFCS fallback.
+  - file: `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+- Added focused compiler regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_member_get_method_ufcs_precedence_regression_test.go`
+  - `TestCompilerPrefersInterfaceDispatchBeforeUFCSInMemberGetMethod`
+  - asserts generated `__able_member_get_method` places interface member dispatch before UFCS fallback.
+- Closed the remaining stdlib smoke strict-lookup follow-up by promoting math/io/os/process/term/harness fixtures into the default interface-lookup audit set:
+  - `v12/interpreters/go/pkg/compiler/compiler_interface_lookup_audit_test.go`
+  - added `06_12_20_stdlib_math_core_numeric`, `06_12_22_stdlib_io_temp`, `06_12_23_stdlib_os`, `06_12_24_stdlib_process`, `06_12_25_stdlib_term`, and `06_12_26_stdlib_test_harness_reporters` to `defaultCompilerInterfaceLookupAuditFixtures()`.
+- Added bridge-level AOT hardening control for global lookup fallback behavior:
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge.go`
+  - new runtime toggle:
+    - `SetGlobalLookupFallbackEnabled(enabled bool)`
+    - guarded fallback sites in `Call`, `Get`, `StructDefinition`, and `CallNamedWithNode`.
+  - default remains enabled to preserve current static fixture behavior until broader env seeding/lookup tightening lands.
+- Added focused bridge regression coverage for the new fallback toggle:
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_test.go`
+  - `TestRuntimeCallCanDisableGlobalEnvironmentFallback`
+  - `TestCallNamedCanDisableGlobalEnvironmentFallback`
+  - `TestGetCanDisableGlobalEnvironmentFallback`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerPrefersInterfaceDispatchBeforeUFCSInMemberGetMethod|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerRemovesTypeRefPointerMemberGetMethodShim' -count=1` (pass, `ok ... 0.061s`)
+  - `cd v12/interpreters/go && go test ./cmd/able -run '^TestTestCommandCompiledRunsStdlibMathAndCoreNumericSuites$' -count=1 -timeout=8m -v` (pass, `--- PASS ... (9.36s)`)
+  - `cd v12/interpreters/go && go test ./cmd/able -run '^TestTestCommandCompiled' -count=1 -timeout=10m` (pass, `ok ... 212.134s`)
+  - `cd v12/interpreters/go && ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 556.492s`)
+  - `cd v12/interpreters/go && ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1 -timeout=25m` (pass, `ok ... 34.552s`)
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 64.942s`)
+  - `cd v12/interpreters/go && timeout 600s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=06_12_20_stdlib_math_core_numeric ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=9m` (pass, `ok ... 2.812s`)
+  - `cd v12/interpreters/go && timeout 600s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=06_12_22_stdlib_io_temp,06_12_23_stdlib_os ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=9m` (pass, `ok ... 11.838s`)
+  - `cd v12/interpreters/go && timeout 600s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=06_12_24_stdlib_process ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=9m` (pass, `ok ... 13.286s`)
+  - `cd v12/interpreters/go && timeout 600s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=06_12_25_stdlib_term,06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=9m` (pass, `ok ... 9.415s`)
+  - `cd v12/interpreters/go && timeout 900s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=12m` (pass, `ok ... 90.499s`)
+  - `cd v12/interpreters/go && timeout 600s go test ./pkg/compiler/bridge -run 'TestRuntimeCallFallsBackToGlobalEnvironment|TestRuntimeCallCanDisableGlobalEnvironmentFallback|TestCallNamedFallsBackToGlobalEnvironment|TestCallNamedCanDisableGlobalEnvironmentFallback|TestGetCanDisableGlobalEnvironmentFallback' -count=1 -timeout=9m` (pass, `ok ... 0.003s`)
+  - `cd v12/interpreters/go && timeout 900s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=12m` (pass, `ok ... 86.382s`)
+  - bounded re-run (all commands capped below 30m with shell `timeout` + Go `-timeout`):
+    - `timeout 1500s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=24m` (pass, `ok ... 514.653s`)
+    - `timeout 1500s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=all go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1 -timeout=24m` (pass, `ok ... 567.705s`)
+    - `timeout 1500s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=24m` (pass, `ok ... 494.815s`)
+    - `timeout 1500s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1 -timeout=24m` (pass, `ok ... 461.014s`)
+    - `timeout 900s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1 -timeout=12m` (pass, `ok ... 30.724s`)
+    - `timeout 1200s go test ./cmd/able -run '^TestTestCommandCompiled' -count=1 -timeout=15m` (pass, `ok ... 177.640s`)
+
+# 2026-02-19 — Compiler AOT bridge global-lookup seeding hardening (v12)
+- Extended compiler-generated `RegisterIn` initialization to seed `entryEnv` struct definitions from interpreter lookup for all compile-known structs (plus `Array` as a safety net):
+  - file: `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - generated helper: `__able_seed_entry_struct_defs(interp, entryEnv)`, invoked during `RegisterIn(...)`.
+- Result: strict-total global lookup no longer reports baseline `struct_registry:Array` fallback for static fixtures, and stdlib/fs/process-related registry lookups dropped where structs are compile-known.
+- Validation:
+  - `cd v12/interpreters/go && timeout 120s go test ./pkg/compiler/bridge -count=1` (pass, `ok ... 0.003s`)
+  - `cd v12/interpreters/go && timeout 1500s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=24m` (pass, `ok ... 497.820s`)
+  - `cd v12/interpreters/go && timeout 300s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=02_lexical_comments_identifiers ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_BOUNDARY_MARKER_VERBOSE=1 go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -v -timeout=4m` (pass, `ok ... 1.957s`)
+  - `cd v12/interpreters/go && timeout 420s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES='04_03_type_expression_syntax,04_04_reserved_underscore_types,05_02_array_nested_patterns,05_03_assignment_evaluation_order' ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_BOUNDARY_MARKER_VERBOSE=1 go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -v -timeout=6m` (pass, `ok ... 7.961s`)
+  - `cd v12/interpreters/go && timeout 900s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=12m` (pass, `ok ... 88.657s`)
+  - `cd v12/interpreters/go && timeout 900s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run '^(TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerExecFixtureFallbacks)$' -count=1 -timeout=12m` (pass, `ok ... 106.741s`)
+  - `cd v12/interpreters/go && timeout 900s env ABLE_TYPECHECK_FIXTURES=strict go test ./cmd/able -run '^TestTestCommandCompiled' -count=1 -timeout=12m` (pass, `ok ... 187.073s`)
+- Follow-up hardening landed for the residual `struct_registry:*` cases:
+  - added interpreter bulk seeding helpers:
+    - `Interpreter.SeedStructDefinitions(dst *runtime.Environment)` in `v12/interpreters/go/pkg/interpreter/extern_host_coercion.go`
+    - `Environment.StructSnapshot()` in `v12/interpreters/go/pkg/runtime/environment.go`
+  - updated bridge struct lookup to hydrate missing struct defs from `LookupStructDefinition(name)` into the current env before fallback accounting:
+    - `v12/interpreters/go/pkg/compiler/bridge/bridge.go`
+  - generated register seeding now calls `interp.SeedStructDefinitions(entryEnv)` before compile-known name seeding:
+    - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - added regression coverage:
+    - `v12/interpreters/go/pkg/compiler/bridge/bridge_test.go`:
+      - `TestStructDefinitionHydratesFromInterpreterLookupWithoutFallbackCounters`
+    - `v12/interpreters/go/pkg/interpreter/extern_host_coercion_lookup_struct_test.go`:
+      - `TestSeedStructDefinitionsCopiesKnownStructsIntoDestinationEnv`
+    - `v12/interpreters/go/pkg/runtime/environment_test.go`:
+      - `TestEnvironmentStructSnapshotCopiesCurrentStructBindings`
+- Validation (post-follow-up):
+  - `cd v12/interpreters/go && timeout 600s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES='06_12_26_stdlib_test_harness_reporters,10_06_interface_generic_param_dispatch,10_16_interface_value_storage,14_01_language_interfaces_index_apply_iterable' ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_BOUNDARY_MARKER_VERBOSE=1 go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -v -timeout=8m` (pass, `ok ... 12.196s`)
+  - `cd v12/interpreters/go && timeout 900s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=12m` (pass, `ok ... 90.726s`)
+  - `cd v12/interpreters/go && timeout 1500s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1 -timeout=24m` (pass, `ok ... 538.970s`)
+  - `cd v12/interpreters/go && timeout 900s env ABLE_TYPECHECK_FIXTURES=strict ABLE_COMPILER_FALLBACK_AUDIT=1 go test ./pkg/compiler -run '^(TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerExecFixtureFallbacks)$' -count=1 -timeout=12m` (pass, `ok ... 116.612s`)
+  - `cd v12/interpreters/go && timeout 900s env ABLE_TYPECHECK_FIXTURES=strict go test ./cmd/able -run '^TestTestCommandCompiled' -count=1 -timeout=12m` (pass, `ok ... 199.072s`)
+- Matrix tooling hardening:
+  - `v12/run_compiler_full_matrix.sh` now enforces `ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1` by default for interface-lookup audits.
+  - `.github/workflows/compiler-full-matrix-nightly.yml` now exposes and wires `global_lookup_strict_total` (default `1`).
+  - `v12/docs/compiler-full-matrix.md` updated with the new env/input and runtime baseline.
+  - sanity check: `cd v12 && env ABLE_COMPILER_EXEC_FIXTURES=10_06_interface_generic_param_dispatch ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=10_06_interface_generic_param_dispatch ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=10_06_interface_generic_param_dispatch ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=10_06_interface_generic_param_dispatch ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 ./run_compiler_full_matrix.sh --typecheck-fixtures=strict --skip-fallback-audit` (pass, per-gate `ok ... ~2s`).
+
+# 2026-02-16 — Compiler AOT nil-pointer qualified-callable candidate shim cleanup (v12)
+- Reduced qualified-callable resolver candidate filtering shim surface by removing the pointer-form nil branch from generated `__able_resolve_qualified_callable(...)`:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - changed candidate type switch from `case runtime.NilValue, *runtime.NilValue` to `case runtime.NilValue`.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_nil_pointer_qualified_callable_shim_regression_test.go`
+  - `TestCompilerRemovesNilPointerQualifiedCallableShim`
+  - asserts within the resolver’s `switch candidate.(type)` segment that pointer-form nil is absent and value-form nil remains.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesNilPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerQualifiedCallableShim|TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerMemberGetMethodShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (pass, `ok ... 0.181s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 60.310s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (pass, `ok ... 4.823s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 49.002s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 47.122s`)
+
+# 2026-02-16 — Compiler AOT ImplementationNamespace pointer qualified-callable shim cleanup (v12)
+- Reduced qualified-callable resolver shim surface by removing the pointer-form `ImplementationNamespace` branch from generated `__able_resolve_qualified_callable(...)` while preserving value-form lookup:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed `case *runtime.ImplementationNamespaceValue` branch in the `resolveReceiver` switch.
+  - kept `case runtime.ImplementationNamespaceValue` lookup path.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_impl_namespace_qualified_callable_shim_regression_test.go`
+  - `TestCompilerRemovesImplNamespacePointerQualifiedCallableShim`
+  - asserts value-form ImplementationNamespace branch remains and resolver emits exactly one `typed.Methods[tail]` method branch.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesImplNamespacePointerQualifiedCallableShim|TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerMemberGetMethodShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (pass, `ok ... 0.170s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (pass, `ok ... 4.091s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 68.645s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 54.976s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 48.926s`)
+
+# 2026-02-16 — Compiler AOT StructDefinition pointer qualified-callable shim cleanup (v12)
+- Reduced qualified-callable resolver shim surface by removing the pointer-form `StructDefinition` branch from generated `__able_resolve_qualified_callable(...)` while preserving value-form static lookup:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed `case *runtime.StructDefinitionValue` branch in the `resolveReceiver` switch.
+  - kept `case runtime.StructDefinitionValue` lookup path.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_structdef_qualified_callable_shim_regression_test.go`
+  - `TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim`
+  - asserts value-form `StructDefinition` branch remains and resolver emits exactly one `lookupStatic(typed.Node.ID.Name)` branch.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerMemberGetMethodShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (pass, `ok ... 0.182s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (pass, `ok ... 4.803s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 74.379s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 59.970s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 51.614s`)
+
+# 2026-02-16 — Compiler AOT TypeRef pointer qualified-callable shim cleanup (v12)
+- Reduced qualified-callable resolver shim surface by removing the pointer-form `TypeRef` branch from generated `__able_resolve_qualified_callable(...)` while preserving value-form static lookup:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed `case *runtime.TypeRefValue` branch in the `resolveReceiver` switch.
+  - kept `case runtime.TypeRefValue` lookup path.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_typeref_qualified_callable_shim_regression_test.go`
+  - `TestCompilerRemovesTypeRefPointerQualifiedCallableShim`
+  - asserts value-form `TypeRef` branch remains and the resolver emits exactly one `lookupStatic(typed.TypeName)` branch.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerMemberGetMethodShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (pass, `ok ... 0.142s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 64.505s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (pass, `ok ... 4.831s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 50.132s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 47.505s`)
+
+# 2026-02-16 — Compiler AOT ImplementationNamespace pointer member_get_method shim cleanup (v12)
+- Reduced member-dispatch shim surface by removing the pointer-form `ImplementationNamespace` branch from generated `__able_member_get_method(...)` while preserving value-form method lookup:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed `case *runtime.ImplementationNamespaceValue` branch in member-get-method dispatch.
+  - kept `case runtime.ImplementationNamespaceValue` lookup path.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_impl_namespace_member_get_method_shim_regression_test.go`
+  - `TestCompilerRemovesImplNamespacePointerMemberGetMethodShim`
+  - asserts value-form ImplementationNamespace branch remains and exactly one member-get-method `typed.Methods[name]` branch is emitted.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesImplNamespacePointerMemberGetMethodShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (pass, `ok ... 0.100s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (pass, `ok ... 3.809s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 62.043s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 49.537s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 45.896s`)
+
+# 2026-02-16 — Compiler AOT StructDefinition pointer member_get_method shim cleanup (v12)
+- Reduced member-dispatch shim surface by removing the pointer-form `StructDefinition` lookup branch from generated `__able_member_get_method(...)` while preserving the value-form static lookup:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed `case *runtime.StructDefinitionValue` branch in member-get-method dispatch.
+  - kept `case runtime.StructDefinitionValue` lookup path.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_structdef_member_get_method_shim_regression_test.go`
+  - `TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim`
+  - asserts value-form StructDefinition branch remains and only one `typed.Node.ID.Name` compiled static lookup branch is emitted in member-get-method dispatch.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (pass, `ok ... 0.082s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (pass, `ok ... 4.068s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 111.414s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 86.957s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 51.126s`)
+
+# 2026-02-16 — Compiler AOT TypeRef pointer member_get_method shim cleanup (v12)
+- Reduced member-dispatch shim surface by removing the pointer-form `TypeRef` compiled-method lookup branch from generated `__able_member_get_method(...)` while preserving value-form static lookup:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed `case *runtime.TypeRefValue` branch that duplicated the static lookup path.
+  - preserved `case runtime.TypeRefValue` lookup path for static member resolution.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_typeref_member_get_method_shim_regression_test.go`
+  - `TestCompilerRemovesTypeRefPointerMemberGetMethodShim`
+  - asserts exactly one `typed.TypeName` compiled-method lookup branch remains in generated member-get-method dispatch and that value-form TypeRef handling is still emitted.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (pass, `ok ... 0.061s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 61.855s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 58.144s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 57.902s`)
+
+# 2026-02-16 — Compiler AOT package/dynpackage pointer member_get_method shim cleanup (v12)
+- Reduced targeted member-dispatch shim surface in generated `__able_member_get_method(...)` while preserving strict lookup-bypass behavior:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - kept value-form package fast path (`case runtime.PackageValue`) for strict-total static fixture lookup bypass.
+  - removed pointer-form package fast path (`case *runtime.PackageValue`) from this member-get-method dispatch path.
+  - removed pointer-form dynpackage dyn-ref fast path (`case *runtime.DynPackageValue`) from this member-get-method dispatch path.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_package_member_get_method_shim_regression_test.go`
+  - `TestCompilerRemovesPackagePublicMemberGetMethodShim`
+  - asserts value-form package fast path remains, pointer-form package branch is absent, and bridge fallback path remains emitted.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (pass, `ok ... 0.041s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 56.515s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (pass, `ok ... 4.075s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 44.352s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 44.222s`)
+
+# 2026-02-16 — Compiler AOT Error.value member_get_method shim cleanup (v12)
+- Removed the legacy `Error.value` hardcoded branch from generated `__able_member_get_method(...)` so method dispatch no longer bypasses callable/method lookup rules for error payload values:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed:
+    - `errorValue := runtime.ErrorValue{}`
+    - `hasErrorValue := false`
+    - `if hasErrorValue && name == "value" { ... }`
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_error_value_member_get_method_shim_regression_test.go`
+  - `TestCompilerRemovesErrorValueMemberGetMethodShim`
+  - asserts the legacy shim branch string is absent and `Error.message`/`Error.cause` builtin compiled-method registration remains present.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRemovesErrorValueMemberGetMethodShim|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerInterfaceLookupBypassForStaticFixtures' -count=1` (pass, `ok ... 58.132s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_07_channel_mutex_error_types go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (pass, `ok ... 2.148s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 45.562s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (pass, `ok ... 45.452s`)
+
+# 2026-02-16 — Compiler AOT HashMap member_set shim cleanup (v12)
+- Audited `__able_member_set(...)` type-specific shims and removed an unreachable legacy `HashMap.handle` read branch that shadowed the actual setter branch:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed duplicate branch that read/returned current handle (`val, ok := inst.Fields["handle"]`) before the setter branch.
+  - retained the actual setter branch (`hash map handle must be positive`, `HashMapStoreEnsureHandle`, and `inst.Fields["handle"] = value`).
+- Added focused compiler regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_hashmap_member_set_shim_regression_test.go`
+  - `TestCompilerMemberSetHashMapHandleUsesSetterBranch`
+  - asserts legacy read-branch pattern is absent and setter assignment/validation strings remain.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerMemberSetHashMapHandleUsesSetterBranch|TestCompilerRegistersBuiltinAwaitNamedCalls|TestCompilerRegistersBuiltinFutureNamedCalls|TestCompilerRegistersBuiltinFutureMemberMethods|TestCompilerRegistersBuiltinDynPackageMemberMethods|TestCompilerRegistersBuiltinIteratorMemberMethods|TestCompilerRegistersBuiltinIntegerMemberMethods|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (pass, `ok ... 0.203s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 51.146s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 64.003s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass, `ok ... 288.489s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 553.109s`)
+
+# 2026-02-16 — Compiler AOT await named-call shim replacement with compiled call registration (v12)
+- Removed hardcoded await helper switch branches from generated `__able_call_named(...)` and moved both await helpers to builtin compiled-call registration:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed direct branches for:
+    - `__able_await_default`
+    - `__able_await_sleep_ms`
+- Added builtin compiled-call wrappers + registration:
+  - wrappers:
+    - `__able_builtin_named_await_default(...)`
+    - `__able_builtin_named_await_sleep_ms(...)`
+  - registration entries in `__able_register_builtin_compiled_calls(...)`:
+    - `__able_register_compiled_call(env, "__able_await_default", -1, 0, "", __able_builtin_named_await_default)`
+    - `__able_register_compiled_call(env, "__able_await_sleep_ms", -1, 1, "", __able_builtin_named_await_sleep_ms)`
+- Added focused compiler regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_await_named_call_registration_test.go`
+  - `TestCompilerRegistersBuiltinAwaitNamedCalls`
+  - asserts helper emission + registration and absence of legacy await switch branches in `__able_call_named`.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRegistersBuiltinAwaitNamedCalls|TestCompilerRegistersBuiltinFutureNamedCalls|TestCompilerRegistersBuiltinFutureMemberMethods|TestCompilerRegistersBuiltinDynPackageMemberMethods|TestCompilerRegistersBuiltinIteratorMemberMethods|TestCompilerRegistersBuiltinIntegerMemberMethods|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (pass, `ok ... 0.181s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 48.844s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 61.663s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass, `ok ... 269.375s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 553.991s`)
+
+# 2026-02-16 — Compiler AOT future_* named-call shim replacement with compiled call registration (v12)
+- Removed hardcoded `future_*` switch branches from generated `__able_call_named(...)` and moved those builtins to compiled-call registration:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed direct branches for:
+    - `future_yield`
+    - `future_cancelled`
+    - `future_flush`
+    - `future_pending_tasks`
+- Added builtin compiled-call wrappers + registration:
+  - wrappers:
+    - `__able_builtin_named_future_yield(...)`
+    - `__able_builtin_named_future_cancelled(...)`
+    - `__able_builtin_named_future_flush(...)`
+    - `__able_builtin_named_future_pending_tasks(...)`
+  - registration helper:
+    - `__able_register_builtin_compiled_calls(entryEnv, interp)`
+    - seeds compiled calls via `__able_register_compiled_call(...)` for the four `future_*` names.
+- Wired builtin compiled-call registration into startup:
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `RegisterIn(...)` now invokes `__able_register_builtin_compiled_calls(entryEnv, interp)` before builtin compiled method registration.
+- Added focused compiler regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_future_named_call_registration_test.go`
+  - `TestCompilerRegistersBuiltinFutureNamedCalls`
+  - asserts helper emission + registration + `RegisterIn` wiring and absence of legacy `future_*` `__able_call_named` switch branches.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRegistersBuiltinFutureNamedCalls|TestCompilerRegistersBuiltinFutureMemberMethods|TestCompilerRegistersBuiltinDynPackageMemberMethods|TestCompilerRegistersBuiltinIteratorMemberMethods|TestCompilerRegistersBuiltinIntegerMemberMethods|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (pass, `ok ... 0.169s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 55.395s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 68.294s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass, `ok ... 267.627s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 541.308s`)
+
+# 2026-02-16 — Compiler AOT Future member shim replacement with compiled registration (v12)
+- Removed direct `__able_future_member_value(...)` shim call sites from generated member lookup paths and moved Future member handling to builtin compiled-method registration:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed call-site branches from:
+    - `__able_member_get(...)`
+    - `__able_member_get_method(...)`
+- Added builtin compiled helpers and registrations for Future methods:
+  - helpers:
+    - `__able_builtin_future_receiver(...)`
+    - `__able_builtin_future_status(...)`
+    - `__able_builtin_future_value(...)`
+    - `__able_builtin_future_cancel(...)`
+    - `__able_builtin_future_is_ready(...)`
+    - `__able_builtin_future_register(...)`
+    - `__able_builtin_future_commit(...)`
+    - `__able_builtin_future_is_default(...)`
+  - registrations:
+    - `Future.status`, `Future.value`, `Future.cancel`, `Future.is_ready`, `Future.register`, `Future.commit`, `Future.is_default`
+- Updated runtime type-name mapping for compiled method dispatch:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_interface_member.go`
+  - added `*runtime.FutureValue` => `"Future"`.
+- Added focused compiler regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_future_member_compiled_registration_test.go`
+  - `TestCompilerRegistersBuiltinFutureMemberMethods`
+  - asserts helper emission + registration and confirms legacy `__able_future_member_value` member-lookup call-site shim strings are absent.
+- Removed the now-dead legacy helper implementation after call-site migration:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_future.go`
+  - deleted `__able_future_member_value(...)` to keep runtime codegen aligned with compiled-method registration.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRegistersBuiltinFutureMemberMethods|TestCompilerRegistersBuiltinDynPackageMemberMethods|TestCompilerRegistersBuiltinIteratorMemberMethods|TestCompilerRegistersBuiltinIntegerMemberMethods|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (pass, `ok ... 0.130s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 52.055s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 65.033s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass, `ok ... 312.632s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 632.595s`)
+
+# 2026-02-16 — Compiler AOT DynPackage def/eval shim replacement with compiled registration (v12)
+- Removed direct `DynPackage.def` / `DynPackage.eval` bridge-member shim branches from `__able_member_get_method` and moved both to builtin compiled-method registration:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - dyn package branch now keeps `DynRefValue` handling for non-`def`/`eval` members while allowing compiled-method dispatch for `def`/`eval`.
+- Added builtin compiled helpers and registration entries:
+  - `__able_builtin_dynpackage_member_call(...)`
+  - `__able_builtin_dynpackage_def(...)`
+  - `__able_builtin_dynpackage_eval(...)`
+  - `__able_register_compiled_method("DynPackage", "def", true, 1, 1, __able_builtin_dynpackage_def)`
+  - `__able_register_compiled_method("DynPackage", "eval", true, 1, 1, __able_builtin_dynpackage_eval)`
+  - helper delegates invocation through `bridge.CallValue(...)` so dynamic package method arity/behavior stays aligned with interpreter semantics.
+- Extended runtime type-name mapping so compiled method lookup can bind on dynamic package receivers:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_interface_member.go`
+  - added `runtime.DynPackageValue` / `*runtime.DynPackageValue` => `"DynPackage"`.
+- Added focused compiler regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_dynpackage_member_compiled_registration_test.go`
+  - `TestCompilerRegistersBuiltinDynPackageMemberMethods`
+  - asserts helper emission + registration and absence of legacy direct `def/eval` shim branch strings.
+- Regression found and fixed during validation:
+  - initial migration registered `DynPackage.def/eval` with arity `0`, which broke fixture `06_10_dynamic_metaprogramming_package_object` (`first 42` only); corrected to arity `1` with delegated call-through.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_10_dynamic_metaprogramming_package_object go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -v` (pass)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRegistersBuiltinDynPackageMemberMethods|TestCompilerRegistersBuiltinIteratorMemberMethods|TestCompilerRegistersBuiltinIntegerMemberMethods|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (pass, `ok ... 0.120s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 52.137s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 65.169s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass, `ok ... 303.587s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 597.530s`)
+
+# 2026-02-16 — Compiler AOT Iterator member shim replacement with compiled registration (v12)
+- Removed legacy `Iterator.next` native-method shim construction from `__able_member_get_method` and moved it to builtin compiled-method registration:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed inline branch-local `runtime.NativeFunctionValue` construction for iterator `next`.
+- Added builtin compiled helper and registration entry:
+  - `__able_builtin_iterator_next(...)`
+  - `__able_register_compiled_method("Iterator", "next", true, 0, 0, __able_builtin_iterator_next)`
+- Added focused compiler regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_iterator_member_compiled_registration_test.go`
+  - `TestCompilerRegistersBuiltinIteratorMemberMethods`
+  - asserts helper emission + method registration and absence of legacy `Iterator.next` member shim branch/constructor.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRegistersBuiltinIteratorMemberMethods|TestCompilerRegistersBuiltinIntegerMemberMethods|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (pass, `ok ... 0.108s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 49.985s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 63.456s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass, `ok ... 277.878s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 565.078s`)
+
+# 2026-02-16 — Compiler AOT Error member shim replacement with compiled registration (v12)
+- Removed legacy `Error.message` / `Error.cause` native-method shim construction from `__able_member_get_method` and moved both to builtin compiled-method registration:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed inline branch-local `runtime.NativeFunctionValue` construction for:
+    - `messageMethod := runtime.NativeFunctionValue{...}`
+    - `causeMethod := runtime.NativeFunctionValue{...}`
+  - preserved direct payload field behavior for `error.value` access.
+- Added builtin compiled helpers and registration entries:
+  - `__able_builtin_error_message(...)`
+  - `__able_builtin_error_cause(...)`
+  - `__able_register_compiled_method("Error", "message", true, 0, 0, __able_builtin_error_message)`
+  - `__able_register_compiled_method("Error", "cause", true, 0, 0, __able_builtin_error_cause)`
+- Added focused compiler regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_error_member_compiled_registration_test.go`
+  - `TestCompilerRegistersBuiltinErrorMemberMethods`
+  - asserts helper emission + method registration and absence of legacy `messageMethod`/`causeMethod` shim branches.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRegistersBuiltinIntegerMemberMethods|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (pass, `ok ... 0.081s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 53.439s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 67.702s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass, `ok ... 292.504s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 567.316s`)
+
+# 2026-02-16 — Compiler AOT integer member shim replacement with compiled registration (v12)
+- Removed hardcoded integer runtime member lookup shims for `clone`/`to_string` and replaced them with builtin compiled-method registration:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - removed `__able_member_get_method` integer branches for:
+    - `if _, ok := base.(runtime.IntegerValue); ok { ... }`
+    - `if intPtr, ok := base.(*runtime.IntegerValue); ok && intPtr != nil { ... }`
+  - added generated builtin helpers:
+    - `__able_builtin_integer_clone(...)`
+    - `__able_builtin_integer_to_string(...)`
+    - `__able_register_builtin_compiled_methods()`
+  - registration now seeds integer method thunks for `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`, `isize`, `usize`.
+- Wired builtin method registration into compiler startup:
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `RegisterIn(...)` now calls `__able_register_builtin_compiled_methods()` before package method/impl registration.
+- Added focused regression coverage:
+  - `v12/interpreters/go/pkg/compiler/compiler_integer_member_compiled_registration_test.go`
+  - `TestCompilerRegistersBuiltinIntegerMemberMethods`
+  - asserts generated source includes builtin helper emission + registration call and no longer emits legacy integer shim branches.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRegistersBuiltinIntegerMemberMethods|TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (pass)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 51.155s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 64.358s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass, `ok ... 266.656s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 539.938s`)
+
+# 2026-02-16 — Compiler AOT String static method lowering regression guard (v12)
+- Updated method lowering so `methods String.fn from_bytes_unchecked(...) -> String` compiles as a typed static method registration path (struct return) instead of relying on runtime member-lookup shims:
+  - `v12/interpreters/go/pkg/compiler/generator_methods.go`
+  - removed the generic runtime-value return forcing path and replaced it with targeted typed return lowering for `String.from_bytes_unchecked`.
+- Added a focused compiler regression test that asserts static compiled-method registration for this path:
+  - `v12/interpreters/go/pkg/compiler/compiler_string_method_registration_test.go`
+  - `TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod`
+  - checks generated source contains `__able_register_compiled_method("String", "from_bytes_unchecked", false, ...)`.
+- Added a focused no-fallback regression for String-shadowing impl dispatch:
+  - `v12/interpreters/go/pkg/compiler/compiler_string_impl_regression_test.go`
+  - `TestCompilerNoFallbacksStringDefaultImplStaticEmpty`
+  - verifies `impl Default for String { fn default() -> String { String.empty() } }` compiles under `RequireNoFallbacks: true` (guard against `impl Default for String.default` fallback regressions).
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 58.297s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (pass, `ok ... 495.357s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1` (pass, `ok ... 46.704s`)
+
+# 2026-02-16 — Compiler AOT strict-total lookup stabilization + all-fixture baseline (v12)
+- Fixed compiled dyn-package method dispatch for `def`/`eval`:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - replaced the broken `dyn.def` shortcut path with direct `bridge.MemberGet(__able_runtime, dynPkg, "def"/"eval")` resolution so compiled code reuses interpreter-native `DynPackageValue` bound methods.
+- Added direct static handling for `String.from_bytes_unchecked` to eliminate remaining strict-total member-lookup misses:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - generated helper `__able_static_string_from_bytes_unchecked_method(...)`
+  - hooked `runtime.StructDefinitionValue` / `*runtime.StructDefinitionValue` member resolution for `"String"."from_bytes_unchecked"` before interpreter fallback lookup.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES='06_10_dynamic_metaprogramming_package_object,06_12_13_stdlib_collections_persistent_sorted_queue,06_12_21_stdlib_fs_path,06_12_22_stdlib_io_temp,06_12_24_stdlib_process,07_02_01_verbose_anonymous_fn,13_04_import_alias_selective_dynimport' ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=20m` (pass, `ok ... 644.285s`).
+- Hardened default interface-lookup audit coverage (no env override required) by adding additional regression fixtures in `defaultCompilerInterfaceLookupAuditFixtures()`:
+  - `06_10_dynamic_metaprogramming_package_object`
+  - `06_12_21_stdlib_fs_path`
+  - `13_04_import_alias_selective_dynimport`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (pass, `ok ... 58.411s`).
+
+# 2026-02-14 — Compiler AOT strict interface-lookup bypass audit + markers (v12)
+- Added compiler bridge instrumentation for interpreter member-lookup fallback paths:
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge.go`
+  - new counters and helpers:
+    - `ResetMemberGetPreferMethodsCounters()`
+    - `MemberGetPreferMethodsStats()`
+  - `CallNamed` now supports a generated qualified-callable resolver hook (`SetQualifiedCallableResolver`) before interpreter member lookup, while still routing fallback qualified member lookup through `MemberGetPreferMethods(...)` when unresolved.
+- Added bridge unit coverage for lookup counters:
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_test.go`
+  - `TestMemberGetPreferMethodsCounters`
+  - `TestCallNamedWithQualifiedResolverBypassesMemberLookup`
+- Extended compiler fixture harness marker support:
+  - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - new env-gated stderr markers:
+    - `__ABLE_MEMBER_LOOKUP_CALLS`
+    - `__ABLE_MEMBER_LOOKUP_INTERFACE_CALLS`
+  - counters are reset before `RunRegisteredMain(...)`.
+- Tightened strict interface dispatch behavior in generated runtime calls:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - when `__able_interface_dispatch_strict` is enabled and an interface method cannot be resolved by compiled dispatch, code now raises immediately instead of falling through to interpreter member lookup.
+  - added shared compiled-thunk invocation helper (`__able_call_compiled_thunk`) in `__able_call_value` that accepts both raw func thunks and `interpreter.CompiledThunk`, and expanded bound-method fast paths for `runtime.BoundMethodValue`/`*runtime.BoundMethodValue` when the wrapped callable carries compiled thunk metadata.
+- Added dedicated static fixture audit gate:
+  - `v12/interpreters/go/pkg/compiler/compiler_interface_lookup_audit_test.go`
+  - `TestCompilerInterfaceLookupBypassForStaticFixtures`
+  - defaults now cover interface-heavy static fixtures across:
+    - `06_01`, `06_03`, `07_04`
+    - `10_01` through `10_17`
+    - `14_01` language/index-apply and operator arithmetic/comparison
+  - configurable via `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES` (`all` supported), and now also asserts `__ABLE_BOUNDARY_FALLBACK_CALLS=0` for these static fixtures.
+  - optional strict-total mode (`ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1`) additionally asserts `__ABLE_MEMBER_LOOKUP_CALLS=0`; current failures in that mode now show `__ABLE_BOUNDARY_EXPLICIT_CALLS=0` for the focused probe and are concentrated in non-interface member resolution (impl/interface method lookup) rather than `call_value` bridge crossings.
+- Wired new audit into full-matrix tooling/CI:
+  - `v12/run_compiler_full_matrix.sh`
+  - `v12/run_all_tests.sh`
+  - `.github/workflows/compiler-full-matrix-nightly.yml`
+  - `v12/docs/compiler-full-matrix.md`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_GOCACHE=$(pwd)/.gocache ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=10_02_impl_specificity_named_overrides ABLE_COMPILER_BOUNDARY_MARKER_VERBOSE=1 ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (expected failure; confirms remaining non-interface member-lookup path with `__ABLE_BOUNDARY_EXPLICIT_CALLS=0`)
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=06_01_compiler_type_qualified_method,06_03_operator_overloading_interfaces,07_04_apply_callable_interface,10_01_interface_defaults_composites,10_02_impl_specificity_named_overrides,10_02_impl_where_clause,10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_05_interface_named_impl_defaults,10_06_interface_generic_param_dispatch,10_07_interface_default_chain,10_08_interface_default_override,10_09_interface_named_impl_inherent,10_10_interface_inheritance_defaults,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_13_interface_param_generic_args,10_14_interface_return_generic_args,10_15_interface_default_generic_method,10_16_interface_value_storage,10_17_interface_overload_dispatch,14_01_language_interfaces_index_apply_iterable,14_01_operator_interfaces_arithmetic_comparison go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerDynamicBoundary -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `ABLE_COMPILER_EXEC_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=06_01_compiler_type_qualified_method,10_05_interface_named_impl_defaults,10_17_interface_overload_dispatch,14_01_language_interfaces_index_apply_iterable ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_26_stdlib_test_harness_reporters ./v12/run_compiler_full_matrix.sh --typecheck-fixtures=strict`
+  - `ABLE_FIXTURE_FILTER=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_EXEC_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=06_01_compiler_type_qualified_method,10_05_interface_named_impl_defaults,10_17_interface_overload_dispatch,14_01_language_interfaces_index_apply_iterable ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_26_stdlib_test_harness_reporters ./run_all_tests.sh --version=v12 --fixture --compiler-full-matrix --typecheck-fixtures=strict`
+
+# 2026-02-14 — Compiler AOT text/string compiled strict coverage expansion (v12)
+- Expanded compiled strict/no-fallback stdlib gate coverage to text/string suites:
+  - `v12/interpreters/go/cmd/able/test_cli_test.go`
+  - added `TestTestCommandCompiledRunsStdlibTextStringSuites` covering:
+    - `v12/stdlib/tests/text/string_methods.test.able`
+    - `v12/stdlib/tests/text/string_split.test.able`
+    - `v12/stdlib/tests/text/string_builder.test.able`
+    - `v12/stdlib/tests/text/string_smoke.test.able`
+- Expanded build precompile discovery assertions for text packages:
+  - `v12/interpreters/go/cmd/able/build_precompile_test.go`
+  - added expectations for:
+    - `able.text.string`
+    - `able.text.regex`
+    - `able.text.ascii`
+    - `able.text.automata`
+    - `able.text.automata_dsl`
+- Validation:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDiscoverPrecompilePackagesIncludesStdlibAndKernel|TestTestCommandCompiledRunsStdlibTextStringSuites' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1`
+  - `ABLE_FIXTURE_FILTER=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_EXEC_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=06_12_26_stdlib_test_harness_reporters ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=06_12_26_stdlib_test_harness_reporters ./run_all_tests.sh --version=v12 --fixture --compiler-full-matrix --typecheck-fixtures=strict`
+
+# 2026-02-13 — Compiler full-matrix operator docs (v12)
+- Added dedicated operator-facing docs:
+  - `v12/docs/compiler-full-matrix.md`
+  - covers:
+    - local command paths (`run_compiler_full_matrix.sh`, `run_all_tests.sh --compiler-full-matrix`)
+    - env override knobs for narrowed/full sweeps
+    - workflow dispatch inputs
+    - current runtime profile baseline for `...=all` sweeps
+- Added doc pointer in:
+  - `v12/README.md`
+- Validation:
+  - `rg -n "compiler-full-matrix\\.md|workflow_dispatch" v12/README.md v12/docs/compiler-full-matrix.md .github/workflows/compiler-full-matrix-nightly.yml`
+
 # 2026-02-13 — CI workflow for compiler full-matrix sweeps (v12)
 - Added GitHub Actions workflow:
   - `.github/workflows/compiler-full-matrix-nightly.yml`
@@ -3591,6 +4270,11 @@ Open items (2025-11-02 audit):
 - Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
 - Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
 - Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
+- Compiler AOT: normalized `InterfaceValue` member-get-method dispatch to a single shared path in generated runtime calls (value/pointer forms now flow through one local `iface` value), removing duplicated pointer/value interface dispatch branches while preserving strict interface miss behavior.
+- Compiler tests: added `TestCompilerNormalizesInterfaceMemberGetMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_member_get_method_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.076s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 512.628s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.945s`).
 - CLI/compiler integration: added shared `ABLE_COMPILER_REQUIRE_NO_FALLBACKS` parsing helper in `v12/interpreters/go/cmd/able/compiler_options.go` with strict token validation and explicit error messages for invalid values.
 - CLI/compiler integration: `able test --compiled` now applies the same `RequireNoFallbacks` setting (via env) before compilation, matching `able build` strict fallback behavior.
 - CLI tests: added `TestBuildNoFallbacksFlagFailsWhenFallbackRequired`, `TestBuildNoFallbacksEnvFailsWhenFallbackRequired`, and `TestBuildNoFallbacksInvalidEnvFailsArgumentParsing` in `v12/interpreters/go/cmd/able/build_test.go`.
@@ -3633,3 +4317,331 @@ Open items (2025-11-02 audit):
 - Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
 - Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
 - Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
+- Compiler AOT: normalized `InterfaceValue` member-get-method dispatch to a single shared path in generated runtime calls (value/pointer forms now flow through one local `iface` value), removing duplicated pointer/value interface dispatch branches while preserving strict interface miss behavior.
+- Compiler tests: added `TestCompilerNormalizesInterfaceMemberGetMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_member_get_method_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.076s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 512.628s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.945s`).
+- Compiler AOT: normalized `DynPackage` builtin member-call receiver handling to a single shared value path (value/pointer receiver assertions now populate one local `dyn` value before `bridge.MemberGet`), removing duplicated pointer/value receiver switch branches while preserving `DynPackage.def`/`DynPackage.eval` behavior.
+- Compiler tests: added `TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver` in `v12/interpreters/go/pkg/compiler/compiler_dynpackage_member_call_receiver_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver|TestCompilerRegistersBuiltinDynPackageMemberMethods' -count=1` (`ok ... 0.040s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (`ok ... 3.753s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.602s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 235.950s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 507.252s`).
+- Compiler AOT: normalized builtin `Error.message`/`Error.cause` receiver handling to a shared helper (`__able_builtin_error_receiver`) so value/pointer receivers now flow through one local `runtime.ErrorValue` normalization path.
+- Compiler tests: added `TestCompilerNormalizesErrorBuiltinMemberReceivers` in `v12/interpreters/go/pkg/compiler/compiler_error_member_receiver_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesErrorBuiltinMemberReceivers|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (`ok ... 0.058s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES='12_07_channel_mutex_error_types,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (`ok ... 3.856s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 58.021s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 232.297s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 500.790s`).
+- Compiler AOT: normalized duplicated pointer/value native callable-dispatch branches in `__able_call_value` via shared helper `__able_call_native_function` so native function values, native bound-method values, and bound-method native members reuse one arity/error/partial-application path.
+- Compiler tests: added `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesErrorBuiltinMemberReceivers|TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver' -count=1` (`ok ... 0.057s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES='12_07_channel_mutex_error_types,13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (`ok ... 6.302s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 61.363s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.021s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 530.283s`).
+- Compiler AOT: normalized duplicated pointer/value interface + partial unwrapping branches in `__able_call_value` to shared helpers (`__able_callable_interface_value`, `__able_callable_partial_value`, `__able_merge_bound_args`) while preserving nil-pointer-to-nil-value behavior and bound-arg merge semantics.
+- Compiler tests: added `TestCompilerNormalizesCallValueUnwrapBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_unwrap_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesErrorBuiltinMemberReceivers' -count=1` (`ok ... 0.058s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES='12_07_channel_mutex_error_types,13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (`ok ... 5.703s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 75.289s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 243.026s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 529.914s`).
+- Compiler AOT: normalized duplicated pointer/value callable-name unwrapping in `__able_callable_name` to shared helpers (`__able_callable_native_function_value`, `__able_callable_native_bound_method_value`, `__able_callable_bound_method_value`) while reusing shared partial/interface unwrapping helpers.
+- Compiler tests: added `TestCompilerNormalizesCallableNameUnwrapBranches` in `v12/interpreters/go/pkg/compiler/compiler_callable_name_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallValueNativeDispatchBranches' -count=1` (`ok ... 0.059s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 60.268s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 506.503s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.352s`).
+- Compiler AOT: normalized duplicated pointer/value bound-method dispatch branches in `__able_call_value` into shared helper `__able_call_bound_method` while preserving compiled-thunk + native-member dispatch behavior.
+- Compiler tests: added `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_bound_method_shim_regression_test.go`.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the new bound-method helper path.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.077s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.331s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 520.056s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.549s`).
+- Compiler AOT: normalized duplicated pointer/value native-bound receiver-injection dispatch branches in `__able_call_value` into shared helper `__able_call_native_bound_method` while preserving native partial-target semantics.
+- Compiler tests: added `TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_bound_method_shim_regression_test.go`.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the new native-bound helper path.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.097s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 56.348s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 504.781s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.303s`).
+- Compiler AOT: normalized duplicated `*runtime.FunctionValue` compiled-thunk dispatch in `__able_call_value` and the bound-method thunk branch via shared helper `__able_call_function_thunk` while preserving runtime-error context handling and nil-value semantics.
+- Compiler tests: added `TestCompilerNormalizesCallValueFunctionThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_value_function_thunk_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.113s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.563s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 492.656s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 229.642s`).
+- Compiler AOT: normalized duplicated `runtime.NativeFunctionValue` / `*runtime.NativeFunctionValue` dispatch in `__able_call_value` via shared helper `__able_call_native_function_value` while preserving partial-target semantics for pointer/value targets.
+- Compiler tests: added `TestCompilerNormalizesCallValueNativeFunctionDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_function_shim_regression_test.go`.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the shared native-function helper path.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.126s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.973s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 530.525s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 246.697s`).
+- Compiler AOT: normalized duplicated `runtime.NativeBoundMethodValue` / `*runtime.NativeBoundMethodValue` switch dispatch in `__able_call_value` via shared unwrapping path `__able_callable_native_bound_method_value` with unified dispatch through `__able_call_native_bound_method(nativeBound, fn, ...)`.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_bound_method_shim_regression_test.go` to assert switch-branch removal and the new normalized unwrapping path.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the new native-bound unwrapping path.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.127s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 60.240s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 509.840s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 244.857s`).
+- Compiler AOT: normalized duplicated `runtime.BoundMethodValue` / `*runtime.BoundMethodValue` switch dispatch in `__able_call_value` via shared unwrapping path `__able_callable_bound_method_value` with unified dispatch through `__able_call_bound_method(bound, fn, ...)`.
+- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_bound_method_shim_regression_test.go` to assert switch-branch removal and the normalized bound-method unwrapping path.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the normalized bound-method unwrapping path.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.144s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.867s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 525.014s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 256.323s`).
+- Compiler AOT: removed the now-single-case `switch v := fn.(type)` in `__able_call_value` by normalizing `*runtime.FunctionValue` dispatch to a direct assertion path that routes through `__able_call_function_thunk`.
+- Compiler tests: updated `TestCompilerNormalizesCallValueFunctionThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_value_function_thunk_shim_regression_test.go` to assert switch removal and direct assertion path usage.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.133s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.023s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 590.436s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 234.021s`).
+- Compiler tests: strengthened `TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod` in `v12/interpreters/go/pkg/compiler/compiler_string_method_registration_test.go` to assert generated wrappers do not use `__able_call_named("String.from_bytes_unchecked", ...)` fallback dispatch.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (`ok ... 0.042s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.430s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 497.476s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.787s`).
+- Compiler AOT: normalized `__able_call_bound_method` by removing `switch method := bound.Method.(type)` and routing native-function dispatch through `__able_callable_native_function_value(bound.Method)` while keeping direct `*runtime.FunctionValue` thunk assertion + shared helper dispatch.
+- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_bound_method_shim_regression_test.go` to assert removal of the bound-method switch and helper-based native unwrapping.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert helper-based native unwrapping inside bound-method dispatch.
+- Compiler tests: updated `TestCompilerNormalizesCallValueFunctionThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_value_function_thunk_shim_regression_test.go` for the renamed direct thunk assertion local.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.127s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.269s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 510.913s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 231.459s`).
+- Compiler AOT: normalized `__able_interface_bind_receiver_method` by removing method-kind pointer/value switch dispatch and routing through shared callable unwrapping helpers (`__able_callable_native_function_value`, `__able_callable_native_bound_method_value`, `__able_callable_bound_method_value`) while preserving nil-pointer behavior and receiver binding semantics.
+- Compiler tests: added `TestCompilerNormalizesInterfaceBindReceiverMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_bind_receiver_method_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.090s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.495s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 496.160s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 241.374s`).
+- Compiler AOT: normalized `__able_runtime_value_type_name` by replacing legacy pointer/value switch unwrapping for interface/type-ref/numeric paths with shared helpers (`__able_callable_interface_value`, `__able_runtime_struct_definition_value`, `__able_runtime_type_ref_value`, `__able_runtime_integer_value`, `__able_runtime_float_value`) while preserving nil-pointer behavior and type-name resolution semantics.
+- Compiler tests: added `TestCompilerNormalizesRuntimeValueTypeNameUnwrapping` in `v12/interpreters/go/pkg/compiler/compiler_runtime_value_type_name_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.129s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 60.871s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 559.009s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 241.198s`).
+- Compiler AOT: normalized `__able_interface_dispatch_static_receiver` by removing explicit pointer/value switch branches and routing static-receiver detection through shared struct/type-ref unwrapping helpers (`__able_runtime_struct_definition_value`, `__able_runtime_type_ref_value`) with preserved nil-pointer semantics.
+- Compiler tests: added `TestCompilerNormalizesInterfaceDispatchStaticReceiver` in `v12/interpreters/go/pkg/compiler/compiler_interface_dispatch_static_receiver_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceDispatchStaticReceiver|TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.130s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.392s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 527.628s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 254.320s`).
+- Compiler AOT: normalized `__able_interface_dispatch_member` candidate matching by extracting receiver-type/generic/`MatchType` resolution into shared helper `__able_interface_dispatch_match_entry`, preserving constraint enforcement and coerced-receiver semantics while removing duplicated inline match branches.
+- Compiler tests: added `TestCompilerNormalizesInterfaceDispatchMemberMatchResolution` in `v12/interpreters/go/pkg/compiler/compiler_interface_dispatch_member_match_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceDispatchMemberMatchResolution|TestCompilerNormalizesInterfaceDispatchStaticReceiver|TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.158s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.169s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 506.131s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 241.648s`).
+- Compiler AOT: generalized static method lowering for nominal-struct returns by replacing the hardcoded `String.from_bytes_unchecked` return-type override with shared helper `staticMethodNominalStructReturnType` used by both method and impl lowering (`fillMethodInfo`, `fillImplMethodInfo`), preserving no-fallback compileability for `impl Default for String` static dispatch while allowing additional static constructors that return their target struct type to compile without fallback.
+- Compiler tests: added `TestCompilerRegistersCompiledStringStaticStructReturnMethod` in `v12/interpreters/go/pkg/compiler/compiler_string_static_struct_return_registration_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerRegistersCompiledStringStaticStructReturnMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty|TestCompilerNormalizesInterfaceDispatchMemberMatchResolution' -count=1` (`ok ... 0.079s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 60.376s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 519.249s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 243.853s`).
+- Compiler AOT: normalized interface runtime method binding by replacing legacy method-kind pointer/value switches in `__able_interface_method_receiver` and `__able_interface_bind_method` with shared callable unwrapping helpers (`__able_callable_bound_method_value`, `__able_callable_native_function_value`, `__able_callable_native_bound_method_value`), preserving nil-pointer behavior and bound receiver semantics while reducing branch-local duplication.
+- Compiler tests: added `TestCompilerNormalizesInterfaceBindMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_bind_method_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceBindMethodDispatch|TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceDispatchMemberMatchResolution|TestCompilerNormalizesInterfaceDispatchStaticReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.096s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.544s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 526.627s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 239.138s`).
+- Compiler AOT: normalized callable-kind detection in `__able_is_callable_value` by replacing the legacy pointer/value type switch with shared callable unwrapping helpers (`__able_callable_native_function_value`, `__able_callable_native_bound_method_value`, `__able_callable_bound_method_value`, `__able_callable_partial_value`) plus direct compiled-function assertions, preserving typed-nil callable semantics while reducing dispatch-kind shim duplication.
+- Compiler tests: added `TestCompilerNormalizesIsCallableValueDispatch` in `v12/interpreters/go/pkg/compiler/compiler_is_callable_value_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.139s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.447s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 510.969s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 235.150s`).
+- Compiler AOT: normalized member-name extraction in `__able_member_name` by replacing the legacy pointer/value string switch with shared helper `__able_runtime_string_value`, preserving nil-pointer string behavior while reducing branch-local string-kind dispatch duplication.
+- Compiler tests: added `TestCompilerNormalizesMemberNameStringUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_member_name_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.167s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 63.281s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 536.874s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.355s`).
+- Compiler AOT: normalized qualified-callable candidate nil filtering in `__able_resolve_qualified_callable` by replacing the local `switch candidate.(type)` branch with shared `__able_is_nil(candidate)` checking, preserving nil-sentinel behavior while reducing branch-local nil-kind dispatch duplication.
+- Compiler tests: updated `TestCompilerRemovesNilPointerQualifiedCallableShim` in `v12/interpreters/go/pkg/compiler/compiler_nil_pointer_qualified_callable_shim_regression_test.go` to assert switch removal and shared nil-helper usage.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRemovesNilPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerQualifiedCallableShim|TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch' -count=1` (`ok ... 0.107s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.112s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 542.815s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 247.830s`).
+- Compiler AOT: normalized integer unwrapping in runtime string helper `__able_int64_from_value` by replacing the local pointer/value integer switch with shared helper `__able_runtime_integer_value`, preserving nil-pointer and 64-bit fit checks while reducing branch-local integer-kind dispatch duplication.
+- Compiler tests: added `TestCompilerNormalizesInt64FromValueIntegerUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_int64_from_value_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.092s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.353s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 493.730s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 226.789s`).
+- Compiler AOT: normalized string unwrapping in runtime helper `__able_string_from_builtin_impl` by replacing the local pointer/value string switch with shared helper `__able_runtime_string_value` while preserving struct-instance string handling (`__able_string_bytes_from_struct`), reducing branch-local string-kind dispatch duplication.
+- Compiler tests: added `TestCompilerNormalizesStringFromBuiltinUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_string_from_builtin_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.091s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.878s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 502.838s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 230.086s`).
+- Compiler AOT: normalized char unwrapping in runtime helper `__able_char_to_codepoint_impl` by replacing the local pointer/value char switch with shared helper `__able_runtime_char_value`, preserving nil-pointer char behavior while reducing branch-local char-kind dispatch duplication.
+- Compiler tests: added `TestCompilerNormalizesCharToCodepointUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_char_to_codepoint_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCharToCodepointUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.108s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.222s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 500.646s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 230.275s`).
+- Compiler AOT: normalized error unwrapping in core runtime helper `__able_struct_instance` by replacing the local error pointer/value switch with shared helper `__able_runtime_error_value`, preserving nil-pointer error handling while reducing branch-local error-kind dispatch duplication.
+- Compiler tests: added `TestCompilerNormalizesStructInstanceErrorUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_struct_instance_error_unwrap_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesStructInstanceErrorUnwrap|TestCompilerNormalizesCharToCodepointUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.131s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 56.380s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 484.316s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 225.983s`).
+- Compiler AOT: normalized nil detection in core runtime helper `__able_is_nil` by replacing the local `runtime.NilValue` pointer/value switch with shared helper `__able_runtime_nil_value`, preserving nil-pointer semantics while reducing branch-local nil-kind dispatch duplication.
+- Compiler tests: added `TestCompilerNormalizesIsNilUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_is_nil_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesIsNilUnwrap|TestCompilerNormalizesStructInstanceErrorUnwrap|TestCompilerNormalizesCharToCodepointUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.193s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.157s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 505.884s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 234.512s`).
+- Compiler AOT: normalized struct-instance unwrapping in core runtime helper `__able_struct_instance` by replacing direct `*runtime.StructInstanceValue` assertion with shared helper `__able_runtime_struct_instance_value`, preserving typed-nil behavior while keeping shared error unwrapping via `__able_runtime_error_value`.
+- Compiler tests: updated `TestCompilerNormalizesStructInstanceErrorUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_struct_instance_error_unwrap_shim_regression_test.go` to assert shared struct-instance helper emission/usage and direct-assertion removal.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesStructInstanceErrorUnwrap' -count=1` (`ok ... 0.021s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 61.170s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 501.871s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 235.305s`).
+- Compiler AOT: normalized struct-instance unwrapping in runtime helper `__able_string_from_builtin_impl` by replacing direct `*runtime.StructInstanceValue` assertion with shared helper `__able_runtime_struct_instance_value`, preserving struct-instance byte extraction (`__able_string_bytes_from_struct`) while routing typed-nil pointers through the existing argument error path.
+- Compiler tests: updated `TestCompilerNormalizesStringFromBuiltinUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_string_from_builtin_shim_regression_test.go` to assert shared struct-instance helper emission/usage and direct-assertion removal.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesStringFromBuiltinUnwrap' -count=1` (`ok ... 0.021s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 57.838s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 500.554s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 233.138s`).
+- Compiler AOT: normalized `Error` builtin receiver unwrapping in `__able_builtin_error_receiver` by replacing direct `runtime.ErrorValue`/`*runtime.ErrorValue` assertions with shared helper `__able_runtime_error_value`, preserving typed-nil pointer rejection and receiver validation semantics.
+- Compiler tests: updated `TestCompilerNormalizesErrorBuiltinMemberReceivers` in `v12/interpreters/go/pkg/compiler/compiler_error_member_receiver_shim_regression_test.go` to assert shared runtime error helper emission/usage and direct pointer assertion removal.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesErrorBuiltinMemberReceivers' -count=1` (`ok ... 0.021s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 61.417s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 521.518s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.068s`).
+- Compiler AOT: normalized `DynPackage` builtin member-call receiver unwrapping in `__able_builtin_dynpackage_member_call` by replacing direct `runtime.DynPackageValue`/`*runtime.DynPackageValue` assertions with shared helper `__able_runtime_dynpackage_value`, preserving typed-nil pointer rejection and receiver validation semantics.
+- Compiler tests: updated `TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver` in `v12/interpreters/go/pkg/compiler/compiler_dynpackage_member_call_receiver_shim_regression_test.go` to assert shared runtime dynpackage helper emission/usage and direct pointer assertion removal.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver' -count=1` (`ok ... 0.021s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 58.894s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 508.755s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 265.551s`).
+- Compiler AOT: normalized `Future` builtin receiver unwrapping in `__able_builtin_future_receiver` by replacing direct `*runtime.FutureValue` assertion with shared helper `__able_runtime_future_value`, preserving typed-nil pointer rejection and receiver validation semantics.
+- Compiler tests: added `TestCompilerNormalizesFutureBuiltinMemberReceiver` in `v12/interpreters/go/pkg/compiler/compiler_future_member_receiver_shim_regression_test.go`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesFutureBuiltinMemberReceiver' -count=1` (`ok ... 0.021s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.639s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 511.689s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 243.107s`).
+- Compiler AOT: normalized interface-wrapped method dispatch in `__able_call_bound_method` by unwrapping `bound.Method` via shared helper `__able_callable_interface_value` before compiled-thunk/native dispatch checks, preserving typed-nil interface handling semantics.
+- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_bound_method_shim_regression_test.go` to assert interface helper unwrapping and local-method dispatch checks.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert normalized bound-method native unwrapping after interface unwrapping.
+- Compiler tests: updated `TestCompilerNormalizesCallValueFunctionThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_value_function_thunk_shim_regression_test.go` to assert normalized local-method thunk assertion path.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.058s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.367s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 524.970s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 248.036s`).
+- Compiler AOT: normalized interface member-get dispatch in `__able_member_get_method` by replacing legacy `isIface` tracking + direct `runtime.InterfaceValue`/`*runtime.InterfaceValue` assertions with shared helper `__able_callable_interface_value`, preserving strict interface-miss panic behavior and typed-nil interface-pointer handling semantics.
+- Compiler tests: updated `TestCompilerNormalizesInterfaceMemberGetMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_member_get_method_shim_regression_test.go` to assert helper-based interface unwrapping and legacy assertion branch removal.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.021s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 62.491s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 540.533s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.675s`).
+- Compiler AOT: normalized `Iterator.next` builtin receiver unwrapping in `__able_builtin_iterator_next` by replacing direct `*runtime.IteratorValue` assertion with shared helper `__able_runtime_iterator_value`, preserving typed-nil pointer rejection and receiver validation semantics.
+- Compiler tests: added `TestCompilerNormalizesIteratorBuiltinMemberReceiver` in `v12/interpreters/go/pkg/compiler/compiler_iterator_member_receiver_shim_regression_test.go` to assert shared helper usage and legacy direct assertion removal.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.040s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.366s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 527.393s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 257.697s`).
+- Compiler AOT: normalized array receiver unwrapping in `__able_member_set` and `__able_member_get` by replacing duplicated direct `*runtime.ArrayValue` assertions with shared helper `__able_runtime_array_value`, preserving typed-nil pointer bypass behavior while removing branch-local array assertion duplication.
+- Compiler tests: added `TestCompilerNormalizesArrayMemberReceiverUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_array_member_receiver_shim_regression_test.go` to assert helper usage and legacy direct assertion removal in both member-set and member-get helpers.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.058s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.895s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 530.935s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 252.561s`).
+- Compiler AOT: normalized direct callable pointer assertions in `__able_is_callable_value` by replacing legacy `*runtime.FunctionValue` / `*runtime.FunctionOverloadValue` checks with shared helpers (`__able_callable_function_value`, `__able_callable_function_overload_value`), preserving typed-nil callable semantics while removing branch-local assertion duplication.
+- Compiler tests: updated `TestCompilerNormalizesIsCallableValueDispatch` in `v12/interpreters/go/pkg/compiler/compiler_is_callable_value_shim_regression_test.go` to assert shared helper emission/usage and legacy direct assertion removal.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.076s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 62.788s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 531.135s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 242.430s`).
+- Compiler AOT: normalized function-thunk dispatch unwrapping in `__able_call_bound_method` and `__able_call_value` by replacing direct `*runtime.FunctionValue` assertions with shared helper `__able_callable_function_value`, preserving typed-nil thunk semantics while removing branch-local assertion duplication.
+- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` and `TestCompilerNormalizesCallValueFunctionThunkDispatch` to assert helper-based thunk unwrapping and direct assertion removal.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.131s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 58.581s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 521.272s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 232.812s`).
+- Compiler AOT: normalized thunk helper internals by changing `__able_call_function_thunk` to accept `runtime.Value` and unwrap via shared helper `__able_callable_function_value`, then routing `__able_call_bound_method` and `__able_call_value` through direct `__able_call_function_thunk(method, ...)` / `__able_call_function_thunk(fn, ...)` delegation.
+- Compiler tests: updated `TestCompilerNormalizesCallValueFunctionThunkDispatch` and `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` to assert helper-internal unwrapping and direct thunk-helper delegation.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.130s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.710s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 524.507s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.028s`).
+- Compiler AOT: normalized compiled-thunk bytecode dispatch in `__able_call_compiled_thunk` by extracting bytecode-to-thunk resolution into shared helper `__able_compiled_thunk_value` for both `interpreter.CompiledThunk` and function-signature bytecode forms, removing duplicated direct bytecode assertion branches from the call helper.
+- Compiler tests: added `TestCompilerNormalizesCallCompiledThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_compiled_thunk_shim_regression_test.go` to assert shared helper usage and direct assertion branch removal in `__able_call_compiled_thunk`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.147s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.547s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 526.948s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 257.062s`).
+- Compiler AOT: normalized compiled-thunk helper parity by updating `__able_compiled_thunk_value` to the shared helper return contract `(value, ok, nilPtr)` (typed-nil signaling aligned with other runtime unwrapping helpers) and routing `__able_call_compiled_thunk` through a unified `if !ok || nilPtr` guard.
+- Compiler tests: updated `TestCompilerNormalizesCallCompiledThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_compiled_thunk_shim_regression_test.go` to assert helper signature change and typed-nil guard usage.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.160s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 62.343s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 524.781s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 242.480s`).
+- Compiler AOT: normalized native-function helper guard ordering in `__able_call_native_function_value` to shared helper style (`if !ok || nilPtr`) after `__able_callable_native_function_value` lookup, aligning guard semantics with other helper-based unwrap paths.
+- Compiler tests: updated `TestCompilerNormalizesCallValueNativeFunctionDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_function_shim_regression_test.go` to assert normalized guard ordering and reject legacy ordering.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.178s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 66.466s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 522.997s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.271s`).
+- Compiler AOT: normalized helper-order guard semantics in `__able_callable_name` by replacing nilPtr-first helper branches with `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling across native/native-bound/bound/partial/interface unwrap paths.
+- Compiler tests: updated `TestCompilerNormalizesCallableNameUnwrapBranches` in `v12/interpreters/go/pkg/compiler/compiler_callable_name_shim_regression_test.go` to assert legacy nilPtr-first branch removal and normalized guard usage.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.203s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 64.010s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 546.965s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 253.677s`).
+- Compiler AOT: normalized remaining nilPtr-first unwrap loops in `__able_call_bound_method` and `__able_call_value` by replacing interface/partial helper branches with `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling.
+- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` and `TestCompilerNormalizesCallValueUnwrapBranches` to assert legacy nilPtr-first branch removal and normalized guard usage.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.211s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.994s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 527.428s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.177s`).
+- Compiler AOT: normalized remaining ok-only typed-nil helper branches in `__able_builtin_error_receiver` and `__able_member_name` by replacing `if ...; ok { if nilPtr { ... } }` with `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling.
+- Compiler tests: updated `TestCompilerNormalizesErrorBuiltinMemberReceivers` and `TestCompilerNormalizesMemberNameStringUnwrap` to reject legacy ok-only guard branches and assert normalized typed-nil helper guards.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesErrorBuiltinMemberReceivers|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.140s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.058s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 510.034s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 239.319s`).
+- Compiler AOT: normalized remaining ok-only typed-nil helper branches in interface/string renderers by updating `__able_interface_bind_method`, `__able_int64_from_value`, `__able_string_from_builtin_impl`, and `__able_char_to_codepoint_impl` from `if ...; ok { if nilPtr { ... } }` to `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling.
+- Compiler tests: updated `TestCompilerNormalizesInterfaceBindMethodDispatch`, `TestCompilerNormalizesInt64FromValueIntegerUnwrap`, `TestCompilerNormalizesStringFromBuiltinUnwrap`, and `TestCompilerNormalizesCharToCodepointUnwrap` to reject legacy ok-only guards and assert normalized typed-nil handling.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceBindMethodDispatch|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesCharToCodepointUnwrap|TestCompilerNormalizesErrorBuiltinMemberReceivers|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesCallValueUnwrapBranches' -count=1` (`ok ... 0.147s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 61.879s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 516.841s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 243.724s`).
+- Compiler AOT: normalized remaining ok-only typed-nil helper branches in interface-member/runtime helpers by updating `__able_interface_bind_receiver_method`, `__able_interface_dispatch_static_receiver`, `__able_runtime_value_type_name`, and `__able_struct_instance` from `if ...; ok { if nilPtr { ... } }` to `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling (or equivalent `ok && !nilPtr` return for static receiver checks).
+- Compiler tests: updated `TestCompilerNormalizesInterfaceBindReceiverMethodDispatch`, `TestCompilerNormalizesInterfaceDispatchStaticReceiver`, `TestCompilerNormalizesRuntimeValueTypeNameUnwrapping`, and `TestCompilerNormalizesStructInstanceErrorUnwrap` to reject legacy ok-only guards and assert normalized typed-nil handling.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceDispatchStaticReceiver|TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesStructInstanceErrorUnwrap|TestCompilerNormalizesInterfaceBindMethodDispatch|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesCharToCodepointUnwrap' -count=1` (`ok ... 0.150s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.195s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 515.407s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.694s`).
+- Compiler AOT: removed redundant value-form static lookup shim branches for `runtime.StructDefinitionValue` and `runtime.TypeRefValue` inside `__able_member_get_method`, routing static method resolution through shared `__able_runtime_value_type_name(base)` + `__able_interface_dispatch_static_receiver(base)` path.
+- Compiler tests: updated `TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim` and `TestCompilerRemovesTypeRefPointerMemberGetMethodShim` to assert direct branch/lookup shim removal in `__able_member_get_method` while preserving shared static-receiver lookup path assertions.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerRemovesImplNamespacePointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (`ok ... 0.116s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.635s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 526.853s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.553s`).
+- Compiler AOT: removed redundant value-form static lookup shim branches for `runtime.StructDefinitionValue` and `runtime.TypeRefValue` inside `__able_resolve_qualified_callable` (`resolveReceiver`), routing receiver static resolution through shared `__able_member_get_method` + nil-filter path.
+- Compiler tests: updated `TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim` and `TestCompilerRemovesTypeRefPointerQualifiedCallableShim` to assert direct resolver branch/lookup shim removal and shared member-get-method resolver path retention.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerQualifiedCallableShim|TestCompilerRemovesNilPointerQualifiedCallableShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.126s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.310s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 525.936s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.216s`).
+- Compiler AOT: deduped `env.StructDefinition(head)` static lookup in `__able_resolve_qualified_callable` by normalizing the local struct-definition branch to a single canonical type-name path (`structTypeName`, derived from `def.Node.ID.Name` when present), removing duplicated local `lookupStatic(head)` dispatch while preserving resolver-level `lookupStatic(head)` fallback behavior.
+- Compiler tests: updated `TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim` to assert canonical `structTypeName` lookup in the env struct-definition branch and exactly one remaining `lookupStatic(head)` fallback branch in the resolver helper segment.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerQualifiedCallableShim|TestCompilerRemovesNilPointerQualifiedCallableShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.136s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.165s`).
+- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 530.722s`).
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 244.888s`).
+- Planning hygiene: rewrote the `PLAN.md` Compiler AOT section from a long historical stream into a concise active backlog + definition-of-done checklist, with completed shim-slice history retained in `LOG.md`.
+- Tests: `cd v12 && ./run_compiler_full_matrix.sh --typecheck-fixtures=strict` (`ABLE_COMPILER_EXEC_FIXTURES=all`, `ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=all`, `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all`, `ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all`, fallback audit enabled) completed successfully with gate timings: `ok ... 530.066s`, `ok ... 530.185s`, `ok ... 536.592s`, `ok ... 480.375s`, `ok ... 31.196s`.
+- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundary' -count=1` (`ok ... 60.913s`).
+- Spec: closed tracked Compiler AOT contract gaps by expanding `spec/full_spec_v12.md` compiled-boundary coverage with explicit sections for static compile-failure semantics (no silent fallback), compiled runtime ABI contract (Array/BigInt/Ratio/String/Channel/Mutex/Future), compiled interface+overload dispatch model, compiled stdlib/kernel resolution requirements, and compiled<->dynamic boundary conversion/error rules.
+- Spec TODO: cleared `spec/TODO_v12.md` Compiler AOT gap list after the above normative spec updates.

@@ -49,6 +49,21 @@ func TestEnvironmentAssignUnknownFails(t *testing.T) {
 	}
 }
 
+func TestEnvironmentStructSnapshotCopiesCurrentStructBindings(t *testing.T) {
+	env := NewEnvironment(nil)
+	def := &StructDefinitionValue{}
+	env.DefineStruct("Example", def)
+
+	snapshot := env.StructSnapshot()
+	if got, ok := snapshot["Example"]; !ok || got != def {
+		t.Fatalf("StructSnapshot[Example] = (%v, %t), want (%v, true)", got, ok, def)
+	}
+	delete(snapshot, "Example")
+	if got, ok := env.StructDefinition("Example"); !ok || got != def {
+		t.Fatalf("mutating snapshot should not affect environment; got (%v, %t)", got, ok)
+	}
+}
+
 func bigInt(v int64) *big.Int {
 	return big.NewInt(v)
 }

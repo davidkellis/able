@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
 	"able/interpreter-go/pkg/ast"
@@ -129,6 +130,32 @@ func TestStructDefinitionCacheScopesByEnvironment(t *testing.T) {
 	}
 }
 
+func TestStructDefinitionHydratesFromInterpreterLookupWithoutFallbackCounters(t *testing.T) {
+	interp := interpreter.New()
+	def := &runtime.StructDefinitionValue{Node: ast.StructDef("Thing", nil, ast.StructKindNamed, nil, nil, false)}
+	interp.GlobalEnvironment().DefineStruct("Thing", def)
+	interp.GlobalEnvironment().Define("Thing", def)
+
+	rt := New(interp)
+	rt.SetEnv(runtime.NewEnvironment(nil))
+	rt.SetGlobalLookupFallbackEnabled(false)
+
+	ResetGlobalLookupFallbackCounters()
+	got, err := rt.StructDefinition("Thing")
+	if err != nil {
+		t.Fatalf("StructDefinition error: %v", err)
+	}
+	if got != def {
+		t.Fatalf("StructDefinition = %p, want %p", got, def)
+	}
+	if calls := GlobalLookupFallbackStats(); calls != 0 {
+		t.Fatalf("GlobalLookupFallbackStats = %d, want 0", calls)
+	}
+	if envCalls, registryCalls := GlobalLookupFallbackBucketStats(); envCalls != 0 || registryCalls != 0 {
+		t.Fatalf("GlobalLookupFallbackBucketStats = (%d, %d), want (0, 0)", envCalls, registryCalls)
+	}
+}
+
 func TestRuntimeCallFallsBackToGlobalEnvironment(t *testing.T) {
 	interp := interpreter.New()
 	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{
@@ -150,6 +177,24 @@ func TestRuntimeCallFallsBackToGlobalEnvironment(t *testing.T) {
 	}
 }
 
+func TestRuntimeCallCanDisableGlobalEnvironmentFallback(t *testing.T) {
+	interp := interpreter.New()
+	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{
+		Name:  "greet",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			return runtime.StringValue{Val: "hello"}, nil
+		},
+	})
+	rt := New(interp)
+	rt.SetEnv(runtime.NewEnvironment(nil))
+	rt.SetGlobalLookupFallbackEnabled(false)
+
+	if _, err := rt.Call("greet", nil); err == nil {
+		t.Fatalf("expected Call to fail when global fallback is disabled")
+	}
+}
+
 func TestCallNamedFallsBackToGlobalEnvironment(t *testing.T) {
 	interp := interpreter.New()
 	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{
@@ -168,5 +213,138 @@ func TestCallNamedFallsBackToGlobalEnvironment(t *testing.T) {
 	}
 	if got, ok := value.(runtime.StringValue); !ok || got.Val != "hello" {
 		t.Fatalf("CallNamed = %#v, want String(\"hello\")", value)
+	}
+}
+
+func TestCallNamedCanDisableGlobalEnvironmentFallback(t *testing.T) {
+	interp := interpreter.New()
+	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{
+		Name:  "greet",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			return runtime.StringValue{Val: "hello"}, nil
+		},
+	})
+	rt := New(interp)
+	rt.SetEnv(runtime.NewEnvironment(nil))
+	rt.SetGlobalLookupFallbackEnabled(false)
+
+	if _, err := CallNamed(rt, "greet", nil); err == nil {
+		t.Fatalf("expected CallNamed to fail when global fallback is disabled")
+	}
+}
+
+func TestGetCanDisableGlobalEnvironmentFallback(t *testing.T) {
+	interp := interpreter.New()
+	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{
+		Name:  "greet",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			return runtime.StringValue{Val: "hello"}, nil
+		},
+	})
+	rt := New(interp)
+	rt.SetEnv(runtime.NewEnvironment(nil))
+	rt.SetGlobalLookupFallbackEnabled(false)
+
+	if _, err := Get(rt, "greet"); err == nil {
+		t.Fatalf("expected Get to fail when global fallback is disabled")
+	}
+}
+
+func TestGlobalLookupFallbackCounters(t *testing.T) {
+	interp := interpreter.New()
+	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{
+		Name:  "greet",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			return runtime.StringValue{Val: "hello"}, nil
+		},
+	})
+	rt := New(interp)
+	rt.SetEnv(runtime.NewEnvironment(nil))
+
+	ResetGlobalLookupFallbackCounters()
+	if _, err := rt.Call("greet", nil); err != nil {
+		t.Fatalf("Call error: %v", err)
+	}
+	if got := GlobalLookupFallbackStats(); got != 1 {
+		t.Fatalf("GlobalLookupFallbackStats = %d, want 1", got)
+	}
+	envCalls, registryCalls := GlobalLookupFallbackBucketStats()
+	if envCalls != 1 || registryCalls != 0 {
+		t.Fatalf("GlobalLookupFallbackBucketStats = (%d, %d), want (1, 0)", envCalls, registryCalls)
+	}
+	snapshot := GlobalLookupFallbackSnapshot()
+	if snapshot == "" || !strings.Contains(snapshot, "call:greet=1") {
+		t.Fatalf("GlobalLookupFallbackSnapshot = %q, want call:greet entry", snapshot)
+	}
+
+	ResetGlobalLookupFallbackCounters()
+	if got := GlobalLookupFallbackStats(); got != 0 {
+		t.Fatalf("GlobalLookupFallbackStats after reset = %d, want 0", got)
+	}
+	envCalls, registryCalls = GlobalLookupFallbackBucketStats()
+	if envCalls != 0 || registryCalls != 0 {
+		t.Fatalf("GlobalLookupFallbackBucketStats after reset = (%d, %d), want (0, 0)", envCalls, registryCalls)
+	}
+	if snapshot := GlobalLookupFallbackSnapshot(); snapshot != "" {
+		t.Fatalf("GlobalLookupFallbackSnapshot after reset = %q, want empty", snapshot)
+	}
+}
+
+func TestMemberGetPreferMethodsCounters(t *testing.T) {
+	rt := New(interpreter.New())
+	ResetMemberGetPreferMethodsCounters()
+
+	_, _ = MemberGetPreferMethods(rt, runtime.StringValue{Val: "hello"}, runtime.StringValue{Val: "len"})
+	calls, interfaceCalls := MemberGetPreferMethodsStats()
+	if calls != 1 || interfaceCalls != 0 {
+		t.Fatalf("MemberGetPreferMethodsStats after non-interface = (%d, %d), want (1, 0)", calls, interfaceCalls)
+	}
+
+	_, _ = MemberGetPreferMethods(rt, runtime.InterfaceValue{Underlying: runtime.StringValue{Val: "hello"}}, runtime.StringValue{Val: "len"})
+	calls, interfaceCalls = MemberGetPreferMethodsStats()
+	if calls != 2 || interfaceCalls != 1 {
+		t.Fatalf("MemberGetPreferMethodsStats after interface = (%d, %d), want (2, 1)", calls, interfaceCalls)
+	}
+
+	ResetMemberGetPreferMethodsCounters()
+	calls, interfaceCalls = MemberGetPreferMethodsStats()
+	if calls != 0 || interfaceCalls != 0 {
+		t.Fatalf("MemberGetPreferMethodsStats after reset = (%d, %d), want (0, 0)", calls, interfaceCalls)
+	}
+}
+
+func TestCallNamedWithQualifiedResolverBypassesMemberLookup(t *testing.T) {
+	interp := interpreter.New()
+	rt := New(interp)
+	env := runtime.NewEnvironment(nil)
+	rt.SetEnv(env)
+	rt.SetQualifiedCallableResolver(func(name string, env *runtime.Environment) (runtime.Value, bool, error) {
+		if name != "Fancy.describe" {
+			return nil, false, nil
+		}
+		fn := runtime.NativeFunctionValue{
+			Name:  "describe",
+			Arity: 0,
+			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				return runtime.StringValue{Val: "ok"}, nil
+			},
+		}
+		return fn, true, nil
+	})
+
+	ResetMemberGetPreferMethodsCounters()
+	value, err := CallNamedWithNode(rt, "Fancy.describe", nil, nil)
+	if err != nil {
+		t.Fatalf("CallNamedWithNode error: %v", err)
+	}
+	if got, ok := value.(runtime.StringValue); !ok || got.Val != "ok" {
+		t.Fatalf("CallNamedWithNode = %#v, want String(\"ok\")", value)
+	}
+	calls, interfaceCalls := MemberGetPreferMethodsStats()
+	if calls != 0 || interfaceCalls != 0 {
+		t.Fatalf("MemberGetPreferMethodsStats = (%d, %d), want (0, 0)", calls, interfaceCalls)
 	}
 }

@@ -44,6 +44,9 @@ Combined test suites:
 ./run_all_tests.sh --version=v12 --compiler-full-matrix
 # or directly:
 ./v12/run_compiler_full_matrix.sh
+
+# Details, overrides, and CI workflow inputs:
+# v12/docs/compiler-full-matrix.md
 ```
 
 

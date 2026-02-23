@@ -8,11 +8,11 @@ import (
 
 // Environment provides lexical scoping for Able runtime values.
 type Environment struct {
-	values map[string]Value
+	values  map[string]Value
 	structs map[string]*StructDefinitionValue
-	parent *Environment
-	mu     sync.RWMutex
-	data   any
+	parent  *Environment
+	mu      sync.RWMutex
+	data    any
 }
 
 // NewEnvironment creates a new environment, optionally nested under a parent.
@@ -37,6 +37,17 @@ func (e *Environment) Snapshot() map[string]Value {
 	e.mu.RLock()
 	out := make(map[string]Value, len(e.values))
 	for k, v := range e.values {
+		out[k] = v
+	}
+	e.mu.RUnlock()
+	return out
+}
+
+// StructSnapshot returns a deterministic copy of the current struct bindings.
+func (e *Environment) StructSnapshot() map[string]*StructDefinitionValue {
+	e.mu.RLock()
+	out := make(map[string]*StructDefinitionValue, len(e.structs))
+	for k, v := range e.structs {
 		out[k] = v
 	}
 	e.mu.RUnlock()

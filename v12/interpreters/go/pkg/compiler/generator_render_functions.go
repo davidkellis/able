@@ -3,6 +3,7 @@ package compiler
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
@@ -383,6 +384,16 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 }
 
 func (g *generator) renderRegister(buf *bytes.Buffer) {
+	seedStructNames := g.sortedStructNames()
+	seenSeedStruct := make(map[string]struct{}, len(seedStructNames)+1)
+	for _, name := range seedStructNames {
+		seenSeedStruct[name] = struct{}{}
+	}
+	if _, ok := seenSeedStruct["Array"]; !ok {
+		seedStructNames = append(seedStructNames, "Array")
+		sort.Strings(seedStructNames)
+	}
+
 	fmt.Fprintf(buf, "func Register(interp *interpreter.Interpreter) (*bridge.Runtime, error) {\n")
 	fmt.Fprintf(buf, "\treturn RegisterIn(interp, nil)\n")
 	fmt.Fprintf(buf, "}\n\n")
@@ -414,12 +425,15 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\trt := bridge.New(interp)\n")
 	fmt.Fprintf(buf, "\t__able_runtime = rt\n")
 	fmt.Fprintf(buf, "\trt.SetEnv(entryEnv)\n")
+	fmt.Fprintf(buf, "\t__able_seed_entry_struct_defs(interp, entryEnv)\n")
 	if envVar, ok := g.packageEnvVar(g.entryPackage); ok {
 		fmt.Fprintf(buf, "\t%s = entryEnv\n", envVar)
 	}
 	if len(g.diagNodes) > 0 {
 		fmt.Fprintf(buf, "\t__able_register_diag_nodes()\n")
 	}
+	fmt.Fprintf(buf, "\t__able_register_builtin_compiled_calls(entryEnv, interp)\n")
+	fmt.Fprintf(buf, "\t__able_register_builtin_compiled_methods()\n")
 	fmt.Fprintf(buf, "\tif err := __able_register_compiled_method_impl_packages(rt, interp, entryEnv, __able_bootstrapped_metadata); err != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, err\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -429,7 +443,21 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tif err := __able_register_compiled_packages(rt, interp, entryEnv, __able_bootstrapped_metadata); err != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, err\n")
 	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\trt.SetQualifiedCallableResolver(__able_resolve_qualified_callable)\n")
 	fmt.Fprintf(buf, "\treturn rt, nil\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_seed_entry_struct_defs(interp *interpreter.Interpreter, entryEnv *runtime.Environment) {\n")
+	fmt.Fprintf(buf, "\tif interp == nil || entryEnv == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\t_ = interp.SeedStructDefinitions(entryEnv)\n")
+	for _, name := range seedStructNames {
+		fmt.Fprintf(buf, "\tif _, ok := entryEnv.StructDefinition(%q); !ok {\n", name)
+		fmt.Fprintf(buf, "\t\tif def, found := interp.LookupStructDefinition(%q); found && def != nil {\n", name)
+		fmt.Fprintf(buf, "\t\t\tentryEnv.DefineStruct(%q, def)\n", name)
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func RunMain(interp *interpreter.Interpreter) error {\n")
 	fmt.Fprintf(buf, "\treturn RunMainIn(interp, nil)\n")

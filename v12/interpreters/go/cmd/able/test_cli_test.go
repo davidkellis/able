@@ -874,6 +874,40 @@ func TestTestCommandCompiledRunsStdlibHarnessReportersSmokeSuite(t *testing.T) {
 	}
 }
 
+func TestTestCommandCompiledRunsStdlibTextStringSuites(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	stdlibSrc := repoStdlibPath(t)
+	stdlibTests := filepath.Join(filepath.Dir(stdlibSrc), "tests", "text")
+	stringMethodsSpec := filepath.Join(stdlibTests, "string_methods.test.able")
+	stringSplitSpec := filepath.Join(stdlibTests, "string_split.test.able")
+	stringBuilderSpec := filepath.Join(stdlibTests, "string_builder.test.able")
+	stringSmokeSpec := filepath.Join(stdlibTests, "string_smoke.test.able")
+
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
+	t.Setenv("ABLE_PATH", repoKernelPath(t))
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
+
+	code, stdout, stderr := captureCLI(t, []string{"test", "--compiled", stringMethodsSpec, stringSplitSpec, stringBuilderSpec, stringSmokeSpec})
+	if code != 0 {
+		t.Fatalf("able test --compiled text/string suites returned exit code %d, stderr: %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "String methods reports lengths and prefixes/suffixes") {
+		t.Fatalf("expected stdout to include string methods suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "String split/join joins and concats strings") {
+		t.Fatalf("expected stdout to include string split/join suite output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "StringBuilder pushes strings and finishes") {
+		t.Fatalf("expected stdout to include string builder suite output, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected stderr to be empty, got %q", stderr)
+	}
+}
+
 func TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go toolchain not available")

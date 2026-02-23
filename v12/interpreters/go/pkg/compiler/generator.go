@@ -3,6 +3,7 @@ package compiler
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/driver"
@@ -11,6 +12,7 @@ import (
 type generator struct {
 	opts              Options
 	structs           map[string]*structInfo
+	typeAliases       map[string]map[string]ast.TypeExpression
 	unions            map[string]*ast.UnionDefinition
 	unionPackages     map[string]string
 	interfaces        map[string]*ast.InterfaceDefinition
@@ -75,6 +77,7 @@ func newGenerator(opts Options) *generator {
 	return &generator{
 		opts:              opts,
 		structs:           make(map[string]*structInfo),
+		typeAliases:       make(map[string]map[string]ast.TypeExpression),
 		unions:            make(map[string]*ast.UnionDefinition),
 		unionPackages:     make(map[string]string),
 		interfaces:        make(map[string]*ast.InterfaceDefinition),
@@ -153,6 +156,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.entryPackage = program.Entry.Package
 	g.packages = nil
 	g.staticImports = make(map[string][]staticImportBinding)
+	g.typeAliases = make(map[string]map[string]ast.TypeExpression)
 	g.unions = make(map[string]*ast.UnionDefinition)
 	g.unionPackages = make(map[string]string)
 	g.interfaces = make(map[string]*ast.InterfaceDefinition)
@@ -229,6 +233,21 @@ func (g *generator) collect(program *driver.Program) error {
 			g.interfaces[name] = def
 			if g.interfacePackages != nil {
 				g.interfacePackages[name] = module.Package
+			}
+		}
+	}
+
+	for _, module := range uniqueModules {
+		for _, stmt := range module.AST.Body {
+			alias, ok := stmt.(*ast.TypeAliasDefinition)
+			if !ok || alias == nil || alias.ID == nil || strings.TrimSpace(alias.ID.Name) == "" || alias.TargetType == nil {
+				continue
+			}
+			if g.typeAliases[module.Package] == nil {
+				g.typeAliases[module.Package] = make(map[string]ast.TypeExpression)
+			}
+			if _, exists := g.typeAliases[module.Package][alias.ID.Name]; !exists {
+				g.typeAliases[module.Package][alias.ID.Name] = alias.TargetType
 			}
 		}
 	}
@@ -774,6 +793,20 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		return g.compileBreakStatement(ctx, s)
 	case *ast.ContinueStatement:
 		return g.compileContinueStatement(ctx, s)
+	case *ast.FunctionDefinition:
+		return g.compileLocalFunctionDefinitionStatement(ctx, s)
+	case *ast.StructDefinition:
+		return g.compileLocalStructDefinitionStatement(ctx, s)
+	case *ast.UnionDefinition:
+		return g.compileLocalUnionDefinitionStatement(ctx, s)
+	case *ast.InterfaceDefinition:
+		return g.compileLocalInterfaceDefinitionStatement(ctx, s)
+	case *ast.TypeAliasDefinition:
+		return g.compileLocalTypeAliasDefinitionStatement(ctx, s)
+	case *ast.MethodsDefinition:
+		return g.compileLocalMethodsDefinitionStatement(ctx, s)
+	case *ast.ImplementationDefinition:
+		return g.compileLocalImplementationDefinitionStatement(ctx, s)
 	case *ast.RaiseStatement:
 		return g.compileRaiseStatement(ctx, s)
 	case *ast.RethrowStatement:
@@ -876,118 +909,4 @@ func newCompileContext(info *functionInfo, functions map[string]*functionInfo, o
 		}
 	}
 	return ctx
-}
-
-func qualifiedName(pkg string, name string) string {
-	if pkg == "" {
-		return name
-	}
-	return pkg + "." + name
-}
-
-func (c *compileContext) setReason(reason string) {
-	if c == nil || reason == "" {
-		return
-	}
-	if c.reason == "" {
-		c.reason = reason
-	}
-}
-
-func (c *compileContext) lookup(name string) (paramInfo, bool) {
-	if c == nil {
-		return paramInfo{}, false
-	}
-	if local, ok := c.locals[name]; ok {
-		return local, true
-	}
-	if c.parent != nil {
-		return c.parent.lookup(name)
-	}
-	if param, ok := c.params[name]; ok {
-		return param, true
-	}
-	return paramInfo{}, false
-}
-
-func (c *compileContext) lookupCurrent(name string) (paramInfo, bool) {
-	if c == nil {
-		return paramInfo{}, false
-	}
-	if local, ok := c.locals[name]; ok {
-		return local, true
-	}
-	if c.parent == nil {
-		if param, ok := c.params[name]; ok {
-			return param, true
-		}
-	}
-	return paramInfo{}, false
-}
-
-func (c *compileContext) child() *compileContext {
-	if c == nil {
-		return nil
-	}
-	return &compileContext{
-		locals:              make(map[string]paramInfo),
-		functions:           c.functions,
-		overloads:           c.overloads,
-		packageName:         c.packageName,
-		parent:              c,
-		temps:               c.temps,
-		loopDepth:           c.loopDepth,
-		rethrowVar:          c.rethrowVar,
-		rethrowErrVar:       c.rethrowErrVar,
-		breakpoints:         c.breakpoints,
-		implicitReceiver:    c.implicitReceiver,
-		hasImplicitReceiver: c.hasImplicitReceiver,
-		placeholderParams:   c.placeholderParams,
-		inPlaceholder:       c.inPlaceholder,
-		returnType:          c.returnType,
-		returnTypeExpr:      c.returnTypeExpr,
-		genericNames:        c.genericNames,
-	}
-}
-
-func (c *compileContext) pushBreakpoint(label string) {
-	if c == nil || label == "" {
-		return
-	}
-	if c.breakpoints == nil {
-		c.breakpoints = make(map[string]int)
-	}
-	c.breakpoints[label]++
-}
-
-func (c *compileContext) popBreakpoint(label string) {
-	if c == nil || label == "" || c.breakpoints == nil {
-		return
-	}
-	count := c.breakpoints[label]
-	if count <= 1 {
-		delete(c.breakpoints, label)
-		return
-	}
-	c.breakpoints[label] = count - 1
-}
-
-func (c *compileContext) hasBreakpoint(label string) bool {
-	if c == nil || label == "" || c.breakpoints == nil {
-		return false
-	}
-	return c.breakpoints[label] > 0
-}
-
-func (c *compileContext) newTemp() string {
-	if c == nil || c.temps == nil {
-		return "__able_tmp"
-	}
-	for {
-		name := fmt.Sprintf("__able_tmp_%d", *c.temps)
-		*c.temps++
-		if _, exists := c.lookup(name); !exists {
-			return name
-		}
-	}
 }
