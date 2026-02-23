@@ -172,6 +172,29 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 				return nil, err
 			}
 		}
+		if len(functionCandidates)+len(nativeCandidates) == 0 && i.compiledInstanceMethodFn != nil {
+			if method, found := i.compiledInstanceMethodFn(info.name, funcName); found && method != nil {
+				if err := addCallable(method, info.name); err != nil {
+					return nil, err
+				}
+			}
+		}
+		if len(functionCandidates)+len(nativeCandidates) == 0 && i.interfaceMethodResolver != nil {
+			if ifaceFilter != "" {
+				if resolved, found := i.interfaceMethodResolver(receiver, ifaceFilter, funcName); found && resolved != nil {
+					if err := addCallable(resolved, info.name); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+		if len(functionCandidates)+len(nativeCandidates) == 0 && i.compiledInterfaceMemberFn != nil {
+			if resolved, found := i.compiledInterfaceMemberFn(receiver, funcName); found && resolved != nil {
+				if err := addCallable(resolved, info.name); err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 
 	hasMethodCandidate := len(functionCandidates)+len(nativeCandidates) > 0

@@ -50,6 +50,20 @@ func (i *Interpreter) invokeStructToString(inst *runtime.StructInstanceValue) (s
 			return str, true
 		}
 	}
+	if i.interfaceMethodResolver != nil {
+		if method, ok := i.interfaceMethodResolver(inst, "Display", "to_string"); ok && method != nil {
+			if str, strOk := i.callStringMethod(method, inst); strOk {
+				return str, true
+			}
+		}
+	}
+	if i.compiledInstanceMethodFn != nil {
+		if method, ok := i.compiledInstanceMethodFn(typeName, "to_string"); ok && method != nil {
+			if str, strOk := i.callStringMethod(method, inst); strOk {
+				return str, true
+			}
+		}
+	}
 	return "", false
 }
 
@@ -57,8 +71,23 @@ func (i *Interpreter) callStringMethod(fn runtime.Value, receiver runtime.Value)
 	if fn == nil {
 		return "", false
 	}
-	bound := runtime.BoundMethodValue{Receiver: receiver, Method: fn}
-	result, err := i.callCallableValue(bound, nil, nil, nil)
+	var result runtime.Value
+	var err error
+	if native, ok := fn.(*runtime.NativeFunctionValue); ok && native != nil {
+		bound := runtime.NativeBoundMethodValue{Receiver: receiver, Method: *native}
+		result, err = i.callCallableValue(bound, nil, nil, nil)
+		// The compiled interface method resolver returns arity = N+1 (includes self).
+		// NativeBoundMethodValue subtracts injected from provided, producing a partial
+		// instead of calling the method. Detect this and retry with self as an explicit arg.
+		if err == nil && result != nil {
+			if _, isPartial := result.(*runtime.PartialFunctionValue); isPartial {
+				result, err = i.callCallableValue(native, []runtime.Value{receiver}, nil, nil)
+			}
+		}
+	} else {
+		bound := runtime.BoundMethodValue{Receiver: receiver, Method: fn}
+		result, err = i.callCallableValue(bound, nil, nil, nil)
+	}
 	if err != nil {
 		return "", false
 	}

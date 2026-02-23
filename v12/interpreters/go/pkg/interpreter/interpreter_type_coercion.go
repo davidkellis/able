@@ -388,8 +388,49 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 		}
 		return nil, fmt.Errorf("Type '%s' does not implement interface %s", typeDesc, interfaceName)
 	}
-	if _, err := i.lookupImplEntry(info, interfaceName, ifaceArgs); err != nil {
-		return nil, err
+	implEntry, implErr := i.lookupImplEntry(info, interfaceName, ifaceArgs)
+	if implErr != nil || implEntry == nil {
+		// In compiled no-bootstrap mode, build interface value using the compiled
+		// interface method resolver instead of the interpreter's impl registry.
+		if i.interfaceMethodResolver != nil && i.compiledImplChecker != nil && i.compiledImplChecker(info.name, interfaceName) {
+			// For generic interfaces (ifaceArgs present), don't populate Methods cache.
+			// The interfaceMethodResolver doesn't filter by InterfaceArgs, so the cached
+			// methods could be from the wrong specialization (e.g., Formatter<String>.format
+			// cached for Formatter<i32>). The dispatch table correctly filters each time.
+			// For non-generic interfaces, populating Methods is safe and provides caching.
+			var methods map[string]runtime.Value
+			if len(ifaceArgs) == 0 {
+				methods = make(map[string]runtime.Value)
+				if ifaceDef.Node != nil {
+					for _, sig := range ifaceDef.Node.Signatures {
+						if sig == nil || sig.Name == nil {
+							continue
+						}
+						if method, found := i.interfaceMethodResolver(value, interfaceName, sig.Name.Name); found && method != nil {
+							// interfaceMethodResolver returns NativeFunctionValue with arity+1 (includes self),
+							// but interfaceMember will wrap in NativeBoundMethodValue which also injects receiver.
+							// Adjust arity down by 1 to prevent double-counting.
+							if native, ok := method.(*runtime.NativeFunctionValue); ok && native.Arity > 0 {
+								adjusted := *native
+								adjusted.Arity = native.Arity - 1
+								methods[sig.Name.Name] = &adjusted
+							} else {
+								methods[sig.Name.Name] = method
+							}
+						}
+					}
+				}
+			}
+			return &runtime.InterfaceValue{
+				Interface:     ifaceDef,
+				Underlying:    value,
+				Methods:       methods,
+				InterfaceArgs: ifaceArgs,
+			}, nil
+		}
+		if implErr != nil {
+			return nil, implErr
+		}
 	}
 	methods, err := i.buildInterfaceMethodDictionary(interfaceName, ifaceArgs, info)
 	if err != nil {

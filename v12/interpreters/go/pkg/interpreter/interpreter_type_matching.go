@@ -187,10 +187,19 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 					}
 					info, ok := i.getTypeInfoForValue(value)
 					if !ok {
+						if i.compiledImplChecker != nil {
+							return false
+						}
 						return false
 					}
 					okImpl, err := i.typeImplementsInterface(info, name, nil, make(map[string]struct{}))
-					return err == nil && okImpl
+					if err == nil && okImpl {
+						return true
+					}
+					if i.compiledImplChecker != nil {
+						return i.compiledImplChecker(info.name, name)
+					}
+					return false
 				}
 			}
 			if i.isKnownTypeName(name) {
@@ -321,7 +330,21 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 						return false
 					}
 					okImpl, err := i.typeImplementsInterface(info, baseName, t.Arguments, make(map[string]struct{}))
-					return err == nil && okImpl
+					if err == nil && okImpl {
+						return true
+					}
+					if i.compiledImplChecker != nil {
+						return i.compiledImplChecker(info.name, baseName)
+					}
+					return false
+				}
+			}
+			// Compiled no-bootstrap fallback for generic interfaces not in i.interfaces
+			if i.compiledImplChecker != nil {
+				if valInfo, ok := i.getTypeInfoForValue(value); ok {
+					if i.compiledImplChecker(valInfo.name, baseName) {
+						return true
+					}
 				}
 			}
 		}

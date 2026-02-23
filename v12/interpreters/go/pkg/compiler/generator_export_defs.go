@@ -84,7 +84,7 @@ func (g *generator) renderBlockExpressionExpr(block *ast.BlockExpression) (strin
 	if err != nil {
 		return "", false
 	}
-	return fmt.Sprintf("func() *ast.BlockExpression { node, err := interpreter.DecodeNodeJSON([]byte(%q)); if err != nil { panic(err) }; typed, ok := node.(*ast.BlockExpression); if !ok { panic(fmt.Errorf(\"compiler: decoded default impl has type %%T\", node)) }; return typed }()", string(encoded)), true
+	return fmt.Sprintf("func() *ast.BlockExpression { node, err := interpreter.DecodeNodeJSON([]byte(%q)); if err != nil { return nil }; typed, ok := node.(*ast.BlockExpression); if !ok { return nil }; return typed }()", string(encoded)), true
 }
 
 func (g *generator) renderMethodsDefinitionExpr(def *ast.MethodsDefinition) (string, bool) {
@@ -95,7 +95,7 @@ func (g *generator) renderMethodsDefinitionExpr(def *ast.MethodsDefinition) (str
 	if err != nil {
 		return "", false
 	}
-	return fmt.Sprintf("func() *ast.MethodsDefinition { node, err := interpreter.DecodeNodeJSON([]byte(%q)); if err != nil { panic(err) }; typed, ok := node.(*ast.MethodsDefinition); if !ok { panic(fmt.Errorf(\"compiler: decoded methods definition has type %%T\", node)) }; return typed }()", string(encoded)), true
+	return fmt.Sprintf("func() *ast.MethodsDefinition { node, err := interpreter.DecodeNodeJSON([]byte(%q)); if err != nil { return nil }; typed, ok := node.(*ast.MethodsDefinition); if !ok { return nil }; return typed }()", string(encoded)), true
 }
 
 func (g *generator) renderImplementationDefinitionExpr(def *ast.ImplementationDefinition) (string, bool) {
@@ -106,7 +106,7 @@ func (g *generator) renderImplementationDefinitionExpr(def *ast.ImplementationDe
 	if err != nil {
 		return "", false
 	}
-	return fmt.Sprintf("func() *ast.ImplementationDefinition { node, err := interpreter.DecodeNodeJSON([]byte(%q)); if err != nil { panic(err) }; typed, ok := node.(*ast.ImplementationDefinition); if !ok { panic(fmt.Errorf(\"compiler: decoded implementation definition has type %%T\", node)) }; return typed }()", string(encoded)), true
+	return fmt.Sprintf("func() *ast.ImplementationDefinition { node, err := interpreter.DecodeNodeJSON([]byte(%q)); if err != nil { return nil }; typed, ok := node.(*ast.ImplementationDefinition); if !ok { return nil }; return typed }()", string(encoded)), true
 }
 
 func (g *generator) sortedInterfaceDefsForPackage(pkgName string) []*ast.InterfaceDefinition {

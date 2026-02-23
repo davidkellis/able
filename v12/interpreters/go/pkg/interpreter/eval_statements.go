@@ -344,6 +344,25 @@ func (i *Interpreter) resolveIteratorValue(iterable runtime.Value, env *runtime.
 	case *runtime.StructInstanceValue:
 		member, err := i.structInstanceMember(it, ident, env, true)
 		if err != nil {
+			// In compiled no-bootstrap mode, fall back to compiled Iterable dispatch.
+			// The resolved method has arity+1 (includes self), so call with [self].
+			if i.interfaceMethodResolver != nil {
+				if resolved, found := i.interfaceMethodResolver(it, "Iterable", "iterator"); found && resolved != nil {
+					value, callErr := i.CallFunction(resolved, []runtime.Value{it})
+					if callErr != nil {
+						return nil, callErr
+					}
+					if adapted, adaptErr := i.adaptIteratorValue(value, env); adaptErr != nil {
+						return nil, adaptErr
+					} else if adapted != nil {
+						return adapted, nil
+					}
+					if iterator, ok := value.(*runtime.IteratorValue); ok {
+						return iterator, nil
+					}
+					return nil, fmt.Errorf("iterator() on %s did not return Iterator", iterable.Kind())
+				}
+			}
 			return nil, err
 		}
 		value, err := i.CallFunction(member, nil)

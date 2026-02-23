@@ -36,6 +36,7 @@ type Runtime struct {
 	structs                     map[string]*runtime.StructDefinitionValue
 	env                         *runtime.Environment
 	envByGID                    sync.Map
+	concurrent                  int32 // atomic: 0 = single goroutine (fast path), 1 = concurrent
 	resolver                    QualifiedCallableResolver
 	globalLookupFallbackEnabled bool
 }
@@ -77,6 +78,19 @@ func ExecutorKind(r *Runtime) string {
 	return r.interp.ExecutorKind()
 }
 
+// MarkConcurrent switches the runtime to per-goroutine environment tracking.
+// Must be called before spawning goroutines that use the runtime.
+func (r *Runtime) MarkConcurrent() {
+	if r == nil {
+		return
+	}
+	atomic.StoreInt32(&r.concurrent, 1)
+}
+
+func (r *Runtime) isConcurrent() bool {
+	return r != nil && atomic.LoadInt32(&r.concurrent) != 0
+}
+
 func (r *Runtime) SetEnv(env *runtime.Environment) {
 	if r == nil || env == nil {
 		return
@@ -84,16 +98,20 @@ func (r *Runtime) SetEnv(env *runtime.Environment) {
 	r.mu.Lock()
 	r.env = env
 	r.mu.Unlock()
-	r.envByGID.Store(currentGID(), env)
+	if r.isConcurrent() {
+		r.envByGID.Store(currentGID(), env)
+	}
 }
 
 func (r *Runtime) Env() *runtime.Environment {
 	if r == nil {
 		return nil
 	}
-	if env, ok := r.envByGID.Load(currentGID()); ok {
-		if typed, ok := env.(*runtime.Environment); ok && typed != nil {
-			return typed
+	if r.isConcurrent() {
+		if env, ok := r.envByGID.Load(currentGID()); ok {
+			if typed, ok := env.(*runtime.Environment); ok && typed != nil {
+				return typed
+			}
 		}
 	}
 	r.mu.RLock()
@@ -105,6 +123,16 @@ func (r *Runtime) Env() *runtime.Environment {
 func (r *Runtime) SwapEnv(env *runtime.Environment) *runtime.Environment {
 	if r == nil {
 		return nil
+	}
+	if !r.isConcurrent() {
+		// Fast path: single goroutine, simple swap
+		r.mu.Lock()
+		prev := r.env
+		if env != nil {
+			r.env = env
+		}
+		r.mu.Unlock()
+		return prev
 	}
 	gid := currentGID()
 	var prev *runtime.Environment
@@ -129,9 +157,11 @@ func (r *Runtime) currentEnv() *runtime.Environment {
 	if r == nil {
 		return nil
 	}
-	if env, ok := r.envByGID.Load(currentGID()); ok {
-		if typed, ok := env.(*runtime.Environment); ok && typed != nil {
-			return typed
+	if r.isConcurrent() {
+		if env, ok := r.envByGID.Load(currentGID()); ok {
+			if typed, ok := env.(*runtime.Environment); ok && typed != nil {
+				return typed
+			}
 		}
 	}
 	r.mu.RLock()

@@ -103,7 +103,16 @@ func (i *Interpreter) resolveOperatorMethod(receiver runtime.Value, op string) (
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, dispatch.methodName, dispatch.interfaceName, nil)
+	method, err := i.findMethod(info, dispatch.methodName, dispatch.interfaceName, nil)
+	if method != nil || err != nil {
+		return method, err
+	}
+	if i.interfaceMethodResolver != nil {
+		if resolved, found := i.interfaceMethodResolver(receiver, dispatch.interfaceName, dispatch.methodName); found {
+			return resolved, nil
+		}
+	}
+	return nil, nil
 }
 
 func (i *Interpreter) applyOperatorInterface(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
@@ -123,7 +132,16 @@ func (i *Interpreter) resolveComparisonMethod(receiver runtime.Value, dispatch o
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, dispatch.methodName, dispatch.interfaceName, nil)
+	method, err := i.findMethod(info, dispatch.methodName, dispatch.interfaceName, nil)
+	if method != nil || err != nil {
+		return method, err
+	}
+	if i.interfaceMethodResolver != nil {
+		if resolved, found := i.interfaceMethodResolver(receiver, dispatch.interfaceName, dispatch.methodName); found {
+			return resolved, nil
+		}
+	}
+	return nil, nil
 }
 
 func (i *Interpreter) applyEqualityInterface(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {

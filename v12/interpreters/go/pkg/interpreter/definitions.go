@@ -190,6 +190,40 @@ func (i *Interpreter) evaluateUnionDefinition(def *ast.UnionDefinition, env *run
 	return runtime.NilValue{}, nil
 }
 
+// RegisterUnionDefinition registers a union definition in the interpreter's
+// union definition table for use by matchesType pattern matching.
+func (i *Interpreter) RegisterUnionDefinition(name string, def *runtime.UnionDefinitionValue) {
+	if i == nil || name == "" || def == nil {
+		return
+	}
+	i.unionDefinitions[name] = def
+}
+
+// RegisterInterfaceDefinition registers an interface definition in the
+// interpreter's interface table for use by matchesType and impl resolution.
+func (i *Interpreter) RegisterInterfaceDefinition(name string, def *runtime.InterfaceDefinitionValue) {
+	if i == nil || name == "" || def == nil {
+		return
+	}
+	if _, exists := i.interfaces[name]; !exists {
+		i.interfaces[name] = def
+	}
+}
+
+// RegisterPackageSymbol registers a symbol in the interpreter's package
+// registry so isKnownTypeName can recognize it.
+func (i *Interpreter) RegisterPackageSymbol(pkgName string, name string, val runtime.Value) {
+	if i == nil || name == "" {
+		return
+	}
+	bucket, ok := i.packageRegistry[pkgName]
+	if !ok {
+		bucket = make(map[string]runtime.Value)
+		i.packageRegistry[pkgName] = bucket
+	}
+	bucket[name] = val
+}
+
 func (i *Interpreter) evaluateInterfaceDefinition(def *ast.InterfaceDefinition, env *runtime.Environment) (runtime.Value, error) {
 	if def.ID == nil {
 		return nil, fmt.Errorf("Interface definition requires identifier")

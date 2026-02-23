@@ -207,6 +207,21 @@ fn bigint_finish_builder(builder: StringBuilder) -> String {
   }
 }
 
+fn bigint_pad_group_str(value: i64) -> string {
+  ## Pad value to BIGINT_GROUP_DIGITS (9) chars with leading zeros.
+  ## Value is always 0..BIGINT_BASE-1 (0..999_999_999).
+  text := `${value}`
+  if value >= 100000000_i64 { return text }
+  if value >= 10000000_i64 { return `0${text}` }
+  if value >= 1000000_i64 { return `00${text}` }
+  if value >= 100000_i64 { return `000${text}` }
+  if value >= 10000_i64 { return `0000${text}` }
+  if value >= 1000_i64 { return `00000${text}` }
+  if value >= 100_i64 { return `000000${text}` }
+  if value >= 10_i64 { return `0000000${text}` }
+  `00000000${text}`
+}
+
 fn bigint_pad_group(value: i64) -> String {
   text := `${value}`
   len := text.len_bytes().to_i32()
@@ -372,18 +387,17 @@ methods BigInt {
 
   fn to_string(self: Self) -> String {
     if self.sign == 0 { return "0" }
-    estimated := self.digits.len() * BIGINT_GROUP_DIGITS + 1
-    builder := StringBuilder.with_capacity(estimated)
-    if self.sign < 0 { builder.push_char('-') }
     last := self.digits.len() - 1
-    builder.push_string(`${self.digits.read_slot(last)}`)
+    text := ""
+    if self.sign < 0 { text = "-" }
+    text = `${text}${self.digits.read_slot(last)}`
     idx := last - 1
     loop {
       if idx < 0 { break }
-      builder.push_string(bigint_pad_group(self.digits.read_slot(idx)))
+      text = `${text}${bigint_pad_group_str(self.digits.read_slot(idx))}`
       idx = idx - 1
     }
-    bigint_finish_builder(builder)
+    text
   }
 
   fn to_i64(self: Self) -> Result i64 {
