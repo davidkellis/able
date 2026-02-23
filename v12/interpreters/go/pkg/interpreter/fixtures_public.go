@@ -23,3 +23,16 @@ func DecodeModule(data []byte) (*ast.Module, error) {
 	}
 	return mod, nil
 }
+
+// DecodeNodeJSON constructs an AST node from the fixture-style JSON payload.
+func DecodeNodeJSON(data []byte) (ast.Node, error) {
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("decode node json: %w", err)
+	}
+	node, err := decodeNode(raw)
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}

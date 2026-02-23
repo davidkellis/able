@@ -12,12 +12,12 @@ func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper 
 	if def == nil || def.TargetType == nil || mapper == nil {
 		return
 	}
-	targetName, ok := g.methodTargetName(def.TargetType)
+	targetType := g.expandTypeAliasForPackage(pkgName, def.TargetType)
+	targetName, ok := g.methodTargetName(targetType)
 	if !ok || targetName == "" {
 		return
 	}
-	info := g.structs[targetName]
-	if info == nil || !info.Supported {
+	if info, ok := g.structs[targetName]; ok && (info == nil || !info.Supported) {
 		return
 	}
 	if g.methods == nil {
@@ -36,10 +36,10 @@ func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper 
 			GoName:     goName,
 			Definition: fn,
 		}
-		g.fillMethodInfo(info, mapper, def.TargetType, expectsSelf)
+		g.fillMethodInfo(info, mapper, targetType, expectsSelf)
 		method := &methodInfo{
 			TargetName:  targetName,
-			TargetType:  def.TargetType,
+			TargetType:  targetType,
 			MethodName:  methodName,
 			ExpectsSelf: expectsSelf,
 			Info:        info,
@@ -53,6 +53,66 @@ func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper 
 		g.methods[targetName][methodName] = append(g.methods[targetName][methodName], method)
 		g.methodList = append(g.methodList, method)
 	}
+}
+
+func (g *generator) expandTypeAliasForPackage(pkgName string, expr ast.TypeExpression) ast.TypeExpression {
+	if g == nil || expr == nil {
+		return expr
+	}
+	current := expr
+	seen := make(map[string]struct{})
+	for {
+		simple, ok := current.(*ast.SimpleTypeExpression)
+		if !ok || simple == nil || simple.Name == nil {
+			return current
+		}
+		aliasName := strings.TrimSpace(simple.Name.Name)
+		if aliasName == "" {
+			return current
+		}
+		key := pkgName + "|" + aliasName
+		if _, exists := seen[key]; exists {
+			return current
+		}
+		var target ast.TypeExpression
+		if g.typeAliases != nil {
+			if perPkg := g.typeAliases[pkgName]; perPkg != nil {
+				if mapped, ok := perPkg[aliasName]; ok && mapped != nil {
+					target = mapped
+				}
+			}
+		}
+		if target == nil {
+			if sourceName := g.importedSelectorSourceName(pkgName, aliasName); sourceName != "" {
+				target = ast.NewSimpleTypeExpression(ast.NewIdentifier(sourceName))
+			}
+		}
+		if target == nil {
+			return current
+		}
+		seen[key] = struct{}{}
+		current = target
+	}
+}
+
+func (g *generator) importedSelectorSourceName(pkgName string, localName string) string {
+	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(localName) == "" {
+		return ""
+	}
+	for _, binding := range g.staticImports[pkgName] {
+		if binding.Kind != staticImportBindingSelector {
+			continue
+		}
+		if strings.TrimSpace(binding.LocalName) != strings.TrimSpace(localName) {
+			continue
+		}
+		source := strings.TrimSpace(binding.SourceName)
+		if source == "" {
+			continue
+		}
+		return source
+	}
+	return ""
 }
 
 func (g *generator) methodTargetName(expr ast.TypeExpression) (string, bool) {
@@ -87,8 +147,11 @@ func methodDefinitionExpectsSelf(def *ast.FunctionDefinition) bool {
 	if first == nil {
 		return false
 	}
-	if ident, ok := first.Name.(*ast.Identifier); ok && ident != nil {
-		return strings.EqualFold(ident.Name, "self")
+	if ident, ok := first.Name.(*ast.Identifier); ok && ident != nil && strings.EqualFold(ident.Name, "self") {
+		return true
+	}
+	if simple, ok := first.ParamType.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
+		return simple.Name.Name == "Self"
 	}
 	return false
 }
@@ -145,7 +208,15 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 		paramIndex++
 	}
 	retExpr := resolveSelfTypeExpr(def.ReturnType, target)
-	retType, ok := g.mapMethodType(mapper, retExpr, target)
+	retType := ""
+	ok := false
+	if forcedType, forced := g.staticMethodNominalStructReturnType(target, expectsSelf, retExpr); forced {
+		retType = forcedType
+		ok = true
+	}
+	if !ok {
+		retType, ok = g.mapMethodType(mapper, retExpr, target)
+	}
 	if !ok || retType == "" {
 		supported = false
 	}
@@ -158,6 +229,28 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 		info.Reason = "unsupported param or return type"
 		info.Arity = -1
 	}
+}
+
+func (g *generator) staticMethodNominalStructReturnType(target ast.TypeExpression, expectsSelf bool, retExpr ast.TypeExpression) (string, bool) {
+	if g == nil || expectsSelf || retExpr == nil {
+		return "", false
+	}
+	targetName, ok := g.methodTargetName(target)
+	if !ok || targetName == "" {
+		return "", false
+	}
+	simple, ok := retExpr.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil || simple.Name.Name == "" {
+		return "", false
+	}
+	if simple.Name.Name != targetName {
+		return "", false
+	}
+	info, exists := g.structs[targetName]
+	if !exists || info == nil {
+		return "", false
+	}
+	return "*" + info.GoName, true
 }
 
 func resolveSelfTypeExpr(expr ast.TypeExpression, target ast.TypeExpression) ast.TypeExpression {

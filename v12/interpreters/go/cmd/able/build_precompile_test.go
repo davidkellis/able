@@ -146,6 +146,21 @@ func TestDiscoverPrecompilePackagesIncludesStdlibAndKernel(t *testing.T) {
 	if !containsPath(packages, "able.core.numeric") {
 		t.Fatalf("expected able.core.numeric in precompile package list")
 	}
+	if !containsPath(packages, "able.text.string") {
+		t.Fatalf("expected able.text.string in precompile package list")
+	}
+	if !containsPath(packages, "able.text.regex") {
+		t.Fatalf("expected able.text.regex in precompile package list")
+	}
+	if !containsPath(packages, "able.text.ascii") {
+		t.Fatalf("expected able.text.ascii in precompile package list")
+	}
+	if !containsPath(packages, "able.text.automata") {
+		t.Fatalf("expected able.text.automata in precompile package list")
+	}
+	if !containsPath(packages, "able.text.automata_dsl") {
+		t.Fatalf("expected able.text.automata_dsl in precompile package list")
+	}
 	if !containsPath(packages, "able.test.protocol") {
 		t.Fatalf("expected able.test.protocol in precompile package list")
 	}

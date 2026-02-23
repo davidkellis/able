@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sort"
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
@@ -397,6 +398,13 @@ func (i *Interpreter) lookupStructDefinition(name string) (*runtime.StructDefini
 	if i == nil || i.global == nil {
 		return nil, false
 	}
+	if dot := strings.Index(name, "."); dot > 0 && dot < len(name)-1 {
+		pkgName := name[:dot]
+		structName := name[dot+1:]
+		if def, ok := i.lookupStructDefinitionInPackage(pkgName, structName); ok {
+			return def, true
+		}
+	}
 	if def, ok := i.global.StructDefinition(name); ok && def != nil {
 		return def, true
 	}
@@ -408,10 +416,33 @@ func (i *Interpreter) lookupStructDefinition(name string) (*runtime.StructDefini
 	if def, ok := i.lookupStructDefinitionInPackage(i.currentPackage, name); ok {
 		return def, true
 	}
-	for pkgName := range i.packageRegistry {
-		if pkgName == i.currentPackage {
+	seen := map[string]struct{}{}
+	if i.currentPackage != "" {
+		seen[i.currentPackage] = struct{}{}
+	}
+	for pkgName := range i.packageEnvs {
+		if _, ok := seen[pkgName]; ok {
 			continue
 		}
+		seen[pkgName] = struct{}{}
+		if def, ok := i.lookupStructDefinitionInPackage(pkgName, name); ok {
+			return def, true
+		}
+	}
+	for pkgName := range i.dynamicPackageEnvs {
+		if _, ok := seen[pkgName]; ok {
+			continue
+		}
+		seen[pkgName] = struct{}{}
+		if def, ok := i.lookupStructDefinitionInPackage(pkgName, name); ok {
+			return def, true
+		}
+	}
+	for pkgName := range i.packageRegistry {
+		if _, ok := seen[pkgName]; ok {
+			continue
+		}
+		seen[pkgName] = struct{}{}
 		if def, ok := i.lookupStructDefinitionInPackage(pkgName, name); ok {
 			return def, true
 		}
@@ -427,9 +458,109 @@ func (i *Interpreter) LookupStructDefinition(name string) (*runtime.StructDefini
 	return i.lookupStructDefinition(name)
 }
 
+// SeedStructDefinitions copies discoverable struct definitions into dst.
+// It is used by compiled runtimes so static struct lookups can avoid
+// registry fallback paths once the interpreter has loaded program packages.
+func (i *Interpreter) SeedStructDefinitions(dst *runtime.Environment) int {
+	if i == nil || dst == nil {
+		return 0
+	}
+	nameSet := map[string]struct{}{}
+	collect := func(name string, val runtime.Value) {
+		name = strings.TrimSpace(name)
+		if name == "" || val == nil {
+			return
+		}
+		if _, err := toStructDefinitionValue(val, name); err != nil {
+			return
+		}
+		nameSet[name] = struct{}{}
+	}
+	if i.global != nil {
+		for name, val := range i.global.Snapshot() {
+			collect(name, val)
+		}
+		for name := range i.global.StructSnapshot() {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				nameSet[name] = struct{}{}
+			}
+		}
+	}
+	for _, bucket := range i.packageRegistry {
+		for name, val := range bucket {
+			collect(name, val)
+		}
+	}
+	for _, env := range i.packageEnvs {
+		if env == nil {
+			continue
+		}
+		for name, val := range env.Snapshot() {
+			collect(name, val)
+		}
+		for name := range env.StructSnapshot() {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				nameSet[name] = struct{}{}
+			}
+		}
+	}
+	for _, env := range i.dynamicPackageEnvs {
+		if env == nil {
+			continue
+		}
+		for name, val := range env.Snapshot() {
+			collect(name, val)
+		}
+		for name := range env.StructSnapshot() {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				nameSet[name] = struct{}{}
+			}
+		}
+	}
+	names := make([]string, 0, len(nameSet))
+	for name := range nameSet {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	seeded := 0
+	for _, name := range names {
+		if _, ok := dst.StructDefinition(name); ok {
+			continue
+		}
+		def, ok := i.lookupStructDefinition(name)
+		if !ok || def == nil {
+			continue
+		}
+		dst.DefineStruct(name, def)
+		seeded++
+		if def.Node != nil && def.Node.ID != nil && def.Node.ID.Name != "" && def.Node.ID.Name != name {
+			canonical := def.Node.ID.Name
+			if _, ok := dst.StructDefinition(canonical); !ok {
+				dst.DefineStruct(canonical, def)
+				seeded++
+			}
+		}
+	}
+	return seeded
+}
+
 func (i *Interpreter) lookupStructDefinitionInPackage(pkgName, name string) (*runtime.StructDefinitionValue, bool) {
 	if i == nil || name == "" || pkgName == "" {
 		return nil, false
+	}
+	if env := i.PackageEnvironment(pkgName); env != nil {
+		if def, ok := env.StructDefinition(name); ok && def != nil {
+			return def, true
+		}
+		if val, err := env.Get(name); err == nil {
+			if def, conv := toStructDefinitionValue(val, name); conv == nil && def != nil {
+				return def, true
+			}
+		}
 	}
 	bucket, ok := i.packageRegistry[pkgName]
 	if !ok || bucket == nil {
