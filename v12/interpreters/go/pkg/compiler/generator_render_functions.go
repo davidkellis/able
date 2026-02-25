@@ -547,7 +547,7 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tmainValue, err := entryEnv.Get(\"main\")\n")
 	fmt.Fprintf(buf, "\tif err != nil {\n")
-	fmt.Fprintf(buf, "\t\treturn err\n")
+	fmt.Fprintf(buf, "\t\treturn fmt.Errorf(\"entry module does not define a main function\")\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\t_, err = interp.CallFunctionIn(mainValue, nil, entryEnv)\n")
 	fmt.Fprintf(buf, "\treturn err\n")
