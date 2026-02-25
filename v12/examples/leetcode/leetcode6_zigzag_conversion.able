@@ -4,7 +4,7 @@ import able.kernel.{Array}
 import able.collections.array
 
 ## Zigzag conversion using rows of characters.
-fn zigzag(chars: Array char, rows: i32) -> Array char {
+fn zigzag(chars: Array char, rows: i32) -> !Array char {
   if rows <= 1 || chars.size() <= rows {
     return chars
   }
@@ -22,7 +22,7 @@ fn zigzag(chars: Array char, rows: i32) -> Array char {
   length := chars.size()
 
   while i < length {
-    buckets[current_row].push(chars[i])
+    buckets[current_row]!.push(chars[i]!)
     current_row = current_row + direction
 
     if current_row == rows {
@@ -36,19 +36,19 @@ fn zigzag(chars: Array char, rows: i32) -> Array char {
     i = i + 1
   }
 
-  flatten(buckets)
+  flatten(buckets)!
 }
 
-fn flatten(rows: Array (Array char)) -> Array char {
+fn flatten(rows: Array (Array char)) -> !Array char {
   result := []
   i := 0
   count := rows.size()
   while i < count {
-    row := rows[i]
+    row := rows[i]!
     j := 0
     row_len := row.size()
     while j < row_len {
-      result.push(row[j])
+      result.push(row[j]!)
       j = j + 1
     }
     i = i + 1
@@ -56,13 +56,13 @@ fn flatten(rows: Array (Array char)) -> Array char {
   result
 }
 
-fn show_zigzag(chars: Array char, rows: i32) -> void {
-  result := zigzag(chars, rows)
+fn show_zigzag(chars: Array char, rows: i32) -> !void {
+  result := zigzag(chars, rows)!
   print(`Input: ${chars}, rows=${rows} -> ${result}`)
 }
 
-fn main() -> void {
-  show_zigzag(['P','A','Y','P','A','L','I','S','H','I','R','I','N','G'], 3)
-  show_zigzag(['A','B','C','D','E','F','G'], 4)
-  show_zigzag(['A','B','C'], 1)
+fn main() -> !void {
+  show_zigzag(['P','A','Y','P','A','L','I','S','H','I','R','I','N','G'], 3)!
+  show_zigzag(['A','B','C','D','E','F','G'], 4)!
+  show_zigzag(['A','B','C'], 1)!
 }

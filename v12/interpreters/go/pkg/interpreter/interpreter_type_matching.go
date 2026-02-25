@@ -500,6 +500,14 @@ func normalizeKernelAliasName(name string) string {
 		return "AwaitWaker"
 	case "KernelAwaitRegistration":
 		return "AwaitRegistration"
+	case "KernelLess":
+		return "Less"
+	case "KernelGreater":
+		return "Greater"
+	case "KernelEqual":
+		return "Equal"
+	case "KernelOrdering":
+		return "Ordering"
 	default:
 		return name
 	}

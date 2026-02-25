@@ -5812,7 +5812,7 @@
                     },
                     {
                       "type": "SYMBOL",
-                      "name": "expression"
+                      "name": "expression_list"
                     }
                   ]
                 }
