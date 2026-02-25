@@ -42,7 +42,28 @@ func isArrayStructInstance(v *runtime.StructInstanceValue) bool {
 	return hasHandle && hasLength && hasCapacity
 }
 
+func isCallableRuntimeValue(val runtime.Value) bool {
+	if runtime.IsFunctionLike(val) {
+		return true
+	}
+	switch val.(type) {
+	case runtime.NativeFunctionValue, *runtime.NativeFunctionValue:
+		return true
+	case runtime.BoundMethodValue, *runtime.BoundMethodValue:
+		return true
+	case runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue:
+		return true
+	case runtime.PartialFunctionValue, *runtime.PartialFunctionValue:
+		return true
+	default:
+		return false
+	}
+}
+
 func formatRuntimeValue(interp *interpreter.Interpreter, val runtime.Value) string {
+	if isCallableRuntimeValue(val) {
+		return "<function>"
+	}
 	switch v := val.(type) {
 	case runtime.StringValue:
 		return v.Val
