@@ -1132,7 +1132,7 @@ module.exports = grammar({
             field("return_type", $.type_expression),
           )),
           "=>",
-          field("body", choice($.block, $.expression)),
+          field("body", choice($.block, $.expression_list)),
           optional($._line_breaks),
           "}",
         ),

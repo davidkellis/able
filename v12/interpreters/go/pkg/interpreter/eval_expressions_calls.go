@@ -623,7 +623,11 @@ func (i *Interpreter) matchesParamTypeForOverload(fn *runtime.FunctionValue, par
 					return true
 				}
 			}
-			return i.matchesType(fn.MethodSet.TargetType, value)
+			checkVal := value
+			if iv, ok := value.(*runtime.InterfaceValue); ok && iv != nil {
+				checkVal = iv.Underlying
+			}
+			return i.matchesType(fn.MethodSet.TargetType, checkVal)
 		}
 	}
 	return i.matchesType(param, value)
