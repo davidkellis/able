@@ -1708,10 +1708,6 @@
             "named": true
           },
           {
-            "type": "expression",
-            "named": true
-          },
-          {
             "type": "expression_list",
             "named": true
           }

@@ -2024,7 +2024,17 @@ type MutexHandle = i64
 ```
 
 **Global builtins (host-provided):**
-- `print(value: _) -> void`
+- `print(value: _) -> void` — formatting rules:
+  - `string`: printed as-is
+  - `i32`/`i64`/`i128`: decimal representation
+  - `f32`/`f64`: shortest decimal representation (e.g. `3.14`, `1e10`)
+  - `bool`: `true` or `false`
+  - `char`: the character itself
+  - `nil`: `nil`
+  - Arrays: `[el1, el2, el3]` with recursive formatting of elements
+  - Structs: if the struct implements `Display` (has `to_string() -> string`), call it; otherwise `Name { field1: val1, field2: val2 }` with fields sorted alphabetically
+  - Errors: the error message string
+  - Functions/interfaces: `<function>`, `<interface Name>`, etc.
 - `future_yield() -> void`
 - `future_cancelled() -> bool`
 - `future_flush() -> void`
@@ -2318,24 +2328,24 @@ generic_fn = fn<T: Display>(item: T) -> void { print(item.to_string()) }
 
 #### 7.2.2. Lambda Expression Syntax
 
-Concise syntax, primarily for single-expression bodies.
+Concise syntax for inline function bodies.
 
 ##### Syntax
 ```able
-{ [LambdaParameterList] [-> ReturnType] => Expression }
+{ [LambdaParameterList] [-> ReturnType] => ExpressionList }
 ```
 -   **`{ ... }`**: Lambda delimiters.
 -   **`[LambdaParameterList]`**: Comma-separated identifiers, optional types (`ident: Type`). No parentheses used. Zero parameters represented by empty list before `=>`.
 -   **`[-> ReturnType]`**: Optional return type.
 -   **`=>`**: Separator.
--   **`Expression`**: Single expression defining the return value.
+-   **`ExpressionList`**: One or more expressions separated by `;` or newlines. The value of the last expression is returned.
 
 ##### Examples
 ```able
 increment = { x => x + 1 }
 adder = { x: i32, y: i32 => x + y }
 get_zero = { => 0 }
-complex_lambda = { x, y => do { temp = x + y; temp * temp } } ## Using a block expression
+complex_lambda = { x, y => temp = x + y; temp * temp }
 ```
 
 #### 7.2.3. Closures
