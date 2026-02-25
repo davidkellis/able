@@ -296,7 +296,7 @@ func runtimeValueToString(value runtime.Value) string {
 	if value == nil {
 		return ""
 	}
-	return formatRuntimeValue(value)
+	return formatRuntimeValue(nil, value)
 }
 
 func formatMetadata(entries []metadataEntry) string {

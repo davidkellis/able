@@ -933,35 +933,48 @@ func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Ex
 }
 
 func interfaceMethodReceiver(i *Interpreter, val *runtime.InterfaceValue, method runtime.Value) runtime.Value {
+	_ = i
 	if val == nil {
 		return nil
 	}
-	receiver := runtime.Value(val.Underlying)
-	if method == nil {
-		return receiver
-	}
-	candidate := method
-	switch fn := method.(type) {
+	switch bound := method.(type) {
 	case runtime.BoundMethodValue:
-		candidate = fn.Method
+		receiver := unwrapInterfaceMethodReceiver(bound.Receiver)
+		if receiver == nil {
+			return runtime.NilValue{}
+		}
+		return receiver
 	case *runtime.BoundMethodValue:
-		if fn != nil {
-			candidate = fn.Method
+		if bound != nil {
+			receiver := unwrapInterfaceMethodReceiver(bound.Receiver)
+			if receiver == nil {
+				return runtime.NilValue{}
+			}
+			return receiver
 		}
 	}
-	for _, fn := range runtime.FlattenFunctionOverloads(candidate) {
-		if fn == nil || fn.MethodSet == nil || fn.MethodSet.TargetType == nil {
-			continue
-		}
-		info, ok := parseTypeExpression(fn.MethodSet.TargetType)
-		if !ok || info.name == "" {
-			continue
-		}
-		if _, ok := i.interfaces[info.name]; ok {
-			return val
-		}
+	receiver := unwrapInterfaceMethodReceiver(val.Underlying)
+	if receiver == nil {
+		return runtime.NilValue{}
 	}
 	return receiver
+}
+
+func unwrapInterfaceMethodReceiver(val runtime.Value) runtime.Value {
+	for {
+		switch iface := val.(type) {
+		case runtime.InterfaceValue:
+			val = iface.Underlying
+			continue
+		case *runtime.InterfaceValue:
+			if iface != nil {
+				val = iface.Underlying
+				continue
+			}
+		}
+		break
+	}
+	return val
 }
 
 func (i *Interpreter) resolveDynRef(ref runtime.DynRefValue) (runtime.Value, error) {
