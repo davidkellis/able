@@ -10,6 +10,7 @@ import (
 
 	"able/interpreter-go/pkg/compiler"
 	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/interpreter"
 )
 
 type buildConfig struct {
@@ -18,6 +19,7 @@ type buildConfig struct {
 	WithTests          bool
 	PrecompileStdlib   bool
 	RequireNoFallbacks bool
+	SkipTypecheck      bool
 	ShowHelp           bool
 }
 
@@ -62,7 +64,35 @@ func runBuild(args []string) int {
 	}
 	defer loader.Close()
 
+	loadProgram := func(options driver.LoadOptions) (*driver.Program, bool) {
+		prog, loadErr := loader.LoadWithOptions(entryAbs, options)
+		if loadErr != nil {
+			var parseErr *driver.ParserDiagnosticError
+			if errors.As(loadErr, &parseErr) {
+				fmt.Fprintln(os.Stderr, driver.DescribeParserDiagnostic(parseErr.Diagnostic))
+				return nil, false
+			}
+			fmt.Fprintf(os.Stderr, "able build: failed to load program: %v\n", loadErr)
+			return nil, false
+		}
+		return prog, true
+	}
+
 	loadOptions := driver.LoadOptions{IncludeTests: config.WithTests}
+	program, ok := loadProgram(loadOptions)
+	if !ok || program == nil {
+		return 1
+	}
+	if !config.SkipTypecheck {
+		check, err := interpreter.TypecheckProgram(program)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "able build: typecheck error: %v\n", err)
+			return 1
+		}
+		if reportTypecheckDiagnostics(check) {
+			return 1
+		}
+	}
 	if config.PrecompileStdlib {
 		includePackages, err := discoverPrecompilePackages(searchPaths, config.WithTests)
 		if err != nil {
@@ -70,16 +100,13 @@ func runBuild(args []string) int {
 			return 1
 		}
 		loadOptions.IncludePackages = includePackages
-	}
-	program, err := loader.LoadWithOptions(entryAbs, loadOptions)
-	if err != nil {
-		var parseErr *driver.ParserDiagnosticError
-		if errors.As(err, &parseErr) {
-			fmt.Fprintln(os.Stderr, driver.DescribeParserDiagnostic(parseErr.Diagnostic))
+		program, ok = loadProgram(loadOptions)
+		if !ok {
 			return 1
 		}
-		fmt.Fprintf(os.Stderr, "able build: failed to load program: %v\n", err)
-		return 1
+		if program == nil {
+			return 1
+		}
 	}
 
 	outputDir := config.OutputDir
@@ -146,6 +173,9 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 		return buildConfig{}, nil, err
 	}
 	config.RequireNoFallbacks = requireNoFallbacks
+	if _, ok := os.LookupEnv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS"); ok {
+		config.SkipTypecheck = true
+	}
 	remaining := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -168,8 +198,10 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 			config.PrecompileStdlib = false
 		case arg == "--no-fallbacks":
 			config.RequireNoFallbacks = true
+			config.SkipTypecheck = true
 		case arg == "--allow-fallbacks":
 			config.RequireNoFallbacks = false
+			config.SkipTypecheck = true
 		case arg == "--bin":
 			val, err := expectFlagValue(arg, nextArg(args, &i))
 			if err != nil {

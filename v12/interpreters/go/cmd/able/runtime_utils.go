@@ -17,16 +17,32 @@ func registerPrint(interp *interpreter.Interpreter) {
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			var parts []string
 			for _, arg := range args {
-				parts = append(parts, formatRuntimeValue(arg))
+				parts = append(parts, formatRuntimeValue(interp, arg))
 			}
 			fmt.Fprintln(os.Stdout, strings.Join(parts, " "))
-			return runtime.NilValue{}, nil
+			return runtime.VoidValue{}, nil
 		},
 	}
 	interp.GlobalEnvironment().Define("print", printFn)
 }
 
-func formatRuntimeValue(val runtime.Value) string {
+func isArrayStructInstance(v *runtime.StructInstanceValue) bool {
+	if v == nil {
+		return false
+	}
+	if v.Definition != nil && v.Definition.Node != nil && v.Definition.Node.ID != nil {
+		name := v.Definition.Node.ID.Name
+		if name == "Array" || strings.HasSuffix(name, ".Array") {
+			return true
+		}
+	}
+	_, hasHandle := v.Fields["storage_handle"]
+	_, hasLength := v.Fields["length"]
+	_, hasCapacity := v.Fields["capacity"]
+	return hasHandle && hasLength && hasCapacity
+}
+
+func formatRuntimeValue(interp *interpreter.Interpreter, val runtime.Value) string {
 	switch v := val.(type) {
 	case runtime.StringValue:
 		return v.Val
@@ -46,11 +62,11 @@ func formatRuntimeValue(val runtime.Value) string {
 	case *runtime.ArrayValue:
 		elems := make([]string, len(v.Elements))
 		for i, el := range v.Elements {
-			elems[i] = formatRuntimeValue(el)
+			elems[i] = formatRuntimeValue(interp, el)
 		}
 		return "[" + strings.Join(elems, ", ") + "]"
 	case *runtime.StructInstanceValue:
-		if v.Definition != nil && v.Definition.Node != nil && v.Definition.Node.ID != nil && v.Definition.Node.ID.Name == "Array" {
+		if isArrayStructInstance(v) {
 			if h, ok := v.Fields["storage_handle"]; ok {
 				if hv, ok := h.(runtime.IntegerValue); ok {
 					handle := hv.Val.Int64()
@@ -58,11 +74,16 @@ func formatRuntimeValue(val runtime.Value) string {
 					if err == nil {
 						elems := make([]string, len(state.Values))
 						for i, el := range state.Values {
-							elems[i] = formatRuntimeValue(el)
+							elems[i] = formatRuntimeValue(interp, el)
 						}
 						return "[" + strings.Join(elems, ", ") + "]"
 					}
 				}
+			}
+		}
+		if interp != nil {
+			if rendered, err := interp.Stringify(v, nil); err == nil && rendered != "" {
+				return rendered
 			}
 		}
 		name := "Struct"
@@ -76,7 +97,7 @@ func formatRuntimeValue(val runtime.Value) string {
 		sort.Strings(keys)
 		fields := make([]string, len(keys))
 		for i, k := range keys {
-			fields[i] = k + ": " + formatRuntimeValue(v.Fields[k])
+			fields[i] = k + ": " + formatRuntimeValue(interp, v.Fields[k])
 		}
 		return name + " { " + strings.Join(fields, ", ") + " }"
 	case runtime.ErrorValue:

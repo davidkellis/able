@@ -12,6 +12,9 @@ import (
 func (i *Interpreter) stringifyValue(val runtime.Value, env *runtime.Environment) (string, error) {
 	_ = env
 	if inst, ok := val.(*runtime.StructInstanceValue); ok {
+		if str, ok := i.stringifyArrayStruct(inst); ok {
+			return str, nil
+		}
 		if str, ok := i.invokeStructToString(inst); ok {
 			return str, nil
 		}
@@ -38,10 +41,12 @@ func (i *Interpreter) invokeStructToString(inst *runtime.StructInstanceValue) (s
 	if typeName == "" {
 		return "", false
 	}
-	if bucket, ok := i.inherentMethods[typeName]; ok {
-		if method := bucket["to_string"]; method != nil {
-			if str, ok := i.callStringMethod(method, inst); ok {
-				return str, true
+	for _, candidate := range structTypeNameCandidates(typeName) {
+		if bucket, ok := i.inherentMethods[candidate]; ok {
+			if method := bucket["to_string"]; method != nil {
+				if str, ok := i.callStringMethod(method, inst); ok {
+					return str, true
+				}
 			}
 		}
 	}
@@ -58,13 +63,73 @@ func (i *Interpreter) invokeStructToString(inst *runtime.StructInstanceValue) (s
 		}
 	}
 	if i.compiledInstanceMethodFn != nil {
-		if method, ok := i.compiledInstanceMethodFn(typeName, "to_string"); ok && method != nil {
-			if str, strOk := i.callStringMethod(method, inst); strOk {
-				return str, true
+		for _, candidate := range structTypeNameCandidates(typeName) {
+			if method, ok := i.compiledInstanceMethodFn(candidate, "to_string"); ok && method != nil {
+				if str, strOk := i.callStringMethod(method, inst); strOk {
+					return str, true
+				}
 			}
 		}
 	}
 	return "", false
+}
+
+func structTypeNameCandidates(typeName string) []string {
+	candidates := make([]string, 0, 2)
+	if typeName == "" {
+		return candidates
+	}
+	candidates = append(candidates, typeName)
+	if idx := strings.LastIndex(typeName, "."); idx >= 0 && idx+1 < len(typeName) {
+		short := typeName[idx+1:]
+		if short != "" && short != typeName {
+			candidates = append(candidates, short)
+		}
+	}
+	return candidates
+}
+
+func isArrayStructInstance(inst *runtime.StructInstanceValue) bool {
+	if inst == nil {
+		return false
+	}
+	if inst.Definition != nil && inst.Definition.Node != nil && inst.Definition.Node.ID != nil {
+		name := inst.Definition.Node.ID.Name
+		if name == "Array" || strings.HasSuffix(name, ".Array") {
+			return true
+		}
+	}
+	_, hasHandle := inst.Fields["storage_handle"]
+	_, hasLength := inst.Fields["length"]
+	_, hasCapacity := inst.Fields["capacity"]
+	return hasHandle && hasLength && hasCapacity
+}
+
+func (i *Interpreter) stringifyArrayStruct(inst *runtime.StructInstanceValue) (string, bool) {
+	if !isArrayStructInstance(inst) {
+		return "", false
+	}
+	handleValue, ok := inst.Fields["storage_handle"]
+	if !ok {
+		return "", false
+	}
+	handleInt, ok := handleValue.(runtime.IntegerValue)
+	if !ok {
+		return "", false
+	}
+	state, err := runtime.ArrayStoreState(handleInt.Val.Int64())
+	if err != nil {
+		return "", false
+	}
+	parts := make([]string, 0, len(state.Values))
+	for _, item := range state.Values {
+		rendered, renderErr := i.stringifyValue(item, nil)
+		if renderErr != nil {
+			rendered = valueToString(item)
+		}
+		parts = append(parts, rendered)
+	}
+	return "[" + strings.Join(parts, ", ") + "]", true
 }
 
 func (i *Interpreter) callStringMethod(fn runtime.Value, receiver runtime.Value) (string, bool) {
