@@ -458,6 +458,60 @@ func TestParseLambdaExpressionLiteral(t *testing.T) {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestParseLambdaExpressionListWithSemicolon(t *testing.T) {
+	source := `fn make(offset) {
+  handler := { value => value + offset; value * 2 }
+  handler(3)
+}
+`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	handlerLambda := ast.Lam(
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.ID("value"), nil),
+		},
+		ast.Block(
+			ast.Bin("+", ast.ID("value"), ast.ID("offset")),
+			ast.Bin("*", ast.ID("value"), ast.Int(2)),
+		),
+	)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			ast.NewFunctionDefinition(
+				ast.ID("make"),
+				[]*ast.FunctionParameter{
+					ast.NewFunctionParameter(ast.ID("offset"), nil),
+				},
+				ast.Block(
+					ast.Assign(ast.ID("handler"), handlerLambda),
+					ast.CallExpr(ast.ID("handler"), ast.Int(3)),
+				),
+				nil,
+				nil,
+				nil,
+				false,
+				false,
+			),
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
 func TestParseTrailingLambdaCallSimple(t *testing.T) {
 	source := `fn apply(items) {
   items.map { item => item + 1 }
