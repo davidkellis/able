@@ -787,6 +787,15 @@ func (ctx *parseContext) parseLambdaExpression(node *sitter.Node) (ast.Expressio
 	if err != nil {
 		return nil, err
 	}
+	// Preserve historical AST shape for single-expression lambdas while allowing
+	// expression_list bodies for multi-expression lambdas.
+	if bodyNode.Kind() == "expression_list" {
+		if block, ok := bodyExpr.(*ast.BlockExpression); ok && block != nil && len(block.Body) == 1 {
+			if expr, ok := block.Body[0].(ast.Expression); ok {
+				bodyExpr = expr
+			}
+		}
+	}
 
 	return annotateExpression(ast.NewLambdaExpression(params, bodyExpr, returnType, nil, nil, false), node), nil
 }
