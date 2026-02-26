@@ -112,6 +112,18 @@ runtime will read the message and surface it via `host_error(...)` or `Error`.
 
 The host must call this export to resume tasks scheduled via `set_timeout`.
 
+## Prototype JS Bridge (Current Staging)
+
+The current staging prototype also exposes a JS global function (from Go/WASM):
+
+- `__able_eval_request_json(requestJson: string) -> string`
+
+`requestJson` matches `pkg/wasmhost.EvaluateRequest`, and the return value is a
+JSON string matching `pkg/wasmhost.EvaluateResponse`.
+
+This bridge is intentionally temporary and exists to validate AST handoff from
+JS parsing into the Go runtime while the full host ABI wiring is in progress.
+
 ## Notes
 
 - This ABI intentionally avoids WASI to keep the browser target viable. A WASI

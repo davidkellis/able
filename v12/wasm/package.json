@@ -1,0 +1,11 @@
+{
+  "name": "able-wasm-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "node run_prototype.mjs"
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.25.10"
+  }
+}

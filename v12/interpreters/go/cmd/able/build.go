@@ -14,13 +14,14 @@ import (
 )
 
 type buildConfig struct {
-	OutputDir          string
-	BinPath            string
-	WithTests          bool
-	PrecompileStdlib   bool
-	RequireNoFallbacks bool
-	SkipTypecheck      bool
-	ShowHelp           bool
+	OutputDir                string
+	BinPath                  string
+	WithTests                bool
+	PrecompileStdlib         bool
+	RequireNoFallbacks       bool
+	RequireNoStaticFallbacks bool
+	SkipTypecheck            bool
+	ShowHelp                 bool
 }
 
 func runBuild(args []string) int {
@@ -119,10 +120,11 @@ func runBuild(args []string) int {
 	}
 
 	comp := compiler.New(compiler.Options{
-		PackageName:        "main",
-		EmitMain:           true,
-		EntryPath:          entryAbs,
-		RequireNoFallbacks: config.RequireNoFallbacks,
+		PackageName:              "main",
+		EmitMain:                 true,
+		EntryPath:                entryAbs,
+		RequireNoFallbacks:       config.RequireNoFallbacks,
+		RequireStaticNoFallbacks: config.RequireNoStaticFallbacks,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {
@@ -162,7 +164,7 @@ func runBuild(args []string) int {
 }
 
 func parseBuildArguments(args []string) (buildConfig, []string, error) {
-	config := buildConfig{}
+	config := buildConfig{RequireNoStaticFallbacks: true}
 	precompileStdlib, err := resolveBuildPrecompileStdlibFromEnv()
 	if err != nil {
 		return buildConfig{}, nil, err
@@ -175,6 +177,7 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 	config.RequireNoFallbacks = requireNoFallbacks
 	if _, ok := os.LookupEnv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS"); ok {
 		config.SkipTypecheck = true
+		config.RequireNoStaticFallbacks = requireNoFallbacks
 	}
 	remaining := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
@@ -198,9 +201,11 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 			config.PrecompileStdlib = false
 		case arg == "--no-fallbacks":
 			config.RequireNoFallbacks = true
+			config.RequireNoStaticFallbacks = true
 			config.SkipTypecheck = true
 		case arg == "--allow-fallbacks":
 			config.RequireNoFallbacks = false
+			config.RequireNoStaticFallbacks = false
 			config.SkipTypecheck = true
 		case arg == "--bin":
 			val, err := expectFlagValue(arg, nextArg(args, &i))
@@ -342,8 +347,9 @@ func printBuildUsage() {
 	fmt.Fprintln(os.Stderr, "      --precompile-stdlib  precompile stdlib/kernel package graph into generated output (default)")
 	fmt.Fprintln(os.Stderr, "      --no-precompile-stdlib  disable stdlib/kernel package precompile discovery")
 	fmt.Fprintln(os.Stderr, "      --no-fallbacks  fail compile when any fallback wrappers are required")
-	fmt.Fprintln(os.Stderr, "      --allow-fallbacks  allow fallback wrappers (overrides env)")
+	fmt.Fprintln(os.Stderr, "      --allow-fallbacks  allow fallback wrappers (disables static default)")
 	fmt.Fprintln(os.Stderr, "Environment:")
 	fmt.Fprintln(os.Stderr, "  ABLE_BUILD_PRECOMPILE_STDLIB=1|true|yes|on")
-	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_REQUIRE_NO_FALLBACKS=1|true|yes|on")
+	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_REQUIRE_NO_FALLBACKS=1|true|yes|on  (strict: disallow all fallbacks)")
+	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_REQUIRE_NO_FALLBACKS=0|false|no|off (allow all fallbacks, incl. static)")
 }

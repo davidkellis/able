@@ -22,8 +22,14 @@ func TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree(t *testing.
 	if strings.Contains(mainSrc, "EvaluateProgram(") {
 		t.Fatalf("expected static launcher to skip interpreter program evaluation")
 	}
-	if !strings.Contains(mainSrc, "RegisterIn(interp, interp.GlobalEnvironment())") {
-		t.Fatalf("expected static launcher to register compiled runtime in global environment")
+	if strings.Contains(mainSrc, "interpreter.New()") {
+		t.Fatalf("expected static launcher to avoid interpreter initialization")
+	}
+	if !strings.Contains(mainSrc, "RegisterIn(nil, entryEnv)") {
+		t.Fatalf("expected static launcher to register compiled runtime in static entry environment")
+	}
+	if !strings.Contains(mainSrc, "RunRegisteredMain(rt, nil, entryEnv)") {
+		t.Fatalf("expected static launcher to execute compiled main without interpreter fallback")
 	}
 }
 

@@ -32,11 +32,14 @@ func TestCompilerNoFallbacksForLocalMethodsAndImplDefinitions(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "bridge.EvaluateStatement(__able_runtime, func() *ast.MethodsDefinition") {
-		t.Fatalf("expected local methods definition to lower through bridge.EvaluateStatement without fallback")
+	if !strings.Contains(compiledSrc, "bridge.RegisterMethodsDefinition(__able_runtime, func() *ast.MethodsDefinition") {
+		t.Fatalf("expected local methods definition to lower through direct bridge registration without fallback")
 	}
-	if !strings.Contains(compiledSrc, "bridge.EvaluateStatement(__able_runtime, func() *ast.ImplementationDefinition") {
-		t.Fatalf("expected local implementation definition to lower through bridge.EvaluateStatement without fallback")
+	if !strings.Contains(compiledSrc, "bridge.RegisterImplementationDefinition(__able_runtime, func() *ast.ImplementationDefinition") {
+		t.Fatalf("expected local implementation definition to lower through direct bridge registration without fallback")
+	}
+	if strings.Contains(compiledSrc, "bridge.EvaluateStatement(__able_runtime") {
+		t.Fatalf("expected local methods/impl path to avoid bridge.EvaluateStatement fallback registration")
 	}
 	if strings.Contains(compiledSrc, "CallOriginal(\"demo.main\"") {
 		t.Fatalf("expected local methods/impl definition path to stay compiled without call_original fallback")
