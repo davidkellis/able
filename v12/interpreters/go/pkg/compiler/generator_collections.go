@@ -12,9 +12,18 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 		ctx.setReason("missing array literal")
 		return "", "", false
 	}
+	returnType := "runtime.Value"
 	if expected != "" && expected != "runtime.Value" {
-		ctx.setReason("array literal type mismatch")
-		return "", "", false
+		if g.typeCategory(expected) != "struct" {
+			ctx.setReason("array literal type mismatch")
+			return "", "", false
+		}
+		baseName, ok := g.structBaseName(expected)
+		if !ok || baseName != "Array" {
+			ctx.setReason("array literal type mismatch")
+			return "", "", false
+		}
+		returnType = expected
 	}
 	callNode := g.diagNodeName(lit, "*ast.ArrayLiteral", "array")
 	lines := []string{
@@ -38,10 +47,19 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 		indexExpr := fmt.Sprintf("bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\"))", idx)
 		lines = append(lines, fmt.Sprintf("_ = __able_extern_array_write([]runtime.Value{%s, %s, %s}, %s)", handleTemp, indexExpr, valueTemp, callNode))
 	}
+	if returnType == "runtime.Value" {
+		arrTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s, err := __able_struct_Array_to(__able_runtime, &Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: %s})", arrTemp, len(lit.Elements), len(lit.Elements), handleTemp))
+		lines = append(lines, "if err != nil { panic(err) }")
+		return fmt.Sprintf("func() runtime.Value { %s; return %s }()", strings.Join(lines, "; "), arrTemp), "runtime.Value", true
+	}
 	arrTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s, err := __able_struct_Array_to(__able_runtime, &Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: %s})", arrTemp, len(lit.Elements), len(lit.Elements), handleTemp))
-	lines = append(lines, "if err != nil { panic(err) }")
-	return fmt.Sprintf("func() runtime.Value { %s; return %s }()", strings.Join(lines, "; "), arrTemp), "runtime.Value", true
+	arrExpr := fmt.Sprintf("&Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: %s}", len(lit.Elements), len(lit.Elements), handleTemp)
+	if !strings.HasPrefix(returnType, "*") {
+		arrExpr = fmt.Sprintf("Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: %s}", len(lit.Elements), len(lit.Elements), handleTemp)
+	}
+	lines = append(lines, fmt.Sprintf("%s := %s", arrTemp, arrExpr))
+	return g.wrapLinesAsExpression(ctx, lines, arrTemp, returnType)
 }
 
 func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, expected string) (string, string, bool) {
@@ -477,6 +495,50 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 	if !ok {
 		return "", "", false
 	}
+	if g.isArrayStructType(objType) {
+		idxExpr, idxType, ok := g.compileExpr(ctx, expr.Index, "")
+		if !ok {
+			return "", "", false
+		}
+		idxValue, ok := g.runtimeValueExpr(idxExpr, idxType)
+		if !ok {
+			ctx.setReason("index expression unsupported")
+			return "", "", false
+		}
+		objTemp := ctx.newTemp()
+		idxTemp := ctx.newTemp()
+		indexTemp := ctx.newTemp()
+		handleRawTemp := ctx.newTemp()
+		handleTemp := ctx.newTemp()
+		lengthTemp := ctx.newTemp()
+		resultTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s := %s", objTemp, objExpr),
+			fmt.Sprintf("%s := %s", idxTemp, idxValue),
+			fmt.Sprintf("%s := func() int { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return int(raw) }()", indexTemp, idxTemp),
+			fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp),
+			fmt.Sprintf("%s := func() int64 { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return raw }()", handleTemp, handleRawTemp),
+			fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
+			"if err != nil { panic(err) }",
+			fmt.Sprintf("if %s < 0 || %s >= %s { return __able_index_error(%s, %s) }", indexTemp, indexTemp, lengthTemp, indexTemp, lengthTemp),
+			fmt.Sprintf("%s, err := runtime.ArrayStoreRead(%s, %s)", resultTemp, handleTemp, indexTemp),
+			"if err != nil { panic(err) }",
+			fmt.Sprintf("if %s == nil { return runtime.NilValue{} }", resultTemp),
+		}
+		valueExpr, valueType, ok := g.wrapLinesAsExpression(ctx, lines, resultTemp, "runtime.Value")
+		if !ok {
+			return "", "", false
+		}
+		if expected == "" || expected == "runtime.Value" {
+			return valueExpr, valueType, true
+		}
+		converted, ok := g.expectRuntimeValueExpr(valueExpr, expected)
+		if !ok {
+			ctx.setReason("index expression type mismatch")
+			return "", "", false
+		}
+		return converted, expected, true
+	}
 	objValue, ok := g.runtimeValueExpr(objExpr, objType)
 	if !ok {
 		ctx.setReason("index object unsupported")
@@ -533,6 +595,14 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 		return fmt.Sprintf("func() %s { val := %s; v, err := __able_struct_%s_from(val); if err != nil { panic(err) }; return v }()", expected, valueExpr, baseName), true
 	}
 	return "", false
+}
+
+func (g *generator) isArrayStructType(goType string) bool {
+	if g == nil || g.typeCategory(goType) != "struct" {
+		return false
+	}
+	baseName, ok := g.structBaseName(goType)
+	return ok && baseName == "Array"
 }
 
 func (g *generator) structInfoByGoName(goName string) *structInfo {
