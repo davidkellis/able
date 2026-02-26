@@ -1,5 +1,13 @@
 # Able Project Log
 
+## 2026-02-26 — Compiler struct/type resolution + dynamic warning reachability
+- Compiler: switched struct metadata collection to package-qualified keys so same-named structs across packages no longer collide during AOT collection.
+- Compiler: made `TypeMapper` resolve struct types with package/import context, including static selector/wildcard imports, instead of global-name lookup.
+- Compiler: dynamic-feature reporting now tracks entry reachability and only treats reachable modules as dynamic for warnings and static-fallback policy checks.
+- Compiler: entry struct seeding now skips ambiguous same-name structs and no longer depends on map keys being unqualified names.
+- Tests: added `compiler_warning_scope_test.go` coverage for cross-package duplicate-name structs, unreachable dynamic warning suppression, and strict static fallback behavior with unreachable dynamic modules.
+- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerCrossPackageStructNamesDoNotWarnAsDuplicates|TestCompilerDynamicWarningsIgnoreUnreachableModules|TestCompilerStaticFallbackGuardIgnoresUnreachableDynamicModules|TestDetectDynamicFeaturesUsesDynamicIgnoresUnreachableModules|TestDetectDynamicFeatures'`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler`; `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./cmd/able`.
+
 ## 2026-02-09 — Compiled mutex runtime + await helpers
 - Runtime: added a compiled mutex handle store (`MutexStoreNew/State`) with sync.Cond-backed state.
 - Compiler: implemented compiled `__able_mutex_new`, `__able_mutex_lock`, `__able_mutex_unlock`, and `__able_mutex_await_lock` with awaiter tracking.

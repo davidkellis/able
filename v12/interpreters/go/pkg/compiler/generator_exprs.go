@@ -234,7 +234,7 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		ctx.setReason("unsupported struct literal")
 		return "", "", false
 	}
-	info, ok := g.structs[lit.StructType.Name]
+	info, ok := g.structInfoForTypeName(ctx.packageName, lit.StructType.Name)
 	if expected == "runtime.Value" || !ok || info == nil || !info.Supported || len(lit.TypeArguments) > 0 {
 		return g.compileStructLiteralRuntime(ctx, lit)
 	}
@@ -1055,10 +1055,10 @@ func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expr
 			return nil, false
 		}
 	}
-	if _, ok := g.structs[ident.Name]; !ok {
+	if _, ok := g.structInfoForTypeName(ctx.packageName, ident.Name); !ok {
 		return nil, false
 	}
-	method := g.methodForTypeName(ident.Name, memberName, false)
+	method := g.methodForTypeNameInPackage(ctx.packageName, ident.Name, memberName, false)
 	if method == nil {
 		return nil, false
 	}

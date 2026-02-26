@@ -53,7 +53,7 @@ func (g *generator) methodGenericNames(method *methodInfo) map[string]struct{} {
 	if !ok {
 		return names
 	}
-	if def, ok := g.structs[baseName]; ok && def != nil && def.Node != nil {
+	if def, ok := g.structInfoForTypeName(method.Info.Package, baseName); ok && def != nil && def.Node != nil {
 		names = addGenericParams(names, def.Node.GenericParams)
 	}
 	if iface, ok := g.interfaces[baseName]; ok && iface != nil {
@@ -218,12 +218,7 @@ func (g *generator) typeCategory(goType string) string {
 }
 
 func (g *generator) sortedStructNames() []string {
-	names := make([]string, 0, len(g.structs))
-	for name := range g.structs {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
+	return g.sortedStructKeys()
 }
 
 func (g *generator) sortedFunctionNames() []string {

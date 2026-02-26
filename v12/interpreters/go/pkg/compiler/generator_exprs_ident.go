@@ -13,7 +13,7 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 	}
 	param, ok := ctx.lookup(ident.Name)
 	if !ok {
-		if info, found := g.structs[ident.Name]; found && info != nil && info.Supported && len(info.Fields) == 0 {
+		if info, found := g.structInfoForTypeName(ctx.packageName, ident.Name); found && info != nil && info.Supported && len(info.Fields) == 0 {
 			structType := "*" + info.GoName
 			if expected == "" || expected == structType {
 				return "&" + info.GoName + "{}", structType, true

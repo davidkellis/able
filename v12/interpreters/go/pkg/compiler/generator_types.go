@@ -168,7 +168,7 @@ func (g *generator) mapTypeExpression(expr ast.TypeExpression) (string, bool) {
 }
 
 func (g *generator) mapTypeExpressionInPackage(pkgName string, expr ast.TypeExpression) (string, bool) {
-	mapper := NewTypeMapper(g.structs, pkgName)
+	mapper := NewTypeMapper(g, pkgName)
 	return mapper.Map(expr)
 }
 

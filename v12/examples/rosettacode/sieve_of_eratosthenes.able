@@ -52,4 +52,5 @@ fn show_primes(limit: i32) -> void {
 fn main() -> void {
   show_primes(30)
   show_primes(100)
+  show_primes(10000)
 }
