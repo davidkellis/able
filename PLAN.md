@@ -65,6 +65,29 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   - [x] Non-dynamic compiled `main.go` omits interpreter bootstrap/eval paths and does not require interpreter-backed bridge operations for static semantics.
   - [x] Dynamic programs still function with explicit boundary transitions and retain parity with tree-walker/bytecode behavior.
   - [x] `./run_all_tests.sh` and compiler fixture audits stay green with the new strict policy.
+### Compiler AOT Performance and `runtime.Value` Reduction (active priority)
+- Goal: minimize `runtime.Value` usage in static compiled code; keep it only where semantically required (explicit dynamic boundary crossing, interface/runtime-polymorphic dispatch, and ABI conversion points).
+- Kickoff changes landed:
+  - [x] Map statically-typed `Array ...` locals to compiled `*Array` instead of defaulting to `runtime.Value`.
+  - [x] Fix local `=` declaration fallback so unbound local assignments do not compile to `__able_global_set/__able_global_get`.
+  - [x] Lower typed `Array` index read/write (`arr[idx]`, `arr[idx] = v`) through direct `runtime.ArrayStore*` paths for compiled `*Array` receivers.
+  - [x] Keep static no-fallback enforcement active while applying these optimizations.
+- Immediate unit of work (execute in order):
+  - [ ] Add call-site intrinsics for typed `Array` methods in hot paths (`push`, `len`, `get`, `set`) to bypass dynamic member lookup / `__able_call_value`.
+  - [ ] Add compiler regression fixtures proving typed-array locals in static code emit no `__able_global_get/__able_global_set` in compiled function bodies.
+  - [ ] Add compiler regression fixtures proving typed-array loops emit no `__able_member_get_method`/`__able_call_value` for `push/get/set/len`.
+  - [ ] Add fast-path loop lowering for `while` loops without explicit `break`/`continue`/`rescue` needs (avoid per-iteration closure + `defer` scaffolding).
+  - [ ] Extend array literal lowering so typed contexts keep native compiled `*Array` paths and avoid unnecessary struct<->runtime boxing.
+  - [ ] Audit `Array` stdlib compiled methods (`push`, `len`, `get`, `set`, `refresh_metadata`) for redundant runtime round-trips; remove avoidable metadata refresh churn.
+  - [ ] Add benchmark fixtures (`noop`, `sieve_count`, `sieve_full`) and track real/user/sys + GC count in CI-adjacent perf script (non-blocking, report-only).
+  - [ ] Document required/allowed `runtime.Value` usage categories in `spec/full_spec_v12.md` and note staged limits in `spec/TODO_v12.md`.
+  - [ ] Design and stage monomorphized container ABI proposal (`Array<T>` native element typing) with compatibility constraints before implementation.
+  - [ ] Implement staged monomorphized array lowering behind a compiler flag once design/spec update is approved.
+- Definition of done for this workstream:
+  - [ ] Static typed-array hot paths (`push/get/set/len` + index ops) compile without dynamic member dispatch in generated function bodies.
+  - [ ] Static local-variable fallback semantics (`=` declares when unbound) stay local-scope and do not route through global environment helpers.
+  - [ ] Sieve-style benchmark shows measurable runtime and GC reduction versus pre-work baseline, with unchanged program output.
+  - [ ] No regressions in compiler strict static checks, fixture parity, and dynamic-boundary behavior.
 ### WASM
 - WASM: prototype JS tree-sitter parsing that feeds AST into the Go/WASM runtime (**in progress**).
   - Landed staging scaffold: `cmd/ablewasm` (`GOOS=js GOARCH=wasm`) + `pkg/wasmhost` JSON bridge and `v12/wasm/` Node prototype (`web-tree-sitter` subset adapter + runner).
