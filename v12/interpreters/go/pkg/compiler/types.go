@@ -27,7 +27,17 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 		}
 		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base != nil && base.Name != nil {
 			switch base.Name.Name {
-			case "Array", "HashMap", "Map", "DivMod":
+			case "Array":
+				if m != nil && m.gen != nil {
+					if info, ok := m.gen.structInfoForTypeName(m.packageName, "Array"); ok && info != nil {
+						return "*" + info.GoName, true
+					}
+					if info, ok := m.gen.structInfoByNameUnique("Array"); ok && info != nil {
+						return "*" + info.GoName, true
+					}
+				}
+				return "runtime.Value", true
+			case "HashMap", "Map", "DivMod":
 				return "runtime.Value", true
 			}
 		}
