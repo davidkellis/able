@@ -17,7 +17,7 @@ func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper 
 	if !ok || targetName == "" {
 		return
 	}
-	if info, ok := g.structs[targetName]; ok && (info == nil || !info.Supported) {
+	if info, ok := g.structInfoForTypeName(pkgName, targetName); ok && (info == nil || !info.Supported) {
 		return
 	}
 	if g.methods == nil {
@@ -210,7 +210,7 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 	retExpr := resolveSelfTypeExpr(def.ReturnType, target)
 	retType := ""
 	ok := false
-	if forcedType, forced := g.staticMethodNominalStructReturnType(target, expectsSelf, retExpr); forced {
+	if forcedType, forced := g.staticMethodNominalStructReturnType(info.Package, target, expectsSelf, retExpr); forced {
 		retType = forcedType
 		ok = true
 	}
@@ -231,7 +231,7 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 	}
 }
 
-func (g *generator) staticMethodNominalStructReturnType(target ast.TypeExpression, expectsSelf bool, retExpr ast.TypeExpression) (string, bool) {
+func (g *generator) staticMethodNominalStructReturnType(pkgName string, target ast.TypeExpression, expectsSelf bool, retExpr ast.TypeExpression) (string, bool) {
 	if g == nil || expectsSelf || retExpr == nil {
 		return "", false
 	}
@@ -246,8 +246,8 @@ func (g *generator) staticMethodNominalStructReturnType(target ast.TypeExpressio
 	if simple.Name.Name != targetName {
 		return "", false
 	}
-	info, exists := g.structs[targetName]
-	if !exists || info == nil {
+	info, ok := g.structInfoForTypeName(pkgName, targetName)
+	if !ok || info == nil {
 		return "", false
 	}
 	return "*" + info.GoName, true
@@ -349,6 +349,48 @@ func (g *generator) methodForTypeName(typeName string, methodName string, expect
 	return method
 }
 
+func (g *generator) methodForTypeNameInPackage(pkgName string, typeName string, methodName string, expectsSelf bool) *methodInfo {
+	if g == nil || strings.TrimSpace(typeName) == "" || strings.TrimSpace(methodName) == "" {
+		return nil
+	}
+	info, ok := g.structInfoForTypeName(pkgName, typeName)
+	if !ok || info == nil {
+		return nil
+	}
+	return g.methodForStruct(info, methodName, expectsSelf)
+}
+
+func (g *generator) methodForStruct(info *structInfo, methodName string, expectsSelf bool) *methodInfo {
+	if g == nil || info == nil || strings.TrimSpace(methodName) == "" {
+		return nil
+	}
+	typeBucket := g.methods[info.Name]
+	if len(typeBucket) == 0 {
+		return nil
+	}
+	entries := typeBucket[methodName]
+	if len(entries) == 0 {
+		return nil
+	}
+	var found *methodInfo
+	for _, method := range entries {
+		if method == nil || method.Info == nil || !method.Info.Compileable {
+			continue
+		}
+		if method.ExpectsSelf != expectsSelf {
+			continue
+		}
+		if method.Info.Package != info.Package {
+			continue
+		}
+		if found != nil && found != method {
+			return nil
+		}
+		found = method
+	}
+	return found
+}
+
 func (g *generator) methodForReceiver(goType string, methodName string) *methodInfo {
 	if g == nil || goType == "" || methodName == "" {
 		return nil
@@ -357,7 +399,7 @@ func (g *generator) methodForReceiver(goType string, methodName string) *methodI
 	if info == nil || info.Name == "" {
 		return nil
 	}
-	method := g.methodForTypeName(info.Name, methodName, true)
+	method := g.methodForStruct(info, methodName, true)
 	if method == nil {
 		return nil
 	}

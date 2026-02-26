@@ -108,7 +108,7 @@ func (g *generator) collectDefaultImplMethods() {
 		if pkgName == "" {
 			pkgName = entry.Package
 		}
-		mapper := NewTypeMapper(g.structs, pkgName)
+		mapper := NewTypeMapper(g, pkgName)
 		targetType := g.expandTypeAliasForPackage(entry.Package, def.TargetType)
 		if targetType == nil {
 			targetType = def.TargetType
@@ -199,7 +199,7 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 	expectsSelf := methodDefinitionExpectsSelf(def)
 	retType := ""
 	ok := false
-	if forcedType, forced := g.staticMethodNominalStructReturnType(target, expectsSelf, retExpr); forced {
+	if forcedType, forced := g.staticMethodNominalStructReturnType(info.Package, target, expectsSelf, retExpr); forced {
 		retType = forcedType
 		ok = true
 	}

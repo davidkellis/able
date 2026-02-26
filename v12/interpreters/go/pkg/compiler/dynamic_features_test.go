@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/driver"
 )
 
@@ -118,6 +119,66 @@ func TestDetectDynamicFeaturesIncludesEntryWhenModulesSliceEmpty(t *testing.T) {
 	}
 	if !entryUsage.UsesDynamic() {
 		t.Fatalf("expected entry package %q to be marked dynamic", program.Entry.Package)
+	}
+}
+
+func TestDetectDynamicFeaturesUsesDynamicIgnoresUnreachableModules(t *testing.T) {
+	entryMain := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{ast.Ret(nil)},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	entryAst := ast.Mod(
+		[]ast.Statement{entryMain},
+		nil,
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+	entry := annotatedModule("app", entryAst, "app.able", nil)
+
+	dynFn := ast.Fn(
+		"probe",
+		nil,
+		[]ast.Statement{
+			ast.CallExpr(ast.Member(ast.ID("dyn"), "def_package"), ast.Str("demo.dynamic")),
+			ast.Ret(nil),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	dynAst := ast.Mod(
+		[]ast.Statement{dynFn},
+		nil,
+		ast.Pkg([]interface{}{"tools"}, false),
+	)
+	tools := annotatedModule("tools", dynAst, "tools.able", nil)
+
+	program := &driver.Program{
+		Entry:   entry,
+		Modules: []*driver.Module{entry, tools},
+	}
+	report, err := DetectDynamicFeatures(program)
+	if err != nil {
+		t.Fatalf("detect dynamic features: %v", err)
+	}
+	if report.UsesDynamic() {
+		t.Fatalf("expected dynamic usage to ignore unreachable modules")
+	}
+	if _, ok := report.ReachablePackages["app"]; !ok {
+		t.Fatalf("expected entry package to be reachable")
+	}
+	if _, ok := report.ReachablePackages["tools"]; ok {
+		t.Fatalf("did not expect tools package to be reachable")
+	}
+	if usage, ok := report.Modules["tools"]; !ok || !usage.UsesDynamic() {
+		t.Fatalf("expected tools module to be marked dynamic in raw module usage")
 	}
 }
 

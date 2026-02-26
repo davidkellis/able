@@ -296,12 +296,12 @@ func (g *generator) collect(program *driver.Program) error {
 			if name == "" {
 				continue
 			}
-			if _, exists := g.structs[name]; exists {
-				g.warnings = append(g.warnings, fmt.Sprintf("compiler: duplicate struct %s; skipping", name))
+			qualified := qualifiedName(module.Package, name)
+			if _, exists := g.structs[qualified]; exists {
 				continue
 			}
 			goName := g.mangler.unique(exportIdent(name))
-			g.structs[name] = &structInfo{
+			g.structs[qualified] = &structInfo{
 				Name:    name,
 				Package: module.Package,
 				GoName:  goName,
@@ -312,7 +312,7 @@ func (g *generator) collect(program *driver.Program) error {
 	}
 
 	for _, info := range g.structs {
-		mapper := NewTypeMapper(g.structs, info.Package)
+		mapper := NewTypeMapper(g, info.Package)
 		fields := make([]fieldInfo, 0, len(info.Node.Fields))
 		supported := true
 		for idx, field := range info.Node.Fields {
@@ -346,7 +346,7 @@ func (g *generator) collect(program *driver.Program) error {
 			seenPackages[pkgName] = struct{}{}
 			g.packages = append(g.packages, pkgName)
 		}
-		mapper := NewTypeMapper(g.structs, pkgName)
+		mapper := NewTypeMapper(g, pkgName)
 
 		functions := make(map[string][]*ast.FunctionDefinition)
 		for _, stmt := range module.AST.Body {
