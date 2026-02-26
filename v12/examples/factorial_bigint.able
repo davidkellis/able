@@ -14,7 +14,7 @@ fn factorial(n: i32) -> BigInt {
   result
 }
 
-fn main() -> void {
+fn main() {
   value := factorial(500)
   print(value.to_string())
 }
