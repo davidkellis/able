@@ -74,6 +74,11 @@ node "$ROOT_DIR/scripts/check-exec-coverage.mjs"
 echo ">>> Running Go tests"
 (
   cd "$ROOT_DIR/interpreters/go"
+  mapfile -t all_pkgs < <(go list ./... | grep -Ev '^able/interpreter-go/tmp(/|$)')
+  if [[ ${#all_pkgs[@]} -eq 0 ]]; then
+    echo "No Go packages found to test." >&2
+    exit 1
+  fi
   gocache="$ROOT_DIR/interpreters/go/.gocache"
   if [[ "${ABLE_GOCACHE:-}" == "tmp" ]]; then
     gocache="$(mktemp -d)"
@@ -85,7 +90,7 @@ echo ">>> Running Go tests"
     ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=treewalker
     ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
   else
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./...
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test "${all_pkgs[@]}"
     ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$gocache" ABLE_COMPILER_EXEC_GOCACHE="$gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
   fi
 )

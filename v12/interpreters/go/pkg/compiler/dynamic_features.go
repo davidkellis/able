@@ -61,10 +61,20 @@ func DetectDynamicFeatures(program *driver.Program) (*DynamicFeatureReport, erro
 		DynBindings: make(map[string]map[string]struct{}),
 	}
 
-	for _, mod := range program.Modules {
+	modules := make([]*driver.Module, 0, len(program.Modules)+1)
+	if program.Entry != nil {
+		modules = append(modules, program.Entry)
+	}
+	modules = append(modules, program.Modules...)
+	seenModules := make(map[*driver.Module]struct{}, len(modules))
+	for _, mod := range modules {
 		if mod == nil || mod.AST == nil {
 			continue
 		}
+		if _, seen := seenModules[mod]; seen {
+			continue
+		}
+		seenModules[mod] = struct{}{}
 		bindings, hasWildcard := collectDynBindings(mod.AST)
 		report.DynBindings[mod.Package] = bindings
 

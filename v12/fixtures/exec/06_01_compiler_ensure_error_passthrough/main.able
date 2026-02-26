@@ -6,7 +6,7 @@ fn main() -> void {
   log := ""
   do {
     log = log + "try;"
-    missing()
+    1 / 0
     "ok"
   } ensure {
     log = log + "ensure;"

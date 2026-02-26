@@ -95,6 +95,32 @@ func TestDetectDynamicFeaturesDynMemberCall(t *testing.T) {
 	}
 }
 
+func TestDetectDynamicFeaturesIncludesEntryWhenModulesSliceEmpty(t *testing.T) {
+	root := t.TempDir()
+	writePackageConfig(t, root, "demo")
+	entryPath := filepath.Join(root, "main.able")
+	source := "fn main() -> void { dyn.def_package(\"demo.dynamic\") }\n"
+	writeFile(t, entryPath, source)
+
+	program := loadProgram(t, entryPath)
+	program.Modules = nil
+
+	report, err := DetectDynamicFeatures(program)
+	if err != nil {
+		t.Fatalf("detect dynamic features: %v", err)
+	}
+	if !report.UsesDynamic() {
+		t.Fatalf("expected entry module dynamic usage to be detected")
+	}
+	entryUsage, ok := report.Modules[program.Entry.Package]
+	if !ok {
+		t.Fatalf("expected entry package %q in module usage map", program.Entry.Package)
+	}
+	if !entryUsage.UsesDynamic() {
+		t.Fatalf("expected entry package %q to be marked dynamic", program.Entry.Package)
+	}
+}
+
 func writePackageConfig(t *testing.T, root, name string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(root, "package.yml"), []byte("name: "+name+"\n"), 0o644); err != nil {

@@ -19,7 +19,7 @@ func (g *generator) compileLocalMethodsDefinitionStatement(ctx *compileContext, 
 	}
 	envName, lines := localDefinitionEnvSetup(ctx)
 	errName := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("if _, %s := bridge.EvaluateStatement(__able_runtime, %s, %s); %s != nil { panic(%s) }", errName, defExpr, envName, errName, errName))
+	lines = append(lines, fmt.Sprintf("if _, %s := bridge.RegisterMethodsDefinition(__able_runtime, %s, %s); %s != nil { panic(%s) }", errName, defExpr, envName, errName, errName))
 	return lines, true
 }
 
@@ -35,6 +35,6 @@ func (g *generator) compileLocalImplementationDefinitionStatement(ctx *compileCo
 	}
 	envName, lines := localDefinitionEnvSetup(ctx)
 	errName := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("if _, %s := bridge.EvaluateStatement(__able_runtime, %s, %s); %s != nil { panic(%s) }", errName, defExpr, envName, errName, errName))
+	lines = append(lines, fmt.Sprintf("if _, %s := bridge.RegisterImplementationDefinition(__able_runtime, %s, %s); %s != nil { panic(%s) }", errName, defExpr, envName, errName, errName))
 	return lines, true
 }

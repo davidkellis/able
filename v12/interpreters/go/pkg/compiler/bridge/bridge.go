@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"fmt"
-	"math/big"
 	goruntime "runtime"
 	"sort"
 	"strconv"
@@ -76,6 +75,11 @@ func ExecutorKind(r *Runtime) string {
 		return "serial"
 	}
 	return r.interp.ExecutorKind()
+}
+
+// HasInterpreter reports whether runtime bridge helpers can delegate to interpreter semantics.
+func HasInterpreter(r *Runtime) bool {
+	return r != nil && r.interp != nil
 }
 
 // MarkConcurrent switches the runtime to per-goroutine environment tracking.
@@ -261,7 +265,7 @@ func (r *Runtime) Call(name string, args []runtime.Value) (runtime.Value, error)
 }
 
 func Get(rt *Runtime, name string) (runtime.Value, error) {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := rt.currentEnv()
@@ -272,7 +276,7 @@ func Get(rt *Runtime, name string) (runtime.Value, error) {
 	if err == nil {
 		return value, nil
 	}
-	if env != rt.interp.GlobalEnvironment() && rt.globalLookupFallback() {
+	if rt.interp != nil && env != rt.interp.GlobalEnvironment() && rt.globalLookupFallback() {
 		if fallback := rt.interp.GlobalEnvironment(); fallback != nil {
 			if value, err := fallback.Get(name); err == nil {
 				recordGlobalLookupFallback("get", name)
@@ -284,7 +288,7 @@ func Get(rt *Runtime, name string) (runtime.Value, error) {
 }
 
 func Assign(rt *Runtime, name string, value runtime.Value) error {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
 		return fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := rt.currentEnv()
@@ -299,7 +303,7 @@ func Assign(rt *Runtime, name string, value runtime.Value) error {
 }
 
 func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue, error) {
-	if r == nil || r.interp == nil {
+	if r == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := r.currentEnv()
@@ -314,7 +318,7 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 	}
 	r.mu.RUnlock()
 	def, ok := env.StructDefinition(name)
-	if !ok || def == nil {
+	if (!ok || def == nil) && r.interp != nil {
 		if seeded, found := r.interp.LookupStructDefinition(name); found && seeded != nil {
 			def, ok = seeded, true
 			env.DefineStruct(name, seeded)
@@ -325,7 +329,7 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 			}
 		}
 	}
-	if (!ok || def == nil) && env != r.interp.GlobalEnvironment() && r.globalLookupFallback() {
+	if (!ok || def == nil) && r.interp != nil && env != r.interp.GlobalEnvironment() && r.globalLookupFallback() {
 		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
 			if alt, found := fallback.StructDefinition(name); found && alt != nil {
 				recordGlobalLookupFallback("struct_global", name)
@@ -333,7 +337,7 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 			}
 		}
 	}
-	if (!ok || def == nil) && r.globalLookupFallback() {
+	if (!ok || def == nil) && r.interp != nil && r.globalLookupFallback() {
 		if alt, found := r.interp.LookupStructDefinition(name); found && alt != nil {
 			recordGlobalLookupFallback("struct_registry", name)
 			def, ok = alt, true
@@ -878,16 +882,36 @@ func ArrayElements(rt *Runtime, arr *runtime.ArrayValue) ([]runtime.Value, error
 }
 
 func Cast(rt *Runtime, typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if rt.interp == nil {
+		coerced, ok := matchTypeWithoutInterpreter(typeExpr, value)
+		if !ok {
+			return nil, fmt.Errorf("cannot cast value to requested type")
+		}
+		if coerced == nil {
+			return runtime.NilValue{}, nil
+		}
+		return coerced, nil
 	}
 	return rt.interp.CastValueToType(typeExpr, value)
 }
 
 // MatchType checks whether a value matches a type expression and returns the coerced value when it does.
 func MatchType(rt *Runtime, typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, bool, error) {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
 		return nil, false, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if rt.interp == nil {
+		coerced, ok := matchTypeWithoutInterpreter(typeExpr, value)
+		if !ok {
+			return nil, false, nil
+		}
+		if coerced == nil {
+			coerced = runtime.NilValue{}
+		}
+		return coerced, true, nil
 	}
 	if !rt.interp.MatchesType(typeExpr, value) {
 		return nil, false, nil
@@ -904,24 +928,34 @@ func MatchType(rt *Runtime, typeExpr ast.TypeExpression, value runtime.Value) (r
 
 // TypeExpressionFromValue exposes runtime type expression inference for compiler helpers.
 func TypeExpressionFromValue(rt *Runtime, value runtime.Value) (ast.TypeExpression, error) {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if rt.interp == nil {
+		return staticTypeExpressionFromValue(value), nil
 	}
 	return rt.interp.TypeExpressionFromValue(value), nil
 }
 
 // ExpandTypeAliases expands type aliases using the interpreter alias table.
 func ExpandTypeAliases(rt *Runtime, expr ast.TypeExpression) (ast.TypeExpression, error) {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if rt.interp == nil {
+		return expr, nil
 	}
 	return rt.interp.ExpandTypeAliases(expr), nil
 }
 
 // EnsureTypeSatisfiesInterface checks interface constraints using the interpreter.
 func EnsureTypeSatisfiesInterface(rt *Runtime, subject ast.TypeExpression, iface ast.TypeExpression, context string) error {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
 		return fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if rt.interp == nil {
+		// Static no-bootstrap mode cannot enforce dynamic interface constraints at runtime.
+		return nil
 	}
 	return rt.interp.EnsureTypeSatisfiesInterface(subject, iface, context)
 }
@@ -932,362 +966,4 @@ func IsKnownConstraintTypeName(rt *Runtime, name string) bool {
 		return false
 	}
 	return rt.interp.IsKnownConstraintTypeName(name)
-}
-
-// Raise panics with the provided value so compiled code can signal a runtime error.
-func Raise(value runtime.Value) {
-	panic(value)
-}
-
-// RaiseWithContext raises a value with attached runtime diagnostics.
-func RaiseWithContext(rt *Runtime, node ast.Node, value runtime.Value) {
-	if rt == nil || rt.interp == nil {
-		panic(value)
-	}
-	env := rt.currentEnv()
-	err := interpreter.Raise(rt.interp, value, env)
-	if node != nil {
-		err = rt.interp.AttachRuntimeContext(err, node, env)
-	}
-	panic(err)
-}
-
-// RaiseRuntimeErrorWithContext attaches runtime diagnostics to an error and panics.
-func RaiseRuntimeErrorWithContext(rt *Runtime, node ast.Node, err error) {
-	if err == nil {
-		return
-	}
-	if rt == nil || rt.interp == nil {
-		panic(err)
-	}
-	env := rt.currentEnv()
-	panic(rt.interp.AttachRuntimeContext(err, node, env))
-}
-
-// RegisterNodeOrigin wires a node origin path for compiled diagnostics.
-func RegisterNodeOrigin(rt *Runtime, node ast.Node, origin string) {
-	if rt == nil || rt.interp == nil || node == nil || origin == "" {
-		return
-	}
-	rt.interp.AddNodeOrigin(node, origin)
-}
-
-// PushCallFrame records a call expression in the interpreter's runtime state.
-func PushCallFrame(rt *Runtime, call *ast.FunctionCall) {
-	if rt == nil || rt.interp == nil || call == nil {
-		return
-	}
-	env := rt.currentEnv()
-	rt.interp.PushCallFrame(env, call)
-}
-
-// PopCallFrame removes the most recent call expression frame.
-func PopCallFrame(rt *Runtime) {
-	if rt == nil || rt.interp == nil {
-		return
-	}
-	env := rt.currentEnv()
-	rt.interp.PopCallFrame(env)
-}
-
-// Recover converts a recovered panic into a runtime error compatible with the interpreter.
-func Recover(rt *Runtime, ctx *runtime.NativeCallContext, recovered any) error {
-	if recovered == nil {
-		return nil
-	}
-	if err, ok := recovered.(error); ok {
-		return err
-	}
-	if val, ok := recovered.(runtime.Value); ok {
-		var env *runtime.Environment
-		if ctx != nil {
-			env = ctx.Env
-		}
-		if rt == nil || rt.interp == nil {
-			return fmt.Errorf("panic: %v", val)
-		}
-		return interpreter.Raise(rt.interp, val, env)
-	}
-	return fmt.Errorf("panic: %v", recovered)
-}
-
-func AsString(value runtime.Value) (string, error) {
-	value = unwrapInterface(value)
-	switch v := value.(type) {
-	case runtime.StringValue:
-		return v.Val, nil
-	case *runtime.StringValue:
-		if v == nil {
-			return "", fmt.Errorf("expected String, got nil")
-		}
-		return v.Val, nil
-	case *runtime.StructInstanceValue:
-		return stringFromStruct(v)
-	default:
-		return "", fmt.Errorf("expected String, got %T", value)
-	}
-}
-
-func stringFromStruct(inst *runtime.StructInstanceValue) (string, error) {
-	if inst == nil || inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
-		return "", fmt.Errorf("expected String, got nil")
-	}
-	if inst.Definition.Node.ID.Name != "String" {
-		return "", fmt.Errorf("expected String, got %T", inst)
-	}
-	var bytesVal runtime.Value
-	if inst.Fields != nil {
-		if field, ok := inst.Fields["bytes"]; ok {
-			bytesVal = field
-		}
-	}
-	if bytesVal == nil && len(inst.Positional) > 0 {
-		bytesVal = inst.Positional[0]
-	}
-	if bytesVal == nil {
-		return "", fmt.Errorf("string bytes are missing")
-	}
-	arr, err := arrayValueFromRuntime(bytesVal)
-	if err != nil {
-		return "", err
-	}
-	if arr == nil {
-		return "", fmt.Errorf("string bytes are missing")
-	}
-	bytes := make([]byte, len(arr.Elements))
-	maxByte := big.NewInt(0xff)
-	for idx, elem := range arr.Elements {
-		intVal, err := extractInteger(elem)
-		if err != nil {
-			return "", err
-		}
-		if intVal.Sign() < 0 || intVal.Cmp(maxByte) > 0 {
-			return "", fmt.Errorf("string byte out of range")
-		}
-		bytes[idx] = byte(intVal.Int64())
-	}
-	return string(bytes), nil
-}
-
-func ToString(value string) runtime.Value {
-	return runtime.StringValue{Val: value}
-}
-
-func AsBool(value runtime.Value) (bool, error) {
-	value = unwrapInterface(value)
-	switch v := value.(type) {
-	case runtime.BoolValue:
-		return v.Val, nil
-	case *runtime.BoolValue:
-		if v == nil {
-			return false, fmt.Errorf("expected bool, got nil")
-		}
-		return v.Val, nil
-	default:
-		return false, fmt.Errorf("expected bool, got %T", value)
-	}
-}
-
-func ToBool(value bool) runtime.Value {
-	return runtime.BoolValue{Val: value}
-}
-
-func AsRune(value runtime.Value) (rune, error) {
-	value = unwrapInterface(value)
-	switch v := value.(type) {
-	case runtime.CharValue:
-		return v.Val, nil
-	case *runtime.CharValue:
-		if v == nil {
-			return 0, fmt.Errorf("expected char, got nil")
-		}
-		return v.Val, nil
-	default:
-		return 0, fmt.Errorf("expected char, got %T", value)
-	}
-}
-
-func ToRune(value rune) runtime.Value {
-	return runtime.CharValue{Val: value}
-}
-
-func AsFloat(value runtime.Value) (float64, error) {
-	value = unwrapInterface(value)
-	switch v := value.(type) {
-	case runtime.FloatValue:
-		return v.Val, nil
-	case *runtime.FloatValue:
-		if v == nil {
-			return 0, fmt.Errorf("expected float, got nil")
-		}
-		return v.Val, nil
-	case runtime.IntegerValue:
-		if v.Val == nil {
-			return 0, fmt.Errorf("expected float, got nil")
-		}
-		return bigIntToFloat(v.Val), nil
-	case *runtime.IntegerValue:
-		if v == nil || v.Val == nil {
-			return 0, fmt.Errorf("expected float, got nil")
-		}
-		return bigIntToFloat(v.Val), nil
-	default:
-		return 0, fmt.Errorf("expected float, got %T", value)
-	}
-}
-
-func ToFloat64(value float64) runtime.Value {
-	return runtime.FloatValue{Val: value, TypeSuffix: runtime.FloatF64}
-}
-
-func ToFloat32(value float32) runtime.Value {
-	return runtime.FloatValue{Val: float64(value), TypeSuffix: runtime.FloatF32}
-}
-
-func AsInt(value runtime.Value, bits int) (int64, error) {
-	val, err := extractInteger(value)
-	if err != nil {
-		return 0, err
-	}
-	min, max := signedRange(bits)
-	if val.Cmp(min) < 0 || val.Cmp(max) > 0 {
-		return 0, fmt.Errorf("integer %s overflows %d-bit signed", val.String(), bits)
-	}
-	return val.Int64(), nil
-}
-
-func AsUint(value runtime.Value, bits int) (uint64, error) {
-	val, err := extractInteger(value)
-	if err != nil {
-		return 0, err
-	}
-	if val.Sign() < 0 {
-		return 0, fmt.Errorf("integer %s is negative for unsigned", val.String())
-	}
-	_, max := unsignedRange(bits)
-	if val.Cmp(max) > 0 {
-		return 0, fmt.Errorf("integer %s overflows %d-bit unsigned", val.String(), bits)
-	}
-	return val.Uint64(), nil
-}
-
-func ToInt(value int64, suffix runtime.IntegerType) runtime.Value {
-	return runtime.IntegerValue{
-		Val:        big.NewInt(value),
-		TypeSuffix: suffix,
-	}
-}
-
-func ToUint(value uint64, suffix runtime.IntegerType) runtime.Value {
-	val := new(big.Int)
-	val.SetUint64(value)
-	return runtime.IntegerValue{
-		Val:        val,
-		TypeSuffix: suffix,
-	}
-}
-
-func unwrapInterface(value runtime.Value) runtime.Value {
-	for {
-		switch v := value.(type) {
-		case runtime.InterfaceValue:
-			value = v.Underlying
-			continue
-		case *runtime.InterfaceValue:
-			if v != nil {
-				value = v.Underlying
-				continue
-			}
-		}
-		break
-	}
-	return value
-}
-
-func arrayValueFromRuntime(value runtime.Value) (*runtime.ArrayValue, error) {
-	value = unwrapInterface(value)
-	switch v := value.(type) {
-	case *runtime.ArrayValue:
-		if v == nil {
-			return nil, fmt.Errorf("string bytes are missing")
-		}
-		return v, nil
-	case *runtime.StructInstanceValue:
-		if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil || v.Definition.Node.ID.Name != "Array" {
-			return nil, fmt.Errorf("string bytes must be an array (got %T)", value)
-		}
-		var handleVal runtime.Value
-		if v.Fields != nil {
-			handleVal = v.Fields["storage_handle"]
-		}
-		if handleVal == nil && len(v.Positional) >= 3 {
-			handleVal = v.Positional[2]
-		}
-		if handleVal == nil {
-			return nil, fmt.Errorf("array value missing storage_handle")
-		}
-		handleInt, err := extractInteger(handleVal)
-		if err != nil {
-			return nil, err
-		}
-		if !handleInt.IsInt64() {
-			return nil, fmt.Errorf("array handle is out of range")
-		}
-		handle := handleInt.Int64()
-		arr, _, err := runtime.ArrayStoreValueFromHandle(handle, 0, 0)
-		if err != nil {
-			return nil, err
-		}
-		return arr, nil
-	default:
-		return nil, fmt.Errorf("string bytes must be an array (got %T)", value)
-	}
-}
-
-func bigIntToFloat(val *big.Int) float64 {
-	if val == nil {
-		return 0
-	}
-	f := new(big.Float).SetInt(val)
-	result, _ := f.Float64()
-	return result
-}
-
-func extractInteger(value runtime.Value) (*big.Int, error) {
-	value = unwrapInterface(value)
-	switch v := value.(type) {
-	case runtime.IntegerValue:
-		if v.Val == nil {
-			return nil, fmt.Errorf("expected integer, got nil")
-		}
-		return v.Val, nil
-	case *runtime.IntegerValue:
-		if v == nil || v.Val == nil {
-			return nil, fmt.Errorf("expected integer, got nil")
-		}
-		return v.Val, nil
-	default:
-		return nil, fmt.Errorf("expected integer, got %T", value)
-	}
-}
-
-func signedRange(bits int) (*big.Int, *big.Int) {
-	if bits <= 0 || bits > 64 {
-		bits = 64
-	}
-	one := big.NewInt(1)
-	max := new(big.Int).Lsh(one, uint(bits-1))
-	max.Sub(max, one)
-	min := new(big.Int).Neg(new(big.Int).Lsh(one, uint(bits-1)))
-	return min, max
-}
-
-func unsignedRange(bits int) (*big.Int, *big.Int) {
-	if bits <= 0 || bits > 64 {
-		bits = 64
-	}
-	one := big.NewInt(1)
-	max := new(big.Int).Lsh(one, uint(bits))
-	max.Sub(max, one)
-	return big.NewInt(0), max
 }

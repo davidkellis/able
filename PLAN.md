@@ -46,27 +46,29 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Status: **COMPLETE**. All definition-of-done criteria met. History in `LOG.md`.
 - No-bootstrap execution: non-dynamic programs run fully compiled (`interpreter.New()` instantiated for runtime services, `EvaluateProgram()` never called). Validated via `TestCompilerNoBootstrapExecFixtures`: 222 pass, 13 fail (12 inherently dynamic/IO + 1 pre-existing), 5 skip out of 240 total.
 - Bootstrap skip detection: `TestCompilerMainSkips` (7 tests) verifies generated `main.go` omits `EvaluateProgram()` for static programs.
-- Fallback audit: clean (`TestCompilerExecFixtureFallbacks` with `ABLE_COMPILER_FALLBACK_AUDIT=1`).
+- Fallback audit: clean (`TestCompilerExecFixtureFallbacks` runs by default).
 - Full matrix: `v12/run_compiler_full_matrix.sh --typecheck-fixtures=strict` green.
 - Spec: compiler AOT contract fully documented in `spec/full_spec_v12.md`.
 ### Compiler AOT Boundary Hardening (active priority)
 - Goal: enforce v12 AOT contract that compiled static code does not use interpreter execution paths; interpreter usage is allowed only for explicit dynamic features (`dynimport`, `dyn.def_package`, `dyn.eval`, etc.).
 - Immediate unit of work (execute in order):
-  - [ ] Make static fallback rejection the default for `able build` (require-no-fallbacks on by default for non-dynamic builds; keep explicit override for migration/debug).
-  - [ ] Wire compile-time policy: when dynamic features are not present, any collected fallback is a hard compile error (not warning/runtime boundary).
-  - [ ] Add/strengthen tests so static fixtures assert zero boundary fallback calls by default (remove env-gated audit behavior for core static checks).
-  - [ ] Keep dynamic fixtures explicit: dynamic-boundary tests must prove boundary calls only occur for explicit dynamic operations.
-  - [ ] Remove static fallback sites that currently route through interpreter evaluation (starting with local `methods` / `impl` statement evaluation paths).
-  - [ ] Remove static named/value call fallback to bridge interpreter dispatch; unresolved static calls must fail compile.
-  - [ ] Eliminate unconditional interpreter bootstrap in static generated `main.go`; static path must not require interpreter initialization.
-  - [ ] Update `spec/full_spec_v12.md` and `spec/TODO_v12.md` to reflect enforcement status and any temporary implementation limits.
+  - [x] Make static fallback rejection the default for `able build` (require-no-fallbacks on by default for non-dynamic builds; keep explicit override for migration/debug).
+  - [x] Wire compile-time policy: when dynamic features are not present, any collected fallback is a hard compile error (not warning/runtime boundary).
+  - [x] Add/strengthen tests so static fixtures assert zero boundary fallback calls by default (remove env-gated audit behavior for core static checks).
+  - [x] Keep dynamic fixtures explicit: dynamic-boundary tests must prove boundary calls only occur for explicit dynamic operations.
+  - [x] Remove static fallback sites that currently route through interpreter evaluation (starting with local `methods` / `impl` statement evaluation paths).
+  - [x] Remove static named/value call fallback to bridge interpreter dispatch; unresolved static calls must fail compile.
+  - [x] Eliminate unconditional interpreter bootstrap in static generated `main.go`; static path must not require interpreter initialization.
+  - [x] Update `spec/full_spec_v12.md` and `spec/TODO_v12.md` to reflect enforcement status and any temporary implementation limits.
 - Definition of done for this workstream:
-  - [ ] Non-dynamic compiled programs execute without interpreter evaluation fallback calls (`__ABLE_BOUNDARY_FALLBACK_CALLS=0` in static audit runs).
-  - [ ] Non-dynamic compiled `main.go` omits interpreter bootstrap/eval paths and does not require interpreter-backed bridge operations for static semantics.
-  - [ ] Dynamic programs still function with explicit boundary transitions and retain parity with tree-walker/bytecode behavior.
-  - [ ] `./run_all_tests.sh` and compiler fixture audits stay green with the new strict policy.
+  - [x] Non-dynamic compiled programs execute without interpreter evaluation fallback calls (`__ABLE_BOUNDARY_FALLBACK_CALLS=0` in static audit runs).
+  - [x] Non-dynamic compiled `main.go` omits interpreter bootstrap/eval paths and does not require interpreter-backed bridge operations for static semantics.
+  - [x] Dynamic programs still function with explicit boundary transitions and retain parity with tree-walker/bytecode behavior.
+  - [x] `./run_all_tests.sh` and compiler fixture audits stay green with the new strict policy.
 ### WASM
-- WASM: prototype JS tree-sitter parsing that feeds AST into the Go/WASM runtime.
+- WASM: prototype JS tree-sitter parsing that feeds AST into the Go/WASM runtime (**in progress**).
+  - Landed staging scaffold: `cmd/ablewasm` (`GOOS=js GOARCH=wasm`) + `pkg/wasmhost` JSON bridge and `v12/wasm/` Node prototype (`web-tree-sitter` subset adapter + runner).
+  - Next: broaden AST adapter coverage beyond the initial expression/import subset and wire it to the host ABI path in `v12/docs/wasm-host-abi.md`.
 - WASM: build a minimal `ablewasm` runner (Node + browser harness) once the Go runtime builds to WASM.
 - WASM: document the WASM deployment contract in `v12/docs/`.
 ### Regex syntax
