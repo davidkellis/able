@@ -387,7 +387,7 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 }
 
 func (g *generator) renderRegister(buf *bytes.Buffer) {
-	seedStructNames := g.sortedStructNames()
+	seedStructNames := g.sortedUniqueStructNames()
 	seenSeedStruct := make(map[string]struct{}, len(seedStructNames)+1)
 	for _, name := range seedStructNames {
 		seenSeedStruct[name] = struct{}{}
@@ -496,7 +496,10 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	// Direct struct definition seeding for no-bootstrap mode
 	for _, name := range seedStructNames {
-		info := g.structs[name]
+		info, ok := g.structInfoByNameUnique(name)
+		if !ok {
+			continue
+		}
 		if info == nil {
 			continue
 		}

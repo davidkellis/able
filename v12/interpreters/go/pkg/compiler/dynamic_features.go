@@ -30,21 +30,36 @@ type DynamicFunctionUsage struct {
 
 // DynamicFeatureReport aggregates dynamic usage for a program.
 type DynamicFeatureReport struct {
-	Modules     map[string]DynamicFeatureUsage
-	Functions   []DynamicFunctionUsage
-	DynBindings map[string]map[string]struct{}
+	Modules           map[string]DynamicFeatureUsage
+	Functions         []DynamicFunctionUsage
+	DynBindings       map[string]map[string]struct{}
+	ReachablePackages map[string]struct{}
 }
 
 func (r *DynamicFeatureReport) UsesDynamic() bool {
 	if r == nil {
 		return false
 	}
-	for _, usage := range r.Modules {
+	for name, usage := range r.Modules {
+		if !r.moduleReachable(name) {
+			continue
+		}
 		if usage.UsesDynamic() {
 			return true
 		}
 	}
 	return false
+}
+
+func (r *DynamicFeatureReport) moduleReachable(name string) bool {
+	if r == nil {
+		return false
+	}
+	if len(r.ReachablePackages) == 0 {
+		return true
+	}
+	_, ok := r.ReachablePackages[name]
+	return ok
 }
 
 // DetectDynamicFeatures scans a program for dynamic feature usage.
@@ -56,9 +71,10 @@ func DetectDynamicFeatures(program *driver.Program) (*DynamicFeatureReport, erro
 		return nil, fmt.Errorf("compiler: program missing entry module")
 	}
 	report := &DynamicFeatureReport{
-		Modules:     make(map[string]DynamicFeatureUsage),
-		Functions:   make([]DynamicFunctionUsage, 0),
-		DynBindings: make(map[string]map[string]struct{}),
+		Modules:           make(map[string]DynamicFeatureUsage),
+		Functions:         make([]DynamicFunctionUsage, 0),
+		DynBindings:       make(map[string]map[string]struct{}),
+		ReachablePackages: reachableProgramPackages(program),
 	}
 
 	modules := make([]*driver.Module, 0, len(program.Modules)+1)
@@ -114,6 +130,9 @@ func appendDynamicFeatureWarnings(gen *generator, report *DynamicFeatureReport) 
 	}
 	modules := make([]string, 0)
 	for name, usage := range report.Modules {
+		if !report.moduleReachable(name) {
+			continue
+		}
 		if usage.UsesDynamic() {
 			modules = append(modules, name)
 		}
@@ -509,4 +528,67 @@ func identifierName(id *ast.Identifier) string {
 		return ""
 	}
 	return id.Name
+}
+
+func reachableProgramPackages(program *driver.Program) map[string]struct{} {
+	if program == nil || program.Entry == nil || strings.TrimSpace(program.Entry.Package) == "" {
+		return nil
+	}
+	modules := make(map[string]*driver.Module, len(program.Modules)+1)
+	if program.Entry != nil && strings.TrimSpace(program.Entry.Package) != "" {
+		modules[program.Entry.Package] = program.Entry
+	}
+	for _, mod := range program.Modules {
+		if mod == nil || strings.TrimSpace(mod.Package) == "" {
+			continue
+		}
+		if _, exists := modules[mod.Package]; exists {
+			continue
+		}
+		modules[mod.Package] = mod
+	}
+	reachable := make(map[string]struct{}, len(modules))
+	queue := []string{program.Entry.Package}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current == "" {
+			continue
+		}
+		if _, seen := reachable[current]; seen {
+			continue
+		}
+		reachable[current] = struct{}{}
+		mod := modules[current]
+		if mod == nil {
+			continue
+		}
+		for _, dep := range mod.Imports {
+			dep = strings.TrimSpace(dep)
+			if dep == "" {
+				continue
+			}
+			if _, ok := modules[dep]; !ok {
+				continue
+			}
+			if _, seen := reachable[dep]; seen {
+				continue
+			}
+			queue = append(queue, dep)
+		}
+		for _, dep := range mod.DynImports {
+			dep = strings.TrimSpace(dep)
+			if dep == "" {
+				continue
+			}
+			if _, ok := modules[dep]; !ok {
+				continue
+			}
+			if _, seen := reachable[dep]; seen {
+				continue
+			}
+			queue = append(queue, dep)
+		}
+	}
+	return reachable
 }

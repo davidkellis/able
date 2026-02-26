@@ -3,12 +3,12 @@ package compiler
 import "able/interpreter-go/pkg/ast"
 
 type TypeMapper struct {
-	structs     map[string]*structInfo
+	gen         *generator
 	packageName string
 }
 
-func NewTypeMapper(structs map[string]*structInfo, packageName string) *TypeMapper {
-	return &TypeMapper{structs: structs, packageName: packageName}
+func NewTypeMapper(gen *generator, packageName string) *TypeMapper {
+	return &TypeMapper{gen: gen, packageName: packageName}
 }
 
 func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
@@ -84,8 +84,15 @@ func (m *TypeMapper) mapSimple(name string) (string, bool) {
 	case "void", "Void":
 		return "struct{}", true
 	}
-	if info, ok := m.structs[name]; ok {
-		return "*" + info.GoName, true
+	if m != nil && m.gen != nil {
+		if info, ok := m.gen.structInfoForTypeName(m.packageName, name); ok && info != nil {
+			return "*" + info.GoName, true
+		}
+	}
+	if m != nil && m.gen != nil {
+		if info, ok := m.gen.structInfoByNameUnique(name); ok && info != nil {
+			return "*" + info.GoName, true
+		}
 	}
 	return "runtime.Value", true
 }

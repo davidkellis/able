@@ -32,7 +32,11 @@ func (g *generator) isSingletonPattern(ctx *compileContext, name string) bool {
 			return false
 		}
 	}
-	info, ok := g.structs[name]
+	pkgName := ""
+	if ctx != nil {
+		pkgName = ctx.packageName
+	}
+	info, ok := g.structInfoForTypeName(pkgName, name)
 	if !ok || info == nil {
 		return false
 	}
@@ -56,7 +60,11 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 				condExpr := fmt.Sprintf("__able_match_singleton(%s, %q)", subjectTemp, p.Name)
 				return condExpr, true
 			}
-			info := g.structs[p.Name]
+			pkgName := ""
+			if ctx != nil {
+				pkgName = ctx.packageName
+			}
+			info, _ := g.structInfoForTypeName(pkgName, p.Name)
 			baseType := subjectType
 			if name, ok := g.structBaseName(subjectType); ok {
 				baseType = name
