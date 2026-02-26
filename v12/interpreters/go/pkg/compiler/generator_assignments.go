@@ -41,6 +41,37 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		if !ok {
 			return nil, "", "", false
 		}
+		if assign.Operator == ast.AssignmentAssign && g.isArrayStructType(objType) {
+			idxExpr, idxType, ok := g.compileExpr(ctx, indexTarget.Index, "")
+			if !ok {
+				return nil, "", "", false
+			}
+			idxRuntime, ok := g.runtimeValueExpr(idxExpr, idxType)
+			if !ok {
+				ctx.setReason("index assignment index unsupported")
+				return nil, "", "", false
+			}
+			valueTemp := ctx.newTemp()
+			objTemp := ctx.newTemp()
+			idxTemp := ctx.newTemp()
+			indexTemp := ctx.newTemp()
+			handleRawTemp := ctx.newTemp()
+			handleTemp := ctx.newTemp()
+			lengthTemp := ctx.newTemp()
+			resultTemp := ctx.newTemp()
+			lines := append([]string{}, valueLines...)
+			lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
+			lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
+			lines = append(lines, fmt.Sprintf("%s := %s", idxTemp, idxRuntime))
+			lines = append(lines, fmt.Sprintf("%s := func() int { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return int(raw) }()", indexTemp, idxTemp))
+			lines = append(lines, fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp))
+			lines = append(lines, fmt.Sprintf("%s := func() int64 { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return raw }()", handleTemp, handleRawTemp))
+			lines = append(lines, fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp))
+			lines = append(lines, "if err != nil { panic(err) }")
+			lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, valueTemp))
+			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { __able_panic_on_error(runtime.ArrayStoreWrite(%s, %s, %s)) }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, handleTemp, indexTemp, valueTemp))
+			return lines, resultTemp, "runtime.Value", true
+		}
 		objRuntime, ok := g.runtimeValueExpr(objExpr, objType)
 		if !ok {
 			ctx.setReason("index assignment target unsupported")
@@ -82,7 +113,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		return lines, computedTemp, "runtime.Value", true
 	}
 	if pattern, ok := assign.Left.(ast.Pattern); ok {
-		if _, ok := pattern.(*ast.Identifier); !ok {
+		if !isSimpleAssignmentPattern(pattern) {
 			return g.compilePatternAssignment(ctx, assign, pattern)
 		}
 	}
@@ -311,22 +342,6 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		return nil, "", "", false
 	}
 	existing, exists := ctx.lookup(name)
-	if assign.Operator == ast.AssignmentAssign && !exists {
-		valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "runtime.Value", assign.Right)
-		if !ok {
-			return nil, "", "", false
-		}
-		if valueType != "runtime.Value" {
-			ctx.setReason("assignment type mismatch")
-			return nil, "", "", false
-		}
-		valueTemp := ctx.newTemp()
-		lines := append([]string{}, valueLines...)
-		lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
-		nodeName := g.diagNodeName(assign, "*ast.AssignmentExpression", "assign")
-		lines = append(lines, fmt.Sprintf("_ = __able_global_set(%q, %s, %s)", name, valueTemp, nodeName))
-		return lines, valueTemp, "runtime.Value", true
-	}
 	_, currentExists := ctx.lookupCurrent(name)
 	if assign.Operator == ast.AssignmentDeclare && currentExists {
 		ctx.setReason(":= requires new binding")
@@ -383,7 +398,14 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	goName := existing.GoName
 	if declaring {
 		goName = sanitizeIdent(name)
-		ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType}
+		ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: typeAnnotation}
+	} else if typeAnnotation != nil {
+		updated := existing
+		updated.TypeExpr = typeAnnotation
+		if ctx.locals == nil {
+			ctx.locals = make(map[string]paramInfo)
+		}
+		ctx.locals[name] = updated
 	}
 	line := ""
 	if declaring {
