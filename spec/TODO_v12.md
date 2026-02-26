@@ -6,4 +6,4 @@ This list tracks the remaining v12 items after audit; completed work should be r
 - None currently tracked (cast `as` line breaks fixed 2026-02-06).
 
 ## Compiler AOT gaps
-- None currently tracked (AOT boundary/ABI/dispatch/compiled-dependency semantics documented in `spec/full_spec_v12.md`).
+- Evaluate whether no-interpreter static runtimes should add runtime-independent alias/constraint revalidation for generic interface dispatch, or keep this permanently compile-time-only and document it as final.

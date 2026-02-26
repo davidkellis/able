@@ -147,6 +147,26 @@ func TestBuildNoFallbacksFlagFailsWhenFallbackRequired(t *testing.T) {
 	}
 }
 
+func TestParseBuildArgumentsDefaultsToStaticNoFallbacks(t *testing.T) {
+	if err := os.Unsetenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS"); err != nil {
+		t.Fatalf("unset env: %v", err)
+	}
+
+	config, remaining, err := parseBuildArguments([]string{"main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if len(remaining) != 1 || remaining[0] != "main.able" {
+		t.Fatalf("unexpected remaining args: %#v", remaining)
+	}
+	if config.RequireNoFallbacks {
+		t.Fatalf("expected strict no-fallback mode disabled by default")
+	}
+	if !config.RequireNoStaticFallbacks {
+		t.Fatalf("expected static fallback guard enabled by default")
+	}
+}
+
 func TestBuildNoFallbacksEnvFailsWhenFallbackRequired(t *testing.T) {
 	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
 	entryPath := writeFallbackBuildEntry(t)
@@ -200,6 +220,49 @@ func TestBuildAllowFallbacksOverridesEnv(t *testing.T) {
 	}
 }
 
+func TestBuildEnvFalseAllowsFallbacks(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "false")
+	entryPath := writeFallbackBuildEntry(t)
+	outRoot := t.TempDir()
+	outDir := filepath.Join(outRoot, "out")
+	binPath := filepath.Join(outRoot, "app")
+	if runtime.GOOS == "windows" {
+		binPath += ".exe"
+	}
+
+	code, _, stderr := captureCLI(t, []string{
+		"build",
+		"--out", outDir,
+		"--bin", binPath,
+		entryPath,
+	})
+	if code != 0 {
+		t.Fatalf("expected false env value to disable static fallback guard, got code %d (stderr=%q)", code, stderr)
+	}
+	if _, err := os.Stat(binPath); err != nil {
+		t.Fatalf("expected compiled binary at %s: %v", binPath, err)
+	}
+}
+
+func TestParseBuildArgumentsEnvFalseDisablesStaticNoFallbacks(t *testing.T) {
+	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "false")
+
+	config, _, err := parseBuildArguments([]string{"main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if config.RequireNoFallbacks {
+		t.Fatalf("expected strict no-fallback mode disabled when env=false")
+	}
+	if config.RequireNoStaticFallbacks {
+		t.Fatalf("expected static fallback guard disabled when env=false")
+	}
+}
+
 func writeFallbackBuildEntry(t *testing.T) string {
 	t.Helper()
 	projectDir := t.TempDir()
@@ -207,12 +270,12 @@ func writeFallbackBuildEntry(t *testing.T) string {
 	writeFile(t, entryPath, `
 extern go fn __able_os_exit(code: i32) -> void {}
 
-fn needs_fallback() -> i64 {
-  1 / 2
+fn needs_fallback(x: i64, y: i64) -> i64 {
+  x / y
 }
 
 fn main() -> void {
-  needs_fallback()
+  needs_fallback(4, 2)
   __able_os_exit(0)
 }
 `)

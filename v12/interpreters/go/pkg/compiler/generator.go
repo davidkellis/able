@@ -11,39 +11,41 @@ import (
 )
 
 type generator struct {
-	opts              Options
-	structs           map[string]*structInfo
-	typeAliases           map[string]map[string]ast.TypeExpression
+	opts                   Options
+	structs                map[string]*structInfo
+	typeAliases            map[string]map[string]ast.TypeExpression
 	typeAliasGenericParams map[string]map[string][]*ast.GenericParameter
-	unions            map[string]*ast.UnionDefinition
-	unionPackages     map[string]string
-	interfaces        map[string]*ast.InterfaceDefinition
-	interfacePackages map[string]string
-	staticImports     map[string][]staticImportBinding
-	functions         map[string]map[string]*functionInfo
-	overloads         map[string]map[string]*overloadInfo
-	packages          []string
-	entryPackage      string
-	methods           map[string]map[string][]*methodInfo
-	methodList        []*methodInfo
-	implMethodList    []*implMethodInfo
-	implDefinitions   []*implDefinitionInfo
-	implMethodByInfo  map[*functionInfo]*implMethodInfo
-	warnings          []string
-	fallbacks         []FallbackInfo
-	mangler           *nameMangler
-	needsAst          bool
-	needsIterator     bool
-	awaitExprs        []string
-	awaitNames        map[*ast.AwaitExpression]string
-	diagNodes         []diagNodeInfo
-	diagNames         map[ast.Node]string
-	nodeOrigins       map[ast.Node]string
-	packageEnvVars    map[string]string
-	packageEnvOrder   []string
-	hasDynamicFeature  bool
-	moduleBindings     map[string][]moduleBinding // package -> bindings
-	evaluatedConstants map[string]*evaluatedConst // "pkg::name" -> value
+	unions                 map[string]*ast.UnionDefinition
+	unionPackages          map[string]string
+	interfaces             map[string]*ast.InterfaceDefinition
+	interfacePackages      map[string]string
+	staticImports          map[string][]staticImportBinding
+	functions              map[string]map[string]*functionInfo
+	overloads              map[string]map[string]*overloadInfo
+	packages               []string
+	entryPackage           string
+	methods                map[string]map[string][]*methodInfo
+	methodList             []*methodInfo
+	implMethodList         []*implMethodInfo
+	implDefinitions        []*implDefinitionInfo
+	implMethodByInfo       map[*functionInfo]*implMethodInfo
+	warnings               []string
+	fallbacks              []FallbackInfo
+	mangler                *nameMangler
+	needsAst               bool
+	needsIterator          bool
+	awaitExprs             []string
+	awaitNames             map[*ast.AwaitExpression]string
+	diagNodes              []diagNodeInfo
+	diagNames              map[ast.Node]string
+	nodeOrigins            map[ast.Node]string
+	packageEnvVars         map[string]string
+	packageEnvOrder        []string
+	hasDynamicFeature      bool
+	moduleBindings         map[string][]moduleBinding // package -> bindings
+	evaluatedConstants     map[string]*evaluatedConst // "pkg::name" -> value
+	staticCallableNames    map[string]map[string]struct{}
+	externCallables        map[string]map[string]struct{}
 }
 
 type moduleBinding struct {
@@ -96,21 +98,22 @@ type compileContext struct {
 
 func newGenerator(opts Options) *generator {
 	return &generator{
-		opts:              opts,
-		structs:           make(map[string]*structInfo),
+		opts:                   opts,
+		structs:                make(map[string]*structInfo),
 		typeAliases:            make(map[string]map[string]ast.TypeExpression),
 		typeAliasGenericParams: make(map[string]map[string][]*ast.GenericParameter),
-		unions:            make(map[string]*ast.UnionDefinition),
-		unionPackages:     make(map[string]string),
-		interfaces:        make(map[string]*ast.InterfaceDefinition),
-		interfacePackages: make(map[string]string),
-		staticImports:     make(map[string][]staticImportBinding),
-		functions:         make(map[string]map[string]*functionInfo),
-		overloads:         make(map[string]map[string]*overloadInfo),
-		methods:           make(map[string]map[string][]*methodInfo),
-		mangler:           newNameMangler(),
-		awaitNames:        make(map[*ast.AwaitExpression]string),
-		implMethodByInfo:  make(map[*functionInfo]*implMethodInfo),
+		unions:                 make(map[string]*ast.UnionDefinition),
+		unionPackages:          make(map[string]string),
+		interfaces:             make(map[string]*ast.InterfaceDefinition),
+		interfacePackages:      make(map[string]string),
+		staticImports:          make(map[string][]staticImportBinding),
+		functions:              make(map[string]map[string]*functionInfo),
+		overloads:              make(map[string]map[string]*overloadInfo),
+		methods:                make(map[string]map[string][]*methodInfo),
+		mangler:                newNameMangler(),
+		awaitNames:             make(map[*ast.AwaitExpression]string),
+		implMethodByInfo:       make(map[*functionInfo]*implMethodInfo),
+		externCallables:        make(map[string]map[string]struct{}),
 	}
 }
 
@@ -184,6 +187,8 @@ func (g *generator) collect(program *driver.Program) error {
 	g.unionPackages = make(map[string]string)
 	g.interfaces = make(map[string]*ast.InterfaceDefinition)
 	g.interfacePackages = make(map[string]string)
+	g.staticCallableNames = nil
+	g.externCallables = make(map[string]map[string]struct{})
 	if g.nodeOrigins == nil {
 		g.nodeOrigins = make(map[ast.Node]string)
 	}
@@ -355,6 +360,11 @@ func (g *generator) collect(program *driver.Program) error {
 					continue
 				}
 				functions[name] = append(functions[name], def)
+			case *ast.ExternFunctionBody:
+				if def == nil || def.Signature == nil || def.Signature.ID == nil {
+					continue
+				}
+				g.addExternCallable(pkgName, def.Signature.ID.Name)
 			case *ast.MethodsDefinition:
 				if def == nil {
 					continue
@@ -434,6 +444,67 @@ func (g *generator) collect(program *driver.Program) error {
 	g.resolveCompileableMethods()
 	g.detectAstNeeds()
 	return nil
+}
+
+func (g *generator) addExternCallable(pkgName string, name string) {
+	if g == nil {
+		return
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	name = strings.TrimSpace(name)
+	if pkgName == "" || name == "" {
+		return
+	}
+	if g.externCallables == nil {
+		g.externCallables = make(map[string]map[string]struct{})
+	}
+	bucket := g.externCallables[pkgName]
+	if bucket == nil {
+		bucket = make(map[string]struct{})
+		g.externCallables[pkgName] = bucket
+	}
+	bucket[name] = struct{}{}
+}
+
+func (g *generator) externCallableExists(pkgName string, name string) bool {
+	if g == nil || g.externCallables == nil {
+		return false
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	name = strings.TrimSpace(name)
+	if pkgName == "" || name == "" {
+		return false
+	}
+	bucket := g.externCallables[pkgName]
+	if len(bucket) == 0 {
+		return false
+	}
+	_, ok := bucket[name]
+	return ok
+}
+
+func (g *generator) externCallableNames(pkgName string) []string {
+	if g == nil || g.externCallables == nil {
+		return nil
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	if pkgName == "" {
+		return nil
+	}
+	bucket := g.externCallables[pkgName]
+	if len(bucket) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(bucket))
+	for name := range bucket {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
+		}
+		names = append(names, trimmed)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func (g *generator) diagNodeName(node ast.Node, goType string, prefix string) string {

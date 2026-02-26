@@ -94,9 +94,12 @@ func (g *generator) renderRegisterPackageRegistrar(buf *bytes.Buffer, pkgName st
 	if pkgName == g.entryPackage {
 		fmt.Fprintf(buf, "\tpkgEnv := entryEnv\n")
 	} else {
-		fmt.Fprintf(buf, "\tpkgEnv := interp.PackageEnvironment(%q)\n", pkgName)
+		fmt.Fprintf(buf, "\tvar pkgEnv *runtime.Environment\n")
+		fmt.Fprintf(buf, "\tif interp != nil {\n")
+		fmt.Fprintf(buf, "\t\tpkgEnv = interp.PackageEnvironment(%q)\n", pkgName)
+		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tif pkgEnv == nil {\n")
-		fmt.Fprintf(buf, "\t\tif __able_bootstrapped_metadata {\n")
+		fmt.Fprintf(buf, "\t\tif __able_bootstrapped_metadata && interp != nil {\n")
 		fmt.Fprintf(buf, "\t\t\treturn nil // package not loaded during bootstrap\n")
 		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\tpkgEnv = runtime.NewEnvironment(entryEnv)\n")
@@ -182,7 +185,7 @@ func (g *generator) renderCompiledPackageCallableFile(pkgName string, idx int) (
 				if !ok {
 					return nil, fmt.Errorf("compiler: render param types for overload %s in package %s", name, pkgName)
 				}
-				fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata {\n")
+				fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata && interp != nil {\n")
 				fmt.Fprintf(&buf, "\t\tif _, err := pkgEnv.Get(%q); err == nil {\n", name)
 				fmt.Fprintf(&buf, "\t\t\tif err := interp.RegisterCompiledFunctionOverload(pkgEnv, %q, %s, __able_function_thunk_%s); err != nil {\n", name, paramExprs, entry.GoName)
 				fmt.Fprintf(&buf, "\t\t\t\treturn err\n")
@@ -211,7 +214,7 @@ func (g *generator) renderCompiledPackageCallableFile(pkgName string, idx int) (
 			if !ok {
 				return nil, fmt.Errorf("compiler: render param types for function %s in package %s", info.Name, pkgName)
 			}
-			fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata {\n")
+			fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata && interp != nil {\n")
 			fmt.Fprintf(&buf, "\t\tif _, err := pkgEnv.Get(%q); err == nil {\n", info.Name)
 			fmt.Fprintf(&buf, "\t\t\tif err := interp.RegisterCompiledFunctionOverload(pkgEnv, %q, %s, __able_function_thunk_%s); err != nil {\n", info.Name, paramExprs, info.GoName)
 			fmt.Fprintf(&buf, "\t\t\t\treturn err\n")
@@ -327,9 +330,11 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 	fmt.Fprintf(&buf, "\t_ = __able_bootstrapped_metadata\n")
 	fmt.Fprintf(&buf, "\tpkgEnv := entryEnv\n")
 	if pkgName != g.entryPackage {
-		fmt.Fprintf(&buf, "\tpkgEnv = interp.PackageEnvironment(%q)\n", pkgName)
+		fmt.Fprintf(&buf, "\tif interp != nil {\n")
+		fmt.Fprintf(&buf, "\t\tpkgEnv = interp.PackageEnvironment(%q)\n", pkgName)
+		fmt.Fprintf(&buf, "\t}\n")
 		fmt.Fprintf(&buf, "\tif pkgEnv == nil {\n")
-		fmt.Fprintf(&buf, "\t\tif __able_bootstrapped_metadata {\n")
+		fmt.Fprintf(&buf, "\t\tif __able_bootstrapped_metadata && interp != nil {\n")
 		fmt.Fprintf(&buf, "\t\t\treturn nil // package not loaded during bootstrap\n")
 		fmt.Fprintf(&buf, "\t\t}\n")
 		fmt.Fprintf(&buf, "\t\tpkgEnv = runtime.NewEnvironment(entryEnv)\n")
@@ -351,7 +356,7 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 		if !ok {
 			return nil, fmt.Errorf("compiler: render method params %s.%s", method.TargetName, method.MethodName)
 		}
-		fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata {\n")
+		fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata && interp != nil {\n")
 		fmt.Fprintf(&buf, "\t\tif err := interp.RegisterCompiledMethodOverload(%q, %q, %t, %s, %s, __able_method_thunk_%s); err != nil {\n", method.TargetName, method.MethodName, method.ExpectsSelf, targetExpr, paramExprs, method.Info.GoName)
 		fmt.Fprintf(&buf, "\t\t\treturn err\n")
 		fmt.Fprintf(&buf, "\t\t}\n")
@@ -407,14 +412,14 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 		}
 		constraintKey := constraintSignature(collectConstraintSpecs(implMethod.ImplGenerics, implMethod.WhereClause))
 		if implMethod.ImplName != "" {
-			fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata {\n")
+			fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata && interp != nil {\n")
 			fmt.Fprintf(&buf, "\t\tif err := interp.RegisterCompiledImplNamespaceMethod(pkgEnv, %q, %q, %s, __able_function_thunk_%s); err != nil {\n", implMethod.ImplName, implMethod.MethodName, paramExprs, implMethod.Info.GoName)
 			fmt.Fprintf(&buf, "\t\t\treturn err\n")
 			fmt.Fprintf(&buf, "\t\t}\n")
 			fmt.Fprintf(&buf, "\t}\n")
 			continue
 		}
-		fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata {\n")
+		fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata && interp != nil {\n")
 		fmt.Fprintf(&buf, "\t\tif err := interp.RegisterCompiledImplMethodOverload(%q, %s, %s, %q, %q, %q, %s, __able_function_thunk_%s); err != nil {\n",
 			implMethod.InterfaceName, targetExpr, ifaceArgsExpr, constraintKey, implMethod.ImplName, implMethod.MethodName, paramExprs, implMethod.Info.GoName)
 		fmt.Fprintf(&buf, "\t\t\treturn err\n")

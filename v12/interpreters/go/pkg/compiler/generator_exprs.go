@@ -629,6 +629,10 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 			if _, ok := ctx.lookup(callee.Name); ok {
 				return g.compileDynamicCall(ctx, call, expected, "", callNode)
 			}
+			if !g.hasDynamicFeature && !g.mayResolveStaticNamedCall(ctx, callee.Name) && !g.mayResolveStaticUFCSCall(ctx, call, callee.Name) {
+				ctx.setReason(fmt.Sprintf("unresolved static call (%s)", callee.Name))
+				return "", "", false
+			}
 			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 		}
 		return g.compileDynamicCall(ctx, call, expected, "", callNode)
@@ -745,6 +749,10 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 			return g.compileOverloadCall(ctx, call, expected, callee.Name, callNode)
 		}
 		if _, ok := ctx.lookup(callee.Name); !ok {
+			if !g.hasDynamicFeature && !g.mayResolveStaticNamedCall(ctx, callee.Name) && !g.mayResolveStaticUFCSCall(ctx, call, callee.Name) {
+				ctx.setReason(fmt.Sprintf("unresolved static call (%s)", callee.Name))
+				return "", "", false
+			}
 			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 		}
 	}
@@ -1118,7 +1126,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 				argExpr = valueExpr
 				argType = "runtime.Value"
 			}
-				coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, info.Name, ctx.genericNames)
+			coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, info.Name, ctx.genericNames)
 			if !ok {
 				ctx.setReason("interface argument unsupported")
 				return "", "", false

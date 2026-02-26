@@ -1866,6 +1866,12 @@ Special-form block sugar:
 -   **Bidirectional interop:** Dynamic code may call compiled functions through a host binding table. Compiled values must be convertible to dynamic values and back; conversion failures raise `Error`.
 -   **No interpreter without dynamic features:** A compiled program that does not use dynamic features must not initialize or depend on the interpreter at runtime.
 
+#### Staged v12 Enforcement Status (Current Go Toolchain)
+
+-   `able build` defaults to static no-fallback policy for non-dynamic programs. Statically unresolved call/member/dispatch paths are compile-time errors unless an explicit implementation override flag is used for migration/debug.
+-   Static generated `main.go` uses no-bootstrap execution (`RegisterIn(nil, entryEnv)` then compiled `RunRegisteredMain`) and must not call interpreter program evaluation for non-dynamic entry modules.
+-   In no-interpreter static runtime mode, alias expansion and interface-constraint revalidation that would require interpreter registries are treated as compile-time responsibilities of lowering/typechecking. Dynamic features still require explicit boundary entry and interpreter presence.
+
 #### Compiler Failure Semantics for Static Code (AOT Targets)
 
 -   If a construct is statically analyzable but cannot be lowered by the compiler, compilation MUST fail.

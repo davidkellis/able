@@ -11,14 +11,9 @@ import (
 	"able/interpreter-go/pkg/interpreter"
 )
 
-const compilerFallbackEnv = "ABLE_COMPILER_FALLBACK_AUDIT"
-
 func TestCompilerExecFixtureFallbacks(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping compiler fallback audit in short mode")
-	}
-	if strings.TrimSpace(os.Getenv(compilerFallbackEnv)) == "" {
-		t.Skip("compiler fallback audit disabled")
 	}
 
 	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")

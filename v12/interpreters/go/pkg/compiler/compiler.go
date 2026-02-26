@@ -8,10 +8,11 @@ import (
 )
 
 type Options struct {
-	PackageName        string
-	EmitMain           bool
-	EntryPath          string
-	RequireNoFallbacks bool
+	PackageName              string
+	EmitMain                 bool
+	EntryPath                string
+	RequireNoFallbacks       bool
+	RequireStaticNoFallbacks bool
 }
 
 type Result struct {
@@ -49,18 +50,22 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	if err := gen.collect(program); err != nil {
 		return nil, err
 	}
-	if report, err := DetectDynamicFeatures(program); err != nil {
+	dynamicReport, err := DetectDynamicFeatures(program)
+	if err != nil {
 		return nil, err
-	} else {
-		gen.setDynamicFeatureReport(report)
-		appendDynamicFeatureWarnings(gen, report)
 	}
+	gen.setDynamicFeatureReport(dynamicReport)
+	// collect() resolves compileability before dynamic usage is known; rerun so
+	// dynamic modules are allowed to keep explicit boundary call sites compiled.
+	gen.resolveCompileableFunctions()
+	gen.resolveCompileableMethods()
+	appendDynamicFeatureWarnings(gen, dynamicReport)
 	files, err := gen.render()
 	if err != nil {
 		return nil, err
 	}
 	fallbacks := gen.collectFallbacks()
-	if c.opts.RequireNoFallbacks && len(fallbacks) > 0 {
+	if len(fallbacks) > 0 {
 		first := fallbacks[0]
 		name := first.Name
 		if name == "" {
@@ -70,7 +75,12 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 		if reason == "" {
 			reason = "unspecified fallback reason"
 		}
-		return nil, fmt.Errorf("compiler: fallback not allowed (count=%d, first=%s: %s)", len(fallbacks), name, reason)
+		if c.opts.RequireNoFallbacks {
+			return nil, fmt.Errorf("compiler: fallback not allowed (count=%d, first=%s: %s)", len(fallbacks), name, reason)
+		}
+		if c.opts.RequireStaticNoFallbacks && (dynamicReport == nil || !dynamicReport.UsesDynamic()) {
+			return nil, fmt.Errorf("compiler: static fallback not allowed (count=%d, first=%s: %s)", len(fallbacks), name, reason)
+		}
 	}
 	gen.warnings = append(warnings, gen.warnings...)
 	return &Result{Files: files, Warnings: gen.warnings, Fallbacks: fallbacks}, nil

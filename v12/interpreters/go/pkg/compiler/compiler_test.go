@@ -507,6 +507,132 @@ func TestCompilerRequireNoFallbacksFails(t *testing.T) {
 	}
 }
 
+func TestCompilerRequireStaticNoFallbacksFailsForStaticProgram(t *testing.T) {
+	fallback := ast.Fn(
+		"complex",
+		nil,
+		[]ast.Statement{
+			ast.Ret(ast.Bin("/", ast.Int(1), ast.Int(2))),
+		},
+		ast.Ty("i64"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	mainFn := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{
+			ast.Call("complex"),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod(
+		[]ast.Statement{fallback, mainFn},
+		nil,
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+	entry := annotatedModule("app", module, "app.able", nil)
+	program := &driver.Program{Entry: entry, Modules: []*driver.Module{entry}}
+
+	comp := New(Options{PackageName: "compiled", RequireStaticNoFallbacks: true})
+	_, err := comp.Compile(program)
+	if err == nil {
+		t.Fatalf("expected compile error when static fallbacks are disallowed")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "static fallback not allowed") {
+		t.Fatalf("expected static fallback guard error, got %q", msg)
+	}
+	if !strings.Contains(msg, "app.complex") {
+		t.Fatalf("expected static fallback guard error to include fallback name, got %q", msg)
+	}
+}
+
+func TestCompilerRequireStaticNoFallbacksAllowsDynamicProgramFallbacks(t *testing.T) {
+	fallback := ast.Fn(
+		"complex",
+		nil,
+		[]ast.Statement{
+			ast.Ret(ast.Bin("/", ast.Int(1), ast.Int(2))),
+		},
+		ast.Ty("i64"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	mainFn := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{
+			ast.Call("complex"),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod(
+		[]ast.Statement{fallback, mainFn},
+		nil,
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+	entry := annotatedModule("app", module, "app.able", nil)
+	entry.DynImports = []string{"dyn.runtime.bridge"}
+	program := &driver.Program{Entry: entry, Modules: []*driver.Module{entry}}
+
+	comp := New(Options{PackageName: "compiled", RequireStaticNoFallbacks: true})
+	result, err := comp.Compile(program)
+	if err != nil {
+		t.Fatalf("expected compile success for dynamic module under static fallback policy: %v", err)
+	}
+	if len(result.Fallbacks) == 0 {
+		t.Fatalf("expected fallback wrappers to be emitted")
+	}
+}
+
+func TestCompilerRequireStaticNoFallbacksFailsForUnresolvedStaticNamedCall(t *testing.T) {
+	mainFn := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{
+			ast.Call("missing_runtime_fn"),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod(
+		[]ast.Statement{mainFn},
+		nil,
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+	entry := annotatedModule("app", module, "app.able", nil)
+	program := &driver.Program{Entry: entry, Modules: []*driver.Module{entry}}
+
+	comp := New(Options{PackageName: "compiled", RequireStaticNoFallbacks: true})
+	_, err := comp.Compile(program)
+	if err == nil {
+		t.Fatalf("expected compile error for unresolved static named call")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "static fallback not allowed") {
+		t.Fatalf("expected static fallback guard error, got %q", msg)
+	}
+	if !strings.Contains(msg, "unresolved static call") {
+		t.Fatalf("expected unresolved static call reason in error, got %q", msg)
+	}
+}
+
 func TestCompilerRescueStatementMixedResultTypesNoFallback(t *testing.T) {
 	mainFn := ast.Fn(
 		"main",

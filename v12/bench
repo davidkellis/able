@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+GO_CACHE="$GO_DIR/.gocache"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench [options] <target-or-entry> [-- <program-args...>]
+
+Examples:
+  v12/bench examples/hello_world.able
+  v12/bench hello_world -- --flag value
+  v12/bench --runs 20 --warmup 3 examples/hello_world.able
+
+Options:
+  -r, --runs N            Number of timed runs (default: 10)
+  -w, --warmup N          Warmup runs before timing (default: 3)
+      --workdir DIR       Keep build artifacts in DIR (default: temp dir under v12/tmp)
+      --keep              Keep temporary workdir after completion
+      --export-json PATH  Export hyperfine JSON report (if hyperfine is installed)
+      --export-md PATH    Export hyperfine Markdown report (if hyperfine is installed)
+      --show-output       Do not redirect program stdout during benchmark runs
+  -h, --help              Show this help
+
+Notes:
+  - Benchmarks compare:
+      1) compiled binary (`able build`)
+      2) treewalker (`able --exec-mode=treewalker`)
+      3) bytecode (`able --exec-mode=bytecode`)
+  - Build time is not included in timed results.
+EOF
+}
+
+die() {
+  echo "bench: $*" >&2
+  exit 1
+}
+
+is_int() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+resolve_candidate() {
+  local candidate="$1"
+  if [[ -z "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return
+  fi
+  if [[ -e "$candidate" ]]; then
+    realpath "$candidate"
+    return
+  fi
+  if [[ -e "$SCRIPT_DIR/$candidate" ]]; then
+    realpath "$SCRIPT_DIR/$candidate"
+    return
+  fi
+  printf '%s\n' "$candidate"
+}
+
+shell_join() {
+  local out=()
+  local arg
+  for arg in "$@"; do
+    out+=("$(printf '%q' "$arg")")
+  done
+  (IFS=' '; printf '%s' "${out[*]}")
+}
+
+run_once_ns() {
+  local cmd="$1"
+  local start_ns end_ns
+  start_ns=$(date +%s%N)
+  bash -lc "$cmd" >/dev/null 2>&1
+  end_ns=$(date +%s%N)
+  echo $((end_ns - start_ns))
+}
+
+fallback_bench() {
+  local label="$1"
+  local cmd="$2"
+  local warmup="$3"
+  local runs="$4"
+  local i total_ns elapsed_ns avg_ns avg_ms
+
+  for ((i = 0; i < warmup; i++)); do
+    bash -lc "$cmd" >/dev/null 2>&1
+  done
+
+  total_ns=0
+  for ((i = 0; i < runs; i++)); do
+    elapsed_ns=$(run_once_ns "$cmd")
+    total_ns=$((total_ns + elapsed_ns))
+  done
+  avg_ns=$((total_ns / runs))
+  avg_ms=$(awk "BEGIN { printf \"%.3f\", $avg_ns / 1000000 }")
+  printf "%-12s average: %8sms (%d runs)\n" "$label" "$avg_ms" "$runs"
+}
+
+runs=10
+warmup=3
+keep_artifacts=false
+workdir=""
+target=""
+export_json=""
+export_md=""
+suppress_output=true
+program_args=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -r|--runs)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --runs"
+      runs="$1"
+      ;;
+    -w|--warmup)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --warmup"
+      warmup="$1"
+      ;;
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --keep)
+      keep_artifacts=true
+      ;;
+    --export-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --export-json"
+      export_json="$1"
+      ;;
+    --export-md)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --export-md"
+      export_md="$1"
+      ;;
+    --show-output)
+      suppress_output=false
+      ;;
+    --)
+      shift
+      program_args+=("$@")
+      break
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      if [[ -z "$target" ]]; then
+        target="$1"
+      else
+        program_args+=("$1")
+      fi
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$target" ]] || die "missing target/entry; see --help"
+is_int "$runs" && ((runs > 0)) || die "--runs must be a positive integer"
+is_int "$warmup" || die "--warmup must be a non-negative integer"
+
+mkdir -p "$GO_CACHE" "$SCRIPT_DIR/tmp"
+
+if [[ -z "$workdir" ]]; then
+  workdir="$(mktemp -d "$SCRIPT_DIR/tmp/bench.XXXXXX")"
+else
+  workdir="$(realpath -m "$workdir")"
+  mkdir -p "$workdir"
+fi
+
+if [[ "$keep_artifacts" == false ]]; then
+  trap 'rm -rf "$workdir"' EXIT
+fi
+
+able_bin="$workdir/able"
+compiled_bin="$workdir/compiled"
+target_arg="$(resolve_candidate "$target")"
+
+echo ">>> Workdir: $workdir"
+echo ">>> Building able CLI"
+env GOCACHE="$GO_CACHE" go build -C "$GO_DIR" -o "$able_bin" ./cmd/able
+
+echo ">>> Building compiled binary for: $target_arg"
+"$able_bin" build --bin "$compiled_bin" "$target_arg"
+
+compiled_cmd="$(shell_join "$compiled_bin" "${program_args[@]}")"
+tree_cmd="$(shell_join "$able_bin" --exec-mode=treewalker "$target_arg" "${program_args[@]}")"
+byte_cmd="$(shell_join "$able_bin" --exec-mode=bytecode "$target_arg" "${program_args[@]}")"
+
+if [[ "$suppress_output" == true ]]; then
+  compiled_cmd="$compiled_cmd >/dev/null"
+  tree_cmd="$tree_cmd >/dev/null"
+  byte_cmd="$byte_cmd >/dev/null"
+fi
+
+echo ">>> Benchmark target: $target_arg"
+if [[ ${#program_args[@]} -gt 0 ]]; then
+  echo ">>> Program args: ${program_args[*]}"
+fi
+
+if command -v hyperfine >/dev/null 2>&1; then
+  echo ">>> Running hyperfine benchmark"
+  hyperfine_args=(--warmup "$warmup" --runs "$runs")
+  if [[ -n "$export_json" ]]; then
+    mkdir -p "$(dirname "$(realpath -m "$export_json")")"
+    hyperfine_args+=(--export-json "$export_json")
+  fi
+  if [[ -n "$export_md" ]]; then
+    mkdir -p "$(dirname "$(realpath -m "$export_md")")"
+    hyperfine_args+=(--export-markdown "$export_md")
+  fi
+
+  hyperfine \
+    "${hyperfine_args[@]}" \
+    --command-name compiled "$compiled_cmd" \
+    --command-name treewalker "$tree_cmd" \
+    --command-name bytecode "$byte_cmd"
+else
+  echo ">>> hyperfine not found; using fallback timing loop"
+  fallback_bench "compiled" "$compiled_cmd" "$warmup" "$runs"
+  fallback_bench "treewalker" "$tree_cmd" "$warmup" "$runs"
+  fallback_bench "bytecode" "$byte_cmd" "$warmup" "$runs"
+fi
+
+if [[ "$keep_artifacts" == true ]]; then
+  echo ">>> Kept artifacts in: $workdir"
+fi

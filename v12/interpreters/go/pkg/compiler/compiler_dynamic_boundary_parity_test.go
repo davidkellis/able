@@ -573,7 +573,11 @@ func TestCompilerDynamicBoundaryCallNamedMarkers(t *testing.T) {
 	source := strings.Join([]string{
 		"package exec_dynamic_boundary_call_named",
 		"",
+		"dynimport exec.dynamic_boundary_call_named::dyn_pkg",
+		"dyn_pkg_obj := dyn.def_package(\"exec.dynamic_boundary_call_named\")!",
+		"",
 		"fn main() -> void {",
+		"  dyn.def_package(\"exec.dynamic_boundary_call_named\")!",
 		"  missing_runtime_fn()",
 		"}",
 		"",

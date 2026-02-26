@@ -767,7 +767,7 @@ func (g *generator) renderRuntimeInterfaceDispatch(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tgenericSet := __able_generic_name_set(genericNames)\n")
 	fmt.Fprintf(buf, "\texpanded := targetType\n")
-	fmt.Fprintf(buf, "\tif __able_runtime != nil {\n")
+	fmt.Fprintf(buf, "\tif bridge.HasInterpreter(__able_runtime) {\n")
 	fmt.Fprintf(buf, "\t\tif next, err := bridge.ExpandTypeAliases(__able_runtime, targetType); err != nil {\n")
 	fmt.Fprintf(buf, "\t\t\t__able_panic_on_error(err)\n")
 	fmt.Fprintf(buf, "\t\t\treturn\n")
