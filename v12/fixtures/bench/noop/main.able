@@ -1,0 +1,5 @@
+package bench_noop
+
+fn main() -> i32 {
+  0
+}

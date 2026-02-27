@@ -1,0 +1,262 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+GO_CACHE="$GO_DIR/.gocache"
+
+runs=3
+timeout_seconds=30
+target="v12/fixtures/bench/sieve_count/main.able"
+modes_csv="compiled,treewalker,bytecode"
+workdir=""
+keep_artifacts=false
+show_output=false
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_perf [options] [target]
+
+Examples:
+  v12/bench_perf
+  v12/bench_perf v12/fixtures/bench/sieve_full/main.able
+  v12/bench_perf --runs 5 --timeout 20 --modes compiled,treewalker
+
+Options:
+  -r, --runs N        Number of runs per mode (default: 3)
+  -t, --timeout SEC   Timeout per run in seconds (default: 30)
+  -m, --modes CSV     Modes: compiled,treewalker,bytecode (default: all)
+      --workdir DIR   Keep build artifacts in DIR
+      --keep          Keep temporary workdir when done
+      --show-output   Print program stdout/stderr for each run
+  -h, --help          Show this help
+
+Notes:
+  - This script is report-only and never fails the build for perf regressions.
+  - Metrics reported: average real/user/sys time and GC count per run.
+EOF
+}
+
+die() {
+  echo "bench_perf: $*" >&2
+  exit 1
+}
+
+is_int() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+resolve_target() {
+  local candidate="$1"
+  if [[ -e "$candidate" ]]; then
+    realpath "$candidate"
+    return
+  fi
+  if [[ -e "$REPO_ROOT/$candidate" ]]; then
+    realpath "$REPO_ROOT/$candidate"
+    return
+  fi
+  die "target not found: $candidate"
+}
+
+shell_join() {
+  local out=()
+  local arg
+  for arg in "$@"; do
+    out+=("$(printf '%q' "$arg")")
+  done
+  (IFS=' '; printf '%s' "${out[*]}")
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -r|--runs)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --runs"
+      runs="$1"
+      ;;
+    -t|--timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --timeout"
+      timeout_seconds="$1"
+      ;;
+    -m|--modes)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --modes"
+      modes_csv="$1"
+      ;;
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --keep)
+      keep_artifacts=true
+      ;;
+    --show-output)
+      show_output=true
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      target="$1"
+      ;;
+  esac
+  shift
+done
+
+is_int "$runs" && ((runs > 0)) || die "--runs must be a positive integer"
+is_int "$timeout_seconds" && ((timeout_seconds >= 0)) || die "--timeout must be a non-negative integer"
+
+if ! command -v /usr/bin/time >/dev/null 2>&1; then
+  die "/usr/bin/time is required"
+fi
+
+mkdir -p "$GO_CACHE" "$SCRIPT_DIR/tmp"
+if [[ -z "$workdir" ]]; then
+  workdir="$(mktemp -d "$SCRIPT_DIR/tmp/perf.XXXXXX")"
+else
+  workdir="$(realpath -m "$workdir")"
+  mkdir -p "$workdir"
+fi
+
+if [[ "$keep_artifacts" == false ]]; then
+  trap 'rm -rf "$workdir"' EXIT
+fi
+
+able_bin="$workdir/able"
+compiled_bin="$workdir/compiled"
+target_arg="$(resolve_target "$target")"
+
+echo ">>> Workdir: $workdir"
+echo ">>> Building Able CLI"
+env GOCACHE="$GO_CACHE" go build -C "$GO_DIR" -o "$able_bin" ./cmd/able
+
+echo ">>> Building compiled binary"
+"$able_bin" build --bin "$compiled_bin" "$target_arg" >/dev/null
+
+compiled_cmd="$(shell_join "$compiled_bin")"
+tree_cmd="$(shell_join "$able_bin" --exec-mode=treewalker "$target_arg")"
+byte_cmd="$(shell_join "$able_bin" --exec-mode=bytecode "$target_arg")"
+
+has_timeout=false
+if command -v timeout >/dev/null 2>&1 && ((timeout_seconds > 0)); then
+  has_timeout=true
+fi
+
+IFS=',' read -r -a requested_modes <<<"$modes_csv"
+
+echo ">>> Target: $target_arg"
+printf "%-12s %-10s %-8s %-7s %-12s %-12s %-12s %-10s\n" \
+  "mode" "ok/total" "timeout" "fail" "real_avg(s)" "user_avg(s)" "sys_avg(s)" "gc_avg"
+
+run_mode() {
+  local mode="$1"
+  local cmd="$2"
+  local ok=0
+  local timed_out=0
+  local failed=0
+  local total_real="0"
+  local total_user="0"
+  local total_sys="0"
+  local total_gc=0
+
+  local run_idx
+  for ((run_idx = 1; run_idx <= runs; run_idx++)); do
+    local stdout_file stderr_file
+    stdout_file="$(mktemp "$workdir/${mode}.stdout.XXXXXX")"
+    stderr_file="$(mktemp "$workdir/${mode}.stderr.XXXXXX")"
+
+    set +e
+    if [[ "$has_timeout" == true ]]; then
+      env GODEBUG=gctrace=1 /usr/bin/time -p timeout "$timeout_seconds" bash -lc "$cmd" >"$stdout_file" 2>"$stderr_file"
+    else
+      env GODEBUG=gctrace=1 /usr/bin/time -p bash -lc "$cmd" >"$stdout_file" 2>"$stderr_file"
+    fi
+    local rc=$?
+    set -e
+
+    if [[ "$show_output" == true ]]; then
+      echo "--- $mode run $run_idx stdout ---"
+      cat "$stdout_file"
+      echo "--- $mode run $run_idx stderr ---"
+      cat "$stderr_file"
+    fi
+
+    if [[ "$has_timeout" == true && ( "$rc" -eq 124 || "$rc" -eq 137 || "$rc" -eq 143 ) ]]; then
+      timed_out=$((timed_out + 1))
+      continue
+    fi
+    if [[ "$rc" -ne 0 ]]; then
+      failed=$((failed + 1))
+      continue
+    fi
+
+    local real user sys gc_count
+    real="$(awk '$1 == "real" { print $2; exit }' "$stderr_file")"
+    user="$(awk '$1 == "user" { print $2; exit }' "$stderr_file")"
+    sys="$(awk '$1 == "sys" { print $2; exit }' "$stderr_file")"
+    gc_count="$(grep -cE '(^|[^[:alpha:]])gc [0-9]+ @' "$stderr_file" || true)"
+
+    if [[ -z "$real" || -z "$user" || -z "$sys" ]]; then
+      failed=$((failed + 1))
+      continue
+    fi
+
+    total_real="$(awk -v a="$total_real" -v b="$real" 'BEGIN { printf "%.9f", a + b }')"
+    total_user="$(awk -v a="$total_user" -v b="$user" 'BEGIN { printf "%.9f", a + b }')"
+    total_sys="$(awk -v a="$total_sys" -v b="$sys" 'BEGIN { printf "%.9f", a + b }')"
+    total_gc=$((total_gc + gc_count))
+    ok=$((ok + 1))
+  done
+
+  local avg_real="n/a"
+  local avg_user="n/a"
+  local avg_sys="n/a"
+  local avg_gc="n/a"
+  if ((ok > 0)); then
+    avg_real="$(awk -v a="$total_real" -v n="$ok" 'BEGIN { printf "%.4f", a / n }')"
+    avg_user="$(awk -v a="$total_user" -v n="$ok" 'BEGIN { printf "%.4f", a / n }')"
+    avg_sys="$(awk -v a="$total_sys" -v n="$ok" 'BEGIN { printf "%.4f", a / n }')"
+    avg_gc="$(awk -v a="$total_gc" -v n="$ok" 'BEGIN { printf "%.2f", a / n }')"
+  fi
+
+  printf "%-12s %-10s %-8s %-7s %-12s %-12s %-12s %-10s\n" \
+    "$mode" "$ok/$runs" "$timed_out" "$failed" "$avg_real" "$avg_user" "$avg_sys" "$avg_gc"
+}
+
+for mode in "${requested_modes[@]}"; do
+  case "$mode" in
+    compiled)
+      run_mode "compiled" "$compiled_cmd"
+      ;;
+    treewalker)
+      run_mode "treewalker" "$tree_cmd"
+      ;;
+    bytecode)
+      run_mode "bytecode" "$byte_cmd"
+      ;;
+    "")
+      ;;
+    *)
+      die "unknown mode: $mode"
+      ;;
+  esac
+done
+
+if [[ "$has_timeout" == false && ((timeout_seconds > 0)) ]]; then
+  echo ">>> timeout command unavailable; runs were not time-limited."
+fi
+
+if [[ "$keep_artifacts" == true ]]; then
+  echo ">>> Kept artifacts in: $workdir"
+fi
+
+exit 0

@@ -18,7 +18,6 @@ Array := KernelArray
 methods Array T {
   fn get(self: Self, idx: i32) -> ?T {
     arr := self
-    arr.refresh_metadata()
     count := arr.len()
     if idx < 0 || idx >= count { return nil }
     arr.read_slot(idx)
@@ -26,7 +25,6 @@ methods Array T {
 
   fn set(self: Self, idx: i32, value: T) -> !nil {
     arr := self
-    arr.refresh_metadata()
     count := arr.len()
     if idx < 0 || idx >= count { return IndexError { index: idx, length: count } }
     arr.write_slot(idx, value)
@@ -34,19 +32,22 @@ methods Array T {
   }
 
   fn first(self: Self) -> ?T {
-    self.get(0)
+    count := self.len()
+    if count == 0 { return nil }
+    self.read_slot(0)
   }
 
   fn last(self: Self) -> ?T {
     count := self.len()
     if count == 0 { return nil }
-    self.get(count - 1)
+    self.read_slot(count - 1)
   }
 
   fn push_all(self: Self, values: Array T) -> void {
+    values_count := values.len()
     i := 0
     loop {
-      if i >= values.len() { break }
+      if i >= values_count { break }
       values.get(i) match {
         case nil => {},
         case value: T => self.push(value)
@@ -112,19 +113,19 @@ impl Clone for Array T {
 impl Iterable T for Array T {
   fn each(self: Self, visit: T -> void) -> void {
     snapshot := self
-    snapshot.refresh_metadata()
+    length := snapshot.len()
     i := 0
     loop {
-      if i >= snapshot.length { break }
+      if i >= length { break }
       visit(snapshot.read_slot(i))
       i = i + 1
     }
   }
 
   fn iterator(self: Self) -> (Iterator T) {
-    snapshot := self;
-    snapshot.refresh_metadata();
-    ArrayIterator { array: snapshot, index: 0, length: snapshot.length }
+    snapshot := self
+    length := snapshot.len()
+    ArrayIterator { array: snapshot, index: 0, length: length }
   }
 }
 
@@ -140,7 +141,6 @@ impl Iterator T for ArrayIterator T {
 impl Index i32 T for Array T {
   fn get(self: Self, idx: i32) -> !T {
     arr := self
-    arr.refresh_metadata()
     count := arr.len()
     if idx < 0 || idx >= count { return IndexError { index: idx, length: count } }
     arr.read_slot(idx)
