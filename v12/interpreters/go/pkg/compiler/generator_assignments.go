@@ -46,10 +46,50 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			if !ok {
 				return nil, "", "", false
 			}
-			idxRuntime, ok := g.runtimeValueExpr(idxExpr, idxType)
-			if !ok {
-				ctx.setReason("index assignment index unsupported")
-				return nil, "", "", false
+			if monoKind, monoEnabled := g.monoArrayKindForObject(ctx, indexTarget.Object, objType); monoEnabled {
+				monoGoType := g.monoArrayElemGoType(monoKind)
+				if monoGoType == "" {
+					ctx.setReason("index assignment mono type unsupported")
+					return nil, "", "", false
+				}
+				coercedValueExpr, ok := g.coerceExprToGoType(valueExpr, valueType, monoGoType)
+				if !ok {
+					ctx.setReason("index assignment value unsupported")
+					return nil, "", "", false
+				}
+				valueTemp := ctx.newTemp()
+				objTemp := ctx.newTemp()
+				idxTemp := ctx.newTemp()
+				indexTemp := ctx.newTemp()
+				handleRawTemp := ctx.newTemp()
+				handleTemp := ctx.newTemp()
+				lengthTemp := ctx.newTemp()
+				resultTemp := ctx.newTemp()
+				runtimeAssignedExpr, ok := g.runtimeValueExpr(valueTemp, monoGoType)
+				if !ok {
+					ctx.setReason("index assignment value unsupported")
+					return nil, "", "", false
+				}
+				writeExpr, ok := g.monoArrayWriteExpr(monoKind, handleTemp, indexTemp, valueTemp)
+				if !ok {
+					ctx.setReason("index assignment mono write unsupported")
+					return nil, "", "", false
+				}
+				lines := append([]string{}, valueLines...)
+				lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, coercedValueExpr))
+				lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
+				lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
+				if !ok {
+					ctx.setReason("index assignment index unsupported")
+					return nil, "", "", false
+				}
+				lines = append(lines, fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp))
+				lines = append(lines, fmt.Sprintf("%s := func() int64 { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return raw }()", handleTemp, handleRawTemp))
+				lines = append(lines, fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp))
+				lines = append(lines, "if err != nil { panic(err) }")
+				lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
+				lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { __able_panic_on_error(%s); %s = %s }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, writeExpr, resultTemp, runtimeAssignedExpr))
+				return lines, resultTemp, "runtime.Value", true
 			}
 			valueTemp := ctx.newTemp()
 			objTemp := ctx.newTemp()
@@ -62,8 +102,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			lines := append([]string{}, valueLines...)
 			lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
 			lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
-			lines = append(lines, fmt.Sprintf("%s := %s", idxTemp, idxRuntime))
-			lines = append(lines, fmt.Sprintf("%s := func() int { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return int(raw) }()", indexTemp, idxTemp))
+			lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
+			if !ok {
+				ctx.setReason("index assignment index unsupported")
+				return nil, "", "", false
+			}
 			lines = append(lines, fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp))
 			lines = append(lines, fmt.Sprintf("%s := func() int64 { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return raw }()", handleTemp, handleRawTemp))
 			lines = append(lines, fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp))
@@ -305,7 +348,14 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				return nil, "", "", false
 			}
 		}
+		expectedTypeExpr := typeAnnotation
+		if expectedTypeExpr == nil {
+			expectedTypeExpr = existing.TypeExpr
+		}
+		previousExpectedTypeExpr := ctx.expectedTypeExpr
+		ctx.expectedTypeExpr = expectedTypeExpr
 		valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, goType, assign.Right)
+		ctx.expectedTypeExpr = previousExpectedTypeExpr
 		if !ok {
 			return nil, "", "", false
 		}
@@ -367,7 +417,14 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	var expr string
 	var exprLines []string
 	if goType != "" {
+		expectedTypeExpr := typeAnnotation
+		if expectedTypeExpr == nil && exists {
+			expectedTypeExpr = existing.TypeExpr
+		}
+		previousExpectedTypeExpr := ctx.expectedTypeExpr
+		ctx.expectedTypeExpr = expectedTypeExpr
 		compiledLines, compiled, _, ok := g.compileTailExpression(ctx, goType, assign.Right)
+		ctx.expectedTypeExpr = previousExpectedTypeExpr
 		if !ok {
 			return nil, "", "", false
 		}
@@ -385,6 +442,18 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			ctx.setReason("could not infer assignment type")
 			return nil, "", "", false
 		}
+	}
+	assignmentTypeExpr := typeAnnotation
+	if assignmentTypeExpr == nil && exists {
+		assignmentTypeExpr = existing.TypeExpr
+	}
+	if ifaceType, ok := g.interfaceTypeExpr(assignmentTypeExpr); ok && goType == "runtime.Value" {
+		coerced, ok := g.interfaceReturnExpr(expr, ifaceType, ctx.genericNames)
+		if !ok {
+			ctx.setReason("unsupported interface assignment coercion")
+			return nil, "", "", false
+		}
+		expr = coerced
 	}
 	if declaring && typeAnnotation == nil && goType != "runtime.Value" && g.typeCategory(goType) == "struct" {
 		converted, ok := g.runtimeValueExpr(expr, goType)

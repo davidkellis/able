@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"able/interpreter-go/pkg/compiler"
 	"able/interpreter-go/pkg/driver"
@@ -19,14 +20,25 @@ func run(args []string) int {
 	fs := flag.NewFlagSet("ablec", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
+	monoArraysEnabled, err := resolveAblecExperimentalMonoArraysFromEnv()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
 	outputDir := fs.String("o", "", "output directory for generated Go code")
 	pkgName := fs.String("pkg", "", "Go package name for generated code")
 	emitMain := fs.Bool("main", false, "emit a runnable main.go wrapper (package must be main)")
 	buildBin := fs.Bool("build", false, "build a native binary after emitting Go code (forces -pkg=main)")
 	binPath := fs.String("bin", "", "output path for built binary (defaults to <output dir>/compiled)")
+	experimentalMonoArrays := fs.Bool("experimental-mono-arrays", monoArraysEnabled, "enable staged monomorphized array lowering (experimental, default on)")
+	noExperimentalMonoArrays := fs.Bool("no-experimental-mono-arrays", false, "disable staged monomorphized array lowering")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+	if *noExperimentalMonoArrays {
+		*experimentalMonoArrays = false
 	}
 
 	entry := fs.Arg(0)
@@ -78,9 +90,10 @@ func run(args []string) int {
 	}
 
 	comp := compiler.New(compiler.Options{
-		PackageName: *pkgName,
-		EmitMain:    *emitMain,
-		EntryPath:   absEntry,
+		PackageName:            *pkgName,
+		EmitMain:               *emitMain,
+		EntryPath:              absEntry,
+		ExperimentalMonoArrays: *experimentalMonoArrays,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {
@@ -113,4 +126,20 @@ func run(args []string) int {
 	}
 
 	return 0
+}
+
+func resolveAblecExperimentalMonoArraysFromEnv() (bool, error) {
+	raw, ok := os.LookupEnv("ABLE_EXPERIMENTAL_MONO_ARRAYS")
+	if !ok {
+		return true, nil
+	}
+	normalized := strings.TrimSpace(strings.ToLower(raw))
+	switch normalized {
+	case "", "0", "false", "no", "off":
+		return false, nil
+	case "1", "true", "yes", "on":
+		return true, nil
+	default:
+		return false, fmt.Errorf("invalid ABLE_EXPERIMENTAL_MONO_ARRAYS value %q (expected one of: 1,true,yes,on,0,false,no,off)", raw)
+	}
 }

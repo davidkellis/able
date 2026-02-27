@@ -1,0 +1,52 @@
+package bench_sieve_full
+
+fn main() -> void {
+  limit := 100000
+  is_prime: Array bool := [true, true]
+  i := 2
+  loop {
+    if i > limit { break }
+    is_prime.push(true)
+    i = i + 1
+  }
+
+  p := 2
+  loop {
+    if p * p > limit { break }
+    if is_prime[p]! {
+      composite := p * p
+      loop {
+        if composite > limit { break }
+        is_prime[composite] = false
+        composite = composite + p
+      }
+    }
+    p = p + 1
+  }
+
+  primes: Array i32 := []
+  n := 2
+  loop {
+    if n > limit { break }
+    if is_prime[n]! {
+      primes.push(n)
+    }
+    n = n + 1
+  }
+
+  count := primes.len()
+  last := 0
+  if count > 0 {
+    last = primes[count - 1]!
+  }
+
+  sum: i64 := 0
+  idx := 0
+  loop {
+    if idx >= count { break }
+    sum = sum + (primes[idx]! as i64)
+    idx = idx + 1
+  }
+
+  print(`count ${count} last ${last} sum ${sum}`)
+}

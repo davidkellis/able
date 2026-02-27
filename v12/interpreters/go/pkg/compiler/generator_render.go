@@ -88,6 +88,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	}
 
 	if g.hasFunctions() {
+		fmt.Fprintf(&buf, "const __able_experimental_mono_arrays = %t\n\n", g.opts.ExperimentalMonoArrays)
 		fmt.Fprintf(&buf, "var __able_runtime *bridge.Runtime\n\n")
 		g.ensurePackageEnvVars()
 		if len(g.packageEnvOrder) > 0 {

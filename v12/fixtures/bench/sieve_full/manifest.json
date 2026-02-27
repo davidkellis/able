@@ -1,0 +1,7 @@
+{
+  "description": "prime sieve full list benchmark for array hot-path and allocation pressure",
+  "expect": {
+    "stdout": ["count 9592 last 99991 sum 454396537"],
+    "exit": 0
+  }
+}

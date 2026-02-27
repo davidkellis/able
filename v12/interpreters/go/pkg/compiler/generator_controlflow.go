@@ -434,6 +434,15 @@ func (g *generator) compileWhileLoop(ctx *compileContext, loop *ast.WhileLoop) (
 	if !ok {
 		return nil, false
 	}
+	if !blockHasBreakContinueRescue(loop.Body) {
+		loopLines := []string{
+			"for {",
+			fmt.Sprintf("if !%s { break }", condExpr),
+		}
+		loopLines = append(loopLines, bodyLines...)
+		loopLines = append(loopLines, "}")
+		return loopLines, true
+	}
 	brokeTemp := ctx.newTemp()
 	contTemp := ctx.newTemp()
 	innerLines := []string{

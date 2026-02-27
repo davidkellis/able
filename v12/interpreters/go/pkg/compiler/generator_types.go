@@ -81,6 +81,22 @@ func (g *generator) intBits(goType string) int {
 	return 64
 }
 
+func (g *generator) nativeIntegerWidenExpr(expr string, srcType string, targetType string) (string, bool) {
+	if srcType == targetType {
+		return expr, true
+	}
+	if !g.isIntegerType(srcType) || !g.isIntegerType(targetType) {
+		return "", false
+	}
+	if g.isSignedIntegerType(srcType) != g.isSignedIntegerType(targetType) {
+		return "", false
+	}
+	if g.intBits(srcType) > g.intBits(targetType) {
+		return "", false
+	}
+	return fmt.Sprintf("%s(%s)", targetType, expr), true
+}
+
 func (g *generator) integerTypeSuffix(goType string) (string, bool) {
 	switch goType {
 	case "int8":

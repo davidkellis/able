@@ -791,6 +791,9 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			}
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+					if expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, callee.Object, objExpr, objType, ident.Name, call.Arguments, expected, callNode); ok {
+						return expr, retType, true
+					}
 					if method := g.methodForReceiver(objType, ident.Name); method != nil {
 						return g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, callNode)
 					}
@@ -1221,6 +1224,25 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 	if !ok {
 		return "", "", false
 	}
+	targetGoType := ""
+	if mapped, mappedOK := g.mapTypeExpressionInPackage(ctx.packageName, expr.TargetType); mappedOK && mapped != "" {
+		targetGoType = mapped
+	}
+	if targetGoType != "" && valueType != "runtime.Value" {
+		if nativeCastExpr, castOK := g.nativeIntegerWidenExpr(valueExpr, valueType, targetGoType); castOK {
+			if expected == "runtime.Value" {
+				runtimeExpr, ok := g.runtimeValueExpr(nativeCastExpr, targetGoType)
+				if !ok {
+					ctx.setReason("cast type mismatch")
+					return "", "", false
+				}
+				return runtimeExpr, "runtime.Value", true
+			}
+			if expected == "" || expected == targetGoType {
+				return nativeCastExpr, targetGoType, true
+			}
+		}
+	}
 	valueRuntime, ok := g.runtimeValueExpr(valueExpr, valueType)
 	if !ok {
 		ctx.setReason("cast operand unsupported")
@@ -1238,8 +1260,8 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 	desiredType := "runtime.Value"
 	if expected != "" && expected != "runtime.Value" {
 		desiredType = expected
-	} else if mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, expr.TargetType); ok && mapped != "" {
-		desiredType = mapped
+	} else if targetGoType != "" {
+		desiredType = targetGoType
 	}
 	if desiredType == "struct{}" {
 		ctx.setReason("cast to void unsupported")

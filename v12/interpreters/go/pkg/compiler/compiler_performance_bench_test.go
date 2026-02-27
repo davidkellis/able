@@ -15,7 +15,7 @@ import (
 
 const (
 	compilerBenchFixtureEnv     = "ABLE_COMPILER_BENCH_FIXTURE"
-	defaultCompilerBenchFixture = "v12/fixtures/exec/07_09_bytecode_iterator_yield"
+	defaultCompilerBenchFixture = "v12/fixtures/bench/sieve_count"
 )
 
 func BenchmarkCompilerExecFixtureBinary(b *testing.B) {

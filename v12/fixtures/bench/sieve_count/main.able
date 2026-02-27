@@ -1,0 +1,30 @@
+package bench_sieve_count
+
+fn main() -> void {
+  limit := 10000
+  is_prime: Array bool := [true, true]
+  i := 2
+  loop {
+    if i > limit { break }
+    is_prime.push(true)
+    i = i + 1
+  }
+  
+  count := 0
+  n := 2
+  loop {
+    if n > limit { break }
+    if is_prime[n]! {
+      count = count + 1
+      multiple := n * n
+      loop {
+        if multiple > limit { break }
+        is_prime[multiple] = false
+        multiple = multiple + n
+      }
+    }
+    n = n + 1
+  }
+  
+  print(`count ${count}`)
+}

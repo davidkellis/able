@@ -92,6 +92,7 @@ type compileContext struct {
 	inPlaceholder       bool
 	returnType          string
 	returnTypeExpr      ast.TypeExpression
+	expectedTypeExpr    ast.TypeExpression
 	genericNames        map[string]struct{}
 	implSiblings        map[string]implSiblingInfo
 }

@@ -70,6 +70,7 @@ func (c *compileContext) child() *compileContext {
 		inPlaceholder:       c.inPlaceholder,
 		returnType:          c.returnType,
 		returnTypeExpr:      c.returnTypeExpr,
+		expectedTypeExpr:    c.expectedTypeExpr,
 		genericNames:        c.genericNames,
 		implSiblings:        c.implSiblings,
 	}

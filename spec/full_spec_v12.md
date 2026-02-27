@@ -1872,6 +1872,31 @@ Special-form block sugar:
 -   Static generated `main.go` uses no-bootstrap execution (`RegisterIn(nil, entryEnv)` then compiled `RunRegisteredMain`) and must not call interpreter program evaluation for non-dynamic entry modules.
 -   In no-interpreter static runtime mode, alias expansion and interface-constraint revalidation that would require interpreter registries are treated as compile-time responsibilities of lowering/typechecking. Dynamic features still require explicit boundary entry and interpreter presence.
 
+#### `runtime.Value` Usage Categories (Staged AOT Policy)
+
+For staged v12 AOT targets, a dynamic carrier representation (Go toolchain term: `runtime.Value`) is allowed only in these categories:
+
+-   **Explicit dynamic-boundary crossing:** values/callables passed between compiled static code and dynamic execution (`dynimport`, `dyn.package`, `dyn.def_package`, `dyn.eval`, dynamic callback entry).
+-   **Residual runtime-polymorphic adaptation paths:** interface/existential dispatch and callable adaptation only when the concrete receiver/callee is not statically known at the call site **and** the semantics cannot be represented with host-native compiled polymorphism.
+-   **Host/ABI conversion points:** extern wrappers, host error adaptation, and runtime bridge glue required to preserve Section 16 semantics.
+-   **Runtime service payloads:** scheduler/error/diagnostic payload transport where values are intentionally modeled as dynamic runtime data.
+
+Polymorphism lowering priority for compiled targets:
+
+1.  Direct concrete/static dispatch.
+2.  Host-native polymorphism (for Go targets: concrete methods, Go interfaces, and generic specialization/monomorphized forms where applicable).
+3.  Dynamic-carrier adaptation (`runtime.Value`-based) only when (1) and (2) cannot preserve Section 10 semantics for the given call site.
+
+`runtime.Value` is **not** a permitted lowering strategy for otherwise-static semantics. In particular, compilers must not require dynamic-carrier locals/dispatch for:
+
+-   statically-typed local bindings/assignment,
+-   statically-resolved function/method calls,
+-   typed `Array` hot paths (`push`, `len`, `get`, `set`, indexing, and tight loops),
+-   static control-flow lowering (`if`, `while`, `for`, `match`) when no dynamic feature is used.
+-   nominal/user-defined value representation where concrete host types are available (for Go targets: concrete struct/union/interface-backed compiled representations), i.e., no generic object-model carrier for ordinary static data paths.
+
+If a static construct would require introducing a disallowed dynamic-carrier path, compilation MUST fail (Section "Compiler Failure Semantics for Static Code"), rather than silently routing through interpreter fallback.
+
 #### Compiler Failure Semantics for Static Code (AOT Targets)
 
 -   If a construct is statically analyzable but cannot be lowered by the compiler, compilation MUST fail.
@@ -1891,13 +1916,17 @@ The compiled ABI is a language-level contract (not a public memory-layout guaran
 -   `Ratio`: runtime/core numeric type preserving normalized ratio arithmetic/comparison semantics defined in this spec.
 -   `String`: immutable UTF-8 text value preserving string/char/byte semantics defined in this spec.
 -   `Channel T`, `Mutex`, `Future T`: runtime-managed concurrency values preserving Section 12 semantics for scheduling, cancellation, synchronization, visibility, and error behavior.
+-   user-defined nominal values (`struct`, `union`, interface views) in static compiled execution: lowered to host-native compiled representations and dispatch paths; interpreter object-model execution is not permitted unless crossing an explicit dynamic boundary.
 
 Compiled code and dynamic code must exchange these values through the explicit boundary without changing language semantics.
 
 #### Compiled Interface Dispatch and Overload Model
 
 -   For statically-known concrete receivers/arguments, implementations MAY emit specialized direct-call paths (monomorphized lowering).
--   For interface-typed/runtime-polymorphic values, compiled output MUST use generated interface dispatch tables (dictionary-style dispatch) that preserve the same coherence/specificity rules as Section 10.
+-   For interface-typed/runtime-polymorphic values, compiled output MUST preserve the same coherence/specificity rules as Section 10.
+-   Dispatch realization MAY use host-native polymorphism, generated dispatch tables, or a hybrid, so long as observable Able semantics are unchanged.
+-   For Go AOT targets, statically representable polymorphism SHOULD be lowered into native Go polymorphism before introducing dynamic-carrier dispatch helpers.
+-   Dynamic-carrier dispatch helpers are reserved for residual cases that cannot be represented with host-native polymorphism while preserving Able semantics.
 -   Overload resolution in compiled code MUST be semantically equivalent to interpreter/typechecker resolution:
     -   statically-resolved overloads dispatch directly,
     -   runtime-checked overload dispatchers preserve the same deterministic selection and error behavior.

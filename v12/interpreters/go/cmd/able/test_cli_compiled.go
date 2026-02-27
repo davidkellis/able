@@ -82,9 +82,15 @@ func runCompiledTests(config TestCliConfig, testFiles []string) int {
 		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
 		return 2
 	}
+	experimentalMonoArrays, err := resolveCompilerExperimentalMonoArraysFromEnv()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
+		return 2
+	}
 	result, err := compiler.New(compiler.Options{
-		PackageName:        "main",
-		RequireNoFallbacks: requireNoFallbacks,
+		PackageName:            "main",
+		RequireNoFallbacks:     requireNoFallbacks,
+		ExperimentalMonoArrays: experimentalMonoArrays,
 	}).Compile(program)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "able test --compiled: compile: %v\n", err)

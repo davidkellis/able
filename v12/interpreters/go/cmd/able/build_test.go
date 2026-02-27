@@ -151,6 +151,9 @@ func TestParseBuildArgumentsDefaultsToStaticNoFallbacks(t *testing.T) {
 	if err := os.Unsetenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS"); err != nil {
 		t.Fatalf("unset env: %v", err)
 	}
+	if err := os.Unsetenv("ABLE_EXPERIMENTAL_MONO_ARRAYS"); err != nil {
+		t.Fatalf("unset mono env: %v", err)
+	}
 
 	config, remaining, err := parseBuildArguments([]string{"main.able"})
 	if err != nil {
@@ -164,6 +167,59 @@ func TestParseBuildArgumentsDefaultsToStaticNoFallbacks(t *testing.T) {
 	}
 	if !config.RequireNoStaticFallbacks {
 		t.Fatalf("expected static fallback guard enabled by default")
+	}
+	if !config.ExperimentalMonoArrays {
+		t.Fatalf("expected mono array experiment enabled by default")
+	}
+}
+
+func TestParseBuildArgumentsMonoArraysFromEnv(t *testing.T) {
+	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "true")
+	config, _, err := parseBuildArguments([]string{"main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if !config.ExperimentalMonoArrays {
+		t.Fatalf("expected mono array experiment enabled from env")
+	}
+}
+
+func TestParseBuildArgumentsMonoArraysDisabledFromEnv(t *testing.T) {
+	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "false")
+	config, _, err := parseBuildArguments([]string{"main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if config.ExperimentalMonoArrays {
+		t.Fatalf("expected mono array experiment disabled from env")
+	}
+}
+
+func TestParseBuildArgumentsMonoArraysFlagOverridesEnv(t *testing.T) {
+	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "true")
+	config, _, err := parseBuildArguments([]string{"--no-experimental-mono-arrays", "main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if config.ExperimentalMonoArrays {
+		t.Fatalf("expected --no-experimental-mono-arrays to override env")
+	}
+
+	config, _, err = parseBuildArguments([]string{"--experimental-mono-arrays", "main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if !config.ExperimentalMonoArrays {
+		t.Fatalf("expected --experimental-mono-arrays to enable flag")
+	}
+}
+
+func TestParseBuildArgumentsMonoArraysInvalidEnv(t *testing.T) {
+	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "maybe")
+	if _, _, err := parseBuildArguments([]string{"main.able"}); err == nil {
+		t.Fatalf("expected invalid ABLE_EXPERIMENTAL_MONO_ARRAYS to fail parsing")
+	} else if !strings.Contains(err.Error(), "invalid ABLE_EXPERIMENTAL_MONO_ARRAYS value") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

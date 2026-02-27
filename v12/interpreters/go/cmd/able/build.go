@@ -20,6 +20,7 @@ type buildConfig struct {
 	PrecompileStdlib         bool
 	RequireNoFallbacks       bool
 	RequireNoStaticFallbacks bool
+	ExperimentalMonoArrays   bool
 	SkipTypecheck            bool
 	ShowHelp                 bool
 }
@@ -125,6 +126,7 @@ func runBuild(args []string) int {
 		EntryPath:                entryAbs,
 		RequireNoFallbacks:       config.RequireNoFallbacks,
 		RequireStaticNoFallbacks: config.RequireNoStaticFallbacks,
+		ExperimentalMonoArrays:   config.ExperimentalMonoArrays,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {
@@ -175,6 +177,11 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 		return buildConfig{}, nil, err
 	}
 	config.RequireNoFallbacks = requireNoFallbacks
+	experimentalMonoArrays, err := resolveCompilerExperimentalMonoArraysFromEnv()
+	if err != nil {
+		return buildConfig{}, nil, err
+	}
+	config.ExperimentalMonoArrays = experimentalMonoArrays
 	if _, ok := os.LookupEnv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS"); ok {
 		config.SkipTypecheck = true
 		config.RequireNoStaticFallbacks = requireNoFallbacks
@@ -207,6 +214,10 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 			config.RequireNoFallbacks = false
 			config.RequireNoStaticFallbacks = false
 			config.SkipTypecheck = true
+		case arg == "--experimental-mono-arrays":
+			config.ExperimentalMonoArrays = true
+		case arg == "--no-experimental-mono-arrays":
+			config.ExperimentalMonoArrays = false
 		case arg == "--bin":
 			val, err := expectFlagValue(arg, nextArg(args, &i))
 			if err != nil {
@@ -348,8 +359,12 @@ func printBuildUsage() {
 	fmt.Fprintln(os.Stderr, "      --no-precompile-stdlib  disable stdlib/kernel package precompile discovery")
 	fmt.Fprintln(os.Stderr, "      --no-fallbacks  fail compile when any fallback wrappers are required")
 	fmt.Fprintln(os.Stderr, "      --allow-fallbacks  allow fallback wrappers (disables static default)")
+	fmt.Fprintln(os.Stderr, "      --experimental-mono-arrays  enable staged monomorphized array lowering (experimental, default on)")
+	fmt.Fprintln(os.Stderr, "      --no-experimental-mono-arrays  disable staged monomorphized array lowering")
 	fmt.Fprintln(os.Stderr, "Environment:")
 	fmt.Fprintln(os.Stderr, "  ABLE_BUILD_PRECOMPILE_STDLIB=1|true|yes|on")
 	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_REQUIRE_NO_FALLBACKS=1|true|yes|on  (strict: disallow all fallbacks)")
 	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_REQUIRE_NO_FALLBACKS=0|false|no|off (allow all fallbacks, incl. static)")
+	fmt.Fprintln(os.Stderr, "  ABLE_EXPERIMENTAL_MONO_ARRAYS=1|true|yes|on       (enable staged monomorphized array lowering; default)")
+	fmt.Fprintln(os.Stderr, "  ABLE_EXPERIMENTAL_MONO_ARRAYS=0|false|no|off      (disable staged monomorphized array lowering)")
 }

@@ -86,10 +86,7 @@ func TestAblecBuildEmitsGoMod(t *testing.T) {
 	projectDir := t.TempDir()
 	entryPath := filepath.Join(projectDir, "main.able")
 	writeFile(t, entryPath, `
-extern go fn __able_os_exit(code: i32) -> void {}
-
 fn main() -> void {
-  __able_os_exit(0)
 }
 `)
 
@@ -132,5 +129,93 @@ fn main() -> void {
 	parserCopy := filepath.Join(outDir, "v12", "parser", "tree-sitter-able", "src", "parser.c")
 	if _, err := os.Stat(parserCopy); err != nil {
 		t.Fatalf("expected parser sources at %s: %v", parserCopy, err)
+	}
+}
+
+func TestResolveAblecExperimentalMonoArraysDefaultEnabled(t *testing.T) {
+	prev, hadPrev := os.LookupEnv("ABLE_EXPERIMENTAL_MONO_ARRAYS")
+	if err := os.Unsetenv("ABLE_EXPERIMENTAL_MONO_ARRAYS"); err != nil {
+		t.Fatalf("unset env: %v", err)
+	}
+	defer func() {
+		if hadPrev {
+			_ = os.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", prev)
+		} else {
+			_ = os.Unsetenv("ABLE_EXPERIMENTAL_MONO_ARRAYS")
+		}
+	}()
+
+	enabled, err := resolveAblecExperimentalMonoArraysFromEnv()
+	if err != nil {
+		t.Fatalf("resolve env: %v", err)
+	}
+	if !enabled {
+		t.Fatalf("expected mono arrays enabled by default")
+	}
+}
+
+func TestResolveAblecExperimentalMonoArraysDisabledFromEnv(t *testing.T) {
+	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "false")
+
+	enabled, err := resolveAblecExperimentalMonoArraysFromEnv()
+	if err != nil {
+		t.Fatalf("resolve env: %v", err)
+	}
+	if enabled {
+		t.Fatalf("expected mono arrays disabled from env")
+	}
+}
+
+func TestResolveAblecExperimentalMonoArraysInvalidEnv(t *testing.T) {
+	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "maybe")
+
+	if _, err := resolveAblecExperimentalMonoArraysFromEnv(); err == nil {
+		t.Fatalf("expected invalid env value error")
+	}
+}
+
+func TestAblecMonoArraysDefaultEnabledInGeneratedOutput(t *testing.T) {
+	projectDir := t.TempDir()
+	entryPath := filepath.Join(projectDir, "main.able")
+	writeFile(t, entryPath, `
+fn main() -> void {}
+`)
+	outDir := filepath.Join(projectDir, "out")
+
+	code, _, stderr := captureCLI(t, []string{"-o", outDir, entryPath})
+	if code != 0 {
+		t.Fatalf("ablec compile returned exit code %d, stderr: %q", code, stderr)
+	}
+
+	compiledPath := filepath.Join(outDir, "compiled.go")
+	data, err := os.ReadFile(compiledPath)
+	if err != nil {
+		t.Fatalf("read compiled.go: %v", err)
+	}
+	if !strings.Contains(string(data), "const __able_experimental_mono_arrays = true") {
+		t.Fatalf("expected mono arrays constant enabled by default")
+	}
+}
+
+func TestAblecNoExperimentalMonoArraysFlagDisablesGeneratedOutput(t *testing.T) {
+	projectDir := t.TempDir()
+	entryPath := filepath.Join(projectDir, "main.able")
+	writeFile(t, entryPath, `
+fn main() -> void {}
+`)
+	outDir := filepath.Join(projectDir, "out")
+
+	code, _, stderr := captureCLI(t, []string{"-o", outDir, "--no-experimental-mono-arrays", entryPath})
+	if code != 0 {
+		t.Fatalf("ablec compile returned exit code %d, stderr: %q", code, stderr)
+	}
+
+	compiledPath := filepath.Join(outDir, "compiled.go")
+	data, err := os.ReadFile(compiledPath)
+	if err != nil {
+		t.Fatalf("read compiled.go: %v", err)
+	}
+	if !strings.Contains(string(data), "const __able_experimental_mono_arrays = false") {
+		t.Fatalf("expected mono arrays constant disabled via --no-experimental-mono-arrays")
 	}
 }

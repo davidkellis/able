@@ -13,6 +13,7 @@ type Options struct {
 	EntryPath                string
 	RequireNoFallbacks       bool
 	RequireStaticNoFallbacks bool
+	ExperimentalMonoArrays   bool
 }
 
 type Result struct {
