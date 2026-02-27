@@ -12,6 +12,11 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 		ctx.setReason("missing propagation expression")
 		return "", "", false
 	}
+	if indexExpr, ok := expr.Expression.(*ast.IndexExpression); ok {
+		if fastExpr, fastType, fastOK := g.compilePropagationMonoArrayIndex(ctx, indexExpr, expected); fastOK {
+			return fastExpr, fastType, true
+		}
+	}
 	valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", expr.Expression)
 	if !ok {
 		return "", "", false
@@ -49,6 +54,81 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 	}
 	exprValue := fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr)
 	return exprValue, resultType, true
+}
+
+func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *ast.IndexExpression, expected string) (string, string, bool) {
+	if g == nil || ctx == nil || expr == nil {
+		return "", "", false
+	}
+	objExpr, objType, ok := g.compileExpr(ctx, expr.Object, "")
+	if !ok || !g.isArrayStructType(objType) {
+		return "", "", false
+	}
+	monoKind, monoEnabled := g.monoArrayKindForObject(ctx, expr.Object, objType)
+	if !monoEnabled {
+		return "", "", false
+	}
+	idxExpr, idxType, ok := g.compileExpr(ctx, expr.Index, "")
+	if !ok {
+		return "", "", false
+	}
+	objTemp := ctx.newTemp()
+	idxTemp := ctx.newTemp()
+	indexTemp := ctx.newTemp()
+	handleRawTemp := ctx.newTemp()
+	handleTemp := ctx.newTemp()
+	lengthTemp := ctx.newTemp()
+	nativeTemp := ctx.newTemp()
+	readExpr, readType, ok := g.monoArrayReadExpr(monoKind, handleTemp, indexTemp)
+	if !ok {
+		return "", "", false
+	}
+	resultType := expected
+	if resultType == "" {
+		resultType = readType
+	}
+	if resultType == "" {
+		resultType = "runtime.Value"
+	}
+	lines := []string{
+		fmt.Sprintf("%s := %s", objTemp, objExpr),
+	}
+	lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
+	if !ok {
+		return "", "", false
+	}
+	lines = append(lines,
+		fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp),
+		fmt.Sprintf("%s := func() int64 { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return raw }()", handleTemp, handleRawTemp),
+		fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
+		"if err != nil { panic(err) }",
+		fmt.Sprintf("if %s < 0 || %s >= %s { bridge.Raise(__able_error_value(__able_index_error(%s, %s))) }", indexTemp, indexTemp, lengthTemp, indexTemp, lengthTemp),
+		fmt.Sprintf("%s, err := %s", nativeTemp, readExpr),
+		"if err != nil { panic(err) }",
+	)
+	switch {
+	case resultType == readType:
+		return g.wrapLinesAsExpression(ctx, lines, nativeTemp, readType)
+	case resultType == "runtime.Value":
+		runtimeExpr, ok := g.runtimeValueExpr(nativeTemp, readType)
+		if !ok {
+			return "", "", false
+		}
+		return g.wrapLinesAsExpression(ctx, lines, runtimeExpr, "runtime.Value")
+	default:
+		if widenedExpr, ok := g.nativeIntegerWidenExpr(nativeTemp, readType, resultType); ok {
+			return g.wrapLinesAsExpression(ctx, lines, widenedExpr, resultType)
+		}
+		runtimeExpr, ok := g.runtimeValueExpr(nativeTemp, readType)
+		if !ok {
+			return "", "", false
+		}
+		convertedExpr, ok := g.expectRuntimeValueExpr(runtimeExpr, resultType)
+		if !ok {
+			return "", "", false
+		}
+		return g.wrapLinesAsExpression(ctx, lines, convertedExpr, resultType)
+	}
 }
 
 func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrElseExpression, expected string) (string, string, bool) {

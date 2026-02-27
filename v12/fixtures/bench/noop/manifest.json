@@ -1,0 +1,6 @@
+{
+  "description": "minimal noop benchmark for baseline overhead measurement",
+  "expect": {
+    "exit": 0
+  }
+}

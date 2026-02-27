@@ -507,16 +507,12 @@ interface Awaitable Output for Self {
 methods Array T {
   fn new() -> Array T {
     handle := __able_array_new()
-    arr := Array { length: 0, capacity: 0, storage_handle: handle }
-    arr.refresh_metadata()
-    arr
+    Array { length: 0, capacity: 0, storage_handle: handle }
   }
 
   fn with_capacity(capacity: i32) -> Array T {
     handle := __able_array_with_capacity(capacity)
-    arr := Array { length: 0, capacity: capacity, storage_handle: handle }
-    arr.refresh_metadata()
-    arr
+    Array { length: 0, capacity: capacity, storage_handle: handle }
   }
 
   fn size(self: Self) -> u64 {
@@ -537,24 +533,27 @@ methods Array T {
   fn is_empty(self: Self) -> bool { self.len() == 0 }
 
   fn push(self: Self, value: T) -> void {
-    self.refresh_metadata()
-    __able_array_write(self.storage_handle, self.length, value)
-    self.refresh_metadata()
+    count := self.len()
+    __able_array_write(self.storage_handle, count, value)
+    self.length = count + 1
+    if self.capacity < self.length {
+      self.capacity = __able_array_capacity(self.storage_handle)
+    }
   }
 
   fn pop(self: Self) -> ?T {
-    self.refresh_metadata()
-    if self.length <= 0 { return nil }
-    idx := self.length - 1
+    count := self.len()
+    if count <= 0 { return nil }
+    idx := count - 1
     value := __able_array_read(self.storage_handle, idx)
     __able_array_set_len(self.storage_handle, idx)
-    self.refresh_metadata()
+    self.length = idx
     value
   }
 
   fn clear(self: Self) -> void {
     __able_array_set_len(self.storage_handle, 0)
-    self.refresh_metadata()
+    self.length = 0
   }
 
   fn read_slot(self: Self, idx: i32) -> T {

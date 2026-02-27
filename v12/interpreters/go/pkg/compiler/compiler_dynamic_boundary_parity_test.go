@@ -695,6 +695,11 @@ type compilerBoundaryMarkers struct {
 
 func runCompiledFixtureBoundaryOutcome(t *testing.T, dir string, manifest interpreter.FixtureManifest) (compilerFixtureOutcome, compilerBoundaryMarkers) {
 	t.Helper()
+	return runCompiledFixtureBoundaryOutcomeWithOptions(t, dir, manifest, Options{})
+}
+
+func runCompiledFixtureBoundaryOutcomeWithOptions(t *testing.T, dir string, manifest interpreter.FixtureManifest, opts Options) (compilerFixtureOutcome, compilerBoundaryMarkers) {
+	t.Helper()
 	entry := manifest.Entry
 	if entry == "" {
 		entry = "main.able"
@@ -728,10 +733,13 @@ func runCompiledFixtureBoundaryOutcome(t *testing.T, dir string, manifest interp
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(workDir) })
 
-	comp := New(Options{
-		PackageName:        "main",
-		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
-	})
+	if opts.PackageName == "" {
+		opts.PackageName = "main"
+	}
+	if !opts.RequireNoFallbacks {
+		opts.RequireNoFallbacks = requireNoFallbacksForFixtureGates(t)
+	}
+	comp := New(opts)
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)

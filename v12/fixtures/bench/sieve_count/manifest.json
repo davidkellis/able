@@ -1,0 +1,7 @@
+{
+  "description": "prime sieve counting benchmark for array performance testing",
+  "expect": {
+    "stdout": ["count 1229"],
+    "exit": 0
+  }
+}
