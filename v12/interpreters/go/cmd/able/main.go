@@ -56,6 +56,10 @@ func run(args []string) int {
 		return runTest(remaining[1:], execMode)
 	case "deps":
 		return runDeps(remaining[1:])
+	case "override":
+		return runOverride(remaining[1:])
+	case "setup":
+		return runSetup(remaining[1:])
 	default:
 		return runEntry(remaining, execMode)
 	}

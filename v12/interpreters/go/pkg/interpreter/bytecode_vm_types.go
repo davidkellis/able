@@ -22,16 +22,30 @@ type bytecodeInstruction struct {
 
 type bytecodeProgram struct {
 	instructions []bytecodeInstruction
+	frameLayout  *bytecodeFrameLayout // non-nil when slot-indexed locals are used
+}
+
+type bytecodeCallFrame struct {
+	returnIP            int
+	program             *bytecodeProgram
+	slots               []runtime.Value
+	env                 *runtime.Environment
+	iterBase            int
+	loopBase            int
+	hasImplicitReceiver bool
 }
 
 type bytecodeVM struct {
-	interp      *Interpreter
-	stack       []runtime.Value
-	env         *runtime.Environment
-	ip          int
-	iterStack   []forLoopIterator
-	loopStack   []bytecodeLoopFrame
-	ensureStack []bytecodeEnsureFrame
+	interp         *Interpreter
+	stack          []runtime.Value
+	env            *runtime.Environment
+	ip             int
+	iterStack      []forLoopIterator
+	loopStack      []bytecodeLoopFrame
+	ensureStack    []bytecodeEnsureFrame
+	slots          []runtime.Value
+	callFrames     []bytecodeCallFrame
+	currentProgram *bytecodeProgram // tracks the active program for resume after yield
 }
 
 type bytecodeLoopFrame struct {

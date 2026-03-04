@@ -124,6 +124,9 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			if iv.TypeSuffix == targetKind || integerRangeWithinKinds(iv.TypeSuffix, targetKind) {
 				return true
 			}
+			if iv.IsSmall() {
+				return smallIntWithinRange(iv.Int64Fast(), targetKind)
+			}
 			if iv.Val != nil && integerValueWithinRange(iv.Val, targetKind) {
 				return true
 			}

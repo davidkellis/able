@@ -419,10 +419,7 @@ func __able_future_pending_tasks() runtime.Value {
 	if pending < 0 {
 		pending = 0
 	}
-	return runtime.IntegerValue{
-		Val:        big.NewInt(int64(pending)),
-		TypeSuffix: runtime.IntegerI32,
-	}
+	return runtime.NewSmallInt(int64(pending), runtime.IntegerI32)
 }
 
 func __able_mark_current_task_blocked() {

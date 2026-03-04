@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"fmt"
-	"math/big"
 
 	"able/interpreter-go/pkg/runtime"
 )
@@ -21,13 +20,14 @@ func (i *Interpreter) initHashMapBuiltins() {
 
 	parseHandle := func(val runtime.Value) (int64, error) {
 		intVal, ok := val.(runtime.IntegerValue)
-		if !ok || intVal.Val == nil {
+		if !ok {
 			return 0, fmt.Errorf("hash map handle must be an integer")
 		}
-		if !intVal.Val.IsInt64() {
+		n, ok := intVal.ToInt64()
+		if !ok {
 			return 0, fmt.Errorf("hash map handle is out of range")
 		}
-		return intVal.Val.Int64(), nil
+		return n, nil
 	}
 
 	hashMapNew := runtime.NativeFunctionValue{
@@ -38,7 +38,7 @@ func (i *Interpreter) initHashMapBuiltins() {
 				return nil, fmt.Errorf("__able_hash_map_new expects no arguments")
 			}
 			handle := i.newHashMapHandle(0)
-			return runtime.IntegerValue{Val: big.NewInt(handle), TypeSuffix: runtime.IntegerI64}, nil
+			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
 	}
 
@@ -54,7 +54,7 @@ func (i *Interpreter) initHashMapBuiltins() {
 				return nil, fmt.Errorf("capacity must be a non-negative integer")
 			}
 			handle := i.newHashMapHandle(capacity)
-			return runtime.IntegerValue{Val: big.NewInt(handle), TypeSuffix: runtime.IntegerI64}, nil
+			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
 	}
 
@@ -184,7 +184,7 @@ func (i *Interpreter) initHashMapBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			return runtime.IntegerValue{Val: big.NewInt(int64(len(state.Entries))), TypeSuffix: runtime.IntegerI32}, nil
+			return runtime.NewSmallInt(int64(len(state.Entries)), runtime.IntegerI32), nil
 		},
 	}
 
@@ -248,7 +248,7 @@ func (i *Interpreter) initHashMapBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			return runtime.IntegerValue{Val: big.NewInt(newHandle), TypeSuffix: runtime.IntegerI64}, nil
+			return runtime.NewSmallInt(newHandle, runtime.IntegerI64), nil
 		},
 	}
 
@@ -389,7 +389,7 @@ func (i *Interpreter) resolveInterfaceMethod(receiver runtime.Value, interfaceNa
 		}
 		return nil, nil
 	}
-	method, err := i.findMethod(info, methodName, interfaceName, nil)
+	method, err := i.findMethodCached(info, methodName, interfaceName)
 	if err != nil {
 		return nil, err
 	}

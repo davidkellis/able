@@ -103,7 +103,7 @@ func (i *Interpreter) resolveOperatorMethod(receiver runtime.Value, op string) (
 	if !ok {
 		return nil, nil
 	}
-	method, err := i.findMethod(info, dispatch.methodName, dispatch.interfaceName, nil)
+	method, err := i.findMethodCached(info, dispatch.methodName, dispatch.interfaceName)
 	if method != nil || err != nil {
 		return method, err
 	}
@@ -132,7 +132,7 @@ func (i *Interpreter) resolveComparisonMethod(receiver runtime.Value, dispatch o
 	if !ok {
 		return nil, nil
 	}
-	method, err := i.findMethod(info, dispatch.methodName, dispatch.interfaceName, nil)
+	method, err := i.findMethodCached(info, dispatch.methodName, dispatch.interfaceName)
 	if method != nil || err != nil {
 		return method, err
 	}

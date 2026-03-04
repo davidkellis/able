@@ -114,16 +114,22 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 	case runtime.IntegerValue:
 		switch rv := right.(type) {
 		case runtime.IntegerValue:
-			return lv.Val.Cmp(rv.Val) == 0
+			return lv.CmpInt(rv) == 0
 		case runtime.FloatValue:
-			return bigIntToFloat(lv.Val) == rv.Val
+			if n, ok := lv.ToInt64(); ok {
+				return float64(n) == rv.Val
+			}
+			return bigIntToFloat(lv.BigInt()) == rv.Val
 		}
 	case runtime.FloatValue:
 		switch rv := right.(type) {
 		case runtime.FloatValue:
 			return lv.Val == rv.Val
 		case runtime.IntegerValue:
-			return lv.Val == bigIntToFloat(rv.Val)
+			if n, ok := rv.ToInt64(); ok {
+				return lv.Val == float64(n)
+			}
+			return lv.Val == bigIntToFloat(rv.BigInt())
 		}
 	}
 	return false
@@ -215,7 +221,19 @@ func evaluateComparison(op string, left runtime.Value, right runtime.Value) (run
 	}
 	if li, ok := left.(runtime.IntegerValue); ok {
 		if ri, ok := right.(runtime.IntegerValue); ok {
-			cmp := li.Val.Cmp(ri.Val)
+			// Int64 fast path: avoid big.Int.Cmp allocation overhead.
+			if l, lok := li.ToInt64(); lok {
+				if r, rok := ri.ToInt64(); rok {
+					cmp := 0
+					if l < r {
+						cmp = -1
+					} else if l > r {
+						cmp = 1
+					}
+					return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil
+				}
+			}
+			cmp := li.BigInt().Cmp(ri.BigInt())
 			return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil
 		}
 	}

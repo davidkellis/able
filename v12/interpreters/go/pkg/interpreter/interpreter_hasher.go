@@ -31,10 +31,7 @@ func (i *Interpreter) hasherMember(hasher *runtime.HasherValue, member ast.Expre
 					return nil, fmt.Errorf("finish receiver must be a hasher")
 				}
 				value := ptr.Finish()
-				return runtime.IntegerValue{
-					Val:        new(big.Int).SetUint64(value),
-					TypeSuffix: runtime.IntegerU64,
-				}, nil
+				return runtime.NewBigIntValue(new(big.Int).SetUint64(value), runtime.IntegerU64), nil
 			},
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: hasher, Method: fn}, nil
@@ -153,13 +150,20 @@ func integerToUint64(val runtime.Value) (uint64, error) {
 	if !ok {
 		return 0, fmt.Errorf("expected unsigned integer value")
 	}
-	if iv.Val == nil || iv.Val.Sign() < 0 {
+	if n, fit := iv.ToInt64(); fit {
+		if n < 0 {
+			return 0, fmt.Errorf("expected non-negative integer")
+		}
+		return uint64(n), nil
+	}
+	if iv.Sign() < 0 {
 		return 0, fmt.Errorf("expected non-negative integer")
 	}
-	if !iv.Val.IsUint64() {
+	bi := iv.BigInt()
+	if !bi.IsUint64() {
 		return 0, fmt.Errorf("integer out of range for u64")
 	}
-	return iv.Val.Uint64(), nil
+	return bi.Uint64(), nil
 }
 
 func integerToInt64(val runtime.Value) (int64, error) {
@@ -167,8 +171,8 @@ func integerToInt64(val runtime.Value) (int64, error) {
 	if !ok {
 		return 0, fmt.Errorf("expected integer value")
 	}
-	if iv.Val == nil || !iv.Val.IsInt64() {
-		return 0, fmt.Errorf("integer out of range for i64")
+	if n, ok := iv.ToInt64(); ok {
+		return n, nil
 	}
-	return iv.Val.Int64(), nil
+	return 0, fmt.Errorf("integer out of range for i64")
 }

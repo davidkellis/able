@@ -31,7 +31,7 @@ func TestForLoopSumArray(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(6)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(6)) != 0 {
 		t.Fatalf("expected sum 6, got %#v", result)
 	}
 }
@@ -58,7 +58,7 @@ func TestWhileLoopIncrementsCounter(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(3)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected i == 3, got %#v", result)
 	}
 }
@@ -104,7 +104,7 @@ func TestWhileLoopBreakValuePropagates(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(7)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(7)) != 0 {
 		t.Fatalf("expected break payload 7, got %#v", result)
 	}
 }
@@ -132,7 +132,7 @@ func TestForLoopRangeCountdownInclusive(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(1)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected last == 1, got %#v", result)
 	}
 }
@@ -166,7 +166,7 @@ func TestForLoopRangeExclusiveUpperBound(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(3)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected last == 3, got %#v", result)
 	}
 	countVal, err := env.Get("count")
@@ -174,7 +174,7 @@ func TestForLoopRangeExclusiveUpperBound(t *testing.T) {
 		t.Fatalf("expected count binding: %v", err)
 	}
 	countInt, ok := countVal.(runtime.IntegerValue)
-	if !ok || countInt.Val.Cmp(bigInt(3)) != 0 {
+	if !ok || countInt.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected count == 3, got %#v", countVal)
 	}
 }
@@ -203,7 +203,7 @@ func TestLoopExpressionMatchesExampleLoop(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(0)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(0)) != 0 {
 		t.Fatalf("expected a == 0, got %#v", result)
 	}
 }
@@ -263,7 +263,7 @@ func TestLoopExpressionReturnsBreakValue(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := value.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(3)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected loop result 3, got %#v", value)
 	}
 }
@@ -300,7 +300,7 @@ func TestLoopAssignmentWithEquals(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(0)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(0)) != 0 {
 		t.Fatalf("expected loop result 0, got %#v", result)
 	}
 	finalA, err := env.Get("a")
@@ -308,7 +308,7 @@ func TestLoopAssignmentWithEquals(t *testing.T) {
 		t.Fatalf("expected binding for a: %v", err)
 	}
 	finalInt, ok := finalA.(runtime.IntegerValue)
-	if !ok || finalInt.Val.Cmp(bigInt(0)) != 0 {
+	if !ok || finalInt.BigInt().Cmp(bigInt(0)) != 0 {
 		t.Fatalf("expected a == 0, got %#v", finalA)
 	}
 }
@@ -352,7 +352,7 @@ func TestForLoopBreakValuePropagates(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(2)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(2)) != 0 {
 		t.Fatalf("expected break payload 2, got %#v", result)
 	}
 }
@@ -371,7 +371,7 @@ func TestIfSelectsFirstBranch(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(1)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected result 1, got %#v", result)
 	}
 }
@@ -391,7 +391,7 @@ func TestIfFallsThroughToElse(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(3)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected else result 3, got %#v", result)
 	}
 }
@@ -411,7 +411,7 @@ func TestElsifConditionClause(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(2)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(2)) != 0 {
 		t.Fatalf("expected or clause result 2, got %#v", result)
 	}
 }
@@ -434,14 +434,14 @@ func TestBreakpointExpressionReturnsLastValue(t *testing.T) {
 		t.Fatalf("breakpoint module failed: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(5)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected breakpoint to return 5, got %#v", result)
 	}
 	xVal, err := env.Get("x")
 	if err != nil {
 		t.Fatalf("expected binding for x: %v", err)
 	}
-	if intX, ok := xVal.(runtime.IntegerValue); !ok || intX.Val.Cmp(bigInt(2)) != 0 {
+	if intX, ok := xVal.(runtime.IntegerValue); !ok || intX.BigInt().Cmp(bigInt(2)) != 0 {
 		t.Fatalf("expected x == 2 after breakpoint body, got %#v", xVal)
 	}
 }

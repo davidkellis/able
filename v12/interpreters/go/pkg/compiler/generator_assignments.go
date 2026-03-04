@@ -398,6 +398,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		return nil, "", "", false
 	}
 	declaring := assign.Operator == ast.AssignmentDeclare || !exists
+	useEnvSet := assign.Operator == ast.AssignmentAssign && !exists && (typeAnnotation == nil || g.hasModuleBindingName(ctx.packageName, name))
 	var goType string
 	if typeAnnotation != nil {
 		mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, typeAnnotation)
@@ -454,6 +455,18 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			return nil, "", "", false
 		}
 		expr = coerced
+	}
+	if useEnvSet {
+		valueRuntime, ok := g.runtimeValueExpr(expr, goType)
+		if !ok {
+			ctx.setReason("env assignment value unsupported")
+			return nil, "", "", false
+		}
+		nodeName := g.diagNodeName(assign, "*ast.AssignmentExpression", "assign")
+		resultTemp := ctx.newTemp()
+		lines := append([]string{}, exprLines...)
+		lines = append(lines, fmt.Sprintf("%s := __able_env_set(%q, %s, %s)", resultTemp, name, valueRuntime, nodeName))
+		return lines, resultTemp, "runtime.Value", true
 	}
 	if declaring && typeAnnotation == nil && goType != "runtime.Value" && g.typeCategory(goType) == "struct" {
 		converted, ok := g.runtimeValueExpr(expr, goType)

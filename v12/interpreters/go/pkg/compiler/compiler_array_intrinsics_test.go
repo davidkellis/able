@@ -96,11 +96,11 @@ func TestCompilerTypedArrayLocalsAvoidGlobalHelpers(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not find compiled main function")
 	}
-	if strings.Contains(fnBody, "__able_global_get(") {
-		t.Fatalf("expected typed-array local declarations to avoid __able_global_get")
+	if strings.Contains(fnBody, "__able_env_get(") {
+		t.Fatalf("expected typed-array local declarations to avoid __able_env_get")
 	}
-	if strings.Contains(fnBody, "__able_global_set(") {
-		t.Fatalf("expected typed-array local declarations to avoid __able_global_set")
+	if strings.Contains(fnBody, "__able_env_set(") {
+		t.Fatalf("expected typed-array local declarations to avoid __able_env_set")
 	}
 }
 
@@ -154,7 +154,7 @@ func TestCompilerTypedArrayLoopsAvoidDynamicDispatch(t *testing.T) {
 	if strings.Contains(fnBody, "runtime.ArrayStoreCapacity(") {
 		t.Fatalf("expected typed-array get/set loops to avoid redundant ArrayStoreCapacity calls")
 	}
-	if strings.Contains(fnBody, "__able_global_get(") || strings.Contains(fnBody, "__able_global_set(") {
+	if strings.Contains(fnBody, "__able_env_get(") || strings.Contains(fnBody, "__able_env_set(") {
 		t.Fatalf("expected typed-array loops to avoid global helper routing")
 	}
 }

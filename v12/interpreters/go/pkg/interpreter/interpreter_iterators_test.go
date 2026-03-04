@@ -36,8 +36,8 @@ func TestIteratorLiteralIsLazy(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected first next() to yield integer, got %#v", first)
 	}
-	if firstInt.Val.Int64() != 1 {
-		t.Fatalf("expected first next() = 1, got %s", firstInt.Val.String())
+	if firstInt.BigInt().Int64() != 1 {
+		t.Fatalf("expected first next() = 1, got %s", firstInt.BigInt().String())
 	}
 	if got := mustGetInt(t, env, "count"); got != 1 {
 		t.Fatalf("expected count to be 1 after first yield, got %d", got)
@@ -48,8 +48,8 @@ func TestIteratorLiteralIsLazy(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected second next() to yield integer, got %#v", second)
 	}
-	if secondInt.Val.Int64() != 2 {
-		t.Fatalf("expected second next() = 2, got %s", secondInt.Val.String())
+	if secondInt.BigInt().Int64() != 2 {
+		t.Fatalf("expected second next() = 2, got %s", secondInt.BigInt().String())
 	}
 	if got := mustGetInt(t, env, "count"); got != 2 {
 		t.Fatalf("expected count to be 2 after second yield, got %d", got)
@@ -137,7 +137,7 @@ func TestIteratorForLoopBodyWithinGenerator(t *testing.T) {
 			t.Fatalf("next() failed: %v", err)
 		}
 		intVal, ok := val.(runtime.IntegerValue)
-		if !ok || intVal.Val.Int64() != expected {
+		if !ok || intVal.BigInt().Int64() != expected {
 			t.Fatalf("expected %d, got %#v", expected, val)
 		}
 	}
@@ -186,7 +186,7 @@ func TestIteratorWhileLoopBodyWithinGenerator(t *testing.T) {
 			t.Fatalf("next() failed: %v", err)
 		}
 		intVal, ok := val.(runtime.IntegerValue)
-		if !ok || intVal.Val.Int64() != expected {
+		if !ok || intVal.BigInt().Int64() != expected {
 			t.Fatalf("expected %d, got %#v", expected, val)
 		}
 	}
@@ -255,7 +255,7 @@ func TestIteratorIfExpressionWithinGenerator(t *testing.T) {
 			t.Fatalf("next() failed: %v", err)
 		}
 		intVal, ok := val.(runtime.IntegerValue)
-		if !ok || intVal.Val.Int64() != expected {
+		if !ok || intVal.BigInt().Int64() != expected {
 			t.Fatalf("expected %d, got %#v", expected, val)
 		}
 	}
@@ -342,7 +342,7 @@ func TestIteratorMatchExpressionWithinGenerator(t *testing.T) {
 			t.Fatalf("next() failed: %v", err)
 		}
 		intVal, ok := val.(runtime.IntegerValue)
-		if !ok || intVal.Val.Int64() != expected {
+		if !ok || intVal.BigInt().Int64() != expected {
 			t.Fatalf("expected %d, got %#v", expected, val)
 		}
 	}
@@ -375,8 +375,8 @@ func mustGetInt(t *testing.T, env *runtime.Environment, name string) int {
 	if !ok {
 		t.Fatalf("expected %s to be integer, got %#v", name, val)
 	}
-	if !intVal.Val.IsInt64() {
-		t.Fatalf("expected %s to fit in int64, got %s", name, intVal.Val.String())
+	if !intVal.BigInt().IsInt64() {
+		t.Fatalf("expected %s to fit in int64, got %s", name, intVal.BigInt().String())
 	}
-	return int(intVal.Val.Int64())
+	return int(intVal.BigInt().Int64())
 }

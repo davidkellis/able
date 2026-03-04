@@ -38,8 +38,8 @@ func ratioPartsFromStruct(val runtime.Value) (ratioParts, bool) {
 		return ratioParts{}, false
 	}
 	return ratioParts{
-		num: runtime.CloneBigInt(numVal.Val),
-		den: runtime.CloneBigInt(denVal.Val),
+		num: runtime.CloneBigInt(numVal.BigInt()),
+		den: runtime.CloneBigInt(denVal.BigInt()),
 	}, true
 }
 
@@ -76,7 +76,7 @@ func absBigInt(val *big.Int) *big.Int {
 }
 
 func ratioFromIntegerValue(val runtime.IntegerValue) (ratioParts, error) {
-	return normalizeRatioParts(runtime.CloneBigInt(val.Val), big.NewInt(1))
+	return normalizeRatioParts(runtime.CloneBigInt(val.BigInt()), big.NewInt(1))
 }
 
 func ratioFromFloatValue(val runtime.FloatValue) (ratioParts, error) {
@@ -107,8 +107,8 @@ func (i *Interpreter) makeRatioValue(parts ratioParts) (runtime.Value, error) {
 		return nil, err
 	}
 	fields := map[string]runtime.Value{
-		"num": runtime.IntegerValue{Val: parts.num, TypeSuffix: runtime.IntegerI64},
-		"den": runtime.IntegerValue{Val: parts.den, TypeSuffix: runtime.IntegerI64},
+		"num": runtime.NewBigIntValue(parts.num, runtime.IntegerI64),
+		"den": runtime.NewBigIntValue(parts.den, runtime.IntegerI64),
 	}
 	return &runtime.StructInstanceValue{
 		Definition: def,

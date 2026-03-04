@@ -22,7 +22,7 @@ func TestMatchExpressionWithIdentifierAndLiteral(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(7)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(7)) != 0 {
 		t.Fatalf("expected integer 7, got %#v", result)
 	}
 }
@@ -68,7 +68,7 @@ func TestMatchExpressionStructGuard(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(3)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected integer 3, got %#v", result)
 	}
 }
@@ -93,7 +93,7 @@ func TestDestructuringAssignmentArrayPattern(t *testing.T) {
 		t.Fatalf("expected binding for first: %v", err)
 	}
 	firstInt, ok := first.(runtime.IntegerValue)
-	if !ok || firstInt.Val.Cmp(bigInt(4)) != 0 {
+	if !ok || firstInt.BigInt().Cmp(bigInt(4)) != 0 {
 		t.Fatalf("expected first == 4, got %#v", first)
 	}
 	second, err := env.Get("second")
@@ -101,7 +101,7 @@ func TestDestructuringAssignmentArrayPattern(t *testing.T) {
 		t.Fatalf("expected binding for second: %v", err)
 	}
 	secondInt, ok := second.(runtime.IntegerValue)
-	if !ok || secondInt.Val.Cmp(bigInt(5)) != 0 {
+	if !ok || secondInt.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected second == 5, got %#v", second)
 	}
 	if _, err := env.Get("rest"); err != nil {
@@ -114,7 +114,7 @@ func TestDestructuringAssignmentArrayPattern(t *testing.T) {
 	if len(restVal.Elements) != 1 {
 		t.Fatalf("expected rest length 1, got %d", len(restVal.Elements))
 	}
-	if restElem, ok := restVal.Elements[0].(runtime.IntegerValue); !ok || restElem.Val.Cmp(bigInt(3)) != 0 {
+	if restElem, ok := restVal.Elements[0].(runtime.IntegerValue); !ok || restElem.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected rest element 3, got %#v", restVal.Elements[0])
 	}
 }
@@ -131,7 +131,7 @@ func TestAssignmentEqualsDeclaresBindingWhenMissing(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(42)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(42)) != 0 {
 		t.Fatalf("expected final value 42, got %#v", result)
 	}
 	if _, err := env.Get("fresh"); err != nil {
@@ -163,7 +163,7 @@ func TestTypedAssignmentWidenIntegerValues(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.TypeSuffix != runtime.IntegerI64 || intVal.Val.Cmp(bigInt(5)) != 0 {
+	if !ok || intVal.TypeSuffix != runtime.IntegerI64 || intVal.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected widened i64 value, got %#v", result)
 	}
 }
@@ -192,7 +192,7 @@ func TestDestructuringAssignmentEqualsDeclaresBindings(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(8)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(8)) != 0 {
 		t.Fatalf("expected result 8, got %#v", result)
 	}
 	if _, err := env.Get("first"); err != nil {
@@ -221,7 +221,7 @@ func TestForLoopArrayPattern(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	sum, ok := result.(runtime.IntegerValue)
-	if !ok || sum.Val.Cmp(bigInt(4)) != 0 {
+	if !ok || sum.BigInt().Cmp(bigInt(4)) != 0 {
 		t.Fatalf("expected sum 4, got %#v", result)
 	}
 }
@@ -296,7 +296,7 @@ func TestForLoopStructDestructuring(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(10)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(10)) != 0 {
 		t.Fatalf("expected sum 10, got %#v", result)
 	}
 }
@@ -324,7 +324,7 @@ func TestForLoopContinueSkipsElements(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(4)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(4)) != 0 {
 		t.Fatalf("expected 4 from continue loop, got %#v", result)
 	}
 }

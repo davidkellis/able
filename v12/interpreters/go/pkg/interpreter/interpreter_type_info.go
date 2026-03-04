@@ -119,6 +119,7 @@ func (i *Interpreter) typeExpressionFromValueWithSeen(value runtime.Value, seen 
 					return inferred
 				}
 			}
+			return ast.Gen(ast.Ty("Array"), ast.NewWildcardTypeExpression())
 		}
 		generics := v.Definition.Node.GenericParams
 		if len(generics) > 0 {
@@ -163,19 +164,8 @@ func (i *Interpreter) typeExpressionFromValueWithSeen(value runtime.Value, seen 
 			return nil
 		}
 		var elemType ast.TypeExpression
-		for _, el := range v.Elements {
-			inferred := i.typeExpressionFromValueWithSeen(el, seen)
-			if inferred == nil {
-				continue
-			}
-			if elemType == nil {
-				elemType = inferred
-				continue
-			}
-			if !typeExpressionsEqual(elemType, inferred) {
-				elemType = ast.NewWildcardTypeExpression()
-				break
-			}
+		if len(v.Elements) > 0 {
+			elemType = i.typeExpressionFromValueWithSeen(v.Elements[0], seen)
 		}
 		if elemType == nil {
 			elemType = ast.NewWildcardTypeExpression()

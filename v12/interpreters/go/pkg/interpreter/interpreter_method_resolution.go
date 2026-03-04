@@ -15,6 +15,23 @@ type implMethodContext struct {
 	methods       map[string]runtime.Value
 }
 
+func (i *Interpreter) invalidateMethodCache() {
+	if len(i.methodCache) > 0 {
+		i.methodCache = make(map[methodCacheKey]methodCacheEntry)
+	}
+}
+
+type methodCacheKey struct {
+	typeName    string
+	methodName  string
+	ifaceFilter string
+}
+
+type methodCacheEntry struct {
+	method runtime.Value
+	err    error
+}
+
 func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName string, receiver runtime.Value, ifaceFilter string) (runtime.Value, error) {
 	functionCandidates := make([]*runtime.FunctionValue, 0)
 	nativeCandidates := make([]runtime.Value, 0)
@@ -161,7 +178,7 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 			}
 		}
 		existing := len(functionCandidates) + len(nativeCandidates)
-		if method, err := i.findMethod(info, funcName, ifaceFilter, nil); err == nil && method != nil {
+		if method, err := i.findMethodCached(info, funcName, ifaceFilter); err == nil && method != nil {
 			if callable, ok := i.selectUfcsCallable(method, receiver, true, nil); ok {
 				if err := addCallable(callable, info.name); err != nil {
 					return nil, err

@@ -210,6 +210,13 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, paramCount, len(bindArgs))
 		}
 		generics := functionGenericNameSet(fn, decl)
+		// Check for slot-enabled bytecode program.
+		var slotProgram *bytecodeProgram
+		if i.execMode == execModeBytecode {
+			if p, ok := fn.Bytecode.(*bytecodeProgram); ok && p != nil && p.frameLayout != nil {
+				slotProgram = p
+			}
+		}
 		for idx, param := range decl.Params {
 			if param == nil {
 				return nil, fmt.Errorf("function parameter %d is nil", idx)
@@ -223,8 +230,10 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				arg = coerced
 				bindArgs[idx] = coerced
 			}
-			if err := i.assignPattern(param.Name, arg, localEnv, true, nil); err != nil {
-				return nil, err
+			if slotProgram == nil {
+				if err := i.assignPattern(param.Name, arg, localEnv, true, nil); err != nil {
+					return nil, err
+				}
 			}
 		}
 		state := i.stateFromEnv(localEnv)
@@ -262,6 +271,14 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		if i.execMode == execModeBytecode {
 			if program, ok := fn.Bytecode.(*bytecodeProgram); ok && program != nil {
 				vm := newBytecodeVM(i, localEnv)
+				if slotProgram != nil {
+					layout := slotProgram.frameLayout
+					slots := make([]runtime.Value, layout.slotCount)
+					for idx := 0; idx < len(bindArgs) && idx < layout.paramSlots; idx++ {
+						slots[idx] = bindArgs[idx]
+					}
+					vm.slots = slots
+				}
 				result, err := vm.run(program)
 				if err != nil {
 					if ret, ok := err.(returnSignal); ok {
@@ -633,7 +650,73 @@ func (i *Interpreter) matchesParamTypeForOverload(fn *runtime.FunctionValue, par
 	return i.matchesType(param, value)
 }
 
+type overloadCacheKey struct {
+	firstOverload *runtime.FunctionValue // identity of overload set
+	argCount      int
+	argKinds      string // concatenated Kind strings
+}
+
+func overloadArgKinds(args []runtime.Value) string {
+	if len(args) == 0 {
+		return ""
+	}
+	buf := make([]byte, 0, len(args)*8)
+	for _, arg := range args {
+		if arg == nil {
+			buf = append(buf, '?')
+			continue
+		}
+		kind := arg.Kind().String()
+		buf = append(buf, byte(len(kind)))
+		buf = append(buf, kind...)
+		// For struct instances, include the definition name to differentiate types.
+		if inst, ok := arg.(*runtime.StructInstanceValue); ok && inst != nil && inst.Definition != nil && inst.Definition.Node != nil && inst.Definition.Node.ID != nil {
+			name := inst.Definition.Node.ID.Name
+			buf = append(buf, ':')
+			buf = append(buf, name...)
+		}
+		// For interface values, include the underlying type.
+		if iface, ok := arg.(*runtime.InterfaceValue); ok && iface != nil && iface.Underlying != nil {
+			buf = append(buf, ':')
+			buf = append(buf, iface.Underlying.Kind().String()...)
+		}
+		// For integer values, include the type suffix.
+		if intVal, ok := arg.(runtime.IntegerValue); ok {
+			buf = append(buf, ':')
+			buf = append(buf, string(intVal.TypeSuffix)...)
+		}
+	}
+	return string(buf)
+}
+
+func overloadsHaveGenerics(overloads []*runtime.FunctionValue) bool {
+	for _, fn := range overloads {
+		if fn == nil || fn.Declaration == nil {
+			continue
+		}
+		if decl, ok := fn.Declaration.(*ast.FunctionDefinition); ok && len(decl.GenericParams) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, evalArgs []runtime.Value, call *ast.FunctionCall) (*runtime.FunctionValue, error) {
+	// Cache lookup: use first overload pointer as set identity.
+	// Only cache when no overload has generic parameters (generics need full type checking).
+	var cacheKey overloadCacheKey
+	useCache := len(overloads) > 1 && len(overloads) <= 32 && !overloadsHaveGenerics(overloads)
+	if useCache {
+		cacheKey = overloadCacheKey{
+			firstOverload: overloads[0],
+			argCount:      len(evalArgs),
+			argKinds:      overloadArgKinds(evalArgs),
+		}
+		if cached, ok := i.overloadCache[cacheKey]; ok {
+			return cached, nil
+		}
+	}
+
 	type candidate struct {
 		fn       *runtime.FunctionValue
 		score    float64
@@ -716,6 +799,9 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 	}
 	if len(ties) > 1 {
 		return nil, fmt.Errorf("Ambiguous overload for %s", overloadName(call))
+	}
+	if useCache {
+		i.overloadCache[cacheKey] = best.fn
 	}
 	return best.fn, nil
 }

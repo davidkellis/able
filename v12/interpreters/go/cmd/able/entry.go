@@ -171,7 +171,8 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		fmt.Fprintf(os.Stderr, "failed to prepare execution environment: %v\n", err)
 		return 1
 	}
-	searchPaths := collectSearchPaths(filepath.Dir(entryAbs), extras...)
+	opts := searchPathOptions{skipStdlibDiscovery: lock != nil}
+	searchPaths := collectSearchPaths(filepath.Dir(entryAbs), opts, extras...)
 
 	loader, err := driver.NewLoader(searchPaths)
 	if err != nil {

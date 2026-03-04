@@ -85,7 +85,7 @@ func TestApplyInterfaceCalls(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(big.NewInt(15)) != 0 {
-		t.Fatalf("expected 15, got %v", intResult.Val)
+	if intResult.BigInt().Cmp(big.NewInt(15)) != 0 {
+		t.Fatalf("expected 15, got %v", intResult.BigInt())
 	}
 }

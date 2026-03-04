@@ -9,7 +9,13 @@ import (
 	"able/interpreter-go/pkg/driver"
 )
 
-func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
+const defaultStdlibVersion = "0.1.0"
+
+type searchPathOptions struct {
+	skipStdlibDiscovery bool // true when lockfile provides stdlib/kernel paths
+}
+
+func collectSearchPaths(base string, opts searchPathOptions, extra ...driver.SearchPath) []driver.SearchPath {
 	seen := make(map[string]struct{})
 	var paths []driver.SearchPath
 
@@ -38,8 +44,8 @@ func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
 		paths = append(paths, driver.SearchPath{Path: abs, Kind: kind})
 	}
 
-	for _, path := range extra {
-		add(path, driver.RootUser)
+	for _, sp := range extra {
+		add(sp.Path, sp.Kind)
 	}
 
 	if base != "" {
@@ -58,15 +64,56 @@ func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
 		add(part, driver.RootUser)
 	}
 
-	for _, path := range collectKernelPaths(base) {
-		add(path, driver.RootStdlib)
-	}
-
-	for _, path := range collectStdlibPaths(base) {
-		add(path, driver.RootStdlib)
+	if !opts.skipStdlibDiscovery {
+		overrides := loadGlobalOverrides()
+		if stdlibPath, ok := overrides[normalizeGitURL(defaultStdlibGitURL)]; ok {
+			add(resolvePackageSrcPath(stdlibPath), driver.RootStdlib)
+		} else if cachedPath, err := ensureCachedStdlib(); err == nil {
+			add(cachedPath, driver.RootStdlib)
+		}
+		// Kernel: always use filesystem walk / embedded (no overrides).
+		for _, path := range collectKernelPaths(base) {
+			add(path, driver.RootStdlib)
+		}
 	}
 
 	return paths
+}
+
+// ensureCachedStdlib returns the path to the stdlib src directory in the
+// global ABLE_HOME cache, downloading it via git if necessary.
+func ensureCachedStdlib() (string, error) {
+	cacheDir, err := resolveAbleHome()
+	if err != nil {
+		return "", fmt.Errorf("resolve ABLE_HOME for stdlib: %w", err)
+	}
+	srcDir := filepath.Join(cacheDir, "pkg", "src", "able", defaultStdlibVersion, "src")
+	if info, err := os.Stat(srcDir); err == nil && info.IsDir() {
+		return srcDir, nil
+	}
+	// Not cached yet — resolve via the dependency installer (override → cache → git fetch).
+	installer := newDependencyInstaller(nil, cacheDir)
+	installer.manifestRoot = cacheDir
+	resolved, err := installer.resolveStdlibDependency(&driver.DependencySpec{Version: defaultStdlibVersion})
+	if err != nil {
+		return "", fmt.Errorf("auto-install stdlib %s: %w", defaultStdlibVersion, err)
+	}
+	if resolved == nil || resolved.pkg == nil {
+		return "", fmt.Errorf("stdlib %s: resolver returned nil", defaultStdlibVersion)
+	}
+	// The resolved source may be a path: spec; extract the actual directory.
+	// The path may point to the package root or the src/ subdirectory.
+	if src := strings.TrimPrefix(resolved.pkg.Source, "path:"); src != "" {
+		srcPath := resolvePackageSrcPath(src)
+		if info, err := os.Stat(srcPath); err == nil && info.IsDir() {
+			return srcPath, nil
+		}
+	}
+	// Fall back to the expected cache location.
+	if info, err := os.Stat(srcDir); err == nil && info.IsDir() {
+		return srcDir, nil
+	}
+	return "", fmt.Errorf("stdlib %s: resolved but src directory missing", defaultStdlibVersion)
 }
 
 func splitPathListEnv(value string) []string {
@@ -163,6 +210,13 @@ func collectKernelPaths(base string) []string {
 		}
 	}
 
+	// Fall back to embedded kernel extracted to ABLE_HOME cache.
+	if len(paths) == 0 {
+		if kernelPath, err := ensureEmbeddedKernel(); err == nil {
+			add(kernelPath)
+		}
+	}
+
 	return paths
 }
 
@@ -226,6 +280,22 @@ func collectStdlibPaths(base string) []string {
 }
 
 func resolveReplEntryPath(base string) (string, error) {
+	// Try override first.
+	overrides := loadGlobalOverrides()
+	if stdlibPath, ok := overrides[normalizeGitURL(defaultStdlibGitURL)]; ok {
+		candidate := filepath.Join(resolvePackageSrcPath(stdlibPath), "repl.able")
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+	}
+	// Try cached stdlib.
+	if cachedPath, err := ensureCachedStdlib(); err == nil {
+		candidate := filepath.Join(cachedPath, "repl.able")
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+	}
+	// Fall back to filesystem walk and env vars.
 	for _, root := range collectStdlibPaths(base) {
 		candidate := filepath.Join(root, "repl.able")
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
@@ -283,8 +353,6 @@ func findStdlibRoots(start string) []string {
 	for {
 		for _, candidate := range []string{
 			filepath.Join(dir, "stdlib", "src"),
-			filepath.Join(dir, "v12", "stdlib", "src"),
-			filepath.Join(dir, "stdlib", "v12", "src"),
 			filepath.Join(dir, "able-stdlib", "src"),
 			filepath.Join(dir, "able_stdlib", "src"),
 		} {

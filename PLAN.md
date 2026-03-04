@@ -18,7 +18,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - `spec/full_spec_v10.md` + `spec/full_spec_v11.md`: authoritative semantics for archived toolchains. Keep them untouched unless a maintainer requests errata.
 - `spec/full_spec_v12.md`: active specification for all current work; every behavioral change must be described here.
 - `v10/` + `v11/`: frozen workspaces (read-only unless hotfix required).
-- `v12/`: active development surface for Able v12 (`interpreters/go/`, `parser/`, `fixtures/`, `stdlib/`, `design/`, `docs/`).
+- `v12/`: active development surface for Able v12 (`interpreters/go/`, `parser/`, `fixtures/`, `stdlib-deprecated-do-not-use/`, `design/`, `docs/`). Canonical stdlib source is being moved to the external `able-stdlib` repo and cached via `able setup`.
 
 ## Ongoing Workstreams
 - **Spec maintenance**: stage and land all wording in `spec/full_spec_v12.md`; log discrepancies in `spec/TODO_v12.md`.
@@ -26,7 +26,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - **Tooling**: build a Go-based fixture exporter; update harnesses to remove TS dependencies.
 - **Performance**: expand bytecode VM coverage; add perf harnesses for tree-walker vs bytecode.
 - **WASM**: run the Go runtime in WASM with JS tree-sitter parsing and a defined host ABI.
-- **Stdlib**: keep v12 stdlib aligned with runtime capabilities and spec requirements.
+- **Stdlib externalization**: keep canonical stdlib in external git repo, auto-install into cache, and keep loader/resolver semantics aligned with spec.
 
 ## Tracking & Reporting
 - Update this plan as milestones progress; log design and architectural decisions in `v12/design/`.
@@ -42,6 +42,30 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - It is expected that some new fixtures will fail due to interpreter bugs/deficiencies. Implement fixtures strictly in accordance with the v12 spec semantics. Do not weaken or sidestep the behavior under test to "make tests pass".
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
+### Staged Integration Audit & Stabilization (active priority)
+- Goal: land the currently staged runtime/compiler/CLI changes safely while keeping clean-checkout reproducibility and test guardrails intact.
+- Immediate unit of work (execute in order):
+  - [x] Remove accidental staged binaries (`v12/interpreters/go/able`, `v12/interpreters/go/able.test`) and ignore them.
+  - [x] Make embedded kernel packaging reproducible from a clean checkout (track the `go:embed` payload files under `cmd/able/embedded/kernel`).
+  - [x] Fix `v12/run_all_tests.sh` default mode so it remains green without hitting the default Go 10-minute timeout.
+  - [x] Update `spec/full_spec_v12.md` and `spec/TODO_v12.md` for stdlib externalization (`able setup`, cache lookup order, global overrides).
+  - [x] Update `AGENTS.md` + v12 README onboarding to reflect the new canonical stdlib flow and remove stale `v12/stdlib` assumptions.
+  - [x] Fix compiler typed `=` assignment parity so `name: Type = value` reuses package/module bindings (when present) instead of always creating a local binding.
+  - [ ] Add a clean-environment smoke test that verifies `able setup` installs stdlib+kernel and both treewalker/bytecode can run a stdlib import fixture.
+  - [ ] Decide and document stdlib pinning policy (toolchain-pinned tag vs branch) and enforce it in dependency resolution + lockfile behavior.
+
+### Runtime Performance Program (active priority: 10x targets)
+- Goal: reach at least 10x speedup for bytecode and 10x for compiler relative to current benchmark baselines under `/home/david/sync/projects/benchmarks`.
+- Execution order:
+  - [ ] Freeze a reproducible baseline snapshot (date, commit, machine profile, benchmark inputs) and check in structured results.
+  - [ ] Add a benchmark harness that emits machine-readable results for treewalker, bytecode, and compiled modes on the shared benchmark suite.
+  - [ ] Bytecode Phase 1: remove remaining high-frequency environment/path lookups in hot loops (slot coverage expansion + call dispatch fast paths).
+  - [ ] Bytecode Phase 2: cut allocation pressure (integer/array/hash map hot-path allocations, iterator churn, closure scaffolding in loops).
+  - [ ] Compiler Phase 1: eliminate avoidable `runtime.Value` carriers in statically-typed locals, struct fields, and loop temporaries.
+  - [ ] Compiler Phase 2: reduce bridge overhead at static call/member/index sites; prefer native typed paths and avoid dynamic helper round-trips.
+  - [ ] Add perf guardrails (non-blocking CI report first, then optional thresholds once noise is characterized).
+  - [ ] Publish per-phase progress in `LOG.md` with before/after timings for `fib`, `binarytrees`, `matrixmultiply`, `quicksort`, `sudoku`, and `i_before_e`.
+
 ### Compiler AOT
 - Status: **COMPLETE**. All definition-of-done criteria met. History in `LOG.md`.
 - No-bootstrap execution: non-dynamic programs run fully compiled (`interpreter.New()` instantiated for runtime services, `EvaluateProgram()` never called). Validated via `TestCompilerNoBootstrapExecFixtures`: 222 pass, 13 fail (12 inherently dynamic/IO + 1 pre-existing), 5 skip out of 240 total.

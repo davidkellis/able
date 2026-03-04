@@ -148,10 +148,11 @@ func prepareBuildModule(outputDir string) error {
 	if err := copyModuleTree(parserSrc, parserDst); err != nil {
 		return fmt.Errorf("copy parser sources: %w", err)
 	}
-	stdlibSrc := filepath.Join(v12Root, "stdlib", "src")
-	stdlibDst := filepath.Join(outDir, "v12", "stdlib", "src")
-	if err := copyModuleTree(stdlibSrc, stdlibDst); err != nil {
-		return fmt.Errorf("copy stdlib sources: %w", err)
+	if stdlibSrc, err := ensureCachedStdlib(); err == nil {
+		stdlibDst := filepath.Join(outDir, "v12", "stdlib", "src")
+		if err := copyModuleTree(stdlibSrc, stdlibDst); err != nil {
+			return fmt.Errorf("copy stdlib sources: %w", err)
+		}
 	}
 	kernelSrc := filepath.Join(v12Root, "kernel", "src")
 	kernelDst := filepath.Join(outDir, "v12", "kernel", "src")

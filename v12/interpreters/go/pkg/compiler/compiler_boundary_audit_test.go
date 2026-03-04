@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"able/interpreter-go/pkg/driver"
 	"able/interpreter-go/pkg/interpreter"
@@ -144,13 +146,18 @@ func runCompilerBoundaryAuditFixture(t *testing.T, root, rel string) {
 		t.Fatalf("go build failed: %v\n%s", err, string(out))
 	}
 
-	cmd := exec.Command(binPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binPath)
 	cmd.Env = applyFixtureEnv(withEnv(os.Environ(), "ABLE_COMPILER_BOUNDARY_MARKER", "1"), manifest.Env)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	runErr := cmd.Run()
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("compiled fixture timed out after 60s")
+	}
 	if runErr != nil {
 		exitCode := 0
 		if exitErr, ok := runErr.(*exec.ExitError); ok {

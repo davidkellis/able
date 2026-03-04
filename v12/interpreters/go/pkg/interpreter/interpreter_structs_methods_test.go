@@ -193,7 +193,7 @@ func TestPrivateInstanceMethodNotAccessible(t *testing.T) {
 		t.Fatalf("public instance method call failed: %v", err)
 	}
 	intResult, ok := result.(runtime.IntegerValue)
-	if !ok || intResult.Val.Cmp(bigInt(5)) != 0 {
+	if !ok || intResult.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected 5 from get(), got %#v", result)
 	}
 }
@@ -267,14 +267,14 @@ func TestMethodsExportedAsFunctions(t *testing.T) {
 	methodResult := mustEvalModule(t, interp, ast.Mod([]ast.Statement{
 		ast.CallExpr(ast.Member(ast.ID("p"), "norm")),
 	}, nil, nil))
-	if v, ok := methodResult.(runtime.IntegerValue); !ok || v.Val.Cmp(bigInt(1)) != 0 {
+	if v, ok := methodResult.(runtime.IntegerValue); !ok || v.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected norm() via method to return 1, got %#v", methodResult)
 	}
 
 	fnResult := mustEvalModule(t, interp, ast.Mod([]ast.Statement{
 		ast.CallExpr(ast.ID("norm"), ast.ID("p")),
 	}, nil, nil))
-	if v, ok := fnResult.(runtime.IntegerValue); !ok || v.Val.Cmp(bigInt(1)) != 0 {
+	if v, ok := fnResult.(runtime.IntegerValue); !ok || v.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected norm(Point) free call to return 1, got %#v", fnResult)
 	}
 
@@ -385,7 +385,7 @@ func TestMethodShorthandImplicitMember(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(9)) != 0 {
+	if intResult.BigInt().Cmp(bigInt(9)) != 0 {
 		t.Fatalf("expected counter.value == 9, got %#v", intResult.Val)
 	}
 }
@@ -446,10 +446,10 @@ func TestStructStaticMethod(t *testing.T) {
 	if inst.Fields == nil {
 		t.Fatalf("expected named struct instance fields")
 	}
-	if x, ok := inst.Fields["x"].(runtime.IntegerValue); !ok || x.Val.Cmp(bigInt(0)) != 0 {
+	if x, ok := inst.Fields["x"].(runtime.IntegerValue); !ok || x.BigInt().Cmp(bigInt(0)) != 0 {
 		t.Fatalf("expected x == 0, got %#v", inst.Fields["x"])
 	}
-	if y, ok := inst.Fields["y"].(runtime.IntegerValue); !ok || y.Val.Cmp(bigInt(0)) != 0 {
+	if y, ok := inst.Fields["y"].(runtime.IntegerValue); !ok || y.BigInt().Cmp(bigInt(0)) != 0 {
 		t.Fatalf("expected y == 0, got %#v", inst.Fields["y"])
 	}
 }
@@ -560,7 +560,7 @@ func TestStructInstanceMethodCall(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	val, ok := result.(runtime.IntegerValue)
-	if !ok || val.Val.Cmp(bigInt(5)) != 0 {
+	if !ok || val.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected result 5, got %#v", result)
 	}
 }

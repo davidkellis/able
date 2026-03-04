@@ -15,6 +15,9 @@ type bytecodeLoweringContext struct {
 	scopeDepth             int
 	loopStack              []loopContext
 	allowPlaceholderLambda bool
+	frameLayout            *bytecodeFrameLayout // non-nil = slot mode
+	slotScopes             []map[string]int     // scope stack for slot lookups
+	nextSlot               int                  // next available slot index
 }
 
 type loopContext struct {
@@ -236,8 +239,8 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if n.IntegerType != nil {
 			suffix = runtime.IntegerType(*n.IntegerType)
 		}
-		val := runtime.CloneBigInt(bigFromLiteral(n.Value))
-		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.IntegerValue{Val: val, TypeSuffix: suffix}})
+		val := bigFromLiteral(n.Value)
+		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NewBigIntValue(val, suffix)})
 		return nil
 	case *ast.FloatLiteral:
 		suffix := runtime.FloatF64
@@ -251,7 +254,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.FloatValue{Val: val, TypeSuffix: suffix}})
 		return nil
 	case *ast.Identifier:
-		ctx.emit(bytecodeInstruction{op: bytecodeOpLoadName, name: n.Name, node: n})
+		if slot, ok := ctx.lookupSlot(n.Name); ok {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: slot, name: n.Name, node: n})
+		} else {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpLoadName, name: n.Name, node: n})
+		}
 		return nil
 	case *ast.MemberAccessExpression:
 		if err := emitExpression(ctx, i, n.Object); err != nil {
@@ -313,6 +320,19 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			return nil
 		}
 		if ident, ok := n.Callee.(*ast.Identifier); ok && ident != nil {
+			// If the callee is a slot variable (e.g., a function parameter),
+			// emit LoadSlot + Call instead of CallName so the value is
+			// resolved from the slot rather than the environment.
+			if slot, found := ctx.lookupSlot(ident.Name); found {
+				ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: slot, name: ident.Name, node: ident})
+				for _, arg := range n.Arguments {
+					if err := emitExpression(ctx, i, arg); err != nil {
+						return err
+					}
+				}
+				ctx.emit(bytecodeInstruction{op: bytecodeOpCall, argCount: len(n.Arguments), node: n})
+				return nil
+			}
 			for _, arg := range n.Arguments {
 				if err := emitExpression(ctx, i, arg); err != nil {
 					return err
@@ -467,7 +487,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				if err := emitExpression(ctx, i, n.Right); err != nil {
 					return err
 				}
-				ctx.emit(bytecodeInstruction{op: bytecodeOpAssignNameCompound, name: name, operator: string(n.Operator), node: n})
+				if slot, found := ctx.lookupSlot(name); found {
+					ctx.emit(bytecodeInstruction{op: bytecodeOpCompoundAssignSlot, target: slot, name: name, operator: string(n.Operator), node: n})
+				} else {
+					ctx.emit(bytecodeInstruction{op: bytecodeOpAssignNameCompound, name: name, operator: string(n.Operator), node: n})
+				}
 				return nil
 			}
 		}
@@ -477,11 +501,22 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if err := emitExpression(ctx, i, n.Right); err != nil {
 			return err
 		}
-		op := bytecodeOpAssignName
-		if n.Operator == ast.AssignmentDeclare {
-			op = bytecodeOpDeclareName
+		if ctx.frameLayout != nil && ok {
+			if n.Operator == ast.AssignmentDeclare {
+				slot := ctx.declareSlot(name)
+				ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotNew, target: slot, name: name, node: n})
+			} else if slot, found := ctx.lookupSlot(name); found {
+				ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlot, target: slot, name: name, node: n})
+			} else {
+				ctx.emit(bytecodeInstruction{op: bytecodeOpAssignName, name: name, node: n})
+			}
+		} else {
+			op := bytecodeOpAssignName
+			if n.Operator == ast.AssignmentDeclare {
+				op = bytecodeOpDeclareName
+			}
+			ctx.emit(bytecodeInstruction{op: op, name: name, node: n})
 		}
-		ctx.emit(bytecodeInstruction{op: op, name: name, node: n})
 		return nil
 	case *ast.BlockExpression:
 		return emitBlock(ctx, i, n)
@@ -739,7 +774,17 @@ func emitForLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.ForLoop
 	bodyStart := len(ctx.instructions)
 	ctx.patchJump(jumpToBody, bodyStart)
 	ctx.enterScope()
-	ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop})
+	if ctx.frameLayout != nil {
+		if ident, ok := loop.Pattern.(*ast.Identifier); ok {
+			slot := ctx.declareSlot(ident.Name)
+			ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotNew, target: slot, name: ident.Name})
+			ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+		} else {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop})
+		}
+	} else {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop})
+	}
 	if err := emitBlock(ctx, i, loop.Body); err != nil {
 		return err
 	}
@@ -843,6 +888,9 @@ func (ctx *bytecodeLoweringContext) patchLoopTargets(index int, breakTarget int,
 func (ctx *bytecodeLoweringContext) enterScope() {
 	ctx.emit(bytecodeInstruction{op: bytecodeOpEnterScope})
 	ctx.scopeDepth++
+	if ctx.frameLayout != nil {
+		ctx.slotScopes = append(ctx.slotScopes, make(map[string]int))
+	}
 }
 
 func (ctx *bytecodeLoweringContext) exitScope() {
@@ -850,6 +898,31 @@ func (ctx *bytecodeLoweringContext) exitScope() {
 	if ctx.scopeDepth > 0 {
 		ctx.scopeDepth--
 	}
+	if ctx.frameLayout != nil && len(ctx.slotScopes) > 1 {
+		ctx.slotScopes = ctx.slotScopes[:len(ctx.slotScopes)-1]
+	}
+}
+
+// lookupSlot walks the slot scope stack (innermost first) to find the
+// slot index for a variable name. Returns (slot, true) if found.
+func (ctx *bytecodeLoweringContext) lookupSlot(name string) (int, bool) {
+	for i := len(ctx.slotScopes) - 1; i >= 0; i-- {
+		if slot, ok := ctx.slotScopes[i][name]; ok {
+			return slot, true
+		}
+	}
+	return 0, false
+}
+
+// declareSlot assigns a new slot index for a variable declaration in
+// the current (innermost) scope. Returns the assigned slot index.
+func (ctx *bytecodeLoweringContext) declareSlot(name string) int {
+	slot := ctx.nextSlot
+	ctx.nextSlot++
+	if len(ctx.slotScopes) > 0 {
+		ctx.slotScopes[len(ctx.slotScopes)-1][name] = slot
+	}
+	return slot
 }
 
 func (ctx *bytecodeLoweringContext) pushLoop(start int) {

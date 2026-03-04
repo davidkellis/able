@@ -193,7 +193,7 @@ func TestWildcardImportProvidesTypeQualifiedSymbol(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", val)
 	}
-	if intVal.Val.Int64() != 11 {
-		t.Fatalf("expected value field to be 11, got %d", intVal.Val.Int64())
+	if intVal.BigInt().Int64() != 11 {
+		t.Fatalf("expected value field to be 11, got %d", intVal.BigInt().Int64())
 	}
 }

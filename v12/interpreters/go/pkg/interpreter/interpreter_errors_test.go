@@ -19,7 +19,7 @@ func TestRescueExpressionPattern(t *testing.T) {
 		t.Fatalf("rescue evaluation failed: %v", err)
 	}
 	intVal, ok := val.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(7)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(7)) != 0 {
 		t.Fatalf("expected integer 7, got %#v", val)
 	}
 }
@@ -187,7 +187,7 @@ func TestPropagationExpressionPassesThroughNonError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := val.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(9)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(9)) != 0 {
 		t.Fatalf("expected integer 9, got %#v", val)
 	}
 }

@@ -116,7 +116,7 @@ func (i *Interpreter) makeStandardErrorValue(err standardRuntimeError) runtime.E
 		if shift < minI32 || shift > maxI32 {
 			shift = 0
 		}
-		fields["shift"] = runtime.IntegerValue{Val: big.NewInt(shift), TypeSuffix: runtime.IntegerI32}
+		fields["shift"] = runtime.NewSmallInt(shift, runtime.IntegerI32)
 	}
 	instance := &runtime.StructInstanceValue{
 		Definition: def,

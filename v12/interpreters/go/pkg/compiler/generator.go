@@ -43,6 +43,7 @@ type generator struct {
 	packageEnvOrder        []string
 	hasDynamicFeature      bool
 	moduleBindings         map[string][]moduleBinding // package -> bindings
+	moduleBindingNames     map[string]map[string]struct{}
 	evaluatedConstants     map[string]*evaluatedConst // "pkg::name" -> value
 	staticCallableNames    map[string]map[string]struct{}
 	externCallables        map[string]map[string]struct{}
@@ -114,6 +115,7 @@ func newGenerator(opts Options) *generator {
 		mangler:                newNameMangler(),
 		awaitNames:             make(map[*ast.AwaitExpression]string),
 		implMethodByInfo:       make(map[*functionInfo]*implMethodInfo),
+		moduleBindingNames:     make(map[string]map[string]struct{}),
 		externCallables:        make(map[string]map[string]struct{}),
 	}
 }
@@ -377,10 +379,15 @@ func (g *generator) collect(program *driver.Program) error {
 				}
 				g.collectImplDefinition(def, mapper, pkgName)
 			case *ast.AssignmentExpression:
-				if def == nil || def.Operator != ast.AssignmentDeclare {
+				if def == nil {
 					continue
 				}
-				g.collectModuleBinding(def, pkgName)
+				if def.Operator == ast.AssignmentDeclare || def.Operator == ast.AssignmentAssign {
+					g.collectModuleBindingName(def, pkgName)
+				}
+				if def.Operator == ast.AssignmentDeclare {
+					g.collectModuleBinding(def, pkgName)
+				}
 			}
 		}
 
@@ -1021,20 +1028,8 @@ func (g *generator) collectModuleBinding(assign *ast.AssignmentExpression, pkgNa
 	if g == nil || assign == nil || assign.Right == nil {
 		return
 	}
-	name := ""
-	switch lhs := assign.Left.(type) {
-	case *ast.Identifier:
-		if lhs != nil {
-			name = lhs.Name
-		}
-	case *ast.TypedPattern:
-		if lhs != nil {
-			if ident, ok := lhs.Pattern.(*ast.Identifier); ok && ident != nil {
-				name = ident.Name
-			}
-		}
-	}
-	if name == "" {
+	name, _, ok := g.assignmentTargetName(assign.Left)
+	if !ok || name == "" {
 		return
 	}
 	// Try to evaluate as a constant integer first, to track for later resolution.
@@ -1058,6 +1053,34 @@ func (g *generator) collectModuleBinding(assign *ast.AssignmentExpression, pkgNa
 	})
 }
 
+func (g *generator) collectModuleBindingName(assign *ast.AssignmentExpression, pkgName string) {
+	if g == nil || assign == nil {
+		return
+	}
+	name, _, ok := g.assignmentTargetName(assign.Left)
+	if !ok || strings.TrimSpace(name) == "" {
+		return
+	}
+	perPkg := g.moduleBindingNames[pkgName]
+	if perPkg == nil {
+		perPkg = make(map[string]struct{})
+		g.moduleBindingNames[pkgName] = perPkg
+	}
+	perPkg[name] = struct{}{}
+}
+
+func (g *generator) hasModuleBindingName(pkgName string, name string) bool {
+	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(name) == "" {
+		return false
+	}
+	perPkg := g.moduleBindingNames[pkgName]
+	if perPkg == nil {
+		return false
+	}
+	_, ok := perPkg[name]
+	return ok
+}
+
 func (g *generator) literalToRuntimeExpr(expr ast.Expression, pkgName string) (string, string) {
 	switch lit := expr.(type) {
 	case *ast.IntegerLiteral:
@@ -1067,7 +1090,7 @@ func (g *generator) literalToRuntimeExpr(expr ast.Expression, pkgName string) (s
 		valStr := lit.Value.String()
 		bigExpr := fmt.Sprintf("func() *big.Int { v, _ := new(big.Int).SetString(%q, 10); return v }()", valStr)
 		suffix := integerTypeSuffix(lit.IntegerType)
-		return fmt.Sprintf("runtime.IntegerValue{Val: %s, TypeSuffix: %s}", bigExpr, suffix), "runtime.Value"
+		return fmt.Sprintf("runtime.NewBigIntValue(%s, %s)", bigExpr, suffix), "runtime.Value"
 	case *ast.FloatLiteral:
 		if lit == nil {
 			return "", ""
@@ -1094,7 +1117,7 @@ func (g *generator) literalToRuntimeExpr(expr ast.Expression, pkgName string) (s
 		val, suffix, ok := g.evalConstInt(lit, pkgName)
 		if ok {
 			bigExpr := fmt.Sprintf("func() *big.Int { v, _ := new(big.Int).SetString(%q, 10); return v }()", val.String())
-			return fmt.Sprintf("runtime.IntegerValue{Val: %s, TypeSuffix: %s}", bigExpr, suffix), "runtime.Value"
+			return fmt.Sprintf("runtime.NewBigIntValue(%s, %s)", bigExpr, suffix), "runtime.Value"
 		}
 		return "", ""
 	case *ast.BinaryExpression:
@@ -1106,7 +1129,7 @@ func (g *generator) literalToRuntimeExpr(expr ast.Expression, pkgName string) (s
 			return "", ""
 		}
 		bigExpr := fmt.Sprintf("func() *big.Int { v, _ := new(big.Int).SetString(%q, 10); return v }()", val.String())
-		return fmt.Sprintf("runtime.IntegerValue{Val: %s, TypeSuffix: %s}", bigExpr, suffix), "runtime.Value"
+		return fmt.Sprintf("runtime.NewBigIntValue(%s, %s)", bigExpr, suffix), "runtime.Value"
 	}
 	return "", ""
 }

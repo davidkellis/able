@@ -59,7 +59,7 @@ func TestImplicitMemberInFreeFunction(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(42)) != 0 {
+	if intResult.BigInt().Cmp(bigInt(42)) != 0 {
 		t.Fatalf("expected 42 from value_of, got %#v", intResult.Val)
 	}
 }
@@ -99,7 +99,7 @@ func TestStructLiteralNamed(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	val, ok := result.(runtime.IntegerValue)
-	if !ok || val.Val.Cmp(bigInt(3)) != 0 {
+	if !ok || val.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected struct field x == 3, got %#v", result)
 	}
 	structVal, err := env.Get("p")
@@ -113,7 +113,7 @@ func TestStructLiteralNamed(t *testing.T) {
 	if instance.Fields == nil {
 		t.Fatalf("expected named struct fields map")
 	}
-	if field, ok := instance.Fields["y"].(runtime.IntegerValue); !ok || field.Val.Cmp(bigInt(4)) != 0 {
+	if field, ok := instance.Fields["y"].(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(4)) != 0 {
 		t.Fatalf("expected struct field y == 4, got %#v", instance.Fields["y"])
 	}
 }
@@ -153,7 +153,7 @@ func TestStructLiteralPositional(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	val, ok := result.(runtime.IntegerValue)
-	if !ok || val.Val.Cmp(bigInt(9)) != 0 {
+	if !ok || val.BigInt().Cmp(bigInt(9)) != 0 {
 		t.Fatalf("expected positional field 1 == 9, got %#v", result)
 	}
 }
@@ -194,7 +194,7 @@ func TestStructMemberAssignmentMutation(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	val, ok := result.(runtime.IntegerValue)
-	if !ok || val.Val.Cmp(bigInt(5)) != 0 {
+	if !ok || val.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected updated field x == 5, got %#v", result)
 	}
 	structVal, err := env.Get("p")
@@ -205,7 +205,7 @@ func TestStructMemberAssignmentMutation(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected struct instance, got %#v", structVal)
 	}
-	if field, ok := inst.Fields["y"].(runtime.IntegerValue); !ok || field.Val.Cmp(bigInt(0)) != 0 {
+	if field, ok := inst.Fields["y"].(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(0)) != 0 {
 		t.Fatalf("unexpected change to y field: %#v", inst.Fields["y"])
 	}
 }
@@ -222,7 +222,7 @@ func TestArrayIndexRead(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(20)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(20)) != 0 {
 		t.Fatalf("expected index read 20, got %#v", result)
 	}
 }
@@ -240,7 +240,7 @@ func TestArrayIndexAssignment(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(9)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(9)) != 0 {
 		t.Fatalf("expected updated index value 9, got %#v", result)
 	}
 	arrVal, err := env.Get("a")
@@ -254,7 +254,7 @@ func TestArrayIndexAssignment(t *testing.T) {
 	if len(arr.Elements) != 2 {
 		t.Fatalf("expected array length 2, got %d", len(arr.Elements))
 	}
-	if elem, ok := arr.Elements[1].(runtime.IntegerValue); !ok || elem.Val.Cmp(bigInt(9)) != 0 {
+	if elem, ok := arr.Elements[1].(runtime.IntegerValue); !ok || elem.BigInt().Cmp(bigInt(9)) != 0 {
 		t.Fatalf("expected element 1 == 9, got %#v", arr.Elements[1])
 	}
 }
@@ -299,7 +299,7 @@ func TestCompoundAssignments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if intVal, ok := result.(runtime.IntegerValue); !ok || intVal.Val.Cmp(bigInt(10)) != 0 {
+	if intVal, ok := result.(runtime.IntegerValue); !ok || intVal.BigInt().Cmp(bigInt(10)) != 0 {
 		t.Fatalf("expected x == 10, got %#v", result)
 	}
 	pVal, err := env.Get("p")
@@ -310,7 +310,7 @@ func TestCompoundAssignments(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected struct instance, got %#v", pVal)
 	}
-	if field, ok := inst.Fields["x"].(runtime.IntegerValue); !ok || field.Val.Cmp(bigInt(5)) != 0 {
+	if field, ok := inst.Fields["x"].(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected struct field x == 5, got %#v", inst.Fields["x"])
 	}
 	arrVal, err := env.Get("arr")
@@ -321,7 +321,7 @@ func TestCompoundAssignments(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected array value, got %#v", arrVal)
 	}
-	if elem, ok := arr.Elements[1].(runtime.IntegerValue); !ok || elem.Val.Cmp(bigInt(8)) != 0 {
+	if elem, ok := arr.Elements[1].(runtime.IntegerValue); !ok || elem.BigInt().Cmp(bigInt(8)) != 0 {
 		t.Fatalf("expected array element 1 == 8, got %#v", arr.Elements[1])
 	}
 }
@@ -514,7 +514,7 @@ func TestStructFunctionalUpdateMultipleSources(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	yVal, ok := result.(runtime.IntegerValue)
-	if !ok || yVal.Val.Int64() != 20 {
+	if !ok || yVal.BigInt().Int64() != 20 {
 		t.Fatalf("expected merged.y == 20, got %#v", result)
 	}
 	mergedVal, err := env.Get("merged")
@@ -525,7 +525,7 @@ func TestStructFunctionalUpdateMultipleSources(t *testing.T) {
 	if !ok || mergedStruct.Fields == nil {
 		t.Fatalf("expected named struct merged, got %#v", mergedVal)
 	}
-	if field, ok := mergedStruct.Fields["x"].(runtime.IntegerValue); !ok || field.Val.Int64() != 99 {
+	if field, ok := mergedStruct.Fields["x"].(runtime.IntegerValue); !ok || field.BigInt().Int64() != 99 {
 		t.Fatalf("merged.x incorrect, got %#v", mergedStruct.Fields["x"])
 	}
 }

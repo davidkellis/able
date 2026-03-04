@@ -28,8 +28,8 @@ func TestStringFromBuiltinProducesBytes(t *testing.T) {
 		if !ok {
 			t.Fatalf("element %d type = %T, want IntegerValue", idx, arr.Elements[idx])
 		}
-		if intVal.Val.Int64() != expected {
-			t.Fatalf("element %d = %d, want %d", idx, intVal.Val.Int64(), expected)
+		if intVal.BigInt().Int64() != expected {
+			t.Fatalf("element %d = %d, want %d", idx, intVal.BigInt().Int64(), expected)
 		}
 	}
 }
@@ -71,8 +71,8 @@ func TestStringFromBuiltinAcceptsStructString(t *testing.T) {
 		if !ok {
 			t.Fatalf("element %d type = %T, want IntegerValue", idx, arr.Elements[idx])
 		}
-		if intVal.Val.Int64() != expected {
-			t.Fatalf("element %d = %d, want %d", idx, intVal.Val.Int64(), expected)
+		if intVal.BigInt().Int64() != expected {
+			t.Fatalf("element %d = %d, want %d", idx, intVal.BigInt().Int64(), expected)
 		}
 	}
 }

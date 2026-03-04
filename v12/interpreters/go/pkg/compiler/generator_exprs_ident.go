@@ -20,7 +20,7 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 			}
 		}
 		nodeName := g.diagNodeName(ident, "*ast.Identifier", "ident")
-		valueExpr := fmt.Sprintf("__able_global_get(%q, %s)", ident.Name, nodeName)
+		valueExpr := fmt.Sprintf("__able_env_get(%q, %s)", ident.Name, nodeName)
 		if expected == "" || expected == "runtime.Value" {
 			return valueExpr, "runtime.Value", true
 		}
