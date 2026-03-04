@@ -13,7 +13,6 @@ import (
 
 const (
 	defaultStdlibGitURL = "https://github.com/davidkellis/able-stdlib.git"
-	defaultStdlibBranch = "main"
 )
 
 type resolvedPackage struct {
@@ -171,7 +170,7 @@ func (d *dependencyInstaller) Install(lock *driver.Lockfile) (bool, []string, er
 	}
 
 	if !hasStdlibDep {
-		if err := d.installDependency("able", &driver.DependencySpec{}); err != nil {
+		if err := d.installDependency("able", &driver.DependencySpec{Version: defaultStdlibVersion}); err != nil {
 			return false, d.logs, fmt.Errorf("resolve stdlib: %w", err)
 		}
 	}
@@ -393,6 +392,13 @@ func (d *dependencyInstaller) resolvePathDependency(name string, spec *driver.De
 }
 
 func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpec) (*resolvedPackage, error) {
+	requestedVersion := defaultStdlibVersion
+	if spec != nil {
+		if version := strings.TrimSpace(spec.Version); version != "" {
+			requestedVersion = version
+		}
+	}
+
 	// Check if the default stdlib URL has a global override.
 	if overridePath, ok := d.globalOverrides[normalizeGitURL(defaultStdlibGitURL)]; ok {
 		d.logs = append(d.logs, fmt.Sprintf("using override for stdlib (%s)", overridePath))
@@ -420,7 +426,7 @@ func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpe
 		if version == "" {
 			version = "0.0.0"
 		}
-		if spec.Version != "" && !constraintContainsVersion(spec.Version, version) {
+		if requestedVersion != "" && !constraintContainsVersion(requestedVersion, version) {
 			continue
 		}
 		src := candidate
@@ -442,15 +448,15 @@ func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpe
 		}, nil
 	}
 	// Try cached version in $ABLE_HOME.
-	if spec.Version != "" {
-		cached := filepath.Join(d.cacheDir, "pkg", "src", "able", sanitizePathSegment(spec.Version))
+	if requestedVersion != "" {
+		cached := filepath.Join(d.cacheDir, "pkg", "src", "able", sanitizePathSegment(requestedVersion))
 		cachedManifest := filepath.Join(cached, "package.yml")
 		if info, statErr := os.Stat(cachedManifest); statErr == nil && !info.IsDir() {
 			stdManifest, loadErr := driver.LoadManifest(cachedManifest)
 			if loadErr == nil && sanitizeName(stdManifest.Name) == "able" {
 				version := strings.TrimSpace(stdManifest.Version)
 				if version == "" {
-					version = spec.Version
+					version = requestedVersion
 				}
 				srcDir := filepath.Join(cached, "src")
 				if _, srcErr := os.Stat(srcDir); srcErr != nil {
@@ -473,12 +479,14 @@ func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpe
 
 	// Download from default source via git.
 	gitSpec := &driver.DependencySpec{
-		Git:    defaultStdlibGitURL,
-		Branch: defaultStdlibBranch,
+		Git: defaultStdlibGitURL,
 	}
-	if spec.Version != "" {
-		gitSpec.Tag = "v" + spec.Version
-		gitSpec.Branch = ""
+	if requestedVersion != "" {
+		if strings.HasPrefix(requestedVersion, "v") {
+			gitSpec.Tag = requestedVersion
+		} else {
+			gitSpec.Tag = "v" + requestedVersion
+		}
 	}
 	resolved, err := d.resolveGitDependency("able", gitSpec)
 	if err != nil {
