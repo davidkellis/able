@@ -4479,8 +4479,10 @@ Typing and dynamic imports:
 
 -   Able distributes an Able-authored **kernel** bundle versioned with the toolchain. The kernel lives under `<tool-root>/kernel/src` (or an equivalent embedded extraction cache) and is automatically injected ahead of workspace code to surface host bridges (scheduler/channel/mutex/string/hasher shims).
 -   The standard library is a normal package named `able`, but its canonical source is an external git repository managed by the dependency resolver. Tooling installs/caches it under `$ABLE_HOME/pkg/src/able/<version>/src` (for example via `able setup`) and resolves it through the normal lockfile + search-path model.
+-   When a manifest does not declare an explicit `able` dependency, tooling injects an implicit stdlib dependency pinned to the toolchain stdlib version and resolves the canonical git tag `v<toolchain-stdlib-version>` (not a floating branch). `able setup` and first-run auto-install use the same pin.
 -   `import able.*` always resolves against whichever canonical `able` root the loader selects (lockfile pin, override, or cached canonical install). User code MUST NOT publish an `able` namespace; any root whose manifest declares `name: able` is treated as stdlib, and collisions are reported rather than shadowed.
 -   Global resolver overrides map canonical git URLs to local package roots (persisted under `$ABLE_HOME/overrides.yml`; CLI surface: `able override add/remove/list`). Overrides are intended for development/testing and apply before remote fetch for matching git dependencies.
+-   Lockfiles record the resolved stdlib version/source. Override-backed stdlib resolutions may intentionally diverge from the toolchain pin and are treated as explicit local-development opt-ins.
 -   Tooling treats resolved kernel/stdlib roots as read-only inputs at runtime. Local edits rely on dependency resolution controls (lockfile pin, global override, or `ABLE_MODULE_PATHS` search roots).
 
 ### 13.7. Module Search Paths & Environment Overrides

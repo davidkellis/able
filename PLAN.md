@@ -51,8 +51,8 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   - [x] Update `spec/full_spec_v12.md` and `spec/TODO_v12.md` for stdlib externalization (`able setup`, cache lookup order, global overrides).
   - [x] Update `AGENTS.md` + v12 README onboarding to reflect the new canonical stdlib flow and remove stale `v12/stdlib` assumptions.
   - [x] Fix compiler typed `=` assignment parity so `name: Type = value` reuses package/module bindings (when present) instead of always creating a local binding.
-  - [ ] Add a clean-environment smoke test that verifies `able setup` installs stdlib+kernel and both treewalker/bytecode can run a stdlib import fixture.
-  - [ ] Decide and document stdlib pinning policy (toolchain-pinned tag vs branch) and enforce it in dependency resolution + lockfile behavior.
+  - [x] Add a clean-environment smoke test that verifies `able setup` installs stdlib+kernel and both treewalker/bytecode can run a stdlib import fixture.
+  - [x] Decide and document stdlib pinning policy (toolchain-pinned tag vs branch) and enforce it in dependency resolution + lockfile behavior.
 
 ### Runtime Performance Program (active priority: 10x targets)
 - Goal: reach at least 10x speedup for bytecode and 10x for compiler relative to current benchmark baselines under `/home/david/sync/projects/benchmarks`.
@@ -65,6 +65,23 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   - [ ] Compiler Phase 2: reduce bridge overhead at static call/member/index sites; prefer native typed paths and avoid dynamic helper round-trips.
   - [ ] Add perf guardrails (non-blocking CI report first, then optional thresholds once noise is characterized).
   - [ ] Publish per-phase progress in `LOG.md` with before/after timings for `fib`, `binarytrees`, `matrixmultiply`, `quicksort`, `sudoku`, and `i_before_e`.
+
+### File-Size Maintainability (active)
+- Goal: keep v12 implementation files under 1000 lines by splitting by cohesive responsibilities without semantic changes.
+- Progress:
+  - [x] Split compiler generator helpers out of `pkg/compiler/generator.go` (extern/diag and module-binding constant evaluation).
+  - [x] Split compiler expression codegen out of `pkg/compiler/generator_exprs.go` (core dispatch vs call helpers vs cast/range/lambda helpers).
+  - [x] Split IR lowering code out of `pkg/compiler/lowerer.go` (core lowering vs spawn/literal/loop lowering vs scope+emit helpers).
+  - [x] Split interface runtime rendering out of `pkg/compiler/generator_render_runtime_interface.go` (main dispatch render path vs compiled-resolver emission block).
+  - [x] Split concurrency runtime rendering out of `pkg/compiler/generator_render_runtime_concurrency.go` (core helper emission vs extern-wrapper emission block).
+  - [x] Split IR Go emission out of `pkg/compiler/ir_codegen.go` (core instruction/literal emitters vs interpolation/destructure/terminator tail emitters).
+  - [x] Split bytecode VM runtime loop out of `pkg/interpreter/bytecode_vm.go` (opcode definitions/entrypoint vs resumable loop + unwind/finalize helpers).
+  - [x] Split runtime call rendering out of `pkg/compiler/generator_render_runtime_calls.go` (front half vs compiled-call/boundary/env/runtime-tail emission block).
+  - [x] Split compiler exec fixture tests out of `pkg/compiler/exec_fixtures_compiler_test.go` (main fixture harness vs no-bootstrap fixture harness).
+  - [x] Split bytecode VM tests out of `pkg/interpreter/bytecode_vm_test.go` (core VM tests vs async/member/collection tail tests and shared helpers).
+  - [x] Split call-overload resolution helpers out of `pkg/interpreter/eval_expressions_calls.go`.
+  - [x] Split dynamic/interface/package member resolution out of `pkg/interpreter/interpreter_members.go`.
+  - [x] No remaining >1000-line `.go/.ts/.able` files under `v12/` (including tests), verified via `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}'`.
 
 ### Compiler AOT
 - Status: **COMPLETE**. All definition-of-done criteria met. History in `LOG.md`.
