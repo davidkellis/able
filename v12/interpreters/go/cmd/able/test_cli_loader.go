@@ -54,7 +54,7 @@ func loadTestPrograms(testFiles []string) (*testLoadResult, error) {
 
 func resolveTestSearchPaths(testFiles []string) ([]driver.SearchPath, error) {
 	if len(testFiles) == 0 {
-		return collectSearchPaths(""), nil
+		return collectSearchPaths("", searchPathOptions{}), nil
 	}
 	seen := make(map[string]struct{})
 	var merged []driver.SearchPath
@@ -75,7 +75,8 @@ func resolveTestSearchPaths(testFiles []string) ([]driver.SearchPath, error) {
 		if err != nil {
 			return nil, err
 		}
-		paths := collectSearchPaths(base, extras...)
+		opts := searchPathOptions{skipStdlibDiscovery: lock != nil}
+		paths := collectSearchPaths(base, opts, extras...)
 		for _, sp := range paths {
 			clean := filepath.Clean(sp.Path)
 			if _, ok := seen[clean]; ok {

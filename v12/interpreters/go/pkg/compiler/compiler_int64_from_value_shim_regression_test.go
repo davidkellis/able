@@ -37,7 +37,13 @@ func TestCompilerNormalizesInt64FromValueIntegerUnwrap(t *testing.T) {
 	if !strings.Contains(segment, "if v, ok, nilPtr := __able_runtime_integer_value(current); ok || nilPtr {") {
 		t.Fatalf("expected __able_int64_from_value to use normalized integer unwrapping helper guard")
 	}
-	if !strings.Contains(segment, "if !ok || nilPtr || v.Val == nil {") {
-		t.Fatalf("expected __able_int64_from_value to preserve explicit typed-nil/value-nil rejection")
+	if !strings.Contains(segment, "if v.IsSmall() {") {
+		t.Fatalf("expected __able_int64_from_value to include small-int fast path")
+	}
+	if !strings.Contains(segment, "return v.Int64Fast(), nil") {
+		t.Fatalf("expected __able_int64_from_value small-int fast path to use Int64Fast()")
+	}
+	if !strings.Contains(segment, "if v.Val == nil {") {
+		t.Fatalf("expected __able_int64_from_value to reject degenerate nil Val after small-int check")
 	}
 }

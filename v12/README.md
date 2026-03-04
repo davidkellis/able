@@ -13,7 +13,7 @@ Able is an experimental programming language. This workspace hosts the actively 
 - `spec/` — Language specs (v1–v12) plus TODO trackers. `full_spec_v12.md` is the active v12 document.
 - `interpreters/go/` — Go interpreters (tree-walker + bytecode), CLI, and canonical AST/typechecker definitions.
 - `parser/` — Tree-sitter oriented parser experiments copied from the archived workspace.
-- `fixtures/`, `examples/`, `stdlib/` — Shared AST fixtures, curated example programs, runnable exec fixtures (`fixtures/exec`), and stdlib sketches. See `docs/exec-fixtures.md` for authoring/running exec programs.
+- `fixtures/`, `examples/`, `stdlib-deprecated-do-not-use/` — Shared AST fixtures, curated example programs, runnable exec fixtures (`fixtures/exec`), and archived in-tree stdlib snapshot (non-canonical). Canonical stdlib source is the external `able-stdlib` repository. See `docs/exec-fixtures.md` for authoring/running exec programs.
 - `design/`, `docs/`, `README.md`, `PLAN.md`, `AGENTS.md` — Copied documentation and roadmap files that we will update specifically for v12 work.
 
 ## How We Work
@@ -23,27 +23,25 @@ Able is an experimental programming language. This workspace hosts the actively 
 4. Use `PLAN.md` for roadmap updates and `AGENTS.md` for onboarding guidance specific to the v12 effort.
 
 ## Getting Started
-- **Go interpreters**: install Go ≥ 1.22 and run `go test ./...` inside `interpreters/go/`. Before handing off work, prefer `./run_all_tests.sh --version=v12` from the repo root (fixtures/typechecker default to strict).
+- **Go interpreters**: install Go ≥ 1.22 and run `go test ./...` inside `interpreters/go/`. Before handing off work, prefer `./v12/run_all_tests.sh` (fixtures/typechecker default to strict).
 - **CLI wrappers**: use `./v12/abletw` for tree-walker runs and `./v12/ablebc` for bytecode runs.
+- **Stdlib bootstrap**: run `./v12/able setup` once to install/cache canonical stdlib + kernel roots under `$ABLE_HOME/pkg/src`.
 - **Specs**: edit `spec/full_spec_v12.md` for new behaviour; consult archived specs only to understand the baseline.
 
 Combined test suites:
 
 ```bash
 # Run the v12 Go test suite + fixtures
-./run_all_tests.sh --version=v12
+./v12/run_all_tests.sh
 
 # Override fixture typechecking (warn logs diagnostics, off disables)
-./run_all_tests.sh --version=v12 --typecheck-fixtures=warn
-./run_all_tests.sh --version=v12 --typecheck-fixtures=off
+./v12/run_all_tests.sh --typecheck-fixtures=warn
+./v12/run_all_tests.sh --typecheck-fixtures=off
 
-# Fixture-only sweep (Go fixture runner)
-./run_all_tests.sh --version=v12 --fixture
-
-# Full compiler fixture matrix (manual/nightly)
-./run_all_tests.sh --version=v12 --compiler-full-matrix
-# or directly:
-./v12/run_compiler_full_matrix.sh
+# Run focused subsets
+./v12/run_all_tests.sh --treewalker
+./v12/run_all_tests.sh --bytecode
+./v12/run_all_tests.sh --compiler
 
 # Details, overrides, and CI workflow inputs:
 # v12/docs/compiler-full-matrix.md

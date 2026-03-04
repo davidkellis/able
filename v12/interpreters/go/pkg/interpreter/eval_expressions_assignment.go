@@ -105,10 +105,13 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 				switch member.Name {
 				case "storage_handle":
 					intVal, ok := value.(runtime.IntegerValue)
-					if !ok || intVal.Val == nil || !intVal.Val.IsInt64() {
+					if !ok {
 						return nil, fmt.Errorf("array storage_handle must be an integer")
 					}
-					handle := intVal.Val.Int64()
+					handle, fits := intVal.ToInt64()
+					if !fits {
+						return nil, fmt.Errorf("array storage_handle must be an integer")
+					}
 					if handle <= 0 {
 						return nil, fmt.Errorf("array storage_handle must be positive")
 					}

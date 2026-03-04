@@ -3,7 +3,6 @@ package interpreter
 import (
 	"fmt"
 	"math"
-	"math/big"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
@@ -124,8 +123,10 @@ func (i *Interpreter) arrayValueFromStructFields(fields map[string]runtime.Value
 	var capacity int
 	if fields != nil {
 		if hv, ok := fields["storage_handle"]; ok {
-			if intVal, ok := hv.(runtime.IntegerValue); ok && intVal.Val != nil && intVal.Val.IsInt64() {
-				handle = intVal.Val.Int64()
+			if intVal, ok := hv.(runtime.IntegerValue); ok {
+				if h, ok := intVal.ToInt64(); ok {
+					handle = h
+				}
 			}
 		}
 		if lv, ok := fields["length"]; ok {
@@ -158,13 +159,14 @@ func (i *Interpreter) initArrayBuiltins() {
 
 	parseArrayHandle := func(val runtime.Value) (int64, error) {
 		intVal, ok := val.(runtime.IntegerValue)
-		if !ok || intVal.Val == nil {
+		if !ok {
 			return 0, fmt.Errorf("array handle must be an integer")
 		}
-		if !intVal.Val.IsInt64() {
+		n, ok := intVal.ToInt64()
+		if !ok {
 			return 0, fmt.Errorf("array handle is out of range")
 		}
-		return intVal.Val.Int64(), nil
+		return n, nil
 	}
 
 	arrayNewHandle := runtime.NativeFunctionValue{
@@ -175,7 +177,7 @@ func (i *Interpreter) initArrayBuiltins() {
 				return nil, fmt.Errorf("__able_array_new expects no arguments")
 			}
 			handle := runtime.ArrayStoreNew()
-			return runtime.IntegerValue{Val: big.NewInt(handle), TypeSuffix: runtime.IntegerI64}, nil
+			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
 	}
 
@@ -194,7 +196,7 @@ func (i *Interpreter) initArrayBuiltins() {
 				capacity = 0
 			}
 			handle := runtime.ArrayStoreNewWithCapacity(capacity)
-			return runtime.IntegerValue{Val: big.NewInt(handle), TypeSuffix: runtime.IntegerI64}, nil
+			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
 	}
 
@@ -213,7 +215,7 @@ func (i *Interpreter) initArrayBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			return runtime.IntegerValue{Val: big.NewInt(int64(size)), TypeSuffix: runtime.IntegerU64}, nil
+			return runtime.NewSmallInt(int64(size), runtime.IntegerU64), nil
 		},
 	}
 
@@ -232,7 +234,7 @@ func (i *Interpreter) initArrayBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			return runtime.IntegerValue{Val: big.NewInt(int64(capacity)), TypeSuffix: runtime.IntegerU64}, nil
+			return runtime.NewSmallInt(int64(capacity), runtime.IntegerU64), nil
 		},
 	}
 
@@ -333,7 +335,7 @@ func (i *Interpreter) initArrayBuiltins() {
 			if state, err := runtime.ArrayStoreState(handle); err == nil {
 				i.syncArrayValues(handle, state)
 			}
-			return runtime.IntegerValue{Val: big.NewInt(handle), TypeSuffix: runtime.IntegerI64}, nil
+			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
 	}
 
@@ -352,7 +354,7 @@ func (i *Interpreter) initArrayBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			return runtime.IntegerValue{Val: big.NewInt(newHandle), TypeSuffix: runtime.IntegerI64}, nil
+			return runtime.NewSmallInt(newHandle, runtime.IntegerI64), nil
 		},
 	}
 
@@ -414,11 +416,11 @@ func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression
 	}
 	switch ident.Name {
 	case "storage_handle":
-		return runtime.IntegerValue{Val: big.NewInt(arr.Handle), TypeSuffix: runtime.IntegerI64}, nil
+		return runtime.NewSmallInt(arr.Handle, runtime.IntegerI64), nil
 	case "length":
-		return runtime.IntegerValue{Val: big.NewInt(int64(len(state.Values))), TypeSuffix: runtime.IntegerI32}, nil
+		return runtime.NewSmallInt(int64(len(state.Values)), runtime.IntegerI32), nil
 	case "capacity":
-		return runtime.IntegerValue{Val: big.NewInt(int64(state.Capacity)), TypeSuffix: runtime.IntegerI32}, nil
+		return runtime.NewSmallInt(int64(state.Capacity), runtime.IntegerI32), nil
 	case "iterator":
 		fn := runtime.NativeFunctionValue{
 			Name:  "array.iterator",
@@ -459,16 +461,13 @@ func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression
 func arrayIndexFromValue(val runtime.Value) (int, error) {
 	switch v := val.(type) {
 	case runtime.IntegerValue:
-		if v.Val == nil {
-			return 0, fmt.Errorf("array index must be an integer")
-		}
-		if v.Val.Sign() < 0 {
+		if v.Sign() < 0 {
 			return 0, fmt.Errorf("array index must be non-negative")
 		}
-		if !v.Val.IsInt64() {
+		res, ok := v.ToInt64()
+		if !ok {
 			return 0, fmt.Errorf("array index out of range")
 		}
-		res := v.Val.Int64()
 		if res > math.MaxInt {
 			return 0, fmt.Errorf("array index out of range")
 		}
@@ -480,14 +479,8 @@ func arrayIndexFromValue(val runtime.Value) (int, error) {
 
 func makeIndexError(index int, length int) runtime.Value {
 	payload := map[string]runtime.Value{
-		"index": runtime.IntegerValue{
-			Val:        big.NewInt(int64(index)),
-			TypeSuffix: runtime.IntegerI64,
-		},
-		"length": runtime.IntegerValue{
-			Val:        big.NewInt(int64(length)),
-			TypeSuffix: runtime.IntegerI64,
-		},
+		"index": runtime.NewSmallInt(int64(index), runtime.IntegerI64),
+		"length": runtime.NewSmallInt(int64(length), runtime.IntegerI64),
 	}
 	message := fmt.Sprintf("index %d out of bounds for length %d", index, length)
 	return runtime.ErrorValue{

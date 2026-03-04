@@ -322,7 +322,7 @@ func (e *irGoEmitter) emitHelpers() {
 	fmt.Fprintf(&e.buf, "\tif !ok {\n")
 	fmt.Fprintf(&e.buf, "\t\tpanic(fmt.Errorf(\"invalid integer literal: %%s\", text))\n")
 	fmt.Fprintf(&e.buf, "\t}\n")
-	fmt.Fprintf(&e.buf, "\treturn runtime.IntegerValue{Val: val, TypeSuffix: suffix}\n")
+	fmt.Fprintf(&e.buf, "\treturn runtime.NewBigIntValue(val, suffix)\n")
 	fmt.Fprintf(&e.buf, "}\n\n")
 	fmt.Fprintf(&e.buf, "func __able_float_literal(value float64, suffix runtime.FloatType) runtime.Value {\n")
 	fmt.Fprintf(&e.buf, "\treturn runtime.FloatValue{Val: value, TypeSuffix: suffix}\n")

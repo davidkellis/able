@@ -3,7 +3,6 @@ package interpreter
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
@@ -80,6 +79,10 @@ const (
 	bytecodeOpEnterScope
 	bytecodeOpExitScope
 	bytecodeOpReturn
+	bytecodeOpLoadSlot
+	bytecodeOpStoreSlot
+	bytecodeOpStoreSlotNew
+	bytecodeOpCompoundAssignSlot
 )
 
 func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
@@ -103,11 +106,55 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 		vm.loopStack = vm.loopStack[:0]
 		vm.ensureStack = vm.ensureStack[:0]
 		vm.ip = 0
+	} else if vm.currentProgram != nil {
+		// When resuming after a yield, restore the program that was active
+		// at the time of the yield (may differ from the parameter if inline
+		// call frames were in use).
+		program = vm.currentProgram
 	}
+	vm.currentProgram = program
 	defer func() {
 		if err == nil || !errors.Is(err, errSerialYield) {
 			vm.closeAllIterators()
 			vm.loopStack = vm.loopStack[:0]
+		}
+		// Unwind inline call frames on error, adding "called from here"
+		// context and cleaning up implicit receivers.
+		if err != nil && !errors.Is(err, errSerialYield) && len(vm.callFrames) > 0 {
+			if _, ok := err.(returnSignal); !ok {
+				if _, ok := err.(breakSignal); !ok {
+					if _, ok := err.(continueSignal); !ok {
+						for len(vm.callFrames) > 0 {
+							frame := vm.callFrames[len(vm.callFrames)-1]
+							vm.callFrames = vm.callFrames[:len(vm.callFrames)-1]
+							if frame.hasImplicitReceiver {
+								state := vm.interp.stateFromEnv(vm.env)
+								state.popImplicitReceiver()
+							}
+							callIP := frame.returnIP - 1
+							if callIP >= 0 && callIP < len(frame.program.instructions) {
+								callInstr := frame.program.instructions[callIP]
+								if callInstr.node != nil {
+									if callNode, ok := callInstr.node.(*ast.FunctionCall); ok {
+										// Append to the existing diagnostic context's call stack
+										// so BuildRuntimeDiagnostic produces "called from here" notes.
+										// We cannot use attachRuntimeContext here because it returns
+										// early when the error already has a context.
+										ctx := runtimeContextFromError(err)
+										if ctx != nil {
+											ctx.callStack = append(ctx.callStack, runtimeCallFrame{node: callNode})
+										} else {
+											err = vm.interp.attachRuntimeContext(err, callInstr.node, vm.interp.stateFromEnv(frame.env))
+										}
+									}
+								}
+							}
+							vm.env = frame.env
+							vm.slots = frame.slots
+						}
+					}
+				}
+			}
 		}
 	}()
 
@@ -118,10 +165,6 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 		case bytecodeOpConst:
 			value := instr.value
 			if intVal, ok := value.(runtime.IntegerValue); ok {
-				if intVal.Val == nil {
-					intVal.Val = big.NewInt(0)
-					value = intVal
-				}
 				info, err := getIntegerInfo(intVal.TypeSuffix)
 				if err != nil {
 					if instr.node != nil {
@@ -129,7 +172,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					}
 					return nil, err
 				}
-				if err := ensureFitsInteger(info, intVal.Val); err != nil {
+				if err := ensureFitsInteger(info, intVal.BigInt()); err != nil {
 					err = vm.interp.wrapStandardRuntimeError(err)
 					if instr.node != nil {
 						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
@@ -775,14 +818,28 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpCall:
 			{
-				if err := vm.execCall(instr); err != nil {
+				newProg, err := vm.execCall(instr, program)
+				if err != nil {
 					return nil, err
+				}
+				if newProg != nil {
+					program = newProg
+					instructions = program.instructions
+					vm.currentProgram = program
+					continue
 				}
 			}
 		case bytecodeOpCallName:
 			{
-				if err := vm.execCallName(instr); err != nil {
+				newProg, err := vm.execCallName(instr, program)
+				if err != nil {
 					return nil, err
+				}
+				if newProg != nil {
+					program = newProg
+					instructions = program.instructions
+					vm.currentProgram = program
+					continue
 				}
 			}
 		case bytecodeOpMemberAccess:
@@ -981,24 +1038,83 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.ip++
 			}
 		case bytecodeOpEnterScope:
-			vm.env = runtime.NewEnvironment(vm.env)
+			if program.frameLayout == nil || program.frameLayout.needsEnvScopes {
+				vm.env = runtime.NewEnvironment(vm.env)
+			}
 			vm.ip++
 		case bytecodeOpExitScope:
-			count := instr.argCount
-			if count <= 0 {
-				count = 1
-			}
-			for idx := 0; idx < count; idx++ {
-				if vm.env.Parent() == nil {
-					return nil, fmt.Errorf("bytecode scope underflow")
+			if program.frameLayout == nil || program.frameLayout.needsEnvScopes {
+				count := instr.argCount
+				if count <= 0 {
+					count = 1
 				}
-				vm.env = vm.env.Parent()
+				for idx := 0; idx < count; idx++ {
+					if vm.env.Parent() == nil {
+						return nil, fmt.Errorf("bytecode scope underflow")
+					}
+					vm.env = vm.env.Parent()
+				}
 			}
 			vm.ip++
+		case bytecodeOpLoadSlot:
+			vm.stack = append(vm.stack, vm.slots[instr.target])
+			vm.ip++
+		case bytecodeOpStoreSlot:
+			val := vm.stack[len(vm.stack)-1]
+			vm.slots[instr.target] = val
+			vm.ip++
+		case bytecodeOpStoreSlotNew:
+			val := vm.stack[len(vm.stack)-1]
+			vm.slots[instr.target] = val
+			vm.ip++
+		case bytecodeOpCompoundAssignSlot:
+			{
+				if err := vm.execCompoundAssignSlot(instr); err != nil {
+					return nil, err
+				}
+			}
 		case bytecodeOpReturn:
 			val, err := vm.pop()
 			if err != nil {
 				return nil, err
+			}
+			if len(vm.callFrames) > 0 {
+				// Inline return: pop call frame and continue in caller.
+				if program.frameLayout != nil && program.frameLayout.returnType != nil && !inlineCoercionUnnecessary(program.frameLayout.returnType, val) {
+					coerced, coerceErr := vm.interp.coerceReturnValue(program.frameLayout.returnType, val, nil, vm.env)
+					if coerceErr != nil {
+						if instr.node != nil {
+							coerceErr = vm.interp.attachRuntimeContext(coerceErr, instr.node, vm.interp.stateFromEnv(vm.env))
+						}
+						return nil, coerceErr
+					}
+					val = coerced
+				}
+				frame := vm.callFrames[len(vm.callFrames)-1]
+				vm.callFrames = vm.callFrames[:len(vm.callFrames)-1]
+				if frame.hasImplicitReceiver {
+					state := vm.interp.stateFromEnv(vm.env)
+					state.popImplicitReceiver()
+				}
+				vm.ip = frame.returnIP
+				vm.slots = frame.slots
+				vm.env = frame.env
+				program = frame.program
+				instructions = program.instructions
+				vm.currentProgram = program
+				if len(vm.iterStack) > frame.iterBase {
+					for idx := len(vm.iterStack) - 1; idx >= frame.iterBase; idx-- {
+						if iter := vm.iterStack[idx].iter; iter != nil {
+							iter.Close()
+						}
+					}
+					vm.iterStack = vm.iterStack[:frame.iterBase]
+				}
+				if len(vm.loopStack) > frame.loopBase {
+					vm.loopStack = vm.loopStack[:frame.loopBase]
+				}
+				vm.stack = append(vm.stack, val)
+				continue
 			}
 			if instr.node != nil {
 				state := vm.interp.stateFromEnv(vm.env)

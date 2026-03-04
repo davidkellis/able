@@ -113,8 +113,8 @@ return int32(len(args))
 	if !ok {
 		t.Fatalf("expected integer result, got %T", value)
 	}
-	if iv.Val.Int64() != 2 {
-		t.Fatalf("expected extern to receive two args, got %s", iv.Val.String())
+	if iv.BigInt().Int64() != 2 {
+		t.Fatalf("expected extern to receive two args, got %s", iv.BigInt().String())
 	}
 }
 
@@ -174,7 +174,7 @@ return int32(len(args))
 	if !ok {
 		t.Fatalf("expected integer result, got %T", value)
 	}
-	if iv.Val.Int64() != 3 {
-		t.Fatalf("expected extern to receive three args, got %s", iv.Val.String())
+	if iv.BigInt().Int64() != 3 {
+		t.Fatalf("expected extern to receive three args, got %s", iv.BigInt().String())
 	}
 }

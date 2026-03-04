@@ -60,7 +60,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		if n.IntegerType != nil {
 			suffix = runtime.IntegerType(*n.IntegerType)
 		}
-		val := runtime.CloneBigInt(bigFromLiteral(n.Value))
+		val := bigFromLiteral(n.Value)
 		info, err := getIntegerInfo(suffix)
 		if err != nil {
 			return nil, err
@@ -68,7 +68,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		if err := ensureFitsInteger(info, val); err != nil {
 			return nil, err
 		}
-		return runtime.IntegerValue{Val: val, TypeSuffix: suffix}, nil
+		return runtime.NewBigIntValue(val, suffix), nil
 	case *ast.FloatLiteral:
 		suffix := runtime.FloatF64
 		if n.FloatType != nil {
@@ -174,6 +174,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return i.evaluateRescueExpression(n, env)
 	case *ast.SpawnExpression:
 		i.ensureConcurrencyBuiltins()
+		i.ensureMultiThread()
 		task := i.makeAsyncTask(n.Expression, env)
 		future := i.executor.RunFuture(task)
 		return future, nil
@@ -410,7 +411,7 @@ func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value)
 	case "-":
 		switch v := rawOperand.(type) {
 		case runtime.IntegerValue:
-			neg := new(big.Int).Neg(v.Val)
+			neg := new(big.Int).Neg(v.BigInt())
 			info, err := getIntegerInfo(v.TypeSuffix)
 			if err != nil {
 				return nil, err
@@ -418,7 +419,7 @@ func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value)
 			if err := ensureFitsInteger(info, neg); err != nil {
 				return nil, err
 			}
-			return runtime.IntegerValue{Val: neg, TypeSuffix: v.TypeSuffix}, nil
+			return runtime.NewBigIntValue(neg, v.TypeSuffix), nil
 		case runtime.FloatValue:
 			return runtime.FloatValue{Val: -v.Val, TypeSuffix: v.TypeSuffix}, nil
 		default:
@@ -438,15 +439,15 @@ func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value)
 					return nil, fmt.Errorf("unsupported integer width for bitwise not")
 				}
 				mask := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(width)), big.NewInt(1))
-				val := new(big.Int).Set(v.Val)
+				val := new(big.Int).Set(v.BigInt())
 				if val.Sign() < 0 {
 					return nil, fmt.Errorf("bitwise not on unsigned requires non-negative operand")
 				}
 				result := new(big.Int).Xor(mask, val)
-				return runtime.IntegerValue{Val: result, TypeSuffix: v.TypeSuffix}, nil
+				return runtime.NewBigIntValue(result, v.TypeSuffix), nil
 			}
-			neg := new(big.Int).Neg(new(big.Int).Add(v.Val, big.NewInt(1)))
-			return runtime.IntegerValue{Val: neg, TypeSuffix: v.TypeSuffix}, nil
+			neg := new(big.Int).Neg(new(big.Int).Add(v.BigInt(), big.NewInt(1)))
+			return runtime.NewBigIntValue(neg, v.TypeSuffix), nil
 		default:
 			if result, ok, err := i.applyUnaryInterface(operator, operand); ok {
 				return result, err
@@ -503,7 +504,7 @@ func (i *Interpreter) evaluateRangeValues(start runtime.Value, end runtime.Value
 				break
 			}
 		}
-		elements = append(elements, runtime.IntegerValue{Val: big.NewInt(int64(current)), TypeSuffix: runtime.IntegerI32})
+		elements = append(elements, runtime.NewSmallInt(int64(current), runtime.IntegerI32))
 	}
 	return &runtime.ArrayValue{Elements: elements}, nil
 }

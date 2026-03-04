@@ -57,7 +57,8 @@ func runBuild(args []string) int {
 		fmt.Fprintf(os.Stderr, "able build: failed to prepare build environment: %v\n", err)
 		return 1
 	}
-	searchPaths := collectSearchPaths(filepath.Dir(entryAbs), extras...)
+	opts := searchPathOptions{skipStdlibDiscovery: lock != nil}
+	searchPaths := collectSearchPaths(filepath.Dir(entryAbs), opts, extras...)
 
 	loader, err := driver.NewLoader(searchPaths)
 	if err != nil {

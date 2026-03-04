@@ -145,7 +145,7 @@ func TestDivModEuclidean(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer quotient, got %#v", quot)
 	}
-	if qVal.Val.Cmp(big.NewInt(-2)) != 0 {
+	if qVal.BigInt().Cmp(big.NewInt(-2)) != 0 {
 		t.Fatalf("expected quotient -2, got %v", qVal.Val)
 	}
 
@@ -157,7 +157,7 @@ func TestDivModEuclidean(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer remainder, got %#v", rem)
 	}
-	if rVal.Val.Cmp(big.NewInt(1)) != 0 {
+	if rVal.BigInt().Cmp(big.NewInt(1)) != 0 {
 		t.Fatalf("expected remainder 1, got %v", rVal.Val)
 	}
 }
@@ -189,14 +189,14 @@ func TestDivModStructResult(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer quotient field, got %#v", inst.Fields["quotient"])
 	}
-	if quotVal.Val.Cmp(big.NewInt(2)) != 0 {
+	if quotVal.BigInt().Cmp(big.NewInt(2)) != 0 {
 		t.Fatalf("expected quotient 2, got %v", quotVal.Val)
 	}
 	remVal, ok := inst.Fields["remainder"].(runtime.IntegerValue)
 	if !ok {
 		t.Fatalf("expected integer remainder field, got %#v", inst.Fields["remainder"])
 	}
-	if remVal.Val.Cmp(big.NewInt(1)) != 0 {
+	if remVal.BigInt().Cmp(big.NewInt(1)) != 0 {
 		t.Fatalf("expected remainder 1, got %v", remVal.Val)
 	}
 }
@@ -220,11 +220,11 @@ func TestRatioArithmetic(t *testing.T) {
 		t.Fatalf("expected Ratio struct definition")
 	}
 	numVal, ok := inst.Fields["num"].(runtime.IntegerValue)
-	if !ok || numVal.Val.Cmp(big.NewInt(3)) != 0 {
+	if !ok || numVal.BigInt().Cmp(big.NewInt(3)) != 0 {
 		t.Fatalf("expected numerator 3, got %#v", inst.Fields["num"])
 	}
 	denVal, ok := inst.Fields["den"].(runtime.IntegerValue)
-	if !ok || denVal.Val.Cmp(big.NewInt(4)) != 0 {
+	if !ok || denVal.BigInt().Cmp(big.NewInt(4)) != 0 {
 		t.Fatalf("expected denominator 4, got %#v", inst.Fields["den"])
 	}
 }
@@ -244,11 +244,11 @@ func TestRatioMixesWithIntegers(t *testing.T) {
 		t.Fatalf("expected Ratio struct instance, got %#v", val)
 	}
 	numVal, ok := inst.Fields["num"].(runtime.IntegerValue)
-	if !ok || numVal.Val.Cmp(big.NewInt(-1)) != 0 {
+	if !ok || numVal.BigInt().Cmp(big.NewInt(-1)) != 0 {
 		t.Fatalf("expected numerator -1, got %#v", inst.Fields["num"])
 	}
 	denVal, ok := inst.Fields["den"].(runtime.IntegerValue)
-	if !ok || denVal.Val.Cmp(big.NewInt(2)) != 0 {
+	if !ok || denVal.BigInt().Cmp(big.NewInt(2)) != 0 {
 		t.Fatalf("expected denominator 2, got %#v", inst.Fields["den"])
 	}
 }
@@ -282,7 +282,7 @@ func TestHashHelperBuiltins(t *testing.T) {
 	if !ok || f32Val.TypeSuffix != runtime.IntegerU32 {
 		t.Fatalf("expected u32 from __able_f32_bits, got %#v", f32Bits)
 	}
-	if f32Val.Val.Cmp(big.NewInt(0x3fc00000)) != 0 {
+	if f32Val.BigInt().Cmp(big.NewInt(0x3fc00000)) != 0 {
 		t.Fatalf("unexpected f32 bits %v", f32Val.Val)
 	}
 
@@ -294,7 +294,7 @@ func TestHashHelperBuiltins(t *testing.T) {
 	if !ok || f64Val.TypeSuffix != runtime.IntegerU64 {
 		t.Fatalf("expected u64 from __able_f64_bits, got %#v", f64Bits)
 	}
-	if f64Val.Val.Cmp(big.NewInt(0x3ff8000000000000)) != 0 {
+	if f64Val.BigInt().Cmp(big.NewInt(0x3ff8000000000000)) != 0 {
 		t.Fatalf("unexpected f64 bits %v", f64Val.Val)
 	}
 
@@ -311,7 +311,7 @@ func TestHashHelperBuiltins(t *testing.T) {
 		t.Fatalf("expected u64 from __able_u64_mul, got %#v", u64Mul)
 	}
 	expected := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(2))
-	if mulVal.Val.Cmp(expected) != 0 {
+	if mulVal.BigInt().Cmp(expected) != 0 {
 		t.Fatalf("unexpected u64 mul %v", mulVal.Val)
 	}
 }
@@ -363,7 +363,7 @@ func TestIntegerLiteralSuffixPreserved(t *testing.T) {
 	}
 	expected := big.NewInt(0).SetInt64(0)
 	expected.SetString("9007199254740993", 10)
-	if intVal.Val.Cmp(expected) != 0 {
+	if intVal.BigInt().Cmp(expected) != 0 {
 		t.Fatalf("expected %v, got %v", expected, intVal.Val)
 	}
 }
@@ -385,7 +385,7 @@ func TestIntegerArithmeticPromotion(t *testing.T) {
 	if intVal.TypeSuffix != runtime.IntegerI32 {
 		t.Fatalf("expected promotion to i32, got %s", intVal.TypeSuffix)
 	}
-	if intVal.Val.Cmp(big.NewInt(3)) != 0 {
+	if intVal.BigInt().Cmp(big.NewInt(3)) != 0 {
 		t.Fatalf("expected value 3, got %v", intVal.Val)
 	}
 }
@@ -465,7 +465,7 @@ func TestLogicalOperandsTruthiness(t *testing.T) {
 		switch tc.kind {
 		case "int":
 			intVal, ok := val.(runtime.IntegerValue)
-			if !ok || intVal.Val.Cmp(bigInt(tc.intValue)) != 0 {
+			if !ok || intVal.BigInt().Cmp(bigInt(tc.intValue)) != 0 {
 				t.Fatalf("%s: expected int %d, got %#v", tc.name, tc.intValue, val)
 			}
 		case "bool":
@@ -543,7 +543,7 @@ func TestBitshiftRangeChecks(t *testing.T) {
 		t.Fatalf("compound shift module failed: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(8)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(8)) != 0 {
 		t.Fatalf("expected 8 after shift, got %#v", result)
 	}
 }

@@ -37,11 +37,11 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 				switch val := value.(type) {
 				case runtime.IntegerValue:
 					if val.TypeSuffix != targetKind && integerRangeWithinKinds(val.TypeSuffix, targetKind) {
-						return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
+						return runtime.NewBigIntValue(new(big.Int).Set(val.BigInt()), targetKind), nil
 					}
 				case *runtime.IntegerValue:
 					if val != nil && val.TypeSuffix != targetKind && integerRangeWithinKinds(val.TypeSuffix, targetKind) {
-						return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
+						return runtime.NewBigIntValue(new(big.Int).Set(val.BigInt()), targetKind), nil
 					}
 				}
 			}
@@ -57,13 +57,11 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 						return runtime.FloatValue{Val: normalizeFloat(targetFloat, val.Val), TypeSuffix: targetFloat}, nil
 					}
 				case runtime.IntegerValue:
-					if val.Val != nil {
-						f := bigIntToFloat(val.Val)
-						return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
-					}
+					f := bigIntToFloat(val.BigInt())
+					return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
 				case *runtime.IntegerValue:
-					if val != nil && val.Val != nil {
-						f := bigIntToFloat(val.Val)
+					if val != nil {
+						f := bigIntToFloat(val.BigInt())
 						return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
 					}
 				}
@@ -150,14 +148,14 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 		if info, err := getIntegerInfo(targetKind); err == nil {
 			switch val := rawValue.(type) {
 			case runtime.IntegerValue:
-				wrapped := patternToInteger(bitPattern(val.Val, info), info)
-				return runtime.IntegerValue{Val: new(big.Int).Set(wrapped), TypeSuffix: targetKind}, nil
+				wrapped := patternToInteger(bitPattern(val.BigInt(), info), info)
+				return runtime.NewBigIntValue(new(big.Int).Set(wrapped), targetKind), nil
 			case *runtime.IntegerValue:
 				if val == nil {
 					return nil, fmt.Errorf("cannot cast <nil> to %s", targetKind)
 				}
-				wrapped := patternToInteger(bitPattern(val.Val, info), info)
-				return runtime.IntegerValue{Val: new(big.Int).Set(wrapped), TypeSuffix: targetKind}, nil
+				wrapped := patternToInteger(bitPattern(val.BigInt(), info), info)
+				return runtime.NewBigIntValue(new(big.Int).Set(wrapped), targetKind), nil
 			case runtime.FloatValue:
 				if math.IsNaN(val.Val) || math.IsInf(val.Val, 0) {
 					return nil, fmt.Errorf("cannot cast non-finite float to %s", targetKind)
@@ -167,7 +165,7 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 				if err := ensureFitsInteger(info, intVal); err != nil {
 					return nil, err
 				}
-				return runtime.IntegerValue{Val: intVal, TypeSuffix: targetKind}, nil
+				return runtime.NewBigIntValue(intVal, targetKind), nil
 			case *runtime.FloatValue:
 				if val == nil {
 					return nil, fmt.Errorf("cannot cast <nil> to %s", targetKind)
@@ -180,7 +178,7 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 				if err := ensureFitsInteger(info, intVal); err != nil {
 					return nil, err
 				}
-				return runtime.IntegerValue{Val: intVal, TypeSuffix: targetKind}, nil
+				return runtime.NewBigIntValue(intVal, targetKind), nil
 			}
 		}
 		if name == "f32" || name == "f64" {
@@ -194,16 +192,13 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 				}
 				return runtime.FloatValue{Val: normalizeFloat(targetFloat, val.Val), TypeSuffix: targetFloat}, nil
 			case runtime.IntegerValue:
-				if val.Val == nil {
-					return nil, fmt.Errorf("cannot cast <nil> to %s", name)
-				}
-				f := bigIntToFloat(val.Val)
+				f := bigIntToFloat(val.BigInt())
 				return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
 			case *runtime.IntegerValue:
-				if val == nil || val.Val == nil {
+				if val == nil {
 					return nil, fmt.Errorf("cannot cast <nil> to %s", name)
 				}
-				f := bigIntToFloat(val.Val)
+				f := bigIntToFloat(val.BigInt())
 				return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
 			}
 		}
@@ -534,7 +529,11 @@ func (i *Interpreter) structImplementsInterfaceByFields(inst *runtime.StructInst
 func rangeEndpoint(val runtime.Value) (int, error) {
 	switch v := val.(type) {
 	case runtime.IntegerValue:
-		return int(v.Val.Int64()), nil
+		n, ok := v.ToInt64()
+		if !ok {
+			return 0, fmt.Errorf("Range endpoint must be within int range")
+		}
+		return int(n), nil
 	case runtime.FloatValue:
 		if math.IsNaN(v.Val) || math.IsInf(v.Val, 0) {
 			return 0, fmt.Errorf("Range endpoint must be finite")

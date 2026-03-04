@@ -1,0 +1,75 @@
+package matrixmultiply
+
+import able.kernel.{Array}
+
+fn build_matrix(n: i32) -> Array (Array f64) {
+  t := 1.0 / (n as f64) / (n as f64)
+  m: Array (Array f64) := Array.new()
+  i := 0
+  loop {
+    if i >= n { break }
+    row: Array f64 := Array.new()
+    j := 0
+    loop {
+      if j >= n { break }
+      row.push(t * ((i - j) as f64) * ((i + j) as f64))
+      j = j + 1
+    }
+    m.push(row)
+    i = i + 1
+  }
+  m
+}
+
+fn matmul(a: Array (Array f64), b: Array (Array f64)) -> Array (Array f64) {
+  n := a.len()
+  c: Array (Array f64) := Array.new()
+  i := 0
+  loop {
+    if i >= n { break }
+    ci: Array f64 := Array.new()
+    j := 0
+    loop {
+      if j >= n { break }
+      ci.push(b.get(j)!.get(i)!)
+      j = j + 1
+    }
+    c.push(ci)
+    i = i + 1
+  }
+
+  d: Array (Array f64) := Array.new()
+  i = 0
+  loop {
+    if i >= n { break }
+    di: Array f64 := Array.new()
+    ai := a.get(i)!
+    j := 0
+    loop {
+      if j >= n { break }
+      s := 0.0
+      cj := c.get(j)!
+      k := 0
+      loop {
+        if k >= n { break }
+        s = s + ai.get(k)! * cj.get(k)!
+        k = k + 1
+      }
+      di.push(s)
+      j = j + 1
+    }
+    d.push(di)
+    i = i + 1
+  }
+  d
+}
+
+fn main() {
+  n := 1000
+  n = (n / 2) as i32 * 2
+  a := build_matrix(n)
+  b := build_matrix(n)
+  d := matmul(a, b)
+  half := (n / 2) as i32
+  print(d.get(half)!.get(half)!)
+}

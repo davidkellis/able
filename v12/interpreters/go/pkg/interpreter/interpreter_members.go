@@ -246,8 +246,10 @@ func (i *Interpreter) toArrayValue(val runtime.Value) (*runtime.ArrayValue, erro
 		var handle int64
 		if v.Fields != nil {
 			if raw, ok := v.Fields["storage_handle"]; ok {
-				if intVal, ok := raw.(runtime.IntegerValue); ok && intVal.Val != nil && intVal.Val.IsInt64() {
-					handle = intVal.Val.Int64()
+				if intVal, ok := raw.(runtime.IntegerValue); ok {
+					if h, ok := intVal.ToInt64(); ok {
+						handle = h
+					}
 				}
 			}
 		}
@@ -272,7 +274,7 @@ func (i *Interpreter) findIndexMethod(val runtime.Value, methodName string, ifac
 	if !ok {
 		return nil, nil
 	}
-	method, err := i.findMethod(info, methodName, iface, nil)
+	method, err := i.findMethodCached(info, methodName, iface)
 	if method != nil || err != nil {
 		return method, err
 	}
@@ -338,10 +340,13 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 			switch member.Name {
 			case "storage_handle":
 				intVal, ok := value.(runtime.IntegerValue)
-				if !ok || intVal.Val == nil || !intVal.Val.IsInt64() {
+				if !ok {
 					return nil, fmt.Errorf("array storage_handle must be an integer")
 				}
-				handle := intVal.Val.Int64()
+				handle, ok := intVal.ToInt64()
+				if !ok {
+					return nil, fmt.Errorf("array storage_handle must be an integer")
+				}
 				if handle <= 0 {
 					return nil, fmt.Errorf("array storage_handle must be positive")
 				}
@@ -420,17 +425,20 @@ func memberExpressionFromValue(member runtime.Value) (ast.Expression, error) {
 		}
 		return ast.NewIdentifier(m.Val), nil
 	case runtime.IntegerValue:
-		if m.Val == nil {
+		idx, ok := m.ToInt64()
+		if !ok {
 			return nil, fmt.Errorf("member access expects integer index")
 		}
-		idx := int(m.Val.Int64())
-		return ast.NewIntegerLiteral(big.NewInt(int64(idx)), nil), nil
+		return ast.NewIntegerLiteral(big.NewInt(idx), nil), nil
 	case *runtime.IntegerValue:
-		if m == nil || m.Val == nil {
+		if m == nil {
 			return nil, fmt.Errorf("member access expects integer index")
 		}
-		idx := int(m.Val.Int64())
-		return ast.NewIntegerLiteral(big.NewInt(int64(idx)), nil), nil
+		idx, ok := m.ToInt64()
+		if !ok {
+			return nil, fmt.Errorf("member access expects integer index")
+		}
+		return ast.NewIntegerLiteral(big.NewInt(idx), nil), nil
 	default:
 		return nil, fmt.Errorf("member access expects string or integer member")
 	}
@@ -448,7 +456,7 @@ func (i *Interpreter) findApplyMethod(val runtime.Value) (runtime.Value, error) 
 	if !ok {
 		return nil, nil
 	}
-	method, err := i.findMethod(info, "apply", "Apply", nil)
+	method, err := i.findMethodCached(info, "apply", "Apply")
 	if method != nil || err != nil {
 		return method, err
 	}
@@ -471,10 +479,11 @@ func (i *Interpreter) findApplyMethod(val runtime.Value) (runtime.Value, error) 
 func indexFromValue(val runtime.Value) (int, error) {
 	switch v := val.(type) {
 	case runtime.IntegerValue:
-		if v.Val == nil || !v.Val.IsInt64() {
+		n, ok := v.ToInt64()
+		if !ok {
 			return 0, fmt.Errorf("Array index must be within int range")
 		}
-		return int(v.Val.Int64()), nil
+		return int(n), nil
 	case runtime.FloatValue:
 		if math.IsNaN(v.Val) || math.IsInf(v.Val, 0) {
 			return 0, fmt.Errorf("Array index must be a number")
@@ -650,7 +659,7 @@ func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue,
 		method, found = bucket[ident.Name]
 	}
 	if !found {
-		candidate, err := i.findMethod(typeInfo{name: typeName}, ident.Name, "", nil)
+		candidate, err := i.findMethodCached(typeInfo{name: typeName}, ident.Name, "")
 		if err != nil {
 			return nil, err
 		}

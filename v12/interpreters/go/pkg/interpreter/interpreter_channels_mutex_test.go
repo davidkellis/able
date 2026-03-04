@@ -101,7 +101,7 @@ func TestChannelTrySendReceive(t *testing.T) {
 
 	recv1 := mustEval(ast.Call("__able_channel_try_receive", ast.ID("ch")))
 	intVal, ok := recv1.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(5)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected first try_receive = 5, got %#v", recv1)
 	}
 

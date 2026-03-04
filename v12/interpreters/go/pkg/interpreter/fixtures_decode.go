@@ -439,8 +439,8 @@ func assertResult(t testingT, dir string, manifest fixtureManifest, result runti
 		}
 		if exp.Value != nil {
 			expected := parseBigInt(exp.Value)
-			if v.Val.Cmp(expected) != 0 {
-				t.Fatalf("fixture %s expected value %v, got %v", dir, expected, v.Val)
+			if v.BigInt().Cmp(expected) != 0 {
+				t.Fatalf("fixture %s expected value %v, got %v", dir, expected, v.BigInt())
 			}
 		}
 	case "f32", "f64":
@@ -752,7 +752,7 @@ func formatRuntimeValue(val runtime.Value) string {
 	case runtime.VoidValue:
 		return "void"
 	case runtime.IntegerValue:
-		return v.Val.String()
+		return v.String()
 	case runtime.FloatValue:
 		return fmt.Sprintf("%g", v.Val)
 	default:

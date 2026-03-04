@@ -195,8 +195,8 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 			t.Fatalf("channel capacity type = %T, want runtime.IntegerValue", capacityVal)
 		}
 	}
-	if capacityInt.Val == nil || capacityInt.Val.Sign() != 0 {
-		t.Fatalf("channel capacity = %v, want 0", capacityInt.Val)
+	if capacityInt.Sign() != 0 {
+		t.Fatalf("channel capacity = %v, want 0", capacityInt.BigInt())
 	}
 
 	handleVal, ok := chanStruct.Fields["handle"]
@@ -211,8 +211,8 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 			t.Fatalf("channel handle type = %T, want runtime.IntegerValue", handleVal)
 		}
 	}
-	if handleInt.Val == nil || handleInt.Val.Sign() <= 0 {
-		t.Fatalf("channel handle not positive: %v", handleInt.Val)
+	if handleInt.Sign() <= 0 {
+		t.Fatalf("channel handle not positive: %v", handleInt.BigInt())
 	}
 	if handleInt.TypeSuffix != runtime.IntegerI64 {
 		t.Fatalf("channel handle suffix = %q, want %q", handleInt.TypeSuffix, runtime.IntegerI64)
@@ -239,8 +239,8 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 			t.Fatalf("mutex handle type = %T, want runtime.IntegerValue", mutexHandle)
 		}
 	}
-	if mutexHandleInt.Val == nil || mutexHandleInt.Val.Sign() <= 0 {
-		t.Fatalf("mutex handle not positive: %v", mutexHandleInt.Val)
+	if mutexHandleInt.Sign() <= 0 {
+		t.Fatalf("mutex handle not positive: %v", mutexHandleInt.BigInt())
 	}
 	if mutexHandleInt.TypeSuffix != runtime.IntegerI64 {
 		t.Fatalf("mutex handle suffix = %q, want %q", mutexHandleInt.TypeSuffix, runtime.IntegerI64)
@@ -258,8 +258,8 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 			t.Fatalf("channel_handle returned %T, want runtime.IntegerValue", callHandle)
 		}
 	}
-	if callHandleInt.Val == nil || callHandleInt.Val.Sign() <= 0 {
-		t.Fatalf("channel_handle result not positive: %v", callHandleInt.Val)
+	if callHandleInt.Sign() <= 0 {
+		t.Fatalf("channel_handle result not positive: %v", callHandleInt.BigInt())
 	}
 
 	mutexCall, err := interp.evaluateExpression(ast.Call("mutex_handle"), scope)
@@ -274,8 +274,8 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 			t.Fatalf("mutex_handle returned %T, want runtime.IntegerValue", mutexCall)
 		}
 	}
-	if mutexCallInt.Val == nil || mutexCallInt.Val.Sign() <= 0 {
-		t.Fatalf("mutex_handle result not positive: %v", mutexCallInt.Val)
+	if mutexCallInt.Sign() <= 0 {
+		t.Fatalf("mutex_handle result not positive: %v", mutexCallInt.BigInt())
 	}
 
 	if _, err := scope.Get("channel_handle_value"); err != nil {
@@ -404,8 +404,8 @@ fn main() -> i32 {
  `)
 
 	loader, err := driver.NewLoader([]driver.SearchPath{
-		{Path: filepath.Join("..", "..", "..", "..", "stdlib", "src"), Kind: driver.RootStdlib},
-		{Path: filepath.Join("..", "..", "..", "..", "kernel", "src"), Kind: driver.RootStdlib},
+		{Path: stdlibRoot, Kind: driver.RootStdlib},
+		{Path: kernelRoot, Kind: driver.RootStdlib},
 	})
 	if err != nil {
 		t.Fatalf("loader init: %v", err)
@@ -467,7 +467,7 @@ fn main() -> i32 {
 	if !ok {
 		t.Fatalf("expected integer result, got %T (%#v)", result, result)
 	}
-	if intResult.Val == nil || intResult.Val.Int64() != 5 {
-		t.Fatalf("unexpected result: %v", intResult.Val)
+	if intResult.BigInt().Int64() != 5 {
+		t.Fatalf("unexpected result: %v", intResult.BigInt())
 	}
 }

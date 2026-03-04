@@ -16,7 +16,7 @@ func durationFromValue(val runtime.Value) (time.Duration, error) {
 	switch v := val.(type) {
 	case runtime.IntegerValue:
 		limit := big.NewInt(maxSleepMilliseconds)
-		raw := new(big.Int).Set(v.Val)
+		raw := new(big.Int).Set(v.BigInt())
 		if raw.Sign() < 0 {
 			raw = big.NewInt(0)
 		}

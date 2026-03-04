@@ -162,10 +162,10 @@ func (i *Interpreter) coerceRuntimeToHost(typeExpr ast.TypeExpression, value run
 				return f.Val, nil
 			}
 			if iv, ok := value.(runtime.IntegerValue); ok {
-				return bigIntToFloat(iv.Val), nil
+				return bigIntToFloat(iv.BigInt()), nil
 			}
 			if iv, ok := value.(*runtime.IntegerValue); ok && iv != nil {
-				return bigIntToFloat(iv.Val), nil
+				return bigIntToFloat(iv.BigInt()), nil
 			}
 		case "i8", "i16", "i32", "i64":
 			return coerceIntValue(value, name)
@@ -368,16 +368,16 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 			}
 		case "i8", "i16", "i32", "i64":
 			if value.Kind() >= reflect.Int && value.Kind() <= reflect.Int64 {
-				return runtime.IntegerValue{Val: bigIntFromInt(value.Int()), TypeSuffix: runtime.IntegerType(name)}, nil
+				return runtime.NewSmallInt(value.Int(), runtime.IntegerType(name)), nil
 			}
 		case "u8", "u16", "u32", "u64":
 			if value.Kind() >= reflect.Uint && value.Kind() <= reflect.Uint64 {
-				return runtime.IntegerValue{Val: bigIntFromUint(value.Uint()), TypeSuffix: runtime.IntegerType(name)}, nil
+				return runtime.NewBigIntValue(bigIntFromUint(value.Uint()), runtime.IntegerType(name)), nil
 			}
 		case "i128", "u128":
 			if value.Kind() == reflect.Pointer {
 				if bi, ok := value.Interface().(*big.Int); ok && bi != nil {
-					return runtime.IntegerValue{Val: new(big.Int).Set(bi), TypeSuffix: runtime.IntegerType(name)}, nil
+					return runtime.NewBigIntValue(new(big.Int).Set(bi), runtime.IntegerType(name)), nil
 				}
 			}
 		case "void":
@@ -812,15 +812,12 @@ func coerceUintValue(value runtime.Value, kind string) (any, error) {
 func coerceBigInt(value runtime.Value) (any, error) {
 	switch v := value.(type) {
 	case runtime.IntegerValue:
-		if v.Val == nil {
-			return nil, fmt.Errorf("integer is nil")
-		}
-		return new(big.Int).Set(v.Val), nil
+		return new(big.Int).Set(v.BigInt()), nil
 	case *runtime.IntegerValue:
-		if v == nil || v.Val == nil {
+		if v == nil {
 			return nil, fmt.Errorf("integer is nil")
 		}
-		return new(big.Int).Set(v.Val), nil
+		return new(big.Int).Set(v.BigInt()), nil
 	}
 	return nil, fmt.Errorf("expected integer")
 }
@@ -828,12 +825,14 @@ func coerceBigInt(value runtime.Value) (any, error) {
 func toInt64(value runtime.Value) (int64, error) {
 	switch v := value.(type) {
 	case runtime.IntegerValue:
-		if v.Val != nil && v.Val.IsInt64() {
-			return v.Val.Int64(), nil
+		if n, ok := v.ToInt64(); ok {
+			return n, nil
 		}
 	case *runtime.IntegerValue:
-		if v != nil && v.Val != nil && v.Val.IsInt64() {
-			return v.Val.Int64(), nil
+		if v != nil {
+			if n, ok := v.ToInt64(); ok {
+				return n, nil
+			}
 		}
 	}
 	return 0, fmt.Errorf("expected integer")
@@ -842,19 +841,19 @@ func toInt64(value runtime.Value) (int64, error) {
 func toUint64(value runtime.Value) (uint64, error) {
 	switch v := value.(type) {
 	case runtime.IntegerValue:
-		if v.Val != nil && v.Val.IsUint64() {
-			return v.Val.Uint64(), nil
+		bi := v.BigInt()
+		if bi.IsUint64() {
+			return bi.Uint64(), nil
 		}
 	case *runtime.IntegerValue:
-		if v != nil && v.Val != nil && v.Val.IsUint64() {
-			return v.Val.Uint64(), nil
+		if v != nil {
+			bi := v.BigInt()
+			if bi.IsUint64() {
+				return bi.Uint64(), nil
+			}
 		}
 	}
 	return 0, fmt.Errorf("expected unsigned integer")
-}
-
-func bigIntFromInt(val int64) *big.Int {
-	return big.NewInt(val)
 }
 
 func bigIntFromUint(val uint64) *big.Int {

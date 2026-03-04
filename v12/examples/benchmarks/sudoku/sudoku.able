@@ -1,0 +1,130 @@
+package sudoku
+
+import able.kernel.{Array}
+import able.fs
+
+fn parse_board(line: String) -> Array (Array i32) {
+  board: Array (Array i32) := Array.new()
+  bytes := line.bytes()
+  row := 0
+  loop {
+    if row >= 9 { break }
+    r: Array i32 := Array.new()
+    col := 0
+    loop {
+      if col >= 9 { break }
+      b := bytes.next()
+      digit := b match {
+        case byte: u8 => (byte as i32) - 48,
+        case nil => 0
+      }
+      r.push(digit)
+      col = col + 1
+    }
+    board.push(r)
+    row = row + 1
+  }
+  board
+}
+
+fn is_valid(board: Array (Array i32), row: i32, col: i32, num: i32) -> bool {
+  i := 0
+  loop {
+    if i >= 9 { break }
+    if board.get(row)!.get(i)! == num { return false }
+    if board.get(i)!.get(col)! == num { return false }
+    i = i + 1
+  }
+  br := (row / 3) as i32 * 3
+  bc := (col / 3) as i32 * 3
+  i = br
+  loop {
+    if i >= br + 3 { break }
+    j := bc
+    loop {
+      if j >= bc + 3 { break }
+      if board.get(i)!.get(j)! == num { return false }
+      j = j + 1
+    }
+    i = i + 1
+  }
+  true
+}
+
+fn find_empty(board: Array (Array i32)) -> ?Array i32 {
+  i := 0
+  loop {
+    if i >= 9 { break }
+    j := 0
+    loop {
+      if j >= 9 { break }
+      if board.get(i)!.get(j)! == 0 {
+        pos: Array i32 := Array.new()
+        pos.push(i)
+        pos.push(j)
+        return pos
+      }
+      j = j + 1
+    }
+    i = i + 1
+  }
+  nil
+}
+
+fn solve(board: Array (Array i32)) -> bool {
+  empty := find_empty(board)
+  empty match {
+    case nil => { return true },
+    case pos: Array i32 => {
+      row := pos.get(0)!
+      col := pos.get(1)!
+      num := 1
+      loop {
+        if num > 9 { break }
+        if is_valid(board, row, col, num) {
+          board.get(row)!.set(col, num)
+          if solve(board) { return true }
+          board.get(row)!.set(col, 0)
+        }
+        num = num + 1
+      }
+      return false
+    }
+  }
+}
+
+fn board_to_string(board: Array (Array i32)) -> String {
+  result := ""
+  i := 0
+  loop {
+    if i >= 9 { break }
+    j := 0
+    loop {
+      if j >= 9 { break }
+      result = `${result}${board.get(i)!.get(j)!}`
+      j = j + 1
+    }
+    i = i + 1
+  }
+  result
+}
+
+fn main() {
+  lines := fs.read_lines("sudoku.txt")
+  iter := 0
+  loop {
+    if iter >= 10 { break }
+    i := 0
+    loop {
+      if i >= lines.len() { break }
+      puzzle := lines.get(i)!
+      if puzzle.len_bytes() >= 81 {
+        board := parse_board(puzzle)
+        solve(board)
+        print(board_to_string(board))
+      }
+      i = i + 1
+    }
+    iter = iter + 1
+  }
+}

@@ -85,7 +85,7 @@ func TestImportReexportChain(t *testing.T) {
 		t.Fatalf("entry module failed: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(42)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(42)) != 0 {
 		t.Fatalf("expected integer 42, got %#v", result)
 	}
 }
@@ -162,7 +162,7 @@ func TestImportReexportMultiHop(t *testing.T) {
 		t.Fatalf("entry module failed: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(42)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(42)) != 0 {
 		t.Fatalf("expected integer 42, got %#v", result)
 	}
 }
@@ -251,7 +251,7 @@ func TestDynImportAliasAndSelectors(t *testing.T) {
 		t.Fatalf("dyn import module failed: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(22)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(22)) != 0 {
 		t.Fatalf("expected integer 22, got %#v", result)
 	}
 	if env == nil {
@@ -488,7 +488,7 @@ func TestImportSelectorAliasBindsFunction(t *testing.T) {
 		t.Fatalf("consumer module evaluation failed: %v", err)
 	}
 	intVal, ok := value.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(42)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(42)) != 0 {
 		t.Fatalf("expected 42 from alias call, got %#v", value)
 	}
 
@@ -509,7 +509,7 @@ func TestImportSelectorAliasBindsFunction(t *testing.T) {
 		t.Fatalf("expected module binding for 'result': %v", err)
 	}
 	resultVal, ok := resultBinding.(runtime.IntegerValue)
-	if !ok || resultVal.Val.Cmp(bigInt(42)) != 0 {
+	if !ok || resultVal.BigInt().Cmp(bigInt(42)) != 0 {
 		t.Fatalf("expected result binding 42, got %#v", resultBinding)
 	}
 }
@@ -643,7 +643,7 @@ func TestDynImportSelectorsAndAlias(t *testing.T) {
 		t.Fatalf("dyn import selectors failed: %v", err)
 	}
 	intVal, ok := value.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(11)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(11)) != 0 {
 		t.Fatalf("expected 11 from dyn selector, got %#v", value)
 	}
 
@@ -657,7 +657,7 @@ func TestDynImportSelectorsAndAlias(t *testing.T) {
 		t.Fatalf("dyn import alias failed: %v", err)
 	}
 	aliasInt, ok := aliasResult.(runtime.IntegerValue)
-	if !ok || aliasInt.Val.Cmp(bigInt(11)) != 0 {
+	if !ok || aliasInt.BigInt().Cmp(bigInt(11)) != 0 {
 		t.Fatalf("expected 11 from dyn alias, got %#v", aliasResult)
 	}
 	aliasPkg, err := env.Get("D")
@@ -715,7 +715,7 @@ func TestDynImportWildcardSkipsPrivate(t *testing.T) {
 		t.Fatalf("dyn wildcard import failed: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(11)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(11)) != 0 {
 		t.Fatalf("expected 11 from dyn wildcard, got %#v", result)
 	}
 	if env == nil {
@@ -827,7 +827,7 @@ func TestNestedPackageReexport(t *testing.T) {
 		t.Fatalf("consumer evaluation failed: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(16)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(16)) != 0 {
 		t.Fatalf("expected 16 from nested package import, got %#v", result)
 	}
 }

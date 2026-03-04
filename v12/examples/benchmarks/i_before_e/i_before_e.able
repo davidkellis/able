@@ -1,0 +1,26 @@
+package ibeforee
+
+import able.fs
+import able.os
+
+fn is_valid(word: String) -> bool {
+  cleaned := word.replace("cei", "")
+  !cleaned.contains("ei")
+}
+
+fn main() {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "words.txt" }
+  lines := fs.read_lines(path)
+  i := 0
+  loop {
+    if i >= lines.len() { break }
+    word := lines.get(i)!
+    if word.len_bytes() > 0 {
+      if !is_valid(word) {
+        print(word)
+      }
+    }
+    i = i + 1
+  }
+}

@@ -70,7 +70,7 @@ func TestEvaluateBinaryAddition(t *testing.T) {
 		t.Fatalf("module evaluation failed: %v", err)
 	}
 	iv, ok := result.(runtime.IntegerValue)
-	if !ok || iv.Val.Cmp(bigInt(3)) != 0 {
+	if !ok || iv.BigInt().Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected integer 3, got %#v", result)
 	}
 }

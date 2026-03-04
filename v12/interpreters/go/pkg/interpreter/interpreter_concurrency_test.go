@@ -30,7 +30,7 @@ func TestFutureHandleResolvesValue(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", valueVal)
 	}
-	if intVal.Val.Cmp(bigInt(5)) != 0 {
+	if intVal.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected value 5, got %v", intVal.Val)
 	}
 
@@ -115,7 +115,7 @@ func TestSpawnFutureValue(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", valueVal)
 	}
-	if intVal.Val.Cmp(bigInt(7)) != 0 {
+	if intVal.BigInt().Cmp(bigInt(7)) != 0 {
 		t.Fatalf("expected value 7, got %v", intVal.Val)
 	}
 
@@ -281,13 +281,13 @@ func TestFutureMemoizesResult(t *testing.T) {
 
 	first := interp.futureValue(future)
 	intVal, ok := first.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(1)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected future value 1, got %#v", first)
 	}
 
 	second := interp.futureValue(future)
 	intVal, ok = second.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(1)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected memoized future value 1, got %#v", second)
 	}
 
@@ -296,7 +296,7 @@ func TestFutureMemoizesResult(t *testing.T) {
 		t.Fatalf("failed to read count: %v", err)
 	}
 	countInt, ok := countVal.(runtime.IntegerValue)
-	if !ok || countInt.Val.Cmp(bigInt(1)) != 0 {
+	if !ok || countInt.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected count to be 1, got %#v", countVal)
 	}
 }

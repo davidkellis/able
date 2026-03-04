@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"fmt"
-	"math/big"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
@@ -27,7 +26,7 @@ func (i *Interpreter) evaluateMapLiteral(lit *ast.MapLiteral, env *runtime.Envir
 	if err != nil {
 		return nil, err
 	}
-	handleValue := runtime.IntegerValue{Val: big.NewInt(handle), TypeSuffix: runtime.IntegerI64}
+	handleValue := runtime.NewSmallInt(handle, runtime.IntegerI64)
 	instance := &runtime.StructInstanceValue{
 		Definition: structDef,
 		Fields:     map[string]runtime.Value{"handle": handleValue},
@@ -143,15 +142,18 @@ func (i *Interpreter) hashMapHandleFromInstance(inst *runtime.StructInstanceValu
 	}
 	switch v := raw.(type) {
 	case runtime.IntegerValue:
-		if v.Val == nil || !v.Val.IsInt64() {
-			return 0, fmt.Errorf("hash map handle is invalid")
+		if h, ok := v.ToInt64(); ok {
+			return h, nil
 		}
-		return v.Val.Int64(), nil
+		return 0, fmt.Errorf("hash map handle is invalid")
 	case *runtime.IntegerValue:
-		if v == nil || v.Val == nil || !v.Val.IsInt64() {
+		if v == nil {
 			return 0, fmt.Errorf("hash map handle is invalid")
 		}
-		return v.Val.Int64(), nil
+		if h, ok := v.ToInt64(); ok {
+			return h, nil
+		}
+		return 0, fmt.Errorf("hash map handle is invalid")
 	default:
 		return 0, fmt.Errorf("hash map handle must be an integer")
 	}

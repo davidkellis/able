@@ -9,8 +9,17 @@ const __able_max_sleep_ms = int64(2_147_483_647)
 func __able_duration_from_value(val runtime.Value) (time.Duration, error) {
 	switch v := __able_unwrap_interface(val).(type) {
 	case runtime.IntegerValue:
+		if n, ok := v.ToInt64(); ok {
+			if n < 0 {
+				n = 0
+			}
+			if n > __able_max_sleep_ms {
+				n = __able_max_sleep_ms
+			}
+			return time.Duration(n) * time.Millisecond, nil
+		}
 		limit := big.NewInt(__able_max_sleep_ms)
-		raw := new(big.Int).Set(v.Val)
+		raw := new(big.Int).Set(v.BigInt())
 		if raw.Sign() < 0 {
 			raw = big.NewInt(0)
 		}
@@ -19,11 +28,20 @@ func __able_duration_from_value(val runtime.Value) (time.Duration, error) {
 		}
 		return time.Duration(raw.Int64()) * time.Millisecond, nil
 	case *runtime.IntegerValue:
-		if v == nil || v.Val == nil {
+		if v == nil {
 			return 0, fmt.Errorf("sleep_ms expects a numeric duration")
 		}
+		if n, ok := v.ToInt64(); ok {
+			if n < 0 {
+				n = 0
+			}
+			if n > __able_max_sleep_ms {
+				n = __able_max_sleep_ms
+			}
+			return time.Duration(n) * time.Millisecond, nil
+		}
 		limit := big.NewInt(__able_max_sleep_ms)
-		raw := new(big.Int).Set(v.Val)
+		raw := new(big.Int).Set(v.BigInt())
 		if raw.Sign() < 0 {
 			raw = big.NewInt(0)
 		}

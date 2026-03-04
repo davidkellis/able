@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"fmt"
-	"math/big"
 )
 
 type ArrayState struct {
@@ -200,15 +199,18 @@ func arrayHandleKind(handle int64) (monoArrayKind, error) {
 func int64FromValue(value Value) (int64, error) {
 	switch v := value.(type) {
 	case IntegerValue:
-		if v.Val == nil || !v.Val.IsInt64() {
-			return 0, fmt.Errorf("array element integer is out of range")
+		if n, ok := v.ToInt64(); ok {
+			return n, nil
 		}
-		return v.Val.Int64(), nil
+		return 0, fmt.Errorf("array element integer is out of range")
 	case *IntegerValue:
-		if v == nil || v.Val == nil || !v.Val.IsInt64() {
-			return 0, fmt.Errorf("array element integer is out of range")
+		if v == nil {
+			return 0, fmt.Errorf("array element integer is nil")
 		}
-		return v.Val.Int64(), nil
+		if n, ok := v.ToInt64(); ok {
+			return n, nil
+		}
+		return 0, fmt.Errorf("array element integer is out of range")
 	default:
 		return 0, fmt.Errorf("array element must be an integer")
 	}
@@ -251,11 +253,11 @@ func u8FromValue(value Value) (uint8, error) {
 }
 
 func i32ToValue(v int32) Value {
-	return IntegerValue{Val: big.NewInt(int64(v)), TypeSuffix: IntegerI32}
+	return NewSmallInt(int64(v), IntegerI32)
 }
 
 func i64ToValue(v int64) Value {
-	return IntegerValue{Val: big.NewInt(v), TypeSuffix: IntegerI64}
+	return NewSmallInt(v, IntegerI64)
 }
 
 func boolToValue(v bool) Value {
@@ -263,7 +265,7 @@ func boolToValue(v bool) Value {
 }
 
 func u8ToValue(v uint8) Value {
-	return IntegerValue{Val: big.NewInt(int64(v)), TypeSuffix: IntegerU8}
+	return NewSmallInt(int64(v), IntegerU8)
 }
 
 func deoptTypedArrayToDynamic(handle int64) (*ArrayState, error) {

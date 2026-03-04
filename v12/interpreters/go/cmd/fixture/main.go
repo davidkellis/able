@@ -135,7 +135,7 @@ func runFixture(dir, entry string, setup []string, executor interpreter.Executor
 
 	loadStdlib := func(entryFile string) error {
 		repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
-		stdlibRoot := filepath.Join(repoRoot, "v12", "stdlib", "src")
+		stdlibRoot := findFixtureStdlibRoot(repoRoot)
 		kernelRoot := filepath.Join(repoRoot, "v12", "kernel", "src")
 		loader, err := driver.NewLoader([]driver.SearchPath{
 			{Path: stdlibRoot, Kind: driver.RootStdlib},
@@ -385,6 +385,47 @@ func fixtureDriverModule(module *ast.Module, origin string) *driver.Module {
 		Imports:     imports,
 		NodeOrigins: origins,
 	}
+}
+
+func findFixtureStdlibRoot(repoRoot string) string {
+	candidates := []string{
+		filepath.Join(repoRoot, "able-stdlib", "src"),
+		filepath.Join(repoRoot, "able_stdlib", "src"),
+		filepath.Join(repoRoot, "stdlib", "src"),
+	}
+	if parent := filepath.Dir(repoRoot); parent != repoRoot {
+		candidates = append(candidates,
+			filepath.Join(parent, "able-stdlib", "src"),
+			filepath.Join(parent, "able_stdlib", "src"),
+		)
+	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+	}
+	// Check $ABLE_HOME cache.
+	home := os.Getenv("ABLE_HOME")
+	if home == "" {
+		if userHome, err := os.UserHomeDir(); err == nil {
+			home = filepath.Join(userHome, ".able")
+		}
+	}
+	if home != "" {
+		cacheBase := filepath.Join(home, "pkg", "src", "able")
+		if entries, err := os.ReadDir(cacheBase); err == nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				src := filepath.Join(cacheBase, entry.Name(), "src")
+				if info, err := os.Stat(src); err == nil && info.IsDir() {
+					return src
+				}
+			}
+		}
+	}
+	return filepath.Join(repoRoot, "stdlib", "src")
 }
 
 func registerPrint(interp *interpreter.Interpreter, buffer *[]string) {

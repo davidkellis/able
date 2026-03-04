@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strconv"
 	"sync"
 	"time"
 
@@ -179,7 +180,96 @@ const (
 
 type IntegerValue struct {
 	Val        *big.Int
+	small      int64
+	isSmall    bool
 	TypeSuffix IntegerType
+}
+
+// NewSmallInt constructs an IntegerValue backed by a native int64 (no big.Int allocation).
+func NewSmallInt(val int64, suffix IntegerType) IntegerValue {
+	return IntegerValue{small: val, isSmall: true, TypeSuffix: suffix}
+}
+
+// NewBigIntValue constructs an IntegerValue backed by a *big.Int.
+func NewBigIntValue(val *big.Int, suffix IntegerType) IntegerValue {
+	return IntegerValue{Val: val, TypeSuffix: suffix}
+}
+
+// IsSmall reports whether this value is stored as a native int64.
+func (v IntegerValue) IsSmall() bool { return v.isSmall }
+
+// Int64Fast returns the int64 value without checks. Only valid when IsSmall() is true.
+func (v IntegerValue) Int64Fast() int64 { return v.small }
+
+// BigInt returns the *big.Int representation. If the value is small, a new big.Int is allocated.
+func (v IntegerValue) BigInt() *big.Int {
+	if v.Val != nil {
+		return v.Val
+	}
+	return big.NewInt(v.small)
+}
+
+// ToInt64 returns the int64 representation and whether it fits.
+func (v IntegerValue) ToInt64() (int64, bool) {
+	if v.isSmall {
+		return v.small, true
+	}
+	if v.Val != nil && v.Val.IsInt64() {
+		return v.Val.Int64(), true
+	}
+	return 0, false
+}
+
+// CmpInt compares this integer value to another. Returns -1, 0, or 1.
+func (v IntegerValue) CmpInt(other IntegerValue) int {
+	lv, lok := v.ToInt64()
+	rv, rok := other.ToInt64()
+	if lok && rok {
+		if lv < rv {
+			return -1
+		}
+		if lv > rv {
+			return 1
+		}
+		return 0
+	}
+	return v.BigInt().Cmp(other.BigInt())
+}
+
+// Sign returns the sign of the integer: -1, 0, or 1.
+func (v IntegerValue) Sign() int {
+	if v.isSmall {
+		if v.small < 0 {
+			return -1
+		}
+		if v.small > 0 {
+			return 1
+		}
+		return 0
+	}
+	if v.Val != nil {
+		return v.Val.Sign()
+	}
+	return 0
+}
+
+// IsZero reports whether the integer value is zero.
+func (v IntegerValue) IsZero() bool {
+	if v.isSmall {
+		return v.small == 0
+	}
+	return v.Val != nil && v.Val.Sign() == 0
+}
+
+// String returns the decimal string representation without allocating a big.Int for small values.
+func (v IntegerValue) String() string {
+	if v.isSmall {
+		return strconv.FormatInt(v.small, 10)
+	}
+	if v.Val != nil {
+		return v.Val.String()
+	}
+	return "0"
 }
 
 func (v IntegerValue) Kind() Kind { return KindInteger }

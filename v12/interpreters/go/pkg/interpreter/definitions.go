@@ -97,7 +97,30 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 	if def == nil || def.Body == nil {
 		return nil, nil
 	}
-	return i.lowerBlockExpressionToBytecode(def.Body, true)
+	layout := analyzeFrameLayout(def)
+	if layout == nil {
+		return i.lowerBlockExpressionToBytecode(def.Body, true)
+	}
+	// Slot-enabled lowering: set up context with param slots.
+	ctx := &bytecodeLoweringContext{
+		instructions:           make([]bytecodeInstruction, 0, len(def.Body.Body)*2),
+		allowPlaceholderLambda: true,
+		frameLayout:            layout,
+		nextSlot:               layout.paramSlots,
+	}
+	paramScope := make(map[string]int, layout.paramSlots)
+	for idx, param := range def.Params {
+		if ident, ok := param.Name.(*ast.Identifier); ok {
+			paramScope[ident.Name] = idx
+		}
+	}
+	ctx.slotScopes = []map[string]int{paramScope}
+	if err := emitBlock(ctx, i, def.Body); err != nil {
+		return nil, err
+	}
+	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
+	layout.slotCount = ctx.nextSlot
+	return &bytecodeProgram{instructions: ctx.instructions, frameLayout: layout}, nil
 }
 
 func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, env *runtime.Environment) (runtime.Value, error) {
@@ -335,8 +358,10 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			}
 			if isGenericTarget {
 				i.genericImpls = append(i.genericImpls, entry)
+				i.invalidateMethodCache()
 			} else {
 				i.implMethods[variant.typeName] = append(i.implMethods[variant.typeName], entry)
+				i.invalidateMethodCache()
 				if ifaceName == "Range" {
 					i.registerRangeImplementation(entry, canonicalDef.InterfaceArgs)
 				}

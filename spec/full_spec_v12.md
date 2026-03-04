@@ -4477,10 +4477,11 @@ Typing and dynamic imports:
 
 ### 13.6. Standard Library Packaging (`able.*`)
 
--   Able distributes Able-authored kernel and standard library bundles versioned with the toolchain. The kernel lives under `<tool-root>/kernel/src` and is automatically injected ahead of workspace code to surface host bridges (scheduler/channel/mutex/string/hasher shims).
--   The standard library is a normal package named `able` resolved through the usual search path + lockfile rules. When no pinned dependency is present, tooling falls back to the bundled copy at `<tool-root>/stdlib/src` (or `<tool-root>/stdlib/v12/src` when installed in a multi-version layout).
--   `import able.*` always resolves against whichever `able` root the loader selects. User code MUST NOT publish an `able` namespace; any root whose manifest declares `name: able` is treated as the stdlib, and the loader reports collisions rather than shadowing.
--   Tooling treats the bundled kernel/stdlib as read-only. Local edits rely on the dependency resolver (lockfile pin) or general search-path overrides (`ABLE_MODULE_PATHS`/workspace deps); there is no stdlib-specific environment knob.
+-   Able distributes an Able-authored **kernel** bundle versioned with the toolchain. The kernel lives under `<tool-root>/kernel/src` (or an equivalent embedded extraction cache) and is automatically injected ahead of workspace code to surface host bridges (scheduler/channel/mutex/string/hasher shims).
+-   The standard library is a normal package named `able`, but its canonical source is an external git repository managed by the dependency resolver. Tooling installs/caches it under `$ABLE_HOME/pkg/src/able/<version>/src` (for example via `able setup`) and resolves it through the normal lockfile + search-path model.
+-   `import able.*` always resolves against whichever canonical `able` root the loader selects (lockfile pin, override, or cached canonical install). User code MUST NOT publish an `able` namespace; any root whose manifest declares `name: able` is treated as stdlib, and collisions are reported rather than shadowed.
+-   Global resolver overrides map canonical git URLs to local package roots (persisted under `$ABLE_HOME/overrides.yml`; CLI surface: `able override add/remove/list`). Overrides are intended for development/testing and apply before remote fetch for matching git dependencies.
+-   Tooling treats resolved kernel/stdlib roots as read-only inputs at runtime. Local edits rely on dependency resolution controls (lockfile pin, global override, or `ABLE_MODULE_PATHS` search roots).
 
 ### 13.7. Module Search Paths & Environment Overrides
 
@@ -4490,7 +4491,10 @@ Typing and dynamic imports:
 2.  The current working directory and any explicit paths passed on the CLI (reserved for future flags) so ad-hoc scripts can import sibling files without manifests.
 3.  Entries from `ABLE_PATH` (OS path list). This predates `ABLE_MODULE_PATHS` and is kept for backward compatibility.
 4.  Entries from `ABLE_MODULE_PATHS` (also an OS path list). This is the preferred knob for injecting additional package roots—fixtures, local dependency mirrors, dynamic package sandboxes, etc. Both interpreters honor it for static imports *and* `dynimport`.
-5.  Bundled kernel/stdlib roots discovered via the auto-detection logic described in §13.6 (including installed bundles) plus any resolver-provided copies (e.g., a lockfile pin for `able`).
+5.  Canonical stdlib + kernel roots selected by resolver/tooling:
+    - cached canonical installs under `$ABLE_HOME/pkg/src/...` (including `able`),
+    - resolver-selected roots from lockfile sources,
+    - kernel roots discovered from tool installation paths or embedded-kernel extraction.
 
 Each search root is normalised to an absolute directory, verified to exist, and assigned a root package name. If a `package.yml` is present, its `name` field (after sanitising hyphen → underscore) becomes the root segment; otherwise the directory name is used. All `.able` files under the root participate in package assembly, and `package` statements inside those files may append further segments. If the same package path appears in multiple roots, the loader reports a collision rather than silently shadowing one with another.
 
@@ -4502,7 +4506,7 @@ Many language features rely on interfaces expected to be in the standard library
 
 Editorial note on built-ins vs. stdlib:
 
-- Aside from primitives (`i*`, `u*`, `f*`, `bool`, `char`, `nil`, `void`), core collection/concurrency types used in this spec (e.g., `String`, `Array T`, `HashMap K V`, `Channel T`, `Mutex`, `Range`, plus interfaces like `Map K V`) are defined in the standard library. Syntactic constructs that reference them (array literals/patterns, indexing, ranges `..`/`...`) rely on those stdlib interfaces being in scope (e.g., `Index`, `Iterable`, `Range`). Implementations MUST provide a canonical stdlib that satisfies these expectations for the syntax to be usable. The kernel library bundled with the interpreter (v12 loads `v12/kernel`) supplies the foundational interfaces and minimal implementations; the stdlib is a normal dependency resolved via the package manager (defaulting to the bundled `able` stdlib when unspecified).
+- Aside from primitives (`i*`, `u*`, `f*`, `bool`, `char`, `nil`, `void`), core collection/concurrency types used in this spec (e.g., `String`, `Array T`, `HashMap K V`, `Channel T`, `Mutex`, `Range`, plus interfaces like `Map K V`) are defined in the standard library. Syntactic constructs that reference them (array literals/patterns, indexing, ranges `..`/`...`) rely on those stdlib interfaces being in scope (e.g., `Index`, `Iterable`, `Range`). Implementations MUST provide a canonical stdlib that satisfies these expectations for the syntax to be usable. The kernel library is bundled with the toolchain/runtime; the stdlib is resolved as a normal dependency (defaulting to the canonical cached/installable `able` package when unspecified).
 
 ### 14.1. Language-Supported Interface Catalogue
 

@@ -8,6 +8,11 @@ This list tracks the remaining v12 items after audit; completed work should be r
 ## Compiler AOT gaps
 - Evaluate whether no-interpreter static runtimes should add runtime-independent alias/constraint revalidation for generic interface dispatch, or keep this permanently compile-time-only and document it as final.
 
+## Stdlib externalization gaps
+- Confirm and document canonical stdlib resolution contract end-to-end (`able setup`, cache layout, lockfile pins, and `able override` precedence).
+- Specify stdlib version-selection policy when no explicit dependency is pinned (toolchain pin vs branch/tag floating behavior).
+- Clarify collision/error semantics when multiple `name: able` roots are visible through `ABLE_MODULE_PATHS`, lockfile sources, or overrides.
+
 ## Compiler AOT performance / dynamic-carrier staged limits
 - `runtime.Value` usage categories are now documented in `spec/full_spec_v12.md` under the AOT boundary section.
 - Desired end-state: compiled polymorphism lowers primarily to host-native mechanisms (Go interfaces/concrete dispatch/generic specialization), with `runtime.Value` used only for explicit dynamic boundaries and residual non-representable cases.

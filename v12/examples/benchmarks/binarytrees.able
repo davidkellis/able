@@ -1,0 +1,59 @@
+package binarytrees
+
+struct Node {
+  left: ?Node,
+  right: ?Node
+}
+
+fn make_tree(depth: i32) -> Node {
+  if depth <= 0 {
+    return Node { left: nil, right: nil }
+  }
+  Node {
+    left: make_tree(depth - 1),
+    right: make_tree(depth - 1)
+  }
+}
+
+fn check_tree(node: Node) -> i32 {
+  node.left match {
+    case nil => 1,
+    case left: Node => {
+      right_check := node.right match {
+        case nil => 0,
+        case right: Node => check_tree(right)
+      }
+      1 + check_tree(left) + right_check
+    }
+  }
+}
+
+fn main() {
+  n := 21
+  min_depth := 4
+  max_depth := n
+  if min_depth + 2 > n { max_depth = min_depth + 2 }
+  stretch_depth := max_depth + 1
+
+  check := check_tree(make_tree(stretch_depth))
+  print(`stretch tree of depth ${stretch_depth}\t check: ${check}`)
+
+  long_lived_tree := make_tree(max_depth)
+
+  depth := min_depth
+  loop {
+    if depth > max_depth { break }
+    iterations := 1 .<< (max_depth - depth + min_depth)
+    check = 0
+    i := 1
+    loop {
+      if i > iterations { break }
+      check = check + check_tree(make_tree(depth))
+      i = i + 1
+    }
+    print(`${iterations}\t trees of depth ${depth}\t check: ${check}`)
+    depth = depth + 2
+  }
+
+  print(`long lived tree of depth ${max_depth}\t check: ${check_tree(long_lived_tree)}`)
+}

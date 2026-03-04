@@ -136,7 +136,7 @@ fn stdlib_message() -> string {
 		t.Fatalf("Chdir: %v", err)
 	}
 
-	paths := collectSearchPaths(tempDir)
+	paths := collectSearchPaths(tempDir, searchPathOptions{})
 	if !containsSearchPath(paths, stdlibSrc) && !containsSearchPath(paths, stdlibRoot) {
 		t.Fatalf("expected search paths to include stdlib: %v", paths)
 	}
@@ -234,7 +234,7 @@ func TestCollectSearchPathsIncludesAbleModulePaths(t *testing.T) {
 	joined := strings.Join([]string{extraOne, extraTwo}, string(os.PathListSeparator))
 	t.Setenv("ABLE_MODULE_PATHS", joined)
 
-	paths := collectSearchPaths(tempDir)
+	paths := collectSearchPaths(tempDir, searchPathOptions{})
 	if !containsSearchPath(paths, extraOne) || !containsSearchPath(paths, extraTwo) {
 		t.Fatalf("expected search paths to include %s and %s, got %v", extraOne, extraTwo, paths)
 	}
@@ -259,11 +259,11 @@ func TestFindStdlibRootsPreferFlattenedLayout(t *testing.T) {
 	}
 }
 
-func TestFindStdlibRootsDetectsV12Layout(t *testing.T) {
+func TestFindStdlibRootsDetectsAbleStdlibLayout(t *testing.T) {
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
 	workDir := filepath.Join(repoRoot, "workspace")
-	stdlibDir := filepath.Join(repoRoot, "v12", "stdlib", "src")
+	stdlibDir := filepath.Join(repoRoot, "able-stdlib", "src")
 
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		t.Fatalf("mkdir workspace: %v", err)
@@ -311,11 +311,12 @@ func TestFindKernelRootsDetectsV12Layout(t *testing.T) {
 	}
 }
 
-func TestRunFileAutoDetectsBundledV12Stdlib(t *testing.T) {
+func TestRunFileAutoDetectsCachedStdlib(t *testing.T) {
 	root := t.TempDir()
-	repoRoot := filepath.Join(root, "repo")
-	stdlibSrc := filepath.Join(repoRoot, "v12", "stdlib", "src")
-	appRoot := filepath.Join(repoRoot, "app")
+	cacheDir := filepath.Join(root, "cache")
+	stdlibSrc := filepath.Join(cacheDir, "pkg", "src", "able", defaultStdlibVersion, "src")
+	stdlibRoot := filepath.Join(cacheDir, "pkg", "src", "able", defaultStdlibVersion)
+	appRoot := filepath.Join(root, "app")
 
 	if err := os.MkdirAll(stdlibSrc, 0o755); err != nil {
 		t.Fatalf("mkdir stdlib: %v", err)
@@ -324,11 +325,11 @@ func TestRunFileAutoDetectsBundledV12Stdlib(t *testing.T) {
 		t.Fatalf("mkdir app: %v", err)
 	}
 
-	writeFile(t, filepath.Join(repoRoot, "v12", "stdlib", "package.yml"), "name: able\n")
+	writeFile(t, filepath.Join(stdlibRoot, "package.yml"), "name: able\nversion: "+defaultStdlibVersion+"\n")
 	writeFile(t, filepath.Join(stdlibSrc, "custom.able"), `
 package custom
 
-fn greeting() -> string { "hello from bundled stdlib" }
+fn greeting() -> string { "hello from cached stdlib" }
 `)
 
 	writeFile(t, filepath.Join(appRoot, "main.able"), `
@@ -340,6 +341,8 @@ fn main() {
   print(greeting())
 }
 `)
+
+	t.Setenv("ABLE_HOME", cacheDir)
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -356,7 +359,7 @@ fn main() {
 	if code != 0 {
 		t.Fatalf("run returned %d stderr=%q", code, stderr)
 	}
-	if !strings.Contains(stdout, "hello from bundled stdlib") {
+	if !strings.Contains(stdout, "hello from cached stdlib") {
 		t.Fatalf("expected stdlib greeting in stdout, got %q", stdout)
 	}
 }

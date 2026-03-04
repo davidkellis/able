@@ -110,18 +110,18 @@ func (i *Interpreter) concurrencyError(name, message string) error {
 func (i *Interpreter) int64FromValue(val runtime.Value, label string) (int64, error) {
 	switch v := val.(type) {
 	case runtime.IntegerValue:
-		if !v.Val.IsInt64() {
-			return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
+		if n, ok := v.ToInt64(); ok {
+			return n, nil
 		}
-		return v.Val.Int64(), nil
+		return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
 	case *runtime.IntegerValue:
-		if v == nil || v.Val == nil {
+		if v == nil {
 			return 0, fmt.Errorf("%s is nil", label)
 		}
-		if !v.Val.IsInt64() {
-			return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
+		if n, ok := v.ToInt64(); ok {
+			return n, nil
 		}
-		return v.Val.Int64(), nil
+		return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
 	default:
 		return 0, fmt.Errorf("%s must be an integer", label)
 	}

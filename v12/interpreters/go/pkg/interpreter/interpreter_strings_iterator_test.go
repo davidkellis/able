@@ -10,13 +10,13 @@ import (
 
 func TestStringIteratorRunsAfterStdlibImport(t *testing.T) {
 	loader, err := driver.NewLoader([]driver.SearchPath{
-		{Path: filepath.Join("..", "..", "..", "..", "stdlib", "src"), Kind: driver.RootStdlib},
-		{Path: filepath.Join("..", "..", "..", "..", "kernel", "src"), Kind: driver.RootStdlib},
+		{Path: stdlibRoot, Kind: driver.RootStdlib},
+		{Path: kernelRoot, Kind: driver.RootStdlib},
 	})
 	if err != nil {
 		t.Fatalf("loader init: %v", err)
 	}
-	stdlibProgram, err := loader.Load(filepath.Join("..", "..", "..", "..", "stdlib", "src", "text", "string.able"))
+	stdlibProgram, err := loader.Load(filepath.Join(stdlibRoot, "text", "string.able"))
 	if err != nil {
 		t.Fatalf("load stdlib string: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestStringIteratorRunsAfterStdlibImport(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected integer element, got %T", val)
 		}
-		bytes = append(bytes, intVal.Val.Int64())
+		bytes = append(bytes, intVal.BigInt().Int64())
 	}
 
 	if len(bytes) != 3 {

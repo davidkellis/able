@@ -4,7 +4,6 @@ package interpreter
 
 import (
 	"fmt"
-	"math/big"
 	"strings"
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
@@ -434,8 +433,8 @@ func (i *Interpreter) makeParseErrorValue(info parseErrorInfo) runtime.Value {
 	span := &runtime.StructInstanceValue{
 		Definition: spanDef,
 		Fields: map[string]runtime.Value{
-			"start": runtime.IntegerValue{Val: big.NewInt(int64(info.startByte)), TypeSuffix: runtime.IntegerU64},
-			"end":   runtime.IntegerValue{Val: big.NewInt(int64(info.endByte)), TypeSuffix: runtime.IntegerU64},
+			"start": runtime.NewSmallInt(int64(info.startByte), runtime.IntegerU64),
+			"end":   runtime.NewSmallInt(int64(info.endByte), runtime.IntegerU64),
 		},
 	}
 	parseVal := &runtime.StructInstanceValue{

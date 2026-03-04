@@ -112,10 +112,10 @@ func TestBuildExecutionSearchPaths_DefaultCacheLayout(t *testing.T) {
 	}
 
 	want := filepath.Join(cache, "pkg", "src", "able_stdlib", "0.1.0")
-	if !containsPath(paths, want) {
+	if !containsSearchPath(paths, want) {
 		t.Fatalf("expected cache path %q in %v", want, paths)
 	}
-	if !containsPath(paths, filepath.Dir(manifest.Path)) {
+	if !containsSearchPath(paths, filepath.Dir(manifest.Path)) {
 		t.Fatalf("expected manifest root in search paths: %v", paths)
 	}
 }

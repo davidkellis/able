@@ -99,17 +99,35 @@ func findLockedPackage(pkgs []*driver.LockedPackage, name string) *driver.Locked
 
 func repoStdlibPath(t *testing.T) string {
 	t.Helper()
+	// Try the cache-based resolution first (same as runtime).
+	if path, err := ensureCachedStdlib(); err == nil {
+		return path
+	}
+	// Fall back to override check.
+	overrides := loadGlobalOverrides()
+	if stdlibPath, ok := overrides[normalizeGitURL(defaultStdlibGitURL)]; ok {
+		src := resolvePackageSrcPath(stdlibPath)
+		if info, err := os.Stat(src); err == nil && info.IsDir() {
+			return src
+		}
+	}
+	// Fall back to sibling able-stdlib directory.
 	_, current, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatalf("runtime.Caller failed")
 	}
-	base := filepath.Dir(current) // .../v12/interpreters/go/cmd/able
+	base := filepath.Dir(current)
 	repoRoot := filepath.Clean(filepath.Join(base, "..", "..", "..", "..", ".."))
-	path := filepath.Join(repoRoot, "v12", "stdlib", "src")
-	if info, err := os.Stat(path); err != nil || !info.IsDir() {
-		t.Fatalf("stdlib path %s invalid: %v", path, err)
+	for _, candidate := range []string{
+		filepath.Join(repoRoot, "able-stdlib", "src"),
+		filepath.Join(filepath.Dir(repoRoot), "able-stdlib", "src"),
+	} {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
 	}
-	return path
+	t.Fatalf("stdlib path not found via cache, override, or sibling directory")
+	return ""
 }
 
 func repoKernelPath(t *testing.T) string {

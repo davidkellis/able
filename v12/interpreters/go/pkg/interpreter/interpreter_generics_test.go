@@ -168,7 +168,7 @@ func TestGenericTypeArgumentCountMismatch(t *testing.T) {
 	}, nil, nil)
 	if result, _, err := interp.EvaluateModule(module); err != nil {
 		t.Fatalf("expected inference to succeed, got %v", err)
-	} else if iv, ok := result.(runtime.IntegerValue); !ok || iv.Val.Cmp(bigInt(1)) != 0 {
+	} else if iv, ok := result.(runtime.IntegerValue); !ok || iv.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected integer 1 result, got %#v", result)
 	}
 
@@ -332,7 +332,7 @@ func TestUfcsOnPrimitiveValue(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %T", result)
 	}
-	if iv.Val.Cmp(bigInt(9)) != 0 {
+	if iv.BigInt().Cmp(bigInt(9)) != 0 {
 		t.Fatalf("expected 9, got %v", iv.Val)
 	}
 }
@@ -401,7 +401,7 @@ func TestUfcsOnStructInstance(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer field, got %T", field)
 	}
-	if iv.Val.Cmp(bigInt(4)) != 0 {
+	if iv.BigInt().Cmp(bigInt(4)) != 0 {
 		t.Fatalf("expected updated x=4, got %v", iv.Val)
 	}
 }

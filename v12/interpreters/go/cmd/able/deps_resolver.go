@@ -11,18 +11,23 @@ import (
 	"able/interpreter-go/pkg/driver"
 )
 
+const (
+	defaultStdlibGitURL = "https://github.com/davidkellis/able-stdlib.git"
+	defaultStdlibBranch = "main"
+)
+
 type resolvedPackage struct {
 	pkg      *driver.LockedPackage
 	manifest *driver.Manifest
 	root     string
 }
 
-func buildExecutionSearchPaths(manifest *driver.Manifest, lock *driver.Lockfile) ([]string, error) {
-	var extras []string
+func buildExecutionSearchPaths(manifest *driver.Manifest, lock *driver.Lockfile) ([]driver.SearchPath, error) {
+	var extras []driver.SearchPath
 	var manifestRoot string
 	if manifest != nil {
 		manifestRoot = filepath.Dir(manifest.Path)
-		extras = append(extras, manifestRoot)
+		extras = append(extras, driver.SearchPath{Path: manifestRoot, Kind: driver.RootUser})
 	}
 	if lock == nil || len(lock.Packages) == 0 {
 		return extras, nil
@@ -37,16 +42,24 @@ func buildExecutionSearchPaths(manifest *driver.Manifest, lock *driver.Lockfile)
 		if pkg == nil {
 			continue
 		}
+		kind := driver.RootUser
+		name := sanitizeName(pkg.Name)
+		if name == "able" || name == "kernel" {
+			kind = driver.RootStdlib
+		}
 		if source := strings.TrimSpace(pkg.Source); source != "" {
 			if resolved, ok := resolvePackageSourcePath(source, manifestRoot, cacheDir); ok {
-				extras = append(extras, resolved)
+				extras = append(extras, driver.SearchPath{Path: resolved, Kind: kind})
 				continue
 			}
 		}
 		if pkg.Name == "" || pkg.Version == "" {
 			continue
 		}
-		extras = append(extras, filepath.Join(cacheDir, "pkg", "src", pkg.Name, sanitizePathSegment(pkg.Version)))
+		extras = append(extras, driver.SearchPath{
+			Path: filepath.Join(cacheDir, "pkg", "src", pkg.Name, sanitizePathSegment(pkg.Version)),
+			Kind: kind,
+		})
 	}
 	return extras, nil
 }
@@ -90,16 +103,17 @@ func resolvePackageSourcePath(source, manifestRoot, cacheDir string) (string, bo
 }
 
 type dependencyInstaller struct {
-	manifest     *driver.Manifest
-	manifestRoot string
-	cacheDir     string
-	logs         []string
-	registry     *registryFetcher
-	git          *gitFetcher
-	resolved     map[string]*driver.LockedPackage
-	aliases      map[string]string
-	resolving    map[string]bool
-	resolvingPkg map[string]bool
+	manifest        *driver.Manifest
+	manifestRoot    string
+	cacheDir        string
+	logs            []string
+	registry        *registryFetcher
+	git             *gitFetcher
+	resolved        map[string]*driver.LockedPackage
+	aliases         map[string]string
+	resolving       map[string]bool
+	resolvingPkg    map[string]bool
+	globalOverrides map[string]string
 }
 
 func newDependencyInstaller(manifest *driver.Manifest, cacheDir string) *dependencyInstaller {
@@ -108,16 +122,17 @@ func newDependencyInstaller(manifest *driver.Manifest, cacheDir string) *depende
 		root = filepath.Dir(manifest.Path)
 	}
 	return &dependencyInstaller{
-		manifest:     manifest,
-		manifestRoot: root,
-		cacheDir:     cacheDir,
-		logs:         []string{},
-		registry:     newRegistryFetcher(cacheDir),
-		git:          newGitFetcher(cacheDir),
-		resolved:     make(map[string]*driver.LockedPackage),
-		aliases:      make(map[string]string),
-		resolving:    make(map[string]bool),
-		resolvingPkg: make(map[string]bool),
+		manifest:        manifest,
+		manifestRoot:    root,
+		cacheDir:        cacheDir,
+		logs:            []string{},
+		registry:        newRegistryFetcher(cacheDir),
+		git:             newGitFetcher(cacheDir),
+		resolved:        make(map[string]*driver.LockedPackage),
+		aliases:         make(map[string]string),
+		resolving:       make(map[string]bool),
+		resolvingPkg:    make(map[string]bool),
+		globalOverrides: loadGlobalOverrides(),
 	}
 }
 
@@ -378,6 +393,12 @@ func (d *dependencyInstaller) resolvePathDependency(name string, spec *driver.De
 }
 
 func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpec) (*resolvedPackage, error) {
+	// Check if the default stdlib URL has a global override.
+	if overridePath, ok := d.globalOverrides[normalizeGitURL(defaultStdlibGitURL)]; ok {
+		d.logs = append(d.logs, fmt.Sprintf("using override for stdlib (%s)", overridePath))
+		return d.resolvePathDependency("able", &driver.DependencySpec{Path: overridePath})
+	}
+
 	paths := collectStdlibPaths(d.manifestRoot)
 	for _, candidate := range paths {
 		root, manifestPath := ascendToManifest(candidate)
@@ -420,7 +441,51 @@ func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpe
 			root:     root,
 		}, nil
 	}
-	return nil, fmt.Errorf("stdlib dependency requested but no stdlib distribution found")
+	// Try cached version in $ABLE_HOME.
+	if spec.Version != "" {
+		cached := filepath.Join(d.cacheDir, "pkg", "src", "able", sanitizePathSegment(spec.Version))
+		cachedManifest := filepath.Join(cached, "package.yml")
+		if info, statErr := os.Stat(cachedManifest); statErr == nil && !info.IsDir() {
+			stdManifest, loadErr := driver.LoadManifest(cachedManifest)
+			if loadErr == nil && sanitizeName(stdManifest.Name) == "able" {
+				version := strings.TrimSpace(stdManifest.Version)
+				if version == "" {
+					version = spec.Version
+				}
+				srcDir := filepath.Join(cached, "src")
+				if _, srcErr := os.Stat(srcDir); srcErr != nil {
+					srcDir = cached
+				}
+				d.logs = append(d.logs, fmt.Sprintf("using stdlib %s (cached)", version))
+				lock := &driver.LockedPackage{
+					Name:    "able",
+					Version: version,
+					Source:  fmt.Sprintf("path:%s", srcDir),
+				}
+				return &resolvedPackage{
+					pkg:      lock,
+					manifest: stdManifest,
+					root:     cached,
+				}, nil
+			}
+		}
+	}
+
+	// Download from default source via git.
+	gitSpec := &driver.DependencySpec{
+		Git:    defaultStdlibGitURL,
+		Branch: defaultStdlibBranch,
+	}
+	if spec.Version != "" {
+		gitSpec.Tag = "v" + spec.Version
+		gitSpec.Branch = ""
+	}
+	resolved, err := d.resolveGitDependency("able", gitSpec)
+	if err != nil {
+		return nil, fmt.Errorf("stdlib dependency: filesystem walk found nothing, git fetch failed: %w", err)
+	}
+	d.logs = append(d.logs, fmt.Sprintf("fetched stdlib %s from git (%s)", resolved.pkg.Version, defaultStdlibGitURL))
+	return resolved, nil
 }
 
 func (d *dependencyInstaller) resolveKernelDependency(spec *driver.DependencySpec) (*resolvedPackage, error) {
@@ -466,7 +531,32 @@ func (d *dependencyInstaller) resolveKernelDependency(spec *driver.DependencySpe
 			root:     root,
 		}, nil
 	}
-	return nil, fmt.Errorf("kernel dependency requested but no kernel distribution found")
+	// Fall back to embedded kernel.
+	kernelSrc, err := ensureEmbeddedKernel()
+	if err != nil {
+		return nil, fmt.Errorf("kernel dependency requested but no kernel distribution found (embedded fallback: %w)", err)
+	}
+	kernelRoot := filepath.Dir(kernelSrc)
+	manifestPath := filepath.Join(kernelRoot, "package.yml")
+	kernelManifest, err := driver.LoadManifest(manifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("kernel embedded manifest: %w", err)
+	}
+	version := strings.TrimSpace(kernelManifest.Version)
+	if version == "" {
+		version = "0.0.0"
+	}
+	d.logs = append(d.logs, fmt.Sprintf("using kernel %s (embedded)", version))
+	lock := &driver.LockedPackage{
+		Name:    "kernel",
+		Version: version,
+		Source:  fmt.Sprintf("path:%s", kernelSrc),
+	}
+	return &resolvedPackage{
+		pkg:      lock,
+		manifest: kernelManifest,
+		root:     kernelRoot,
+	}, nil
 }
 
 func (d *dependencyInstaller) resolveRegistryDependency(name string, spec *driver.DependencySpec) (*resolvedPackage, error) {
@@ -510,6 +600,12 @@ func (d *dependencyInstaller) resolveRegistryDependency(name string, spec *drive
 }
 
 func (d *dependencyInstaller) resolveGitDependency(name string, spec *driver.DependencySpec) (*resolvedPackage, error) {
+	if spec.Git != "" {
+		if overridePath, ok := d.globalOverrides[normalizeGitURL(spec.Git)]; ok {
+			d.logs = append(d.logs, fmt.Sprintf("using override for %s (%s → %s)", name, spec.Git, overridePath))
+			return d.resolvePathDependency(name, &driver.DependencySpec{Path: overridePath})
+		}
+	}
 	if d.git == nil {
 		return nil, fmt.Errorf("dependency %q: git support unavailable", name)
 	}

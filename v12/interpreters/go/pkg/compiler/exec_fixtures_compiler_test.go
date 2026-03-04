@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -145,16 +146,17 @@ func runCompilerExecFixture(t *testing.T, dir string, rel string) {
 		t.Fatalf("go build failed: %v\n%s", err, string(output))
 	}
 
-	cmd := exec.Command(binPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binPath)
 	cmd.Env = applyFixtureEnv(os.Environ(), manifest.Env)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	start := time.Now()
 	runErr := cmd.Run()
-	if time.Since(start) > time.Minute {
-		t.Fatalf("fixture runtime exceeded 1 minute")
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("compiled fixture timed out after 60s")
 	}
 
 	exitCode := 0
@@ -310,7 +312,7 @@ func compilerHarnessSource(entryPath string, searchPaths []driver.SearchPath, ex
 	buf.WriteString("\tcase runtime.StringValue:\n\t\treturn v.Val\n")
 	buf.WriteString("\tcase runtime.BoolValue:\n\t\tif v.Val { return \"true\" }; return \"false\"\n")
 	buf.WriteString("\tcase runtime.VoidValue:\n\t\treturn \"void\"\n")
-	buf.WriteString("\tcase runtime.IntegerValue:\n\t\treturn v.Val.String()\n")
+	buf.WriteString("\tcase runtime.IntegerValue:\n\t\treturn v.String()\n")
 	buf.WriteString("\tcase runtime.FloatValue:\n\t\treturn fmt.Sprintf(\"%g\", v.Val)\n")
 	buf.WriteString("\tdefault:\n\t\treturn fmt.Sprintf(\"[%s]\", v.Kind())\n\t}\n}\n")
 	buf.WriteString("type fixtureTypecheckMode int\n\n")
@@ -657,6 +659,9 @@ func findKernelRoots(start string) []string {
 		} {
 			add(candidate)
 		}
+		if len(roots) > 0 {
+			return roots
+		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
@@ -680,12 +685,13 @@ func findStdlibRoots(start string) []string {
 	for {
 		for _, candidate := range []string{
 			filepath.Join(dir, "stdlib", "src"),
-			filepath.Join(dir, "v12", "stdlib", "src"),
-			filepath.Join(dir, "stdlib", "v12", "src"),
 			filepath.Join(dir, "able-stdlib", "src"),
 			filepath.Join(dir, "able_stdlib", "src"),
 		} {
 			add(candidate)
+		}
+		if len(roots) > 0 {
+			return roots
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -1006,16 +1012,17 @@ func runCompilerNoBootstrapExecFixture(t *testing.T, dir string, rel string) {
 		t.Fatalf("go build failed: %v\n%s", err, string(output))
 	}
 
-	cmd := exec.Command(binPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binPath)
 	cmd.Env = applyFixtureEnv(os.Environ(), manifest.Env)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	start := time.Now()
 	runErr := cmd.Run()
-	if time.Since(start) > time.Minute {
-		t.Fatalf("fixture runtime exceeded 1 minute")
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("compiled fixture timed out after 60s")
 	}
 
 	exitCode := 0
@@ -1151,7 +1158,7 @@ func compilerHarnessSourceNoBootstrap(executorName string) string {
 	buf.WriteString("\tcase runtime.StringValue:\n\t\treturn v.Val\n")
 	buf.WriteString("\tcase runtime.BoolValue:\n\t\tif v.Val { return \"true\" }; return \"false\"\n")
 	buf.WriteString("\tcase runtime.VoidValue:\n\t\treturn \"void\"\n")
-	buf.WriteString("\tcase runtime.IntegerValue:\n\t\treturn v.Val.String()\n")
+	buf.WriteString("\tcase runtime.IntegerValue:\n\t\treturn v.String()\n")
 	buf.WriteString("\tcase runtime.FloatValue:\n\t\treturn fmt.Sprintf(\"%g\", v.Val)\n")
 	buf.WriteString("\tdefault:\n\t\treturn fmt.Sprintf(\"[%s]\", v.Kind())\n\t}\n}\n")
 	return buf.String()

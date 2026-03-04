@@ -117,7 +117,7 @@ func (i *Interpreter) stringifyArrayStruct(inst *runtime.StructInstanceValue) (s
 	if !ok {
 		return "", false
 	}
-	state, err := runtime.ArrayStoreState(handleInt.Val.Int64())
+	state, err := runtime.ArrayStoreState(handleInt.BigInt().Int64())
 	if err != nil {
 		return "", false
 	}
@@ -201,7 +201,7 @@ func valueToString(val runtime.Value) string {
 	case runtime.CharValue:
 		return string(v.Val)
 	case runtime.IntegerValue:
-		return v.Val.String()
+		return v.String()
 	case runtime.FloatValue:
 		return fmt.Sprintf("%g", v.Val)
 	case runtime.NilValue:

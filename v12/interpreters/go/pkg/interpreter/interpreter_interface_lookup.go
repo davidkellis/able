@@ -28,6 +28,20 @@ func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string, iface
 	return best, nil
 }
 
+func (i *Interpreter) findMethodCached(info typeInfo, methodName string, interfaceFilter string) (runtime.Value, error) {
+	typeName := info.name
+	if len(info.typeArgs) > 0 {
+		typeName = typeInfoToString(info)
+	}
+	key := methodCacheKey{typeName: typeName, methodName: methodName, ifaceFilter: interfaceFilter}
+	if entry, ok := i.methodCache[key]; ok {
+		return entry.method, entry.err
+	}
+	method, err := i.findMethod(info, methodName, interfaceFilter, nil)
+	i.methodCache[key] = methodCacheEntry{method: method, err: err}
+	return method, err
+}
+
 func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string, ifaceArgs []ast.TypeExpression) (runtime.Value, error) {
 	var matches []implCandidate
 	var err error
@@ -274,5 +288,5 @@ func (i *Interpreter) selectStructMethod(inst *runtime.StructInstanceValue, meth
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, methodName, "", nil)
+	return i.findMethodCached(info, methodName, "")
 }
