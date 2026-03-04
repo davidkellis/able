@@ -1,5 +1,24 @@
 # Able Project Log
 
+# 2026-03-03 — Stdlib setup smoke coverage + toolchain-pinned stdlib resolution policy (v12)
+- Closed remaining staged-integration stdlib items from `PLAN.md`:
+  - added clean-environment setup smoke coverage for stdlib+kernel bootstrap and cross-interpreter execution.
+  - enforced/documented toolchain-pinned stdlib resolution semantics for implicit `able` dependencies.
+- CLI/runtime changes:
+  - `able setup` now resolves stdlib using the toolchain default version pin (`defaultStdlibVersion`) instead of an unpinned branch fetch.
+  - dependency installer now injects `able` as `version: <toolchain pin>` when absent from manifest, ensuring lockfile stdlib entries are pinned by default.
+  - stdlib git resolution now uses canonical version tags (`v<version>`) rather than floating `main` for implicit/default resolution paths.
+- Tests:
+  - added/updated coverage in `v12/interpreters/go/cmd/able/dependency_installer_test.go`:
+    - `TestDependencyInstaller_PinsBundledStdlib` now asserts the bundled stdlib path is used only when it matches the toolchain pin.
+    - `TestDependencyInstaller_RejectsBundledStdlibVersionMismatch` verifies mismatched local bundled stdlib is ignored in favor of pinned cached stdlib.
+  - setup smoke fixture (`v12/interpreters/go/cmd/able/setup_smoke_test.go`) now keys stdlib manifest version off `defaultStdlibVersion`.
+- Spec/docs:
+  - updated `spec/full_spec_v12.md` §13.6 to codify implicit toolchain-pinned stdlib tag resolution, setup/auto-install parity, and lockfile behavior with override opt-ins.
+  - removed the completed stdlib version-selection TODO from `spec/TODO_v12.md`.
+- Validation:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestSetupInstallsStdlibAndKernelAndRunSupportsBothExecModes|TestDependencyInstaller_PinsBundledStdlib|TestDependencyInstaller_RejectsBundledStdlibVersionMismatch' -count=1` (pass).
+
 # 2026-02-20 — Compiler no-bootstrap execution path: 85% pass rate (v12)
 - Continued Phase 3 of the no-bootstrap execution plan (spicy-wobbling-cascade.md).
 - Progress: 58 failures → 35 failures (205/240 = 85.4% pass rate).

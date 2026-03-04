@@ -10,7 +10,6 @@ This list tracks the remaining v12 items after audit; completed work should be r
 
 ## Stdlib externalization gaps
 - Confirm and document canonical stdlib resolution contract end-to-end (`able setup`, cache layout, lockfile pins, and `able override` precedence).
-- Specify stdlib version-selection policy when no explicit dependency is pinned (toolchain pin vs branch/tag floating behavior).
 - Clarify collision/error semantics when multiple `name: able` roots are visible through `ABLE_MODULE_PATHS`, lockfile sources, or overrides.
 
 ## Compiler AOT performance / dynamic-carrier staged limits

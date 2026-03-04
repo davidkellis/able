@@ -391,7 +391,7 @@ func TestDependencyInstaller_PinsBundledStdlib(t *testing.T) {
 	}
 	writeFile(t, filepath.Join(stdlibRoot, "package.yml"), `
 name: able
-version: 1.2.3
+version: `+defaultStdlibVersion+`
 `)
 
 	kernelRoot := filepath.Join(root, "kernel")
@@ -440,7 +440,7 @@ version: 0.0.1
 		t.Fatalf("expected stdlib and kernel entries, got %#v", lock.Packages)
 	}
 	stdlib := findLockedPackage(lock.Packages, "able")
-	if stdlib == nil || stdlib.Version != "1.2.3" {
+	if stdlib == nil || stdlib.Version != defaultStdlibVersion {
 		t.Fatalf("unexpected stdlib lock entry: %#v", stdlib)
 	}
 	if stdlib.Source != fmt.Sprintf("path:%s", stdlibSrc) {
@@ -452,5 +452,86 @@ version: 0.0.1
 	}
 	if kernel.Source != fmt.Sprintf("path:%s", kernelSrc) {
 		t.Fatalf("expected kernel source %s, got %s", kernelSrc, kernel.Source)
+	}
+}
+
+func TestDependencyInstaller_RejectsBundledStdlibVersionMismatch(t *testing.T) {
+	root := t.TempDir()
+	cacheDir := filepath.Join(root, ".able")
+
+	stdlibRoot := filepath.Join(root, "stdlib")
+	stdlibSrc := filepath.Join(stdlibRoot, "src")
+	if err := os.MkdirAll(stdlibSrc, 0o755); err != nil {
+		t.Fatalf("mkdir stdlib: %v", err)
+	}
+	writeFile(t, filepath.Join(stdlibRoot, "package.yml"), `
+name: able
+version: 9.9.9
+`)
+
+	cachedStdlibRoot := filepath.Join(cacheDir, "pkg", "src", "able", defaultStdlibVersion)
+	cachedStdlibSrc := filepath.Join(cachedStdlibRoot, "src")
+	if err := os.MkdirAll(cachedStdlibSrc, 0o755); err != nil {
+		t.Fatalf("mkdir cached stdlib: %v", err)
+	}
+	writeFile(t, filepath.Join(cachedStdlibRoot, "package.yml"), `
+name: able
+version: `+defaultStdlibVersion+`
+`)
+
+	kernelRoot := filepath.Join(root, "kernel")
+	kernelSrc := filepath.Join(kernelRoot, "src")
+	if err := os.MkdirAll(kernelSrc, 0o755); err != nil {
+		t.Fatalf("mkdir kernel: %v", err)
+	}
+	writeFile(t, filepath.Join(kernelRoot, "package.yml"), "name: kernel\n")
+
+	appRoot := filepath.Join(root, "app")
+	if err := os.MkdirAll(filepath.Join(appRoot, "src"), 0o755); err != nil {
+		t.Fatalf("mkdir app: %v", err)
+	}
+	manifestPath := filepath.Join(appRoot, "package.yml")
+	writeFile(t, manifestPath, `
+name: sample
+version: 0.0.1
+`)
+
+	manifest, err := driver.LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+	lock := driver.NewLockfile(manifest.Name, cliToolVersion)
+	installer := newDependencyInstaller(manifest, cacheDir)
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir root: %v", err)
+	}
+
+	changed, logs, err := installer.Install(lock)
+	if err != nil {
+		t.Fatalf("Install returned error: %v (logs: %v)", err, logs)
+	}
+	if !changed {
+		t.Fatalf("expected lockfile to include stdlib entry")
+	}
+	if len(lock.Packages) != 2 {
+		t.Fatalf("expected stdlib and kernel entries, got %#v", lock.Packages)
+	}
+	stdlib := findLockedPackage(lock.Packages, "able")
+	if stdlib == nil || stdlib.Version != defaultStdlibVersion {
+		t.Fatalf("unexpected stdlib lock entry: %#v", stdlib)
+	}
+	if stdlib.Source != fmt.Sprintf("path:%s", cachedStdlibSrc) {
+		t.Fatalf("expected stdlib source %s, got %s", cachedStdlibSrc, stdlib.Source)
+	}
+	if stdlib.Source == fmt.Sprintf("path:%s", stdlibSrc) {
+		t.Fatalf("expected mismatched bundled stdlib to be ignored")
 	}
 }

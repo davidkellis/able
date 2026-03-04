@@ -33,7 +33,7 @@ func runSetup(args []string) int {
 	// Download stdlib via git.
 	installer := newDependencyInstaller(nil, cacheDir)
 	installer.manifestRoot = cacheDir
-	resolved, err := installer.resolveStdlibDependency(&driver.DependencySpec{})
+	resolved, err := installer.resolveStdlibDependency(&driver.DependencySpec{Version: defaultStdlibVersion})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to download stdlib: %v\n", err)
 		return 1
