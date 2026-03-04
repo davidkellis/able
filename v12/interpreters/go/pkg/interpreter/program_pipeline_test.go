@@ -214,7 +214,7 @@ func formatTestRuntimeValue(val runtime.Value) string {
 		}
 		return "false"
 	case runtime.IntegerValue:
-		return v.Val.String()
+		return v.String()
 	case runtime.FloatValue:
 		return fmt.Sprintf("%g", v.Val)
 	case runtime.CharValue:

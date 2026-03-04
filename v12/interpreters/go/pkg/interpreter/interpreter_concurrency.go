@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 	"sync/atomic"
 
 	goRuntime "runtime"
@@ -163,10 +162,7 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 			if pending < 0 {
 				pending = 0
 			}
-			return runtime.IntegerValue{
-				Val:        big.NewInt(int64(pending)),
-				TypeSuffix: runtime.IntegerI32,
-			}, nil
+			return runtime.NewSmallInt(int64(pending), runtime.IntegerI32), nil
 		},
 	}
 	i.global.Define("future_pending_tasks", futurePendingTasks)
@@ -227,6 +223,7 @@ func (i *Interpreter) RunCompiledFuture(env *runtime.Environment, task func(*run
 		return nil
 	}
 	i.ensureConcurrencyBuiltins()
+	i.ensureMultiThread()
 	if env == nil {
 		env = i.global
 	}

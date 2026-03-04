@@ -1,0 +1,40 @@
+# Able v12 Go interpreter build commands
+
+# Copy kernel source into the embedded/ directory for go:embed
+embed:
+    mkdir -p cmd/able/embedded/kernel/src
+    cp ../../kernel/package.yml cmd/able/embedded/kernel/
+    cp ../../kernel/src/kernel.able cmd/able/embedded/kernel/src/
+
+# Build the able binary
+build: embed
+    go build -o able ./cmd/able
+
+# Build with optimizations stripped for smaller binary
+build-small: embed
+    go build -ldflags="-s -w" -o able ./cmd/able
+
+# Run all tests
+test: embed
+    go test ./pkg/runtime/... ./pkg/interpreter/... ./pkg/compiler/...
+
+# Run CLI tests
+test-cli: embed
+    go test ./cmd/able/...
+
+# Run runtime tests only
+test-runtime:
+    go test ./pkg/runtime/...
+
+# Run interpreter tests only
+test-interpreter:
+    go test ./pkg/interpreter/...
+
+# Run compiler tests only
+test-compiler:
+    go test ./pkg/compiler/...
+
+# Clean build artifacts
+clean:
+    rm -f able
+    rm -rf cmd/able/embedded/

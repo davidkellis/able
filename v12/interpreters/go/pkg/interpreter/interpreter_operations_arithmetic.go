@@ -189,11 +189,21 @@ func evaluateDivision(i *Interpreter, left runtime.Value, right runtime.Value) (
 	if !ok {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
-	if rightInt.Val == nil || rightInt.Val.Sign() == 0 {
+	if rightInt.IsZero() {
 		return nil, newDivisionByZeroError()
 	}
-	leftFloat := bigIntToFloat(leftInt.Val)
-	rightFloat := bigIntToFloat(rightInt.Val)
+	// Int64 fast path for integer-to-float division.
+	if l, lok := leftInt.ToInt64(); lok {
+		if r, rok := rightInt.ToInt64(); rok {
+			if r == 0 {
+				return nil, newDivisionByZeroError()
+			}
+			val := normalizeFloat(runtime.FloatF64, float64(l)/float64(r))
+			return runtime.FloatValue{Val: val, TypeSuffix: runtime.FloatF64}, nil
+		}
+	}
+	leftFloat := bigIntToFloat(leftInt.BigInt())
+	rightFloat := bigIntToFloat(rightInt.BigInt())
 	if rightFloat == 0 {
 		return nil, newDivisionByZeroError()
 	}
@@ -235,8 +245,8 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 	if !ok {
 		return nil, fmt.Errorf("Bitwise requires integer operands")
 	}
-	lVal := runtime.CloneBigInt(lv.Val)
-	rVal := runtime.CloneBigInt(rv.Val)
+	lVal := runtime.CloneBigInt(lv.BigInt())
+	rVal := runtime.CloneBigInt(rv.BigInt())
 	var result *big.Int
 	switch op {
 	case "<<", ">>":
@@ -261,7 +271,7 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 		if err := ensureFitsInteger(info, result); err != nil {
 			return nil, err
 		}
-		return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
+		return runtime.NewBigIntValue(result, lv.TypeSuffix), nil
 	}
 	targetType, err := promoteIntegerTypes(lv.TypeSuffix, rv.TypeSuffix)
 	if err != nil {
@@ -293,7 +303,7 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 	if err := ensureFitsInteger(info, result); err != nil {
 		return nil, err
 	}
-	return runtime.IntegerValue{Val: result, TypeSuffix: targetType}, nil
+	return runtime.NewBigIntValue(result, targetType), nil
 }
 
 func bigFromLiteral(val interface{}) *big.Int {
@@ -365,8 +375,37 @@ func evaluateArithmetic(i *Interpreter, op string, left runtime.Value, right run
 		if err != nil {
 			return nil, err
 		}
-		lv := runtime.CloneBigInt(leftInt.Val)
-		rv := runtime.CloneBigInt(rightInt.Val)
+		// Int64 fast path.
+		if l, lok := leftInt.ToInt64(); lok {
+			if r, rok := rightInt.ToInt64(); rok {
+				var result int64
+				var overflow bool
+				switch op {
+				case "+":
+					result, overflow = addInt64Overflow(l, r)
+				case "-":
+					result, overflow = subInt64Overflow(l, r)
+				case "*":
+					result, overflow = mulInt64Overflow(l, r)
+				case "^":
+					if r < 0 {
+						return nil, fmt.Errorf("Negative integer exponent is not supported")
+					}
+					result, overflow = expInt64Overflow(l, r)
+				default:
+					return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
+				}
+				if !overflow {
+					if err := ensureFitsInt64(info, result); err != nil {
+						return nil, err
+					}
+					return runtime.NewSmallInt(result, targetType), nil
+				}
+			}
+		}
+		// Big.Int fallback.
+		lv := runtime.CloneBigInt(leftInt.BigInt())
+		rv := runtime.CloneBigInt(rightInt.BigInt())
 		result := new(big.Int)
 		switch op {
 		case "+":
@@ -386,7 +425,7 @@ func evaluateArithmetic(i *Interpreter, op string, left runtime.Value, right run
 		if err := ensureFitsInteger(info, result); err != nil {
 			return nil, err
 		}
-		return runtime.IntegerValue{Val: result, TypeSuffix: targetType}, nil
+		return runtime.NewBigIntValue(result, targetType), nil
 	}
 	if !isNumericValue(left) || !isNumericValue(right) {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
@@ -418,7 +457,7 @@ func evaluateArithmetic(i *Interpreter, op string, left runtime.Value, right run
 }
 
 func computeDivMod(left runtime.IntegerValue, right runtime.IntegerValue) (runtime.IntegerValue, runtime.IntegerValue, runtime.IntegerType, error) {
-	if right.Val == nil || right.Val.Sign() == 0 {
+	if right.IsZero() {
 		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, newDivisionByZeroError()
 	}
 	targetType, err := promoteIntegerTypes(left.TypeSuffix, right.TypeSuffix)
@@ -429,8 +468,24 @@ func computeDivMod(left runtime.IntegerValue, right runtime.IntegerValue) (runti
 	if err != nil {
 		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
 	}
-	dividend := runtime.CloneBigInt(left.Val)
-	divisor := runtime.CloneBigInt(right.Val)
+	// Int64 fast path.
+	if l, lok := left.ToInt64(); lok {
+		if r, rok := right.ToInt64(); rok {
+			if r == 0 {
+				return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, newDivisionByZeroError()
+			}
+			q, rem := euclideanDivModInt64(l, r)
+			if err := ensureFitsInt64(info, q); err == nil {
+				if err := ensureFitsInt64(info, rem); err == nil {
+					return runtime.NewSmallInt(q, targetType),
+						runtime.NewSmallInt(rem, targetType),
+						targetType, nil
+				}
+			}
+		}
+	}
+	dividend := runtime.CloneBigInt(left.BigInt())
+	divisor := runtime.CloneBigInt(right.BigInt())
 	quotient, remainder, err := euclideanDivModBig(dividend, divisor)
 	if err != nil {
 		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
@@ -441,7 +496,7 @@ func computeDivMod(left runtime.IntegerValue, right runtime.IntegerValue) (runti
 	if err := ensureFitsInteger(info, remainder); err != nil {
 		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
 	}
-	return runtime.IntegerValue{Val: quotient, TypeSuffix: targetType}, runtime.IntegerValue{Val: remainder, TypeSuffix: targetType}, targetType, nil
+	return runtime.NewBigIntValue(quotient, targetType), runtime.NewBigIntValue(remainder, targetType), targetType, nil
 }
 
 func euclideanDivModBig(dividend *big.Int, divisor *big.Int) (*big.Int, *big.Int, error) {

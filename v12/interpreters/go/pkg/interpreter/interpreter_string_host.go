@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"fmt"
-	"math/big"
 	"unicode/utf8"
 
 	"able/interpreter-go/pkg/runtime"
@@ -23,18 +22,18 @@ func (i *Interpreter) initStringHostBuiltins() {
 	int64FromValue := func(val runtime.Value, label string) (int64, error) {
 		switch v := val.(type) {
 		case runtime.IntegerValue:
-			if !v.Val.IsInt64() {
-				return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
+			if n, ok := v.ToInt64(); ok {
+				return n, nil
 			}
-			return v.Val.Int64(), nil
+			return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
 		case *runtime.IntegerValue:
-			if v == nil || v.Val == nil {
+			if v == nil {
 				return 0, fmt.Errorf("%s is nil", label)
 			}
-			if !v.Val.IsInt64() {
-				return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
+			if n, ok := v.ToInt64(); ok {
+				return n, nil
 			}
-			return v.Val.Int64(), nil
+			return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
 		default:
 			return 0, fmt.Errorf("%s must be an integer", label)
 		}
@@ -130,10 +129,7 @@ func (i *Interpreter) initStringHostBuiltins() {
 			data := []byte(input)
 			elements := make([]runtime.Value, len(data))
 			for idx, b := range data {
-				elements[idx] = runtime.IntegerValue{
-					Val:        big.NewInt(int64(b)),
-					TypeSuffix: runtime.IntegerU8,
-				}
+				elements[idx] = runtime.NewSmallInt(int64(b), runtime.IntegerU8)
 			}
 			return i.newArrayValue(elements, len(elements)), nil
 		},
@@ -202,12 +198,12 @@ func (i *Interpreter) initStringHostBuiltins() {
 			}
 			switch v := args[0].(type) {
 			case runtime.CharValue:
-				return runtime.IntegerValue{Val: big.NewInt(int64(v.Val)), TypeSuffix: runtime.IntegerI32}, nil
+				return runtime.NewSmallInt(int64(v.Val), runtime.IntegerI32), nil
 			case *runtime.CharValue:
 				if v == nil {
 					return nil, fmt.Errorf("char argument is nil")
 				}
-				return runtime.IntegerValue{Val: big.NewInt(int64(v.Val)), TypeSuffix: runtime.IntegerI32}, nil
+				return runtime.NewSmallInt(int64(v.Val), runtime.IntegerI32), nil
 			default:
 				return nil, fmt.Errorf("argument must be a char")
 			}

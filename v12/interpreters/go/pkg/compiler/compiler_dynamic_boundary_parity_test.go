@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -657,6 +658,56 @@ func TestCompilerDynamicBoundaryCallOriginalMarkers(t *testing.T) {
 	}
 }
 
+func TestCompilerTypedAssignReusesModuleBindingParity(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping typed assignment module binding parity in short mode")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.yml"), []byte("name: typed_assign_module_binding\n"), 0o600); err != nil {
+		t.Fatalf("write package.yml: %v", err)
+	}
+	source := strings.Join([]string{
+		"package typed_assign_module_binding",
+		"",
+		"value := 1",
+		"",
+		"fn update() -> i32 {",
+		"  value: i32 = 2",
+		"  value",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  print(update())",
+		"  print(value)",
+		"}",
+		"",
+	}, "\n")
+	if err := os.WriteFile(filepath.Join(dir, "main.able"), []byte(source), 0o600); err != nil {
+		t.Fatalf("write main.able: %v", err)
+	}
+
+	manifest := interpreter.FixtureManifest{Entry: "main.able"}
+	tree := runTreewalkerFixtureOutcome(t, dir, manifest)
+	compiled, markers := runCompiledFixtureBoundaryOutcome(t, dir, manifest)
+
+	expectedStdout := []string{"2", "2"}
+	if tree.Exit != 0 || compiled.Exit != 0 {
+		t.Fatalf("expected successful exit: treewalker=%d compiled=%d stderr=%v", tree.Exit, compiled.Exit, compiled.Stderr)
+	}
+	if !reflect.DeepEqual(tree.Stdout, expectedStdout) {
+		t.Fatalf("treewalker stdout mismatch: expected %v got %v", expectedStdout, tree.Stdout)
+	}
+	if !reflect.DeepEqual(compiled.Stdout, expectedStdout) {
+		t.Fatalf("compiled stdout mismatch: expected %v got %v", expectedStdout, compiled.Stdout)
+	}
+	if !reflect.DeepEqual(tree.Stderr, compiled.Stderr) {
+		t.Fatalf("stderr mismatch: treewalker=%v compiled=%v", tree.Stderr, compiled.Stderr)
+	}
+	if markers.FallbackCount != 0 {
+		t.Fatalf("expected no fallback calls, got %d (%q)", markers.FallbackCount, markers.FallbackNames)
+	}
+}
+
 func resolveCompilerDynamicBoundaryFixtures() []string {
 	raw := strings.TrimSpace(os.Getenv(compilerDynamicBoundaryFixtureEnv))
 	if raw == "" {
@@ -763,7 +814,9 @@ func runCompiledFixtureBoundaryOutcomeWithOptions(t *testing.T, dir string, mani
 		t.Fatalf("go build failed: %v\n%s", err, string(output))
 	}
 
-	cmd := exec.Command(binPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binPath)
 	env := withEnv(os.Environ(), "ABLE_COMPILER_BOUNDARY_MARKER", "1")
 	env = withEnv(env, "ABLE_COMPILER_BOUNDARY_MARKER_VERBOSE", "1")
 	cmd.Env = applyFixtureEnv(env, manifest.Env)
@@ -771,10 +824,9 @@ func runCompiledFixtureBoundaryOutcomeWithOptions(t *testing.T, dir string, mani
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	start := time.Now()
 	runErr := cmd.Run()
-	if time.Since(start) > time.Minute {
-		t.Fatalf("fixture runtime exceeded 1 minute")
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("compiled fixture timed out after 60s")
 	}
 	exitCode := 0
 	if runErr != nil {

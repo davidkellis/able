@@ -27,4 +27,8 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  able [--exec-mode=treewalker|bytecode] repl")
 	fmt.Fprintln(os.Stderr, "  able deps install")
 	fmt.Fprintln(os.Stderr, "  able deps update [dependency ...]")
+	fmt.Fprintln(os.Stderr, "  able override add <git-url> <local-path>")
+	fmt.Fprintln(os.Stderr, "  able override remove <git-url>")
+	fmt.Fprintln(os.Stderr, "  able override list")
+	fmt.Fprintln(os.Stderr, "  able setup")
 }

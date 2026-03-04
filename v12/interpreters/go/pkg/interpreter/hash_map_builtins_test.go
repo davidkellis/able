@@ -81,7 +81,7 @@ func TestHashMapBuiltins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get failed: %v", err)
 	}
-	if v, ok := got.(runtime.IntegerValue); !ok || v.Val.Int64() != 1 {
+	if v, ok := got.(runtime.IntegerValue); !ok || v.BigInt().Int64() != 1 {
 		t.Fatalf("get returned unexpected value %#v", got)
 	}
 	boolValue, err := getFn.Impl(ctx, []runtime.Value{handleVal, boolKey})
@@ -111,7 +111,7 @@ func TestHashMapBuiltins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("size failed: %v", err)
 	}
-	if v, ok := sizeRes.(runtime.IntegerValue); !ok || v.Val.Int64() != 3 {
+	if v, ok := sizeRes.(runtime.IntegerValue); !ok || v.BigInt().Int64() != 3 {
 		t.Fatalf("size returned unexpected value %#v", sizeRes)
 	}
 
@@ -157,7 +157,7 @@ func TestHashMapBuiltins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("remove failed: %v", err)
 	}
-	if v, ok := removed.(runtime.IntegerValue); !ok || v.Val.Int64() != 1 {
+	if v, ok := removed.(runtime.IntegerValue); !ok || v.BigInt().Int64() != 1 {
 		t.Fatalf("remove returned unexpected value %#v", removed)
 	}
 	if len(state.Entries) != 2 {
@@ -217,11 +217,11 @@ func TestHasherNativeMethods(t *testing.T) {
 		t.Fatalf("finish invocation failed: %v", err)
 	}
 	initialInt, ok := initialRes.(runtime.IntegerValue)
-	if !ok || initialInt.Val == nil {
+	if !ok {
 		t.Fatalf("finish returned unexpected value %#v", initialRes)
 	}
-	if initialInt.Val.Uint64() != runtime.NewHasherValue().Finish() {
-		t.Fatalf("finish should return initial FNV offset, got %s", initialInt.Val.String())
+	if initialInt.BigInt().Uint64() != runtime.NewHasherValue().Finish() {
+		t.Fatalf("finish should return initial FNV offset, got %s", initialInt.BigInt().String())
 	}
 
 	writeBytesVal, err := interp.hasherMember(hasher, ast.NewIdentifier("write_bytes"))
@@ -286,7 +286,7 @@ func TestHasherNativeMethods(t *testing.T) {
 		t.Fatalf("finish after writes failed: %v", err)
 	}
 	finalInt, ok := finalRes.(runtime.IntegerValue)
-	if !ok || finalInt.Val == nil {
+	if !ok {
 		t.Fatalf("finish returned unexpected value %#v", finalRes)
 	}
 
@@ -295,8 +295,8 @@ func TestHasherNativeMethods(t *testing.T) {
 	control.WriteUint64(5)
 	control.WriteInt64(-2)
 	control.WriteBool(true)
-	if finalInt.Val.Uint64() != control.Finish() {
-		t.Fatalf("finish produced %s, want %d", finalInt.Val.String(), control.Finish())
+	if finalInt.BigInt().Uint64() != control.Finish() {
+		t.Fatalf("finish produced %s, want %d", finalInt.BigInt().String(), control.Finish())
 	}
 }
 
@@ -583,7 +583,7 @@ func TestHashMapCollisionHandling(t *testing.T) {
 		t.Fatalf("size failed: %v", err)
 	}
 	sizeInt, ok := sizeVal.(runtime.IntegerValue)
-	if !ok || sizeInt.Val.Int64() != 2 {
+	if n, nOk := sizeInt.ToInt64(); !ok || !nOk || n != 2 {
 		t.Fatalf("expected size 2, got %#v", sizeVal)
 	}
 
@@ -635,15 +635,18 @@ func mustInt64Value(t *testing.T, value runtime.Value) int64 {
 	t.Helper()
 	switch v := value.(type) {
 	case runtime.IntegerValue:
-		if v.Val == nil || !v.Val.IsInt64() {
-			t.Fatalf("expected int64 value, got %#v", value)
+		if n, ok := v.ToInt64(); ok {
+			return n
 		}
-		return v.Val.Int64()
+		t.Fatalf("expected int64 value, got %#v", value)
 	case *runtime.IntegerValue:
-		if v == nil || v.Val == nil || !v.Val.IsInt64() {
-			t.Fatalf("expected int64 value, got %#v", value)
+		if v == nil {
+			t.Fatalf("expected int64 value, got nil")
 		}
-		return v.Val.Int64()
+		if n, ok := v.ToInt64(); ok {
+			return n
+		}
+		t.Fatalf("expected int64 value, got %#v", value)
 	default:
 		t.Fatalf("expected integer value, got %T", value)
 	}

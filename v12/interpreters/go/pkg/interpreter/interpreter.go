@@ -251,6 +251,10 @@ type Interpreter struct {
 	generatorStack []*generatorInstance
 
 	interfaceBuiltinsReady bool
+	envSingleThread        bool
+
+	methodCache   map[methodCacheKey]methodCacheEntry
+	overloadCache map[overloadCacheKey]*runtime.FunctionValue
 
 	typecheckerEnabled   bool
 	typecheckerStrict    bool
@@ -380,6 +384,8 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
 		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
 		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
+		methodCache:             make(map[methodCacheKey]methodCacheEntry),
+		overloadCache:           make(map[overloadCacheKey]*runtime.FunctionValue),
 	}
 	i.initConcurrencyBuiltins()
 	i.initChannelMutexBuiltins()
@@ -391,7 +397,18 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 	i.initRatioBuiltins()
 	i.initInterfaceBuiltins()
 	i.initDynamicBuiltins()
+	i.global.SetSingleThread()
+	i.envSingleThread = true
 	return i
+}
+
+// ensureMultiThread switches the environment to multi-thread mode before the
+// first concurrent spawn. This is a no-op if already in multi-thread mode.
+func (i *Interpreter) ensureMultiThread() {
+	if i.envSingleThread {
+		i.global.SetMultiThread()
+		i.envSingleThread = false
+	}
 }
 
 // New returns a tree-walker interpreter with an empty global environment.

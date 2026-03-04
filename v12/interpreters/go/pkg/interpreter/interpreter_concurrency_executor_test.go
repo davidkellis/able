@@ -304,11 +304,11 @@ func TestFutureValueMemoizesResult(t *testing.T) {
 	second := interp.futureValue(handle)
 
 	intVal, ok := first.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(21)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(21)) != 0 {
 		t.Fatalf("expected first value 21, got %#v", first)
 	}
 	intVal, ok = second.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(21)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(21)) != 0 {
 		t.Fatalf("expected memoized value 21, got %#v", second)
 	}
 
@@ -317,7 +317,7 @@ func TestFutureValueMemoizesResult(t *testing.T) {
 		t.Fatalf("failed to read count: %v", err)
 	}
 	countInt, ok := countVal.(runtime.IntegerValue)
-	if !ok || countInt.Val.Cmp(bigInt(1)) != 0 {
+	if !ok || countInt.BigInt().Cmp(bigInt(1)) != 0 {
 		t.Fatalf("expected count to be 1, got %#v", countVal)
 	}
 }
@@ -454,10 +454,10 @@ func TestGoroutineExecutorRunsFuturesInParallel(t *testing.T) {
 				return nil, fmt.Errorf("sleep_ms expects 1 argument")
 			}
 			intVal, ok := args[0].(runtime.IntegerValue)
-			if !ok || intVal.Val == nil {
+			if !ok {
 				return nil, fmt.Errorf("sleep_ms expects integer argument")
 			}
-			ms := intVal.Val.Int64()
+			ms := intVal.BigInt().Int64()
 			if ms < 0 {
 				return nil, fmt.Errorf("sleep_ms expects non-negative duration")
 			}

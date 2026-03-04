@@ -60,7 +60,7 @@ func TestSafeCallSkipsArgumentEvaluation(t *testing.T) {
 		t.Fatalf("expected calls binding: %v", err)
 	}
 	intCalls, ok := callsVal.(runtime.IntegerValue)
-	if !ok || intCalls.Val.Cmp(bigInt(0)) != 0 {
+	if !ok || intCalls.BigInt().Cmp(bigInt(0)) != 0 {
 		t.Fatalf("expected calls to remain 0, got %#v", callsVal)
 	}
 }

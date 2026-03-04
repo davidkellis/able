@@ -71,7 +71,10 @@ func numericToFloat(val runtime.Value) (float64, error) {
 	case runtime.FloatValue:
 		return v.Val, nil
 	case runtime.IntegerValue:
-		return bigIntToFloat(v.Val), nil
+		if n, ok := v.ToInt64(); ok {
+			return float64(n), nil
+		}
+		return bigIntToFloat(v.BigInt()), nil
 	case *runtime.StructInstanceValue:
 		if isRatioValue(v) {
 			parts, err := coerceToRatio(v)

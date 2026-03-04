@@ -61,6 +61,9 @@ func isCallableRuntimeValue(val runtime.Value) bool {
 }
 
 func formatRuntimeValue(interp *interpreter.Interpreter, val runtime.Value) string {
+	if val == nil {
+		return "<nil>"
+	}
 	if isCallableRuntimeValue(val) {
 		return "<function>"
 	}
@@ -73,7 +76,7 @@ func formatRuntimeValue(interp *interpreter.Interpreter, val runtime.Value) stri
 		}
 		return "false"
 	case runtime.IntegerValue:
-		return v.Val.String()
+		return v.String()
 	case runtime.FloatValue:
 		return fmt.Sprintf("%g", v.Val)
 	case runtime.CharValue:
@@ -90,14 +93,15 @@ func formatRuntimeValue(interp *interpreter.Interpreter, val runtime.Value) stri
 		if isArrayStructInstance(v) {
 			if h, ok := v.Fields["storage_handle"]; ok {
 				if hv, ok := h.(runtime.IntegerValue); ok {
-					handle := hv.Val.Int64()
-					state, err := runtime.ArrayStoreState(handle)
-					if err == nil {
-						elems := make([]string, len(state.Values))
-						for i, el := range state.Values {
-							elems[i] = formatRuntimeValue(interp, el)
+					if handle, ok := hv.ToInt64(); ok {
+						state, err := runtime.ArrayStoreState(handle)
+						if err == nil {
+							elems := make([]string, len(state.Values))
+							for i, el := range state.Values {
+								elems[i] = formatRuntimeValue(interp, el)
+							}
+							return "[" + strings.Join(elems, ", ") + "]"
 						}
-						return "[" + strings.Join(elems, ", ") + "]"
 					}
 				}
 			}

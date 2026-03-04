@@ -629,7 +629,7 @@ func (i *Interpreter) typeHasMethod(info typeInfo, methodName, ifaceName string)
 			}
 		}
 	}
-	method, err := i.findMethod(info, methodName, ifaceName, nil)
+	method, err := i.findMethodCached(info, methodName, ifaceName)
 	if err == nil && method != nil {
 		return true
 	}

@@ -18,7 +18,8 @@ Unconditionally read PLAN.md plus `spec/full_spec_v12.md` before starting any wo
 ## Repository Map
 - `v10/`: Frozen Able v10 workspace kept for historical context. Do not edit unless a maintainer assigns a blocking hotfix.
 - `v11/`: Frozen Able v11 workspace kept for historical context.
-- `v12/`: Active Able v12 workspace with the same structure (`interpreters/go/`, `parser/`, `fixtures/`, `stdlib/`, `design/`, `docs/`). All day-to-day work happens here.
+- `v12/`: Active Able v12 workspace (`interpreters/go/`, `parser/`, `fixtures/`, `stdlib-deprecated-do-not-use/`, `design/`, `docs/`). All day-to-day work happens here.
+- Canonical stdlib source now lives in the external `able-stdlib` repo; the in-tree `v12/stdlib-deprecated-do-not-use` directory is archival only.
 - `spec/`: Language specs (v1–v12) and topic supplements.
 - `interpreter6/`, `old/*`: Historical artifacts; do not modify.
 
@@ -28,6 +29,7 @@ Unconditionally read PLAN.md plus `spec/full_spec_v12.md` before starting any wo
 3. Set up tooling:
    - **Go**: Go ≥ 1.22. Run `go test ./...` inside `v12/interpreters/go`.
    - **CLI wrappers**: use `./v12/abletw` for tree-walker runs and `./v12/ablebc` for bytecode runs.
+   - **Stdlib cache/bootstrap**: run `./v12/able setup` (or `./v12/interpreters/go/able setup`) so canonical stdlib + kernel are available in `$ABLE_HOME/pkg/src`.
 4. If you regenerate tree-sitter assets in `v12/parser/tree-sitter-able`, force Go to relink the parser by deleting `v12/interpreters/go/.gocache` or running `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser`.
 5. Before changing the AST, confirm alignment implications for every interpreter and the future parser.
 6. Use `./run_all_tests.sh` (defaults to v12) to run the Go suites before handing work off. Only run v10/v11 variants if a maintainer explicitly requests verification of a historical regression.
@@ -36,6 +38,7 @@ Unconditionally read PLAN.md plus `spec/full_spec_v12.md` before starting any wo
 - Update relevant PLAN files when you start/finish roadmap items. The current typechecker roadmap lives in `design/typechecker-plan.md`.
 - Keep `spec/TODO_v12.md` current when implementation work exposes gaps that need spec wording updates.
 - Treat the shared AST contract as canonical: when introducing new node structures or runtime semantics, implement them in both v12 interpreters and update fixtures so every runtime interprets them identically.
+- Treat the external `able-stdlib` repository as the canonical stdlib source. Mirror required runtime-facing changes there and keep this repo’s stdlib-deprecated snapshot read-only unless a maintainer explicitly asks for migration work.
 - When adding or modifying fixtures, update `v12/fixtures` and run the Go fixture harness (`go test ./pkg/interpreter`).
 - Fixture manifests can include an optional `setup` array when multi-module scenarios are required (e.g., dyn-import packages); the Go harness evaluates those modules before the entry `module.json`.
 - Use concise, high-signal comments in code. Avoid speculative abstractions.

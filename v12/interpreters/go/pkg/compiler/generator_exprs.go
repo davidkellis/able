@@ -184,7 +184,7 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 	if expected == "runtime.Value" {
 		literalText := lit.Value.String()
 		return fmt.Sprintf(
-			"func() runtime.Value { val, ok := new(big.Int).SetString(%q, 10); if !ok { panic(fmt.Errorf(\"invalid integer literal: %%s\", %q)) }; return runtime.IntegerValue{Val: val, TypeSuffix: %s} }()",
+			"func() runtime.Value { val, ok := new(big.Int).SetString(%q, 10); if !ok { panic(fmt.Errorf(\"invalid integer literal: %%s\", %q)) }; return runtime.NewBigIntValue(val, %s) }()",
 			literalText,
 			literalText,
 			integerSuffix(lit),

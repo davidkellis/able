@@ -40,7 +40,7 @@ func TestPlaceholderSimplePartialApplication(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(15)) != 0 {
+	if intResult.BigInt().Cmp(bigInt(15)) != 0 {
 		t.Fatalf("expected 15, got %#v", intResult.Val)
 	}
 }
@@ -63,7 +63,7 @@ func TestPlaceholderBareAtUsesFirstArgument(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(36)) != 0 {
+	if intResult.BigInt().Cmp(bigInt(36)) != 0 {
 		t.Fatalf("expected 36, got %#v", intResult.Val)
 	}
 }
@@ -113,7 +113,7 @@ func TestPlaceholderMixedIndices(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(779)) != 0 {
+	if intResult.BigInt().Cmp(bigInt(779)) != 0 {
 		t.Fatalf("expected 779, got %#v", intResult.Val)
 	}
 }
@@ -146,7 +146,7 @@ func TestPipeCallableRhs(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(42)) != 0 {
+	if intResult.BigInt().Cmp(bigInt(42)) != 0 {
 		t.Fatalf("expected 42, got %#v", intResult.Val)
 	}
 }
@@ -251,7 +251,7 @@ func TestPipeImplicitMethodShorthand(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(42)) != 0 {
+	if intResult.BigInt().Cmp(bigInt(42)) != 0 {
 		t.Fatalf("expected 42, got %#v", intResult.Val)
 	}
 }
@@ -315,7 +315,7 @@ func TestPipeUfcsFunction(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(7)) != 0 {
+	if intResult.BigInt().Cmp(bigInt(7)) != 0 {
 		t.Fatalf("expected 7, got %#v", intResult.Val)
 	}
 }

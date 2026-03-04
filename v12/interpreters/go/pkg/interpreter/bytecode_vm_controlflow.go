@@ -92,6 +92,7 @@ func (vm *bytecodeVM) execSpawn(instr bytecodeInstruction) error {
 		return fmt.Errorf("bytecode spawn expects node")
 	}
 	vm.interp.ensureConcurrencyBuiltins()
+	vm.interp.ensureMultiThread()
 	capturedEnv := runtime.NewEnvironment(vm.env)
 	program, err := vm.interp.lowerExpressionToBytecode(spawnExpr.Expression)
 	if err != nil {

@@ -71,7 +71,7 @@ func intFromValue(t *testing.T, value runtime.Value) int {
 	if !ok {
 		t.Fatalf("expected integer value, got %#v", value)
 	}
-	return int(intVal.Val.Int64())
+	return int(intVal.BigInt().Int64())
 }
 
 type stubExecutor struct {

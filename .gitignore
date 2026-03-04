@@ -5,3 +5,6 @@
 .tmp
 tmp/
 target/
+v12/interpreters/go/able
+v12/interpreters/go/able.test
+v12/interpreters/go/.gocache-test/

@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -249,16 +250,17 @@ func runCompiledFixtureOutcome(t *testing.T, dir string, manifest interpreter.Fi
 		t.Fatalf("go build failed: %v\n%s", err, string(output))
 	}
 
-	cmd := exec.Command(binPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binPath)
 	cmd.Env = applyFixtureEnv(os.Environ(), manifest.Env)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	start := time.Now()
 	runErr := cmd.Run()
-	if time.Since(start) > time.Minute {
-		t.Fatalf("fixture runtime exceeded 1 minute")
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("compiled fixture timed out after 60s")
 	}
 	exitCode := 0
 	if runErr != nil {
@@ -358,7 +360,7 @@ func formatCompilerDiagnosticsValue(val runtime.Value) string {
 	case runtime.VoidValue:
 		return "void"
 	case runtime.IntegerValue:
-		return v.Val.String()
+		return v.String()
 	case runtime.FloatValue:
 		return fmt.Sprintf("%g", v.Val)
 	default:

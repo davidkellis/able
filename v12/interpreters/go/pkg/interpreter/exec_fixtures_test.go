@@ -367,6 +367,9 @@ func findKernelRoots(start string) []string {
 		} {
 			add(candidate)
 		}
+		if len(roots) > 0 {
+			return roots
+		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
@@ -390,12 +393,13 @@ func findStdlibRoots(start string) []string {
 	for {
 		for _, candidate := range []string{
 			filepath.Join(dir, "stdlib", "src"),
-			filepath.Join(dir, "v12", "stdlib", "src"),
-			filepath.Join(dir, "stdlib", "v12", "src"),
 			filepath.Join(dir, "able-stdlib", "src"),
 			filepath.Join(dir, "able_stdlib", "src"),
 		} {
 			add(candidate)
+		}
+		if len(roots) > 0 {
+			return roots
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

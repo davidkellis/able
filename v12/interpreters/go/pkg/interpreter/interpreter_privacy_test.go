@@ -425,7 +425,7 @@ func TestPrivateInstanceMethodInaccessible(t *testing.T) {
 		t.Fatalf("public instance method call failed: %v", err)
 	}
 	intVal, ok := result.(runtime.IntegerValue)
-	if !ok || intVal.Val.Cmp(bigInt(5)) != 0 {
+	if !ok || intVal.BigInt().Cmp(bigInt(5)) != 0 {
 		t.Fatalf("expected integer 5 result, got %#v", result)
 	}
 }

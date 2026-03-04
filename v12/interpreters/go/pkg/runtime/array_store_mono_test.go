@@ -106,7 +106,7 @@ func TestArrayStoreMonoI64RoundTripAndDynamicFallback(t *testing.T) {
 		t.Fatalf("ArrayStoreRead: %v", err)
 	}
 	intVal, ok := value.(IntegerValue)
-	if !ok || intVal.Val == nil || intVal.Val.Int64() != 42 {
+	if n, nOk := intVal.ToInt64(); !ok || !nOk || n != 42 {
 		t.Fatalf("expected integer 42 from generic read, got %#v", value)
 	}
 
@@ -137,7 +137,7 @@ func TestArrayStoreMonoI64RoundTripAndDynamicFallback(t *testing.T) {
 		t.Fatalf("ArrayStoreRead after deopt write: %v", err)
 	}
 	intVal, ok = value.(IntegerValue)
-	if !ok || intVal.Val == nil || intVal.Val.Int64() != 77 {
+	if n, nOk := intVal.ToInt64(); !ok || !nOk || n != 77 {
 		t.Fatalf("expected integer 77 after deopt write, got %#v", value)
 	}
 }

@@ -38,6 +38,38 @@ func (vm *bytecodeVM) execAssignPattern(instr bytecodeInstruction) error {
 	return nil
 }
 
+func (vm *bytecodeVM) execCompoundAssignSlot(instr bytecodeInstruction) error {
+	val, err := vm.pop()
+	if err != nil {
+		return err
+	}
+	op := ast.AssignmentOperator(instr.operator)
+	binaryOp, isCompound := binaryOpForAssignment(op)
+	if !isCompound {
+		err := fmt.Errorf("unsupported assignment operator %s", op)
+		if instr.node != nil {
+			return vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+		}
+		return err
+	}
+	current := vm.slots[instr.target]
+	computed, err := applyBinaryOperator(vm.interp, binaryOp, current, val)
+	if err != nil {
+		err = vm.interp.wrapStandardRuntimeError(err)
+		if instr.node != nil {
+			return vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+		}
+		return err
+	}
+	vm.slots[instr.target] = computed
+	if computed == nil {
+		computed = runtime.NilValue{}
+	}
+	vm.stack = append(vm.stack, computed)
+	vm.ip++
+	return nil
+}
+
 func (vm *bytecodeVM) execAssignNameCompound(instr bytecodeInstruction) error {
 	if instr.name == "" {
 		return fmt.Errorf("bytecode compound assignment missing target name")

@@ -106,8 +106,8 @@ func assertIntValue(t *testing.T, value runtime.Value, kind runtime.IntegerType,
 	if iv.TypeSuffix != kind {
 		t.Fatalf("expected integer type %s, got %s", kind, iv.TypeSuffix)
 	}
-	if iv.Val == nil || iv.Val.Cmp(big.NewInt(want)) != 0 {
-		t.Fatalf("expected integer %d, got %v", want, iv.Val)
+	if iv.BigInt().Cmp(big.NewInt(want)) != 0 {
+		t.Fatalf("expected integer %d, got %v", want, iv.BigInt())
 	}
 }
 
