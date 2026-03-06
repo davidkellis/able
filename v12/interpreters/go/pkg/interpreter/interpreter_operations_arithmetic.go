@@ -220,20 +220,72 @@ func evaluateDivMod(i *Interpreter, op string, left runtime.Value, right runtime
 	if !ok {
 		return nil, fmt.Errorf("Arithmetic requires integer operands")
 	}
+	targetType, err := promoteIntegerTypes(lv.TypeSuffix, rv.TypeSuffix)
+	if err != nil {
+		return nil, err
+	}
+	if l, lok := lv.ToInt64(); lok {
+		if r, rok := rv.ToInt64(); rok {
+			if r == 0 {
+				return nil, newDivisionByZeroError()
+			}
+			q, rem := euclideanDivModInt64(l, r)
+			if err := ensureFitsInt64Type(targetType, q); err == nil {
+				if err := ensureFitsInt64Type(targetType, rem); err == nil {
+					switch op {
+					case "//":
+						return boxedOrSmallIntegerValue(targetType, q), nil
+					case "%":
+						return boxedOrSmallIntegerValue(targetType, rem), nil
+					case "/%":
+						return i.makeDivModResult(
+							targetType,
+							runtime.NewSmallInt(q, targetType),
+							runtime.NewSmallInt(rem, targetType),
+						)
+					}
+				}
+			}
+		}
+	}
 	quotient, remainder, targetType, err := computeDivMod(lv, rv)
 	if err != nil {
 		return nil, err
 	}
 	switch op {
 	case "//":
+		if boxed, ok := maybeBoxedIntegerValue(quotient); ok {
+			return boxed, nil
+		}
 		return quotient, nil
 	case "%":
+		if boxed, ok := maybeBoxedIntegerValue(remainder); ok {
+			return boxed, nil
+		}
 		return remainder, nil
 	case "/%":
 		return i.makeDivModResult(targetType, quotient, remainder)
 	default:
 		return nil, fmt.Errorf("unsupported div/mod operator %s", op)
 	}
+}
+
+func boxedOrSmallIntegerValue(kind runtime.IntegerType, value int64) runtime.Value {
+	if boxed, ok := bytecodeBoxedIntegerValue(kind, value); ok {
+		return boxed
+	}
+	return runtime.NewSmallInt(value, kind)
+}
+
+func maybeBoxedIntegerValue(value runtime.IntegerValue) (runtime.Value, bool) {
+	intVal, ok := value.ToInt64()
+	if !ok {
+		return nil, false
+	}
+	if boxed, ok := bytecodeBoxedIntegerValue(value.TypeSuffix, intVal); ok {
+		return boxed, true
+	}
+	return nil, false
 }
 
 func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
@@ -371,10 +423,6 @@ func evaluateArithmetic(i *Interpreter, op string, left runtime.Value, right run
 		if err != nil {
 			return nil, err
 		}
-		info, err := getIntegerInfo(targetType)
-		if err != nil {
-			return nil, err
-		}
 		// Int64 fast path.
 		if l, lok := leftInt.ToInt64(); lok {
 			if r, rok := rightInt.ToInt64(); rok {
@@ -396,12 +444,16 @@ func evaluateArithmetic(i *Interpreter, op string, left runtime.Value, right run
 					return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
 				}
 				if !overflow {
-					if err := ensureFitsInt64(info, result); err != nil {
+					if err := ensureFitsInt64Type(targetType, result); err != nil {
 						return nil, err
 					}
-					return runtime.NewSmallInt(result, targetType), nil
+					return boxedOrSmallIntegerValue(targetType, result), nil
 				}
 			}
+		}
+		info, err := getIntegerInfo(targetType)
+		if err != nil {
+			return nil, err
 		}
 		// Big.Int fallback.
 		lv := runtime.CloneBigInt(leftInt.BigInt())
@@ -464,10 +516,6 @@ func computeDivMod(left runtime.IntegerValue, right runtime.IntegerValue) (runti
 	if err != nil {
 		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
 	}
-	info, err := getIntegerInfo(targetType)
-	if err != nil {
-		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
-	}
 	// Int64 fast path.
 	if l, lok := left.ToInt64(); lok {
 		if r, rok := right.ToInt64(); rok {
@@ -475,14 +523,18 @@ func computeDivMod(left runtime.IntegerValue, right runtime.IntegerValue) (runti
 				return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, newDivisionByZeroError()
 			}
 			q, rem := euclideanDivModInt64(l, r)
-			if err := ensureFitsInt64(info, q); err == nil {
-				if err := ensureFitsInt64(info, rem); err == nil {
+			if err := ensureFitsInt64Type(targetType, q); err == nil {
+				if err := ensureFitsInt64Type(targetType, rem); err == nil {
 					return runtime.NewSmallInt(q, targetType),
 						runtime.NewSmallInt(rem, targetType),
 						targetType, nil
 				}
 			}
 		}
+	}
+	info, err := getIntegerInfo(targetType)
+	if err != nil {
+		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
 	}
 	dividend := runtime.CloneBigInt(left.BigInt())
 	divisor := runtime.CloneBigInt(right.BigInt())

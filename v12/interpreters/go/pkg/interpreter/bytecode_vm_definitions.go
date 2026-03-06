@@ -42,7 +42,7 @@ func (vm *bytecodeVM) execDefineTypeAlias(instr bytecodeInstruction) error {
 			clone.TargetType = canonicalTarget
 			alias = &clone
 		}
-		vm.interp.typeAliases[def.ID.Name] = alias
+		vm.interp.setTypeAlias(def.ID.Name, alias)
 	}
 	vm.stack = append(vm.stack, runtime.NilValue{})
 	vm.ip++

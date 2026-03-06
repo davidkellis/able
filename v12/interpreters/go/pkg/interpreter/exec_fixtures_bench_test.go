@@ -3,6 +3,7 @@ package interpreter
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"able/interpreter-go/pkg/driver"
@@ -46,6 +47,7 @@ func benchmarkExecFixture(b *testing.B, mode testExecMode) {
 
 	executor := NewSerialExecutor(nil)
 	defer executor.Close()
+	skipTypecheck := benchSkipTypecheck()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -53,7 +55,8 @@ func benchmarkExecFixture(b *testing.B, mode testExecMode) {
 		registerBenchPrint(interp)
 
 		_, entryEnv, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{
-			SkipTypecheck: true,
+			SkipTypecheck:    skipTypecheck,
+			AllowDiagnostics: !skipTypecheck,
 		})
 		if err != nil {
 			b.Fatalf("evaluate program: %v", err)
@@ -70,6 +73,18 @@ func benchmarkExecFixture(b *testing.B, mode testExecMode) {
 			b.Fatalf("call main: %v", err)
 		}
 		executor.Flush()
+	}
+}
+
+func benchSkipTypecheck() bool {
+	raw := strings.TrimSpace(strings.ToLower(os.Getenv("ABLE_BENCH_SKIP_TYPECHECK")))
+	switch raw {
+	case "", "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return true
 	}
 }
 

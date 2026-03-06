@@ -172,28 +172,28 @@ func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Ex
 	receiver := interfaceMethodReceiver(i, val, method)
 	switch fn := method.(type) {
 	case runtime.NativeFunctionValue:
-		return &runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn}, nil
+		return runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn}, nil
 	case *runtime.NativeFunctionValue:
 		if fn == nil {
 			return nil, fmt.Errorf("native method '%s' is nil", ident.Name)
 		}
-		return &runtime.NativeBoundMethodValue{Receiver: receiver, Method: *fn}, nil
+		return runtime.NativeBoundMethodValue{Receiver: receiver, Method: *fn}, nil
 	case runtime.NativeBoundMethodValue:
-		return &runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
+		return runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
 	case *runtime.NativeBoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("native method '%s' is nil", ident.Name)
 		}
-		return &runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
+		return runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
 	case runtime.BoundMethodValue:
-		return &runtime.BoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
+		return runtime.BoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
 	case *runtime.BoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("method '%s' is nil", ident.Name)
 		}
-		return &runtime.BoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
+		return runtime.BoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
 	default:
-		return &runtime.BoundMethodValue{Receiver: receiver, Method: method}, nil
+		return runtime.BoundMethodValue{Receiver: receiver, Method: method}, nil
 	}
 }
 

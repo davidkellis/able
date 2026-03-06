@@ -807,7 +807,8 @@ func (p *placeholderClosure) invoke(args []runtime.Value) (runtime.Value, error)
 	var result runtime.Value
 	var err error
 	if p.bytecode != nil {
-		vm := newBytecodeVM(p.interpreter, callEnv)
+		vm := p.interpreter.acquireBytecodeVM(callEnv)
+		defer p.interpreter.releaseBytecodeVM(vm)
 		result, err = vm.run(p.bytecode)
 	} else {
 		result, err = p.interpreter.evaluateExpression(p.expression, callEnv)

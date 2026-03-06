@@ -1,0 +1,428 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-03-03T22:21:12Z",
+  "git": {
+    "commit": "8cdd9cbcc2715406c3227bbb35a3f4e2436d0d24",
+    "dirty": true
+  },
+  "machine": {
+    "hostname": "davidlinux",
+    "os": "Linux",
+    "kernel": "6.17.0-14-generic",
+    "arch": "x86_64",
+    "cpu_model": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+    "cpu_count": "16",
+    "mem_total_kb": "65580820"
+  },
+  "toolchain": {
+    "go_version": "go version go1.25.7 linux/amd64",
+    "able_cli": "/home/david/sync/projects/able/v12/tmp/perf/suite.bGW7TS/able"
+  },
+  "config": {
+    "runs": 1,
+    "timeout_seconds": 30,
+    "build_timeout_seconds": 240,
+    "modes": ["compiled", "treewalker", "bytecode"],
+    "benchmarks": ["fib", "binarytrees", "matrixmultiply", "quicksort", "sudoku", "i_before_e"]
+  },
+  "results": [
+    {
+      "benchmark": "fib",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.00,
+      "user_seconds": 33.05,
+      "sys_seconds": 0.42,
+      "gc_count": 1116
+    },
+    {
+      "benchmark": "fib",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.00,
+      "user_seconds": 41.85,
+      "sys_seconds": 1.69,
+      "gc_count": 5941
+    },
+    {
+      "benchmark": "fib",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.00,
+      "user_seconds": 33.02,
+      "sys_seconds": 0.53,
+      "gc_count": 2299
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.15,
+      "user_seconds": 47.80,
+      "sys_seconds": 2.74,
+      "gc_count": 40
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.16,
+      "user_seconds": 54.50,
+      "sys_seconds": 1.51,
+      "gc_count": 55
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.19,
+      "user_seconds": 65.21,
+      "sys_seconds": 1.91,
+      "gc_count": 65
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.02,
+      "user_seconds": 39.14,
+      "sys_seconds": 0.36,
+      "gc_count": 105
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.00,
+      "user_seconds": 46.81,
+      "sys_seconds": 0.44,
+      "gc_count": 657
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "error",
+      "exit_code": 1,
+      "real_seconds": 23.49,
+      "user_seconds": 46.29,
+      "sys_seconds": 0.49,
+      "gc_count": 700
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 0.70,
+      "user_seconds": 1.14,
+      "sys_seconds": 0.05,
+      "gc_count": 54
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 6.42,
+      "user_seconds": 10.35,
+      "sys_seconds": 0.15,
+      "gc_count": 352
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 5.86,
+      "user_seconds": 14.16,
+      "sys_seconds": 0.49,
+      "gc_count": 739
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "error",
+      "exit_code": 1,
+      "real_seconds": null,
+      "user_seconds": null,
+      "sys_seconds": null,
+      "gc_count": 0
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.00,
+      "user_seconds": 48.88,
+      "sys_seconds": 0.96,
+      "gc_count": 2076
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "timeout",
+      "exit_code": 124,
+      "real_seconds": 30.00,
+      "user_seconds": 55.41,
+      "sys_seconds": 1.28,
+      "gc_count": 2706
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 0.69,
+      "user_seconds": 1.09,
+      "sys_seconds": 0.04,
+      "gc_count": 47
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 8.45,
+      "user_seconds": 12.96,
+      "sys_seconds": 0.26,
+      "gc_count": 488
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 7.02,
+      "user_seconds": 14.77,
+      "sys_seconds": 0.63,
+      "gc_count": 804
+    }
+  ],
+  "summary": [
+    {
+      "benchmark": "fib",
+      "mode": "compiled",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "fib",
+      "mode": "treewalker",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "fib",
+      "mode": "bytecode",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "compiled",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "treewalker",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "bytecode",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "compiled",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "treewalker",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "bytecode",
+      "ok_runs": 0,
+      "timeout_runs": 0,
+      "error_runs": 1,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 0.700000,
+      "user_seconds_avg": 1.140000,
+      "sys_seconds_avg": 0.050000,
+      "gc_count_avg": 54.00
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "treewalker",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 6.420000,
+      "user_seconds_avg": 10.350000,
+      "sys_seconds_avg": 0.150000,
+      "gc_count_avg": 352.00
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "bytecode",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 5.860000,
+      "user_seconds_avg": 14.160000,
+      "sys_seconds_avg": 0.490000,
+      "gc_count_avg": 739.00
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "compiled",
+      "ok_runs": 0,
+      "timeout_runs": 0,
+      "error_runs": 1,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "treewalker",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "bytecode",
+      "ok_runs": 0,
+      "timeout_runs": 1,
+      "error_runs": 0,
+      "real_seconds_avg": null,
+      "user_seconds_avg": null,
+      "sys_seconds_avg": null,
+      "gc_count_avg": null
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "compiled",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 0.690000,
+      "user_seconds_avg": 1.090000,
+      "sys_seconds_avg": 0.040000,
+      "gc_count_avg": 47.00
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "treewalker",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 8.450000,
+      "user_seconds_avg": 12.960000,
+      "sys_seconds_avg": 0.260000,
+      "gc_count_avg": 488.00
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "bytecode",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 7.020000,
+      "user_seconds_avg": 14.770000,
+      "sys_seconds_avg": 0.630000,
+      "gc_count_avg": 804.00
+    }
+  ]
+}

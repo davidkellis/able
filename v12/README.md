@@ -27,6 +27,7 @@ Able is an experimental programming language. This workspace hosts the actively 
 - **CLI wrappers**: use `./v12/abletw` for tree-walker runs and `./v12/ablebc` for bytecode runs.
 - **Stdlib bootstrap**: run `./v12/able setup` once to install/cache canonical stdlib + kernel roots under `$ABLE_HOME/pkg/src`.
 - **Specs**: edit `spec/full_spec_v12.md` for new behaviour; consult archived specs only to understand the baseline.
+- **Perf harness**: use `./v12/bench_suite` for machine-readable benchmark snapshots (`fib`, `binarytrees`, `matrixmultiply`, `quicksort`, `sudoku`, `i_before_e`) across compiled/treewalker/bytecode modes.
 
 Combined test suites:
 
@@ -45,6 +46,9 @@ Combined test suites:
 
 # Details, overrides, and CI workflow inputs:
 # v12/docs/compiler-full-matrix.md
+
+# Benchmark harness details + JSON schema:
+# v12/docs/performance-benchmarks.md
 ```
 
 

@@ -1800,6 +1800,17 @@
     "focus": "bytecode-friendly iterator yields with while-loop control"
   },
   {
+    "id": "exec/07_10_bytecode_quicksort_hotloop",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3",
+      "6.8",
+      "7.4",
+      "8.2.3"
+    ],
+    "focus": "array-heavy recursive quicksort hot loop used for bytecode performance tracking"
+  },
+  {
     "id": "exec/07_10_iterator_reentrancy",
     "status": "seeded",
     "spec_sections": [

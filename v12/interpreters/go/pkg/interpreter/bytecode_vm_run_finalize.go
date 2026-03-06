@@ -10,26 +10,30 @@ func (vm *bytecodeVM) finishRunResumable(runErr *error) {
 	if runErr == nil {
 		return
 	}
-	if *runErr == nil || !errors.Is(*runErr, errSerialYield) {
+	nonYieldExit := *runErr == nil || !errors.Is(*runErr, errSerialYield)
+	if nonYieldExit {
 		vm.closeAllIterators()
 		vm.loopStack = vm.loopStack[:0]
 	}
 	// Unwind inline call frames on error, adding "called from here"
 	// context and cleaning up implicit receivers.
-	if *runErr != nil && !errors.Is(*runErr, errSerialYield) && len(vm.callFrames) > 0 {
+	if *runErr != nil && nonYieldExit && len(vm.callFrames) > 0 {
 		if _, ok := (*runErr).(returnSignal); !ok {
 			if _, ok := (*runErr).(breakSignal); !ok {
 				if _, ok := (*runErr).(continueSignal); !ok {
 					for len(vm.callFrames) > 0 {
-						frame := vm.callFrames[len(vm.callFrames)-1]
-						vm.callFrames = vm.callFrames[:len(vm.callFrames)-1]
-						if frame.hasImplicitReceiver {
+						calleeSlots := vm.slots
+						returnIP, returnProgram, returnSlots, returnEnv, _, _, hasImplicitReceiver, _, ok := vm.popCallFrameFields()
+						if !ok {
+							break
+						}
+						if hasImplicitReceiver {
 							state := vm.interp.stateFromEnv(vm.env)
 							state.popImplicitReceiver()
 						}
-						callIP := frame.returnIP - 1
-						if callIP >= 0 && callIP < len(frame.program.instructions) {
-							callInstr := frame.program.instructions[callIP]
+						callIP := returnIP - 1
+						if returnProgram != nil && callIP >= 0 && callIP < len(returnProgram.instructions) {
+							callInstr := returnProgram.instructions[callIP]
 							if callInstr.node != nil {
 								if callNode, ok := callInstr.node.(*ast.FunctionCall); ok {
 									// Append to the existing diagnostic context's call stack
@@ -40,16 +44,45 @@ func (vm *bytecodeVM) finishRunResumable(runErr *error) {
 									if ctx != nil {
 										ctx.callStack = append(ctx.callStack, runtimeCallFrame{node: callNode})
 									} else {
-										*runErr = vm.interp.attachRuntimeContext(*runErr, callInstr.node, vm.interp.stateFromEnv(frame.env))
+										*runErr = vm.interp.attachRuntimeContext(*runErr, callInstr.node, vm.interp.stateFromEnv(returnEnv))
 									}
 								}
 							}
 						}
-						vm.env = frame.env
-						vm.slots = frame.slots
+						vm.env = returnEnv
+						vm.slots = returnSlots
+						vm.releaseSlotFrame(calleeSlots)
 					}
 				}
 			}
 		}
+	}
+	if nonYieldExit {
+		vm.releaseCompletedRunFrames()
+	}
+}
+
+func (vm *bytecodeVM) releaseCompletedRunFrames() {
+	if vm == nil {
+		return
+	}
+	if vm.slots != nil {
+		vm.releaseSlotFrame(vm.slots)
+		vm.slots = nil
+	}
+	if len(vm.callFrames) > 0 {
+		for idx := range vm.callFrames {
+			frame := &vm.callFrames[idx]
+			vm.releaseSlotFrame(frame.slots)
+			frame.returnIP = 0
+			frame.program = nil
+			frame.slots = nil
+			frame.env = nil
+			frame.iterBase = 0
+			frame.loopBase = 0
+			frame.hasImplicitReceiver = false
+			frame.selfFast = false
+		}
+		vm.callFrames = vm.callFrames[:0]
 	}
 }

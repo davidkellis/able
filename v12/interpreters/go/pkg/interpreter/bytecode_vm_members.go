@@ -16,7 +16,7 @@ func (vm *bytecodeVM) execIndexGet(instr bytecodeInstruction) error {
 	if err != nil {
 		return err
 	}
-	result, err := vm.interp.indexGet(obj, idxVal)
+	result, err := vm.resolveIndexGet(obj, idxVal)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
 		if instr.node != nil {
@@ -50,7 +50,7 @@ func (vm *bytecodeVM) execIndexSet(instr bytecodeInstruction) error {
 	}
 	op := ast.AssignmentOperator(instr.operator)
 	binaryOp, isCompound := binaryOpForAssignment(op)
-	result, err := vm.interp.assignIndex(obj, idxVal, val, op, binaryOp, isCompound)
+	result, err := vm.resolveIndexSet(obj, idxVal, val, op, binaryOp, isCompound)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
 		if instr.node != nil {
@@ -85,6 +85,15 @@ func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
 	if memberExpr == nil {
 		return fmt.Errorf("bytecode member access requires member expression")
 	}
+	memberName := ""
+	if ident, ok := memberExpr.(*ast.Identifier); ok && ident != nil {
+		memberName = ident.Name
+	}
+	if cached, ok := vm.lookupCachedMemberMethod(vm.currentProgram, vm.ip, memberName, instr.preferMethods, obj); ok {
+		vm.stack = append(vm.stack, cached)
+		vm.ip++
+		return nil
+	}
 	val, err := vm.interp.memberAccessOnValueWithOptions(obj, memberExpr, vm.env, instr.preferMethods)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
@@ -93,6 +102,7 @@ func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
 		}
 		return err
 	}
+	vm.storeCachedMemberMethod(vm.currentProgram, vm.ip, memberName, instr.preferMethods, obj, val)
 	if val == nil {
 		val = runtime.NilValue{}
 	}

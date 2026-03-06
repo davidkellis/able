@@ -651,7 +651,9 @@ func parseTypeExpression(expr ast.TypeExpression) (typeInfo, bool) {
 		if !ok {
 			return typeInfo{}, false
 		}
-		tInfo.typeArgs = append([]ast.TypeExpression(nil), t.Arguments...)
+		// Type expression argument slices are treated as immutable by runtime
+		// resolution paths; reusing them avoids per-parse copy churn.
+		tInfo.typeArgs = t.Arguments
 		return tInfo, true
 	default:
 		return typeInfo{}, false
@@ -659,35 +661,70 @@ func parseTypeExpression(expr ast.TypeExpression) (typeInfo, bool) {
 }
 
 func typeExpressionToString(expr ast.TypeExpression) string {
+	var b strings.Builder
+	appendTypeExpressionString(&b, expr)
+	return b.String()
+}
+
+func appendTypeExpressionString(b *strings.Builder, expr ast.TypeExpression) {
+	if b == nil {
+		return
+	}
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
-		if t.Name == nil {
-			return "<?>"
+		if t == nil || t.Name == nil {
+			b.WriteString("<?>")
+			return
 		}
-		return t.Name.Name
+		b.WriteString(t.Name.Name)
 	case *ast.GenericTypeExpression:
-		base := typeExpressionToString(t.Base)
-		args := make([]string, 0, len(t.Arguments))
-		for _, arg := range t.Arguments {
-			args = append(args, typeExpressionToString(arg))
+		if t == nil {
+			b.WriteString("<?>")
+			return
 		}
-		return fmt.Sprintf("%s<%s>", base, strings.Join(args, ", "))
+		appendTypeExpressionString(b, t.Base)
+		b.WriteByte('<')
+		for idx, arg := range t.Arguments {
+			if idx > 0 {
+				b.WriteString(", ")
+			}
+			appendTypeExpressionString(b, arg)
+		}
+		b.WriteByte('>')
 	case *ast.NullableTypeExpression:
-		return typeExpressionToString(t.InnerType) + "?"
+		if t == nil {
+			b.WriteString("<?>")
+			return
+		}
+		appendTypeExpressionString(b, t.InnerType)
+		b.WriteByte('?')
 	case *ast.FunctionTypeExpression:
-		parts := make([]string, 0, len(t.ParamTypes))
-		for _, p := range t.ParamTypes {
-			parts = append(parts, typeExpressionToString(p))
+		if t == nil {
+			b.WriteString("<?>")
+			return
 		}
-		return fmt.Sprintf("fn(%s) -> %s", strings.Join(parts, ", "), typeExpressionToString(t.ReturnType))
+		b.WriteString("fn(")
+		for idx, p := range t.ParamTypes {
+			if idx > 0 {
+				b.WriteString(", ")
+			}
+			appendTypeExpressionString(b, p)
+		}
+		b.WriteString(") -> ")
+		appendTypeExpressionString(b, t.ReturnType)
 	case *ast.UnionTypeExpression:
-		parts := make([]string, 0, len(t.Members))
-		for _, member := range t.Members {
-			parts = append(parts, typeExpressionToString(member))
+		if t == nil {
+			b.WriteString("<?>")
+			return
 		}
-		return strings.Join(parts, " | ")
+		for idx, member := range t.Members {
+			if idx > 0 {
+				b.WriteString(" | ")
+			}
+			appendTypeExpressionString(b, member)
+		}
 	default:
-		return "<?>"
+		b.WriteString("<?>")
 	}
 }
 
@@ -747,11 +784,17 @@ func typeInfoToString(info typeInfo) string {
 	if len(info.typeArgs) == 0 {
 		return info.name
 	}
-	parts := make([]string, 0, len(info.typeArgs))
-	for _, arg := range info.typeArgs {
-		parts = append(parts, typeExpressionToString(arg))
+	var b strings.Builder
+	b.WriteString(info.name)
+	b.WriteByte('<')
+	for idx, arg := range info.typeArgs {
+		if idx > 0 {
+			b.WriteString(", ")
+		}
+		appendTypeExpressionString(&b, arg)
 	}
-	return fmt.Sprintf("%s<%s>", info.name, strings.Join(parts, ", "))
+	b.WriteByte('>')
+	return b.String()
 }
 
 func typeExpressionFromInfo(info typeInfo) ast.TypeExpression {

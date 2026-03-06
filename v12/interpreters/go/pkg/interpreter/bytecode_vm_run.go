@@ -3,7 +3,6 @@ package interpreter
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
@@ -19,34 +18,64 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 	if vm.env == nil {
 		return nil, fmt.Errorf("bytecode vm missing environment")
 	}
+	var serialSync *SerialExecutor
+	if serial, ok := vm.interp.executor.(*SerialExecutor); ok {
+		var payload *asyncContextPayload
+		if vm.env != nil {
+			payload = payloadFromState(vm.env.RuntimeData())
+		}
+		if payload == nil {
+			if serial.beginSynchronousSectionIfNeeded() {
+				serialSync = serial
+			}
+		}
+	}
+	if serialSync != nil {
+		defer serialSync.endSynchronousSection()
+	}
 	program = vm.prepareRunProgram(program, resume)
 	defer vm.finishRunResumable(&err)
 	instructions := program.instructions
+	validatedIntConsts := vm.validatedIntegerConstSlots(program)
+	slotConstIntImmTable := vm.slotConstImmediateTable(program)
+	statsEnabled := vm.interp != nil && vm.interp.bytecodeStatsEnabled
 	for vm.ip < len(instructions) {
-		instr := instructions[vm.ip]
+		instr := &instructions[vm.ip]
+		if statsEnabled {
+			vm.interp.recordBytecodeOp(instr.op)
+		}
 		switch instr.op {
 		case bytecodeOpConst:
 			value := instr.value
 			if intVal, ok := value.(runtime.IntegerValue); ok {
-				info, err := getIntegerInfo(intVal.TypeSuffix)
-				if err != nil {
-					if instr.node != nil {
-						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+				needsValidation := vm.ip < 0 || vm.ip >= len(validatedIntConsts) || !validatedIntConsts[vm.ip]
+				if needsValidation {
+					info, err := getIntegerInfo(intVal.TypeSuffix)
+					if err != nil {
+						if instr.node != nil {
+							err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						}
+						return nil, err
 					}
-					return nil, err
-				}
-				if err := ensureFitsInteger(info, intVal.BigInt()); err != nil {
-					err = vm.interp.wrapStandardRuntimeError(err)
-					if instr.node != nil {
-						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+					if err := ensureFitsInteger(info, intVal.BigInt()); err != nil {
+						err = vm.interp.wrapStandardRuntimeError(err)
+						if instr.node != nil {
+							err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						}
+						return nil, err
 					}
-					return nil, err
+					if vm.ip >= 0 && vm.ip < len(validatedIntConsts) {
+						validatedIntConsts[vm.ip] = true
+					}
 				}
 			}
 			vm.stack = append(vm.stack, value)
 			vm.ip++
 		case bytecodeOpLoadName:
-			val, err := vm.env.Get(instr.name)
+			if statsEnabled {
+				vm.interp.recordBytecodeLoadNameLookup()
+			}
+			val, err := vm.resolveCachedName(program, vm.ip, instr.name)
 			if err != nil {
 				if instr.node != nil {
 					err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
@@ -91,33 +120,30 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.ip++
 			}
 		case bytecodeOpAssignPattern:
-			{
-				if err := vm.execAssignPattern(instr); err != nil {
-					return nil, err
-				}
-			}
-		case bytecodeOpAssignNameCompound:
-			{
-				if err := vm.execAssignNameCompound(instr); err != nil {
-					return nil, err
-				}
-			}
-		case bytecodeOpDup:
-			{
-				if len(vm.stack) == 0 {
-					return nil, fmt.Errorf("bytecode stack underflow")
-				}
-				vm.stack = append(vm.stack, vm.stack[len(vm.stack)-1])
-				vm.ip++
-			}
-		case bytecodeOpPop:
-			if _, err := vm.pop(); err != nil {
+			if err := vm.execAssignPattern(*instr); err != nil {
 				return nil, err
 			}
-			vm.ip++
-		case bytecodeOpBinary:
+		case bytecodeOpAssignNameCompound:
+			if err := vm.execAssignNameCompound(*instr); err != nil {
+				return nil, err
+			}
+		case bytecodeOpDup:
+			if err := vm.execDup(); err != nil {
+				return nil, err
+			}
+		case bytecodeOpPop:
+			if err := vm.execPop(); err != nil {
+				return nil, err
+			}
+		case bytecodeOpBinary,
+			bytecodeOpBinaryIntAdd,
+			bytecodeOpBinaryIntSub,
+			bytecodeOpBinaryIntLessEqual,
+			bytecodeOpBinaryIntDivCast,
+			bytecodeOpBinaryIntSubSlotConst,
+			bytecodeOpBinaryIntLessEqualSlotConst:
 			{
-				handled, err := vm.execBinary(instr)
+				handled, err := vm.execBinary(instr, slotConstIntImmTable)
 				if err != nil {
 					return nil, err
 				}
@@ -206,27 +232,15 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpStringInterpolation:
 			{
-				if instr.argCount < 0 {
-					return nil, fmt.Errorf("bytecode string interpolation count invalid")
-				}
-				parts := make([]runtime.Value, instr.argCount)
-				for idx := instr.argCount - 1; idx >= 0; idx-- {
-					val, err := vm.pop()
-					if err != nil {
-						return nil, err
+				if err := vm.execStringInterpolation(instr); err != nil {
+					if instr.node != nil {
+						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						if vm.handleLoopSignal(err) {
+							continue
+						}
 					}
-					parts[idx] = val
+					return nil, err
 				}
-				var builder strings.Builder
-				for _, part := range parts {
-					str, err := vm.interp.stringifyValue(part, vm.env)
-					if err != nil {
-						return nil, err
-					}
-					builder.WriteString(str)
-				}
-				vm.stack = append(vm.stack, runtime.StringValue{Val: builder.String()})
-				vm.ip++
 			}
 		case bytecodeOpPropagation:
 			{
@@ -245,7 +259,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpOrElse:
 			{
-				handled, err := vm.execOrElse(instr)
+				handled, err := vm.execOrElse(*instr)
 				if err != nil {
 					return nil, err
 				}
@@ -254,10 +268,8 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				}
 			}
 		case bytecodeOpSpawn:
-			{
-				if err := vm.execSpawn(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execSpawn(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpAwait:
 			{
@@ -311,10 +323,8 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.ip++
 			}
 		case bytecodeOpImplicitMemberSet:
-			{
-				if err := vm.execImplicitMemberSet(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execImplicitMemberSet(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpIteratorLiteral:
 			{
@@ -360,8 +370,9 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				}
 				state := vm.interp.stateFromEnv(vm.env)
 				if state.hasPlaceholderFrame() {
-					innerVM := newBytecodeVM(vm.interp, vm.env)
+					innerVM := vm.interp.acquireBytecodeVM(vm.env)
 					val, err := innerVM.run(program)
+					vm.interp.releaseBytecodeVM(innerVM)
 					if err != nil {
 						return nil, err
 					}
@@ -456,52 +467,36 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.ip++
 			}
 		case bytecodeOpDefineUnion:
-			{
-				if err := vm.execDefineUnion(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execDefineUnion(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpDefineTypeAlias:
-			{
-				if err := vm.execDefineTypeAlias(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execDefineTypeAlias(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpDefineMethods:
-			{
-				if err := vm.execDefineMethods(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execDefineMethods(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpDefineInterface:
-			{
-				if err := vm.execDefineInterface(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execDefineInterface(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpDefineImplementation:
-			{
-				if err := vm.execDefineImplementation(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execDefineImplementation(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpDefineExtern:
-			{
-				if err := vm.execDefineExtern(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execDefineExtern(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpImport:
-			{
-				if err := vm.execImport(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execImport(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpDynImport:
-			{
-				if err := vm.execDynImport(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execDynImport(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpStructLiteral:
 			{
@@ -537,20 +532,15 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpArrayLiteral:
 			{
-				if instr.argCount < 0 {
-					return nil, fmt.Errorf("bytecode array literal count invalid")
-				}
-				values := make([]runtime.Value, instr.argCount)
-				for idx := instr.argCount - 1; idx >= 0; idx-- {
-					val, err := vm.pop()
-					if err != nil {
-						return nil, err
+				if err := vm.execArrayLiteral(instr); err != nil {
+					if instr.node != nil {
+						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						if vm.handleLoopSignal(err) {
+							continue
+						}
 					}
-					values[idx] = val
+					return nil, err
 				}
-				arr := vm.interp.newArrayValue(values, len(values))
-				vm.stack = append(vm.stack, arr)
-				vm.ip++
 			}
 		case bytecodeOpIterInit:
 			{
@@ -652,16 +642,12 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.ip++
 			}
 		case bytecodeOpIndexGet:
-			{
-				if err := vm.execIndexGet(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execIndexGet(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpIndexSet:
-			{
-				if err := vm.execIndexSet(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execIndexSet(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpForLoop:
 			{
@@ -681,41 +667,55 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpCall:
 			{
-				newProg, err := vm.execCall(instr, program)
+				newProg, err := vm.execCall(*instr, program)
 				if err != nil {
 					return nil, err
 				}
 				if newProg != nil {
-					program = newProg
-					instructions = program.instructions
-					vm.currentProgram = program
+					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
 					continue
 				}
 			}
 		case bytecodeOpCallName:
 			{
-				newProg, err := vm.execCallName(instr, program)
+				newProg, err := vm.execCallName(*instr, program)
 				if err != nil {
 					return nil, err
 				}
 				if newProg != nil {
-					program = newProg
-					instructions = program.instructions
-					vm.currentProgram = program
+					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
+					continue
+				}
+			}
+		case bytecodeOpCallSelf:
+			{
+				newProg, err := vm.execCallSelf(*instr, program)
+				if err != nil {
+					return nil, err
+				}
+				if newProg != nil {
+					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
+					continue
+				}
+			}
+		case bytecodeOpCallSelfIntSubSlotConst:
+			{
+				newProg, err := vm.execCallSelfIntSubSlotConst(instr, slotConstIntImmTable, program)
+				if err != nil {
+					return nil, err
+				}
+				if newProg != nil {
+					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
 					continue
 				}
 			}
 		case bytecodeOpMemberAccess:
-			{
-				if err := vm.execMemberAccess(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execMemberAccess(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpMemberSet:
-			{
-				if err := vm.execMemberSet(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execMemberSet(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpMatch:
 			{
@@ -742,13 +742,11 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.ip++
 			}
 		case bytecodeOpRescue:
-			{
-				if err := vm.execRescue(instr); err != nil {
-					if vm.handleLoopSignal(err) {
-						continue
-					}
-					return nil, err
+			if err := vm.execRescue(*instr); err != nil {
+				if vm.handleLoopSignal(err) {
+					continue
 				}
+				return nil, err
 			}
 		case bytecodeOpRaise:
 			{
@@ -772,19 +770,15 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				return nil, err
 			}
 		case bytecodeOpEnsure:
-			{
-				if err := vm.execEnsureStart(instr); err != nil {
-					return nil, err
-				}
+			if err := vm.execEnsureStart(*instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpEnsureEnd:
-			{
-				if err := vm.execEnsureEnd(instr); err != nil {
-					if vm.handleLoopSignal(err) {
-						continue
-					}
-					return nil, err
+			if err := vm.execEnsureEnd(*instr); err != nil {
+				if vm.handleLoopSignal(err) {
+					continue
 				}
+				return nil, err
 			}
 		case bytecodeOpRethrow:
 			{
@@ -923,24 +917,24 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			vm.stack = append(vm.stack, vm.slots[instr.target])
 			vm.ip++
 		case bytecodeOpStoreSlot:
-			val := vm.stack[len(vm.stack)-1]
-			vm.slots[instr.target] = val
-			vm.ip++
-		case bytecodeOpStoreSlotNew:
-			val := vm.stack[len(vm.stack)-1]
-			vm.slots[instr.target] = val
-			vm.ip++
-		case bytecodeOpCompoundAssignSlot:
-			{
-				if err := vm.execCompoundAssignSlot(instr); err != nil {
-					return nil, err
-				}
-			}
-		case bytecodeOpReturn:
-			val, err := vm.pop()
-			if err != nil {
+			if err := vm.execStoreSlot(instr); err != nil {
 				return nil, err
 			}
+		case bytecodeOpStoreSlotNew:
+			if err := vm.execStoreSlot(instr); err != nil {
+				return nil, err
+			}
+		case bytecodeOpCompoundAssignSlot:
+			if err := vm.execCompoundAssignSlot(*instr); err != nil {
+				return nil, err
+			}
+		case bytecodeOpReturn:
+			if len(vm.stack) == 0 {
+				return nil, fmt.Errorf("bytecode stack underflow")
+			}
+			valIdx := len(vm.stack) - 1
+			val := vm.stack[valIdx]
+			vm.stack = vm.stack[:valIdx]
 			if len(vm.callFrames) > 0 {
 				// Inline return: pop call frame and continue in caller.
 				if program.frameLayout != nil && program.frameLayout.returnType != nil && !inlineCoercionUnnecessary(program.frameLayout.returnType, val) {
@@ -953,29 +947,33 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					}
 					val = coerced
 				}
-				frame := vm.callFrames[len(vm.callFrames)-1]
-				vm.callFrames = vm.callFrames[:len(vm.callFrames)-1]
-				if frame.hasImplicitReceiver {
+				returnIP, returnProgram, returnSlots, returnEnv, iterBase, loopBase, hasImplicitReceiver, selfFast, ok := vm.popCallFrameFields()
+				if !ok {
+					return nil, fmt.Errorf("bytecode call frame underflow")
+				}
+				calleeSlots := vm.slots
+				if hasImplicitReceiver {
 					state := vm.interp.stateFromEnv(vm.env)
 					state.popImplicitReceiver()
 				}
-				vm.ip = frame.returnIP
-				vm.slots = frame.slots
-				vm.env = frame.env
-				program = frame.program
-				instructions = program.instructions
-				vm.currentProgram = program
-				if len(vm.iterStack) > frame.iterBase {
-					for idx := len(vm.iterStack) - 1; idx >= frame.iterBase; idx-- {
+				vm.ip = returnIP
+				vm.slots = returnSlots
+				if !selfFast {
+					vm.env = returnEnv
+					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, returnProgram)
+				}
+				if len(vm.iterStack) > iterBase {
+					for idx := len(vm.iterStack) - 1; idx >= iterBase; idx-- {
 						if iter := vm.iterStack[idx].iter; iter != nil {
 							iter.Close()
 						}
 					}
-					vm.iterStack = vm.iterStack[:frame.iterBase]
+					vm.iterStack = vm.iterStack[:iterBase]
 				}
-				if len(vm.loopStack) > frame.loopBase {
-					vm.loopStack = vm.loopStack[:frame.loopBase]
+				if len(vm.loopStack) > loopBase {
+					vm.loopStack = vm.loopStack[:loopBase]
 				}
+				vm.releaseSlotFrame(calleeSlots)
 				vm.stack = append(vm.stack, val)
 				continue
 			}

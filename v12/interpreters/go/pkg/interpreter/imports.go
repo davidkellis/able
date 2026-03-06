@@ -9,12 +9,12 @@ import (
 )
 
 var reexportedSymbols = map[string]string{
-	"able.collections.array.Array":       "able.kernel.Array",
-	"able.collections.range.Range":       "able.kernel.Range",
+	"able.collections.array.Array":        "able.kernel.Array",
+	"able.collections.range.Range":        "able.kernel.Range",
 	"able.collections.range.RangeFactory": "able.kernel.RangeFactory",
-	"able.core.numeric.Ratio":            "able.kernel.Ratio",
-	"able.concurrency.Channel":           "able.kernel.Channel",
-	"able.concurrency.Mutex":             "able.kernel.Mutex",
+	"able.core.numeric.Ratio":             "able.kernel.Ratio",
+	"able.concurrency.Channel":            "able.kernel.Channel",
+	"able.concurrency.Mutex":              "able.kernel.Mutex",
 	"able.concurrency.Awaitable":          "able.kernel.Awaitable",
 	"able.concurrency.AwaitWaker":         "able.kernel.AwaitWaker",
 	"able.concurrency.AwaitRegistration":  "able.kernel.AwaitRegistration",
@@ -255,7 +255,7 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 					if aliasName != "" && aliasName != original {
 						clone := *aliasDef
 						clone.ID = ast.ID(aliasName)
-						i.typeAliases[aliasName] = &clone
+						i.setTypeAlias(aliasName, &clone)
 					}
 					continue
 				}

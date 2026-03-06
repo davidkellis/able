@@ -1,0 +1,627 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+GO_CACHE="$GO_DIR/.gocache"
+
+DEFAULT_BENCHMARKS="fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e"
+DEFAULT_MODES="compiled,treewalker,bytecode"
+
+runs=1
+timeout_seconds=60
+build_timeout_seconds=300
+modes_csv="$DEFAULT_MODES"
+benchmarks_csv="$DEFAULT_BENCHMARKS"
+output_json=""
+workdir=""
+keep_artifacts=false
+show_output=false
+skip_setup=false
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_suite [options]
+
+Examples:
+  v12/bench_suite
+  v12/bench_suite --runs 3 --timeout 45
+  v12/bench_suite --modes compiled,bytecode --benchmarks fib,binarytrees
+  v12/bench_suite --output-json v12/docs/perf-baselines/2026-03-03-baseline.json
+
+Options:
+  -r, --runs N            Number of runs per benchmark/mode (default: 1)
+  -t, --timeout SEC       Timeout per run in seconds (default: 60)
+      --build-timeout SEC Build timeout per benchmark for compiled mode (default: 300)
+  -m, --modes CSV         Modes: compiled,treewalker,bytecode (default: all)
+  -b, --benchmarks CSV    Benchmarks (default: fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e)
+      --output-json PATH  JSON output path (default: v12/tmp/perf/bench-suite-<timestamp>.json)
+      --workdir DIR       Working directory for build artifacts
+      --keep              Keep working directory after run
+      --show-output       Print stdout/stderr for each benchmark run
+      --skip-setup        Skip 'able setup' in isolated ABLE_HOME
+  -h, --help              Show this help
+
+Notes:
+  - This harness is report-only and does not enforce pass/fail performance thresholds.
+  - Results include per-run status (ok/timeout/error), timing, and GC count.
+EOF
+}
+
+die() {
+  echo "bench_suite: $*" >&2
+  exit 1
+}
+
+is_int() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+shell_join() {
+  local out=()
+  local arg
+  for arg in "$@"; do
+    out+=("$(printf '%q' "$arg")")
+  done
+  (IFS=' '; printf '%s' "${out[*]}")
+}
+
+resolve_output_json() {
+  if [[ -n "$output_json" ]]; then
+    output_json="$(realpath -m "$output_json")"
+    return
+  fi
+  local stamp
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  output_json="$SCRIPT_DIR/tmp/perf/bench-suite-${stamp}.json"
+}
+
+benchmark_dir() {
+  case "$1" in
+    fib|binarytrees|matrixmultiply)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks"
+      ;;
+    quicksort)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/quicksort"
+      ;;
+    sudoku)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/sudoku"
+      ;;
+    i_before_e)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/i_before_e"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+benchmark_entry() {
+  case "$1" in
+    fib)
+      printf '%s\n' "fib.able"
+      ;;
+    binarytrees)
+      printf '%s\n' "binarytrees.able"
+      ;;
+    matrixmultiply)
+      printf '%s\n' "matrixmultiply.able"
+      ;;
+    quicksort)
+      printf '%s\n' "quicksort.able"
+      ;;
+    sudoku)
+      printf '%s\n' "sudoku.able"
+      ;;
+    i_before_e)
+      printf '%s\n' "i_before_e.able"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+collect_machine_metadata() {
+  MACHINE_HOSTNAME="$(hostname 2>/dev/null || echo unknown)"
+  MACHINE_OS="$(uname -s 2>/dev/null || echo unknown)"
+  MACHINE_KERNEL="$(uname -r 2>/dev/null || echo unknown)"
+  MACHINE_ARCH="$(uname -m 2>/dev/null || echo unknown)"
+  MACHINE_CPU_COUNT="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo unknown)"
+  MACHINE_CPU_MODEL="$(awk -F': ' '/^model name/ {print $2; exit}' /proc/cpuinfo 2>/dev/null || echo unknown)"
+  MACHINE_MEM_KB="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo unknown)"
+}
+
+collect_git_metadata() {
+  GIT_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+  if [[ -n "$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null)" ]]; then
+    GIT_DIRTY=true
+  else
+    GIT_DIRTY=false
+  fi
+  GO_VERSION="$(go version 2>/dev/null || echo unknown)"
+}
+
+run_setup() {
+  if [[ "$skip_setup" == true ]]; then
+    return
+  fi
+  echo ">>> Running setup in isolated ABLE_HOME"
+  (
+    cd "$SCRIPT_DIR"
+    env \
+      GOCACHE="$GO_CACHE" \
+      ABLE_HOME="$ABLE_HOME_DIR" \
+      ABLE_PATH="" \
+      ABLE_MODULE_PATHS="" \
+      "$ABLE_BIN" setup
+  ) >/dev/null
+}
+
+run_timed_command() {
+  local cwd="$1"
+  local mode="$2"
+  local bench="$3"
+  local run_idx="$4"
+  shift 4
+  local cmd=("$@")
+
+  local stdout_file stderr_file
+  stdout_file="$(mktemp "$WORK_TMP/${bench}.${mode}.stdout.XXXXXX")"
+  stderr_file="$(mktemp "$WORK_TMP/${bench}.${mode}.stderr.XXXXXX")"
+
+  set +e
+  if command -v timeout >/dev/null 2>&1 && ((timeout_seconds > 0)); then
+    (
+      cd "$cwd"
+      env \
+        ABLE_HOME="$ABLE_HOME_DIR" \
+        ABLE_PATH="" \
+        ABLE_MODULE_PATHS="" \
+        GODEBUG=gctrace=1 \
+        /usr/bin/time -p timeout "$timeout_seconds" "${cmd[@]}"
+    ) >"$stdout_file" 2>"$stderr_file"
+  else
+    (
+      cd "$cwd"
+      env \
+        ABLE_HOME="$ABLE_HOME_DIR" \
+        ABLE_PATH="" \
+        ABLE_MODULE_PATHS="" \
+        GODEBUG=gctrace=1 \
+        /usr/bin/time -p "${cmd[@]}"
+    ) >"$stdout_file" 2>"$stderr_file"
+  fi
+  local rc=$?
+  set -e
+
+  if [[ "$show_output" == true ]]; then
+    echo "--- ${bench}/${mode} run ${run_idx} stdout ---"
+    cat "$stdout_file"
+    echo "--- ${bench}/${mode} run ${run_idx} stderr ---"
+    cat "$stderr_file"
+  fi
+
+  local status="ok"
+  if [[ "$rc" -eq 124 || "$rc" -eq 137 || "$rc" -eq 143 ]]; then
+    status="timeout"
+  elif [[ "$rc" -ne 0 ]]; then
+    status="error"
+  fi
+
+  local real user sys gc_count
+  real="$(awk '$1 == "real" { print $2; exit }' "$stderr_file")"
+  user="$(awk '$1 == "user" { print $2; exit }' "$stderr_file")"
+  sys="$(awk '$1 == "sys" { print $2; exit }' "$stderr_file")"
+  gc_count="$(grep -cE '(^|[^[:alpha:]])gc [0-9]+ @' "$stderr_file" || true)"
+
+  if [[ -z "$real" ]]; then real=""; fi
+  if [[ -z "$user" ]]; then user=""; fi
+  if [[ -z "$sys" ]]; then sys=""; fi
+  if [[ -z "$real" ]]; then real="NA"; fi
+  if [[ -z "$user" ]]; then user="NA"; fi
+  if [[ -z "$sys" ]]; then sys="NA"; fi
+  if [[ -z "$gc_count" ]]; then gc_count="0"; fi
+
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$bench" "$mode" "$run_idx" "$status" "$rc" "$real" "$user" "$sys" "$gc_count" "$stderr_file" >>"$RUN_ROWS_TSV"
+}
+
+append_summary() {
+  local bench="$1"
+  local mode="$2"
+  local status="$3"
+  local real="$4"
+  local user="$5"
+  local sys="$6"
+  local gc="$7"
+
+  local key="${bench}|${mode}"
+  case "$status" in
+    ok)
+      summary_ok["$key"]=$((summary_ok["$key"] + 1))
+      summary_real["$key"]="$(awk -v a="${summary_real["$key"]}" -v b="$real" 'BEGIN { if (b == "") b = 0; printf "%.9f", a + b }')"
+      summary_user["$key"]="$(awk -v a="${summary_user["$key"]}" -v b="$user" 'BEGIN { if (b == "") b = 0; printf "%.9f", a + b }')"
+      summary_sys["$key"]="$(awk -v a="${summary_sys["$key"]}" -v b="$sys" 'BEGIN { if (b == "") b = 0; printf "%.9f", a + b }')"
+      summary_gc["$key"]=$((summary_gc["$key"] + gc))
+      ;;
+    timeout)
+      summary_timeout["$key"]=$((summary_timeout["$key"] + 1))
+      ;;
+    *)
+      summary_error["$key"]=$((summary_error["$key"] + 1))
+      ;;
+  esac
+}
+
+write_results_json() {
+  json_array() {
+    local values=("$@")
+    local first_local=true
+    local item
+    for item in "${values[@]}"; do
+      if [[ -z "$item" ]]; then
+        continue
+      fi
+      if [[ "$first_local" == true ]]; then
+        first_local=false
+      else
+        printf ', '
+      fi
+      printf '"%s"' "$(json_escape "$item")"
+    done
+  }
+
+  local out="$1"
+  mkdir -p "$(dirname "$out")"
+  {
+    printf '{\n'
+    printf '  "schema_version": 1,\n'
+    printf '  "generated_at_utc": "%s",\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf '  "git": {\n'
+    printf '    "commit": "%s",\n' "$(json_escape "$GIT_COMMIT")"
+    printf '    "dirty": %s\n' "$GIT_DIRTY"
+    printf '  },\n'
+    printf '  "machine": {\n'
+    printf '    "hostname": "%s",\n' "$(json_escape "$MACHINE_HOSTNAME")"
+    printf '    "os": "%s",\n' "$(json_escape "$MACHINE_OS")"
+    printf '    "kernel": "%s",\n' "$(json_escape "$MACHINE_KERNEL")"
+    printf '    "arch": "%s",\n' "$(json_escape "$MACHINE_ARCH")"
+    printf '    "cpu_model": "%s",\n' "$(json_escape "$MACHINE_CPU_MODEL")"
+    printf '    "cpu_count": "%s",\n' "$(json_escape "$MACHINE_CPU_COUNT")"
+    printf '    "mem_total_kb": "%s"\n' "$(json_escape "$MACHINE_MEM_KB")"
+    printf '  },\n'
+    printf '  "toolchain": {\n'
+    printf '    "go_version": "%s",\n' "$(json_escape "$GO_VERSION")"
+    printf '    "able_cli": "%s"\n' "$(json_escape "$ABLE_BIN")"
+    printf '  },\n'
+    printf '  "config": {\n'
+    printf '    "runs": %d,\n' "$runs"
+    printf '    "timeout_seconds": %d,\n' "$timeout_seconds"
+    printf '    "build_timeout_seconds": %d,\n' "$build_timeout_seconds"
+    printf '    "modes": ['
+    json_array "${MODES[@]}"
+    printf '],\n'
+    printf '    "benchmarks": ['
+    json_array "${BENCHMARKS[@]}"
+    printf ']\n'
+    printf '  },\n'
+    printf '  "results": [\n'
+
+    local first=true
+    while IFS=$'\t' read -r bench mode run_idx status rc real user sys gc stderr_file; do
+      if [[ "$first" == true ]]; then
+        first=false
+      else
+        printf ',\n'
+      fi
+      printf '    {\n'
+      printf '      "benchmark": "%s",\n' "$(json_escape "$bench")"
+      printf '      "mode": "%s",\n' "$(json_escape "$mode")"
+      printf '      "run_index": %s,\n' "$run_idx"
+      printf '      "status": "%s",\n' "$(json_escape "$status")"
+      printf '      "exit_code": %s,\n' "$rc"
+      if [[ "$real" != "NA" ]]; then
+        printf '      "real_seconds": %s,\n' "$real"
+      else
+        printf '      "real_seconds": null,\n'
+      fi
+      if [[ "$user" != "NA" ]]; then
+        printf '      "user_seconds": %s,\n' "$user"
+      else
+        printf '      "user_seconds": null,\n'
+      fi
+      if [[ "$sys" != "NA" ]]; then
+        printf '      "sys_seconds": %s,\n' "$sys"
+      else
+        printf '      "sys_seconds": null,\n'
+      fi
+      printf '      "gc_count": %s\n' "$gc"
+      printf '    }'
+    done <"$RUN_ROWS_TSV"
+
+    printf '\n  ],\n'
+    printf '  "summary": [\n'
+
+    first=true
+    local bench mode key ok timeout errors avg_real avg_user avg_sys avg_gc
+    for bench in "${BENCHMARKS[@]}"; do
+      for mode in "${MODES[@]}"; do
+        key="${bench}|${mode}"
+        ok="${summary_ok["$key"]}"
+        timeout="${summary_timeout["$key"]}"
+        errors="${summary_error["$key"]}"
+        if [[ "$ok" -gt 0 ]]; then
+          avg_real="$(awk -v a="${summary_real["$key"]}" -v n="$ok" 'BEGIN { printf "%.6f", a / n }')"
+          avg_user="$(awk -v a="${summary_user["$key"]}" -v n="$ok" 'BEGIN { printf "%.6f", a / n }')"
+          avg_sys="$(awk -v a="${summary_sys["$key"]}" -v n="$ok" 'BEGIN { printf "%.6f", a / n }')"
+          avg_gc="$(awk -v a="${summary_gc["$key"]}" -v n="$ok" 'BEGIN { printf "%.2f", a / n }')"
+        else
+          avg_real=""
+          avg_user=""
+          avg_sys=""
+          avg_gc=""
+        fi
+
+        if [[ "$first" == true ]]; then
+          first=false
+        else
+          printf ',\n'
+        fi
+        printf '    {\n'
+        printf '      "benchmark": "%s",\n' "$(json_escape "$bench")"
+        printf '      "mode": "%s",\n' "$(json_escape "$mode")"
+        printf '      "ok_runs": %s,\n' "$ok"
+        printf '      "timeout_runs": %s,\n' "$timeout"
+        printf '      "error_runs": %s,\n' "$errors"
+        if [[ -n "$avg_real" ]]; then
+          printf '      "real_seconds_avg": %s,\n' "$avg_real"
+          printf '      "user_seconds_avg": %s,\n' "$avg_user"
+          printf '      "sys_seconds_avg": %s,\n' "$avg_sys"
+          printf '      "gc_count_avg": %s\n' "$avg_gc"
+        else
+          printf '      "real_seconds_avg": null,\n'
+          printf '      "user_seconds_avg": null,\n'
+          printf '      "sys_seconds_avg": null,\n'
+          printf '      "gc_count_avg": null\n'
+        fi
+        printf '    }'
+      done
+    done
+
+    printf '\n  ]\n'
+    printf '}\n'
+  } >"$out"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -r|--runs)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --runs"
+      runs="$1"
+      ;;
+    -t|--timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --timeout"
+      timeout_seconds="$1"
+      ;;
+    --build-timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --build-timeout"
+      build_timeout_seconds="$1"
+      ;;
+    -m|--modes)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --modes"
+      modes_csv="$1"
+      ;;
+    -b|--benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      ;;
+    --output-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-json"
+      output_json="$1"
+      ;;
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --keep)
+      keep_artifacts=true
+      ;;
+    --show-output)
+      show_output=true
+      ;;
+    --skip-setup)
+      skip_setup=true
+      ;;
+    *)
+      die "unknown option: $1"
+      ;;
+  esac
+  shift
+done
+
+is_int "$runs" && ((runs > 0)) || die "--runs must be a positive integer"
+is_int "$timeout_seconds" && ((timeout_seconds >= 0)) || die "--timeout must be a non-negative integer"
+is_int "$build_timeout_seconds" && ((build_timeout_seconds >= 0)) || die "--build-timeout must be a non-negative integer"
+command -v /usr/bin/time >/dev/null 2>&1 || die "/usr/bin/time is required"
+
+IFS=',' read -r -a MODES <<<"$modes_csv"
+IFS=',' read -r -a BENCHMARKS <<<"$benchmarks_csv"
+
+for mode in "${MODES[@]}"; do
+  case "$mode" in
+    compiled|treewalker|bytecode) ;;
+    "") ;;
+    *) die "unknown mode: $mode" ;;
+  esac
+done
+
+for bench in "${BENCHMARKS[@]}"; do
+  benchmark_dir "$bench" >/dev/null || die "unknown benchmark: $bench"
+  benchmark_entry "$bench" >/dev/null || die "unknown benchmark entry: $bench"
+done
+
+mkdir -p "$GO_CACHE" "$SCRIPT_DIR/tmp/perf"
+
+if [[ -z "$workdir" ]]; then
+  workdir="$(mktemp -d "$SCRIPT_DIR/tmp/perf/suite.XXXXXX")"
+else
+  workdir="$(realpath -m "$workdir")"
+  mkdir -p "$workdir"
+fi
+
+if [[ "$keep_artifacts" == false ]]; then
+  trap 'rm -rf "$workdir"' EXIT
+fi
+
+WORK_TMP="$workdir/tmp"
+ABLE_HOME_DIR="$workdir/able_home"
+ABLE_BIN="$workdir/able"
+RUN_ROWS_TSV="$workdir/results.tsv"
+
+mkdir -p "$WORK_TMP" "$ABLE_HOME_DIR"
+: >"$RUN_ROWS_TSV"
+
+resolve_output_json
+collect_machine_metadata
+collect_git_metadata
+
+declare -A summary_ok summary_timeout summary_error summary_real summary_user summary_sys summary_gc
+for bench in "${BENCHMARKS[@]}"; do
+  for mode in "${MODES[@]}"; do
+    key="${bench}|${mode}"
+    summary_ok["$key"]=0
+    summary_timeout["$key"]=0
+    summary_error["$key"]=0
+    summary_real["$key"]="0"
+    summary_user["$key"]="0"
+    summary_sys["$key"]="0"
+    summary_gc["$key"]=0
+  done
+done
+
+echo ">>> Workdir: $workdir"
+echo ">>> Building Able CLI"
+env GOCACHE="$GO_CACHE" go build -C "$GO_DIR" -o "$ABLE_BIN" ./cmd/able
+
+run_setup
+
+for bench in "${BENCHMARKS[@]}"; do
+  bench_dir="$(benchmark_dir "$bench")"
+  bench_entry="$(benchmark_entry "$bench")"
+  entry_abs="$(realpath "$bench_dir/$bench_entry")"
+
+  echo ">>> Benchmark: $bench ($entry_abs)"
+
+  compiled_bin="$workdir/compiled-$bench"
+  compiled_ready=true
+  if printf '%s\n' "${MODES[@]}" | grep -qx "compiled"; then
+    set +e
+    if command -v timeout >/dev/null 2>&1 && ((build_timeout_seconds > 0)); then
+      (
+        cd "$bench_dir"
+        env \
+          ABLE_HOME="$ABLE_HOME_DIR" \
+          ABLE_PATH="" \
+          ABLE_MODULE_PATHS="" \
+          timeout "$build_timeout_seconds" "$ABLE_BIN" build --bin "$compiled_bin" "$entry_abs"
+      ) >/dev/null 2>"$WORK_TMP/${bench}.compiled.build.stderr"
+      build_rc=$?
+    else
+      (
+        cd "$bench_dir"
+        env \
+          ABLE_HOME="$ABLE_HOME_DIR" \
+          ABLE_PATH="" \
+          ABLE_MODULE_PATHS="" \
+          "$ABLE_BIN" build --bin "$compiled_bin" "$entry_abs"
+      ) >/dev/null 2>"$WORK_TMP/${bench}.compiled.build.stderr"
+      build_rc=$?
+    fi
+    set -e
+    if [[ "$build_rc" -ne 0 ]]; then
+      compiled_ready=false
+      echo "    compiled build failed for $bench (rc=$build_rc, recording error runs)"
+    fi
+  fi
+
+  for mode in "${MODES[@]}"; do
+    if [[ -z "$mode" ]]; then
+      continue
+    fi
+    for ((run_idx = 1; run_idx <= runs; run_idx++)); do
+      if [[ "$mode" == "compiled" && "$compiled_ready" == false ]]; then
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+          "$bench" "$mode" "$run_idx" "error" "1" "NA" "NA" "NA" "0" "$WORK_TMP/${bench}.compiled.build.stderr" >>"$RUN_ROWS_TSV"
+        append_summary "$bench" "$mode" "error" "" "" "" "0"
+        continue
+      fi
+
+      case "$mode" in
+        compiled)
+          cmd=("$compiled_bin")
+          ;;
+        treewalker|bytecode)
+          cmd=("$ABLE_BIN" "--exec-mode=$mode" "$entry_abs")
+          ;;
+        *)
+          die "unsupported mode $mode"
+          ;;
+      esac
+
+      run_timed_command "$bench_dir" "$mode" "$bench" "$run_idx" "${cmd[@]}"
+      last_row="$(tail -n 1 "$RUN_ROWS_TSV")"
+      IFS=$'\t' read -r _bench _mode _idx _status _rc _real _user _sys _gc _stderr <<<"$last_row"
+      append_summary "$_bench" "$_mode" "$_status" "$_real" "$_user" "$_sys" "$_gc"
+    done
+  done
+done
+
+write_results_json "$output_json"
+
+echo ">>> Wrote benchmark suite results: $output_json"
+printf '%-14s %-11s %-10s %-12s %-12s %-12s %-10s\n' "benchmark" "mode" "ok/runs" "timeouts" "errors" "real_avg(s)" "gc_avg"
+for bench in "${BENCHMARKS[@]}"; do
+  for mode in "${MODES[@]}"; do
+    key="${bench}|${mode}"
+    ok="${summary_ok["$key"]}"
+    timeouts="${summary_timeout["$key"]}"
+    errors="${summary_error["$key"]}"
+    if [[ "$ok" -gt 0 ]]; then
+      avg_real="$(awk -v a="${summary_real["$key"]}" -v n="$ok" 'BEGIN { printf "%.4f", a / n }')"
+      avg_gc="$(awk -v a="${summary_gc["$key"]}" -v n="$ok" 'BEGIN { printf "%.2f", a / n }')"
+    else
+      avg_real="n/a"
+      avg_gc="n/a"
+    fi
+    printf '%-14s %-11s %-10s %-12s %-12s %-12s %-10s\n' \
+      "$bench" "$mode" "$ok/$runs" "$timeouts" "$errors" "$avg_real" "$avg_gc"
+  done
+done
+
+if [[ "$keep_artifacts" == true ]]; then
+  echo ">>> Kept artifacts in: $workdir"
+fi

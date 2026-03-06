@@ -31,15 +31,15 @@ func unsignedInfo(kind runtime.IntegerType, bits int) integerInfo {
 }
 
 var integerInfos = map[runtime.IntegerType]integerInfo{
-	runtime.IntegerI8:   signedInfo(runtime.IntegerI8, 8),
-	runtime.IntegerI16:  signedInfo(runtime.IntegerI16, 16),
-	runtime.IntegerI32:  signedInfo(runtime.IntegerI32, 32),
-	runtime.IntegerI64:  signedInfo(runtime.IntegerI64, 64),
-	runtime.IntegerI128: signedInfo(runtime.IntegerI128, 128),
-	runtime.IntegerU8:   unsignedInfo(runtime.IntegerU8, 8),
-	runtime.IntegerU16:  unsignedInfo(runtime.IntegerU16, 16),
-	runtime.IntegerU32:  unsignedInfo(runtime.IntegerU32, 32),
-	runtime.IntegerU64:  unsignedInfo(runtime.IntegerU64, 64),
+	runtime.IntegerI8:    signedInfo(runtime.IntegerI8, 8),
+	runtime.IntegerI16:   signedInfo(runtime.IntegerI16, 16),
+	runtime.IntegerI32:   signedInfo(runtime.IntegerI32, 32),
+	runtime.IntegerI64:   signedInfo(runtime.IntegerI64, 64),
+	runtime.IntegerI128:  signedInfo(runtime.IntegerI128, 128),
+	runtime.IntegerU8:    unsignedInfo(runtime.IntegerU8, 8),
+	runtime.IntegerU16:   unsignedInfo(runtime.IntegerU16, 16),
+	runtime.IntegerU32:   unsignedInfo(runtime.IntegerU32, 32),
+	runtime.IntegerU64:   unsignedInfo(runtime.IntegerU64, 64),
 	runtime.IntegerU128:  unsignedInfo(runtime.IntegerU128, 128),
 	runtime.IntegerIsize: signedInfo(runtime.IntegerIsize, 64),
 	runtime.IntegerUsize: unsignedInfo(runtime.IntegerUsize, 64),
@@ -62,11 +62,19 @@ var unsignedSequence = []runtime.IntegerType{
 }
 
 func getIntegerInfo(kind runtime.IntegerType) (integerInfo, error) {
-	info, ok := integerInfos[kind]
+	info, ok := lookupIntegerInfo(kind)
 	if !ok {
 		return integerInfo{}, fmt.Errorf("unsupported integer kind %s", kind)
 	}
 	return info, nil
+}
+
+func lookupIntegerInfo(kind runtime.IntegerType) (integerInfo, bool) {
+	info, ok := integerInfos[kind]
+	if !ok {
+		return integerInfo{}, false
+	}
+	return info, true
 }
 
 func integerRangeWithinKinds(source runtime.IntegerType, target runtime.IntegerType) bool {
@@ -140,6 +148,9 @@ func widestUnsignedInfo(a integerInfo, b integerInfo) (integerInfo, bool) {
 }
 
 func promoteIntegerTypes(left runtime.IntegerType, right runtime.IntegerType) (runtime.IntegerType, error) {
+	if left == right {
+		return left, nil
+	}
 	leftInfo, err := getIntegerInfo(left)
 	if err != nil {
 		return runtime.IntegerI32, err

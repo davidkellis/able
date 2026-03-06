@@ -18,6 +18,8 @@ type bytecodeLoweringContext struct {
 	frameLayout            *bytecodeFrameLayout // non-nil = slot mode
 	slotScopes             []map[string]int     // scope stack for slot lookups
 	nextSlot               int                  // next available slot index
+	selfCallName           string               // current function name for self-recursive call lowering
+	selfCallSlot           int                  // reserved slot for self-recursive call fast path
 }
 
 type loopContext struct {
@@ -320,9 +322,6 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			return nil
 		}
 		if ident, ok := n.Callee.(*ast.Identifier); ok && ident != nil {
-			// If the callee is a slot variable (e.g., a function parameter),
-			// emit LoadSlot + Call instead of CallName so the value is
-			// resolved from the slot rather than the environment.
 			if slot, found := ctx.lookupSlot(ident.Name); found {
 				ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: slot, name: ident.Name, node: ident})
 				for _, arg := range n.Arguments {
@@ -331,6 +330,19 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 					}
 				}
 				ctx.emit(bytecodeInstruction{op: bytecodeOpCall, argCount: len(n.Arguments), node: n})
+				return nil
+			}
+			if ctx.selfCallSlot >= 0 && ctx.selfCallName != "" && ident.Name == ctx.selfCallName {
+				if instr, ok := bytecodeSelfCallSlotConstInstruction(ctx, n); ok {
+					ctx.emit(instr)
+					return nil
+				}
+				for _, arg := range n.Arguments {
+					if err := emitExpression(ctx, i, arg); err != nil {
+						return err
+					}
+				}
+				ctx.emit(bytecodeInstruction{op: bytecodeOpCallSelf, target: ctx.selfCallSlot, argCount: len(n.Arguments), node: n})
 				return nil
 			}
 			for _, arg := range n.Arguments {
@@ -377,6 +389,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpStringInterpolation, argCount: len(n.Parts), node: n})
 		return nil
 	case *ast.TypeCastExpression:
+		if lowered, err := bytecodeEmitIntegerDivCast(ctx, i, n); err != nil {
+			return err
+		} else if lowered {
+			return nil
+		}
 		if err := emitExpression(ctx, i, n.Expression); err != nil {
 			return err
 		}
@@ -426,13 +443,18 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			ctx.emit(bytecodeInstruction{op: bytecodeOpPipe, node: n.Right})
 			return nil
 		default:
+			if instr, ok := bytecodeBinarySlotConstInstruction(ctx, n); ok {
+				ctx.emit(instr)
+				return nil
+			}
 			if err := emitExpression(ctx, i, n.Left); err != nil {
 				return err
 			}
 			if err := emitExpression(ctx, i, n.Right); err != nil {
 				return err
 			}
-			ctx.emit(bytecodeInstruction{op: bytecodeOpBinary, operator: n.Operator, node: n})
+			op := bytecodeBinaryOpcodeForOperator(n.Operator)
+			ctx.emit(bytecodeInstruction{op: op, operator: n.Operator, node: n})
 			return nil
 		}
 	case *ast.UnaryExpression:
@@ -472,8 +494,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			ctx.emit(bytecodeInstruction{op: bytecodeOpImplicitMemberSet, operator: string(n.Operator), node: implicitExpr})
 			return nil
 		}
+		name, ok := resolveAssignmentTargetName(n.Left)
+		_, typedSimple := n.Left.(*ast.TypedPattern)
+		useTypedSlotDeclare := typedSimple && ok && n.Operator == ast.AssignmentDeclare && ctx.frameLayout != nil
 		if pattern, ok := n.Left.(ast.Pattern); ok && pattern != nil {
-			if _, isIdent := n.Left.(*ast.Identifier); !isIdent {
+			if _, simple := resolveAssignmentTargetName(n.Left); !simple || (typedSimple && !useTypedSlotDeclare) {
 				if err := emitExpression(ctx, i, n.Right); err != nil {
 					return err
 				}
@@ -481,7 +506,6 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				return nil
 			}
 		}
-		name, ok := resolveAssignmentTargetName(n.Left)
 		if ok && n.Operator != ast.AssignmentDeclare && n.Operator != ast.AssignmentAssign {
 			if _, isCompound := binaryOpForAssignment(n.Operator); isCompound {
 				if err := emitExpression(ctx, i, n.Right); err != nil {
@@ -886,7 +910,9 @@ func (ctx *bytecodeLoweringContext) patchLoopTargets(index int, breakTarget int,
 }
 
 func (ctx *bytecodeLoweringContext) enterScope() {
-	ctx.emit(bytecodeInstruction{op: bytecodeOpEnterScope})
+	if ctx.frameLayout == nil || ctx.frameLayout.needsEnvScopes {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpEnterScope})
+	}
 	ctx.scopeDepth++
 	if ctx.frameLayout != nil {
 		ctx.slotScopes = append(ctx.slotScopes, make(map[string]int))
@@ -894,7 +920,9 @@ func (ctx *bytecodeLoweringContext) enterScope() {
 }
 
 func (ctx *bytecodeLoweringContext) exitScope() {
-	ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope})
+	if ctx.frameLayout == nil || ctx.frameLayout.needsEnvScopes {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope})
+	}
 	if ctx.scopeDepth > 0 {
 		ctx.scopeDepth--
 	}
@@ -902,9 +930,6 @@ func (ctx *bytecodeLoweringContext) exitScope() {
 		ctx.slotScopes = ctx.slotScopes[:len(ctx.slotScopes)-1]
 	}
 }
-
-// lookupSlot walks the slot scope stack (innermost first) to find the
-// slot index for a variable name. Returns (slot, true) if found.
 func (ctx *bytecodeLoweringContext) lookupSlot(name string) (int, bool) {
 	for i := len(ctx.slotScopes) - 1; i >= 0; i-- {
 		if slot, ok := ctx.slotScopes[i][name]; ok {
@@ -913,9 +938,6 @@ func (ctx *bytecodeLoweringContext) lookupSlot(name string) (int, bool) {
 	}
 	return 0, false
 }
-
-// declareSlot assigns a new slot index for a variable declaration in
-// the current (innermost) scope. Returns the assigned slot index.
 func (ctx *bytecodeLoweringContext) declareSlot(name string) int {
 	slot := ctx.nextSlot
 	ctx.nextSlot++
@@ -972,16 +994,4 @@ func (ctx *bytecodeLoweringContext) loopExitCount() (int, error) {
 		return 0, bytecodeUnsupported("loop scope mismatch")
 	}
 	return exitCount, nil
-}
-
-func bytecodeUnsupported(format string, args ...any) error {
-	return fmt.Errorf("%w: "+format, append([]any{errBytecodeUnsupported}, args...)...)
-}
-
-func resolveAssignmentTargetName(target ast.AssignmentTarget) (string, bool) {
-	switch t := target.(type) {
-	case *ast.Identifier:
-		return t.Name, true
-	}
-	return "", false
 }

@@ -718,8 +718,19 @@ func ArrayStoreWrite(handle int64, index int, value Value) error {
 		if !ok {
 			return fmt.Errorf("array handle %d is not defined", handle)
 		}
+		length := len(state.Values)
+		if index == length {
+			if length == 0 && state.Capacity < 4 {
+				ArrayEnsureCapacity(state, 4)
+			}
+			state.Values = append(state.Values, value)
+			if state.Capacity < cap(state.Values) {
+				state.Capacity = cap(state.Values)
+			}
+			return nil
+		}
 		ArrayEnsureCapacity(state, index+1)
-		if index >= len(state.Values) {
+		if index > length {
 			ArraySetLength(state, index+1)
 		}
 		state.Values[index] = value

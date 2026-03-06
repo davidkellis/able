@@ -100,18 +100,21 @@ func parameterSpecificity(typeExpr ast.TypeExpression, generics map[string]struc
 }
 
 func functionGenericNameSet(fn *runtime.FunctionValue, decl *ast.FunctionDefinition) map[string]struct{} {
-	names := genericNameSet(nil)
-	if decl != nil {
-		names = genericNameSet(decl.GenericParams)
+	if fn != nil {
+		return fn.GenericNameSet(decl)
 	}
-	if fn == nil || fn.MethodSet == nil || len(fn.MethodSet.GenericParams) == 0 {
-		return names
+	if decl == nil {
+		return nil
 	}
-	for _, gp := range fn.MethodSet.GenericParams {
+	names := make(map[string]struct{}, len(decl.GenericParams))
+	for _, gp := range decl.GenericParams {
 		if gp == nil || gp.Name == nil {
 			continue
 		}
 		names[gp.Name.Name] = struct{}{}
+	}
+	if len(names) == 0 {
+		return nil
 	}
 	return names
 }
@@ -219,4 +222,41 @@ func describeRuntimeValue(val runtime.Value) string {
 		return "<nil>"
 	}
 	return val.Kind().String()
+}
+
+func prependReceiverCallArgs(receiver runtime.Value, args []runtime.Value, argsMutable bool) []runtime.Value {
+	if argsMutable && cap(args) > len(args) {
+		prevLen := len(args)
+		args = args[:prevLen+1]
+		copy(args[1:], args[:prevLen])
+		args[0] = receiver
+		return args
+	}
+	merged := make([]runtime.Value, len(args)+1)
+	merged[0] = receiver
+	copy(merged[1:], args)
+	return merged
+}
+
+func (i *Interpreter) acquireNativeCallContext(env *runtime.Environment, state any) *runtime.NativeCallContext {
+	if i == nil {
+		return &runtime.NativeCallContext{Env: env, State: state}
+	}
+	raw := i.nativeCallContextPool.Get()
+	ctx, _ := raw.(*runtime.NativeCallContext)
+	if ctx == nil {
+		ctx = &runtime.NativeCallContext{}
+	}
+	ctx.Env = env
+	ctx.State = state
+	return ctx
+}
+
+func (i *Interpreter) releaseNativeCallContext(ctx *runtime.NativeCallContext) {
+	if i == nil || ctx == nil {
+		return
+	}
+	ctx.Env = nil
+	ctx.State = nil
+	i.nativeCallContextPool.Put(ctx)
 }
