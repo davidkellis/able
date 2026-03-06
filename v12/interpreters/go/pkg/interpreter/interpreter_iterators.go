@@ -152,7 +152,8 @@ func (g *generatorInstance) run() {
 
 func (g *generatorInstance) execute() error {
 	if g.bytecode != nil {
-		vm := newBytecodeVM(g.interpreter, g.env)
+		vm := g.interpreter.acquireBytecodeVM(g.env)
+		defer g.interpreter.releaseBytecodeVM(vm)
 		_, err := vm.run(g.bytecode)
 		return err
 	}

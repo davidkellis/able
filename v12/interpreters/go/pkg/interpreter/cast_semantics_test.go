@@ -41,6 +41,19 @@ func TestCastNumericSemantics(t *testing.T) {
 	assertIntValue(t, byteFloatInt, runtime.IntegerI32, 3)
 }
 
+func TestCastTypeAliasSemantics(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.NewTypeAliasDefinition(ast.ID("MyI32"), ast.Ty("i32"), nil, nil, false),
+		ast.NewTypeCastExpression(ast.Int(7), ast.Ty("MyI32")),
+	}, nil, nil)
+
+	tree := mustEvalModule(t, New(), module)
+	byte := runBytecodeModule(t, module)
+
+	assertIntValue(t, tree, runtime.IntegerI32, 7)
+	assertIntValue(t, byte, runtime.IntegerI32, 7)
+}
+
 func TestCastErrors(t *testing.T) {
 	invalid := ast.Mod([]ast.Statement{
 		ast.NewTypeCastExpression(ast.Str("nope"), ast.Ty("i32")),

@@ -164,15 +164,15 @@ func (VoidValue) Kind() Kind { return KindVoid }
 type IntegerType string
 
 const (
-	IntegerI8   IntegerType = "i8"
-	IntegerI16  IntegerType = "i16"
-	IntegerI32  IntegerType = "i32"
-	IntegerI64  IntegerType = "i64"
-	IntegerI128 IntegerType = "i128"
-	IntegerU8   IntegerType = "u8"
-	IntegerU16  IntegerType = "u16"
-	IntegerU32  IntegerType = "u32"
-	IntegerU64  IntegerType = "u64"
+	IntegerI8    IntegerType = "i8"
+	IntegerI16   IntegerType = "i16"
+	IntegerI32   IntegerType = "i32"
+	IntegerI64   IntegerType = "i64"
+	IntegerI128  IntegerType = "i128"
+	IntegerU8    IntegerType = "u8"
+	IntegerU16   IntegerType = "u16"
+	IntegerU32   IntegerType = "u32"
+	IntegerU64   IntegerType = "u64"
 	IntegerU128  IntegerType = "u128"
 	IntegerIsize IntegerType = "isize"
 	IntegerUsize IntegerType = "usize"
@@ -399,9 +399,66 @@ type FunctionValue struct {
 	TypeQualified  bool
 	MethodSet      *MethodSet
 	Bytecode       any // interpreter-specific compiled program (e.g., *bytecodeProgram)
+	genericNames   map[string]struct{}
+	genericOnce    sync.Once
 }
 
 func (v *FunctionValue) Kind() Kind { return KindFunction }
+
+func (v *FunctionValue) GenericNameSet(decl *ast.FunctionDefinition) map[string]struct{} {
+	if v == nil {
+		if decl == nil {
+			return nil
+		}
+		names := make(map[string]struct{}, len(decl.GenericParams))
+		for _, gp := range decl.GenericParams {
+			if gp == nil || gp.Name == nil {
+				continue
+			}
+			names[gp.Name.Name] = struct{}{}
+		}
+		if len(names) == 0 {
+			return nil
+		}
+		return names
+	}
+	v.genericOnce.Do(func() {
+		var names map[string]struct{}
+		add := func(name string) {
+			if name == "" {
+				return
+			}
+			if names == nil {
+				names = make(map[string]struct{}, 4)
+			}
+			names[name] = struct{}{}
+		}
+		def := decl
+		if def == nil {
+			if parsed, ok := v.Declaration.(*ast.FunctionDefinition); ok {
+				def = parsed
+			}
+		}
+		if def != nil {
+			for _, gp := range def.GenericParams {
+				if gp == nil || gp.Name == nil {
+					continue
+				}
+				add(gp.Name.Name)
+			}
+		}
+		if v.MethodSet != nil {
+			for _, gp := range v.MethodSet.GenericParams {
+				if gp == nil || gp.Name == nil {
+					continue
+				}
+				add(gp.Name.Name)
+			}
+		}
+		v.genericNames = names
+	})
+	return v.genericNames
+}
 
 type MethodSet struct {
 	TargetType    ast.TypeExpression
@@ -429,6 +486,9 @@ type NativeFunctionValue struct {
 	Name  string
 	Arity int
 	Impl  NativeFunc
+	// BorrowArgs marks native implementations that do not retain the args
+	// slice after returning, allowing callers to pass borrowed backing storage.
+	BorrowArgs bool
 }
 
 func (v NativeFunctionValue) Kind() Kind { return KindNativeFunction }

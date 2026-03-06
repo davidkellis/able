@@ -74,21 +74,25 @@ fn find_empty(board: Array (Array i32)) -> ?Array i32 {
 fn solve(board: Array (Array i32)) -> bool {
   empty := find_empty(board)
   empty match {
-    case nil => { return true },
+    case nil => true,
     case pos: Array i32 => {
       row := pos.get(0)!
       col := pos.get(1)!
       num := 1
+      solved := false
       loop {
         if num > 9 { break }
         if is_valid(board, row, col, num) {
           board.get(row)!.set(col, num)
-          if solve(board) { return true }
+          if solve(board) {
+            solved = true
+            break
+          }
           board.get(row)!.set(col, 0)
         }
         num = num + 1
       }
-      return false
+      solved
     }
   }
 }

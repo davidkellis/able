@@ -11,9 +11,13 @@ import (
 type bytecodeFrameLayout struct {
 	slotCount          int                // total slots needed (params + locals); set after lowering
 	paramSlots         int                // number of param slots (always indices 0..paramSlots-1)
+	selfCallSlot       int                // reserved slot for recursive self-call fast path; -1 when disabled
 	returnType         ast.TypeExpression // declared return type (for coercion on inline return)
 	usesImplicitMember bool               // true if body references #member syntax
 	needsEnvScopes     bool               // true if body has definitions needing env registration
+	selfCallOneArgFast bool               // true when one-arg self-call inline can skip declaration shape checks
+	firstParamType     ast.TypeExpression // cached first parameter type for self-call inline checks/coercion
+	firstParamSimple   string             // cached simple type name for first parameter (empty for non-simple)
 }
 
 // analyzeFrameLayout inspects a function definition and returns a
@@ -37,11 +41,21 @@ func analyzeFrameLayout(def *ast.FunctionDefinition) *bytecodeFrameLayout {
 	if !slotEligibleBlock(def.Body) {
 		return nil
 	}
+	var firstParamType ast.TypeExpression
+	firstParamSimple := ""
+	if len(def.Params) > 0 && def.Params[0] != nil {
+		firstParamType = def.Params[0].ParamType
+		firstParamSimple = cachedSimpleTypeName(firstParamType)
+	}
 	return &bytecodeFrameLayout{
 		paramSlots:         len(def.Params),
+		selfCallSlot:       -1,
 		returnType:         def.ReturnType,
 		usesImplicitMember: blockUsesImplicitMember(def.Body),
 		needsEnvScopes:     blockNeedsEnvScopes(def.Body),
+		selfCallOneArgFast: !def.IsMethodShorthand && len(def.Params) == 1 && len(def.GenericParams) == 0,
+		firstParamType:     firstParamType,
+		firstParamSimple:   firstParamSimple,
 	}
 }
 
@@ -176,6 +190,58 @@ func inlineCoercionUnnecessary(typeExpr ast.TypeExpression, val runtime.Value) b
 		return name == "Bool"
 	}
 	return false
+}
+
+func inlineCoercionUnnecessaryBySimpleType(typeName string, val runtime.Value) bool {
+	if typeName == "" {
+		return false
+	}
+	switch v := val.(type) {
+	case runtime.IntegerValue:
+		if typeName == "Int" {
+			return true
+		}
+		return string(v.TypeSuffix) == typeName
+	case runtime.FloatValue:
+		if typeName == "Float" {
+			return true
+		}
+		return string(v.TypeSuffix) == typeName
+	case runtime.StringValue:
+		return typeName == "String"
+	case runtime.BoolValue:
+		return typeName == "Bool"
+	case *runtime.IntegerValue:
+		if v == nil {
+			return false
+		}
+		if typeName == "Int" {
+			return true
+		}
+		return string(v.TypeSuffix) == typeName
+	case *runtime.FloatValue:
+		if v == nil {
+			return false
+		}
+		if typeName == "Float" {
+			return true
+		}
+		return string(v.TypeSuffix) == typeName
+	case *runtime.StringValue:
+		return v != nil && typeName == "String"
+	case *runtime.BoolValue:
+		return v != nil && typeName == "Bool"
+	default:
+		return false
+	}
+}
+
+func cachedSimpleTypeName(typeExpr ast.TypeExpression) string {
+	simple, ok := typeExpr.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return ""
+	}
+	return simple.Name.Name
 }
 
 // blockNeedsEnvScopes returns true if the block contains statements that
@@ -443,8 +509,8 @@ func slotEligibleAssignment(n *ast.AssignmentExpression) bool {
 	if _, ok := n.Left.(*ast.ImplicitMemberExpression); ok {
 		return slotEligibleExpr(n.Right)
 	}
-	// Simple identifier target: fine.
-	if _, ok := n.Left.(*ast.Identifier); ok {
+	// Simple identifier targets (including typed identifier patterns): fine.
+	if _, ok := resolveAssignmentTargetName(n.Left); ok {
 		return slotEligibleExpr(n.Right)
 	}
 	// Anything else (destructuring pattern) is a bail-out.

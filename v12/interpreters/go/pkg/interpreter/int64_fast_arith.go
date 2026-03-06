@@ -106,6 +106,46 @@ func ensureFitsInt64(info integerInfo, value int64) error {
 	return nil
 }
 
+// ensureFitsInt64Type checks fit using the integer type suffix directly,
+// avoiding integer-info map lookups on hot arithmetic paths.
+func ensureFitsInt64Type(kind runtime.IntegerType, value int64) error {
+	switch kind {
+	case runtime.IntegerI8:
+		if value < math.MinInt8 || value > math.MaxInt8 {
+			return newOverflowError("integer overflow")
+		}
+	case runtime.IntegerI16:
+		if value < math.MinInt16 || value > math.MaxInt16 {
+			return newOverflowError("integer overflow")
+		}
+	case runtime.IntegerI32:
+		if value < math.MinInt32 || value > math.MaxInt32 {
+			return newOverflowError("integer overflow")
+		}
+	case runtime.IntegerI64, runtime.IntegerI128, runtime.IntegerIsize:
+		// Any int64 fits.
+	case runtime.IntegerU8:
+		if value < 0 || value > math.MaxUint8 {
+			return newOverflowError("integer overflow")
+		}
+	case runtime.IntegerU16:
+		if value < 0 || value > math.MaxUint16 {
+			return newOverflowError("integer overflow")
+		}
+	case runtime.IntegerU32:
+		if value < 0 || value > math.MaxUint32 {
+			return newOverflowError("integer overflow")
+		}
+	case runtime.IntegerU64, runtime.IntegerU128, runtime.IntegerUsize:
+		if value < 0 {
+			return newOverflowError("integer overflow")
+		}
+	default:
+		return newOverflowError("integer overflow")
+	}
+	return nil
+}
+
 // int64Bounds returns the min/max that an int64 can represent for a given integer kind.
 func int64Bounds(info integerInfo) (int64, int64) {
 	if info.signed {

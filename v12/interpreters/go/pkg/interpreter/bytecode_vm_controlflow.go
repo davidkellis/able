@@ -129,7 +129,8 @@ func (vm *bytecodeVM) evalExpressionBytecodeWithOptions(expr ast.Expression, env
 	if err != nil {
 		return nil, err
 	}
-	innerVM := newBytecodeVM(vm.interp, env)
+	innerVM := vm.interp.acquireBytecodeVM(env)
+	defer vm.interp.releaseBytecodeVM(innerVM)
 	val, err := innerVM.run(program)
 	if err != nil {
 		return nil, err

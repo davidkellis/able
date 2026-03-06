@@ -267,6 +267,19 @@ func (e *SerialExecutor) beginSynchronousSection() {
 	e.mu.Unlock()
 }
 
+func (e *SerialExecutor) beginSynchronousSectionIfNeeded() bool {
+	if e == nil {
+		return false
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.syncDepth > 0 {
+		return false
+	}
+	e.syncDepth++
+	return true
+}
+
 func (e *SerialExecutor) endSynchronousSection() {
 	if e == nil {
 		return

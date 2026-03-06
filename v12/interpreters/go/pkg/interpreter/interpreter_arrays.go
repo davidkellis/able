@@ -3,12 +3,36 @@ package interpreter
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
 
 type arrayState = runtime.ArrayState
+
+const arrayMetadataBoxU64Max int64 = 16384
+
+var (
+	arrayMetadataBoxU64Once sync.Once
+	arrayMetadataBoxedU64   []runtime.Value
+)
+
+func initArrayMetadataU64BoxCache() {
+	size := int(arrayMetadataBoxU64Max) + 1
+	arrayMetadataBoxedU64 = make([]runtime.Value, size)
+	for idx := range arrayMetadataBoxedU64 {
+		arrayMetadataBoxedU64[idx] = runtime.NewSmallInt(int64(idx), runtime.IntegerU64)
+	}
+}
+
+func boxedArrayMetadataU64Value(value int64) (runtime.Value, bool) {
+	if value < 0 || value > arrayMetadataBoxU64Max {
+		return nil, false
+	}
+	arrayMetadataBoxU64Once.Do(initArrayMetadataU64BoxCache)
+	return arrayMetadataBoxedU64[int(value)], true
+}
 
 func (i *Interpreter) trackArrayValue(handle int64, arr *runtime.ArrayValue) {
 	if arr == nil || handle == 0 {
@@ -170,8 +194,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	arrayNewHandle := runtime.NativeFunctionValue{
-		Name:  "__able_array_new",
-		Arity: 0,
+		Name:       "__able_array_new",
+		Arity:      0,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 0 {
 				return nil, fmt.Errorf("__able_array_new expects no arguments")
@@ -182,8 +207,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	arrayWithCapacity := runtime.NativeFunctionValue{
-		Name:  "__able_array_with_capacity",
-		Arity: 1,
+		Name:       "__able_array_with_capacity",
+		Arity:      1,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_array_with_capacity expects capacity argument")
@@ -201,8 +227,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	arraySize := runtime.NativeFunctionValue{
-		Name:  "__able_array_size",
-		Arity: 1,
+		Name:       "__able_array_size",
+		Arity:      1,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_array_size expects handle")
@@ -215,13 +242,18 @@ func (i *Interpreter) initArrayBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			return runtime.NewSmallInt(int64(size), runtime.IntegerU64), nil
+			sizeVal := int64(size)
+			if boxed, ok := boxedArrayMetadataU64Value(sizeVal); ok {
+				return boxed, nil
+			}
+			return runtime.NewSmallInt(sizeVal, runtime.IntegerU64), nil
 		},
 	}
 
 	arrayCapacity := runtime.NativeFunctionValue{
-		Name:  "__able_array_capacity",
-		Arity: 1,
+		Name:       "__able_array_capacity",
+		Arity:      1,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_array_capacity expects handle")
@@ -234,13 +266,18 @@ func (i *Interpreter) initArrayBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			return runtime.NewSmallInt(int64(capacity), runtime.IntegerU64), nil
+			capacityVal := int64(capacity)
+			if boxed, ok := boxedArrayMetadataU64Value(capacityVal); ok {
+				return boxed, nil
+			}
+			return runtime.NewSmallInt(capacityVal, runtime.IntegerU64), nil
 		},
 	}
 
 	arraySetLen := runtime.NativeFunctionValue{
-		Name:  "__able_array_set_len",
-		Arity: 2,
+		Name:       "__able_array_set_len",
+		Arity:      2,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 2 {
 				return nil, fmt.Errorf("__able_array_set_len expects handle and length")
@@ -264,8 +301,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	arrayRead := runtime.NativeFunctionValue{
-		Name:  "__able_array_read",
-		Arity: 2,
+		Name:       "__able_array_read",
+		Arity:      2,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 2 {
 				return nil, fmt.Errorf("__able_array_read expects handle and index")
@@ -287,8 +325,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	arrayWrite := runtime.NativeFunctionValue{
-		Name:  "__able_array_write",
-		Arity: 3,
+		Name:       "__able_array_write",
+		Arity:      3,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 3 {
 				return nil, fmt.Errorf("__able_array_write expects handle, index, and value")
@@ -315,8 +354,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	arrayReserve := runtime.NativeFunctionValue{
-		Name:  "__able_array_reserve",
-		Arity: 2,
+		Name:       "__able_array_reserve",
+		Arity:      2,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 2 {
 				return nil, fmt.Errorf("__able_array_reserve expects handle and capacity")
@@ -340,8 +380,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	arrayClone := runtime.NativeFunctionValue{
-		Name:  "__able_array_clone",
-		Arity: 1,
+		Name:       "__able_array_clone",
+		Arity:      1,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_array_clone expects handle")
@@ -364,8 +405,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	arrayNew := runtime.NativeFunctionValue{
-		Name:  "Array.new",
-		Arity: 0,
+		Name:       "Array.new",
+		Arity:      0,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			capacity := 0
 			if len(args) > 1 {
@@ -416,15 +458,27 @@ func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression
 	}
 	switch ident.Name {
 	case "storage_handle":
+		if boxed, ok := boxedSmallIntValue(runtime.IntegerI64, arr.Handle); ok {
+			return boxed, nil
+		}
 		return runtime.NewSmallInt(arr.Handle, runtime.IntegerI64), nil
 	case "length":
-		return runtime.NewSmallInt(int64(len(state.Values)), runtime.IntegerI32), nil
+		length := int64(len(state.Values))
+		if boxed, ok := boxedSmallIntValue(runtime.IntegerI32, length); ok {
+			return boxed, nil
+		}
+		return runtime.NewSmallInt(length, runtime.IntegerI32), nil
 	case "capacity":
-		return runtime.NewSmallInt(int64(state.Capacity), runtime.IntegerI32), nil
+		capacity := int64(state.Capacity)
+		if boxed, ok := boxedSmallIntValue(runtime.IntegerI32, capacity); ok {
+			return boxed, nil
+		}
+		return runtime.NewSmallInt(capacity, runtime.IntegerI32), nil
 	case "iterator":
 		fn := runtime.NativeFunctionValue{
-			Name:  "array.iterator",
-			Arity: 0,
+			Name:       "array.iterator",
+			Arity:      0,
+			BorrowArgs: true,
 			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 1 {
 					return nil, fmt.Errorf("iterator expects only a receiver")
@@ -479,7 +533,7 @@ func arrayIndexFromValue(val runtime.Value) (int, error) {
 
 func makeIndexError(index int, length int) runtime.Value {
 	payload := map[string]runtime.Value{
-		"index": runtime.NewSmallInt(int64(index), runtime.IntegerI64),
+		"index":  runtime.NewSmallInt(int64(index), runtime.IntegerI64),
 		"length": runtime.NewSmallInt(int64(length), runtime.IntegerI64),
 	}
 	message := fmt.Sprintf("index %d out of bounds for length %d", index, length)

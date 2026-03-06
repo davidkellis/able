@@ -173,65 +173,7 @@ func evaluateArithmeticFast(op string, left runtime.Value, right runtime.Value) 
 	leftInt, leftIsInt := left.(runtime.IntegerValue)
 	rightInt, rightIsInt := right.(runtime.IntegerValue)
 	if leftIsInt && rightIsInt {
-		targetType, err := promoteIntegerTypes(leftInt.TypeSuffix, rightInt.TypeSuffix)
-		if err != nil {
-			return nil, err
-		}
-		info, err := getIntegerInfo(targetType)
-		if err != nil {
-			return nil, err
-		}
-		// Int64 fast path: avoid big.Int allocation when both operands fit in int64.
-		if l, lok := leftInt.ToInt64(); lok {
-			if r, rok := rightInt.ToInt64(); rok {
-				var result int64
-				var overflow bool
-				switch op {
-				case "+":
-					result, overflow = addInt64Overflow(l, r)
-				case "-":
-					result, overflow = subInt64Overflow(l, r)
-				case "*":
-					result, overflow = mulInt64Overflow(l, r)
-				case "^":
-					if r < 0 {
-						return nil, fmt.Errorf("Negative integer exponent is not supported")
-					}
-					result, overflow = expInt64Overflow(l, r)
-				default:
-					return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
-				}
-				if !overflow {
-					if err := ensureFitsInt64(info, result); err != nil {
-						return nil, err
-					}
-					return runtime.NewSmallInt(result, targetType), nil
-				}
-			}
-		}
-		// Big.Int fallback.
-		lv := runtime.CloneBigInt(leftInt.BigInt())
-		rv := runtime.CloneBigInt(rightInt.BigInt())
-		result := new(big.Int)
-		switch op {
-		case "+":
-			result.Add(lv, rv)
-		case "-":
-			result.Sub(lv, rv)
-		case "*":
-			result.Mul(lv, rv)
-		case "^":
-			if rv.Sign() < 0 {
-				return nil, fmt.Errorf("Negative integer exponent is not supported")
-			}
-			result.Exp(lv, rv, nil)
-		default:
-			return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
-		}
-		if err := ensureFitsInteger(info, result); err != nil {
-			return nil, err
-		}
-		return runtime.NewBigIntValue(result, targetType), nil
+		return evaluateIntegerArithmeticFast(op, leftInt, rightInt)
 	}
 	if !isNumericValue(left) || !isNumericValue(right) {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
@@ -260,6 +202,99 @@ func evaluateArithmeticFast(op string, left runtime.Value, right runtime.Value) 
 	}
 	val = normalizeFloat(targetFloatKind, val)
 	return runtime.FloatValue{Val: val, TypeSuffix: targetFloatKind}, nil
+}
+
+func evaluateIntegerArithmeticFast(op string, leftInt runtime.IntegerValue, rightInt runtime.IntegerValue) (runtime.Value, error) {
+	if leftInt.TypeSuffix == rightInt.TypeSuffix {
+		targetType := leftInt.TypeSuffix
+		if l, lok := leftInt.ToInt64(); lok {
+			if r, rok := rightInt.ToInt64(); rok {
+				var result int64
+				var overflow bool
+				switch op {
+				case "+":
+					result, overflow = addInt64Overflow(l, r)
+				case "-":
+					result, overflow = subInt64Overflow(l, r)
+				case "*":
+					result, overflow = mulInt64Overflow(l, r)
+				case "^":
+					if r < 0 {
+						return nil, fmt.Errorf("Negative integer exponent is not supported")
+					}
+					result, overflow = expInt64Overflow(l, r)
+				default:
+					return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
+				}
+				if !overflow {
+					if err := ensureFitsInt64Type(targetType, result); err != nil {
+						return nil, err
+					}
+					return boxedOrSmallIntegerValue(targetType, result), nil
+				}
+			}
+		}
+	}
+
+	targetType, err := promoteIntegerTypes(leftInt.TypeSuffix, rightInt.TypeSuffix)
+	if err != nil {
+		return nil, err
+	}
+	// Int64 fast path: avoid big.Int allocation when both operands fit in int64.
+	if l, lok := leftInt.ToInt64(); lok {
+		if r, rok := rightInt.ToInt64(); rok {
+			var result int64
+			var overflow bool
+			switch op {
+			case "+":
+				result, overflow = addInt64Overflow(l, r)
+			case "-":
+				result, overflow = subInt64Overflow(l, r)
+			case "*":
+				result, overflow = mulInt64Overflow(l, r)
+			case "^":
+				if r < 0 {
+					return nil, fmt.Errorf("Negative integer exponent is not supported")
+				}
+				result, overflow = expInt64Overflow(l, r)
+			default:
+				return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
+			}
+			if !overflow {
+				if err := ensureFitsInt64Type(targetType, result); err != nil {
+					return nil, err
+				}
+				return boxedOrSmallIntegerValue(targetType, result), nil
+			}
+		}
+	}
+	info, err := getIntegerInfo(targetType)
+	if err != nil {
+		return nil, err
+	}
+	// Big.Int fallback.
+	lv := runtime.CloneBigInt(leftInt.BigInt())
+	rv := runtime.CloneBigInt(rightInt.BigInt())
+	result := new(big.Int)
+	switch op {
+	case "+":
+		result.Add(lv, rv)
+	case "-":
+		result.Sub(lv, rv)
+	case "*":
+		result.Mul(lv, rv)
+	case "^":
+		if rv.Sign() < 0 {
+			return nil, fmt.Errorf("Negative integer exponent is not supported")
+		}
+		result.Exp(lv, rv, nil)
+	default:
+		return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
+	}
+	if err := ensureFitsInteger(info, result); err != nil {
+		return nil, err
+	}
+	return runtime.NewBigIntValue(result, targetType), nil
 }
 
 func evaluateDivisionFast(left runtime.Value, right runtime.Value) (runtime.Value, error) {
@@ -325,22 +360,18 @@ func evaluateDivModFast(op string, left runtime.Value, right runtime.Value) (run
 			if err != nil {
 				return nil, err
 			}
-			info, err := getIntegerInfo(targetType)
-			if err != nil {
-				return nil, err
-			}
 			q, rem := euclideanDivModInt64(l, r)
 			switch op {
 			case "//":
-				if err := ensureFitsInt64(info, q); err != nil {
+				if err := ensureFitsInt64Type(targetType, q); err != nil {
 					return nil, err
 				}
-				return runtime.NewSmallInt(q, targetType), nil
+				return boxedOrSmallIntegerValue(targetType, q), nil
 			case "%":
-				if err := ensureFitsInt64(info, rem); err != nil {
+				if err := ensureFitsInt64Type(targetType, rem); err != nil {
 					return nil, err
 				}
-				return runtime.NewSmallInt(rem, targetType), nil
+				return boxedOrSmallIntegerValue(targetType, rem), nil
 			default:
 				return nil, fmt.Errorf("unsupported div/mod operator %s", op)
 			}
@@ -352,8 +383,14 @@ func evaluateDivModFast(op string, left runtime.Value, right runtime.Value) (run
 	}
 	switch op {
 	case "//":
+		if boxed, ok := maybeBoxedIntegerValue(quotient); ok {
+			return boxed, nil
+		}
 		return quotient, nil
 	case "%":
+		if boxed, ok := maybeBoxedIntegerValue(remainder); ok {
+			return boxed, nil
+		}
 		return remainder, nil
 	default:
 		return nil, fmt.Errorf("unsupported div/mod operator %s", op)

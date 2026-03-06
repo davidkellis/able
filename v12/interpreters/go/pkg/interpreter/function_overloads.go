@@ -36,3 +36,22 @@ func functionOverloads(fn runtime.Value) []*runtime.FunctionValue {
 	}
 	return runtime.FlattenFunctionOverloads(fn)
 }
+
+// functionOverloadsView avoids flattening allocations when the value already
+// stores a stable overload slice with no nil entries.
+func functionOverloadsView(fn runtime.Value) []*runtime.FunctionValue {
+	switch v := fn.(type) {
+	case *runtime.FunctionOverloadValue:
+		if v == nil || len(v.Overloads) == 0 {
+			return nil
+		}
+		for _, entry := range v.Overloads {
+			if entry == nil {
+				return runtime.FlattenFunctionOverloads(fn)
+			}
+		}
+		return v.Overloads
+	default:
+		return functionOverloads(fn)
+	}
+}

@@ -16,9 +16,21 @@ type implMethodContext struct {
 }
 
 func (i *Interpreter) invalidateMethodCache() {
+	i.methodCacheMu.Lock()
+	defer i.methodCacheMu.Unlock()
+	i.methodCacheVersion++
 	if len(i.methodCache) > 0 {
 		i.methodCache = make(map[methodCacheKey]methodCacheEntry)
 	}
+	if len(i.boundMethodCache) > 0 {
+		i.boundMethodCache = make(map[boundMethodCacheKey]runtime.Value)
+	}
+}
+
+func (i *Interpreter) currentMethodCacheVersion() uint64 {
+	i.methodCacheMu.RLock()
+	defer i.methodCacheMu.RUnlock()
+	return i.methodCacheVersion
 }
 
 type methodCacheKey struct {
@@ -32,19 +44,298 @@ type methodCacheEntry struct {
 	err    error
 }
 
+type boundMethodCacheKey struct {
+	receiver      any
+	methodName    string
+	ifaceFilter   string
+	allowInherent bool
+}
+
+const boundMethodCacheMaxEntries = 2048
+
+func boundMethodReceiverKey(receiver runtime.Value) (any, bool) {
+	switch r := receiver.(type) {
+	case *runtime.ArrayValue:
+		if r == nil {
+			return nil, false
+		}
+		return r, true
+	case *runtime.StructInstanceValue:
+		if r == nil {
+			return nil, false
+		}
+		return r, true
+	case *runtime.InterfaceValue:
+		if r == nil {
+			return nil, false
+		}
+		return r, true
+	case *runtime.StringValue:
+		if r == nil {
+			return nil, false
+		}
+		return r, true
+	case *runtime.IteratorValue:
+		if r == nil {
+			return nil, false
+		}
+		return r, true
+	case *runtime.FutureValue:
+		if r == nil {
+			return nil, false
+		}
+		return r, true
+	case *runtime.HasherValue:
+		if r == nil {
+			return nil, false
+		}
+		return r, true
+	case *runtime.ErrorValue:
+		if r == nil {
+			return nil, false
+		}
+		return r, true
+	default:
+		return nil, false
+	}
+}
+
+func (i *Interpreter) lookupBoundMethodCache(key boundMethodCacheKey) (runtime.Value, bool) {
+	i.methodCacheMu.RLock()
+	defer i.methodCacheMu.RUnlock()
+	method, ok := i.boundMethodCache[key]
+	return method, ok
+}
+
+func (i *Interpreter) storeBoundMethodCache(key boundMethodCacheKey, method runtime.Value) {
+	if method == nil {
+		return
+	}
+	i.methodCacheMu.Lock()
+	defer i.methodCacheMu.Unlock()
+	if i.boundMethodCache == nil {
+		i.boundMethodCache = make(map[boundMethodCacheKey]runtime.Value)
+	}
+	if len(i.boundMethodCache) >= boundMethodCacheMaxEntries {
+		i.boundMethodCache = make(map[boundMethodCacheKey]runtime.Value, boundMethodCacheMaxEntries/2)
+	}
+	i.boundMethodCache[key] = method
+}
+
+type methodResolutionAccumulator struct {
+	singleFunction     *runtime.FunctionValue
+	functionCandidates []*runtime.FunctionValue
+	singleNative       runtime.Value
+	singleNativeKey    string
+	nativeCandidates   []runtime.Value
+	nativeKeys         []string
+}
+
+func (a *methodResolutionAccumulator) count() int {
+	if a == nil {
+		return 0
+	}
+	return a.functionCount() + a.nativeCount()
+}
+
+func (a *methodResolutionAccumulator) functionCount() int {
+	if a == nil {
+		return 0
+	}
+	if len(a.functionCandidates) > 0 {
+		return len(a.functionCandidates)
+	}
+	if a.singleFunction != nil {
+		return 1
+	}
+	return 0
+}
+
+func (a *methodResolutionAccumulator) nativeCount() int {
+	if a == nil {
+		return 0
+	}
+	if len(a.nativeCandidates) > 0 {
+		return len(a.nativeCandidates)
+	}
+	if a.singleNative != nil {
+		return 1
+	}
+	return 0
+}
+
+func (a *methodResolutionAccumulator) hasFunction(fn *runtime.FunctionValue) bool {
+	if fn == nil {
+		return false
+	}
+	if a.singleFunction == fn {
+		return true
+	}
+	for _, existing := range a.functionCandidates {
+		if existing == fn {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *methodResolutionAccumulator) hasNativeKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	if a.singleNativeKey == key {
+		return true
+	}
+	for _, existing := range a.nativeKeys {
+		if existing == key {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *methodResolutionAccumulator) addNativeCandidate(key string, candidate runtime.Value) {
+	if key != "" {
+		if a.hasNativeKey(key) {
+			return
+		}
+		if len(a.nativeCandidates) > 0 {
+			a.nativeKeys = append(a.nativeKeys, key)
+		}
+	}
+	if len(a.nativeCandidates) > 0 {
+		a.nativeCandidates = append(a.nativeCandidates, candidate)
+		return
+	}
+	if a.singleNative == nil {
+		a.singleNative = candidate
+		a.singleNativeKey = key
+		return
+	}
+	a.nativeCandidates = append(a.nativeCandidates, a.singleNative, candidate)
+	if a.singleNativeKey != "" {
+		a.nativeKeys = append(a.nativeKeys, a.singleNativeKey)
+	}
+	if key != "" {
+		a.nativeKeys = append(a.nativeKeys, key)
+	}
+	a.singleNative = nil
+	a.singleNativeKey = ""
+}
+
+func (a *methodResolutionAccumulator) addFunctionCandidate(fn *runtime.FunctionValue) {
+	if fn == nil {
+		return
+	}
+	if len(a.functionCandidates) > 0 {
+		if a.hasFunction(fn) {
+			return
+		}
+		a.functionCandidates = append(a.functionCandidates, fn)
+		return
+	}
+	if a.singleFunction == nil {
+		a.singleFunction = fn
+		return
+	}
+	if a.singleFunction == fn {
+		return
+	}
+	a.functionCandidates = append(a.functionCandidates, a.singleFunction, fn)
+	a.singleFunction = nil
+}
+
+func (a *methodResolutionAccumulator) addCallable(funcName string, receiver runtime.Value, method runtime.Value, privacyContext string) error {
+	switch fn := method.(type) {
+	case *runtime.FunctionValue:
+		if fn == nil {
+			return nil
+		}
+		if fnDecl, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDecl != nil && fnDecl.IsPrivate {
+			name := privacyContext
+			if name == "" {
+				name = "<unknown>"
+			}
+			return fmt.Errorf("Method '%s' on %s is private", funcName, name)
+		}
+		a.addFunctionCandidate(fn)
+	case *runtime.FunctionOverloadValue:
+		if fn == nil {
+			return nil
+		}
+		for _, entry := range fn.Overloads {
+			if entry == nil {
+				continue
+			}
+			if err := a.addCallable(funcName, receiver, entry, privacyContext); err != nil {
+				return err
+			}
+		}
+	case runtime.NativeFunctionValue:
+		key := fn.Name
+		if key == "" {
+			key = fmt.Sprintf("%p", &fn)
+		}
+		a.addNativeCandidate(key, runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn})
+	case *runtime.NativeFunctionValue:
+		if fn == nil {
+			return nil
+		}
+		key := fn.Name
+		if key == "" {
+			key = fmt.Sprintf("%p", fn)
+		}
+		a.addNativeCandidate(key, runtime.NativeBoundMethodValue{Receiver: receiver, Method: *fn})
+	case runtime.NativeBoundMethodValue:
+		key := fn.Method.Name
+		if key == "" {
+			key = fmt.Sprintf("%p", &fn)
+		}
+		a.addNativeCandidate(key, fn)
+	case *runtime.NativeBoundMethodValue:
+		if fn == nil {
+			return nil
+		}
+		key := fn.Method.Name
+		if key == "" {
+			key = fmt.Sprintf("%p", fn)
+		}
+		a.addNativeCandidate(key, *fn)
+	}
+	return nil
+}
+
 func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName string, receiver runtime.Value, ifaceFilter string) (runtime.Value, error) {
-	functionCandidates := make([]*runtime.FunctionValue, 0)
-	nativeCandidates := make([]runtime.Value, 0)
-	seenFuncs := make(map[*runtime.FunctionValue]struct{})
-	seenNatives := make(map[string]struct{})
+	acc := methodResolutionAccumulator{}
 	var scopeCallable runtime.Value
-	var scopeSet map[*runtime.FunctionValue]struct{}
+	var scopeFilter functionScopeFilter
 	nameInScope := false
 	if env != nil {
-		if val, err := env.Get(funcName); err == nil && isCallableRuntimeValue(val) {
+		if val, ok := env.Lookup(funcName); ok && isCallableRuntimeValue(val) {
 			nameInScope = true
 			scopeCallable = val
-			scopeSet = functionScopeSet(val)
+			scopeFilter = functionScopeFilterFromValue(val)
+		}
+	}
+	cacheReceiver, cacheableReceiver := boundMethodReceiverKey(receiver)
+	var implCtx *implMethodContext
+	if env != nil {
+		if data := env.RuntimeData(); data != nil {
+			if ctx, ok := data.(*implMethodContext); ok && ctx != nil && ctx.target != nil && receiver != nil {
+				implCtx = ctx
+			}
+		}
+	}
+	hasImplMethodContext := implCtx != nil
+	if cacheableReceiver && !hasImplMethodContext && isPrimitiveReceiver(receiver) {
+		earlyCacheKey := boundMethodCacheKey{
+			receiver:      cacheReceiver,
+			methodName:    funcName,
+			ifaceFilter:   ifaceFilter,
+			allowInherent: true,
+		}
+		if cached, ok := i.lookupBoundMethodCache(earlyCacheKey); ok {
+			return cached, nil
 		}
 	}
 	var info typeInfo
@@ -62,104 +353,30 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 		}
 	}
 	allowInherent := nameInScope || typeNameInScope || isPrimitiveReceiver(receiver)
-
-	var addCallable func(method runtime.Value, privacyContext string) error
-	addCallable = func(method runtime.Value, privacyContext string) error {
-		switch fn := method.(type) {
-		case *runtime.FunctionValue:
-			if fn == nil {
-				return nil
-			}
-			if fnDecl, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDecl != nil && fnDecl.IsPrivate {
-				name := privacyContext
-				if name == "" {
-					name = "<unknown>"
-				}
-				return fmt.Errorf("Method '%s' on %s is private", funcName, name)
-			}
-			if _, ok := seenFuncs[fn]; ok {
-				return nil
-			}
-			seenFuncs[fn] = struct{}{}
-			functionCandidates = append(functionCandidates, fn)
-		case *runtime.FunctionOverloadValue:
-			if fn == nil {
-				return nil
-			}
-			for _, entry := range fn.Overloads {
-				if entry == nil {
-					continue
-				}
-				if err := addCallable(entry, privacyContext); err != nil {
-					return err
-				}
-			}
-		case runtime.NativeFunctionValue:
-			key := fn.Name
-			if key == "" {
-				key = fmt.Sprintf("%p", &fn)
-			}
-			if _, ok := seenNatives[key]; ok {
-				return nil
-			}
-			seenNatives[key] = struct{}{}
-			nativeCandidates = append(nativeCandidates, runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn})
-		case *runtime.NativeFunctionValue:
-			if fn == nil {
-				return nil
-			}
-			key := fn.Name
-			if key == "" {
-				key = fmt.Sprintf("%p", fn)
-			}
-			if _, ok := seenNatives[key]; ok {
-				return nil
-			}
-			seenNatives[key] = struct{}{}
-			nativeCandidates = append(nativeCandidates, runtime.NativeBoundMethodValue{Receiver: receiver, Method: *fn})
-		case runtime.NativeBoundMethodValue:
-			key := fn.Method.Name
-			if key == "" {
-				key = fmt.Sprintf("%p", &fn)
-			}
-			if _, ok := seenNatives[key]; ok {
-				return nil
-			}
-			seenNatives[key] = struct{}{}
-			nativeCandidates = append(nativeCandidates, fn)
-		case *runtime.NativeBoundMethodValue:
-			if fn == nil {
-				return nil
-			}
-			key := fn.Method.Name
-			if key == "" {
-				key = fmt.Sprintf("%p", fn)
-			}
-			if _, ok := seenNatives[key]; ok {
-				return nil
-			}
-			seenNatives[key] = struct{}{}
-			nativeCandidates = append(nativeCandidates, *fn)
-		}
-		return nil
+	cacheKey := boundMethodCacheKey{
+		receiver:      cacheReceiver,
+		methodName:    funcName,
+		ifaceFilter:   ifaceFilter,
+		allowInherent: allowInherent,
 	}
 
-	if env != nil {
-		if data := env.RuntimeData(); data != nil {
-			if ctx, ok := data.(*implMethodContext); ok && ctx != nil && ctx.target != nil && receiver != nil {
-				if ifaceFilter == "" || ifaceFilter == ctx.interfaceName {
-					if i.matchesType(ctx.target, receiver) {
-						if method := ctx.methods[funcName]; method != nil {
-							if callable, ok := i.selectUfcsCallable(method, receiver, true, nil); ok {
-								if err := checkPrivateMethod(funcName, ctx.implName, callable); err != nil {
-									return nil, err
-								}
-								return &runtime.BoundMethodValue{Receiver: receiver, Method: callable}, nil
-							}
+	if implCtx != nil {
+		if ifaceFilter == "" || ifaceFilter == implCtx.interfaceName {
+			if i.matchesType(implCtx.target, receiver) {
+				if method := implCtx.methods[funcName]; method != nil {
+					if callable, ok := i.selectUfcsCallable(method, receiver, true, functionScopeFilter{}); ok {
+						if err := checkPrivateMethod(funcName, implCtx.implName, callable); err != nil {
+							return nil, err
 						}
+						return runtime.BoundMethodValue{Receiver: receiver, Method: callable}, nil
 					}
 				}
 			}
+		}
+	}
+	if cacheableReceiver && !hasImplMethodContext {
+		if cached, ok := i.lookupBoundMethodCache(cacheKey); ok {
+			return cached, nil
 		}
 	}
 
@@ -168,8 +385,8 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 			for _, name := range i.canonicalTypeNames(info.name) {
 				if bucket, ok := i.inherentMethods[name]; ok {
 					if method := bucket[funcName]; method != nil {
-						if callable, ok := i.selectUfcsCallable(method, receiver, true, nil); ok {
-							if err := addCallable(callable, name); err != nil {
+						if callable, ok := i.selectUfcsCallable(method, receiver, true, functionScopeFilter{}); ok {
+							if err := acc.addCallable(funcName, receiver, callable, name); err != nil {
 								return nil, err
 							}
 						}
@@ -177,10 +394,10 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 				}
 			}
 		}
-		existing := len(functionCandidates) + len(nativeCandidates)
+		existing := acc.count()
 		if method, err := i.findMethodCached(info, funcName, ifaceFilter); err == nil && method != nil {
-			if callable, ok := i.selectUfcsCallable(method, receiver, true, nil); ok {
-				if err := addCallable(callable, info.name); err != nil {
+			if callable, ok := i.selectUfcsCallable(method, receiver, true, functionScopeFilter{}); ok {
+				if err := acc.addCallable(funcName, receiver, callable, info.name); err != nil {
 					return nil, err
 				}
 			}
@@ -189,76 +406,114 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 				return nil, err
 			}
 		}
-		if len(functionCandidates)+len(nativeCandidates) == 0 && i.compiledInstanceMethodFn != nil {
+		if acc.count() == 0 && i.compiledInstanceMethodFn != nil {
 			if method, found := i.compiledInstanceMethodFn(info.name, funcName); found && method != nil {
-				if err := addCallable(method, info.name); err != nil {
+				if err := acc.addCallable(funcName, receiver, method, info.name); err != nil {
 					return nil, err
 				}
 			}
 		}
-		if len(functionCandidates)+len(nativeCandidates) == 0 && i.interfaceMethodResolver != nil {
+		if acc.count() == 0 && i.interfaceMethodResolver != nil {
 			if ifaceFilter != "" {
 				if resolved, found := i.interfaceMethodResolver(receiver, ifaceFilter, funcName); found && resolved != nil {
-					if err := addCallable(resolved, info.name); err != nil {
+					if err := acc.addCallable(funcName, receiver, resolved, info.name); err != nil {
 						return nil, err
 					}
 				}
 			}
 		}
-		if len(functionCandidates)+len(nativeCandidates) == 0 && i.compiledInterfaceMemberFn != nil {
+		if acc.count() == 0 && i.compiledInterfaceMemberFn != nil {
 			if resolved, found := i.compiledInterfaceMemberFn(receiver, funcName); found && resolved != nil {
-				if err := addCallable(resolved, info.name); err != nil {
+				if err := acc.addCallable(funcName, receiver, resolved, info.name); err != nil {
 					return nil, err
 				}
 			}
 		}
 	}
 
-	hasMethodCandidate := len(functionCandidates)+len(nativeCandidates) > 0
+	hasMethodCandidate := acc.count() > 0
 
 	if env != nil && nameInScope && !hasMethodCandidate {
 		if scopeCallable != nil {
-			if callable, ok := i.selectUfcsCallable(scopeCallable, receiver, false, scopeSet); ok {
-				if err := addCallable(callable, ""); err != nil {
+			if callable, ok := i.selectUfcsCallable(scopeCallable, receiver, false, scopeFilter); ok {
+				if err := acc.addCallable(funcName, receiver, callable, ""); err != nil {
 					return nil, err
 				}
 			}
 		}
 	}
 
-	if len(functionCandidates) > 0 && len(nativeCandidates) > 0 {
+	if acc.functionCount() > 0 && acc.nativeCount() > 0 {
 		return nil, fmt.Errorf("Ambiguous overload for %s", funcName)
 	}
-	if len(functionCandidates) > 0 {
+	if acc.functionCount() > 0 {
 		var callable runtime.Value
-		if len(functionCandidates) == 1 {
-			callable = functionCandidates[0]
-		} else {
-			callable = &runtime.FunctionOverloadValue{Overloads: functionCandidates}
+		switch {
+		case len(acc.functionCandidates) > 1:
+			callable = &runtime.FunctionOverloadValue{Overloads: acc.functionCandidates}
+		case len(acc.functionCandidates) == 1:
+			callable = acc.functionCandidates[0]
+		default:
+			callable = acc.singleFunction
 		}
-		return &runtime.BoundMethodValue{Receiver: receiver, Method: callable}, nil
+		if callable == nil {
+			return nil, nil
+		} else {
+			bound := runtime.BoundMethodValue{Receiver: receiver, Method: callable}
+			if cacheableReceiver && !hasImplMethodContext {
+				i.storeBoundMethodCache(cacheKey, bound)
+			}
+			return bound, nil
+		}
 	}
-	if len(nativeCandidates) > 0 {
-		if len(nativeCandidates) > 1 {
+	if acc.nativeCount() > 0 {
+		if acc.nativeCount() > 1 {
 			return nil, fmt.Errorf("Ambiguous overload for %s", funcName)
 		}
-		return nativeCandidates[0], nil
+		if len(acc.nativeCandidates) == 1 {
+			return acc.nativeCandidates[0], nil
+		}
+		return acc.singleNative, nil
 	}
 	return nil, nil
 }
 
-func functionScopeSet(scope runtime.Value) map[*runtime.FunctionValue]struct{} {
-	overloads := runtime.FlattenFunctionOverloads(scope)
-	if len(overloads) == 0 {
-		return nil
-	}
-	set := make(map[*runtime.FunctionValue]struct{}, len(overloads))
-	for _, fn := range overloads {
-		if fn != nil {
-			set[fn] = struct{}{}
+type functionScopeFilter struct {
+	enabled   bool
+	single    *runtime.FunctionValue
+	overloads []*runtime.FunctionValue
+}
+
+func functionScopeFilterFromValue(scope runtime.Value) functionScopeFilter {
+	switch v := scope.(type) {
+	case *runtime.FunctionValue:
+		if v != nil {
+			return functionScopeFilter{enabled: true, single: v}
+		}
+	case *runtime.FunctionOverloadValue:
+		if v != nil && len(v.Overloads) > 0 {
+			return functionScopeFilter{enabled: true, overloads: v.Overloads}
 		}
 	}
-	return set
+	return functionScopeFilter{}
+}
+
+func (f functionScopeFilter) contains(fn *runtime.FunctionValue) bool {
+	if !f.enabled {
+		return true
+	}
+	if fn == nil {
+		return false
+	}
+	if f.single != nil {
+		return f.single == fn
+	}
+	for _, candidate := range f.overloads {
+		if candidate == fn {
+			return true
+		}
+	}
+	return false
 }
 
 func (i *Interpreter) methodTargetMatchesReceiver(fn *runtime.FunctionValue, receiver runtime.Value) bool {
@@ -291,13 +546,11 @@ func (i *Interpreter) methodTargetMatchesReceiver(fn *runtime.FunctionValue, rec
 	return def == inst.Definition
 }
 
-func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.Value, requireSelf bool, scopeSet map[*runtime.FunctionValue]struct{}) (runtime.Value, bool) {
+func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.Value, requireSelf bool, scopeFilter functionScopeFilter) (runtime.Value, bool) {
 	switch fn := method.(type) {
 	case *runtime.FunctionValue:
-		if scopeSet != nil {
-			if _, ok := scopeSet[fn]; !ok {
-				return nil, false
-			}
+		if !scopeFilter.contains(fn) {
+			return nil, false
 		}
 		if (!requireSelf || functionExpectsSelf(fn)) && i.functionFirstParamMatches(fn, receiver) {
 			if !requireSelf && fn.TypeQualified {
@@ -315,10 +568,8 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 			if entry == nil {
 				continue
 			}
-			if scopeSet != nil {
-				if _, ok := scopeSet[entry]; !ok {
-					continue
-				}
+			if !scopeFilter.contains(entry) {
+				continue
 			}
 			if !requireSelf && entry.TypeQualified {
 				continue

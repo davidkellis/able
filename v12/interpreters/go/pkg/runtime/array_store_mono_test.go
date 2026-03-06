@@ -28,6 +28,42 @@ func TestArrayStoreDynamicCapacityGrowthAmortized(t *testing.T) {
 	}
 }
 
+func TestArrayStoreDynamicSparseWritePreservesNilGap(t *testing.T) {
+	handle := ArrayStoreNew()
+	if err := ArrayStoreWrite(handle, 2, BoolValue{Val: true}); err != nil {
+		t.Fatalf("ArrayStoreWrite sparse: %v", err)
+	}
+	size, err := ArrayStoreSize(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreSize: %v", err)
+	}
+	if size != 3 {
+		t.Fatalf("expected size 3 after sparse write, got %d", size)
+	}
+	first, err := ArrayStoreRead(handle, 0)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead(0): %v", err)
+	}
+	if _, ok := first.(NilValue); !ok {
+		t.Fatalf("expected nil gap at index 0, got %#v", first)
+	}
+	second, err := ArrayStoreRead(handle, 1)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead(1): %v", err)
+	}
+	if _, ok := second.(NilValue); !ok {
+		t.Fatalf("expected nil gap at index 1, got %#v", second)
+	}
+	third, err := ArrayStoreRead(handle, 2)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead(2): %v", err)
+	}
+	boolVal, ok := third.(BoolValue)
+	if !ok || !boolVal.Val {
+		t.Fatalf("expected bool true at index 2, got %#v", third)
+	}
+}
+
 func TestArrayStoreMonoBoolRoundTripAndDynamicFallback(t *testing.T) {
 	handle := ArrayStoreMonoNewBool()
 	if err := ArrayStoreMonoWriteBool(handle, 0, true); err != nil {

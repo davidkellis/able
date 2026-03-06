@@ -12,8 +12,8 @@ func canonicalTypeName(env *runtime.Environment, name string) string {
 	if env == nil {
 		return name
 	}
-	val, err := env.Get(name)
-	if err != nil {
+	val, ok := env.Lookup(name)
+	if !ok {
 		return name
 	}
 	switch v := val.(type) {
@@ -107,6 +107,15 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 		allowPlaceholderLambda: true,
 		frameLayout:            layout,
 		nextSlot:               layout.paramSlots,
+		selfCallSlot:           -1,
+	}
+	if canUseSelfCallSlot(def) {
+		layout.selfCallSlot = ctx.nextSlot
+		ctx.selfCallSlot = ctx.nextSlot
+		ctx.nextSlot++
+		if def.ID != nil {
+			ctx.selfCallName = def.ID.Name
+		}
 	}
 	paramScope := make(map[string]int, layout.paramSlots)
 	for idx, param := range def.Params {
@@ -154,7 +163,7 @@ func (i *Interpreter) evaluateExternFunctionBody(def *ast.ExternFunctionBody, en
 	if name == "" {
 		return runtime.NilValue{}, nil
 	}
-	if _, err := env.Get(name); err == nil {
+	if _, ok := env.Lookup(name); ok {
 		return runtime.NilValue{}, nil
 	}
 	if def.Target == ast.HostTargetGo && strings.TrimSpace(def.Body) == "" && !i.isKernelExtern(name) {

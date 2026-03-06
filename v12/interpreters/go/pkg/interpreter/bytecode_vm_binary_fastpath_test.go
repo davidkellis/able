@@ -1,0 +1,240 @@
+package interpreter
+
+import (
+	"strings"
+	"testing"
+
+	"able/interpreter-go/pkg/ast"
+)
+
+func TestBytecodeVM_BinaryFastPathIntegerParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("x"), ast.Int(9)),
+		ast.Assign(ast.ID("y"), ast.Int(4)),
+		ast.Bin("<=", ast.Bin("-", ast.ID("x"), ast.ID("y")), ast.Bin("+", ast.Int(2), ast.Int(3))),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode integer fast-path mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_BinaryFastPathOverflowParity(t *testing.T) {
+	i8 := ast.IntegerTypeI8
+	module := ast.Mod([]ast.Statement{
+		ast.Bin("+", ast.IntTyped(127, &i8), ast.IntTyped(1, &i8)),
+	}, nil, nil)
+
+	treeErr := evalModuleError(t, New(), module)
+	if treeErr == nil || !strings.Contains(treeErr.Error(), "integer overflow") {
+		t.Fatalf("expected tree overflow error, got: %v", treeErr)
+	}
+	byteErr := runBytecodeModuleError(t, NewBytecode(), module)
+	if byteErr == nil || !strings.Contains(byteErr.Error(), "integer overflow") {
+		t.Fatalf("expected bytecode overflow error, got: %v", byteErr)
+	}
+}
+
+func TestBytecodeVM_BinaryFastPathTypeErrorParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Bin("+", ast.Int(1), ast.Bool(true)),
+	}, nil, nil)
+
+	treeErr := evalModuleError(t, New(), module)
+	if treeErr == nil || !strings.Contains(treeErr.Error(), "Arithmetic requires numeric operands") {
+		t.Fatalf("expected tree arithmetic type error, got: %v", treeErr)
+	}
+	byteErr := runBytecodeModuleError(t, NewBytecode(), module)
+	if byteErr == nil || !strings.Contains(byteErr.Error(), "Arithmetic requires numeric operands") {
+		t.Fatalf("expected bytecode arithmetic type error, got: %v", byteErr)
+	}
+}
+
+func TestBytecodeVM_BinaryFastPathFloatFallbackParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Bin("<=", ast.Bin("-", ast.Flt(7.5), ast.Flt(2.0)), ast.Bin("+", ast.Flt(2.25), ast.Flt(3.25))),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode float fallback mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_BinaryIntDivCastFastPathParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.NewTypeCastExpression(ast.Bin("/", ast.Int(9), ast.Int(2)), ast.Ty("i32")),
+		ast.NewTypeCastExpression(ast.Bin("/", ast.Int(-9), ast.Int(2)), ast.Ty("i32")),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode int-div-cast fast path mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_BinaryIntDivCastFloatFallbackParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.NewTypeCastExpression(ast.Bin("/", ast.Flt(9.0), ast.Flt(2.0)), ast.Ty("i32")),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode int-div-cast float fallback mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_BinaryIntDivCastDivisionByZeroParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.NewTypeCastExpression(ast.Bin("/", ast.Int(9), ast.Int(0)), ast.Ty("i32")),
+	}, nil, nil)
+
+	treeErr := evalModuleError(t, New(), module)
+	if treeErr == nil || !strings.Contains(treeErr.Error(), "division by zero") {
+		t.Fatalf("expected tree division by zero error, got: %v", treeErr)
+	}
+	byteErr := runBytecodeModuleError(t, NewBytecode(), module)
+	if byteErr == nil || !strings.Contains(byteErr.Error(), "division by zero") {
+		t.Fatalf("expected bytecode division by zero error, got: %v", byteErr)
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsIntegerBinaryHotOpcodes(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Bin("+", ast.Int(1), ast.Int(2)),
+		ast.Bin("-", ast.Int(4), ast.Int(3)),
+		ast.Bin("<=", ast.Int(1), ast.Int(2)),
+	}, nil, nil)
+
+	interp := NewBytecode()
+	program, err := interp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	sawAdd := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntAdd)
+	sawSub := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntSub)
+	sawLE := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntLessEqual)
+	if !sawAdd || !sawSub || !sawLE {
+		t.Fatalf("expected lowering to emit all specialized binary opcodes: add=%v sub=%v le=%v", sawAdd, sawSub, sawLE)
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsIntegerDivCastOpcode(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.NewTypeCastExpression(ast.Bin("/", ast.Int(9), ast.Int(2)), ast.Ty("i32")),
+	}, nil, nil)
+
+	interp := NewBytecode()
+	program, err := interp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntDivCast) {
+		t.Fatalf("expected lowering to emit integer div-cast opcode")
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes(t *testing.T) {
+	def := ast.Fn(
+		"f",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
+		[]ast.Statement{
+			ast.Bin("<=", ast.ID("n"), ast.Int(2)),
+			ast.Bin("-", ast.ID("n"), ast.Int(1)),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	sawSubSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntSubSlotConst)
+	sawLESlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntLessEqualSlotConst)
+	if !sawSubSlotConst || !sawLESlotConst {
+		t.Fatalf("expected lowering to emit slot-const opcodes: sub=%v le=%v", sawSubSlotConst, sawLESlotConst)
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsFusedSelfCallSlotConstOpcode(t *testing.T) {
+	def := ast.Fn(
+		"fib",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
+		[]ast.Statement{
+			ast.IfExpr(
+				ast.Bin("<=", ast.ID("n"), ast.Int(2)),
+				ast.Block(ast.Ret(ast.Int(1))),
+			),
+			ast.Bin(
+				"+",
+				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(1))),
+				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(2))),
+			),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpCallSelfIntSubSlotConst) {
+		t.Fatalf("expected lowering to emit fused self-call slot-const opcode")
+	}
+}
+
+func TestBytecodeVM_BinarySlotConstTypeErrorParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"f",
+			[]*ast.FunctionParameter{ast.Param("x", nil)},
+			[]ast.Statement{
+				ast.Bin("-", ast.ID("x"), ast.Int(1)),
+			},
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Call("f", ast.Bool(true)),
+	}, nil, nil)
+
+	treeErr := evalModuleError(t, New(), module)
+	if treeErr == nil || !strings.Contains(treeErr.Error(), "Arithmetic requires numeric operands") {
+		t.Fatalf("expected tree arithmetic type error, got: %v", treeErr)
+	}
+	byteErr := runBytecodeModuleError(t, NewBytecode(), module)
+	if byteErr == nil || !strings.Contains(byteErr.Error(), "Arithmetic requires numeric operands") {
+		t.Fatalf("expected bytecode arithmetic type error, got: %v", byteErr)
+	}
+}
+
+func bytecodeProgramContainsOpcode(program *bytecodeProgram, target bytecodeOp) bool {
+	if program == nil {
+		return false
+	}
+	for _, instr := range program.instructions {
+		if instr.op == target {
+			return true
+		}
+		if instr.program != nil && bytecodeProgramContainsOpcode(instr.program, target) {
+			return true
+		}
+	}
+	return false
+}
