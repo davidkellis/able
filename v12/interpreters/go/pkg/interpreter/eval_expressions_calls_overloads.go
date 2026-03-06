@@ -77,6 +77,56 @@ func (i *Interpreter) matchesParamTypeForOverload(fn *runtime.FunctionValue, par
 	return i.matchesType(param, value)
 }
 
+func (i *Interpreter) matchesSingleRuntimeOverload(fn *runtime.FunctionValue, evalArgs []runtime.Value) bool {
+	if fn == nil || fn.Declaration == nil {
+		return false
+	}
+	switch decl := fn.Declaration.(type) {
+	case *ast.FunctionDefinition:
+		params := decl.Params
+		paramCount := len(params)
+		optionalLast := paramCount > 0 && isNullableParam(params[paramCount-1])
+		expectedArgs := paramCount
+		if decl.IsMethodShorthand {
+			expectedArgs++
+		}
+		if !arityMatchesRuntime(expectedArgs, len(evalArgs), optionalLast) {
+			return false
+		}
+		paramsForCheck := params
+		argsForCheck := evalArgs
+		if optionalLast && len(evalArgs) == expectedArgs-1 {
+			paramsForCheck = params[:paramCount-1]
+		}
+		if decl.IsMethodShorthand && len(argsForCheck) > 0 {
+			argsForCheck = argsForCheck[1:]
+		}
+		if len(argsForCheck) != len(paramsForCheck) {
+			return false
+		}
+		generics := functionGenericNameSet(fn, decl)
+		for idx, param := range paramsForCheck {
+			if param == nil {
+				return false
+			}
+			if param.ParamType == nil {
+				continue
+			}
+			if paramUsesGeneric(param.ParamType, generics) {
+				continue
+			}
+			if !i.matchesParamTypeForOverload(fn, param.ParamType, argsForCheck[idx]) {
+				return false
+			}
+		}
+		return true
+	case *ast.LambdaExpression:
+		return len(decl.Params) == len(evalArgs)
+	default:
+		return true
+	}
+}
+
 type overloadCacheKey struct {
 	firstOverload *runtime.FunctionValue // identity of overload set
 	argCount      int

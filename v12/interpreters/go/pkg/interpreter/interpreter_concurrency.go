@@ -365,7 +365,7 @@ func (i *Interpreter) runAsyncBytecodeProgram(payload *asyncContextPayload, prog
 		vm = payload.bytecodeVM
 		resume = true
 	} else {
-		vm = newBytecodeVM(i, env)
+		vm = i.acquireBytecodeVM(env)
 		payload.bytecodeVM = vm
 		payload.bytecodeProgram = program
 		payload.bytecodeEnv = env
@@ -376,12 +376,14 @@ func (i *Interpreter) runAsyncBytecodeProgram(payload *asyncContextPayload, prog
 			return nil, context.Canceled
 		}
 		if !errors.Is(evalErr, errSerialYield) {
+			i.releaseBytecodeVM(vm)
 			payload.bytecodeVM = nil
 			payload.bytecodeProgram = nil
 			payload.bytecodeEnv = nil
 		}
 		return nil, i.asyncFailure(payload, evalErr)
 	}
+	i.releaseBytecodeVM(vm)
 	payload.bytecodeVM = nil
 	payload.bytecodeProgram = nil
 	payload.bytecodeEnv = nil

@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -253,8 +254,27 @@ type Interpreter struct {
 	interfaceBuiltinsReady bool
 	envSingleThread        bool
 
-	methodCache   map[methodCacheKey]methodCacheEntry
-	overloadCache map[overloadCacheKey]*runtime.FunctionValue
+	methodCache           map[methodCacheKey]methodCacheEntry
+	boundMethodCache      map[boundMethodCacheKey]runtime.Value
+	methodCacheMu         sync.RWMutex
+	methodCacheVersion    uint64
+	overloadCache         map[overloadCacheKey]*runtime.FunctionValue
+	typeAliasCacheMu      sync.RWMutex
+	typeAliasBaseCache    map[string][]string
+	typeInfoCacheMu       sync.RWMutex
+	typeInfoNameCache     map[typeInfoCacheKey]string
+	bytecodeVMPool        sync.Pool
+	nativeCallContextPool sync.Pool
+
+	bytecodeStatsEnabled            bool
+	bytecodeOpCounts                [bytecodeOpCount]uint64
+	bytecodeLoadNameLookups         uint64
+	bytecodeCallNameLookups         uint64
+	bytecodeCallNameDottedFallbacks uint64
+	bytecodeInlineCallHits          uint64
+	bytecodeInlineCallMisses        uint64
+	bytecodeMemberMethodCacheHits   uint64
+	bytecodeMemberMethodCacheMisses uint64
 
 	typecheckerEnabled   bool
 	typecheckerStrict    bool
@@ -385,7 +405,14 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
 		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
 		methodCache:             make(map[methodCacheKey]methodCacheEntry),
+		boundMethodCache:        make(map[boundMethodCacheKey]runtime.Value),
 		overloadCache:           make(map[overloadCacheKey]*runtime.FunctionValue),
+		typeAliasBaseCache:      make(map[string][]string),
+		typeInfoNameCache:       make(map[typeInfoCacheKey]string),
+		bytecodeStatsEnabled:    os.Getenv("ABLE_BYTECODE_STATS") != "",
+	}
+	i.nativeCallContextPool.New = func() any {
+		return &runtime.NativeCallContext{}
 	}
 	i.initConcurrencyBuiltins()
 	i.initChannelMutexBuiltins()
@@ -518,6 +545,10 @@ func (i *Interpreter) SetCompiledInterfaceMemberResolver(resolver func(receiver 
 // RegisterTypeAlias registers a type alias definition. Used by the AOT compiler
 // in no-bootstrap mode to provide type alias expansion for bridge.MatchType.
 func (i *Interpreter) RegisterTypeAlias(name string, alias *ast.TypeAliasDefinition) {
+	i.setTypeAlias(name, alias)
+}
+
+func (i *Interpreter) setTypeAlias(name string, alias *ast.TypeAliasDefinition) {
 	if i == nil || name == "" || alias == nil {
 		return
 	}
@@ -525,6 +556,9 @@ func (i *Interpreter) RegisterTypeAlias(name string, alias *ast.TypeAliasDefinit
 		i.typeAliases = make(map[string]*ast.TypeAliasDefinition)
 	}
 	i.typeAliases[name] = alias
+	i.typeAliasCacheMu.Lock()
+	clear(i.typeAliasBaseCache)
+	i.typeAliasCacheMu.Unlock()
 }
 
 // AddNodeOrigin registers a single node origin path for runtime diagnostics.
@@ -642,7 +676,8 @@ func (i *Interpreter) evaluateModuleBodyBytecode(module *ast.Module, env *runtim
 	if err != nil {
 		return nil, err
 	}
-	vm := newBytecodeVM(i, env)
+	vm := i.acquireBytecodeVM(env)
+	defer i.releaseBytecodeVM(vm)
 	return vm.run(program)
 }
 

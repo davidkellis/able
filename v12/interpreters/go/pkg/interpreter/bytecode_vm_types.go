@@ -33,19 +33,30 @@ type bytecodeCallFrame struct {
 	iterBase            int
 	loopBase            int
 	hasImplicitReceiver bool
+	selfFast            bool
 }
 
 type bytecodeVM struct {
-	interp         *Interpreter
-	stack          []runtime.Value
-	env            *runtime.Environment
-	ip             int
-	iterStack      []forLoopIterator
-	loopStack      []bytecodeLoopFrame
-	ensureStack    []bytecodeEnsureFrame
-	slots          []runtime.Value
-	callFrames     []bytecodeCallFrame
-	currentProgram *bytecodeProgram // tracks the active program for resume after yield
+	interp             *Interpreter
+	stack              []runtime.Value
+	env                *runtime.Environment
+	ip                 int
+	iterStack          []forLoopIterator
+	loopStack          []bytecodeLoopFrame
+	ensureStack        []bytecodeEnsureFrame
+	slots              []runtime.Value
+	slotFramePool      map[int][][]runtime.Value
+	slotFrameHotSize   int
+	slotFrameHotPool   [][]runtime.Value
+	callFrames         []bytecodeCallFrame
+	currentProgram     *bytecodeProgram // tracks the active program for resume after yield
+	globalLookupCache  map[bytecodeGlobalLookupCacheKey]bytecodeGlobalLookupCacheEntry
+	scopeLookupCache   map[bytecodeGlobalLookupCacheKey]bytecodeScopeLookupCacheEntry
+	memberMethodCache  map[bytecodeMemberMethodCacheKey]bytecodeMemberMethodCacheEntry
+	indexMethodCache   map[bytecodeIndexMethodCacheKey]bytecodeIndexMethodCacheEntry
+	validatedIntConsts map[*bytecodeProgram][]bool
+	slotConstIntImm    map[*bytecodeProgram]*bytecodeSlotConstIntImmediateTable
+	stringInterpParts  []runtime.Value
 }
 
 type bytecodeLoopFrame struct {
@@ -67,5 +78,6 @@ func newBytecodeVM(interp *Interpreter, env *runtime.Environment) *bytecodeVM {
 		iterStack:   make([]forLoopIterator, 0, 2),
 		loopStack:   make([]bytecodeLoopFrame, 0, 4),
 		ensureStack: make([]bytecodeEnsureFrame, 0, 2),
+		callFrames:  make([]bytecodeCallFrame, 0),
 	}
 }

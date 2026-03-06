@@ -1,0 +1,61 @@
+package exec_07_10_bytecode_quicksort_hotloop
+
+import able.kernel.{Array}
+
+fn swap(arr: Array i32, a: i32, b: i32) {
+  tmp := arr[a] as i32
+  arr[a] = arr[b] as i32
+  arr[b] = tmp
+}
+
+fn quicksort(arr: Array i32, lo: i32, hi: i32) {
+  if lo >= hi { return }
+  pivot := arr[((lo + hi) / 2) as i32] as i32
+  i := lo
+  j := hi
+  loop {
+    if i > j { break }
+    loop {
+      if arr[i] as i32 >= pivot { break }
+      i = i + 1
+    }
+    loop {
+      if arr[j] as i32 <= pivot { break }
+      j = j - 1
+    }
+    if i <= j {
+      swap(arr, i, j)
+      i = i + 1
+      j = j - 1
+    }
+  }
+  if lo < j { quicksort(arr, lo, j) }
+  if i < hi { quicksort(arr, i, hi) }
+}
+
+fn build_data(n: i32) -> Array i32 {
+  values: Array i32 := Array.new()
+  x := 17
+  i := 0
+  loop {
+    if i >= n { break }
+    x = (x * 73 + 19) % 10007
+    values.push(x)
+    i = i + 1
+  }
+  values
+}
+
+fn main() {
+  nums := build_data(2000)
+  quicksort(nums, 0, 1999)
+
+  checksum := 0
+  i := 0
+  loop {
+    if i >= 2000 { break }
+    checksum = checksum + (nums[i] as i32)
+    i = i + 1
+  }
+  print(checksum)
+}

@@ -80,21 +80,40 @@ func expandTypeAliases(
 	case *ast.GenericTypeExpression:
 		baseName, ok := simpleTypeName(t.Base)
 		base := expandTypeAliases(t.Base, aliases, seen)
-		args := make([]ast.TypeExpression, len(t.Arguments))
-		for i, arg := range t.Arguments {
-			args[i] = expandTypeAliases(arg, aliases, seen)
+		var args []ast.TypeExpression
+		for idx, arg := range t.Arguments {
+			expandedArg := expandTypeAliases(arg, aliases, seen)
+			if expandedArg != arg {
+				if args == nil {
+					args = append([]ast.TypeExpression(nil), t.Arguments...)
+				}
+				args[idx] = expandedArg
+			}
+		}
+		currentArgs := t.Arguments
+		if args != nil {
+			currentArgs = args
 		}
 		if !ok {
-			return &ast.GenericTypeExpression{Base: base, Arguments: args}
+			if base == t.Base && args == nil {
+				return expr
+			}
+			return &ast.GenericTypeExpression{Base: base, Arguments: currentArgs}
 		}
 		if seen != nil {
 			if _, exists := seen[baseName]; exists {
-				return &ast.GenericTypeExpression{Base: base, Arguments: args}
+				if base == t.Base && args == nil {
+					return expr
+				}
+				return &ast.GenericTypeExpression{Base: base, Arguments: currentArgs}
 			}
 		}
 		alias, ok := aliases[baseName]
 		if !ok || alias.TargetType == nil {
-			return &ast.GenericTypeExpression{Base: base, Arguments: args}
+			if base == t.Base && args == nil {
+				return expr
+			}
+			return &ast.GenericTypeExpression{Base: base, Arguments: currentArgs}
 		}
 		if seen == nil {
 			seen = make(map[string]struct{})
@@ -105,8 +124,8 @@ func expandTypeAliases(
 			if gp == nil || gp.Name == nil {
 				continue
 			}
-			if idx < len(args) && args[idx] != nil {
-				subst[gp.Name.Name] = args[idx]
+			if idx < len(currentArgs) && currentArgs[idx] != nil {
+				subst[gp.Name.Name] = currentArgs[idx]
 			}
 		}
 		substituted := substituteAliasTypeExpression(alias.TargetType, subst, aliases, seen)
@@ -114,25 +133,102 @@ func expandTypeAliases(
 		delete(seen, baseName)
 		return expanded
 	case *ast.NullableTypeExpression:
-		return &ast.NullableTypeExpression{InnerType: expandTypeAliases(t.InnerType, aliases, seen)}
+		inner := expandTypeAliases(t.InnerType, aliases, seen)
+		if inner == t.InnerType {
+			return expr
+		}
+		return &ast.NullableTypeExpression{InnerType: inner}
 	case *ast.ResultTypeExpression:
-		return &ast.ResultTypeExpression{InnerType: expandTypeAliases(t.InnerType, aliases, seen)}
+		inner := expandTypeAliases(t.InnerType, aliases, seen)
+		if inner == t.InnerType {
+			return expr
+		}
+		return &ast.ResultTypeExpression{InnerType: inner}
 	case *ast.UnionTypeExpression:
-		members := make([]ast.TypeExpression, len(t.Members))
-		for i, member := range t.Members {
-			members[i] = expandTypeAliases(member, aliases, seen)
+		var members []ast.TypeExpression
+		for idx, member := range t.Members {
+			expandedMember := expandTypeAliases(member, aliases, seen)
+			if expandedMember != member {
+				if members == nil {
+					members = append([]ast.TypeExpression(nil), t.Members...)
+				}
+				members[idx] = expandedMember
+			}
+		}
+		if members == nil {
+			return expr
 		}
 		return &ast.UnionTypeExpression{Members: members}
 	case *ast.FunctionTypeExpression:
-		params := make([]ast.TypeExpression, len(t.ParamTypes))
-		for i, param := range t.ParamTypes {
-			params[i] = expandTypeAliases(param, aliases, seen)
+		var params []ast.TypeExpression
+		for idx, param := range t.ParamTypes {
+			expandedParam := expandTypeAliases(param, aliases, seen)
+			if expandedParam != param {
+				if params == nil {
+					params = append([]ast.TypeExpression(nil), t.ParamTypes...)
+				}
+				params[idx] = expandedParam
+			}
+		}
+		returnType := expandTypeAliases(t.ReturnType, aliases, seen)
+		if params == nil && returnType == t.ReturnType {
+			return expr
+		}
+		if params == nil {
+			params = t.ParamTypes
 		}
 		return &ast.FunctionTypeExpression{
 			ParamTypes: params,
-			ReturnType: expandTypeAliases(t.ReturnType, aliases, seen),
+			ReturnType: returnType,
 		}
 	default:
 		return expr
+	}
+}
+
+func typeExpressionReferencesAlias(
+	expr ast.TypeExpression,
+	aliases map[string]*ast.TypeAliasDefinition,
+) bool {
+	if expr == nil || len(aliases) == 0 {
+		return false
+	}
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t == nil || t.Name == nil {
+			return false
+		}
+		_, ok := aliases[t.Name.Name]
+		return ok
+	case *ast.GenericTypeExpression:
+		if typeExpressionReferencesAlias(t.Base, aliases) {
+			return true
+		}
+		for _, arg := range t.Arguments {
+			if typeExpressionReferencesAlias(arg, aliases) {
+				return true
+			}
+		}
+		return false
+	case *ast.NullableTypeExpression:
+		return typeExpressionReferencesAlias(t.InnerType, aliases)
+	case *ast.ResultTypeExpression:
+		return typeExpressionReferencesAlias(t.InnerType, aliases)
+	case *ast.UnionTypeExpression:
+		for _, member := range t.Members {
+			if typeExpressionReferencesAlias(member, aliases) {
+				return true
+			}
+		}
+		return false
+	case *ast.FunctionTypeExpression:
+		for _, param := range t.ParamTypes {
+			if typeExpressionReferencesAlias(param, aliases) {
+				return true
+			}
+		}
+		return typeExpressionReferencesAlias(t.ReturnType, aliases)
+	default:
+		return false
 	}
 }

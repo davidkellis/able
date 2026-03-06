@@ -208,6 +208,10 @@ func (i *Interpreter) indexGet(obj runtime.Value, idxVal runtime.Value) (runtime
 	} else if method != nil {
 		return i.CallFunction(method, []runtime.Value{obj, idxVal})
 	}
+	return i.indexGetWithoutMethod(obj, idxVal)
+}
+
+func (i *Interpreter) indexGetWithoutMethod(obj runtime.Value, idxVal runtime.Value) (runtime.Value, error) {
 	arr, err := i.toArrayValue(obj)
 	if err != nil {
 		return nil, err
@@ -273,6 +277,13 @@ func (i *Interpreter) assignIndex(obj runtime.Value, idxVal runtime.Value, value
 			return setResult, nil
 		}
 		return computed, nil
+	}
+	return i.assignIndexWithoutMethods(obj, idxVal, value, op, binaryOp, isCompound)
+}
+
+func (i *Interpreter) assignIndexWithoutMethods(obj runtime.Value, idxVal runtime.Value, value runtime.Value, op ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, error) {
+	if op == ast.AssignmentDeclare {
+		return nil, fmt.Errorf("Cannot use := on index assignment")
 	}
 	arr, err := i.toArrayValue(obj)
 	if err != nil {

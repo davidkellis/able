@@ -1,5 +1,1151 @@
 # Able Project Log
 
+# 2026-03-05 — Dynamic array first-append pre-grow (v12)
+- Reduced hot append-loop allocation churn in:
+  - `v12/interpreters/go/pkg/runtime/array_store.go`
+- Behavior/perf changes:
+  - in `ArrayStoreWrite` dynamic append path (`index == len`), pre-grow empty arrays to capacity `4` before the first append.
+  - this avoids the extra `cap=1` and `cap=2` backing-slice allocation steps on common push-heavy loops while preserving existing sparse-write and growth semantics.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestArrayStoreDynamicCapacityGrowthAmortized|TestArrayStoreDynamicSparseWritePreservesNilGap|TestArrayStoreMonoBoolRoundTripAndDynamicFallback|TestArrayStoreMonoI64RoundTripAndDynamicFallback' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `53.803s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`, fixed `-benchtime=50x` A/B):
+  - before pre-grow: `~106.93-107.12 B/op`, `~49-50 allocs/op`.
+  - after pre-grow: `~106.87-106.98 B/op`, `~47 allocs/op`.
+  - wall-time remained in the same host-noisy band (`~32.7-33.5ms/op` in the comparable runs).
+  - profile snapshot: `/tmp/able-bytecode-quicksort.after20.mem.out`.
+- Next steps (bytecode perf focus):
+  - reduce `runtime.allocm` / scheduler allocation churn (`SerialExecutor` + bytecode call loop interaction).
+  - reduce `sync.(*Pool).pinSlow` pressure from VM/context pooling paths (`acquireBytecodeVM`, native call context reuse).
+  - continue trimming `ArrayStoreWrite` alloc-space share (now still top flat allocator in quicksort hotloop profiles).
+
+# 2026-03-05 — Quicksort hotloop benchmark steady-state warmup isolation (v12)
+- Improved benchmark signal quality in:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_quicksort_hotloop_bench_test.go`
+- Behavior/perf harness changes:
+  - kept memprofile sampling suspended through parser/load/typecheck/bootstrap and an explicit untimed `main()` warmup call, then resumed sampling immediately before the timed benchmark loop.
+  - added a pre-timer warmup invocation so first-call cache/bootstrap costs are excluded from steady-state `ns/op`, `B/op`, and alloc profile signals.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchmem -count=5` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchmem -count=1 -memprofile /tmp/able-bytecode-quicksort.after16.mem.out` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+  - before harness tweak: `32.37ms/op`, `107802 B/op`, `53 allocs/op` (single-run snapshot).
+  - after harness tweak: `31.61ms/op`, `107281 B/op`, `50 allocs/op` (single-run snapshot).
+  - latest alloc-space profile (`/tmp/able-bytecode-quicksort.after16.mem.out`) is now dominated by steady-state loop paths (`runtime.ArrayStoreWrite`, call dispatch), with one-time small-int cache init no longer at the top.
+
+# 2026-03-05 — Int-div-cast bytecode opcode + dynamic array append write fast path (v12)
+- Reduced bytecode hotloop allocation pressure in:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_cast_div.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+  - `v12/interpreters/go/pkg/runtime/array_store.go`
+  - `v12/interpreters/go/pkg/runtime/array_store_mono_test.go`
+- Behavior/perf changes:
+  - added specialized lowering for `(<expr> / <expr>) as <int>` to emit new `bytecodeOpBinaryIntDivCast` instead of generic `Binary("/")` followed by `Cast`.
+  - new VM opcode executes a guarded fast path for integer operands in safe range (including a `r==2 && l>=0` shift shortcut), then falls back to generic `/` + cast semantics when outside the guardrails.
+  - optimized dynamic `ArrayStoreWrite` for append writes (`index == len`) to append the value directly (skipping nil-fill then overwrite), while preserving sparse-write gap semantics for `index > len`.
+  - added regression coverage for lowering/parity/division-by-zero on the new opcode and sparse dynamic write gap behavior.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_Binary(IntDivCastFastPathParity|IntDivCastFloatFallbackParity|IntDivCastDivisionByZeroParity|LoweringEmitsIntegerDivCastOpcode)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestArrayStoreDynamicCapacityGrowthAmortized|TestArrayStoreDynamicSparseWritePreservesNilGap|TestArrayStoreMonoBoolRoundTripAndDynamicFallback|TestArrayStoreMonoI64RoundTripAndDynamicFallback' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `52.699s`; one prior run observed a transient fixture parity mismatch that did not reproduce in targeted reruns and subsequent full run).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+  - before tranche: `33.75ms/op`, `155178 B/op`, `1823 allocs/op`.
+  - after tranche: `32.51ms/op`, `112193 B/op`, `49 allocs/op` (single-run memprofile capture); repeated runs showed wall-time variance but stable low alloc counts (`~48-52 allocs/op`).
+  - memprofile hotspot shift: `evaluateDivision` dropped out of top alloc nodes for this benchmark shape; profile snapshot at `/tmp/able-bytecode-quicksort.after12.mem.out`.
+
+# 2026-03-05 — Array metadata boxing + primitive receiver cache probe (v12)
+- Reduced bytecode hotloop allocation pressure in:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+- Behavior/perf changes:
+  - added a dedicated cached boxed-`u64` path for `__able_array_size` / `__able_array_capacity` return values so repeated array metadata reads avoid per-call integer boxing allocations in hot loops.
+  - kept the existing bytecode global small-int cache scope unchanged (`i32/i64/isize`) and moved array-metadata caching to a dedicated path to avoid inflating bytecode cache initialization overhead.
+  - added an early primitive-receiver bound-method cache probe in `resolveMethodFromPool(...)` and relaxed scope-name cache gating (still guarded by impl-context checks) so hot method calls can reuse cached bound methods even when a callable of the same name exists in scope.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_BoxedSmallIntValueCache|TestBytecodeVM_BoxedIntegerValueDynamicCache|TestResolveMethodFromPool_BoundMethodCacheInvalidatesWithMethodCache|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop|TestArrayBuiltins' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `53.045s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+  - before tranche: `33.60ms/op`, `314920 B/op`, `5822 allocs/op`.
+  - after tranche: `33.75ms/op`, `155178 B/op`, `1823 allocs/op`.
+  - memprofile alloc-space dropped from `~26.24MB` to `~19.02MB` for this benchmark shape.
+
+# 2026-03-05 — Call-dispatch arg/context pooling + typed-declare slot coverage (v12)
+- Reduced bytecode hotloop allocation pressure in:
+  - `v12/interpreters/go/pkg/interpreter/call_helpers.go`
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_operations_arithmetic.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_operations_fast.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_helpers.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_store.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_typed_pattern_slot_test.go`
+- Behavior/perf changes:
+  - call dispatch now reuses mutable arg backing storage for bound-receiver injection (`prependReceiverCallArgs`) instead of always allocating a fresh `[]Value`.
+  - native call dispatch now reuses pooled `runtime.NativeCallContext` objects per interpreter, removing per-call context allocation churn on hot native/member call paths.
+  - int64 arithmetic/div-mod hot paths now use `ensureFitsInt64Type(...)` directly and defer `getIntegerInfo(...)` lookups until big-int fallback is actually required.
+  - bytecode slot analysis/lowering now accepts typed identifier declarations (`name: T := expr`) as slot-eligible and lowers them through slot stores.
+  - added VM typed-slot store coercion/mismatch handling so typed declaration semantics are preserved on slot paths; typed `=`/compound typed-pattern assignments remain on `AssignPattern` paths to preserve interface coercion/fallback behavior.
+  - fixed parity regression in `10_11_interface_generic_args_dispatch` by keeping typed `=` assignment on `AssignPattern`.
+- Regression coverage:
+  - `TestBytecodeVM_TypedIdentifierDeclarationUsesSlotLowering`
+  - `TestBytecodeVM_TypedIdentifierMismatchReturnsErrorValue`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_TypedIdentifierDeclarationUsesSlotLowering|TestBytecodeVM_TypedIdentifierMismatchReturnsErrorValue|TestBytecodeVM_AssignmentPattern|TestBytecodeVM_CompoundAssignmentPattern' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtureParity/10_11_interface_generic_args_dispatch' -count=1 -v` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `53.031s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+  - before tranche: `35.68ms/op`, `970300 B/op`, `30939 allocs/op`.
+  - after tranche: `34.84ms/op`, `806269 B/op`, `28916 allocs/op`.
+  - memprofile total alloc-space dropped from `~52.91MB` to `~41.71MB`; `runtime.NewEnvironment` fell out of top alloc-space nodes in this benchmark shape.
+
+# 2026-03-05 — Integer div/mod boxed-result fast path (v12)
+- Reduced hot `%`/`//` result boxing churn in:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_operations_arithmetic.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_operations_fast.go`
+- Behavior/perf changes:
+  - added an int64-first fast path in `evaluateDivMod(...)` that computes Euclidean quotient/remainder directly and returns cached boxed integers for supported hot kinds (`i32/i64/isize`) via existing boxed-int caches.
+  - fallback div/mod paths now opportunistically return cached boxed integers for small int results instead of always returning fresh value boxing.
+  - mirrored these result-boxing optimizations in `evaluateDivModFast(...)` so bytecode fast dispatch and generic arithmetic dispatch stay aligned.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(DivModEuclidean|DivModStructResult|DivisionByZeroDiagnostics|CallFunction_DoesNotMutateCallerArgsOnCoercion|CallCallableValueMutable_DoesNotMutatePartialBoundArgsOnCoercion|ResolveMethodFromPool_BoundMethodCacheInvalidatesWithMethodCache)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `54.914s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+  - before tranche: `~1.352MB/op`, `~42.93k allocs/op`.
+  - after tranche: `~1.257MB/op`, `~40.93k allocs/op`.
+  - profile total alloc-space dropped to ~`22.86MB` for the latest `-benchtime=5x` hotloop shape.
+- Bench harness spot-check:
+  - `./v12/bench_suite --runs 2 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort`:
+    - quicksort avg `4.260s`, `gc_avg=37.5` (`v12/tmp/perf/bench-suite-20260305T231745Z.json`).
+  - macro wall-time remained within the current noise band while micro-allocation metrics improved.
+
+# 2026-03-05 — Mutability-aware bytecode call dispatch for coercion paths (v12)
+- Reduced call/invoke coercion-copy churn in:
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/call_args_mutation_test.go`
+- Behavior/perf changes:
+  - introduced internal `callCallableValueMutable(...)` and shared implementation `callCallableValueWithMutability(...)`.
+  - bytecode VM call sites now route through the mutable path so callee-parameter coercion can update borrowed arg slices in place (instead of always cloning on first coercion).
+  - public/external call entry points remain immutable by default (`callCallableValue(...)` keeps `argsMutable=false`), preserving host caller argument stability.
+  - partial-call chaining remains protected: recursive partial dispatch forces immutable handling to avoid mutating stored `PartialFunctionValue.BoundArgs`.
+- Regression coverage:
+  - added `TestCallCallableValueMutable_DoesNotMutatePartialBoundArgsOnCoercion`.
+  - existing `TestCallFunction_DoesNotMutateCallerArgsOnCoercion` remains green for public API safety.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(CallFunction_DoesNotMutateCallerArgsOnCoercion|CallCallableValueMutable_DoesNotMutatePartialBoundArgsOnCoercion|CallDispatch|FixtureParityStringLiteral/errors/ufcs_static_method_not_found|ResolveMethodFromPool_BoundMethodCacheInvalidatesWithMethodCache|BytecodeVM_BoundMethodInlineCallStatsHit)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `58.298s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+  - before tranche: `~1.448MB/op`, `~46.93k allocs/op`.
+  - after tranche: `~1.352MB/op`, `~42.93k allocs/op`.
+  - wall-time stayed in the same noisy band (`~34.9-38.4ms/op` in sampled runs).
+- Bench harness snapshot (bytecode mode):
+  - `./v12/bench_suite --runs 2 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort`:
+    - quicksort avg `4.255s`, `gc_avg=35.0` (`v12/tmp/perf/bench-suite-20260305T230945Z.json`).
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e` (`v12/tmp/perf/bench-suite-20260305T231005Z.json`):
+    - completed: `quicksort 4.080s (gc=36)`, `i_before_e 4.040s (gc=35)`;
+    - timed out in this snapshot window: `fib`, `binarytrees`, `matrixmultiply`, `sudoku`.
+
+# 2026-03-05 — Pointer-receiver bound-method cache in method resolution (v12)
+- Reduced bound-wrapper churn in:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution_cache_test.go`
+- Behavior/perf changes:
+  - added a capped bound-method cache (`boundMethodCacheMaxEntries=2048`) keyed by pointer receiver identity + method name + interface filter + `allowInherent` gate.
+  - cache is consulted in `resolveMethodFromPool(...)` only when safe (no callable name in scope, no active `implMethodContext`) and currently targets pointer receivers.
+  - cache entries are cleared together with method-cache invalidation (`invalidateMethodCache`) to preserve dispatch correctness when methods are redefined.
+  - added regression coverage proving invalidate clears the cache and updated method targets are observed after redefinition.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(ResolveMethodFromPool_BoundMethodCacheInvalidatesWithMethodCache|FunctionScopeFilter|CallDispatch|FixtureParityStringLiteral/errors/ufcs_static_method_not_found)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `51.301s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+  - before tranche: `~1.512MB/op`, `~48.93k allocs/op`.
+  - after tranche: `~1.448MB/op`, `~46.93k allocs/op`.
+  - profile signal: `resolveMethodFromPool` dropped to low single-sample presence (`~512KB` cum in the latest `-benchtime=5x` profile shape) versus prior multi-MB prominence.
+
+# 2026-03-05 — Hotloop harness setup isolation + type-info key cache (v12)
+- Reduced quicksort hotloop setup/profile noise and method-cache key churn in:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_quicksort_hotloop_bench_test.go`
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/function_overloads.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_interface_lookup.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_type_info_cache_test.go`
+- Behavior/perf changes:
+  - benchmark harness now suspends `runtime.MemProfileRate` during one-time fixture/load/typecheck bootstrap and restores sampling before the timed `main()` call loop; this keeps memprofiles focused on runtime hotloop allocations.
+  - `mergePartialCallArgs(...)` now reuses caller slices when one side is empty, removing avoidable merge-buffer allocations in partial-call chaining.
+  - added `functionOverloadsView(...)` and wired call dispatch to reuse existing overload slices for `*runtime.FunctionOverloadValue` targets instead of always flattening.
+  - added `cachedTypeInfoName(...)` + interpreter cache map (`typeInfoCacheKey -> string`) and switched `findMethodCached(...)` to use it, eliminating repeated `typeInfoToString(...)` allocations for hot generic receiver keys.
+  - added allocation regression guard: `TestCachedTypeInfoNameAvoidsRepeatedAllocationsForCommonGenericTypes`.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(CachedTypeInfoNameAvoidsRepeatedAllocationsForCommonGenericTypes|CanonicalTypeNamesUsesAliasBaseWithoutASTExpansion|CallDispatch|CallFunction_DoesNotMutateCallerArgsOnCoercion|FixtureParityStringLiteral/errors/ufcs_static_method_not_found)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `51.473s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+  - before tranche: `~36.08-36.94ms/op`, `~1.608MB/op`, `~56.95k allocs/op`.
+  - after tranche: `~36.01-36.89ms/op`, `~1.512MB/op`, `~48.93k allocs/op`.
+  - memprofile total alloc-space dropped from ~`24.6MB` to ~`19.4MB` (`-~21%`) for the `-benchtime=5x` hotloop profile shape.
+
+# 2026-03-05 — Method-resolution accumulator single-candidate fast path (v12)
+- Reduced hot method/call dispatch allocation churn in:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+- Behavior/perf changes:
+  - refactored `methodResolutionAccumulator` to keep single function/native candidates in dedicated fields and only allocate/promote to slices when a second distinct candidate appears.
+  - preserved existing ambiguity/dedup semantics (`Ambiguous overload` behavior and native-key deduping) while avoiding per-call slice appends on common single-candidate paths.
+  - this primarily targets the `resolveMethodFromPool` path that feeds hot `callCallableValue` dispatch.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(FunctionScopeFilter|CallDispatch|FixtureParityStringLiteral/errors/ufcs_static_method_not_found|BytecodeVM_BoundMethodInlineCallStatsHit)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|CallNameScopeCacheInvalidatesOnLocalRebind|BoxedIntegerValueDynamicCache|StatsMemberMethodCacheCounters)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `53.814s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`, 3 runs):
+  - `~38.03-41.52ms/op` (host-noisy wall-time),
+  - `~1.61MB/op`,
+  - `~56.95k allocs/op`.
+  - allocation profile improved materially versus immediate prior tranche (`~1.64MB/op`, `~60.95k allocs/op`).
+
+# 2026-03-05 — Direct function call-dispatch fast path (v12)
+- Reduced call-dispatch overhead in:
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+- Behavior/perf changes:
+  - `callCallableValue(...)` now detects direct `*runtime.FunctionValue` call targets (including function targets inside `BoundMethodValue`) and bypasses `functionOverloads(...)` flattening/select logic on this common path.
+  - preserves partial-application behavior and mismatch diagnostics by:
+    - running a pre-invoke mismatch check for `TypeQualified` direct functions, and
+    - running mismatch mapping on invoke errors for other direct functions.
+  - native and overload-value paths are unchanged.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestFixtureParityStringLiteral/errors/ufcs_static_method_not_found' -count=1 -v` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(CallDispatch|CallCallableValue_NativeBoundMethodPartialDoesNotDoubleInjectReceiver|BytecodeVM_BoundMethodInlineCallStatsHit|BytecodeVMExecStringInterpolationReusesPartsBuffer)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|CallNameScopeCacheInvalidatesOnLocalRebind|BoxedIntegerValueDynamicCache)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `53.782s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`, 3 runs):
+  - `~37.48-38.74ms/op`,
+  - `~1.64MB/op`,
+  - `~60.95k allocs/op`.
+  - this pass is primarily structural/micro-allocation-focused; wall-time remained in the current noise band on this host.
+
+# 2026-03-05 — Bytecode literal handler split + interpolation scratch reuse (v12)
+- Reduced bytecode run-loop scratch allocations and trimmed oversized run-loop file:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_literals.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_stack_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_literals_test.go`
+- Behavior/perf/maintainability changes:
+  - moved `StringInterpolation`/`ArrayLiteral` bytecode handlers out of `runResumable(...)` into dedicated helpers.
+  - added reusable VM interpolation-part scratch buffer (`stringInterpParts`) with per-call clear, removing per-op `make([]runtime.Value, argCount)` for interpolation.
+  - switched array literal operand extraction to stack-segment copy + truncate helper path.
+  - split `Dup`/`Pop` handler code into dedicated helpers; `bytecode_vm_run.go` is now `996` lines (back under 1000-line guardrail).
+- Regression coverage:
+  - `TestBytecodeVMExecStringInterpolationReusesPartsBuffer`
+  - `TestBytecodeVMExecArrayLiteralCopiesStackSegment`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM(ExecStringInterpolationReusesPartsBuffer|ExecArrayLiteralCopiesStackSegment|ReleaseCompletedRunFramesReleasesActiveSlots|FinishRunResumableReleasesUnwoundCallFrames)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(Async|IndexMethodCacheTracksArrayElementType|CallNameScopeCacheInvalidatesOnLocalRebind|BoxedIntegerValueDynamicCache)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `60.219s` on this run).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output.
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`, 3 runs):
+  - `~35.11-39.10ms/op`,
+  - `~1.64MB/op`,
+  - `~60.95k allocs/op`.
+
+# 2026-03-05 — Bytecode slot-frame finalization cleanup + pooled top-level slot setup (v12)
+- Reduced bytecode slot-frame allocation churn in:
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run_finalize.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames_finalize_test.go`
+- Behavior/perf changes:
+  - switched `invokeFunction(...)` bytecode entry frame setup from `make([]runtime.Value, ...)` to `vm.acquireSlotFrame(...)`.
+  - `finishRunResumable(...)` now returns active slot frames to the slot-frame pool on non-yield exits (normal completion and error unwind).
+  - error unwind now releases callee slot frames as frames are popped, then releases the final active frame at run completion.
+- Regression coverage:
+  - `TestBytecodeVMReleaseCompletedRunFramesReleasesActiveSlots`
+  - `TestBytecodeVMFinishRunResumableReleasesUnwoundCallFrames`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVMReleaseCompletedRunFramesReleasesActiveSlots|TestBytecodeVMFinishRunResumableReleasesUnwoundCallFrames|TestBytecodeVM_BoxedIntegerValueDynamicCache|TestBytecodeVM_IndexMethodCacheTracksArrayElementType|TestBytecodeVM_CallNameScopeCacheInvalidatesOnLocalRebind' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1` (pass; `59.021s`).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (`BenchmarkBytecodeQuicksortHotloopRuntime`, 3 runs):
+  - `~35.33-36.75ms/op`,
+  - `~1.64MB/op`,
+  - `~60.95k allocs/op`.
+
+# 2026-03-05 — Bytecode index-cache key token compaction (v12)
+- Reduced index-cache key overhead in:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+- Behavior/perf changes:
+  - replaced array-element cache key strings (`"i32"`, `"String"`, etc.) with compact numeric tokens (`uint16`) for bytecode index-method cache keys.
+  - preserved existing element-type invalidation semantics (including empty-array and impl-change cases); unsupported element kinds remain non-cacheable as before.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|StatsMemberMethodCacheCounters|CallNameDotFallbackUsesMemberMethodCache|BoxedIntegerValueDynamicCache|NativeCallArgsSliceStaysStable)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `69.158s` on this loaded host run).
+- Perf signal checks:
+  - quicksort hotloop allocation profile remained in the improved post-boxing band (`~1.83MB/op`, `~64.9k allocs/op`).
+  - wall-time readings were noisy under concurrent host load during this pass; no deterministic `ns/op` claim is made from this micro-optimization alone.
+
+# 2026-03-05 — Dynamic boxed-int cache for bytecode add/sub fast paths (v12)
+- Reduced integer boxing churn in:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_small_int_boxing.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates_test.go`
+- Behavior/perf changes:
+  - added a bounded dynamic boxed-int cache (`bytecodeIntBoxDynamicCacheLimit=32768`) for out-of-range `i32`/`i64`/`isize` values while preserving the existing fixed small-int cache.
+  - wired specialized bytecode add/sub fast paths (`addIntegerSameTypeFast`, `subtractIntegerSameTypeFast`) to use the new boxed-int helper.
+  - kept `bytecodeBoxedSmallIntValue` semantics unchanged; added regression coverage for dynamic cache behavior and cached no-allocation reuse.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(BoxedSmallIntValueCache|BoxedIntegerValueDynamicCache|NativeCallArgsSliceStaysStable)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `50.927s`).
+- Perf signal checks:
+  - pre-tranche quicksort hotloop: `~35.0ms/op`, `~2.02MB/op`, `~68.8k allocs/op`.
+  - after this tranche (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+    - `~35.0-35.6ms/op`,
+    - `~1.83MB/op`,
+    - `~64.9k allocs/op`.
+
+# 2026-03-05 — Native arg-borrow + small-int cache expansion (v12)
+- Reduced bytecode call/boxing allocation pressure in:
+  - `v12/interpreters/go/pkg/runtime/values.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_small_int_boxing.go`
+- Behavior/perf changes:
+  - added `BorrowArgs bool` to `runtime.NativeFunctionValue`; bytecode fallback now only clones arg slices for native/dynamic targets that require stable arg storage.
+  - marked hot array runtime natives (`__able_array_*`, `Array.new`, `array.iterator`) as borrow-safe, removing per-call fallback arg cloning on these sites.
+  - expanded pre-boxed integer cache range from `[-256, 4096]` to `[-256, 16384]` for `i32/i64/isize` boxed reuse.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_NativeCallArgsSliceStaysStable|TestBytecodeVM_BoxedSmallIntValueCache' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `51.062s`).
+- Perf signal checks:
+  - pre-tranche quicksort hotloop (latest prior state): `~34.9-35.2ms/op`, `~2.15MB/op`, `~72.9k allocs/op`.
+  - after this tranche (`BenchmarkBytecodeQuicksortHotloopRuntime`):
+    - `~35.03-35.25ms/op`,
+    - `~2.02MB/op`,
+    - `~68.8k allocs/op`.
+  - alloc-space hotspot `copyCallArgs` dropped out of top allocators in latest profile; current dominant runtime allocators are integer arithmetic (`addIntegerSameTypeFast`), method resolution, and environment creation.
+
+# 2026-03-05 — Bound-method value-form allocation reduction (v12)
+- Reduced bound-method heap churn in:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_member_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_members_dynamic.go`
+- Behavior/perf changes:
+  - switched hot method-resolution/member-cache/interface-member return paths from pointer-form bound wrappers to value-form runtime wrappers:
+    - `runtime.BoundMethodValue` (value)
+    - `runtime.NativeBoundMethodValue` (value)
+  - preserves call semantics (dispatch already supports both value + pointer forms) while reducing per-call heap allocation pressure.
+- Test compatibility update:
+  - adjusted ordering test to accept both bound-wrapper forms:
+    - `v12/interpreters/go/pkg/interpreter/interpreter_strings_ordering_test.go`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `49.845s`).
+  - targeted cache/string/env tests remained passing in earlier per-tranche runs.
+- Perf signal checks:
+  - `BenchmarkBytecodeQuicksortHotloopRuntime` remained stable in wall time (`~35.10-35.98ms/op` band) with maintained low allocation profile (`~2.18MB/op`, `~74.9k allocs/op`).
+  - alloc-space profile (`/tmp/bytecode-quicksort-hotloop.mem.after-boundvalue.out`) shows `resolveMethodFromPool` flat allocation down from recent `~3.5MB` to `~2.5MB`.
+
+# 2026-03-05 — `parseTypeExpression` generic arg copy removal (v12)
+- Reduced generic type parse allocation churn in:
+  - `v12/interpreters/go/pkg/interpreter/impl_resolution_types.go`
+- Behavior/perf changes:
+  - `parseTypeExpression(...)` now reuses `*ast.GenericTypeExpression.Arguments` slices directly (treated as immutable in runtime resolution paths) instead of copying with `append([]TypeExpression(nil), ...)` on every parse.
+  - preserves semantics while cutting repeated generic-argument copy overhead in method lookup/type coercion paths.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestTypeExpressionToStringStableForms|TestTypeInfoToStringStableForms|TestCanReuseFunctionClosureEnvForBytecode|TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `51.611s`).
+- Perf signal checks:
+  - prior quicksort hotloop sample after type-string pass: `~35.19-35.70ms/op`, `~2.30MB/op`, `~82.3k allocs/op`.
+  - after this tranche (`BenchmarkBytecodeQuicksortHotloopRuntime`): `~35.94-36.61ms/op`, `~2.18MB/op`, `~74.9k allocs/op`.
+
+# 2026-03-05 — Type stringification allocation pass for method/type hot paths (v12)
+- Reduced type formatting churn in:
+  - `v12/interpreters/go/pkg/interpreter/impl_resolution_types.go`
+- Behavior/perf changes:
+  - rewrote `typeExpressionToString(...)` to use a recursive `strings.Builder` writer (`appendTypeExpressionString`) instead of `fmt.Sprintf` + `strings.Join` intermediate slices.
+  - rewrote `typeInfoToString(...)` to use builder-based rendering for generic `Type<...>` signatures.
+  - this keeps textual output stable while reducing per-call allocation pressure in hot dispatch/type paths (method-cache keys, diagnostics, interface checks).
+- Regression coverage:
+  - added `TestTypeExpressionToStringStableForms`
+  - added `TestTypeInfoToStringStableForms`
+  - file: `v12/interpreters/go/pkg/interpreter/impl_resolution_types_string_test.go`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestTypeExpressionToStringStableForms|TestTypeInfoToStringStableForms|TestCanReuseFunctionClosureEnvForBytecode|TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `52.581s`).
+- Perf signal checks:
+  - prior quicksort hotloop sample after env-reuse tranche: best around `35.74ms/op`, `~2.40MB/op`, `~86.3k allocs/op`.
+  - after this tranche (`BenchmarkBytecodeQuicksortHotloopRuntime`): best sample `35.19ms/op`, `~2.30MB/op`, `~82.3k allocs/op`.
+  - latest alloc-space profile (`/tmp/bytecode-quicksort-hotloop.mem.after-type-string.out`) no longer shows `typeInfoToString` in top alloc-space nodes.
+
+# 2026-03-05 — Environment allocation reduction for bytecode call hot paths (v12)
+- Reduced hot call-path environment allocation pressure in:
+  - `v12/interpreters/go/pkg/runtime/environment.go`
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+- Behavior/perf changes:
+  - fixed `runtime.NewEnvironment(...)` child-scope construction so it no longer allocates a throwaway `atomic.Bool` when inheriting `threadMode` from a parent environment.
+  - added conservative bytecode call fast-path env reuse in `invokeFunction(...)`: when a function has slot-enabled bytecode with `needsEnvScopes=false`, no generics, and no type-arg binding requirement, invocation now reuses `fn.Closure` instead of allocating a per-call child environment.
+  - this keeps tree-walker semantics unchanged and only applies to bytecode functions whose frame analysis guarantees no call-local env bindings are required.
+- Regression coverage:
+  - added `TestCanReuseFunctionClosureEnvForBytecode`
+    (`v12/interpreters/go/pkg/interpreter/eval_expressions_calls_env_reuse_test.go`).
+  - added `TestEnvironmentChildReusesParentThreadModePointer` and `TestEnvironmentNewChildAllocationCount`
+    (`v12/interpreters/go/pkg/runtime/environment_test.go`).
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestEnvironment' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestCanReuseFunctionClosureEnvForBytecode|TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache|TestBytecodeVM_CallNameScopeCacheInvalidatesOnLocalRebind|TestBytecodeVM_LoadNameScopeCacheInvalidatesOnLocalAssign' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `53.436s`).
+- Perf signal checks:
+  - prior quicksort hotloop sample: `~36.56-38.39ms/op`, `~2.73MB/op`, `~96.3k allocs/op`.
+  - after this tranche (`BenchmarkBytecodeQuicksortHotloopRuntime`): best sample `35.74ms/op`, `2.40MB/op`, `~86.3k allocs/op`.
+  - alloc-space profile snapshot (`/tmp/bytecode-quicksort-hotloop.mem.after-env-reuse.out`) now shows `runtime.NewEnvironment` down to `~4.50MB` flat (from prior `~21.50MB` in the same benchmark shape).
+
+# 2026-03-05 — Lookup miss-path churn reduction (`Get` -> `Lookup`) for hot type/call resolution (v12)
+- Reduced environment lookup miss-allocation overhead on hot bytecode dispatch/type paths:
+  - `v12/interpreters/go/pkg/interpreter/definitions.go`
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+- Behavior/perf changes:
+  - `canonicalTypeName(...)` now probes via `env.Lookup(...)` instead of `env.Get(...)` when canonicalizing simple type names; this avoids allocating miss errors for common primitive/non-bound type names during repeated type canonicalization/matching.
+  - direct identifier call resolution in treewalker call dispatch now uses `Lookup` probing for primary and dotted-head resolution, constructing undefined-variable errors only on true terminal misses.
+  - `evaluateExternFunctionBody` existence-check path now uses `Lookup` probe semantics.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(BytecodeVM_CallNameDotFallbackUsesMemberMethodCache|CanonicalTypeNamesUsesAliasBaseWithoutASTExpansion|ArrayBuiltins|BytecodeVM_StatsMemberMethodCacheCounters)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `52.772s`).
+- Perf signal checks:
+  - prior tranche baseline: `BenchmarkBytecodeQuicksortHotloopRuntime` at roughly `~36.98-37.23ms/op`, `~2.97MB/op`, `~108.3k allocs/op`.
+  - after lookup pass:
+    - `~36.56-38.39ms/op`,
+    - `~2.73MB/op`,
+    - `~96.3k allocs/op`.
+  - alloc-space profile (`/tmp/bytecode-quicksort-hotloop.mem.after-lookup-pass.out`) dropped to ~`108.97MB` total, with lower `fmt.Errorf`/`Environment.Get` pressure and `resolveMethodFromPool`/`callCallableValue` remaining primary optimization targets.
+
+# 2026-03-05 — Array/member dispatch allocation pass + dotted `CallName` cache reuse (v12)
+- Reduced hot bytecode member-dispatch allocations across array/member/type-alias/type-expression paths:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_small_int_boxing.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_type_info.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter.go`
+  - `v12/interpreters/go/pkg/interpreter/imports.go`
+  - `v12/interpreters/go/pkg/interpreter/eval_statements.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_definitions.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+- Behavior/perf changes:
+  - `arrayMember` now reuses cached boxed small-int runtime values for `storage_handle`, `length`, and `capacity` when values are within cache range, avoiding repeated `runtime.NewSmallInt` allocations on hot array-member reads.
+  - `canonicalTypeNames(...)` now caches alias-base expansion results (`typeAliasBaseCache`) and invalidates on alias writes/import alias rebinding through centralized `setTypeAlias(...)`.
+  - type inference now caches hot generic type-expression instances for `Array<T>` (wildcard/simple element shapes) and `Iterator<_>` to avoid repeated `ast.NewGenericTypeExpression` churn during method/type matching.
+  - dotted `CallName` fallback (`head.tail`) now reuses the existing bytecode member-method callsite cache (`lookupCachedMemberMethod`/`storeCachedMemberMethod`) before resolving through full member dispatch.
+- Regression coverage:
+  - added `TestTypeExpressionFromValueCachesArrayAndIteratorGenerics`
+    (`v12/interpreters/go/pkg/interpreter/interpreter_type_info_cache_test.go`).
+  - added `TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache`
+    (`v12/interpreters/go/pkg/interpreter/bytecode_vm_scope_lookup_cache_test.go`).
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameDotFallbackUsesMemberMethodCache|StatsMemberMethodCacheCounters|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(TypeExpressionFromValueCachesArrayAndIteratorGenerics|TypeExpressionFromValueCachesStructAndHostHandleNames|CanonicalTypeNamesUsesAliasBaseWithoutASTExpansion|BytecodeVM_BoxedSmallIntValueCache|ArrayBuiltins)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `55.880s`).
+- Perf signal checks:
+  - baseline before this tranche (`BenchmarkBytecodeQuicksortHotloopRuntime`): `~38.03-38.57ms/op`, `~4.03MB/op`, `~134.3k allocs/op`.
+  - after array/member/type-expression caching + dotted callname cache reuse:
+    - `~36.97-37.23ms/op`,
+    - `~2.97MB/op`,
+    - `~108.3k allocs/op`.
+  - alloc-space profile dropped major `arrayMember` small-int allocation hotspots and removed `ast.NewGenericTypeExpression` from top alloc-space nodes in latest snapshot.
+
+# 2026-03-05 — UFCS scope-filter + native call-dispatch allocation pass (v12)
+- Method-resolution allocation reduction:
+  - replaced per-call UFCS scope map construction with allocation-light filter state:
+    - `functionScopeFilterFromValue(...)`
+    - `functionScopeFilter.contains(...)`
+  - wired through `resolveMethodFromPool(...)` and `selectUfcsCallable(...)`.
+  - file: `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`.
+- Call-dispatch allocation reduction:
+  - removed native pointer-escape churn in `callCallableValue(...)` by using value-form native tracking (`native` + `hasNative`) and normalizing bound-native partial targets to existing method values.
+  - switched native call-context construction to stack form (`ctx := runtime.NativeCallContext{...}`).
+  - file: `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`.
+- Regression coverage:
+  - added `TestCallCallableValue_NativeBoundMethodPartialDoesNotDoubleInjectReceiver`
+    (`v12/interpreters/go/pkg/interpreter/call_callable_native_bound_partial_test.go`).
+  - added `TestFunctionScopeFilterSingle`, `TestFunctionScopeFilterOverloads`, and `TestFunctionScopeFilterDisabledPassThrough`
+    (`v12/interpreters/go/pkg/interpreter/function_scope_filter_test.go`).
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(CallCallableValue_NativeBoundMethodPartialDoesNotDoubleInjectReceiver|FunctionScopeFilter|Call|BytecodeVM_Index|Cast|ExecFixtureParity/07_10_bytecode_quicksort_hotloop)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `~54-58s` in verification runs).
+  - `./run_all_tests.sh` rerun passed end-to-end (`All tests completed successfully`).
+- Perf signal checks:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchmem -count=3`
+    -> `~39.37-40.06ms/op`, `~5.06MB/op`, `~150.3k allocs/op`
+    (previous stage: `~40.48-41.85ms/op`, `~5.70MB/op`, `~162.3k allocs/op`).
+  - `go tool pprof -top /tmp/bytecode-quicksort-hotloop.mem.after-callpartial.out`
+    -> total alloc-space `~126.31MB` (down from prior `~144.70MB`), `callCallableValue` flat alloc down to `~4.50MB`, and legacy `functionScopeSet` allocator removed from hotspot list.
+
+# 2026-03-04 — Inline `execBinary` stack pops + specialized integer extraction tightening (v12)
+- Reduced remaining bytecode recursion-loop overhead in binary dispatch and call-frame unwind:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_frames.go`
+- Behavior/perf changes:
+  - `execBinary(...)` now performs direct stack pop operations inline (single bounds check + slice truncation) instead of two `vm.pop()` calls.
+  - specialized integer opcode handling now prioritizes direct integer extraction (`bytecodeDirectIntegerValue`) and falls back to wider `bytecodeIntegerValue` only when needed.
+  - `popCallFrameFields(...)` no longer clears the truncated tail slot on every pop; this removes unnecessary per-return frame writes in hot recursion loops.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_(Binary|SelfCallSlot|SlotConstImmediateCacheBuildsAndRefreshes|BoxedSmallIntValueCache)$' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `51.342s`).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output.
+- Perf signal checks:
+  - `BenchmarkFib30Bytecode` (5x, `-benchtime=1x`): `245ms`, `249ms`, `247ms`, `261ms`, `244ms`.
+  - pprof probe (`BenchmarkFib30Bytecode`, 1x `~257ms/op`) shows `vm.pop` removed from top hotspots; remaining top nodes are `runResumable`, `execBinary`, and `execCallSelfIntSubSlotConst`.
+  - `./v12/bench_suite --modes bytecode --benchmarks quicksort --runs 3 --timeout 45 --skip-setup`: `6.28s`, `gc_avg~796.67`.
+
+# 2026-03-04 — Pointer-based bytecode instruction dispatch in run loop (v12)
+- Removed per-op `bytecodeInstruction` value copies from the hot VM loop and kept hot handlers pointer-based:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+- Behavior/perf changes:
+  - `runResumable` now fetches instructions by pointer (`instr := &instructions[vm.ip]`) rather than copying the full instruction struct every iteration.
+  - hot handler signatures now take pointers:
+    - `execBinary(...)`
+    - `execBinarySlotConst(...)`
+    - `execBinarySpecializedOpcode(...)`
+    - `callSelfIntSubSlotConstArg(...)`
+    - `execCallSelfIntSubSlotConst(...)`
+  - non-hot handlers in the run switch dereference as needed (`*instr`) to preserve existing behavior.
+  - this removed `runtime.duffcopy` from the benchmark hotspot set for `fib30` recursion.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_(SelfCallSlot|Binary|SlotConstImmediateCacheBuildsAndRefreshes)$' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `54.456s` and follow-up `49.956s` in later run).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output.
+- Perf signal checks:
+  - `BenchmarkFib30Bytecode` (5x, `-benchtime=1x`): `287ms`, `272ms`, `301ms`, `293ms`, `272ms`.
+  - subsequent post-tuning run with direct IP immediate lookup remained in `304ms`-`329ms` band.
+  - pprof snapshot (`BenchmarkFib30Bytecode`, 1x, `~284ms/op`) no longer shows `runtime.duffcopy` in top nodes.
+  - `./v12/bench_suite --modes bytecode --benchmarks quicksort --runs 3 --timeout 45 --skip-setup` remained noisy in this window (`6.51s` and `6.79s` probe averages; single-run spot check `6.29s`), so macro quicksort movement is not yet claimed as deterministic from this change alone.
+
+# 2026-03-04 — Specialized `BinaryIntAdd/Sub` boxed fast path + direct slot-const IP lookup (v12)
+- Reduced remaining recursion-loop overhead in specialized integer arithmetic and slot-const immediate retrieval:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates.go`
+- Behavior/perf changes:
+  - added `addIntegerSameTypeFast(...)` companion to subtract fast path; both now return boxed `runtime.Value` fast results when safe.
+  - `BinaryIntAdd`/`BinaryIntSub` specialized opcode execution now attempts same-suffix int64 fast-path with boxed small-int reuse before falling back to generic integer arithmetic.
+  - added direct slot-const immediate lookup by instruction pointer (`bytecodeSlotConstImmediateAtIP`) and wired hot opcode handlers (`execBinary`, `execCallSelfIntSubSlotConst`) to use it directly, avoiding extra helper switch/fallback overhead on the fast path.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(SlotConstImmediateCacheBuildsAndRefreshes|BoxedSmallIntValueCache|SelfCallSlot|Binary)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `49.956s`).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output.
+- Perf signal checks:
+  - `BenchmarkFib30Bytecode` (5x, `-benchtime=1x`): `329ms`, `304ms`, `317ms`, `304ms`, `322ms`.
+  - post-change pprof probe (`BenchmarkFib30Bytecode`, 1x) around `~335ms/op`.
+  - `./v12/bench_suite --modes bytecode --benchmarks quicksort --runs 3 --timeout 45 --skip-setup`: `6.15s`, `gc_avg~793.33`.
+
+# 2026-03-04 — Pre-boxed small-int reuse for fused recursive slot-const paths (v12)
+- Reduced integer-interface boxing overhead in hot fused recursion paths by reusing pre-boxed `runtime.Value` small ints:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_small_int_boxing.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates_test.go`
+- Behavior/perf changes:
+  - added cached boxed small-int tables for `i32`, `i64`, and `isize` over `[-256, 4096]`.
+  - `subtractIntegerSameTypeFast(...)` now returns `runtime.Value` and serves boxed cached values when in range.
+  - fused `CallSelfIntSubSlotConst` inline setup and slot-const binary subtraction now consume the boxed result directly, avoiding repeated `runtime.IntegerValue -> interface` boxing on the hottest recursive path.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(SlotConstImmediateCacheBuildsAndRefreshes|BoxedSmallIntValueCache|SelfCallSlot|Binary|AwaitExpressionManualWaker|BoundMethodInline)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `50.315s`).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output.
+- Perf signal checks:
+  - `BenchmarkFib30Bytecode` (5x, `-benchtime=1x`): `384ms`, `388ms`, `393ms`, `387ms`, `384ms` (material improvement vs prior ~`500ms` band).
+  - pprof snapshot (`BenchmarkFib30Bytecode`, 1x) now reports `~386ms/op`; `runtime.convT` no longer appears in top sample list for this benchmark.
+  - `./v12/bench_suite --modes bytecode --benchmarks quicksort --runs 3 --timeout 45 --skip-setup`: `6.34s`, `gc_avg~891`.
+
+# 2026-03-04 — Slot-const immediate sparse cache + same-program switch skip (v12)
+- Added a per-program sparse table for decoded slot-const integer immediates and wired run-loop switching to carry that table:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run_program_switch.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates_test.go`
+- Behavior/perf changes:
+  - replaced eager per-instruction immediate arrays with sparse `(ip -> immediate)` entries for slot-const opcodes only, reducing cache memory/GC pressure on larger programs.
+  - run-loop now fetches slot-const immediates from the per-program sparse table for:
+    - `BinaryIntSubSlotConst`
+    - `BinaryIntLessEqualSlotConst`
+    - `CallSelfIntSubSlotConst`
+  - `switchRunProgram(...)` now skips cache refresh work when `next == current program`, eliminating redundant map/cache reloads on hot self-recursive inline switches.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(SlotConstImmediateCacheBuildsAndRefreshes|SelfCallSlot|Binary|AwaitExpressionManualWaker|BoundMethodInline)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `52.117s`).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output.
+- Perf signal checks:
+  - `BenchmarkFib30Bytecode` (5x, `-benchtime=1x`): `529ms`, `505ms`, `501ms`, `584ms`, `536ms`.
+  - `./v12/bench_suite --modes bytecode --benchmarks quicksort --runs 3 --timeout 45 --skip-setup`:
+    - probe A: `6.38s`, `gc_avg~893.67`
+    - probe B: `6.28s`, `gc_avg~892.33`
+
+# 2026-03-04 — Bytecode fused self-call contract tightening + call-frame helper refactor (v12)
+- Tightened fused recursive self-call lowering/runtime path and reduced hot call-frame churn:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_callself_slot_const.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_frames.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run_finalize.go`
+- Behavior/perf changes:
+  - fused `bytecodeOpCallSelfIntSubSlotConst` lowering now requires:
+    - one arg,
+    - no call-site type args,
+    - and frame layouts where first-param coercion for integer recursion is statically safe.
+  - removed per-call generic/type-arg guard checks from the fused runtime recursion path by relying on the stricter lowering contract.
+  - fused self-recursive inline execution now sets up child slot frames directly from current frame layout for same-suffix integer `slot - const` cases before generic fallback.
+  - added dedicated call-frame push/pop helpers (`pushCallFrame`, `popCallFrameFields`) and used them in run-loop return/unwind paths to avoid repeated struct-literal stack operations in hot paths.
+  - expanded same-suffix integer subtract fast path reuse (`subtractIntegerSameTypeFast`) across fused self-call and slot+immediate binary execution.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(SelfCallSlot|BoundMethodInline|Binary)' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass; interpreter suite `53.302s`).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output.
+- Perf signal checks:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^$' -bench '^BenchmarkFib30Bytecode$' -benchtime=1x -count=5`:
+    - `464ms`, `576ms`, `468ms`, `484ms`, `501ms` (best observed `~0.465s` in this batch).
+  - `./v12/bench_suite --modes bytecode --benchmarks quicksort --runs 3 --timeout 45 --skip-setup`:
+    - `quicksort` avg `6.04s`, `gc_avg~838.67` (single-run probes in same window: `6.13s`).
+
+# 2026-03-04 — Bytecode recursive integer hot-path tightening (v12)
+- Reduced per-call overhead on fused recursive integer call paths (`self(slot - const)`) and specialized integer arithmetic:
+  - `v12/interpreters/go/pkg/interpreter/numeric_helpers.go`
+  - `v12/interpreters/go/pkg/interpreter/int64_fast_arith.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_operations_fast.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+- Behavior/perf changes:
+  - `promoteIntegerTypes` now returns immediately when operand suffixes already match, avoiding repeated integer-info lookups in hot arithmetic.
+  - added `ensureFitsInt64Type(...)` and routed same-suffix integer fast paths through direct suffix checks (no integer-info map lookup on common non-overflow path).
+  - extracted `evaluateIntegerArithmeticFast(...)` so bytecode specialized integer ops avoid re-entering generic `runtime.Value` arithmetic dispatch.
+  - slot-frame pooling now has a hot-size fast pool (`slotFrameHotSize`/`slotFrameHotPool`) so recursive functions reuse frames without per-call `map[int]...` lookups.
+  - frame layout now caches one-arg self-call inline metadata (`firstParamType` / `firstParamSimple`) and `tryInlineSelfCallWithArg(...)` uses cached metadata instead of re-reading function declaration shape each call.
+  - `bytecodeIntegerValue(...)` now checks direct integer scalar forms before interface/scalar unwrap probing, reducing overhead on specialized bytecode integer ops.
+  - slot+immediate recursion paths now execute direct integer logic first (`callSelfIntSubSlotConstArg`, `execBinarySlotConst`) instead of routing through `execBinaryIntegerSpecialized` helper for the hot common case.
+  - hot specialized bytecode binary opcodes (`BinaryIntAdd/Sub/<=`) now use direct opcode-specific execution in `execBinary(...)` with explicit operator fallbacks, reducing helper dispatch overhead.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_SelfCallSlotAvoidsCallNameLookups|TestBytecodeVM_SelfCallSlotDisabledWhenFunctionNameAssigned|TestBytecodeVM_BinaryFastPath|TestBytecodeVM_BinarySlotConstTypeErrorParity|TestIntegerLiteralSuffixPreserved' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output (no files >1000 lines).
+- Perf signal checks:
+  - `BenchmarkFib30Bytecode` (single-iteration runs):
+    - prior to this tranche: ~`1.015s/op`,
+    - after same-suffix arithmetic + hot slot-frame pool + cached one-arg inline metadata + direct slot-const integer paths + direct specialized-opcode execution: consistently ~`0.47s–0.56s/op` in current runs (best observed `0.474s`; representative `~0.53s`).
+  - benchmark suite snapshot:
+    - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`
+    - `fib`: timeout at `45s` (still not completing),
+    - `quicksort`: `5.95s`–`5.99s`, `gc_avg~803-804` (improved from recent `6.74s` snapshot; still noisy).
+
+# 2026-03-04 — Fused self-recursive call opcode + method-cache concurrency hardening (v12)
+- Added fused recursion call opcode path for the common `self(slot - const)` shape:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_callself_slot_const.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_self_call_slot_test.go`
+- Behavior changes:
+  - new opcode: `bytecodeOpCallSelfIntSubSlotConst`.
+  - lowering now emits the fused self-call opcode when the recursive call argument is `slot-backed identifier - integer literal`.
+  - VM executes the fused opcode by computing the arg directly from slot+immediate, then taking the dedicated self-inline path (`tryInlineSelfCallWithArg`) or normal call fallback.
+  - recursive self-call regression now accepts either `bytecodeOpCallSelf` or the fused opcode as valid optimized execution.
+- Concurrency hardening:
+  - synchronized `Interpreter.methodCache` access and invalidation to prevent concurrent map writes under async/future execution:
+    - `v12/interpreters/go/pkg/interpreter/interpreter_interface_lookup.go`
+    - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+    - `v12/interpreters/go/pkg/interpreter/interpreter.go`
+  - bytecode member-method cache now reads method-cache version via lock-guarded accessor:
+    - `v12/interpreters/go/pkg/interpreter/bytecode_vm_member_cache.go`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+  - resolved prior nondeterministic panic in full interpreter package run:
+    - `fatal error: concurrent map writes` at `findMethodCached` under async execution no longer reproduces.
+- Perf signal checks:
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`:
+    - `fib`: timeout at `45s` (still not completing),
+    - `quicksort`: `6.74s`, `gc_avg=806` (still within noisy band; no deterministic macro gain yet).
+
+# 2026-03-04 — Bytecode run/lowering helper splits to restore <1000-line guardrail (v12)
+- Refactored without semantic changes to keep files under AGENTS line limit:
+  - moved lowering support helpers out of `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go` into `v12/interpreters/go/pkg/interpreter/bytecode_lowering_helpers.go`.
+  - moved run-loop program-switch helper out of `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go` into `v12/interpreters/go/pkg/interpreter/bytecode_vm_run_program_switch.go`.
+- Validation:
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output.
+
+# 2026-03-04 — Self-recursive single-parameter inline setup shortcut (v12)
+- Added a tighter inline setup branch for the most common recursive shape (`fn f(n) -> ... f(n-1) ...`):
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+- Behavior changes:
+  - `tryInlineSelfCallFromStack(...)` now has a single-parameter fast branch when:
+    - no generics,
+    - no implicit-member receiver usage,
+    - and param coercion is trivially unnecessary.
+  - this bypasses the generic per-parameter setup loop and generic-name handling for this shape, while retaining the existing fallback path when preconditions are not met.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_MemberMethodCacheInvalidatesOnImplChange|TestBytecodeVM_SelfCallSlot|TestBytecodeVM_BinaryFastPath|TestBytecodeVM_BinarySlotConstTypeErrorParity|TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+- Perf signal checks:
+  - `ABLE_BYTECODE_STATS=1 go run /tmp/able_stats_probe_ops.go` unchanged versus immediately prior slot-const pass (`InlineCallHits=1664078`, `CallNameLookups=0`, low `Const` opcode count maintained).
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`:
+    - `fib`: timeout at `45s` (unchanged),
+    - `quicksort`: `6.08s`, `gc_avg=805` (still noisy; no deterministic macro gain signal).
+
+# 2026-03-04 — Slot+immediate integer bytecode ops (`slot - const`, `slot <= const`) (v12)
+- Reduced recursion hot-path dispatch for slot-backed identifiers with small integer literals:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_binary_slot_const.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+- Behavior changes:
+  - new opcodes:
+    - `bytecodeOpBinaryIntSubSlotConst`
+    - `bytecodeOpBinaryIntLessEqualSlotConst`
+  - lowering now emits these opcodes when an eligible expression matches:
+    - left: slot-backed identifier,
+    - right: untyped integer literal fitting `i32`,
+    - operator: `-` or `<=`.
+  - VM executes slot-const opcodes without stack operand pops:
+    - reads left operand directly from slot index,
+    - uses embedded integer immediate for right operand,
+    - applies integer-specialized fast path first, then falls back to full `applyBinaryOperator` semantics for non-integer dynamic values.
+  - additional call-frame setup cleanup:
+    - `execCallSelf` now uses dedicated `tryInlineSelfCallFromStack(...)` path for direct function self-calls,
+    - slot-frame pool no longer double-clears frames on both acquire and release (release-only clear).
+- Regression/parity coverage:
+  - `TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes`
+  - `TestBytecodeVM_BinarySlotConstTypeErrorParity`
+  - existing binary/self-call fast-path tests remain green.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_BinaryFastPath|TestBytecodeVM_LoweringEmitsIntegerBinaryHotOpcodes|TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes|TestBytecodeVM_BinarySlotConstTypeErrorParity|TestBytecodeVM_SelfCallSlot' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+  - file-size guardrail check (`fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}'`) produced no output.
+- Perf signal checks:
+  - `ABLE_BYTECODE_STATS=1 go run /tmp/able_stats_probe_ops.go` now shows major const/slot opcode mix reduction for recursive probe shape:
+    - previously (before slot-const ops): `op[0]` (`Const`) ~`4,992,236`,
+    - after slot-const ops: `op[0]` ~`1,664,079` (with new slot-const opcodes active in the top mix).
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`:
+    - `fib`: timeout at `45s` (unchanged),
+    - `quicksort`: `6.28s`, `gc_avg=805` (still noisy).
+  - `./v12/bench_suite --runs 1 --timeout 120 --build-timeout 240 --modes bytecode --benchmarks fib`:
+    - `fib` still timed out at `120s` (no completion yet).
+
+# 2026-03-04 — `CallSelf` inline setup tightening + slot-frame pool clear dedupe (v12)
+- Reduced recursive call-frame setup overhead on self-recursive bytecode call sites:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames.go`
+- Behavior changes:
+  - added `tryInlineSelfCallFromStack(...)` and wired `execCallSelf` to use it for `*runtime.FunctionValue` callees.
+  - self-call inline setup now skips bound-method/general callee-shape checks used by the shared `tryInlineCallFromStack(...)` path, while preserving fallback semantics when inline preconditions are not met.
+  - slot-frame pooling now clears frames once per reuse cycle (on release only); `acquireSlotFrame` no longer performs a second redundant `clear(...)`.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_SelfCallSlot|TestBytecodeVM_BinaryFastPath|TestBytecodeVM_LoweringEmitsIntegerBinaryHotOpcodes' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/12_01_bytecode_await_default' -count=5` (pass; no reproduction of prior transient mismatch).
+- Perf signal checks:
+  - `ABLE_BYTECODE_STATS=1 go run /tmp/able_stats_probe_ops.go` remains stable for recursion probe shape (`CallNameLookups=0`, `InlineCallHits=1664078`, specialized int op mix unchanged).
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`:
+    - `fib`: timeout at `45s` (unchanged).
+    - `quicksort`: `6.06s` real, `gc_avg=809` (still noisy, slight movement vs immediately prior run).
+  - `./v12/bench_suite --runs 1 --timeout 90 --build-timeout 240 --modes bytecode --benchmarks fib` still times out (no measurable completion yet).
+
+# 2026-03-04 — Dedicated integer binary opcodes for `+` / `-` / `<=` (v12)
+- Added specialized bytecode opcodes and lowering for fib-style integer hot paths:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_binary_opcode.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+- Behavior changes:
+  - new opcodes:
+    - `bytecodeOpBinaryIntAdd`
+    - `bytecodeOpBinaryIntSub`
+    - `bytecodeOpBinaryIntLessEqual`
+  - lowering now emits these opcodes directly for plain `+`, `-`, and `<=` binary expressions.
+  - VM dispatch handles these with integer-specialized execution first:
+    - `+`/`-` use `evaluateArithmeticFast` with integer operands,
+    - `<=` uses direct integer comparison (`int64` fast path, `big.Int` fallback).
+  - when operands are not integers, behavior falls back to existing generic operator semantics (including string/numeric checks and full dispatch path).
+- Regression/parity coverage:
+  - `TestBytecodeVM_BinaryFastPathIntegerParity`
+  - `TestBytecodeVM_BinaryFastPathFloatFallbackParity`
+  - `TestBytecodeVM_BinaryFastPathOverflowParity`
+  - `TestBytecodeVM_BinaryFastPathTypeErrorParity`
+  - `TestBytecodeVM_LoweringEmitsIntegerBinaryHotOpcodes`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_BinaryFastPath|TestBytecodeVM_LoweringEmitsIntegerBinaryHotOpcodes|TestBytecodeVM_AssignmentAndBinary' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+- Perf signal checks:
+  - `ABLE_BYTECODE_STATS=1 go run /tmp/able_stats_probe_ops.go` now shows dedicated integer opcode execution in the recursion probe (`op[9]`, `op[10]`, `op[11]` counts active for the specialized integer ops).
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`:
+    - `fib`: timeout at `45s` (unchanged).
+    - `quicksort`: `6.36s` real, `gc_avg=813` (still noisy; no deterministic macro-level gain signal yet).
+
+# 2026-03-04 — Bytecode `execBinary` numeric fast path + parity coverage (v12)
+- Reduced bytecode binary-operator dispatch overhead for common numeric/comparison operators:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+- Behavior changes:
+  - `execBinary` now tries `ApplyBinaryOperatorFast` first for `+`, `-`, `<`, `<=`, `>`, `>=`, `==`, `!=`.
+  - when the fast evaluator does not handle the operand/operator combination, bytecode falls back to existing `applyBinaryOperator` behavior (interface dispatch and full semantics unchanged).
+  - existing string-`+` guard semantics remain intact.
+- Regression/parity coverage:
+  - `TestBytecodeVM_BinaryFastPathIntegerParity` validates normal integer arithmetic/comparison parity vs tree-walker.
+  - `TestBytecodeVM_BinaryFastPathOverflowParity` validates integer-overflow error parity (`integer overflow`) vs tree-walker.
+  - `TestBytecodeVM_BinaryFastPathTypeErrorParity` validates arithmetic type-error parity (`Arithmetic requires numeric operands`) vs tree-walker.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_BinaryFastPath|TestBytecodeVM_AssignmentAndBinary' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output (no files over 1000 lines).
+- Perf signal checks:
+  - `ABLE_BYTECODE_STATS=1 go run /tmp/able_stats_probe_ops.go` remains functionally stable (`CallNameLookups=0`, recursive `CallSelf` opcode mix unchanged for the probe).
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`:
+    - `fib`: timeout at `45s` (unchanged).
+    - `quicksort`: `6.11s` real, `gc_avg=804` (within current noisy range; no deterministic macro gain signal yet).
+
+# 2026-03-04 — Bytecode const-validation memoization (v12)
+- Reduced repeated integer-range checking overhead on bytecode `Const` instructions:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_const_validation.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_const_validation_test.go`
+- Behavior changes:
+  - bytecode VM now memoizes successful integer-literal range validation per `(program, instruction index)` and skips repeated `ensureFitsInteger(...)` checks for subsequent executions of the same `Const` instruction.
+  - validation remains lazy and execution-path-dependent: instructions are validated only when reached at runtime.
+- Regression coverage:
+  - `TestBytecodeVM_IntegerLiteralValidationRemainsLazy` verifies:
+    - unreachable overflow literal does not fail when an earlier branch `return`s,
+    - overflow still raises when the literal path is executed.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_IntegerLiteralValidationRemainsLazy|TestBytecodeVM_SelfCallSlot' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+- Perf signal checks:
+  - `ABLE_BYTECODE_STATS=1 go run /tmp/able_stats_probe_ops.go` confirms opcode mix is unchanged semantically for the recursive probe after memoization.
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`:
+    - `fib`: timeout at `45s` (unchanged).
+    - `quicksort`: `5.98s` real, `gc_avg=804` (no deterministic improvement signal yet; still noisy).
+
+# 2026-03-04 — Slot-frame scope-op elision + self-call opcode fast path (v12)
+- Reduced recursive bytecode dispatch overhead in slot-enabled functions:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_self_call_slot_test.go`
+- Behavior changes:
+  - lowerer now skips emitting `EnterScope`/`ExitScope` opcodes when slot analysis marks `needsEnvScopes=false` (runtime still preserves scope semantics for frames that require env scope chains).
+  - added `bytecodeOpCallSelf`; stable self-recursive sites now lower to direct slot-indexed self calls instead of `LoadSlot+Call`, removing one high-frequency callee stack push/pop per recursive call.
+  - `execCallSelf` shares the same inline-call fast path and fallback semantics as existing `Call`/`CallName` handling.
+- Regression coverage:
+  - `TestBytecodeVM_SelfCallSlotAvoidsCallNameLookups` now additionally asserts `bytecodeOpCallSelf` executes on recursive paths.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_SelfCallSlot' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+  - `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}' | sort` produced no output (no files over 1000 lines).
+- Perf signal checks:
+  - `ABLE_BYTECODE_STATS=1 go run /tmp/able_stats_probe_ops.go` now shows recursive `fib(30)` using `op[71]=1664078` (`bytecodeOpCallSelf`) and reduced `LoadSlot` dispatch (`op[67]=3328157` vs prior `4992235` for the same probe shape).
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks fib,quicksort`:
+    - `fib`: timeout at `45s` (unchanged).
+    - `quicksort`: `5.97s` real, `gc_avg=764` (within current noise band; no deterministic macro-level gain yet).
+
+# 2026-03-04 — Slot coverage expansion for self-recursive calls (v12)
+- Reduced high-frequency recursive name-resolution overhead in slot-enabled bytecode functions:
+  - `v12/interpreters/go/pkg/interpreter/definitions.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis.go`
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - added `v12/interpreters/go/pkg/interpreter/bytecode_self_call_slot.go`.
+- Behavior:
+  - slot-enabled lowering now reserves a hidden self-call slot (`frameLayout.selfCallSlot`) for functions where the function identifier is not assigned anywhere in the function body (conservative AST scan).
+  - recursive call sites (`f(...)` inside `fn f`) lower to `LoadSlot+Call` instead of `CallName` when that self-call slot is enabled.
+  - runtime call setup seeds the reserved self slot for both standard bytecode invocation and inline call frames.
+  - when the function name is assigned in the function body, the optimization is disabled and bytecode keeps regular `CallName` semantics.
+- Regression coverage:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_self_call_slot_test.go`
+  - `TestBytecodeVM_SelfCallSlotAvoidsCallNameLookups`
+  - `TestBytecodeVM_SelfCallSlotDisabledWhenFunctionNameAssigned`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_SelfCallSlotAvoidsCallNameLookups|TestBytecodeVM_SelfCallSlotDisabledWhenFunctionNameAssigned' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+- Perf signal checks:
+  - targeted stats probe (`fib(20)`/`fib(30)` style recursive run under `ABLE_BYTECODE_STATS=1`) now records `CallNameLookups=0` for recursive self calls while retaining full inline-call hits.
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort,fib` observed:
+    - `quicksort`: `5.84s` real (`gc_avg=754`) — aligned with recent noise band.
+    - `fib`: still timed out at `45s`, so additional recursion-path optimization is still required.
+
+# 2026-03-04 — Environment thread-mode sharing + dotted `CallName` miss fast path (v12)
+- Reduced high-frequency environment overhead in interpreter + bytecode hot loops:
+  - `v12/interpreters/go/pkg/runtime/environment.go`
+  - replaced per-environment `singleThread` bool with a shared thread-mode flag across lexical scope chains.
+  - `NewEnvironment(parent)` now inherits the parent thread-mode handle so local scopes remain lock-free in single-thread execution.
+  - `SetSingleThread`/`SetMultiThread` now flip shared mode for the full chain; existing child scopes observe the change immediately.
+  - added single-thread fast paths for `Define`, `DefineStruct`, `Snapshot`, `StructSnapshot`, `SetRuntimeData`, and `HasInCurrentScope`.
+- Added runtime regression coverage:
+  - `v12/interpreters/go/pkg/runtime/environment_test.go`
+  - `TestEnvironmentThreadModePropagatesToChildren` verifies child envs inherit and observe thread-mode transitions from parent/global.
+- Reduced dotted-call dispatch miss churn:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_lookup_cache.go`
+  - added non-error lookup path (`lookupCachedName`) so `CallName` probing can test existence without constructing miss errors.
+  - `resolveCachedName` now wraps the lookup path and only constructs undefined-variable errors for terminal misses.
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `execCallName` now uses non-error probing for primary and dotted-head resolution paths, building an undefined-variable error only when fallback is not applicable.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestEnvironmentLookupInCurrentScopeDoesNotWalkParent|TestEnvironmentLookupRespectsLexicalScope|TestEnvironmentThreadModePropagatesToChildren' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|TestBytecodeVM_CallNameScopeCacheInvalidatesOnLocalRebind|TestBytecodeVM_CallNameCacheInvalidatesOnRebind|TestBytecodeVM_StatsCounters' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime ./pkg/interpreter -count=1` (pass).
+- Perf signal checks (bytecode, noisy single-host):
+  - before this tranche:
+    - `./v12/bench_suite --runs 2 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort` -> `5.94s` avg real (`gc_avg=752.0`).
+  - after environment thread-mode sharing:
+    - same command -> `5.80s` avg real (`gc_avg=752.0`).
+  - after dotted `CallName` non-error lookup path:
+    - same command -> `5.785s` avg real (`gc_avg=752.5`).
+  - result: modest but consistent movement in the right direction; still within expected run-to-run noise band, so larger phase-1 cuts remain necessary.
+
+# 2026-03-04 — Non-inline call-dispatch fast path (single-overload + partial merge) (v12)
+- Reduced fallback call-dispatch overhead in interpreter runtime paths used by bytecode non-inline calls:
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - partial-function argument merge now uses a single-pass merge helper (`mergePartialCallArgs`) instead of chained appends.
+  - added single-overload fast path in `callCallableValue`: when exactly one overload is present, do direct arity/type compatibility check + `invokeFunction(...)` instead of full overload candidate selection/scoring.
+- Added compatibility helper for single-overload checks:
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls_overloads.go`
+  - `matchesSingleRuntimeOverload(...)` mirrors existing runtime compatibility behavior for function/lambda declarations.
+- Removed unnecessary map allocations in generic-name extraction:
+  - `v12/interpreters/go/pkg/interpreter/call_helpers.go`
+  - `functionGenericNameSet(...)` now lazily allocates only when generic params actually exist.
+- Regression coverage:
+  - `v12/interpreters/go/pkg/interpreter/call_dispatch_fastpath_test.go`
+    - `TestCallDispatchPartialChainPreservesBoundArgOrder`
+    - `TestCallDispatchSingleOverloadMismatchReportsParameterType`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestCallDispatchPartialChainPreservesBoundArgOrder|TestCallDispatchSingleOverloadMismatchReportsParameterType|TestCallFunction_DoesNotMutateCallerArgsOnCoercion' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestEnvironmentLookupInCurrentScopeDoesNotWalkParent|TestEnvironmentLookupRespectsLexicalScope' -count=1` (pass).
+- Perf signal checks (bytecode, noisy single-host):
+  - `ABLE_BENCH_FIXTURE=v12/fixtures/bench/sieve_full go test ./pkg/interpreter -run '^$' -bench BenchmarkExecFixtureBytecode -benchtime=2x -count=1` observed `1.832s/op` and `1.851s/op`.
+  - `./v12/bench_suite --runs 2 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort` observed `5.865s` real average (`gc_avg=747.5`).
+  - Result: quicksort moved slightly toward the lower end of the recent noise band; improvements are incremental, not yet step-change.
+
+# 2026-03-04 — Dotted `CallName` receiver-head cached resolution (v12)
+- Extended dotted call fallback path in bytecode call dispatch to reuse cached name resolution for receiver heads:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - when `CallName` target lookup fails and falls back to dotted form (`head.tail`), receiver `head` is now resolved via `resolveCachedName(...)` instead of direct `env.Get(head)`.
+  - this applies existing safe cache invalidation rules (global revision + non-global current-scope env pointer/revision) to dotted receiver-head lookups.
+- Added regression coverage:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_scope_lookup_cache_test.go`
+  - `TestBytecodeVM_CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind`
+  - scenario: local `s` receiver is rebound between repeated `CallName("s.get")` uses at the same instruction site; second call must observe the rebound receiver.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|TestBytecodeVM_CallNameScopeCacheInvalidatesOnLocalRebind|TestBytecodeVM_LoadNameScopeCacheInvalidatesOnLocalAssign|TestBytecodeVM_CallNameCacheInvalidatesOnRebind' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestEnvironmentLookupInCurrentScopeDoesNotWalkParent' -count=1` (pass).
+- Perf signal checks (bytecode, noisy single-host sample):
+  - `ABLE_BENCH_FIXTURE=v12/fixtures/bench/sieve_full go test ./pkg/interpreter -run '^$' -bench BenchmarkExecFixtureBytecode -benchtime=2x -count=1` observed `1.874s/op` and `1.926s/op`.
+  - `./v12/bench_suite --runs 2 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort` observed `5.94s` real average (`gc_avg=756.0`).
+  - Result: quicksort moved back toward the earlier noise band; no clear deterministic gain yet.
+
+# 2026-03-04 — Bytecode scoped name lookup cache for non-global envs (v12)
+- Reduced non-inline name-resolution overhead in bytecode function bodies that are not slot-eligible:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_lookup_cache.go`
+  - added `resolveCachedName(...)` and conservative current-scope cache path for non-global `LoadName`/`CallName`.
+  - cache eligibility: non-dotted names only; cache stores only bindings found in the **current** scope.
+  - cache key/invalidation: `(program pointer, instruction pointer)` plus `(env pointer, env.Revision())`.
+  - global-scope cache behavior remains unchanged.
+- Runtime API support:
+  - `v12/interpreters/go/pkg/runtime/environment.go`
+  - added `(*Environment).LookupInCurrentScope(name) (Value, bool)` to avoid parent walks/error allocation for current-scope probes.
+- VM wiring:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`: `bytecodeOpLoadName` now resolves through `resolveCachedName(...)`.
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`: `bytecodeOpCallName` now resolves through `resolveCachedName(...)` before dotted fallback handling.
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`: added `scopeLookupCache` map on VM state.
+- Regression coverage:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_scope_lookup_cache_test.go`
+    - `TestBytecodeVM_CallNameScopeCacheInvalidatesOnLocalRebind`
+    - `TestBytecodeVM_LoadNameScopeCacheInvalidatesOnLocalAssign`
+  - `v12/interpreters/go/pkg/runtime/environment_test.go`
+    - `TestEnvironmentLookupInCurrentScopeDoesNotWalkParent`
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestEnvironmentLookupRespectsLexicalScope|TestEnvironmentLookupInCurrentScopeDoesNotWalkParent' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_CallNameScopeCacheInvalidatesOnLocalRebind|TestBytecodeVM_LoadNameScopeCacheInvalidatesOnLocalAssign|TestBytecodeVM_CallNameCacheInvalidatesOnRebind|TestBytecodeVM_InlineBoundMethodCallStats' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+- Perf signal checks (bytecode, single-host noise expected):
+  - `ABLE_BENCH_FIXTURE=v12/fixtures/bench/sieve_full go test ./pkg/interpreter -run '^$' -bench BenchmarkExecFixtureBytecode -benchtime=2x -count=1` observed `1.850s/op` then `1.825s/op`.
+  - `./v12/bench_suite --runs 2 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort` observed `6.49s` real average (`gc_avg=756.5`).
+  - Result: no deterministic speedup signal yet; change is retained for correctness + reduced lookup work in non-slot paths while we continue larger hotspot work.
+
+# 2026-03-04 — Bytecode Phase 1 bound-method inline call fast path (v12)
+- Extended bytecode inline call setup so call-position member dispatch can inline when the callee is a bound method:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - new helper `inlineCallFunctionValue(...)` now recognizes `*runtime.BoundMethodValue` / `runtime.BoundMethodValue` with `*runtime.FunctionValue` methods.
+  - `tryInlineCallFromStack` now injects the bound receiver into slot `0` and maps stack arguments to the remaining parameter slots without allocating an argument slice on successful inline calls.
+  - native-bound methods and overload-backed bound methods keep existing fallback behavior through `callCallableValue`.
+- Added regression coverage:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_bound_method_inline_test.go`
+  - `TestBytecodeVM_InlineBoundMethodCallStats` verifies bytecode/treewalker parity and confirms inline-call hits are recorded for bound-method call sites with `ABLE_BYTECODE_STATS=1`.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_InlineBoundMethodCallStats|TestBytecodeVM_StatsCounters|TestBytecodeVM_StatsMemberMethodCacheCounters|TestBytecodeVM_MemberMethodCacheInvalidatesOnImplChange' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (bytecode, single-workstation noise expected):
+  - `ABLE_BENCH_FIXTURE=v12/fixtures/bench/sieve_full go test ./pkg/interpreter -run '^$' -bench BenchmarkExecFixtureBytecode -benchtime=2x -count=1` observed `1.896s/op` then `1.717s/op` on back-to-back runs.
+  - `./v12/bench_suite --runs 1 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort` observed `6.18s` then `5.87s` real with similar GC counts (`736`/`738`).
+  - Result: improvement is in the expected noise band for this benchmark mix; no regression signal outside prior variability.
+
+# 2026-03-04 — Call-dispatch fallback arg-slice churn reduction (v12)
+- Reduced runtime call-dispatch allocation pressure in non-inline paths:
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - `callCallableValue` now avoids unconditional `append(injected, args...)` allocation when no receiver injection is needed; it reuses `args` directly in that common case.
+  - receiver-injected paths (`BoundMethod`/`NativeBoundMethod`) still allocate a combined slice as required.
+- Preserved arg-slice immutability semantics while removing dispatcher copies:
+  - `invokeFunction` now uses a lazy writable copy for parameter binding, only when mutation is required (optional-arg fill or actual coercion rewrite).
+  - added fast skip for obvious no-op coercions via `inlineCoercionUnnecessary(...)` in the runtime invocation path.
+- Added regression coverage:
+  - `v12/interpreters/go/pkg/interpreter/call_args_mutation_test.go`
+  - `TestCallFunction_DoesNotMutateCallerArgsOnCoercion` verifies host-provided argument slices are not mutated even when coercion occurs inside call dispatch.
+- Validation:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestCallFunction_DoesNotMutateCallerArgsOnCoercion|TestBytecodeVM_InlineBoundMethodCallStats|TestBytecodeVM_StatsCounters|TestBytecodeVM_StatsMemberMethodCacheCounters' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+- Perf signal checks (bytecode, noisy single-host samples):
+  - `ABLE_BENCH_FIXTURE=v12/fixtures/bench/sieve_full go test ./pkg/interpreter -run '^$' -bench BenchmarkExecFixtureBytecode -benchtime=2x -count=1` observed `1.84s/op` and `1.78s/op` on sequential runs.
+  - `./v12/bench_suite --runs 2 --timeout 45 --build-timeout 240 --modes bytecode --benchmarks quicksort` observed `6.135s` real average (`gc_avg=743.5`).
+  - Result: no clear regression signal beyond existing run-to-run noise; gains are modest and need further hotspot work.
+
+# 2026-03-03 — Runtime performance harness + baseline snapshot (v12)
+- Implemented machine-readable suite harness `v12/bench_suite` covering:
+  - benchmarks: `fib`, `binarytrees`, `matrixmultiply`, `quicksort`, `sudoku`, `i_before_e`
+  - modes: `compiled`, `treewalker`, `bytecode`
+  - per-run status (`ok`/`timeout`/`error`) + `real/user/sys` + GC count + summary aggregation
+  - metadata capture: git commit/dirty state, machine profile, toolchain version, run config
+  - bounded execution controls: run timeout (`--timeout`) and compiled build timeout (`--build-timeout`)
+  - isolated cache/bootstrap path (`ABLE_HOME` sandbox + setup) for reproducible runs
+- Added harness documentation:
+  - `v12/docs/performance-benchmarks.md`
+  - `v12/README.md` now points to the benchmark harness/docs
+- Captured and checked in baseline snapshot:
+  - `v12/docs/perf-baselines/2026-03-03-benchmark-baseline.json`
+  - command:
+    - `./v12/bench_suite --runs 1 --timeout 30 --build-timeout 240 --output-json v12/docs/perf-baselines/2026-03-03-benchmark-baseline.json`
+- Baseline highlights (1 run/mode, 30s run timeout):
+  - completed successfully in all modes: `quicksort`, `i_before_e`
+  - timeouts across all modes: `fib`, `binarytrees`
+  - `matrixmultiply`: `compiled`/`treewalker` timeout; `bytecode` error
+  - `sudoku`: compiled build error (captured as `error`), interpreted modes timed out
+  - quick triage diagnostics after baseline:
+    - `matrixmultiply` bytecode error: `array has no member 'get' (import able.collections.array for stdlib helpers)` at `v12/examples/benchmarks/matrixmultiply.able:34`
+    - `sudoku` compiled build error: `static fallback not allowed ... unsupported function body` for `sudoku.sudoku.solve`
+- Follow-up fixes (same day):
+  - benchmark source fixes:
+    - `v12/examples/benchmarks/matrixmultiply.able`: added `import able.collections.array` to satisfy required `Array.get` helper resolution in interpreter modes.
+    - `v12/examples/benchmarks/sudoku/sudoku.able`: rewrote `solve` match-clause bodies to expression-style results (removed in-clause `return` statements) so compiled no-fallback lowering accepts the function body.
+  - focused validation:
+    - `./v12/bench_suite --benchmarks matrixmultiply --modes bytecode --runs 1 --timeout 35 --build-timeout 120` now reports `timeout` (no runtime error).
+    - `./v12/bench_suite --benchmarks sudoku --modes compiled --runs 1 --timeout 5 --build-timeout 300` now reports `timeout` (no static fallback compile error).
+  - Bytecode Phase 1 kickoff optimization:
+    - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`: added stack-based inline-call setup path for `bytecodeOpCall`/`bytecodeOpCallName` so successful inline calls avoid transient args-slice allocation.
+  - Bytecode perf observability:
+    - added optional runtime counters behind `ABLE_BYTECODE_STATS` with interpreter APIs:
+      - `(*Interpreter).BytecodeStats()`
+      - `(*Interpreter).ResetBytecodeStats()`
+    - counters include opcode dispatch counts, `LoadName`/`CallName` lookup counts, dotted `CallName` fallback count, and inline-call hit/miss counts.
+    - files:
+      - `v12/interpreters/go/pkg/interpreter/interpreter_bytecode_stats.go`
+      - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+      - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+      - `v12/interpreters/go/pkg/interpreter/interpreter.go`
+  - Added bytecode stats regression coverage:
+    - `TestBytecodeVM_StatsCounters` in `v12/interpreters/go/pkg/interpreter/bytecode_vm_async_test.go`.
+  - Follow-up Bytecode Phase 1 optimizations:
+    - Added per-VM global lookup cache for `LoadName`/`CallName` in global scope:
+      - cache key: `(program pointer, instruction pointer)` to avoid shared-program mutation/races.
+      - cache invalidation: runtime `Environment.Revision()` mutation counter checked on each cache read.
+      - files:
+        - `v12/interpreters/go/pkg/interpreter/bytecode_vm_lookup_cache.go`
+        - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+        - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+        - `v12/interpreters/go/pkg/runtime/environment.go`
+    - Added inline slot-frame pooling for bytecode call frames so recursive inline calls reuse `[]runtime.Value` slot frames instead of allocating per call:
+      - files:
+        - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames.go`
+        - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+        - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+    - Added regression coverage:
+      - `TestBytecodeVM_CallNameCacheInvalidatesOnRebind` (`bytecode_vm_async_test.go`)
+      - `TestEnvironmentRevisionIncrementsOnMutation` (`runtime/environment_test.go`)
+    - Added runtime environment non-error lookup API for hot miss-heavy probes:
+      - `(*Environment).Lookup(name) (runtime.Value, bool)` in `v12/interpreters/go/pkg/runtime/environment.go`.
+      - `resolveMethodFromPool` now uses `Lookup` instead of `Get` when probing scope-callable names, avoiding per-miss error construction.
+    - Refactored method-candidate accumulation in `resolveMethodFromPool` to reduce allocation churn:
+      - replaced per-call map+closure bookkeeping with a compact linear-dedupe accumulator (`methodResolutionAccumulator`) in `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`.
+      - preserves ambiguity/private-method semantics while avoiding high-frequency heap churn in member-call loops.
+    - Added conservative bytecode member-method inline cache for call-position member access (`preferMethods=true`) in `v12/interpreters/go/pkg/interpreter/bytecode_vm_member_cache.go`:
+      - caches method templates (not receiver-bound instances) keyed by `(program, ip, member, receiver-shape)` for `Array`, `String`, and struct-instance receivers.
+      - rebinds the cached template to the current receiver at each hit.
+      - strict invalidation requires both:
+        - global environment revision unchanged (`Environment.Revision()`), and
+        - interpreter method-cache epoch unchanged (`Interpreter.methodCacheVersion`, incremented by `invalidateMethodCache()`).
+      - wired through `execMemberAccess` in `v12/interpreters/go/pkg/interpreter/bytecode_vm_members.go`.
+    - Added cache-invalidation regression coverage for unnamed `impl` changes:
+      - `TestBytecodeVM_MemberMethodCacheInvalidatesOnImplChange` (`bytecode_vm_async_test.go`).
+      - scenario: `s.greet()` first resolves via UFCS scope function, then unnamed `impl Greeter for S` is introduced; second execution of the same call-site must resolve to impl dispatch (proves epoch-based invalidation beyond env-revision invalidation).
+    - Extended bytecode stats observability for the new member-call cache:
+      - added `MemberMethodCacheHits` / `MemberMethodCacheMiss` fields to `BytecodeStatsSnapshot` in `v12/interpreters/go/pkg/interpreter/interpreter_bytecode_stats.go`.
+      - wired instrumentation in `lookupCachedMemberMethod` to record hit/miss outcomes (including eligible misses before cache map initialization and invalidation misses).
+      - added `TestBytecodeVM_StatsMemberMethodCacheCounters` in `bytecode_vm_async_test.go` to verify:
+        - counters increment on a repeated member-call site,
+        - `ResetBytecodeStats()` clears the new counters.
+  - Added environment lookup regression coverage:
+    - `TestEnvironmentLookupRespectsLexicalScope` (`runtime/environment_test.go`).
+  - post-change checks:
+    - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_' -count=1` (pass).
+    - `cd v12/interpreters/go && go test ./pkg/runtime -count=1` (pass).
+    - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_|TestResolveMethod|TestInterpreterMethod|TestMember' -count=1` (pass).
+    - quick signal check: `quicksort` bytecode remained within noise of baseline (`5.86s` -> `5.91s`, 1 run each); `fib(45)` still exceeds the 30s run timeout.
+    - ad-hoc finite workload check: `./v12/ablebc v12/tmp/fib30.able` (`fib(30)`) completed in `real=1.06s` on this workstation.
+    - profiler-guided follow-up signal (bytecode):
+      - `ABLE_BENCH_FIXTURE=v12/fixtures/bench/sieve_full go test ./pkg/interpreter -run '^$' -bench BenchmarkExecFixtureBytecode -benchtime=2x -count=1`
+      - before: `~1.779s/op`; after resolver/lookup churn reduction: `~1.702s/op` (~4.4% improvement in this harness run).
+      - `./v12/bench_suite --runs 1 --timeout 45 --modes bytecode --benchmarks quicksort`: `5.83s` real, `741` GC (down from earlier 5.88–6.07s single-run noise band).
+      - after member-call cache landing, repeated quick checks stayed in the same noise band:
+        - `sieve_full` bench fixture (`-benchtime=2x`) observed `1.91s/op` then `1.72s/op` on successive runs.
+        - `bench_suite quicksort` single runs observed `6.41s` then `6.06s` real with similar GC counts.
+
 # 2026-03-03 — Stdlib setup smoke coverage + toolchain-pinned stdlib resolution policy (v12)
 - Closed remaining staged-integration stdlib items from `PLAN.md`:
   - added clean-environment setup smoke coverage for stdlib+kernel bootstrap and cross-interpreter execution.
@@ -2830,1861 +3976,3 @@
 - Implemented literal-only regex compile/match/find_all using byte-span search and stored literal bytes in the regex handle.
 - Updated the stdlib matcher test to exercise substring matches and refreshed docs to reflect partial regex support.
 - Tests: `cd v11/interpreters/ts && ABLE_TYPECHECK_FIXTURES=off bun run scripts/run-module.ts test ../../stdlib/tests`.
-
-# 2025-12-31 — Stdlib/runtime test fixes (v11)
-- Resolved Iterable/Enumerable method ambiguity by preferring explicit impl methods over default interface methods (fixes Vector.each).
-- Aligned hasher host builtins to return i64 handles/hashes (TS runtime + stubs + typechecker) and updated stdlib string integration expectations for subString errors.
-- Tests: `./run_all_tests.sh --version=v11`.
-
-# 2025-12-31 — Add idiomatic Able style guide (v11)
-- Added a new documentation guide covering idiomatic Able conventions with examples at `v11/docs/idiomatic-able.md`.
-- Cleared completed PLAN TODO entries now that the queue is empty.
-- Tests: not run (docs-only changes).
-
-# 2025-12-31 — Fix stdlib spec test discovery filters (v11)
-- Corrected `able.spec` discovery filtering so empty exclude lists no longer filter every example; regenerated `v11/stdlib/src/spec.able`.
-- Tests: `cd v11/interpreters/ts && ABLE_TYPECHECK_FIXTURES=off bun run scripts/run-module.ts test ../../stdlib/tests --list`.
-
-# 2025-12-30 — Stdlib test syntax cleanup (v11)
-- Rewrote stdlib tests to avoid non-spec syntax: replaced `let`/`let mut` with `:=`, switched prefix `match` to postfix form, wrapped `raise` in match/lambda bodies, removed `TestEvent.` qualifiers, and used struct-literal constructors for NFAChar.
-- Updated static calls in tests from `Type::method` to `Type.method` and replaced `_` lambda parameters with `_ctx`.
-- Tests: `bun run scripts/run-module.ts test ../../stdlib/tests` (fails: `able.text.automata` package missing from stdlib src; still in quarantine).
-
-# 2025-12-30 — Verbose anonymous function syntax (v11)
-- Added tree-sitter support for `fn(...) { ... }` anonymous functions and mapped them to `LambdaExpression` with generics/where clauses in TS/Go parsers.
-- Added exec fixture `exec/07_02_01_verbose_anonymous_fn` plus conformance/coverage index updates.
-- Tests: `bun test test/parser/fixtures_parser.test.ts`; `ABLE_FIXTURE_FILTER=07_02_01_verbose_anonymous_fn bun run scripts/run-fixtures.ts`; `go test -a ./pkg/interpreter -run TestExecFixtures/07_02_01_verbose_anonymous_fn$`.
-
-# 2025-12-30 — Go parser interface-arg test fix (v11)
-- Fixed Go parser test coverage so `TestParseImplInterfaceArgsParentheses` is a real test (no longer embedded in a raw string for the breakpoint fixture).
-- Regenerated the tree-sitter parser/wasm and forced a Go rebuild so the cgo parser picks up the updated grammar.
-- Tests: `bun test test/parser/fixtures_parser.test.ts`; `go test -a ./pkg/parser -run TestParseImplInterfaceArgsParentheses`; `./run_all_tests.sh --version=v11`.
-
-# 2025-12-30 — Interface arg parentheses (Option 2b)
-- Updated `spec/full_spec_v11.md` to clarify that interface args are space-delimited type expressions and generic applications only form when parenthesized.
-- Updated tree-sitter grammar + TS/Go type parsers for `interface_type_*` nodes, and removed interface-arg arity grouping in TS/Go interpreter + typechecker.
-- Added TS/Go parser tests asserting interface-arg splitting vs parenthesized generic args; rebuilt tree-sitter parser/wasm.
-- Docs: noted parenthesized generic applications in `v11/parser/README.md`.
-- Tests: not run (parser build via `npm run build`).
-
-# 2025-12-30 — Go `able test` CLI wiring + integration tests (v11)
-- Implemented Go `able test` CLI (args/targets, discovery, harness/run, reporters, exit codes) plus loader support for include packages and interpreter helpers for array/method access.
-- Added lightweight Go CLI tests for `able test` list/dry-run using a stub stdlib harness to keep the suite fast and isolated.
-- Tests: `cd v11/interpreters/go && go test ./cmd/able -run TestTestCommand`.
-
-# 2025-12-30 — TypeScript `able test` CLI wiring (v11)
-- Completed TS CLI `able test` wiring end-to-end (discovery/filter/run/report/exit), including kernel `Array` decoding for reporters/list output and array-length handling for discovery results.
-- Bound trailing lambdas inside expression lists so `suite.it("...") { ... }` attaches correctly within `describe` bodies.
-- Updated stdlib tests to `import able.spec.*` so suite method names are in scope; fixed a malformed `able.spec.assertions` import.
-- Shifted testing protocol `Framework` methods to return `?Failure` and regenerated `v11/stdlib/src/spec.able`.
-- Tests: `cd v11/interpreters/ts && bun test test/cli/run_module_cli.test.ts`.
-
-# 2025-12-30 — Drop snapshots from testing framework (v11)
-- Removed snapshot matchers, stores, and CLI flag references from the stdlib testing DSL; deleted the snapshot store design doc and scrubbed snapshot mentions from testing docs/design notes/spec.
-- Updated stdlib tests and the TS CLI skeleton tests to drop `match_snapshot`/`--update-snapshots`.
-- Tests: not run.
-
-# 2025-12-30 — Testing module suffix policy (v11)
-- Codified test modules as `.test.able` or `.spec.able` in `spec/full_spec_v11.md` (new Tooling: Testing Framework section) and resolved the open decision in `v11/design/testing-plan.md`.
-- Removed the suffix-policy TODO from `PLAN.md` now that the rule is set.
-- Tests: not run.
-
-# 2025-12-30 — Split stdlib testing into able.test + able.spec (v11)
-- Moved testing protocol/harness/reporters/snapshots into `v11/stdlib/src/test` and the user DSL into `v11/stdlib/src/spec`/`v11/stdlib/src/spec.able`, renaming packages and framework id to `able.spec`.
-- Migrated quarantine stdlib tests into `v11/stdlib/tests` and updated imports to `able.spec` + `able.test.*`.
-- Updated testing docs/spec references to the new namespace split and renamed internal `RspecFramework` to `SpecFramework`.
-- Tests: not run (stdlib/CLI integration pending).
-
-# 2025-12-29 — Alias re-export follow-up validation (v11)
-- Progress: ran `./run_all_tests.sh --version=v11`; all green.
-- State: parity report refreshed at `v11/tmp/parity-report.json`.
-- Next: resume PLAN backlog (regex stdlib expansion + tutorial cleanup).
-
-# 2025-12-29 — Typechecker method-set dedupe + alias impl diag alignment (v11)
-- Prevented duplicate method-set candidates by tagging method-set function infos, skipping them during member lookup, and marking static method-set entries as type-qualified.
-- Kept method-set targets in generic form to preserve where-clause constraint enforcement, and deduped method sets/impl records across session preludes.
-- Aligned alias re-export impl ambiguity diagnostics to the canonical target label and updated the baseline accordingly.
-- Tests: `./run_all_tests.sh --version=v11`.
-
-# 2025-12-29 — Alias re-export impl ambiguity fixture (v11)
-- Added AST error fixture `errors/alias_reexport_impl_ambiguity` covering duplicate impl registration when alias-attached impls target the same canonical type.
-- Filled `module.json` for alias re-export method/impl ambiguity fixtures and updated the typecheck baseline for the new diagnostic.
-- Tests: `cd v11/interpreters/ts && bun test test/parser/fixtures_mapper.test.ts`; `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts`.
-
-# 2025-12-29 — Document Euclidean division (v11)
-- Clarified in `spec/full_spec_v11.md` that `//`, `%`, and `/%` use Euclidean integer division (non-negative remainder), with examples and negative divisor behavior.
-
-# 2025-12-29 — Add floor division helpers (v11)
-- Added stdlib `div_floor`/`mod_floor`/`div_mod_floor` functions and methods for `i32`, `i64`, `u32`, `u64`, plus updated numeric helper fixture coverage and spec text.
-- Removed the integer floor-division TODO from `spec/TODO_v11.md` now that helpers are implemented.
-
-# 2025-12-29 — Spec TODO audit (v11)
-- Trimmed `spec/TODO_v11.md` to the remaining items with detailed scope and open questions (alias/re-export method propagation).
-
-# 2025-12-29 — Quarantine host regex hooks (v11)
-- Removed TS/Go regex host hooks and wiring; stdlib `able.text.regex` now raises `RegexUnsupportedFeature` instead of calling host engines.
-- Quarantined the exec regex fixture (`exec/14_02_regex_core_match_streaming`) and marked coverage as planned; TS regex integration test now skipped pending the stdlib engine.
-- Updated conformance/testing/manual docs and regex design notes to reflect stdlib-only regex plans.
-- Tests: `./run_all_tests.sh --version=v11 --fixture`.
-
-# 2025-12-29 — v11 fixture sweep
-- Progress: ran `./run_all_tests.sh --version=v11 --fixture`.
-- Current state: TypeScript fixtures, parity harness, and Go tests all green; parity report at `v11/tmp/parity-report.json`.
-- Next: continue PLAN backlog (regex stdlib expansion and tutorial cleanup).
-
-# 2025-12-29 — Regex core match/streaming fixture (v11)
-- Implemented stdlib regex core helpers (`Regex.compile`, `is_match`, `match`, `find_all`, `scan` + streaming `RegexScanner.feed/next`) with host-backed compile/find externs.
-- Added TS/Go regex host builtins and runtime state for compiled handles, plus span/match struct construction (empty groups/named groups for now).
-- Added exec fixture `exec/14_02_regex_core_match_streaming`, updated conformance plan + coverage index, and removed the PLAN backlog item.
-- Updated regex stdlib integration test and testing matcher docs now that regex helpers are live.
-- Go runtime now treats `IteratorEnd {}` as matching the IteratorEnd sentinel during return type checks, aligning iterator method returns with pattern matching behavior.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=14_02_regex_core_match_streaming bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/14_02_regex_core_match_streaming$`.
-
-# 2025-12-29 — Interface dispatch fixture + IteratorEnd runtime alignment (v11)
-- Added exec fixture `exec/14_01_language_interfaces_index_apply_iterable` covering Index/IndexMut, Iterable/Iterator, and Apply dispatch; updated the conformance plan + coverage index and cleared the PLAN backlog item.
-- Stdlib `iteration.each` now matches `IteratorEnd {}` before visiting values, keeping IteratorEnd from flowing into visitor callbacks.
-- Go runtime now treats `IteratorEnd` as a first-class type in `matchesType`/type inference and equality comparisons, aligning match behavior with TS.
-- Added exec fixture `exec/14_01_operator_interfaces_arithmetic_comparison` covering arithmetic/comparison operator interface dispatch with Display/Clone/Default helpers; updated the conformance plan + coverage index and cleared the PLAN backlog item.
-- TS/Go runtimes now route unary `-` through `Neg` interface impls when operands are non-numeric, and both runtimes dispatch comparison operators via `Eq`/`PartialEq` and `Ord`/`PartialOrd` when available.
-- Go static method lookup now includes impl methods so interface-provided statics like `Default.default()` resolve on types.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_06_stdlib_package_resolution bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_07_search_path_env_override bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=14_01_language_interfaces_index_apply_iterable bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/13_06_stdlib_package_resolution$`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/13_07_search_path_env_override$`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/14_01_language_interfaces_index_apply_iterable$`.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=14_01_operator_interfaces_arithmetic_comparison bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/14_01_operator_interfaces_arithmetic_comparison$`.
-- Added stdlib `os` module with `args()` and runtime `__able_os_args` builtins for TS/Go; added exec fixture `exec/15_02_entry_args_signature` plus coverage/conformance updates and removed the PLAN item.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_02_entry_args_signature bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_02_entry_args_signature$`.
-- Added `os.exit` runtime support (TS/Go) with CLI/fixture harness handling; added exec fixture `exec/15_03_exit_status_return_value` plus coverage/conformance updates and removed the PLAN item.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_03_exit_status_return_value bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_03_exit_status_return_value$`.
-- Added exec fixture `exec/15_04_background_work_flush` to assert background tasks are not awaited on exit; updated coverage/conformance and removed the PLAN item.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_04_background_work_flush bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_04_background_work_flush$`.
-- Added exec fixture `exec/16_01_host_interop_inline_extern` covering extern host bindings; updated coverage/conformance and removed the PLAN item.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=16_01_host_interop_inline_extern bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/16_01_host_interop_inline_extern$`.
-
-# 2025-12-28 — Exec fixtures for errors + concurrency (v11)
-- Added `exec/11_03_rescue_rethrow_standard_errors` covering arithmetic/indexing runtime errors, rescue/ensure, and rethrow semantics; updated the exec coverage index and removed the PLAN backlog item.
-- Added `exec/12_02_future_fairness_cancellation` covering `future_yield` fairness, cancellation via `future_cancelled`, and `future_flush` queue drains; updated the exec coverage index + conformance plan and removed the PLAN backlog item.
-- Added `exec/12_03_spawn_future_status_error` and `exec/12_04_future_handle_value_view` for future status/value/error propagation and handle/value behaviour; updated the exec coverage index + conformance plan and cleared the PLAN items.
-- Added `exec/12_05_mutex_lock_unlock` and `exec/12_06_await_fairness_cancellation` for mutex/await semantics; updated the exec coverage index + conformance plan and cleared the PLAN items.
-- TS/Go runtimes now raise standard errors (`DivisionByZeroError`, `OverflowError`, `ShiftOutOfRangeError`, `IndexError`) with `Error.value` payloads for rescue matching; `!` propagation now raises any `Error` value and index fallback returns `IndexError` payloads.
-- Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=11_03_rescue_rethrow_standard_errors bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_02_future_fairness_cancellation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_03_spawn_future_status_error bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_04_future_handle_value_view bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_05_mutex_lock_unlock bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_06_await_fairness_cancellation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter`.
-- Added `exec/12_07_channel_mutex_error_types` and `exec/13_03_package_config_prelude` for channel/mutex error payloads and package.yml root-name/prelude parsing; updated the exec coverage index + conformance plan and cleared the PLAN items.
-- Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_07_channel_mutex_error_types bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_03_package_config_prelude bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/(12_07_channel_mutex_error_types|13_03_package_config_prelude)$'`.
-- Added `exec/13_04_import_alias_selective_dynimport` covering import aliases, selective renames, and dynimport bindings; updated the exec coverage index + conformance plan and removed the PLAN backlog item.
-- TS runtime now treats primitive types as satisfying `Hash`/`Eq` constraints for interface enforcement and returns `IndexError` values on out-of-bounds array assignments to align IndexMut semantics.
-- Updated TS division/ratio tests to assert `RaiseSignal` error payloads rather than raw error messages.
-- Tests: `./run_all_tests.sh --version=v11`.
-
-# 2025-12-26 — Impl specificity exec fixture + array type-arg dispatch (v11)
-- Added `exec/10_02_impl_specificity_named_overrides` covering impl specificity ordering, named impl disambiguation, and HKT targets; updated the exec coverage index, conformance plan, and removed the PLAN backlog item.
-- TS runtime now derives array element type arguments during method resolution so concrete vs generic impl selection matches spec intent.
-- Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_02_impl_specificity_named_overrides bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod go test ./pkg/interpreter -run TestExecFixtures/10_02_impl_specificity_named_overrides$`.
-
-# 2025-12-24 — Truthiness exec fixture + boolean context alignment (v11)
-- Added `exec/06_11_truthiness_boolean_context` to cover truthiness rules, unary `!`, and `&&`/`||` operand returns; updated coverage index + conformance plan and cleared the PLAN item.
-- TS/Go runtimes now evaluate `!`, `&&`, and `||` via truthiness (returning operands) and dynimport supports late-bound packages without eager loader failures; dyn refs now re-check privacy at call time.
-- Typecheckers no longer require bool for conditions/guards or logical operands; Go typechecker/interpreter tests updated to match truthiness semantics.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_11_truthiness_boolean_context bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/06_11_truthiness_boolean_context$`; `cd v11/interpreters/go && go test ./pkg/typechecker -run Truthiness`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestLogicalOperandsTruthiness$`; `cd v11/interpreters/go && go test ./pkg/driver -run TestLoaderDynImportDependencies$`.
-
-# 2025-12-24 — Dynamic metaprogramming exec fixture + runtime support (v11)
-- Added `exec/06_10_dynamic_metaprogramming_package_object` to cover dyn package creation/lookup, dynamic definitions, and late-bound dynimport redefinitions; updated coverage index + conformance plan and cleared the PLAN item.
-- Implemented dyn runtime helpers in TS/Go: `dyn.package`, `dyn.def_package`, and `dyn.Package.def` parse/evaluate dynamic code and replace prior definitions without overload merging.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_10_dynamic_metaprogramming_package_object bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/06_10_dynamic_metaprogramming_package_object$`.
-
-# 2025-12-24 — Lexical line-join + trailing commas exec fixture (v11)
-- Added `exec/06_09_lexical_trailing_commas_line_join` to cover delimiter line-joining and trailing commas in arrays/structs/imports; updated conformance plan and exec coverage index.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_09_lexical_trailing_commas_line_join bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/06_09_lexical_trailing_commas_line_join$`.
-
-# 2025-12-24 — Array ops exec fixture + IndexMut error surfacing (v11)
-- Added `exec/06_08_array_ops_mutability` to cover array mutation, bounds handling, and iteration, plus updated the conformance plan and coverage index.
-- Index assignment now returns IndexError values from IndexMut implementations instead of silently discarding them (TS + Go interpreters).
-- Tests: `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/06_08_array_ops_mutability$`.
-
-# 2025-12-24 — Exec fixtures for structs, unions, methods, interfaces, and packages (v11)
-- Added exec fixtures for numeric literal contextual typing (plus overflow diag), positional structs, nullable truthiness, Option/Result construction, union guarded match coverage (plus a non-exhaustive diag), union payload patterns, method imports/UFCS instance-vs-static, interface dynamic dispatch, and directory-based package structure.
-- Interpreters now coerce numeric values to float parameter contexts at runtime; TS/Go typecheckers accept integer literals in float contexts per spec.
-- Updated `v11/fixtures/exec/coverage-index.json`, `v11/docs/conformance-plan.md`, and pruned completed PLAN items.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_05_03_struct_positional_named_tuple bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_06_01_union_payload_patterns bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_06_02_nullable_truthiness bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_06_03_union_construction_result_option bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_06_04_union_guarded_match_exhaustive bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_01_literals_numeric_contextual bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=09_02_methods_instance_vs_static bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_03_interface_type_dynamic_dispatch bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_01_package_structure_modules bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/(04_05_03_struct_positional_named_tuple|04_06_01_union_payload_patterns|04_06_02_nullable_truthiness|04_06_03_union_construction_result_option|04_06_04_union_guarded_match_exhaustive(_diag)?|06_01_literals_numeric_contextual(_diag)?|09_02_methods_instance_vs_static|10_03_interface_type_dynamic_dispatch|13_01_package_structure_modules)$'`.
-
-# 2025-12-23 — Core exec fixtures + literal escape parsing (v11)
-- Added exec fixtures for struct named updates (plus diagnostic), string/char literal escapes, control-flow expression values, and lambda closures with explicit return; updated exec coverage index + conformance plan and removed completed PLAN items.
-- TS/Go parsers now unescape string/char literals with spec escapes (including `\'` and `\u{...}`) to align literal parsing across runtimes.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_05_02_struct_named_update_mutation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_01_literals_string_char_escape bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_05_control_flow_expr_value bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=07_02_lambdas_closures_capture bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/(04_05_02_struct_named_update_mutation|04_05_02_struct_named_update_mutation_diag|06_01_literals_string_char_escape|06_05_control_flow_expr_value|07_02_lambdas_closures_capture)$'`.
-
-# 2025-12-22 — Division-by-zero exec fixture (v11)
-- Added `exec/04_02_primitives_truthiness_numeric_diag` to assert division-by-zero errors, plus inline semantics comment in the package-visibility fixture module.
-- Normalized TS numeric division errors to use lowercase `division by zero` for parity with the stdlib error message and Go runtime.
-- Updated exec coverage index + conformance plan to include the new diagnostic fixture.
-- Tests: `./run_all_tests.sh --version=v11 --fixture`.
-
-# 2025-12-22 — Kernel alias normalization for typed patterns (v11)
-- Normalized runtime type matching to map KernelChannel/KernelMutex/KernelRange/KernelRangeFactory/KernelRatio/KernelAwaitable/AwaitWaker/AwaitRegistration to their stdlib names so typed patterns match kernel aliases.
-- Tests: `GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod go test ./pkg/interpreter -run TestStdlibChannelMutexModuleLoader`; `GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod ./run_all_tests.sh --version=v11`.
-
-# 2025-12-22 — Singleton struct exec fixture (v11)
-- Added `exec/04_05_01_struct_singleton_usage` covering singleton struct tags and pattern matching; updated exec coverage index and PLAN backlog.
-- Treated singleton struct definitions as runtime values in TS/Go (typed pattern checks + type-name reporting) and matched singleton identifiers as constant patterns; Go `valuesEqual` now handles struct definition pointers.
-- Tests: `GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod ./run_all_tests.sh --version=v11 --fixture`.
-
-# 2025-12-20 — Reserved underscore type aliases (v11)
-- Added `exec/04_04_reserved_underscore_types` for `_` placeholder type expressions and updated the exec coverage index + PLAN backlog.
-- Added AST fixture `errors/type_alias_underscore_reserved` and enforced runtime/typechecker rejection of type alias name `_` in TS + Go.
-- Refreshed the typecheck baseline to include the new alias diagnostic.
-- Tests: `./run_all_tests.sh --version=v11 --fixture`; `ABLE_TYPECHECK_FIXTURES=warn bun run scripts/run-fixtures.ts -- --write-typecheck-baseline`.
-
-# 2025-12-20 — Go type matching + constraint parity fixes (v11)
-- Normalized runtime type matching for kernel alias names (`KernelArray`, `KernelHashMap`) and treated generic type args as wildcards during concrete matches to align alias recursion fixtures.
-- Treated primitives as satisfying `Hash`/`Eq` method presence during impl resolution and expanded intrinsic Hash/Eq coverage to include all integer/float types.
-- Stopped Go typechecker from typechecking impl/method bodies to mirror TS diagnostics for interface conformance tests.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestFixtureParityStringLiteral/strings/String_methods -count=1`; `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtures/04_07_05_alias_recursion_termination -count=1`; `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtures/06_01_literals_array_map_inference -count=1`; `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestFixtureParityStringLiteral/interfaces/apply_index_missing_impls -count=1`; `./run_all_tests.sh --version=v11 --fixture`.
-
-# 2025-12-19 — Type expression syntax exec fixture (v11)
-- Added `exec/04_03_type_expression_syntax` to cover nested type expressions with generic application and unions, including inline semantics comments.
-- Updated `v11/fixtures/exec/coverage-index.json` and removed the completed PLAN backlog item.
-- Tests not run (not requested).
-
-# 2025-12-19 — Primitives truthiness exec fixture (v11)
-- Added `exec/04_02_primitives_truthiness_numeric` to cover literal forms, Euclidean `//`/`%`, and truthiness for `nil`/`false`/`Error`/`void`.
-- Updated `v11/fixtures/exec/coverage-index.json` and removed the completed PLAN backlog item.
-- Tests not run (not requested).
-
-# 2025-12-19 — Exec fixture reimplementation pass (v11)
-- Reimplemented exec fixtures for §2, §3, §4.1, §4.7.2–§4.7.5, §5.0–§5.3, §6.1.7–§6.1.9, §6.2, and §6.3.1 with fresh programs aligned to spec semantics; refreshed manifests/expectations accordingly.
-- Updated `PLAN.md` note to emphasize spec-first fixtures even when interpreters fail.
-- Tests not run (exec fixtures pending re-sweep).
-
-# 2025-12-19 — Exec fixture expansion (v11)
-- Seeded exec fixtures for §2 (lexical comments/identifiers/trailing commas), §3 (block expression separation/value), and §4.1.4–§4.1.6 (generic inference with constrained interface methods), each with inline semantics notes.
-- Coverage index and PLAN backlog updated to reflect the new fixtures; exec coverage guard stays green. Go runtime updated to treat generic-parameter types as wildcards during overload selection so the new §4.1 fixture runs.
-- Tests: `./run_all_tests.sh --version=v11 --fixture`.
-
-# 2025-12-18 — Exec fixtures renamed to spec sections (v11)
-- Renamed exec fixtures/packages to use spec section prefixes, refreshed manifests/comments, and regenerated the coverage index + docs with the spec-based naming scheme.
-- Added/updated exec fixtures for async proc/spawn scheduling, methods/UFCS, option/result handling via raise/rescue, package visibility with explicit aliases, and alias/union generic combos; each case documents the exercised semantics inline.
-- Conformance docs now carry the seeded coverage matrix and exec fixtures guide keyed to the new IDs, with the JSON coverage index tracked alongside.
-- `run_all_tests.sh` runs `scripts/check-exec-coverage.mjs` before the suites; `./run_all_tests.sh --version=v11` passes after the exec fixture sweep.
-- Seeded new exec fixtures for §4.7.2–§4.7.5 (generic alias substitution, import visibility, alias-backed methods/impls, and recursive alias termination via nominal indirection) with manifests and package wiring.
-- Coverage index and PLAN backlog updated to reflect the new alias fixtures.
-- Added exec fixtures for §5.0–§5.2 (mutability declaration vs assignment, identifier/wildcard typed patterns, struct pattern rename with typed nesting) and brought coverage index + PLAN in sync.
-
-# 2025-12-13 — Host interop tutorial unblocked + prefix match guard (v11)
-- Added the Go-side `read_text` extern for tutorial 14 (imports `os`, returns `host_error` on failure) so the host interop example now runs on the Go runtime alongside the existing TS path.
-- Tree-sitter grammar usage is now enforced to reject prefix-style `match <expr> { ... }`: added Go parser and TS tree-sitter/mapper tests that expect syntax errors for the legacy ordering, matching the spec requirement of `<expr> match { ... }`.
-- Tests: `cd v11/interpreters/go && go test ./pkg/parser -run PrefixMatch`; `cd v11/interpreters/ts && bun test test/parser/fixtures_parser.test.ts`.
-
-# 2025-12-12 — Inherent methods as functions (v11)
-- Exported method functions now carry their method-set obligations: Go binds implicit `self` for method shorthand, substitutes the receiver into exported signatures, and preserves method-set context so free-call constraints fail when receivers/where-clauses are violated.
-- TypeScript attaches method-set obligations/substitutions to exported method infos so direct calls enforce receiver typing and block missing `where` constraints; §9 in the spec now spells out the export + sugar model for inherent methods.
-- Tests: `cd v11/interpreters/ts && bun test test/typechecker/function_calls.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker`.
-
-# 2025-12-11 — UFCS overload priority (v11)
-- Added overload priority metadata so inherent methods outrank interface/default impls without masking UFCS ambiguities; runtime dispatch now tags impl/default entries with lower priority and tolerates impl ambiguity when other candidates are present.
-- Typechecker mirrors the priority model, keeping the highest-priority candidate per signature and sorting overloads by score then priority to stay aligned with runtime selection.
-- Go interpreter/runtime carry the same priority metadata for parity with the TypeScript path.
-- Module loaders now auto-discover bundled kernel/stdlib roots (no `ABLE_STD_LIB` knob); the `able` namespace is treated as a normal dependency resolved through the standard search paths/lockfile.
-- Tests: `bun test test/stdlib/string_stdlib_integration.test.ts`; `bun test test/stdlib/concurrency_stdlib_integration.test.ts test/stdlib/await_stdlib_integration.test.ts test/stdlib/hash_set_stdlib_integration.test.ts test/stdlib/bit_set_stdlib_integration.test.ts test/stdlib/hash_map_stdlib_integration.test.ts`; `./run_all_tests.sh --version=v11`.
-
-# 2025-12-10 — Conditional/unwrap syntax shift (v11)
-- Landed the new `if/elsif/else` syntax and `{ expr or { err => ... } }` handlers across grammar/AST/TS+Go interpreters/typecheckers; regenerated tree-sitter artifacts and aligned AST fixtures/printers with the new `elseIfClauses`/`elseBody` layout.
-- Updated fixtures, examples, tutorials, and tests (TS + Go) to drop the legacy `if/or` + `| err |` handler forms; handling blocks now use `binding =>` with optional binding, and parser mappers no longer misclassify handler statements as bindings.
-- Exported the fixture corpus and reran the full parity + CLI + Go/TS suites to green.
-- Tests: `./run_all_tests.sh --version=v11`.
-
-# 2025-12-09 — Pipe/placeholder alignment (v11)
-- Made bare `@` placeholders behave as `@1` across parsers/interpreters/typecheckers; placeholder lambdas now reuse the first argument when unnumbered tokens repeat, with new runtime tests in TS/Go to lock the behaviour.
-- Pipe expressions now typecheck as callable invocations (including low-precedence `|>>`), emitting non-callable diagnostics instead of silently returning `unknown`, and placeholder-driven pipes follow the callable-only model.
-- Exported the AST fixture corpus after the placeholder changes so shared fixtures/exports include explicit placeholder indices.
-- Tests: `cd v11/interpreters/ts && bun test test/runtime/pipes.test.ts && bun test test/typechecker/function_calls.test.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run Placeholder && go test ./pkg/typechecker`.
-
-## 2025-12-08 — Parity harness green (v11)
-- Normalized Go fixture results (String kind) and fixed native Error methods to use receiver-bound arity so messages propagate correctly through fixture CLI output and parity reporting.
-- Cleaned up TS fixture/parity scripts (type checks and stringify usage) and aligned stringification on both runtimes: TS honours `to_string`, Go bound-method stringification now includes targets, and stdout capture no longer misreports types.
-- Parity sweep now fully green with the latest fixture export; report saved to `tmp/parity-report.json`.
-- Updated the v11 spec + manuals/onboarding to canonicalize the `String` type (lowercase reserved for scalar primitives) and remove the remaining lowercase `string` references in type signatures/examples.
-- Tests: `cd v11/interpreters/go && go test ./...`; `cd v11/interpreters/ts && bun run scripts/run-parity.ts`.
-
-## 2025-12-07 — Operators tutorial + xor parity (v11)
-- Added tutorial `02a_operators_and_builtin_types.able` to showcase built-in scalars, arithmetic (`/ // %% /%`), comparisons, bitwise/shift ops, and boolean logic; confirmed it runs in TS+Go.
-- Enabled `\xor` in the Go interpreter/typechecker and added a shared fixture (`functions/bitwise_xor_operator`) so bitwise xor stays covered across runtimes.
-- Go/TS suites remain green after exporting fixtures and rerunning the operators tutorial with both CLIs.
-
-## 2025-12-06 — Option/Result `else` handling fixed (v11)
-- Implemented spec-compliant `else {}` handling for `?T`/`!T` across TS/Go interpreters and typecheckers: failures now trigger handler blocks on `nil` or `Error` values, with error bindings and optional early-return narrowing.
-- Updated the Go runtime type test so interface-backed errors (e.g., `MathError`) satisfy `Error`, letting `or-else` handlers bind user-defined errors instead of treating them as successes.
-- The tutorial 09 example now runs to completion in both interpreters (`Handled error: need two numbers`), clearing the option-narrowing runtime/typechecker regression from the PLAN backlog.
-
-## 2025-12-05 — Go stdlib typecheck parity (v11)
-- Go ProgramChecker sweep (driver.NewLoader RootStdlib against `v11/stdlib/src`) now reports zero diagnostics; stdlib modules typecheck cleanly with the Go checker.
-- `./run_all_tests.sh --version=v11` stays green (TS + Go units, fixtures, parity, CLI); Go unit suites no longer flag await manual waker.
-- Removed the Go stdlib/typechecker parity worklist from PLAN since the stdlib checker is stable again.
-
-## 2025-12-05 — UFCS method-style fallback finalized (v11)
-- Clarified UFCS spec wording (§7.4/§9.4) covering pipe equivalence, receiver-compatible overload selection, and self-parameter trimming; marked the TODO as complete and removed the PLAN item.
-- Added shared UFCS fixtures: `functions/ufcs_generic_overloads` (generic + overloaded free-function binding parity across pipe/member syntax) and `errors/ufcs_overload_ambiguity` (method-style ambiguity diagnostics). Exporter now emits these fixtures.
-- Hardened the TS typechecker runtime: pipelines no longer emit spurious undefined-identifier diagnostics, and duplicate typecheck diagnostics are deduped in the fixture runner; fixed a missing runtime import in pattern handling.
-- Updated the typecheck baseline to reflect new fixtures and existing diagnostics, keeping UFCS coverage aligned across interpreters.
-
-## 2025-12-04 — Struct pattern shorthand + rename operator (v11)
-- Codified `::` as the pattern rename operator in §5.2 (shorthand `field` = `field::field`, rename, rename+type, nested patterns) while keeping dot for namespace traversal; added examples for assignment/match and aligned import syntax guidance.
-- Documented import renaming via `::` (`import pkg::alias`, `import pkg.{item::alias}`) in the spec and queued implementation work in PLAN.
-- Updated the tree-sitter grammar and TS/Go ASTs to carry rename + type metadata, track struct kinds for positional patterns, and propagate type annotations into nested struct patterns when present.
-- TS/Go runtimes and typecheckers now evaluate/check shorthand/rename/type struct patterns consistently across `=`/`:=`/`match`/`rescue`; fixtures/tutorials/exporter outputs refreshed (including `patterns/struct_pattern_rename` and updated baselines).
-- Tests: `bun test` (v11/interpreters/ts); `cd v11/interpreters/go && go test ./...`.
-
-## 2025-12-03 — Impl specificity + ambiguity parity (v11)
-- Implemented the full impl-specificity lattice across Go/TS typecheckers and runtimes: concrete > generic, constraint superset, union subset, and more-instantiated generic tie-breaks with ambiguity diagnostics; named impls stay opt-in.
-- Go/TS runtimes now register generic-target impls, bind `Self` during matching, and surface consistent ambiguity errors; fixtures/manifests (`interfaces/impl_specificity*`) and the typecheck baseline reflect the new coverage.
-- Tests: `cd v11/interpreters/go && go test ./...`; `cd v11/interpreters/ts && bun test`.
-
-## 2025-12-02 — Pipe precedence + low-precedence pipe (v11)
-- Raised pipe (`|>`) precedence above assignment and added a low-precedence `|>>` operator in the grammar (tree-sitter regenerated) with matching TS/Go parser mappings.
-- TS/Go interpreters and typecheckers now treat `|>>` identically to `|>` (topic/callable fallback, placeholder guards) so pipeline semantics stay in sync across runtimes.
-- Added fixture `pipes/low_precedence_pipe` to cover assignment vs pipe grouping and `||` interactions; refreshed exported fixtures, and `bun test` (v11/interpreters/ts) plus `cd v11/interpreters/go && go test ./...` are green.
-
-## 2025-12-02 — UFCS inherent instance methods (v11)
-- UFCS resolution now considers inherent instance methods (excluding static/interface/named impl methods) when the first argument can serve as the receiver; TS/Go interpreters bind the receiver accordingly and fall back from identifier calls, with TS/Go typecheckers mirroring the UFCS candidate search and call handling.
-- Added fixtures for UFCS calls into inherent methods plus a static-method negative case, refreshed the typecheck baseline, and documented the UFCS expansion in the spec (§7.4/§9.4).
-- `bun test` (v11/interpreters/ts) and `cd v11/interpreters/go && go test ./...` remain green after the UFCS sweep.
-
-## 2025-12-02 — Function/method overloading implemented (v11)
-- Added function/method overload sets across the Go and TS interpreters (runtime dispatch with nullable-tail omission, bound/native/UFCS/dyn refs) and TS typechecker (arity filter, specificity scoring, ambiguity diagnostics); envs now merge duplicate names into overload sets.
-- Updated the spec (§7.4.1, §7.7) to codify nullable trailing parameter omission and overload eligibility/specificity, removed the overloading TODO, and exported shared fixtures for overload success/ambiguity (functions and methods).
-- `bun test` (v11/interpreters/ts) and `cd v11/interpreters/go && go test ./...` are green after the overload sweep.
-
-## 2025-12-01 — Interface dispatch alignment + Awaitable stdlib
-- Codified the language-backed interfaces in the stdlib (Apply, Index/IndexMut, Iterable defaults, Awaitable/Proc/Future handles, channel/mutex awaitables) and wired both interpreters/typecheckers to route callable invocation and `[]`/`[]=` through these impls, surfacing Apply/IndexMut diagnostics when missing.
-- Added shared fixtures/tests for callable values and index assignment dispatch (`interfaces/apply_index_dispatch`, missing-impl diagnostics, Go/TS unit tests) plus new awaitable fixtures covering channel/mutex/timer arms and stdlib helpers (`concurrency/await_*`, ModuleLoader integration for Channel/Mutex/Await.default).
-- Refreshed the stdlib concurrency surface (awaitable wrappers, channel/mutex helpers) and kept parity harnesses green; `./run_all_tests.sh --version=v11` now passes end-to-end after the interface alignment sweep (TS unit/CLI/tests+fixtures+parity, Go unit tests).
-
-## 2025-11-27 — Channel for-loop iteration fixed (Go runtime)
-- Channel iterators now terminate correctly after closure/empty reads (stdlib `ChannelIterator.next` returns `IteratorEnd` before the typed arm), so Go for-loops over channels no longer hang.
-- The Go ModuleLoader concurrency smoke test now iterates a channel with a for-loop (summing values) via the stdlib surface, and the stdlib channel/mutex smoke test mirrors the for-loop path.
-- `go test ./...` (v11/interpreters/go) and the TS stdlib integration test for concurrency remain green.
-
-## 2025-11-26 — Kernel vs stdlib layering complete (v11)
-- Primitive strings now live entirely in the stdlib: helpers/iterators/wrap-unwrap operate on built-in strings, with only the three kernel bridges left native. Go/TS runtimes and typecheckers resolve string members via the stdlib and surface import hints when missing.
-- Arrays now prefer stdlib methods end-to-end (size inline, minimal native shims retained for compatibility), with runtimes/typecheckers pointing diagnostics at `able.collections.array`.
-- Go runtime member access now consults stdlib method sets before native fallbacks, and primitive `string` is treated as iterable (`u8`) in the Go typechecker, matching the TS path. ModuleLoader + Go test suites stay green.
-
-## 2025-11-20 — Typed-pattern match reachability fix
-- Added a reachability guard for typed `match` patterns so clauses whose annotations cannot match the subject still typecheck but are treated as unreachable, preventing spurious return/branch diagnostics in the Go checker (mirrors TS intent).
-- Full v11 suites run green after the fix (`go test ./pkg/typechecker`, `go test ./...`, `./run_all_tests.sh --version=v11`).
-- Extended the v11 stdlib with a `collections.set` interface and `HashSet` implementation (plus smoke + TS ModuleLoader integration tests) and refreshed stdlib docs/PLAN so the restored surface tracks the new module.
-- Go typechecker now recognises stdlib collections (`List`, `Vector`, `HashSet`) as valid for-loop iterables; iterable helpers moved out of `type_utils.go` to stay under the 1k-line guardrail, and a new regression test covers generic element inference for these types.
-
-## 2025-11-19 — File modularization cleanup
-- Split Go typechecker declaration/type utility stacks into dedicated files (`decls_*`, `type_substitution.go`) and shrank `type_utils.go` beneath the 1k-line guardrail; Go AST definitions now live across `ast.go`, `type_expressions.go`, and `patterns.go` so each file stays lean.
-- Broke the long TS fixture exporter (`proc_scheduling.ts`) into `proc_scheduling_part{1,2}.ts` with a tiny aggregate shim to keep per-file size under 1000 lines.
-- `go test ./...` (v11/interpreters/go) remains green after the split.
-
-## 2025-11-18 — String helper surface complete
-- Added the full string helper set to both interpreters: `len_chars`/`len_graphemes`, `substring` (code-point offsets with `RangeError` on invalid bounds), `split` (empty delimiter splits graphemes), `replace`, `starts_with`/`ends_with`, and `chars`/`graphemes` iterators (Segmenter-aware in TS, rune fallback in Go). Shared helpers keep `len_*` in sync with iterator `size()`.
-- Typecheckers now understand the string surface (Go member access signatures, TS call resolution for optional substring length and string primitives), and Go array literal inference merges element types instead of rejecting unions.
-- Added the `strings/string_methods` AST fixture covering length/slicing/split/replace/prefix/suffix cases; `./run_all_tests.sh --version=v11` runs green after the fixture/typechecker/runtime updates.
-
-## 2025-11-17 — Loop/range constructs & continue semantics complete
-- Locked down the full §8.2–§8.3 feature set across both runtimes: `loop {}` expressions, `while`, and `for` now return the last `break` payload (or `nil` on exhaustion) while rejecting labeled `break`/`continue` targets. The Go and TypeScript interpreters share identical behavior, including iterator-driven loops and generator continuations.
-- Added the Range interface runtime registries (`src/interpreter/range.ts`, `pkg/interpreter/range_runtime.go`) so range literals first delegate to stdlib implementations before falling back to synthesized arrays, matching the spec requirement that ranges materialize via the Range interface.
-- Tree-sitter mappers + AST builders already exposed `LoopExpression`, `ContinueStatement`, and `RangeExpression`; we confirmed parser precedence and metadata are round-tripping, so the AST contract is now exercised end-to-end by fixtures such as `control/loop_expression` and `control/for_range_break`.
-- Typechecker metadata is in place: both checkers push loop contexts, record break payload types, and emit diagnostics for labeled `continue`, so assignments using loop expressions inherit the correct type.
-- Fresh runtime + parity coverage landed in TS (`test/control_flow/{while,for}.test.ts`, `test/runtime/iterators.test.ts`) and Go (`pkg/interpreter/interpreter_control_flow_test.go`). `./run_all_tests.sh --version=v11` runs green (TS unit + CLI suites, fixtures/parity harness, Go parser/interpreter/typechecker tests), so PLAN item 6 is officially complete and moved here from the TODO list.
-
-# 2025-11-17 — Typed declaration + literal adoption work finalized
-- Locked down the binding semantics for `:=`/`=` by keeping typed patterns intact across AST parsing/mapping (declaration + fallback assignment), enforcing “`:=` introduces at least one new binding” in both interpreters/typecheckers, and ensuring runtime evaluation order stays deterministic (RHS once, receivers/indexers evaluated exactly once) even for compound assignments and safe-navigation forms.
-- Verified the runtime/typechecker literal-adoption flow now covers every context listed in the v11 spec (arrays, maps, ranges, iterator yields, async bodies, function bodies/returns/arguments, struct literals, typed patterns), and refreshed the AST fixtures (`patterns/typed_destructuring`, `patterns/typed_equals_assignment`) so typed destructuring + typed `=` assignments keep parity between TypeScript and Go.
-- Fixed a regression uncovered by the fixture sweep where the TS AST builder always serialized `isSafe: false` on member-access nodes; it now omits the flag unless `?.` is present, matching the Go AST (`json:"safe,omitempty"`) and letting fixtures/tests pass again. Full `./run_all_tests.sh --version=v11` run is green.
-
-## 2025-11-16 — Safe navigation operator implemented
-- Tree-sitter grammar/parser now treat `?.` as part of member-access, the TypeScript/Go AST mappers expose a `safe` flag on `MemberAccessExpression` nodes, and the generated parser artifacts (`grammar.json`, `parser.c`, node types, WASM) have been regenerated so fixtures and tooling pick up the new operator.
-- TypeScript + Go interpreters short-circuit safe member access/calls (returning `nil` when receivers are `nil`, skipping argument evaluation, and mirroring dot semantics otherwise) while rejecting assignments that attempt to use `?.`.
-- The Go typechecker wraps safe-navigation results in `NullableType` only when the receiver may be `nil`, so redundant usage on non-optional receivers still typechecks as plain dot access. New unit tests in both runtimes (`test/runtime/safe_navigation.test.ts`, `interpreter_safe_navigation_test.go`) cover the runtime semantics, and `bun test …`, `go test ./pkg/typechecker ./pkg/interpreter`, plus `./v11/ablego ./v11/examples/rosettacode/factorial.able` all remain green.
-
-## 2025-11-15 — Map literal support landed
-- Extended the shared tree-sitter grammar plus both AST layers (TS + Go) with `MapLiteral`/entry/spread nodes, regenerated parser artifacts, and wired the fixtures/exporter so `#{ ... }` forms round-trip through `module.json` + source generation.
-- Implemented map literal evaluation in the TypeScript interpreter (new hash_map value kind, literal/spread semantics, fixture assertions) and added runtime+typechecker unit tests covering spreads, duplicates, and diagnostics.
-- Mirrored the same behavior in the Go interpreter/typechecker (hash map insertion helper, literal evaluation, new `MapType`, diagnostics) and added Go unit tests—`./v11/run_all_tests.sh` now exercises the new fixtures end-to-end.
-
-## 2025-11-14 — Type alias declarations wired end-to-end
-- The shared tree-sitter grammar gained a `type_alias_definition` rule (space-delimited generics + optional `where` clauses) plus corpus coverage, and both the TypeScript + Go AST mappers now surface `TypeAliasDefinition` statements.
-- TypeScript + Go parsers/interpreters ignore alias declarations at runtime while the TypeScript typechecker/summary plumbing keeps tracking them; the TypeScript fixture exporter/pretty-printer now emits `type Foo T where … = Expr` syntax.
-- Added the `types/type_alias_definition` AST fixture so both runtimes/typecheckers exercise alias declarations, updated the fixture baseline (`bun run scripts/export-fixtures.ts && ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts -- --write-typecheck-baseline`), and kept Go green with `go test ./pkg/parser ./pkg/interpreter`.
-
-## 2025-11-13 — v11 Spec Expansion Complete
-- Closed the v11 spec TODO slate: every deferred item now lives in `spec/full_spec_v11.md`, covering mutable `=` semantics (§5.3.1), map literals (§6.1.9), struct functional updates (§4.5.2), type aliases (§4.7), safe navigation (§6.3.4), typed `=` declarations (§5.1–§5.1.1), contextual literal typing (§6.1.1/§6.3.2), optional generic parameters (§7.1.5/§4.5/§10.1), await/async coordination plus channel error surfaces (§12.6–§12.7), the `loop` expression (§8.2.3), Array/String APIs (§6.8/§6.1.5/§6.12.1), stdlib packaging + module search paths (§13.6–§13.7), and the regex/text modules (§14.2). `spec/TODO_v11.md` now reflects that completion and will track only newly scheduled language work.
-- The root PLAN no longer lists “Expand the v11 specification” as an open milestone; remaining TODOs focus on implementing the documented features across the interpreters, parser, and stdlib.
-
-## 2025-11-12 — Versioned Workspace Split
-- Introduced a dedicated `v10/` workspace that now owns the frozen Able v10 assets (`design/`, `docs/`, `examples/`, `fixtures/`, `parser/`, `stdlib/`, `interpreter10` → `v10/interpreters/ts`, `interpreter10-go` → `v10/interpreters/go`, plus helper scripts). This removes ambiguity about where new work should land and keeps the archived toolchain intact for maintenance.
-- Added a version-dispatching `run_all_tests.sh` at the repo root (`./run_all_tests.sh --version=v10|v11 --typecheck-fixtures=...`) so CI and contributors can target either workspace without remembering individual paths.
-- Updated repo-wide onboarding docs (`README.md`, `AGENTS.md`, `PLAN.md`) to describe the multi-version layout, explain how to run tests per version, and drop completed roadmap items covering the initial workspace bootstrap/freeze.
-- Copied the legacy v10 docs (`v10/README.md`, `v10/AGENTS.md`, `v10/PLAN.md`, `v10/LOG.md`) so historical context remains close to the frozen code while the root docs focus on cross-version coordination.
-
-## 2025-11-11 — Stdlib Module Search Paths
-- **Pipe semantics parity**: Added the `pipes/multi_stage_chain` AST fixture so multi-stage pipelines that mix `%` topic steps, placeholder-built callables, and bound methods stay covered; `bun run scripts/run-fixtures.ts` (TypeScript) and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` (Go) stay green with no parity divergences observed.
-- **Typechecker strict fixtures**: TypeScript’s checker now hoists struct identifiers for static calls, predeclares `:=` bindings (so proc handles can reference themselves), binds iterator driver aliases plus struct/array pattern destructures, and hides private package members behind the standard “has no symbol” diagnostic. The full fixture suite now passes under `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts`, and manifests/baselines were updated where diagnostics are expected.
-- **Dynamic interface collections & iterables**: added the shared fixture `interfaces/dynamic_interface_collections` (plus exporter wiring) so both interpreters prove that range-driven loops and map-like containers storing interface values still choose the most specific impl even when union targets overlap. `bun run scripts/run-fixtures.ts` is green; Go parity remains blocked by existing fixture failures (`functions/hkt_interface_impl_ok`, `imports/static_alias_private_error`).
-- **Privacy & import spec gaps**: enforced package privacy across both interpreters/typecheckers (selectors, aliases, wildcard bindings), tightened dynimport placeholder handling (TypeScript + Go parity plus fixture coverage), and updated `spec/full_spec_v10.md` with the canonical `Proc`/`Future` handle definitions so runtimes and tooling share the same ABI (`ProcStatus`, `ProcError`, `status/value/cancel` contracts).
-- **Interface & impl completeness**: higher-kinded/visibility edge cases now have end-to-end coverage. Overlapping impl ambiguity diagnostics land in both interpreters/typecheckers, TypeScript enforces method-set backed constraints with parity coverage, both interpreters honour interface self-type patterns (including higher-kinded targets) and reject bare constructors unless `for …` is declared, and parser/exporter propagate the `for …` patterns so fixtures surface the diagnostics automatically. Shared AST fixtures (`errors/interface_self_pattern_mismatch`, `errors/interface_hkt_constructor_mismatch`, plus the positive `functions/hkt_interface_impl_ok`) keep both runtimes + typecheckers aligned.
-
-- Proc/future cancellation coverage is complete: both interpreters expose `Future.cancel()`, cancellation transitions produce the `Cancelled` status, and the new `concurrency/future_cancel_nested` fixture exercises a proc awaiting a spawned future that is cancelled mid-flight. The exporter and strict harness generate the fixture automatically, keeping the TypeScript + Go runtimes/typecheckers in lockstep for nested cancellation chains across both executors.
-- Channel error helpers now emit the stdlib error structs in both runtimes. TypeScript + Go runtimes route every channel error through `ChannelClosed`, `ChannelNil`, or `ChannelSendOnClosed`, and new Bun/Go tests cover the behaviour (`interpreter10/test/concurrency/channel_mutex.test.ts`, `interpreter10-go/pkg/interpreter/interpreter_channels_mutex_test.go`).
-- Lightweight executor diagnostics are now wired into both runtimes: the new `proc_pending_tasks()` helper surfaces cooperative queue length via `CooperativeExecutor.pendingTasks`, Go’s serial and goroutine executors expose the same data, and coverage comes from a dedicated AST fixture (`concurrency/proc_executor_diagnostics`) plus Bun/Go unit tests. The spec, manuals, and `design/concurrency-executor-contract.md` now describe the helper so fixtures can assert drain behaviour deterministically.
-- String host bridge externs (`__able_string_from_builtin`, `__able_string_to_builtin`, `__able_char_from_codepoint`) are wired into both interpreters and typecheckers with dedicated tests (`interpreter10/test/string_host.test.ts`, `interpreter10-go/pkg/interpreter/interpreter_string_host_test.go`).
-- Hasher externs (`__able_hasher_create/write/finish`) now back the stdlib hash maps across TypeScript and Go, complete with parity tests and stub support for tooling.
-- Added the `concurrency/channel_error_rescue` AST fixture and exposed `Error` member access (message/value) in both interpreters so Able code can assert the struct payloads produced by the channel helpers.
-- Go parity now runs the new `concurrency/channel_error_rescue` fixture under the goroutine executor, and a dedicated Go test (`TestChannelErrorRescueExposesStructValue`) verifies that rescuing channel errors exposes the struct payload via `err.value`.
-- Added the `errors/result_error_accessors` AST fixture so both interpreters exercise `err.message()/cause()/value` inside `!T else { |err| ... }` flows; fixture exporter + TS harness updated accordingly.
-- Go typechecker now recognises `Error.message()`, `.cause()`, and `.value`, and the spec documents the runtime-provided `Error.value` payload hook; the typechecker baseline entry for `channel_error_rescue` was removed once diagnostics cleared.
-- Proc/future runtime errors now record their cause payloads in both interpreters, the new `concurrency/proc_error_cause` fixture exercises `err.cause()` end-to-end, and matching Bun/Go tests keep the regression harness green.
-- Generator laziness parity closed: iterator continuations now cover if/while/for/match across both runtimes, stdlib helpers (`stdlib/src/concurrency/channel.able`, `stdlib/src/collections/range.able`) use generator literals, and new fixtures (`fixtures/ast/control/iterator_*`, `fixtures/ast/stdlib/channel_iterator`, `fixtures/ast/stdlib/range_iterator`) keep the shared harness authoritative.
-- Automatic time slicing verified for long-running procs: the new `concurrency/proc_time_slicing` fixture proves that handles without explicit `proc_yield()` still progress under repeated `proc_flush()` calls, capturing both the intermediate `Pending` status and the eventual resolved value across runtimes.
-### AST → Parser → Typechecker Completion Plan _(reopen when new AST work appears)_
-- Full sweep completed 2025-11-06 (strict fixture run, Go interpreter suite, Go parser harness, and `bun test` all green). Archive details in `LOG.md`; bring this plan back only if new AST/syntax changes introduce regressions.
-
-## 2025-11-09 — Executor Diagnostics Helper
-- Added the `proc_pending_tasks()` runtime helper so Able programs/tests can observe cooperative executor queue depth. TypeScript wires it through `CooperativeExecutor.pendingTasks()` while the Go runtime surfaces counts from both the serial and goroutine executors (best-effort on the latter via atomic counters). The helper is registered with both typecheckers so Warn/Strict fixture runs understand the signature.
-- New coverage keeps the helper honest: Bun unit tests exercise the helper directly (`interpreter10/test/concurrency/proc_spawn_scheduling.test.ts`), Go gains matching tests (`TestProcPendingTasksSerialExecutor`, `TestProcPendingTasksGoroutineExecutor`), and a serial-only AST fixture (`fixtures/ast/concurrency/proc_executor_diagnostics/`) ensures both interpreters prove that `proc_flush` drains the cooperative queue.
-- Spec + docs now describe the helper alongside `proc_yield`/`proc_flush` (see `spec/full_spec_v10.md`, `docs/manual/*.md/html`, `design/concurrency-executor-contract.md`, and `AGENTS.md`), and the PLAN TODO for “Concurrency ergonomics” is officially closed out.
-
-## 2025-11-08 — Fixture Diagnostics Parity Enforcement
-- `interpreter10/scripts/run-parity.ts` now diffs typechecker diagnostics for every AST fixture so warn/strict parity runs catch unexpected checker output even when manifests do not declare expectations. The parity JSON report captures the mismatched diagnostics to speed up triage.
-- Added `test/scripts/parity/fixtures_compare.test.ts` to cover the helper logic that determines when diagnostics mismatches should fail parity.
-- Go’s typechecker now treats unannotated `self` parameters inside `methods {}` / `impl` blocks as `Self`/concrete receiver types and seeds iterator literals with the implicit `gen` binding, eliminating the extra diagnostics that used to appear only in Go’s warn/strict runs.
-- Added Go regression tests (`pkg/typechecker/checker_impls_test.go`, `pkg/typechecker/checker_iterators_test.go`) so implicit `self` bindings and iterator generator helpers stay covered.
-- Bun’s typechecker mirrors the same behaviour: iterator literals now predefine the implicit `gen` binding, implicit `self` parameters default to `Self`, and new tests (`test/typechecker/method_sets.test.ts`, `test/typechecker/iterators.test.ts`) keep the coverage locked in.
-- The Go fixture runner and CLI now continue evaluating programs in warn/strict modes even when diagnostics are reported (matching the Bun harness), so parity checks capture both the expected runtime results and the shared diagnostics payloads.
-
-## 2025-11-07 — AST → Parser → Typechecker Cycle Revalidated
-- Added proc handle memoization fixtures (success + cancellation) and ensured both interpreters plus the Go parser harness run them under strict typechecking (`bun run scripts/run-fixtures.ts`, `cd interpreter10-go && GOCACHE=$(pwd)/.gocache GO_PARSER_FIXTURES=1 go test ./pkg/parser`).
-- Verified the full suite remains green (`./run_all_tests.sh --typecheck-fixtures=strict`, `bun test`, `cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter`), keeping the Priority 0 gate satisfied.
-- Updated PLAN.md to mark the current AST → Parser → Typechecker cycle complete and advance the focus to Phase α (Channel & Mutex runtime bring-up).
-- Added stdlib specs for channel/mutex behaviour (`stdlib/tests/concurrency/channel_mutex.test.able`) so the Phase α bullet “add unit tests covering core operations” is now satisfied.
-
-## 2025-11-07 — Serial Executor Future Reentrancy
-- Go’s SerialExecutor now exposes a `Drive` helper that runs pending proc/future tasks inline, so nested `future.value()` / `proc_handle.value()` calls no longer deadlock and match the TypeScript scheduler semantics. The helper steals the targeted handle from the deterministic queue, executes it re-entrantly (including repeated slices when `proc_yield` fires), and restores the outer task context once the awaited handle resolves.
-- Fixtures `concurrency/future_value_reentrancy` and `concurrency/proc_flush_fairness` now pass under the Go interpreter’s serial executor, keeping the newly added fairness/re-entrancy corpus green for both runtimes (`ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts`, `cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter`).
-- PLAN immediate actions trimmed: the “Concurrency stress coverage & docs” placeholder has been cleared now that the blocking fixtures run cleanly; follow-up concurrency work can graduate to design docs instead of the top-level plan.
-- Added a Go-side regression test (`TestSerialExecutorFutureValueReentrancy`) that mirrors the new fixture to ensure nested `future.value()` calls stay green even if future contributors touch the executor; the design note `design/go-concurrency-scheduler.md` now documents the inline-driving behaviour and follow-up doc work.
-- Added a companion fixture (`concurrency/proc_value_reentrancy`) plus TypeScript exporter wiring + Go regression test (`TestSerialExecutorProcValueReentrancy`) so both interpreters exercise nested `proc.value()` waits under the serial executor; parser coverage tables were updated accordingly.
-- Documented the goroutine-executor fairness contract (what `proc_yield`/`proc_flush` mean under `GoroutineExecutor`, how we rely on Go’s scheduler, and when tests must fall back to the serial executor) to close out the remaining PLAN follow-up (`design/go-concurrency-scheduler.md`).
-- Updated the v10 spec to codify re-entrant `proc.value()` / `future.value()` semantics so both interpreters (and future targets) must guarantee deadlock-free nested waits (§12.2.5 “Re-entrant waits”).
-- Added direct Go unit tests (`TestProcHandleValueMemoizesResult`, `TestProcHandleValueCancellationMemoized`) to ensure repeated `value()` calls return memoized results/errors even after cancellation, satisfying the remaining “exercise repeated value() paths” item from the concurrency plan.
-- Introduced the `concurrency/proc_value_memoization` fixture (plus exporter wiring) so both interpreters prove proc handles memoize values, and updated the Go parity harness to run it with the goroutine executor.
-- Added `concurrency/proc_value_cancel_memoization` to assert that cancelled proc handles return the same error for repeated `value()` calls without re-running their bodies; the fixture exporter, AST corpus, and fixture run all cover this scenario now.
-
-## 2025-11-06 — Tree-Sitter Mapper Modularization Complete
-- Go declarations/patterns/imports all run through the shared `parseContext`, removing the last raw-source helpers so both runtimes share one parser contract (`interpreter10-go/pkg/parser/{declarations,patterns,statements,expressions}_parser*.go`).
-- TypeScript parser README now calls out the shared context, and `PLAN.md` logged the Step 6 regression sweep so future contributors know the refactor is locked in (`interpreter10/src/parser/README.md`, `PLAN.md`).
-- Wrapper exports like `parseExpression(node, source)` / `parseBlock` / `parsePattern` were removed; all Go parser consumers now flow through the context pipeline.
-- Tests: `./run_all_tests.sh --typecheck-fixtures=warn` and `cd interpreter10-go && GOCACHE=$(pwd)/.gocache GO_PARSER_FIXTURES=1 go test ./pkg/parser`.
-- Follow-up: confirm any remaining helpers that still accept raw source (e.g., host-target parsing) genuinely require it before migrating them to `parseContext`.
-
-## 2025-11-03 — AST → Parser → Typechecker Completion Sweep
-Status: ✅ Completed. Parser coverage table reads fully `Done`, TypeScript + Go checkers share the bool/comparison semantics, and `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts` executes cleanly after wiring the remaining builtin signatures, iterator annotations, and error fixture diagnostics into the manifests.
-
-Open items (2025-11-02 audit):
-- [x] Iterator literals dropped both the optional binding identifier and optional element type annotation. Update both ASTs + parsers/interpreters so the metadata survives round-trips and execution.
-- [x] Teach both typecheckers to honor the iterator element annotation so every `yield` matches the declared element type (TS `src/typechecker/checker.ts`, Go `pkg/typechecker/literals.go` + iterator tests).
-- [x] Carry iterator element metadata through `for` loops so typed loop patterns validate across array/range/iterator inputs (TS `src/typechecker/checker.ts`, Go `pkg/typechecker/{control_flow,literals,type_utils}.go` + new cross-loop tests).
-- [x] Give the TS checker parity with Go for block/proc/spawn typing and array/range literal inference so all three stages (AST → parser → typechecker) agree on the element/result metadata (§6.8, §6.10, §12.2).
-- [x] Enforce async-only builtins (`proc_yield`) and add concurrency smoke tests so TS emits the same diagnostics as Go when authors call scheduler helpers outside `proc`/`spawn`.
-- [x] Implement `if`/`while` diagnostics + inference in the TS checker so control-flow expressions match the Go implementation (§8.1/§8.2).
-- [x] Mirror Go's match/rescue guard enforcement in the TS checker (§8.1.2 / §11.3).
-- [x] Enforce package privacy + import diagnostics in the TS checker so private packages/definitions behave identically to Go (updated `imports.test.ts` + package summaries carry `visibility` metadata).
-
-## Historical Status Notes
-
-### 2025-10-30
-- Comments are now ignored during parser → AST mapping for both interpreters.
-  - ✅ Go: `ModuleParser` / helper utilities skip `comment`, `line_comment`, `block_comment` nodes and `TestParseModuleIgnoresComments` asserts the behaviour.
-  - ✅ TypeScript: `tree-sitter-mapper` filters the same node types; `fixtures_mapper.test.ts` covers the mapping path and `fixtures_parser.test.ts` ensures the raw grammar parses comment-heavy sources.
-- TODO: audit remaining parser/mapping gaps per `design/parser-ast-coverage.md` (pipes/topic combos, functional updates, etc.) and backfill fixtures/tests.
-- DONE: comment skipping now wired through struct literals, struct patterns, and related mapper helpers across both runtimes.
-- TODO: Build end-to-end coverage across **all three facets** (parsing, tree → AST mapping, AST evaluation) for both interpreters. Use the coverage table to drive fixture additions, parser assertions, and runtime tests until every spec feature is green.
-- TODO: Extend the **typechecker** suites (Go + TS) so they verify type rules and inference across modules. Assemble an exhaustive inference corpus exercising expression typing, generics, interfaces/impls, and cross-module reconciliation; ensure these scenarios are evaluated alongside runtime fixtures.
-
-### 2025-10-31
-- Regenerated the tree-sitter-able artifacts with the freshly rebuilt grammar (interface-composition fix now baked into `parser.c`/`.wasm`) using the local Emscripten toolchain; no diff surfaced, confirming the repo already carried the correct bits.
-- Cleared local Go build caches (`.gocache`, `interpreter10-go/.gocache`) and re-ran `GOCACHE=$(pwd)/.gocache GO_PARSER_FIXTURES=1 go test ./pkg/parser` to mimic CI picking up the refreshed grammar without stale entries.
-- ACTION: propagate the cache-trim guidance to CI docs if flakes recur; otherwise move on to the remaining parser fixture gaps (`design/parser-ast-coverage.md`).
-- Mirrored the TypeScript placeholder auto-lift guardrails inside the Go interpreter so pipe placeholders evaluate eagerly, keeping the shared `pipes/topic_placeholder` fixture green.
-- Parser sweep: both the TypeScript mapper and Go parser now skip inline comments when traversing struct literals, call/type argument lists, and struct definitions, with fresh TS/Go tests guarding the behaviour.
-- TypeScript checker scaffold landed: basic environment/type utilities exist under `interpreter10/src/typechecker`, exported via the public index, and fixtures respect `ABLE_TYPECHECK_FIXTURES` ahead of the full checker port.
-- TypeScript checker now emits initial diagnostics for logical operands, range bounds, struct pattern validation, and generic interface constraints so the existing error fixtures pass under `ABLE_TYPECHECK_FIXTURES=warn`.
-
-### 2025-11-01
-- TypeScript checker grew a declaration-collection sweep that registers interfaces, structs, methods, and impl blocks before expression analysis, mirroring the Go checker’s phase ordering.
-- Implementation validation now checks that every `impl` supplies the interface’s required methods, that method generics/parameters/returns mirror the interface signature, and flags stray definitions; only successful impls count toward constraint satisfaction.
-- Canonicalised type formatting to the v10 spec (`Array i32`, `Result string`) and keyed implementation lookups by the fully-instantiated type so generic targets participate in constraint checks.
-- Extended the TypeScript checker’s type info to capture `nullable`, `result`, `union`, and function signatures, and taught constraint resolution to recognise specialised impls like `Show` for `Result string`, with fresh tests covering the new cases.
-- Added focused Bun tests under `test/typechecker/` plus the `ABLE_TYPECHECK_FIXTURES` harness run to lock in the new behaviour and guard future regressions.
-- Mirrored the Go checker and test suite to use the same spec-facing type formatter and wrapper-aware constraint logic so diagnostics now reference `Array i32`, `string?`, etc., and added parity tests (`interpreter10-go/pkg/typechecker/*`).
-
-### 2025-11-02
-- The Bun CLI suite (`interpreter10/test/cli/run_module_cli.test.ts`) now covers multi-file packages, custom loader search paths via the new `ABLE_MODULE_PATHS` env, and strict vs warn typecheck enforcement so the ModuleLoader refactor stays covered without pulling `stdlib/` into every run.
-- Introduced the `able test` skeleton inside `scripts/run-module.ts`: it parses the planned flags/filters, materialises run options + reporter selection, and prints a deterministic plan summary before exiting with code `2` while the stdlib testing packages remain unparsable. (See `design/testing-cli-design.md` / `design/testing-cli-protocol.md`.)
-- Extracted the shared package-scanning helpers (`discoverRoot`, `indexSourceFiles`, etc.) into `scripts/module-utils.ts` so other tooling (fixtures runner, future harnesses) can reuse the multi-module discovery logic without duplicating it.
-- **Deferral noted:** full stdlib/testing integration is still on pause until the parser accepts `stdlib/src/test/*`; once that unblocks, wire the CLI skeleton into the `able.test` harness per the design notes.
-
-### 2025-11-05
-- Step 6 regression sweep ran end-to-end: `./run_all_tests.sh --typecheck-fixtures=warn` stayed green post-refactor, and `GOCACHE=$(pwd)/.gocache GO_PARSER_FIXTURES=1 go test ./pkg/parser` uncovered/validated the Go-side AST gaps.
-- Go AST parity improvements: `FunctionCall.arguments` now serialises as an empty array when no args exist, `NilLiteral` carries `value: null`, and break/continue statements omit label/value when not supplied (matching the TS mapper contract).
-- Parser helper normalisation no longer nukes empty slices before fixture comparison, and parameter lists default to `[]`, which brought the channel/mutex fixtures back in sync.
-- Fixture `structs/functional_update` gained explicit `\"isShorthand\": false` flags so both interpreters agree on struct literal metadata going forward.
-
-### 2025-11-06
-- Go CLI now exposes `able check` alongside `able run`, sharing the manifest/target resolution pipeline. Both commands surface ProgramChecker diagnostics + package summaries and fail fast when typechecking reports issues, keeping the TypeScript + Go CLIs aligned.
-- Added dedicated CLI tests to cover `able check` success/failure cases so future refactors keep the new mode wired through manifest resolution, typechecker reporting, and exit codes.
-
-### 2025-11-07 — Phase α (Channel/Mutex) Completion
-- Audited channel/mutex stdlib wiring across both runtimes: helper registration, typechecker signatures, fixtures, and prelude exports now match; no AST or scheduler drift detected.
-- Added Bun smoke tests for nil-channel cancellation and mutex re-entry errors (`interpreter10/test/concurrency/channel_mutex.test.ts`) to mirror the Go parity suite.
-- Documented the audit and captured the remaining TODO (map native errors to `ChannelClosed`/`ChannelNil`/`ChannelSendOnClosed`) in `design/channels-mutexes.md` and `spec/TODO.md`.
-- Cleared `Phase α` from the active roadmap; next milestone is Phase 4 (cross-interpreter parity/tooling).
-
-### 2025-11-07 — Fixture Parity Harness (Phase 4 Kick-off)
-- Added a Go CLI entry point (`cmd/fixture`) that evaluates a single AST fixture and emits normalized JSON (result kind/value, stdout, diagnostics) with respect to `ABLE_TYPECHECK_FIXTURES`. The helper reuses the interpreter infrastructure and supports serial/goroutine executors while sandboxing the Go build cache.
-- Refactored the TypeScript fixture loader into `scripts/fixture-utils.ts` so both the CLI harness and Bun tests can hydrate modules, install runtime stubs, and intercept `print` output consistently.
-- Rebuilt `run-fixtures.ts` on top of the shared utilities (no behavior change) to keep fixture execution logic single-sourced.
-- Introduced a Bun parity test (`test/parity/fixtures_parity.test.ts`) that exercises a representative slice of the shared fixture corpus (currently 20 fixtures across basics + concurrency) against both interpreters and asserts matching results/stdout via the new Go CLI.
-
-### 2025-11-08 — Parity CLI Reporting
-- Added `interpreter10/scripts/run-parity.ts`, reusable parity helpers, and Bun parity suites that now share the same execution/diffing logic across AST fixtures and curated examples.
-- `run_all_tests.sh` now invokes the parity CLI so local + CI runs execute the same cross-interpreter verification and drop a JSON report at `tmp/parity-report.json` for machine-readable diff tracking; `tmp/` landed in `.gitignore` to keep artifacts out of commits.
-- The helper script also honors `ABLE_PARITY_REPORT_DEST` or `CI_ARTIFACTS_DIR` so pipelines can copy the parity JSON into their artifact buckets without bespoke wrapper scripts.
-- Updated `interpreter10/README.md` and `interpreter10-go/README.md` with parity CLI instructions, env knobs (`ABLE_PARITY_MAX_FIXTURES`, `ABLE_PARITY_REPORT_DEST`), and guidance on keeping the cross-interpreter harness green.
-- Added Go package docs (`pkg/interpreter/doc.go`, `pkg/typechecker/doc.go`) plus README guidance on regenerating `go doc`/pkg.go.dev pages so the documentation workstream is unblocked.
-- Landed `dynimport_parity` and `dynimport_multiroot` in `interpreter10/testdata/examples/` to cover dynamic package aliasing, selector imports, and multi-root dynimport scenarios end-to-end; the parity README + plan now list them alongside the other curated programs, and the Go CLI + Bun harness honor `ABLE_MODULE_PATHS` when resolving shared deps.
-- Authored `docs/parity-reporting.md` and linked it from the workspace README so CI pipelines know how to persist `tmp/parity-report.json` via `ABLE_PARITY_REPORT_DEST`/`CI_ARTIFACTS_DIR`.
-- The Go CLI (`cmd/able`) now honors `ABLE_MODULE_PATHS` in addition to `ABLE_PATH`, with new tests ensuring the search-path env works; stdlib docs reference the alias so multi-root dynimport scenarios can rely on a single env knob across interpreters.
-- Fixed the `..`/`...` range mapping bug in both parsers so inclusive ranges now follow the spec (TS + Go parser updates, new parser unit tests, interpreter for-loop regression tests, and fizzbuzz-style parity coverage).
-
-### Phase 5 Foundations — Parser Alignment
-- Canonical AST mapping now mirrors the fixture corpus across both runtimes. The TypeScript mapper’s fixture parity suite (`bun test test/parser/fixtures_mapper.test.ts`) and the Go parser harness (`go test ./pkg/parser`) stay green, so every tree-sitter node shape maps to the shared AST contract with span/origin metadata.
-- `tree-sitter-able` grammar coverage is complete for the v10 surface (see `design/parser-ast-coverage.md`); new syntax is added directly with fixture+cXPath tests so the grammar remains authoritative.
-- Translators and loaders are live in both interpreters: TypeScript’s `ModuleLoader` and Go’s `driver.Loader` now ingest `.able` source via tree-sitter, hydrate canonical AST modules, and feed them to their respective typechecker/interpreter pipelines.
-- End-to-end parse → typecheck → interpret tests exercise both runtimes: `ModuleLoader pipeline with typechecker` (Bun) covers the TS path, and `pkg/interpreter/program_pipeline_test.go` drives the Go loader/interpreter via `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter`.
-- Diagnostic coverage now rides on the same pipelines: the new Bun test asserts missing import selectors surface typechecker errors before evaluation, and the Go suite verifies that `EvaluateProgram` halts (or proceeds when `AllowDiagnostics` is set) when return-type violations are reported.
-
-### 2025-11-22
-- TS typechecker imports now seed struct/interface bindings from package summaries (with generic placeholders) so stdlib types preserve their shape when referenced from dependent modules.
-- Added builtin HashSet method stubs (new/with_capacity/add/remove/contains/size/clear/is_empty) to the TS typechecker, letting the hash_set ModuleLoader integration typecheck without ignoring bool-condition diagnostics.
-- HashSet stdlib integration test now expects zero diagnostics; the stdlib Bun suite remains green.
-
-### 2025-11-23
-- Quarantine stdlib iterators now return the explicit `IteratorEnd {}` sentinel and match on the sentinel type to avoid pattern collisions; iterator imports across array/list/linked_list/vector/lazy_seq/string/automata DSL modules now pull from `core.iteration`.
-- TS stdlib integration suite rerun to confirm no regressions in the active modules; Go unit tests remain green.
-- TS typechecker now treats `Iterator` interface annotations as structural for literal overflow checks, so iterator literals annotated as `Iterator u8` surface integer-bound diagnostics on yielded values; `run_all_tests.sh --version=v11` is green.
-
-### 2025-11-24
-- Primitive `string` is now treated as an iterable of `u8` across both runtimes: TS/Go typecheckers recognise string for-loops, diagnostics reference `array, range, string, or iterator`, and new tests cover typed-pattern matches plus runtime iteration backed by the stdlib string module.
-- Added ModuleLoader + Go runtime tests to ensure string iteration requires importing `able.text.string` and yields byte values; stdlib README documents the import requirement.
-
-### 2025-11-25
-- Added a guardrail fixture for missing Apply/IndexMut implementations (`interfaces/apply_index_missing_impls`) and regenerated exports/baseline so warn/strict runs expect the shared diagnostics.
-- Aligned Go typechecker diagnostics with TS for non-callable Apply targets and Index-only [] assignments (now report “non-callable … missing Apply implementation” and “cannot assign via [] without IndexMut …”), keeping the parity suite green.
-- Full v11 sweep rerun after the additions (`./run_all_tests.sh --version=v11`) is green.
-
-### 2025-12-03
-- Swapped import alias syntax to the `::` rename operator across the tree-sitter grammar, TS/Go parsers, and module loaders, rejecting legacy `as` aliases while keeping dot traversal unchanged.
-- Updated fixtures/docs/tests to the new syntax (package aliases, selective aliases for static/dynimport, struct-pattern rename coverage) and re-exported the shared fixture corpus.
-- Ran `./run_all_tests.sh --version=v11` (TS+Go units, fixtures, parity); all suites passed and parity report saved to `v11/tmp/parity-report.json`.
-
-### 2025-12-09
-- Finalized the v11 operator surface: `%`/`//`/`/%` follow Euclidean semantics, `%=` compounds and the dot-prefixed bitwise set (`.& .| .^ .<< .>>`) are supported, `^` acts as exponent (bitwise xor remains dotted), and the operator interfaces in `core.interfaces` mirror the runtime behavior. Parser/AST/typechecker/stdlib fixtures all align and legacy `%%` syntax is gone.
-- Verified the full sweep (`./run_all_tests.sh --version=v11`) stays green after the operator updates (TS + Go units, fixtures, parity harness).
-
-### 2025-12-10
-- Kernel/stdlib discovery now covers the v11 layout: search-path collectors scan `v11/kernel/src` and `v11/stdlib/src`, TS ModuleLoader/Go CLI auto-load kernel packages when bundled, and new tests in both runtimes assert the v11 scan paths.
-- TS/Go CLI/module loader tests updated to exercise the bundled scan; stdlib README notes the expanded auto-detection coverage.
-- Manifested runs now pin the bundled boot packages: Go `able deps install` injects both stdlib and kernel into `package.lock`, kernel search-path discovery honors module-path env entries, and the TS CLI reads `package.yml`/`package.lock` to add dependency roots before falling back to bundled detection. New CLI tests cover lock-required runs plus pinned stdlib/kernel boot without env overrides.
-
-### 2025-12-10 — Ratio & Numeric Conversions
-- Implemented exact `Ratio` struct and normalization helpers in the stdlib kernel, added `to_r` conversions for integers/floats, and expanded numeric smoke tests (`v11/stdlib/src/core/numeric.able`, `v11/stdlib/tests/core/numeric_smoke.test.able`).
-- TypeScript runtime/typechecker now treat `Ratio` as numeric: builtin `__able_ratio_from_float`, exact ratio arithmetic/comparisons, NumericConversions support, and new ratio tests (`v11/interpreters/ts/src/interpreter/{numeric.ts,operations.ts,numeric_host.ts}`, `v11/interpreters/ts/src/typechecker/**`, `v11/interpreters/ts/test/{typechecker/numeric.test.ts,basics/ratio.test.ts}`).
-- Go runtime/typechecker mirror the Ratio struct/builtin and conversion helpers with adjusted constraint diagnostics plus coverage in interpreter/typechecker suites (`v11/interpreters/go/pkg/interpreter/*`, `v11/interpreters/go/pkg/typechecker/*`).
-- Tests: `cd v11/interpreters/ts && bun test test/typechecker/numeric.test.ts`; `cd v11/interpreters/ts && bun test test/basics/ratio.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker`; `cd v11/interpreters/go && go test ./pkg/interpreter`.
-
-### 2025-12-24
-- Added exec fixture `exec/06_03_operator_overloading_interfaces` to cover Add/Index/IndexMut operator dispatch and updated the conformance plan + coverage index.
-- Go interpreter now dispatches arithmetic/bitwise operators to interface implementations when operands are non-numeric.
-- Range expressions now enforce integer bounds in both runtimes/typecheckers; updated range diagnostics/tests to match the v11 spec.
-- Cleared the operator-overloading exec fixture item from the v11 PLAN backlog.
-- Added composition exec fixtures for combined behavior: `exec/09_00_methods_generics_imports_combo` (imports + generics + methods) and `exec/11_00_errors_match_loop_combo` (match + loop + rescue), with coverage index + conformance plan updates.
-- Added exec fixture `exec/06_03_safe_navigation_nil_short_circuit` to cover `?.` short-circuiting, receiver evaluation, and argument skipping, and updated coverage + conformance docs.
-- Added exec fixture `exec/06_04_function_call_eval_order_trailing_lambda` to cover left-to-right call argument evaluation and trailing lambda equivalence, with coverage + conformance updates.
-- Added exec fixture `exec/06_06_string_interpolation` to cover interpolation escapes and multiline string literals, with coverage + conformance updates.
-- Added exec fixture `exec/06_07_generator_yield_iterator_end` to cover yield/stop semantics and IteratorEnd exhaustion behavior, with coverage + conformance updates.
-- Tree-sitter grammar now allows multiline double-quoted strings; TS/Go parsers unescape interpolation text for `\\$`/`\\`` (and `\\\\`) so backtick escapes follow the v11 spec.
-- Pattern matching now treats `IteratorEnd {}` as a match for the iterator end sentinel in both interpreters.
-- Added exec fixture `exec/06_12_01_stdlib_string_helpers` covering required string helper semantics (lengths, substring bounds, split/replace, prefix/suffix) and updated coverage/conformance tracking; cleared the PLAN backlog item.
-- Added exec fixture `exec/06_12_02_stdlib_array_helpers` for the required array helper API (size, push/pop, get/set, clear) with coverage/conformance updates; cleared the PLAN backlog item.
-- Added exec fixture `exec/06_12_03_stdlib_numeric_ratio_divmod` covering Ratio normalization/to_r and Euclidean /% results with coverage/conformance updates; cleared the PLAN backlog item.
-- Added `as` cast expressions to the grammar + AST contract and implemented explicit numeric/interface casts in both interpreters and typecheckers.
-- Stdlib numeric cleanup: replaced unsupported `const`/`mut`/`else if`, normalized i128 constants, removed duplicate Ratio numerator/denominator methods in favor of kernel definitions, and added statement terminators where the parser requires them.
-- Inherent methods now resolve without requiring the method name in the caller scope (TS + Go) so stdlib extensions work through package imports; refreshed the numeric ratio/divmod exec fixture import to use stdlib `Ratio`.
-
-### 2025-12-26
-- Added exec fixtures `exec/07_01_function_definition_generics_inference` (implicit/explicit generics + return inference), `exec/07_03_explicit_return_flow` (explicit return flow), `exec/07_04_trailing_lambda_method_syntax` (method call syntax + trailing lambda parity), `exec/07_04_apply_callable_interface` (Apply callables), `exec/07_05_partial_application` (placeholder partial application), and `exec/07_06_shorthand_member_placeholder_lambdas` (implicit member/method shorthand + placeholder lambdas); updated the conformance plan + coverage index and cleared the related PLAN backlog items.
-- TS parser/typechecker now accept implicit member assignments as valid assignment targets, matching the runtime semantics.
-- Tests: `ABLE_FIXTURE_FILTER=07_01_function_definition_generics_inference bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_01_function_definition_generics_inference$`; `ABLE_FIXTURE_FILTER=07_03_explicit_return_flow bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_03_explicit_return_flow$`; `ABLE_FIXTURE_FILTER=07_04_trailing_lambda_method_syntax bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_04_trailing_lambda_method_syntax$`; `ABLE_FIXTURE_FILTER=07_04_apply_callable_interface bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_04_apply_callable_interface$`; `ABLE_FIXTURE_FILTER=07_05_partial_application bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_05_partial_application$`; `ABLE_FIXTURE_FILTER=07_06_shorthand_member_placeholder_lambdas bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_06_shorthand_member_placeholder_lambdas$`.
-- Method resolution now honors name/type-in-scope gating without breaking kernel/primitive method access; fixed UFCS name lookup and aligned TS/Go member resolution with type-name visibility.
-- Updated TS typechecker tests to match truthiness semantics (if/while/match/rescue guards) and swapped the diagnostic location test to an undefined identifier.
-- Refreshed fixtures for truthiness (`errors/logic_operand_type`) and string/numeric exec imports; updated the AST typecheck baseline for the logic operand fixture.
-- Tests: `./run_all_tests.sh --version=v11` (TS + Go units, fixtures, parity) with parity report in `v11/tmp/parity-report.json`.
-
-### 2025-12-27
-- Added exec fixtures `exec/07_07_overload_resolution_runtime`, `exec/08_01_if_truthiness_value`, and `exec/08_01_match_guards_exhaustiveness`; updated the conformance plan + coverage index and cleared the related PLAN backlog items.
-- `if` expressions now return `nil` (not `void`) when no branch matches and there is no else, aligning TS/Go runtimes with the v11 spec; updated `errors/rescue_guard` fixture expectation.
-- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`); `./run_all_tests.sh --version=v11`.
-- Next: continue exec fixture backlog starting at `exec/08_02_while_continue_break` and `exec/08_02_loop_expression_break_value`.
-
-### 2025-12-28
-- Added exec fixtures `exec/08_02_while_continue_break`, `exec/08_02_loop_expression_break_value`, and `exec/08_02_range_inclusive_exclusive`; updated the conformance plan + coverage index and cleared the related PLAN backlog items.
-- Updated the generated AST fixture expectation for `errors/rescue_guard` in the TS export fixture source to keep it aligned with nil-returning `if` expressions.
-- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
-- Next: continue exec fixture backlog starting at `exec/08_03_breakpoint_nonlocal_jump`.
-- Added exec fixtures `exec/13_06_stdlib_package_resolution` and `exec/13_07_search_path_env_override`; updated the conformance plan + coverage index and cleared the related PLAN backlog items.
-- Exec fixture runners now honor manifest-provided env overrides for module search paths; TS uses CLI-style search path resolution and Go exec fixtures mirror the env-driven roots.
-
-### 2025-12-29
-- Added exec fixture `exec/08_03_breakpoint_nonlocal_jump` and updated the conformance plan + coverage index; cleared the related PLAN backlog item.
-- Tests: `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
-- Next: continue exec fixture backlog starting at `exec/09_05_method_set_generics_where`.
-- Codified alias/re-export method propagation and conflict semantics in the v11 spec and cleared the remaining spec TODO.
-- Added AST fixture `errors/alias_reexport_method_ambiguity` (with setup packages) plus baseline entry; TS/Go typecheckers now surface ambiguous overloads when multiple method sets attach the same signature.
-- Tests: `ABLE_FIXTURE_FILTER=alias_reexport_method_ambiguity bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestFixtureParityStringLiteral/errors/alias_reexport_method_ambiguity`.
-
-### 2025-12-30
-- Added exec fixture `exec/09_05_method_set_generics_where` covering method-set generics/where constraints for instance + UFCS calls; updated the conformance plan + coverage index and cleared the PLAN backlog item.
-- Go interpreter now enforces method-set generic/where constraints during method calls; call helpers were split into `v11/interpreters/go/pkg/interpreter/call_helpers.go` to keep call logic files under 1000 lines.
-- Aligned TS + Go parser handling of impl interface args so space-delimited arg lists are not collapsed into a single generic application; fixture mapper parity is green again.
-- Spec: documented interface-arg grouping by interface arity (greedy left-to-right grouping with parentheses to force a single argument).
-- TS/Go typechecker + runtime now group impl interface args by interface arity, so unparenthesized generic applications like `Map K V` remain a single argument when the interface expects one.
-- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
-
-### 2025-12-31
-- Added exec fixture `exec/10_01_interface_defaults_composites` covering interface defaults, implicit vs explicit `Self`, and composite aliases; updated the conformance plan + coverage index and cleared the PLAN backlog item.
-- TS/Go runtimes now treat composite interfaces as base-interface bundles for interface coercion and method dispatch (including default methods), with interface checks honoring base interfaces.
-- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
-- Added exec fixture `exec/07_02_01_verbose_anonymous_fn` covering verbose anonymous functions (generics + where clauses).
-- Stdlib fixes: added numeric interfaces to `core/numeric`, corrected rational i128 min/max constants, and added `Queue.is_empty` inherent method to avoid interface ambiguity.
-- String stdlib: added `__able_char_to_codepoint` host builtin (TS/Go/kernel) and rewrote `char_to_utf8` to use it; string smoke tests now import `able.text.string`.
-- Test cleanup: corrected array filter expectations, added semicolons to avoid `Array.new()`/`for` parse ambiguity, removed unsupported heap comparator test, and renamed lazy seq iterator to avoid duplicate impls.
-
-### 2025-12-26
-- Added exec fixture `exec/11_01_return_statement_type_enforcement` and updated the conformance plan + coverage index; cleared the related PLAN backlog item.
-- TS/Go runtimes now enforce return type checks (including bare return for non-void), and the TS/Go typecheckers ignore unreachable tail expressions after return while rejecting bare returns in non-void functions.
-- Updated `exec/11_00_errors_match_loop_combo` to use `//` so integer division stays within `i32` per the v11 spec.
-- Added exec fixture `exec/11_02_option_result_or_handlers` (Option/Result `or {}` handlers) and updated the conformance plan + coverage index; cleared the related PLAN backlog item.
-- Return type enforcement now treats iterator values as `Iterator` interface matches in TS/Go, and Go generic interface checks accept interface implementers; updated the pipeline diagnostics test to expect runtime mismatch under `AllowDiagnostics`.
-- Tests: `./run_all_tests.sh --version=v11 --fixture`; `./run_all_tests.sh --version=v11`.
-
-### 2026-01-10
-- TS interpreter entrypoint tasks now preserve raw runtime errors, support re-entrant `proc_flush`, and prioritize generator continuations so iterator yields work inside proc contexts.
-- CLI/fixture/parity runners now bind entrypoint `main` calls via a dedicated environment to avoid missing symbol errors; entrypoint-only async helpers still gate user-facing `proc_yield`/`proc_cancelled`.
-- Tests: `bun test test/concurrency/native_suspend.test.ts`; `bun test test/cli/run_module_cli.test.ts`; `bun test test/parity/examples_parity.test.ts`; `bun test test/parity/fixtures_parity.test.ts`.
-
-### 2026-01-11
-- Added `dyn.Package.eval`/`dyn.eval` plumbing for REPL-style evaluation (parse errors return `ParseError` with `is_incomplete`), and mirrored dynamic-definition rebinding rules in Go imports/definitions.
-- Added stdlib `able.repl` module (line editor, `:help`/`:quit`, prints non-`void` results) plus `able repl` CLI support for TS and Go.
-- Spec: documented `ParseError`/`Span` plus dynamic eval APIs and REPL-oriented parse error semantics.
-- Tests: `bun run scripts/run-fixtures.ts`; `./run_all_tests.sh --version=v11`.
-
-### 2026-01-13
-- Ran the full v11 sweep; parity report refreshed at `v11/tmp/parity-report.json`.
-- Tests: `./run_all_tests.sh --version=v11`.
-- Added `able.io.temp` for temp file/dir creation + cleanup helpers, and added `io.puts`/`io.gets` wrappers in `able.io`.
-- Extended stdlib IO tests with temp helper coverage.
-- Tests: `./v11/ablets test v11/stdlib/tests/io.test.able`; `./v11/ablego test v11/stdlib/tests/io.test.able`.
-- Expanded Path tests for mixed separators and UNC roots, and fs tests for missing directory reads.
-- Tests: `./v11/ablets test v11/stdlib/tests/fs.test.able`; `./v11/ablego test v11/stdlib/tests/fs.test.able`; `./v11/ablets test v11/stdlib/tests/path.test.able`; `./v11/ablego test v11/stdlib/tests/path.test.able`.
-- Expanded stdlib IO/Path/fs edge coverage (non-positive reads, empty paths, remove missing, empty read_lines, differing roots).
-- Tests: `./v11/ablets test v11/stdlib/tests/io.test.able`; `./v11/ablego test v11/stdlib/tests/io.test.able`; `./v11/ablets test v11/stdlib/tests/fs.test.able`; `./v11/ablego test v11/stdlib/tests/fs.test.able`; `./v11/ablets test v11/stdlib/tests/path.test.able`; `./v11/ablego test v11/stdlib/tests/path.test.able`.
-- Added a PermissionDenied stdlib fs test and fixed Go extern singleton struct decoding so union kinds map correctly from host strings; tightened permission error detection in Go stdlib error mapping.
-- Tests: `./v11/ablego test v11/stdlib/tests/fs.test.able`.
-- Ran the full v11 sweep; parity report refreshed at `v11/tmp/parity-report.json`.
-- Tests: `./run_all_tests.sh --version=v11`.
-- Lowercased the `able.io.path` package name and updated stdlib/tests/docs imports and call sites to use `path.*`.
-- Tests: `./run_all_tests.sh --version=v11`.
-- Next: finish stdlib IO coverage (errors, path normalization, IO handle edge cases) and keep `./run_all_tests.sh --version=v11` green.
-
-### 2026-01-14
-- Preserved entrypoint runtime diagnostic context in the TS scheduler so raw runtime errors keep locations/stack notes.
-- Standardized TS diagnostics path normalization to the repo root, added shared path helpers, and normalized fixture origins accordingly.
-- Corrected infix/postfix expression spans so runtime diagnostics point at full expressions instead of suffix/right operands.
-- Propagated return-statement context into return type mismatch errors and refreshed fixture expectations/baselines for new paths/notes.
-- Tests: `bun run scripts/run-fixtures.ts`.
-- Split Go interpreter member resolution into smaller modules (`interpreter_members.go`, `interpreter_method_resolution.go`) to keep files under 900 lines.
-- Tests: `./run_all_tests.sh --version=v11` (passed); `./run_stdlib_tests.sh` (TS stdlib failed at `v11/stdlib/tests/fs.test.able:202`, Go stdlib passed).
-- Fixed `fs.copy_dir` overwrite behavior by clearing destination contents after a removal attempt when needed.
-- Tests: `./run_stdlib_tests.sh`; `./run_all_tests.sh --version=v11`.
-- Dropped redundant where-clauses from `HashMap` impls so stdlib typechecking stays clean in strict mode.
-- Updated strict fixture manifests for expected typechecker diagnostics and refreshed the baseline for `expressions/map_literal_spread`.
-- Removed the `PathType` alias from fs helpers; paths now use `Path | String` directly and fs helpers extend `Path`.
-- Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict --fixture`; `./run_stdlib_tests.sh`.
-- Fixed impl validation to compare interface method where clauses against method-level constraints instead of impl-level where clauses (TS + Go typecheckers).
-- Tests: `cd v11/interpreters/ts && bun test test/typechecker/implementation_validation.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker`.
-- Added exec fixture `exec/10_02_impl_where_clause` to cover impl-level where clauses without method-level duplication and updated the coverage index.
-- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_02_impl_where_clause bun run scripts/run-fixtures.ts`.
-- Added exec fixture `exec/04_05_04_struct_literal_generic_inference`, updated the exec coverage index, and enforced exec-fixture typechecking when manifests specify diagnostics (TS + Go).
-- Fixed struct literal generic type-argument handling in the TS and Go typecheckers (placeholder args in TS; inferred args in Go).
-- Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict`.
-- Clarified spec call-site inference to include return-context expected types and documented return-context inference design notes; updated PLAN work queue.
-
-### 2026-01-15
-- TS typechecker now uses expected return types to drive generic call inference (explicit + implicit return paths), with new return-context unit tests.
-- Go typechecker now propagates expected return types through implicit return blocks, plus a focused unit test for implicit-return inference.
-- Added exec fixture `exec/07_08_return_context_generic_call_inference` and updated the exec coverage index.
-- Tests: `cd v11/interpreters/ts && bun test test/typechecker/return_context_inference.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker -run TestGenericCallInfersFromImplicitReturnExpectedType`.
-- TS typechecker now treats method-shorthand exports as taking implicit self for overload resolution, and uses receiver substitutions when enforcing method-set where clauses on exported function calls.
-- TS runtime now treats unresolved generic type arguments on struct instances as wildcard matches when comparing against concrete generic types.
-- Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict`.
-- Documented kernel Hash/Eq decisions (sink-style hashing, IEEE float equality, floats not Eq/Hash), updated spec wording, and expanded the PLAN work breakdown for interpreter alignment.
-- Extended the kernel Hash/Eq plan to move the default `Hasher` implementation into Able with host bitcast helpers; updated spec TODOs and PLAN tasks accordingly.
-- Added a kernel-level FNV-1a Hasher (Able code) with big-endian byte emission, introduced `__able_f32_bits`/`__able_f64_bits`/`__able_u64_mul` helpers in TS/Go, and updated stdlib hashing call sites + tests to use the new sink-style Hash API.
-
-### 2026-01-16
-- Added common `HashSet` set operations (union/intersect/difference/symmetric difference, subset/superset/disjoint) plus new spec coverage.
-- Tests: `./v11/ablets test v11/stdlib/tests/collections/hash_set.test.able`; `./v11/ablego test v11/stdlib/tests/collections/hash_set.test.able`.
-- Spec: documented the always-loaded `able.kernel` contract (core interfaces, HashMap, KernelHasher, hash bridges) and clarified map literal key constraints plus hash container semantics.
-- Spec: defined the `Hasher` interface and tied primitive Hash/Eq/Ord impls to the kernel library; aligned kernel string/char bridge names.
-- Spec: enumerated kernel-resident types/interfaces/methods and listed the full `Hasher` helper surface with default semantics.
-- TS interpreter: track struct definitions and treat concrete type names as taking precedence over interface names during runtime coercion/matching to fix `Range` vs `Range` interface collisions.
-- Go typechecker: unwrap interface aliases (e.g., `Clone`, `Eq`, `Hash`) when collecting impls, validating impls, and solving constraints.
-- Spec TODOs: cleared the kernel hashing contract items now captured in `spec/full_spec_v11.md`.
-- Tests: `./run_all_tests.sh --version=v11`; `./run_stdlib_tests.sh --version=v11`.
-- Go typechecker: allow impl targets to be interface types (supporting `impl Iterable T for Iterator T` matches).
-- Go interpreter: treat missing generic args as wildcards when matching impl targets; record iterator values as `Iterator _` for runtime type info.
-- Stdlib: fixed iterable helper signatures in `able.core.iteration` after adding iterator-as-iterable support.
-- Tests: `./v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `./v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
-- Go typechecker: allow interface default methods to satisfy member access when an impl omits the method body.
-- Tests: `./v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
-- Stdlib: added `default<T: Default>()` helper in `able.core.interfaces`.
-- Stdlib/spec: added `Extend` interface + `Iterable.collect` default, with Array/HashSet impls and iteration tests.
-- Next: resume the PLAN work queue (regex parser + quantifiers).
-
-### 2026-01-18
-- Spec: clarified interface dynamic dispatch as dictionary-based (default methods + interface-impl method availability).
-- TS typechecker: added type-parameter tracking in expressions, inference for interface-method generics, and base-interface method candidates.
-- TS interpreter: interface values now carry method dictionaries (incl. iterator natives), interface-member binding handles native methods, and for-loops accept interface-wrapped iterators.
-- Go typechecker: collect transitive impls/method sets for imports, preserve interface metadata on impls for default methods, and write inferred call type arguments into the AST.
-- Stdlib: fixed `Iterable.map`/`filter_map` generic parameter syntax.
-- Tests: `v11/ablets .examples/foo.able`; `v11/ablego .examples/foo.able`; `v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `v11/ablego test v11/stdlib/tests/core/iteration.test.able`; `v11/ablets test v11/stdlib/tests/collections/hash_set.test.able`; `v11/ablego test v11/stdlib/tests/collections/hash_set.test.able`; `v11/ablets test v11/stdlib/tests/collections/hash_set_smoke.test.able`; `v11/ablego test v11/stdlib/tests/collections/hash_set_smoke.test.able`.
-
-### 2026-01-19
-- Spec: documented package-qualified member access as yielding first-class values (type aliases remain type-only).
-- TS typechecker: package member access now resolves symbol types from summaries (function values included), enabling `pkg.fn` usage in expressions.
-- Tests: `v11/ablets .examples/foo.able`; `v11/ablego .examples/foo.able`.
-- Stdlib tests: added iteration coverage for `collect` via Default/Extend and package-qualified function values.
-- Tests: `v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
-- Spec: documented the `Default` interface signature and its stdlib helper.
-- Design: captured the eager vs lazy collections split (`Iterable` minimal, lazy adapters on `Iterator`, eager `Enumerable`).
-- Spec: documented the `Enumerable` interface and lazy/eager split in the iteration section; updated core iteration protocol.
-- Stdlib: made `Enumerable` parseable under current grammar (removed base-interface clause and HKT `where` constraints); documented `Iterable`’s "implement either each/iterator" intent; moved `Queue` operations to inherent methods.
-- TS interpreter: added Error/Awaitable/Iterator interface-value handling for native values (default methods + await helpers), and allow generic interface values to satisfy `matchesType`.
-- TS tests: aligned `Display` dispatch test with `to_string`.
-- Tests: `bun test` in `v11/interpreters/ts`; `go test ./...` in `v11/interpreters/go`.
-- Stdlib: added explicit `Enumerable.lazy` impl for `Array` to keep lazy iterators reachable under Go.
-- Tests: `./v11/ablego test v11/stdlib/tests/enumerable.test.able --format tap`.
-
-### 2026-01-20
-- Go typechecker: instantiate generic unions when resolving type annotations and normalize applied union types for assignability.
-- Parser/typechecker: where-clause subjects now accept type expressions; interface bases parse via `for ... : ...`; fixture printer updated and AST fixtures regenerated with new `where` shape.
-- Typechecker: base interface signatures now participate in impl validation; self-type pattern names map to concrete `Self` substitutions.
-- Kernel/stdlib: added `PartialEq`/`PartialOrd` impls for non-float primitives and big-number types; `Ord` impls now define `partial_cmp` to satisfy base interface contracts.
-- Runtime: impl method resolution now prefers direct interface matches over base interface matches to avoid ambiguity (TS + Go).
-- Fixtures: updated `implicit_generic_where_ambiguity` diagnostics + typecheck baseline; adjusted TreeMap stdlib test to include `partial_cmp` on custom `Ord` keys.
-- Tests: `bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && bun test`; `cd v11/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./...`.
-- Kernel: compare String bytes for `PartialEq`/`Eq` to avoid recursive `==` on struct-backed strings.
-- TS/Go interpreters: lambdas now treat `return` as local by catching return signals.
-- Tests: `./v11/ablets test v11/stdlib/tests/text/string_methods.test.able --format tap`; `./v11/ablets test v11/stdlib/tests/text/string_builder.test.able --format tap`.
-
-### 2026-01-21
-- Typechecker: higher-kinded self patterns now reject concrete targets unless the impl is still a type constructor (arity-aware in TS + Go).
-- Parser: type application parsing prefers left-associative space-delimited arguments; tree-sitter assets + corpus refreshed and Go parser relinked.
-- Stdlib: removed Array overrides from `Enumerable` impl to rely on interface defaults; added exec fixtures for type-arg arity + associativity diagnostics.
-- Tests: `cd v11/parser/tree-sitter-able && tree-sitter test -u`; `cd v11/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser`; `./run_all_tests.sh --version=v11`.
-- TS interpreter: separate interface vs subject type arguments in impl resolution (`findMethod`, `resolveInterfaceImplementation`, `matchImplEntry`, `typeImplementsInterface`) and widen runtime generic skipping for nested type expressions.
-- TS interpreter: bind receiver type arguments into function env as `type_ref` and allow typed patterns to resolve generic type refs (fallback to wildcard for unknown generic names) to avoid non-exhaustive matches in generic matchers.
-- Tests: `/home/david/sync/projects/able/v11/ablets test /home/david/sync/projects/able/v11/stdlib/tests/assertions.test.able`; `/home/david/sync/projects/able/v11/ablets test /home/david/sync/projects/able/v11/stdlib/tests` (timed out after 60s).
-- Typechecker: overload resolution now prefers non-generic matches over generic, with generic specificity ranking aligned across TS + Go; unknown argument types no longer satisfy overload sets in Go to match TS (UFCS ambiguity case).
-- CLI: test runner skips typechecking in `--list`/`--dry-run` modes to avoid spurious stdlib diagnostics.
-- Fixtures: updated UFCS overload expectations and typecheck baseline entries; refreshed export-fixtures manifests for overload cases.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker` in `v11/interpreters/go`; `bun test test/parity/fixtures_parity.test.ts -t "functions/ufcs_generic_overloads"`; `ABLE_FIXTURE_FILTER=errors/ufcs_overload_ambiguity bun run scripts/run-fixtures.ts`; `./run_all_tests.sh --version=v11`.
-- Typechecker: bind higher-kinded self pattern placeholders to partially applied targets and apply interface args to `Self` when the impl target is still a type constructor (TS + Go); flatten applied types during substitution for nested constructor applications.
-- Tests: `go test ./pkg/typechecker -run TestImplementationAllowsPartiallyAppliedConstructorWithSelfPattern` in `v11/interpreters/go`; `bun test test/typechecker/implementation_validation.test.ts -t "partially applied constructor"` in `v11/interpreters/ts`.
-- Typechecker (Go): only apply explicit interface args to `Self` for constructor targets so inferred self-pattern args don't double-apply in method validation.
-- Tests: `GOCACHE=/tmp/able-gocache go test ./pkg/typechecker` in `v11/interpreters/go`; `bun test test/typechecker` in `v11/interpreters/ts`.
-- Typechecker (TS): avoid overriding impl generic substitutions with self-pattern bindings during impl validation to prevent nested applied types in stdlib interface checks.
-- Tests: `./run_all_tests.sh --version=v11`.
-- Typechecker: add regression coverage to ensure self-pattern placeholders remain in-scope for interface method signatures (TS + Go).
-- Tests: `GOCACHE=/tmp/able-gocache go test ./pkg/typechecker -run TestImplementationAllowsSelfPatternPlaceholderInMethodSignature` in `v11/interpreters/go`; `bun test test/typechecker/implementation_validation.test.ts -t "self placeholders"` in `v11/interpreters/ts`.
-- Typechecker: add package-scoped duplicate declaration coverage so same symbol names across packages do not conflict (TS session + Go program checker).
-- Tests: `GOCACHE=/tmp/able-gocache go test ./pkg/typechecker -run TestProgramCheckerAllowsDuplicateNamesAcrossPackages` in `v11/interpreters/go`; `bun test test/typechecker/duplicates.test.ts -t "same symbol name"` in `v11/interpreters/ts`.
-- Fixtures: added exec coverage for typechecker return mismatch diagnostics to mirror runtime behavior checks (`exec/11_01_return_statement_typecheck_diag`).
-- Tests: `ABLE_FIXTURE_FILTER=11_01_return_statement_typecheck_diag bun run scripts/run-fixtures.ts` in `v11/interpreters/ts`; `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run TestExecFixtures/11_01_return_statement_typecheck_diag` in `v11/interpreters/go`.
-
-### 2026-01-22
-- Stdlib: moved `collect` to the `Iterator` interface and kept `Iterable` focused on `each`/`iterator`.
-- Spec: documented `Iterator.collect` in both iteration sections and removed `collect` from `Iterable`.
-- Design: updated the eager/lazy collections split doc to reflect `Iterator.collect`.
-- Tests not run (docs + stdlib interface change only).
-
-### 2026-01-23
-- Typechecker (TS): scope duplicate declaration tracking by package (prelude-safe) and allow local bindings to shadow package aliases during member access.
-- Kernel: added `__able_os_args`/`__able_os_exit` externs to `v11/kernel/src/kernel.able` for kernel/stdlib alignment.
-- Tests: `./run_stdlib_tests.sh --version=v11`; `./run_all_tests.sh --version=v11`.
-- Typechecker: enforce missing type-argument diagnostics for concrete type annotations (TS + Go), while allowing constructor targets for impls/method sets; avoid duplicate arity diagnostics for constraints.
-- Fixtures: added builtin type-arity + partial-application regression fixtures; refreshed typecheck baseline.
-- Tests: `./v11/export_fixtures.sh`; `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts --write-typecheck-baseline`; `cd v11/interpreters/ts && bun test test/typechecker/constraint_arity.test.ts`; `cd v11/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker`.
-- Fixtures: updated nested struct destructuring + Apply/Index dispatch fixtures to unwrap index results (`!`) so happy-path tests typecheck cleanly; refreshed typecheck baseline.
-- Tests: `./v11/export_fixtures.sh`; `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts --write-typecheck-baseline`.
-- Spec: unified async model around `spawn`/`Future`, removed `proc`, renamed helpers to `future_*`, and rewrote Section 12 accordingly.
-- Design: added `v11/design/future-unification.md`; updated concurrency/AST/typechecker/stdlib design notes to align with unified Future semantics.
-- Plan: added a comprehensive implementation breakdown for the unified Future change.
-- Tests not run (docs/spec/plan changes only).
-- Parser/AST: removed `proc` keyword/`proc_expression` from tree-sitter, regenerated grammar artifacts, updated parser corpus; removed `ProcExpression` from TS/Go AST schemas and parser mappers; fixture JSON now uses `SpawnExpression`.
-- Runtime: await/channel helpers now accept future contexts (TS + Go), and `proc_cancelled` works inside spawned futures in Go.
-- Typechecker: future `cancel()` is allowed (TS + Go), and concurrency/typechecker tests updated to use spawn/future semantics.
-- Fixtures: `.able` sources updated from `proc` → `spawn`, and expected error strings updated from `Proc failed/cancelled` → `Future failed/cancelled`.
-- Tests not run (parser + runtime + fixture changes only).
-
-### 2026-01-30
-- Compiler: added Go compiler scaffolding to emit Go struct types, literal-return function bodies, wrapper registrations, and struct conversion helpers; added a bridge runtime for interpreter/compiled interop and a new `ablec` CLI.
-- Compiler: extended codegen to handle identifiers, `+/-/*` binary expressions, and simple compiled-function calls; added a compiler-backed exec harness that builds and runs a tiny compiled program.
-- Compiler: added multi-statement bodies with implicit return, plus `:=`/`=` identifier bindings (typed patterns supported); expanded statement lowering to evaluate expressions via `_ = expr`.
-- Compiler: compile array literals into runtime array values and support struct member access; map Array/Map/HashMap types to runtime values for safe pass-through; added compiler coverage for array literals and member access.
-- Compiler: added panic/recover plumbing for compiled wrappers, plus bridge/interpreter helpers to convert panicked runtime values into raise signals.
-- Compiler: added runtime bridge index helper, global runtime registration, and index-expression codegen (runtime.Value-only) with compiler coverage.
-- Compiler: index-expression codegen now converts runtime values into expected primitive/struct types with panic-on-conversion failure.
-- Fixtures: added exec coverage for compiler index expressions (statement form) and included it in the compiler fixture parity list.
-- Compiler: added index assignment lowering via runtime bridge and new compiler exec fixture coverage for assignment.
-- Compiler: array literal lowering now converts struct elements into runtime values for interop.
-- Fixtures: added compiler exec fixture for array literals with struct elements and import fix for array helpers.
-- Compiler: assignment expressions returning runtime values now coerce to expected types; added compiler exec fixture for index assignment return value.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler` (including `TestCompilerExecHarness`) in `v12/interpreters/go`; `GOCACHE=$(pwd)/.gocache go test ./cmd/ablec` in `v12/interpreters/go`; `GOCACHE=$(pwd)/v12/interpreters/go/.gocache ./run_all_tests.sh`; `GOCACHE=$(pwd)/v12/interpreters/go/.gocache ./run_stdlib_tests.sh`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler` in `v12/interpreters/go`.
-
-### 2026-01-31
-- Compiler: added `as` type-cast lowering via the interpreter bridge, including runtime helper emission and type-expression rendering for compiled code.
-- Compiler: added `06_03_cast_semantics` to the compiled exec fixture list for coverage.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `10_04_interface_dispatch_defaults_generics` and `10_15_interface_default_generic_method` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_04_interface_dispatch_defaults_generics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_15_interface_default_generic_method go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `13_01_package_structure_modules`, `13_03_package_config_prelude`, `13_04_import_alias_selective_dynimport`, `13_05_dynimport_interface_dispatch`, `13_06_stdlib_package_resolution`, and `13_07_search_path_env_override` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_03_package_config_prelude,13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch,13_06_stdlib_package_resolution,13_07_search_path_env_override go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `04_05_04_struct_literal_generic_inference`, `04_07_02_alias_generic_substitution`, `04_07_03_alias_scope_visibility_imports`, `04_07_04_alias_methods_impls_interaction`, `04_07_05_alias_recursion_termination`, `04_07_06_alias_reexport_methods_impls`, and `04_07_types_alias_union_generic_combo` to compiler exec fixtures.
-- Fixtures: added `06_10_dynamic_metaprogramming_package_object`, `14_02_regex_core_match_streaming`, and `16_01_host_interop_inline_extern` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=04_05_04_struct_literal_generic_inference,04_07_02_alias_generic_substitution,04_07_03_alias_scope_visibility_imports,04_07_04_alias_methods_impls_interaction,04_07_05_alias_recursion_termination,04_07_06_alias_reexport_methods_impls,04_07_types_alias_union_generic_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_10_dynamic_metaprogramming_package_object go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=14_02_regex_core_match_streaming go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=16_01_host_interop_inline_extern go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added safe-navigation lowering for member access/method calls with nil short-circuiting and argument skip.
-- Fixtures: added `06_01_compiler_safe_navigation` exec fixture + coverage index entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Compiler: added match-expression lowering for simple patterns (wildcard/identifier/literal), plus while-loop and loop-expression lowering with break/continue signals.
-- Fixtures: added `06_01_compiler_loops` exec fixture + coverage index entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: lowered lambda expressions into native function values with capture support for compiled locals.
-- Fixtures: added `06_01_compiler_lambda_closure` exec fixture + coverage index entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added verbose anonymous-function lowering that accepts block bodies with explicit returns.
-- Fixtures: added `06_01_compiler_verbose_anonymous_fn` exec fixture + coverage index entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added range-expression lowering plus for-loop codegen over arrays and iterables.
-- Fixtures: added `06_01_compiler_for_loop` exec fixture + coverage index entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Compiler: expanded match lowering to handle struct/array patterns (including runtime-typed checks) with bindings.
-- Fixtures: added `06_01_compiler_match_patterns` exec fixture + coverage index entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Compiler: match lowering now treats `ErrorValue` as struct-like data during pattern matches.
-- Fixtures: expanded `06_01_compiler_match_patterns` to cover typed cases and rest bindings.
-- Fixtures: added positional struct pattern coverage to `06_01_compiler_match_patterns`.
-- Compiler: fixed positional-struct match bindings to keep identifiers in scope for clause bodies.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added raise/rescue lowering plus error-value conversion helpers for compiled code.
-- Fixtures: added `06_01_compiler_rescue` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Compiler: added ensure-expression lowering and rethrow statement lowering for compiled code (rescue-aware rethrow).
-- Fixtures: added `06_01_compiler_ensure_rethrow` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_raise_error_interface` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: expanded `06_01_compiler_raise_error_interface` to cover nil Error.cause handling.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Tests: `./run_stdlib_tests.sh` in repo root (treewalker + bytecode stdlib suites).
-- Tests: `./run_all_tests.sh` in repo root (completed successfully).
-- CLI: added `able build` to compile a target or entry file into a native binary (emits Go code + runs `go build`).
-- Tests: `go test ./cmd/able -run TestBuildTargetFromManifest -count=1` in `v12/interpreters/go`.
-- CLI/Loader: standard loads now skip `.test.able`/`.spec.able` modules unless `--with-tests` is provided; `able build` supports `--with-tests` and routes outputs under `target/test/compiled`.
-- Tests: `go test ./cmd/able -run TestRunIgnoresTestModulesUnlessWithTests -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./cmd/able -run TestBuildTargetFromManifest -count=1` in `v12/interpreters/go` (after `--with-tests` changes).
-- Fixtures: added `06_01_compiler_raise_non_error` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added lowering for propagation (`!`) and `or {}` with runtime error handling for raised interpreter errors.
-- Compiler: added raise-signal extraction to panic with runtime values in compiled runtime helpers.
-- Fixtures: added `06_01_compiler_or_else` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Fixtures: expanded `06_01_compiler_or_else` to cover error binding on nil and success cases.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: adjusted or-else type resolution to fall back to runtime.Value for mixed branch types.
-- Fixtures: added `06_01_compiler_or_else_mixed` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_or_else_struct_mix` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_or_else_error_union` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: allow if/block/assignment expressions to compile in value positions by wrapping tail-expression lowering.
-- Fixtures: added `06_01_compiler_if_block_exprs` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added breakpoint/labeled break lowering with breakpoint label tracking in codegen.
-- Fixtures: added `06_01_compiler_breakpoint` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added placeholder lambda lowering and implicit member access support for compiled code.
-- Fixtures: added `06_01_compiler_placeholder_lambda` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added pipe operator lowering with placeholder/implicit member handling.
-- Fixtures: added `06_01_compiler_pipe` exec fixture and coverage entry.
-- Interpreter + compiler: prevent placeholder analysis from lifting placeholders across pipe/call boundaries so pipe RHS placeholders don't suppress evaluation.
-- Fixtures: updated `06_01_compiler_pipe` expected output for low-precedence pipe assignment.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run Placeholder -count=1` in `v12/interpreters/go`.
-- Compiler: added positional struct literal lowering plus positional member access/assignment for compiled structs.
-- Fixtures: added `06_01_compiler_struct_positional` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added positional struct pattern support for compiled match patterns on positional structs.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added named struct functional update lowering for compiled code.
-- Fixtures: added `06_01_compiler_struct_update` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: expanded typed pattern lowering to support runtime Array/HashMap/DivMod type checks.
-- Fixtures: updated `06_01_compiler_match_patterns` to cover typed Array match cases.
-- Compiler: fixed positional struct pattern lowering to accept positional field ASTs with field names.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added pattern assignment lowering for struct/array/typed patterns with assignment-time matching and bindings in compiled code.
-- Compiler: updated runtime typed-pattern checks for Map/HashMap to accept HashMap struct instances (and HashMapValue) during match/assignment conditions.
-- Fixtures: added `06_01_compiler_assignment_patterns` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: expanded `06_01_compiler_match_patterns` to cover typed HashMap match cases.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: expanded `06_01_compiler_assignment_patterns` to cover typed HashMap pattern assignment.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_assignment_pattern_errors` exec fixture plus coverage entry for pattern assignment mismatch errors.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_assignment_pattern_typed_mismatch` exec fixture plus coverage entry for typed pattern assignment mismatches.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_assignment_pattern_rest_mismatch` exec fixture plus coverage entry for rest-pattern assignment mismatch errors.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_assignment_pattern_struct_mismatch` exec fixture plus coverage entry for struct pattern assignment mismatches.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_assignment_pattern_positional_mismatch` exec fixture plus coverage entry for positional struct pattern arity mismatches.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added iterator literal lowering via compiled generator helpers and controller methods.
-- Fixtures: added `06_01_compiler_iterator_literal` exec fixture plus coverage entry for iterator literals.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added spawn/await lowering with runtime await keys plus env swapping for compiled lambdas/wrappers.
-- Interpreter + bridge: added env-aware CallFunctionIn plus RunCompiledFuture/AwaitIterable and spawn/await bridge helpers.
-- Fixtures: added `06_01_compiler_spawn_await` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: stabilize await expression identifiers across compile passes to keep await helpers declared once.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fix: future.await commit now respects async payload so serial executor doesn't deadlock (compiled await on Future handle).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_await_future go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: ensure lowering now rethrows any recovered panic after running ensure, matching tree-walker behavior on non-raise errors.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_ensure_error_passthrough` exec fixture and coverage entry for ensure running on non-raise errors.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_ensure_error_passthrough go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Bytecode: attach runtime context for call-by-name resolution failures to keep diagnostics aligned.
-- Fixtures: `06_01_compiler_or_else` nil handler no longer references unbound err (spec-aligned).
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` and `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` (v12 default) in repo root.
-- Tests: `./run_stdlib_tests.sh` (tree-walker + bytecode) in repo root.
-- Compiler: lower for loops with pattern matching bindings, emitting runtime pattern mismatch errors on failed destructuring.
-- Fixtures: added `06_01_compiler_for_loop_pattern` exec fixture and coverage entry.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_pattern go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_for_loop_pattern_mismatch` exec fixture and coverage entry for for-loop pattern errors.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_pattern_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_for_loop_struct_pattern` exec fixture and coverage entry for for-loop struct patterns.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_struct_pattern go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_for_loop_pattern_guard` exec fixture and coverage entry for guarded match use inside for-loop pattern bodies.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_pattern_guard go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_for_loop_typed_pattern` exec fixture and coverage entry for typed for-loop patterns.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_typed_pattern go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_for_loop_typed_pattern_mismatch` exec fixture and coverage entry for typed for-loop pattern errors.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_typed_pattern_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: allow runtime.Value expectations to accept primitive/void expressions (converted to runtime values), and map nullable/result/union types to runtime.Value.
-- Fixtures: added `06_01_compiler_nullable_return` exec fixture and coverage entry for nullable return handling.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_nullable_return go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_union_return` exec fixture and coverage entry for union return handling.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_union_return go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_result_return` exec fixture and coverage entry for result return handling.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_result_return go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Bytecode: bind-pattern errors in for loops now attach runtime context to the for-loop node to match tree-walker spans.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_01_compiler_for_loop_pattern_mismatch -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtureParity/06_01_compiler_for_loop_typed_pattern_mismatch -count=1` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` (v12 default) in repo root.
-- Compiler: allow expressions targeting runtime.Value to accept primitive/void values in direct compileExpr calls (e.g. union/nullable parameters).
-- Fixtures: added `06_01_compiler_union_param` exec fixture and coverage entry for union-typed parameters.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_union_param go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_nullable_param` exec fixture and coverage entry for nullable parameters.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_nullable_param go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` (v12 default) in repo root.
-- Fixtures: added `06_01_compiler_struct_param_bridge` exec fixture and coverage entry for struct param/return conversions.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_struct_param_bridge go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` (v12 default) in repo root.
-- Compiler: boolean contexts now use runtime truthiness via new bridge.IsTruthy helper; logical operators and unary ! honor truthiness for non-bool operands.
-- Fixtures: added `06_11_truthiness_boolean_context` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_11_truthiness_boolean_context go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` (v12 default) in repo root.
-- Compiler: if expressions now allow missing else (yielding nil) when the result type is runtime.Value/void, matching truthiness semantics.
-- Fixtures: added `08_01_if_truthiness_value` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_01_if_truthiness_value go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` (v12 default) in repo root.
-- Compiler: expanded exec fixture coverage to include nullable truthiness, union construction, and literal inference/escaping scenarios.
-- Fixtures: added `04_06_02_nullable_truthiness`, `04_06_03_union_construction_result_option`, `06_01_literals_array_map_inference`, `06_01_literals_numeric_contextual`, `06_01_literals_string_char_escape` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_08_array_ops_mutability` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `11_02_option_result_or_handlers` and `11_02_option_result_propagation` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_02_option_result_or_handlers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_02_option_result_propagation go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_03_safe_navigation_nil_short_circuit`, `06_04_function_call_eval_order_trailing_lambda`, and `06_06_string_interpolation` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_safe_navigation_nil_short_circuit go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_04_function_call_eval_order_trailing_lambda go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_06_string_interpolation go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_03_cast_error_payload_recovery` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_cast_error_payload_recovery go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: treat `^` as exponentiation (bitwise XOR remains `.^`) and route exponent through runtime binary op handling.
-- Fixtures: added `06_03_operator_precedence_associativity` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_operator_precedence_associativity go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: route unary operator fallback through runtime dispatch for non-primitive operands, and allow non-primitive binary operators/comparisons to use runtime operator interfaces.
-- Bridge: added unary operator dispatch helper for compiled code.
-- Fixtures: added `06_03_operator_overloading_interfaces` and `14_01_operator_interfaces_arithmetic_comparison` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_operator_overloading_interfaces go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=14_01_operator_interfaces_arithmetic_comparison go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: avoid unused temps for empty struct pattern bindings and treat `IteratorEnd` sentinel values as matching `IteratorEnd {}` struct patterns.
-- Fixtures: added `14_01_language_interfaces_index_apply_iterable` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=14_01_language_interfaces_index_apply_iterable go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `10_01_interface_defaults_composites`, `10_02_impl_specificity_named_overrides`, `10_03_interface_type_dynamic_dispatch`, `10_05_interface_named_impl_defaults`, and `10_06_interface_generic_param_dispatch` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_01_interface_defaults_composites go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_02_impl_specificity_named_overrides go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_05_interface_named_impl_defaults go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_06_interface_generic_param_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `10_02_impl_where_clause`, `10_07_interface_default_chain`, `10_08_interface_default_override`, `10_09_interface_named_impl_inherent`, `10_10_interface_inheritance_defaults`, `10_11_interface_generic_args_dispatch`, `10_12_interface_union_target_dispatch`, `10_13_interface_param_generic_args`, `10_14_interface_return_generic_args`, and `10_16_interface_value_storage` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_02_impl_where_clause,10_07_interface_default_chain,10_08_interface_default_override,10_09_interface_named_impl_inherent,10_10_interface_inheritance_defaults,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_13_interface_param_generic_args,10_14_interface_return_generic_args,10_16_interface_value_storage go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `12_01_bytecode_spawn_basic`, `12_01_bytecode_await_default`, `12_02_async_spawn_combo`, `12_03_spawn_future_status_error`, and `12_04_future_handle_value_view` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_spawn_basic go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_await_default go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_02_async_spawn_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_03_spawn_future_status_error go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_04_future_handle_value_view go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler runtime: compiled async tasks now cooperatively yield by running another queued task when `future_yield()` is called, avoiding hangs without resumable compiled frames.
-- Compiler: compiled lambdas now recover raised errors from interpreter calls (while rethrowing break/continue signals) so rescue works when interpreted code invokes compiled lambdas.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_12_01_stdlib_string_helpers`, `06_12_02_stdlib_array_helpers`, and `06_12_03_stdlib_numeric_ratio_divmod` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_01_stdlib_string_helpers,06_12_02_stdlib_array_helpers,06_12_03_stdlib_numeric_ratio_divmod go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added diagnostic node registration and call-frame tracking so compiled runtime errors (division/shift) report source locations and call sites.
-- Fixtures: added `06_01_compiler_division_by_zero`, `06_01_compiler_shift_out_of_range`, and `15_02_entry_args_signature` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=15_02_entry_args_signature,06_01_compiler_division_by_zero,06_01_compiler_shift_out_of_range go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `08_02_loop_expression_break_value`, `08_02_numeric_sum_loop`, `08_02_range_inclusive_exclusive`, `08_02_while_continue_break`, and `08_03_breakpoint_nonlocal_jump` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_02_loop_expression_break_value,08_02_numeric_sum_loop,08_02_range_inclusive_exclusive,08_02_while_continue_break,08_03_breakpoint_nonlocal_jump go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: attach runtime context to non-exhaustive match failures in compiled code so diagnostics include source locations.
-- Fixtures: added `08_01_control_flow_fizzbuzz`, `08_01_match_guards_exhaustiveness`, and `08_01_union_match_basic` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_01_control_flow_fizzbuzz,08_01_match_guards_exhaustiveness,08_01_union_match_basic go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: represent structs as pointers in compiled Go code; update struct literal lowering and struct <-> runtime conversions to use pointer semantics and handle nil.
-- Compiler: allow pattern assignments to convert between runtime.Value and typed bindings (both directions), and suppress unused pattern binding vars.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_00_mutability_declaration_vs_assignment,05_02_array_nested_patterns,05_02_identifier_wildcard_typed_patterns,05_02_struct_pattern_rename_typed,05_03_assignment_evaluation_order go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Fixtures: added `04_05_01_struct_singleton_usage`, `04_05_02_struct_named_update_mutation`, `04_05_03_struct_positional_named_tuple`, `04_06_01_union_payload_patterns`, `04_06_04_union_guarded_match_exhaustive`, and `07_02_lambdas_closures_capture` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=04_05_01_struct_singleton_usage,04_05_02_struct_named_update_mutation,04_05_03_struct_positional_named_tuple,04_06_01_union_payload_patterns,04_06_04_union_guarded_match_exhaustive,07_02_lambdas_closures_capture go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `07_04_apply_callable_interface` and `07_04_trailing_lambda_method_syntax` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_04_apply_callable_interface,07_04_trailing_lambda_method_syntax go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: sync struct mutations after dynamic member calls by converting the runtime receiver back into the compiled struct pointer.
-- Fixtures: added `07_06_shorthand_member_placeholder_lambdas` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_06_shorthand_member_placeholder_lambdas go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: allow missing nullable tail args in compiled calls/wrappers by injecting nil; attach runtime context for compiled call errors; populate call-node callees so overload errors report names.
-- Fixtures: added `07_07_overload_resolution_runtime` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_07_overload_resolution_runtime go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `07_02_01_verbose_anonymous_fn` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_02_01_verbose_anonymous_fn go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `07_05_partial_application` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_05_partial_application go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `07_01_function_definition_generics_inference` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_01_function_definition_generics_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `07_08_return_context_generic_call_inference` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_08_return_context_generic_call_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: allow non-local returns inside nested blocks by lowering return statements to a compiled return signal and recovering at function boundaries.
-- Fixtures: added `07_03_explicit_return_flow` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_03_explicit_return_flow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: treat wrapped generator stop errors as iterator completion in compiled iterator helpers (avoids stop bubbling through runtime diagnostics after call-context wrapping).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_iterator_literal go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Compiler/Runtime: compiled futures now use a resumable yield handshake under the serial executor so future_yield requeues compiled tasks fairly (channel-based resume/yield).
-- Fixtures: added `12_02_future_fairness_cancellation` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_02_future_fairness_cancellation go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler harness: honor fixture manifest executor selection (serial vs goroutine) and add `12_08_blocking_io_concurrency` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` (v12) completed successfully.
-- Compiler: raise/or-else/rescue now handle raised errors as error panics with runtime context; rescue/or-else recover both runtime.Value and raiseSignal errors; rethrow preserves original error when available.
-- Compiler helpers: division-by-zero and shift-out-of-range now raise structured errors via RaiseWithContext; __able_panic_on_error now panics errors directly to keep diagnostics.
-- Fixtures: added `06_07_generator_yield_iterator_end`, `06_07_iterator_pipeline`, `11_00_errors_match_loop_combo`, `11_03_raise_exit_unhandled`, `11_03_rescue_ensure`, `11_03_rescue_rethrow_standard_errors` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_result_return,06_01_compiler_or_else,11_02_option_result_propagation,06_07_generator_yield_iterator_end,06_07_iterator_pipeline,11_00_errors_match_loop_combo,11_03_raise_exit_unhandled,11_03_rescue_ensure,11_03_rescue_rethrow_standard_errors go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `14_02_hash_eq_primitives`, `14_02_hash_eq_float`, and `14_02_hash_eq_custom` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=14_02_hash_eq_primitives,14_02_hash_eq_float,14_02_hash_eq_custom go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `15_04_background_work_flush` to compiler exec fixtures.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=15_04_background_work_flush go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Runtime: UFCS resolution now accepts native functions by binding them with adjusted arity, so compiled native functions can participate in UFCS method syntax.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=09_04_methods_ufcs_basics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=09_00_methods_generics_imports_combo,09_02_methods_instance_vs_static,09_05_method_set_generics_where go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: lower struct literals to runtime values for unknown/unsupported types, allow functional updates, shorthand field initializers, and singleton positional literals; add runtime struct literal lowering with validation and type-arg handling.
-- Compiler: allow generic calls by routing them through dynamic call helpers; add yield statement lowering for iterator literals.
-- Compiler: relax block/lambda/match lowering for void contexts (empty blocks, raise/rethrow in blocks, mixed match clause types), add zero-value helper for unreachable branches, and ignore void lambda return mismatches; ensure lambda params are marked used; avoid wrapper arg name collisions on `result`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_bytecode_map_spread,06_07_iterator_pipeline,07_09_bytecode_iterator_yield,08_01_bytecode_if_indexing,14_02_regex_core_match_streaming,11_00_errors_match_loop_combo,06_01_compiler_or_else,06_01_compiler_result_return go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: allow top-level return statements to short-circuit compiled function/lambda bodies, ignoring trailing unreachable statements.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_01_return_statement_type_enforcement go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Interpreters: pattern assignment expressions now return `Error` values on mismatch without partial bindings; bytecode VM uses shared pattern assignment path.
-- Compiler: non-simple or runtime-typed pattern assignments now fall back to interpreter to preserve error-value semantics; updated compiler exec fixtures to assert error values.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestInterfaceAssignmentMissingImplementation -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_assignment_pattern_errors,06_01_compiler_assignment_pattern_positional_mismatch,06_01_compiler_assignment_pattern_rest_mismatch,06_01_compiler_assignment_pattern_struct_mismatch,06_01_compiler_assignment_pattern_typed_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Interpreters: for-loop pattern mismatches now yield `Error` values and halt iteration without raising; loop bindings continue to shadow outer scopes.
-- Compiler: for-loop pattern mismatches no longer panic; loops break on mismatch to preserve error-value behavior.
-- Spec: typed pattern mismatch language now aligns with error-value semantics.
-- Fixtures: updated for-loop mismatch exec fixtures to assert error values and continued execution.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_pattern_mismatch,06_01_compiler_for_loop_typed_pattern_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestBytecodeVM_ForLoopArraySum -count=1` in `v12/interpreters/go`.
-- Fixtures: added block-expression coverage for for-loop pattern mismatches; updated spec for loop evaluation semantics.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop_pattern_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Spec: clarify cast failures raise runtime exceptions; align loop result wording to void on normal completion (break supplies value, for-loop pattern mismatch yields Error); update while loop example result text.
-- Compiler: pattern assignments now compile with runtime pattern checks and error values; typed pattern matching/binding uses match-type coercion (not cast) for runtime values; __able_try_cast now uses MatchType helper.
-- Bridge/Interpreter: added MatchType helper plus exported MatchesType/CoerceValueToType to support compiler pattern matching.
-- Audit: compiler fallbacks reduced to 4 (only overload-resolution cases, lambda generics, and float literal type in hash fixture remain).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_assignment_pattern_errors,06_01_compiler_assignment_pattern_typed_mismatch,06_01_compiler_assignment_pattern_rest_mismatch,06_01_compiler_assignment_pattern_struct_mismatch,06_01_compiler_assignment_pattern_positional_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_match_patterns go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: generate overload dispatchers for compiled functions (runtime type matching + specificity scoring, optional-arg penalty, ambiguity errors), register overload wrappers, and route calls through compiled overload helpers with runtime-context diagnostics.
-- Compiler: allow verbose anonymous function generics/where clauses by inserting generic constraint checks via MatchType; lambda generics no longer force interpreter fallback.
-- Compiler: untyped mixed numeric literals now prefer float types; float division no longer raises division-by-zero (IEEE semantics).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_07_overload_resolution_runtime,14_02_hash_eq_float go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_02_01_verbose_anonymous_fn go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Typechecker: allow casts to interface types (and nullable interface types) when the source type implements the interface.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_03_cast_semantics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: assignment statements now discard assignment expression results to avoid unused temps when pattern assignments synthesize temps.
-- Compiler: match patterns treat singleton struct identifiers as literal matches (non-binding) when not shadowed, aligning singleton enum-like matching and union payload patterns.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=04_03_type_expression_syntax,04_05_01_struct_singleton_usage,04_05_03_struct_positional_named_tuple,04_06_01_union_payload_patterns,04_06_02_nullable_truthiness,04_06_03_union_construction_result_option,04_06_04_union_guarded_match_exhaustive,04_07_02_alias_generic_substitution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Bytecode VM: for-loop pattern binding now uses the for-loop mismatch semantics (ErrorValue + loop termination) instead of raising.
-- Fixtures: array/struct/typed assignment mismatch AST fixtures now expect Error values; struct pattern missing-field/type mismatch fixtures expect typechecker diagnostics instead of runtime errors.
-- Interpreter: type info for struct instances now infers generic type arguments when missing/wildcard, so compiled values without TypeArguments still match generic impls.
-- Compiler: avoid Go identifier collisions with imported packages by reserving names (`fmt`, `runtime`, `ast`, `bridge`, `interpreter`, `errors`, `sync`).
-- Compiler: interface-typed parameters and returns now coerce via `MatchType` in wrappers, and compiled direct calls coerce interface args before invoking compiled functions; interface-typed returns now wrap interface values in compiled returns.
-- Interpreter: compiled await in serial executor now yields via compiled resume channels instead of surfacing `errSerialYield` to compiled code.
-- Interpreter: `ApplyBinaryOperator` now mirrors string concatenation semantics for `+` (string+string) to match tree-walker behavior.
-- Compiler: match pattern code now reuses field temps for nested struct checks to avoid unused locals; rescue lowering now marks recovered subject temp used.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_13_interface_param_generic_args,10_14_interface_return_generic_args go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./pkg/interpreter -run TestExecFixtures/12_06_await_fairness_cancellation -count=1` in `v12/interpreters/go`.
-- Tests: compiler exec fixtures run in batches (batches 9–14) via `ABLE_COMPILER_EXEC_FIXTURES=...` in `v12/interpreters/go` (all passing after fixes).
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/parser -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_assignment_pattern_errors,06_01_compiler_assignment_pattern_positional_mismatch,06_01_compiler_assignment_pattern_rest_mismatch,06_01_compiler_assignment_pattern_struct_mismatch,06_01_compiler_assignment_pattern_typed_mismatch,06_01_compiler_for_loop_pattern_mismatch,06_01_compiler_for_loop_typed_pattern_mismatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Workspace: moved `v12/interpreters/go/tmp_saved` to `/tmp/able_tmp_saved` after cleaning compiler fixture temp output.
-- Compiler/Runtime: compiled future cancellation now eagerly marks the handle cancelled when a compiled task completes with a cancel request, preventing pending status leaks under serial scheduling.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures/12_02_future_fairness_cancellation -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/v12/interpreters/go/.gocache ./run_all_tests.sh` at repo root.
-- Workspace: moved `v12/interpreters/go/tmp` to `/tmp/ablec_tmp` after test run artifacts.
-- Tests: `GOCACHE=$(pwd)/v12/interpreters/go/.gocache ./run_stdlib_tests.sh` at repo root.
-- Audit: compiler fallback audit over the compiler exec fixture list reports 0 remaining fallbacks (script: `/tmp/ablec_fallback_audit.go`).
-- Compiler: collect `methods` definitions for entry module, compile eligible method bodies, and emit direct compiled calls for static/type-qualified and instance methods when the receiver type is known (falls back to dynamic resolution otherwise).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_method_call,06_01_compiler_type_qualified_method,06_01_compiler_bound_method_value,09_02_methods_instance_vs_static,09_04_methods_ufcs_basics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler/Interpreter: compiled method thunks register into inherent method pools (via new interpreter `RegisterCompiledMethod` and `CompiledThunk`), so dynamic member dispatch can execute compiled method bodies while preserving method constraints/visibility checks.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_method_call,06_01_compiler_type_qualified_method,06_01_compiler_bound_method_value,09_02_methods_instance_vs_static,09_04_methods_ufcs_basics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler/Interpreter: compiled method thunk registration now matches overloads by signature (target type + param types), including implicit self for method shorthand, to avoid ambiguous method bindings.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_method_call,06_01_compiler_type_qualified_method,06_01_compiler_bound_method_value,09_02_methods_instance_vs_static,09_04_methods_ufcs_basics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `./run_stdlib_tests.sh` (tree-walker + bytecode) at repo root.
-- Compiler/Interpreter: compiled method registration now tolerates generic target mismatches (base name + generic params) and applies thunks to all matching overloads to avoid failures when kernel/fixture method sets overlap.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_05_concurrency_channel_ping_pong,12_06_await_fairness_cancellation,15_04_background_work_flush go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` at repo root.
-- Tooling: `run_all_tests.sh` now reuses a shared Go build cache by default (set `ABLE_GOCACHE=tmp` for isolated runs) and propagates `ABLE_COMPILER_EXEC_GOCACHE`.
-- Compiler tests: `go build` invocations now respect `ABLE_COMPILER_EXEC_GOCACHE`/`GOCACHE` for fixture builds.
-- Tests: `go test ./pkg/compiler -run TestCompilerExecHarness -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).
-- CLI: `able build` default output now roots under the current working directory (`./target/compiled`), even when building a file in another directory.
-- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
-- CLI: added `v12/able` wrapper for the main CLI; it passes `ABLE_BUILD_ROOT` so build outputs root at the caller's working directory.
-- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
-- CLI: skip `.gomodcache`/`.modcache` when copying the interpreter module for builds outside the module root.
-- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
-- Compiler: generated `main.go` now discovers search paths (stdlib/kernel/ABLE_PATH) and registers `print`, matching CLI behavior for compiled binaries.
-- Tests: `go test ./pkg/compiler -run TestCompilerExecHarness -count=1` in `v12/interpreters/go`.
-- Docs: added `v12/design/compiler-aot.md` with correctness-first compiler vision and full work breakdown; updated `PLAN.md` compiler AOT queue and flattened nested TODO bullets.
-- Spec: added compiled execution boundary semantics in `spec/full_spec_v12.md` and added compiler AOT gaps in `spec/TODO_v12.md`; removed completed compiler vision item from `PLAN.md`.
-- Compiler AOT: added program analysis with module dependency graph and preserved typechecker outputs (`program_analysis.go`) plus tests; removed completed items from `PLAN.md`.
-- Tests: `go test ./pkg/compiler -run TestAnalyzeProgramBuildsGraphAndTypecheck -count=1` in `v12/interpreters/go`.
-- Audit: compiler fallback audit over compiler exec fixture list reports 1 fallback (`04_05_02_struct_named_update_mutation_diag: main (identifier type mismatch)`).
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerFallbackAudit -count=1 -v` in `v12/interpreters/go`.
-- Audit: compiler fallback audit excluding fixtures with expected typecheck diagnostics reports 0 fallbacks (ad-hoc script run).
-- Compiler: struct literal functional updates now fall back to runtime lowering when update sources can't be compiled to the target struct type, avoiding identifier type mismatch fallbacks while preserving runtime validation for mismatched sources.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=04_05_02_struct_named_update_mutation_diag go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Audit: compiler fallback audit excluding fixtures with expected typecheck diagnostics reports 0 fallbacks (ad-hoc script run).
-- Compiler bridge: accept `String` structs in `AsString` and allow integer-to-float coercions in `AsFloat` (with interface unwrapping for primitive conversions).
-- Tests: `go test ./pkg/compiler/bridge -run TestAs -count=1` in `v12/interpreters/go`.
-- Compiler: added a fallback-audit test for compiler exec fixtures (guarded by `ABLE_COMPILER_FALLBACK_AUDIT`) to surface uncompiled functions.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=15_01_program_entry_hello_world go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
-- Audit: compiler fallback audit across all exec fixtures reports 0 fallbacks (using `ABLE_COMPILER_EXEC_FIXTURES=all`).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
-- Compiler: compiled integer `+`/`-`/`*` now emit overflow-checked helpers (signed/unsigned, width-aware) and overflow errors attach runtime diagnostics context.
-- Tests: `go test ./pkg/compiler -run TestDetectDynamicFeatures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_integer_overflow` to cover compiled integer overflow diagnostics.
-- Fixtures: added `06_01_compiler_integer_overflow_sub` and `06_01_compiler_integer_overflow_mul` to cover compiled `-`/`*` overflow diagnostics.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_integer_overflow,06_01_compiler_integer_overflow_sub,06_01_compiler_integer_overflow_mul go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: compound assignments now pass diagnostic node context into compiled numeric helpers (division/overflow/shift) instead of using `nil`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_compound_assignment go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Fixtures: added `06_01_compiler_compound_assignment_overflow` to cover overflow errors on `+=` in compiled output.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_compound_assignment_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler/Interpreter: unary integer negation now checks overflow; negating the minimum value raises `OverflowError`.
-- Fixtures: added `06_01_compiler_unary_overflow` for unary negation overflow diagnostics.
-- Spec: documented unary negation overflow in `spec/full_spec_v12.md`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_unary_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./pkg/interpreter -run TestBytecodeVM_UnaryNegate -count=1` in `v12/interpreters/go`.
-- Compiler: compiled `//`/`%` overflow now checks signed bounds (including `min_int // -1`) and raises `OverflowError`.
-- Fixtures: added `06_01_compiler_divmod_overflow` for compiled division overflow diagnostics.
-- Spec: documented `//`/`%` overflow behavior in `spec/full_spec_v12.md`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: `//`/`%` helpers now enforce overflow for signed/unsigned bounds (including `min_int // -1`) and `^` uses shared float pow helpers to keep imports consistent.
-- Fixtures: added `06_01_compiler_divmod_overflow`, `06_01_compiler_pow_overflow`, and `06_01_compiler_pow_negative_exponent`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_pow_overflow,06_01_compiler_pow_negative_exponent go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: `/%` now lowers to compiled divmod helpers and constructs `DivMod` results without interpreter operator dispatch (falls back to placeholder struct definition if missing).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod,06_01_compiler_divmod_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: IR iterator helper now enforces re-entrancy errors (`iterator.next re-entered while suspended at yield`) to match spec/interpreter semantics.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunctionIteratorLiteral -count=1` in `v12/interpreters/go`.
-- Compiler: iterator helper in AOT generator now enforces re-entrancy errors to avoid deadlocks and match spec semantics.
-- Fixtures: added exec fixture `07_10_iterator_reentrancy` for iterator re-entrancy errors.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=07_10_iterator_reentrancy go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: build output `main` now formats runtime errors via `DescribeRuntimeDiagnostic` (restores location/notes in compiled binaries).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_iterator_literal,06_07_generator_yield_iterator_end,06_07_iterator_pipeline,07_07_bytecode_implicit_iterator,07_09_bytecode_iterator_yield,07_10_iterator_reentrancy go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler IR: assignment lowering now implicitly declares missing bindings for `=` (matches spec), with pattern assignments only declaring when no existing binding is found.
-- Tests: `go test ./pkg/compiler -run TestLowerAssignmentAllowsImplicitBinding -count=1` in `v12/interpreters/go`.
-- Compiler IR: pattern destructure bindings now flow through IRDestructure bindings map, avoiding missing slot errors for `=` reassignments to existing bindings.
-- Tests: `go test ./pkg/compiler -run TestIREmitPatternAssignmentExistingBinding -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_00_mutability_declaration_vs_assignment,06_01_compiler_assignment_patterns,06_01_compiler_assignment_pattern_errors,06_01_compiler_assignment_pattern_typed_mismatch,06_01_compiler_assignment_pattern_rest_mismatch,06_01_compiler_assignment_pattern_struct_mismatch,06_01_compiler_assignment_pattern_positional_mismatch,05_02_array_nested_patterns,05_02_identifier_wildcard_typed_patterns,05_02_struct_pattern_rename_typed go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_match_patterns,08_01_match_guards_exhaustiveness,08_01_union_match_basic,11_03_bytecode_rescue_basic,11_03_rescue_ensure,11_03_raise_exit_unhandled go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_for_loop,06_01_compiler_for_loop_pattern,06_01_compiler_for_loop_pattern_mismatch,06_01_compiler_for_loop_struct_pattern,06_01_compiler_for_loop_pattern_guard,06_01_compiler_for_loop_typed_pattern,06_01_compiler_for_loop_typed_pattern_mismatch,08_02_loop_expression_break_value,08_02_numeric_sum_loop,08_02_while_continue_break go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: added dynamic feature warnings during compile to flag modules using dynimport/dynamic calls.
-- Tests: `go test ./pkg/compiler -run TestDetectDynamicFeatures -count=1` in `v12/interpreters/go`.
-- Compiler: spawn lowering now captures visible slots, builds a nested IR function body, and emits `IRSpawn` with explicit error flow (codegen still unsupported).
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler: IR codegen now emits `IRSpawn` by generating a task closure and calling `bridge.Spawn`; IR emission now includes nested spawn body functions and memoized IR function names.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunctionSpawn -count=1` in `v12/interpreters/go`.
-- Compiler: IR codegen now treats slots as mutable cells (`*runtime.Value`), loading via `__able_cell_value` and storing via `*slot` to preserve by-reference capture semantics for spawn bodies.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler: spawn bodies now capture slots by reference (captured slots passed as `*runtime.Value` into spawn IR functions); IR await codegen now calls `bridge.Await` with a per-site `ast.AwaitExpression`.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler: split IR Go codegen helpers into `ir_codegen_helpers.go` to keep files under 1000 lines.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler: iterator literals now lower into nested IR functions with by-reference captured slots; IR codegen emits iterator helpers and compiles iterator bodies via `__able_new_iterator`.
-- Compiler: added IR await and iterator literal codegen tests.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler AOT: added IR-to-Go emission scaffold with helper runtime shims and minimal instruction coverage (compute/invoke/branch/iter next), plus parser-based smoke tests for emitted Go.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR codegen now emits array/struct/map literals, string interpolation, and limited destructuring; added literal-focused IR emit tests and fixed lowering to treat array/map literals as non-const IR nodes.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler AOT: expanded IR destructuring codegen to handle struct/array/nested patterns with typed/literal checks and rest binding temps; added error-to-struct matching helper for parity with interpreter pattern semantics.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR struct literal lowering/codegen now carries explicit type arguments (including functional update inheritance).
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR codegen now emits casts via bridge.Cast; added a cast-focused IR emit test.
-- Tests: `go test ./pkg/compiler -run TestIREmitFunction -count=1` in `v12/interpreters/go`.
-- Compiler AOT: dynamic feature detection now scans module/function bodies (dynimport, dyn member calls, control-flow blocks) and reports per-function usage.
-- Tests: `go test ./pkg/compiler -run TestDetectDynamicFeatures -count=1` in `v12/interpreters/go`.
-- Compiler AOT: added typed IR scaffolding (ANF blocks, instructions, explicit error flow terminators) with block invariant tests.
-- Tests: `go test ./pkg/compiler -run TestIRBlock -count=1` in `v12/interpreters/go`.
-- Compiler AOT: added initial AST-to-IR lowerer for control flow (`if`, `match`), assignments, and basic expressions.
-- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
-- Typechecker: program checks now expose per-package inferred type maps for compiler use.
-- Compiler: lowering can consume `ProgramAnalysis` inference map; program analysis test asserts inference presence.
-- Tests: `go test ./pkg/compiler -run TestAnalyzeProgramBuildsGraphAndTypecheck -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./pkg/typechecker -run TestProgramCheckerResolvesDependencies -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR lowering now handles `while`, `loop`, `break`, and `continue`, and skips writes on terminated control-flow paths.
-- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR lowering now covers `for` loops with iterator steps and pattern destructuring, using `IRIterNext`.
-- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR lowering now handles `raise`, `rescue`, `ensure`, `or`, and `!` (propagation), with explicit error handler routing.
-- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR lowering now supports `spawn`, `await`, and `breakpoint`, plus global identifier references.
-- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR lowering now handles casts, ranges, collections (array/map/struct), iterators, and string interpolation (scaffolded).
-- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR lowering now emits explicit literal nodes for arrays/maps/structs/string interpolation and iterator literals.
-- Tests: `go test ./pkg/compiler -run TestLowerLiteralExpressions -count=1` in `v12/interpreters/go`.
-- Compiler AOT: added basic IR validation (terminator presence) and enabled it across lowerer tests.
-- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
-- Compiler AOT: IR validation now checks reachability and missing block references.
-- Tests: `go test ./pkg/compiler -run TestLower -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
-- Tests: `./run_all_tests.sh` at repo root.
-- Compiler: collect structs/functions/overloads across all modules, emit per-package overload dispatchers, and register compiled function thunks by signature instead of overwriting env bindings (uses qualified original names for fallback calls).
-- Interpreter: track per-package environments (new `PackageEnvironment`) and register compiled function overloads by param signature on existing runtime function values.
-- CLI: `ablec` now supports `-build` (forces `-pkg=main`) and `-bin` to build a native binary after emitting Go code.
-- Tests: `go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./pkg/interpreter -run TestInterpreterEvaluateProgramSuccess -count=1` in `v12/interpreters/go`.
-- Interpreter: compiled member assignment now supports array receivers (length/capacity/storage_handle/index updates) to keep compiled stdlib methods from failing on runtime arrays.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./pkg/interpreter -run TestInterpreterEvaluateProgramSuccess -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (timed out at 120s).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch,13_06_stdlib_package_resolution,13_07_search_path_env_override go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_01_interface_defaults_composites,10_02_impl_specificity_named_overrides,10_02_impl_where_clause,10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_05_interface_named_impl_defaults,10_06_interface_generic_param_dispatch,10_07_interface_default_chain go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_08_interface_default_override,10_09_interface_named_impl_inherent,10_10_interface_inheritance_defaults,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_13_interface_param_generic_args,10_14_interface_return_generic_args,10_15_interface_default_generic_method,10_16_interface_value_storage go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Interpreter: compiled thunks now enter the serial executor's synchronous section when invoked from non-async contexts, preserving deterministic spawn ordering for compiled code.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_02_async_spawn_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_spawn_basic,12_01_bytecode_await_default,12_02_async_spawn_combo,12_02_future_fairness_cancellation,12_03_spawn_future_status_error,12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types,12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- CLI: `ablec` now loads programs with the same search path discovery (entry dir + `ABLE_PATH`/`ABLE_MODULE_PATHS` + stdlib/kernel roots) as the main CLI.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./cmd/ablec -count=1` in `v12/interpreters/go`.
-- Compiler: compiled functions/methods now swap to their package environments; compiled struct method wrappers reapply mutated receivers via generated `__able_struct_<Name>_apply` helpers.
-- Interpreter: `matchesType` now accepts array struct instances by converting to `ArrayValue` for type matching.
-- Compiler: struct conversion rendering now scopes temp declarations to avoid redeclare errors.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types,12_08_blocking_io_concurrency,06_11_truthiness_boolean_context,06_12_01_stdlib_string_helpers,06_12_02_stdlib_array_helpers,06_12_03_stdlib_numeric_ratio_divmod,08_01_if_truthiness_value,08_01_control_flow_fizzbuzz,08_01_bytecode_if_indexing,08_01_bytecode_match_basic,08_01_bytecode_match_subject,08_01_match_guards_exhaustiveness,08_01_union_match_basic,08_02_bytecode_loop_basics,08_02_loop_expression_break_value,08_02_numeric_sum_loop go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_02_range_inclusive_exclusive,08_02_while_continue_break,08_03_breakpoint_nonlocal_jump,05_00_mutability_declaration_vs_assignment go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_02_array_nested_patterns,05_02_identifier_wildcard_typed_patterns,05_02_struct_pattern_rename_typed,05_03_assignment_evaluation_order,05_03_bytecode_assignment_patterns,11_02_option_result_or_handlers,11_02_option_result_propagation,11_02_bytecode_or_else_basic go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_00_errors_match_loop_combo,11_03_bytecode_ensure_basic,11_03_bytecode_rescue_basic,11_03_raise_exit_unhandled,11_03_rescue_ensure,11_03_rescue_rethrow_standard_errors go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~205s; exceeds the 1-minute guideline).
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` in `v12/interpreters/go`.
-- CLI: `able test --compiled` now writes temp build output under the Go module root (optional `ABLE_TEST_KEEP_WORKDIR`), loads test packages via `IncludePackages`, and avoids invalid imports in the runner source.
-- Compiler: wrapper arg/return interface MatchType checks now skip when unbound generic params are present (prevents false runtime mismatches like `Expectation.to`).
-- Tests: `go test ./cmd/able -run TestTestCommandCompiledRuns -count=1` in `v12/interpreters/go`.
-- CLI: `able build` and `ablec` now emit a `go.mod` into build outputs with a local `replace` to the interpreter module (self-contained builds outside the module tree).
-- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./cmd/ablec -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).
-- Tests: `./run_all_tests.sh` at repo root.
-- CLI: `able build`/`ablec -build` now copy `v12/interpreters/go` plus parser sources into build outputs and wire `go.mod` `replace` to `./v12/interpreters/go` for self-contained binaries.
-- Tests: `go test ./cmd/ablec -count=1` in `v12/interpreters/go`.
-- Tests: `go test ./cmd/able -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go` (completed in ~211s; exceeds the 1-minute guideline).
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=all go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
-- Compiler: compiled runtime helpers now fast-path array indexing/assignment and array element access for handle-0 arrays, including index coercion + IndexError payload construction for direct array access.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler: split `generator_render.go` into smaller render files (`generator_render_runtime.go`, `generator_render_structs.go`, `generator_render_functions.go`, `generator_render_main.go`, `generator_render_helpers.go`) to keep files under 1000 lines.
-- Tests: `go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_integer_overflow,06_01_compiler_integer_overflow_sub,06_01_compiler_integer_overflow_mul,06_01_compiler_unary_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod_overflow,06_01_compiler_pow_overflow,06_01_compiler_pow_negative_exponent,06_01_compiler_compound_assignment_overflow go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_01_compiler_divmod,06_01_compiler_array_struct_literal,06_01_literals_array_map_inference go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,06_12_02_stdlib_array_helpers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_01_stdlib_string_helpers,06_12_03_stdlib_numeric_ratio_divmod go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_11_truthiness_boolean_context,08_01_if_truthiness_value,08_01_control_flow_fizzbuzz go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_01_bytecode_if_indexing,08_01_bytecode_match_basic,08_01_bytecode_match_subject go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_01_match_guards_exhaustiveness,08_01_union_match_basic,08_02_bytecode_loop_basics go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_02_loop_expression_break_value,08_02_numeric_sum_loop,08_02_range_inclusive_exclusive go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=08_02_while_continue_break,08_03_breakpoint_nonlocal_jump,05_00_mutability_declaration_vs_assignment go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_02_array_nested_patterns,05_02_identifier_wildcard_typed_patterns,05_02_struct_pattern_rename_typed go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=05_03_assignment_evaluation_order,05_03_bytecode_assignment_patterns,11_02_option_result_or_handlers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_02_option_result_propagation,11_02_bytecode_or_else_basic,11_00_errors_match_loop_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_03_bytecode_ensure_basic,11_03_bytecode_rescue_basic,11_03_raise_exit_unhandled go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=11_03_rescue_ensure,11_03_rescue_rethrow_standard_errors,12_02_async_spawn_combo go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_spawn_basic,12_01_bytecode_await_default,12_02_future_fairness_cancellation go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_03_spawn_future_status_error,12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Compiler AOT: enumerated remaining unnamed impl fallback blockers in stdlib-heavy fixtures; fixed compileability for `IndexMut Array<T>.set` and String iterator unnamed impl methods (`StringBytesIter`, `StringCharsIter`, `StringGraphemesIter`) to reduce strict-dispatch blockers.
-- Compiler AOT: `Index Array<T>.get` now lowers to a compileable direct slot-read path; fallback audit for `13_06_stdlib_package_resolution`, `12_08_blocking_io_concurrency`, and `06_08_array_ops_mutability` no longer reports unnamed impl method fallbacks.
-- Compiler AOT: impl-method param-type rendering now substitutes interface generic arguments before registration, and synthetic default impl methods are skipped for interpreter thunk registration (they are still available in compiled interface-dispatch tables).
-- Compiler AOT: deferred strict interface dispatch when impl thunk registration mismatches are detected during registration (`__able_interface_dispatch_blocked`) to avoid unsafe strict-mode activation in programs with unresolved registration parity.
-- Compiler AOT: moved diagnostic/await AST global emission to the end of generated source so nodes discovered during render are always declared (fixes missing `__able_binary_node_*` declarations in stdlib-heavy compiled outputs).
-- Interpreter: improved compiled impl-thunk mismatch diagnostics and added interface-generic substitution during impl-thunk param matching.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_EXEC_FIXTURES=13_06_stdlib_package_resolution,06_08_array_ops_mutability,10_02_impl_where_clause,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch go test ./pkg/compiler -run TestCompilerExecFixtureFallbacks -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_08_array_ops_mutability,08_01_bytecode_if_indexing,06_12_02_stdlib_array_helpers,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_02_impl_where_clause,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run TestCompilerEmitsStructsAndWrappers -count=1` in `v12/interpreters/go`.
-- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestInterpreterEvaluateProgramSuccess -count=1` in `v12/interpreters/go`.
-- Blocker: `GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=60s` times out waiting on the compiled fixture subprocess (no stdout/stderr), so this fixture still needs dedicated follow-up before claiming full strict-dispatch parity in stdlib-heavy concurrency paths.
-- Compiler AOT: compiled future runtime now selects executor mode from host interpreter (`bridge.ExecutorKind`), enabling compiled goroutine scheduling when fixtures/programs use goroutine executor (fixes compiled `12_08_blocking_io_concurrency` hang path while preserving serial default behavior).
-- Compiler AOT: compiled async failure normalization now wraps generic async task errors into `Future failed: ...` runtime errors while preserving cancellation (`context.Canceled`) status, restoring parity for failed/cancelled future value/status behavior.
-- Compiler bridge/interpreter: added `Interpreter.ExecutorKind()` plus bridge coverage (`TestExecutorKind`) so compiled runtime can safely query scheduler mode without fallback heuristics.
-- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler/bridge -count=1`.
-- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=70s`.
-- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_03_spawn_future_status_error,12_04_future_handle_value_view,12_06_await_fairness_cancellation,12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=70s`.
-- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=12_01_bytecode_spawn_basic,12_01_bytecode_await_default,12_02_async_spawn_combo,12_02_future_fairness_cancellation,12_03_spawn_future_status_error,12_04_future_handle_value_view,12_05_concurrency_channel_ping_pong,12_05_mutex_lock_unlock,12_06_await_fairness_cancellation,12_07_channel_mutex_error_types,12_08_blocking_io_concurrency go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=70s`.
-- Tests: `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=10_17_interface_overload_dispatch,10_02_impl_where_clause,10_12_interface_union_target_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1 -timeout=70s`.
-- Compiler AOT: completed dynamic boundary hardening audit coverage by running `TestCompilerBoundaryFallbackMarkerForStaticFixtures` across `ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all` (full exec fixture corpus) with zero compiled->interpreter fallback marker regressions.
-- Compiler AOT: generated `main.go` now includes a guarded static fast-path that skips `interp.EvaluateProgram(...)` for safe `main`-only, fallback-free, non-dynamic programs; dynamic/complex programs keep the interpreter bootstrap path.
-- Compiler runtime: compiled-call registration now defines callable bindings directly in each package runtime environment (`env.Define(name, fn)`) in addition to compiled-call table registration.
-- Compiler tests: added `pkg/compiler/compiler_main_bootstrap_test.go` to assert static launcher generation skips evaluation while dynamic launcher generation retains interpreter bootstrap.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerCompiledHashSetUnionStdlib|TestCompilerZeroFieldStructIdentifierValue|TestCompilerSingletonStaticOverloadDispatch|TestCompilerBuildsLargeI128AndU128Literals|TestCompilerEmitsStructsAndWrappers' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all go test -v ./pkg/compiler -run TestCompilerBoundaryFallbackMarkerForStaticFixtures -count=1` (full-corpus audit; ~339s aggregate).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
-- Compiler AOT: expanded compiled main no-bootstrap eligibility from `main`-only to static function graphs where all discovered functions are compileable and the module set remains fallback-free/non-dynamic with no struct/method/impl bootstrap requirements.
-- Compiler AOT: generated registration now conditionally installs compiled function overload thunks only when a matching runtime declaration already exists in the package environment, avoiding no-bootstrap hard-fail paths while preserving strict checks for bootstrapped environments.
-- Compiler tests: added `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers` in `pkg/compiler/compiler_main_bootstrap_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerCompiledHashSetUnionStdlib|TestCompilerZeroFieldStructIdentifierValue|TestCompilerSingletonStaticOverloadDispatch|TestCompilerBuildsLargeI128AndU128Literals|TestCompilerEmitsStructsAndWrappers' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
-- Compiler AOT: expanded no-bootstrap launch support to safe single-package programs with compileable functions/methods/impls (still requiring no dynamic usage and no compiler fallbacks).
-- Compiler AOT: `RegisterIn` now detects whether interpreter metadata was preloaded (`__able_bootstrapped_metadata`) and gates interpreter thunk-registration APIs accordingly, while always registering compiled call/method/interface dispatch tables.
-- Compiler AOT: per-package struct definitions are now seeded into runtime environments during registration when missing, using generated `runtime.StructDefinitionValue` placeholders with preserved struct kind/field/generic shape metadata.
-- Compiler AOT: overload thunk registration now executes before compiled-call env replacement, preserving bootstrap registration against interpreted declarations.
-- Compiler tests: added `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls` in `pkg/compiler/compiler_main_bootstrap_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
-- Compiler AOT: expanded no-bootstrap main gating from single-package-only to a statically-seedable multi-package path (`noBootstrapImportsSeedable`), still requiring non-dynamic code with zero fallbacks and fully compileable functions/methods/impls.
-- Compiler AOT: generator now collects module static import metadata (`ImportStatement`) per package and records selector/package/wildcard forms for launch-time seeding decisions.
-- Compiler runtime registration: added no-bootstrap-only static import seeding in `RegisterIn` that constructs per-package public symbol maps (public compiled callables + public struct defs) and replays package/selector/wildcard bindings into package envs without interpreter bootstrap.
-- Compiler runtime registration: seeded package callable exports via generated `NativeFunctionValue` proxies that swap into source package env and dispatch through `__able_call_named`, preserving compiled-call dispatch semantics.
-- Compiler tests: added `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports` to verify generated `main.go` skips `EvaluateProgram(...)` for a static multi-package import case and that generated registration emits import-seeding code.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
-- Compiler AOT: expanded no-bootstrap import seedability to include wildcard imports and named impl namespace imports (in addition to package/selector imports), while preserving fallback/dynamic/compileability guards.
-- Compiler generator: now tracks union definitions/packages alongside interface metadata so no-bootstrap import seeding can expose public unions/interfaces consistently.
-- Compiler registration (`RegisterIn`): per-package env seeding now covers missing interface and union definitions in no-bootstrap flows (struct seeding remained in place).
-- Compiler registration (`RegisterIn`): added named impl namespace seeding for packages without bootstrapped metadata, constructing `runtime.ImplementationNamespaceValue` with compiled native method wrappers.
-- Compiler registration no-bootstrap import seeding: source package public maps now include public functions, structs, interfaces, unions, and named impl namespaces; wildcard seeding replays all importable names.
-- Safety gate: no-bootstrap now rejects ambiguous named impl namespace shapes (mixed targets/interfaces per impl name or overloaded impl namespace methods). These cases continue to bootstrap.
-- Compiler tests: added
-  - `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport`
-  - `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport`
-  in `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures|TestCompilerDynamicBoundary|TestCompilerStrictDispatchForStdlibHeavyFixtures' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_05_interface_named_impl_defaults,10_09_interface_named_impl_inherent,06_12_01_stdlib_string_helpers go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Refactor: split compiler render helpers to maintain file-size guardrails (<1000 lines) by moving struct-definition helpers into `generator_render_struct_defs.go` and thunk emitters into `generator_render_thunks.go`; `generator_render_functions.go` is now under 1000 lines.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`.
-- Compiler AOT: no-bootstrap named impl namespace seeding now supports overloaded methods by emitting per-namespace overload dispatch closures (type-match scoring + ambiguity/no-match errors + partial application via `runtime.PartialFunctionValue`).
-- Compiler AOT: removed the no-bootstrap seedability rejection for overloaded named impl namespace methods; the safety gate now validates overload dispatchability (compileable entries + renderable concrete param types).
-- Compiler tests: added `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads` in `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent|TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_05_interface_named_impl_defaults,10_09_interface_named_impl_inherent,10_17_interface_overload_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Compiler AOT: no-bootstrap import callable seeding now binds imported callables directly to compiled call table entries (`__able_lookup_compiled_call`) rather than routing through `__able_call_named`, reducing boundary indirection for static cross-package calls.
-- Compiler tests: strengthened `TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports` to assert direct compiled-call binding in generated seeding logic.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Compiler AOT: started package-output partitioning by adding a dedicated generated artifact `compiled_packages.go` that emits per-package registrar helpers plus a shared `__able_register_compiled_packages(...)` entrypoint.
-- Compiler AOT: `compiled.go` registration now delegates package seeding/callable registration to the generated package registrar entrypoint, preserving runtime behavior while separating package-scoped emission.
-- Compiler tests: `compiler_main_bootstrap_test` now inspects combined generated compiled sources (`compiled.go` + `compiled_packages.go`) so no-bootstrap assertions cover split output.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Compiler AOT: continued package-output partitioning by moving function/overload callable registration emission into per-package generated files (`compiled_pkg_callables_*.go`) via package-scoped helpers (`__able_register_compiled_package_callables_*`).
-- Compiler AOT: package registrars in `compiled_packages.go` now focus on package env/bootstrap seeding and delegate callable registration to per-package callable helpers.
-- Compiler tests: bootstrap source inspection now aggregates all `compiled*.go` outputs so assertions stay valid as generated artifacts split across files.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Compiler AOT: continued package-output partitioning by moving method/impl registration emission into per-package generated files (`compiled_pkg_methods_impls_*.go`) via package-scoped helpers (`__able_register_compiled_package_methods_impls_*`).
-- Compiler AOT: `RegisterIn` now invokes generated `__able_register_compiled_method_impl_packages(...)` for method/impl registration before interface-dispatch table setup, preserving registration order while removing inline monolithic emission.
-- Compiler AOT: package registrars in `compiled_packages.go` now focus on package env/bootstrap/definition seeding and delegate methods+impls and callables to dedicated per-package generated helpers.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecHarness|TestCompilerSingletonStaticOverloadDispatch|TestCompilerZeroFieldStructIdentifierValue|TestCompilerCompiledHashSetUnionStdlib|TestCompilerEmitsStructsAndWrappers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Compiler AOT: continued generated-output partitioning by moving interface-dispatch and method-overload registration emission out of `compiled.go` into dedicated generated artifact `compiled_interface_dispatch.go`.
-- Compiler AOT: `RegisterIn` now delegates dispatch setup to `__able_register_compiled_interface_dispatch(rt)` after per-package method/impl registration, preserving registration order while reducing monolithic `compiled.go` emission.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
-- Compiler AOT: normalized `InterfaceValue` member-get-method dispatch to a single shared path in generated runtime calls (value/pointer forms now flow through one local `iface` value), removing duplicated pointer/value interface dispatch branches while preserving strict interface miss behavior.
-- Compiler tests: added `TestCompilerNormalizesInterfaceMemberGetMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_member_get_method_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.076s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 512.628s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.945s`).
-- CLI/compiler integration: added shared `ABLE_COMPILER_REQUIRE_NO_FALLBACKS` parsing helper in `v12/interpreters/go/cmd/able/compiler_options.go` with strict token validation and explicit error messages for invalid values.
-- CLI/compiler integration: `able test --compiled` now applies the same `RequireNoFallbacks` setting (via env) before compilation, matching `able build` strict fallback behavior.
-- CLI tests: added `TestBuildNoFallbacksFlagFailsWhenFallbackRequired`, `TestBuildNoFallbacksEnvFailsWhenFallbackRequired`, and `TestBuildNoFallbacksInvalidEnvFailsArgumentParsing` in `v12/interpreters/go/cmd/able/build_test.go`.
-- CLI tests: added `TestBuildAllowFallbacksOverridesEnv` in `v12/interpreters/go/cmd/able/build_test.go` and `TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv` in `v12/interpreters/go/cmd/able/test_cli_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./cmd/able -run 'TestBuildNoFallbacksFlagFailsWhenFallbackRequired|TestBuildNoFallbacksEnvFailsWhenFallbackRequired|TestBuildNoFallbacksInvalidEnvFailsArgumentParsing|TestBuildAllowFallbacksOverridesEnv|TestBuildTargetFromManifest|TestBuildOutputOutsideModuleRoot|TestTestCommandCompiledRuns|TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./cmd/able -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRequireNoFallbacksFails|TestCompilerEmitsStructsAndWrappers' -count=1`.
-- Compiler AOT: continued generated-output partitioning by moving no-bootstrap static import seeding emission out of `compiled_packages.go` into dedicated generated artifact `compiled_import_seeding.go`.
-- Compiler AOT: package registration now calls `__able_seed_no_bootstrap_imports(__able_bootstrapped_metadata)` so `compiled_packages.go` focuses on package registrar orchestration.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Compiler AOT: continued generated-output partitioning by moving per-package definition seeding (struct/interface/union + named impl namespace seeds) out of `compiled_packages.go` into per-package generated artifacts (`compiled_pkg_defs_*.go`).
-- Compiler AOT: package registrars now delegate definition seeding to generated helpers (`__able_register_compiled_package_defs_*`) before callable registration, reducing monolithic package registrar emission.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
-- Compiler AOT: continued generated-output partitioning by moving per-package package-registrar emission out of `compiled_packages.go` into per-package generated artifacts (`compiled_pkg_registrar_*.go`).
-- Compiler AOT: `compiled_packages.go` now focuses on aggregator orchestration (`__able_register_compiled_method_impl_packages`, `__able_register_compiled_packages`) and delegates per-package registration to generated registrar helpers.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
-- Compiler AOT: continued generated-output partitioning by moving register/run entrypoint emission (`Register`, `RegisterIn`, `RunMain`, `RunMainIn`, `RunRegisteredMain`) out of `compiled.go` into dedicated generated artifact `compiled_register.go`.
-- Compiler AOT: `compiled.go` now focuses on runtime helpers, compiled bodies/wrappers, thunks, overload dispatchers, and diagnostics, while registration entrypoint orchestration is emitted separately.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
-- Compiler AOT: continued generated-output partitioning by moving package-registration aggregator emission out of `compiled_packages.go` into dedicated generated artifact `compiled_package_aggregators.go`.
-- Compiler AOT: generated output no longer emits `compiled_packages.go`; aggregator orchestration now lives in `compiled_package_aggregators.go` while per-package registration remains in `compiled_pkg_registrar_*.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
-- Compiler AOT: added compiler option `RequireNoFallbacks` to fail compilation when any fallback wrappers would be emitted, providing an explicit no-silent-fallback guardrail for strict builds.
-- Compiler tests: added `TestCompilerRequireNoFallbacksFails` in `v12/interpreters/go/pkg/compiler/compiler_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerEmitsStructsAndWrappers|TestCompilerRequireNoFallbacksFails' -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesStructMethodsAndImpls|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesMultiPackageImports|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesWildcardImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceImport|TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverloads|TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent' -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=13_01_package_structure_modules,13_04_import_alias_selective_dynimport,13_06_stdlib_package_resolution go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES=10_03_interface_type_dynamic_dispatch,10_04_interface_dispatch_defaults_generics,10_06_interface_generic_param_dispatch,10_11_interface_generic_args_dispatch,10_12_interface_union_target_dispatch,10_17_interface_overload_dispatch,13_05_dynimport_interface_dispatch go test ./pkg/compiler -run TestCompilerExecFixtures -count=1`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run TestCompilerStrictDispatchForStdlibHeavyFixtures -count=1`.
-- Compiler AOT: normalized `InterfaceValue` member-get-method dispatch to a single shared path in generated runtime calls (value/pointer forms now flow through one local `iface` value), removing duplicated pointer/value interface dispatch branches while preserving strict interface miss behavior.
-- Compiler tests: added `TestCompilerNormalizesInterfaceMemberGetMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_member_get_method_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.076s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 512.628s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.945s`).
-- Compiler AOT: normalized `DynPackage` builtin member-call receiver handling to a single shared value path (value/pointer receiver assertions now populate one local `dyn` value before `bridge.MemberGet`), removing duplicated pointer/value receiver switch branches while preserving `DynPackage.def`/`DynPackage.eval` behavior.
-- Compiler tests: added `TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver` in `v12/interpreters/go/pkg/compiler/compiler_dynpackage_member_call_receiver_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver|TestCompilerRegistersBuiltinDynPackageMemberMethods' -count=1` (`ok ... 0.040s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES='13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (`ok ... 3.753s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.602s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 235.950s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 507.252s`).
-- Compiler AOT: normalized builtin `Error.message`/`Error.cause` receiver handling to a shared helper (`__able_builtin_error_receiver`) so value/pointer receivers now flow through one local `runtime.ErrorValue` normalization path.
-- Compiler tests: added `TestCompilerNormalizesErrorBuiltinMemberReceivers` in `v12/interpreters/go/pkg/compiler/compiler_error_member_receiver_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesErrorBuiltinMemberReceivers|TestCompilerRegistersBuiltinErrorMemberMethods|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (`ok ... 0.058s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES='12_07_channel_mutex_error_types,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (`ok ... 3.856s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 58.021s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 232.297s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 500.790s`).
-- Compiler AOT: normalized duplicated pointer/value native callable-dispatch branches in `__able_call_value` via shared helper `__able_call_native_function` so native function values, native bound-method values, and bound-method native members reuse one arity/error/partial-application path.
-- Compiler tests: added `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesErrorBuiltinMemberReceivers|TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver' -count=1` (`ok ... 0.057s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES='12_07_channel_mutex_error_types,13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (`ok ... 6.302s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 61.363s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.021s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 530.283s`).
-- Compiler AOT: normalized duplicated pointer/value interface + partial unwrapping branches in `__able_call_value` to shared helpers (`__able_callable_interface_value`, `__able_callable_partial_value`, `__able_merge_bound_args`) while preserving nil-pointer-to-nil-value behavior and bound-arg merge semantics.
-- Compiler tests: added `TestCompilerNormalizesCallValueUnwrapBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_unwrap_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesErrorBuiltinMemberReceivers' -count=1` (`ok ... 0.058s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_EXEC_FIXTURES='12_07_channel_mutex_error_types,13_04_import_alias_selective_dynimport,13_05_dynimport_interface_dispatch' go test ./pkg/compiler -run TestCompilerExecFixtures -count=1` (`ok ... 5.703s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 75.289s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 243.026s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 529.914s`).
-- Compiler AOT: normalized duplicated pointer/value callable-name unwrapping in `__able_callable_name` to shared helpers (`__able_callable_native_function_value`, `__able_callable_native_bound_method_value`, `__able_callable_bound_method_value`) while reusing shared partial/interface unwrapping helpers.
-- Compiler tests: added `TestCompilerNormalizesCallableNameUnwrapBranches` in `v12/interpreters/go/pkg/compiler/compiler_callable_name_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallValueNativeDispatchBranches' -count=1` (`ok ... 0.059s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 60.268s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 506.503s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.352s`).
-- Compiler AOT: normalized duplicated pointer/value bound-method dispatch branches in `__able_call_value` into shared helper `__able_call_bound_method` while preserving compiled-thunk + native-member dispatch behavior.
-- Compiler tests: added `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_bound_method_shim_regression_test.go`.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the new bound-method helper path.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.077s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.331s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 520.056s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.549s`).
-- Compiler AOT: normalized duplicated pointer/value native-bound receiver-injection dispatch branches in `__able_call_value` into shared helper `__able_call_native_bound_method` while preserving native partial-target semantics.
-- Compiler tests: added `TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_bound_method_shim_regression_test.go`.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the new native-bound helper path.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.097s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 56.348s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 504.781s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.303s`).
-- Compiler AOT: normalized duplicated `*runtime.FunctionValue` compiled-thunk dispatch in `__able_call_value` and the bound-method thunk branch via shared helper `__able_call_function_thunk` while preserving runtime-error context handling and nil-value semantics.
-- Compiler tests: added `TestCompilerNormalizesCallValueFunctionThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_value_function_thunk_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.113s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.563s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 492.656s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 229.642s`).
-- Compiler AOT: normalized duplicated `runtime.NativeFunctionValue` / `*runtime.NativeFunctionValue` dispatch in `__able_call_value` via shared helper `__able_call_native_function_value` while preserving partial-target semantics for pointer/value targets.
-- Compiler tests: added `TestCompilerNormalizesCallValueNativeFunctionDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_function_shim_regression_test.go`.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the shared native-function helper path.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.126s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.973s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 530.525s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 246.697s`).
-- Compiler AOT: normalized duplicated `runtime.NativeBoundMethodValue` / `*runtime.NativeBoundMethodValue` switch dispatch in `__able_call_value` via shared unwrapping path `__able_callable_native_bound_method_value` with unified dispatch through `__able_call_native_bound_method(nativeBound, fn, ...)`.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_bound_method_shim_regression_test.go` to assert switch-branch removal and the new normalized unwrapping path.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the new native-bound unwrapping path.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.127s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 60.240s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 509.840s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 244.857s`).
-- Compiler AOT: normalized duplicated `runtime.BoundMethodValue` / `*runtime.BoundMethodValue` switch dispatch in `__able_call_value` via shared unwrapping path `__able_callable_bound_method_value` with unified dispatch through `__able_call_bound_method(bound, fn, ...)`.
-- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_bound_method_shim_regression_test.go` to assert switch-branch removal and the normalized bound-method unwrapping path.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert the normalized bound-method unwrapping path.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.144s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.867s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 525.014s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 256.323s`).
-- Compiler AOT: removed the now-single-case `switch v := fn.(type)` in `__able_call_value` by normalizing `*runtime.FunctionValue` dispatch to a direct assertion path that routes through `__able_call_function_thunk`.
-- Compiler tests: updated `TestCompilerNormalizesCallValueFunctionThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_value_function_thunk_shim_regression_test.go` to assert switch removal and direct assertion path usage.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.133s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.023s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 590.436s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 234.021s`).
-- Compiler tests: strengthened `TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod` in `v12/interpreters/go/pkg/compiler/compiler_string_method_registration_test.go` to assert generated wrappers do not use `__able_call_named("String.from_bytes_unchecked", ...)` fallback dispatch.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty' -count=1` (`ok ... 0.042s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.430s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 497.476s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.787s`).
-- Compiler AOT: normalized `__able_call_bound_method` by removing `switch method := bound.Method.(type)` and routing native-function dispatch through `__able_callable_native_function_value(bound.Method)` while keeping direct `*runtime.FunctionValue` thunk assertion + shared helper dispatch.
-- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_bound_method_shim_regression_test.go` to assert removal of the bound-method switch and helper-based native unwrapping.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert helper-based native unwrapping inside bound-method dispatch.
-- Compiler tests: updated `TestCompilerNormalizesCallValueFunctionThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_value_function_thunk_shim_regression_test.go` for the renamed direct thunk assertion local.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.127s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.269s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 510.913s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 231.459s`).
-- Compiler AOT: normalized `__able_interface_bind_receiver_method` by removing method-kind pointer/value switch dispatch and routing through shared callable unwrapping helpers (`__able_callable_native_function_value`, `__able_callable_native_bound_method_value`, `__able_callable_bound_method_value`) while preserving nil-pointer behavior and receiver binding semantics.
-- Compiler tests: added `TestCompilerNormalizesInterfaceBindReceiverMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_bind_receiver_method_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.090s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.495s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 496.160s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 241.374s`).
-- Compiler AOT: normalized `__able_runtime_value_type_name` by replacing legacy pointer/value switch unwrapping for interface/type-ref/numeric paths with shared helpers (`__able_callable_interface_value`, `__able_runtime_struct_definition_value`, `__able_runtime_type_ref_value`, `__able_runtime_integer_value`, `__able_runtime_float_value`) while preserving nil-pointer behavior and type-name resolution semantics.
-- Compiler tests: added `TestCompilerNormalizesRuntimeValueTypeNameUnwrapping` in `v12/interpreters/go/pkg/compiler/compiler_runtime_value_type_name_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.129s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 60.871s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 559.009s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 241.198s`).
-- Compiler AOT: normalized `__able_interface_dispatch_static_receiver` by removing explicit pointer/value switch branches and routing static-receiver detection through shared struct/type-ref unwrapping helpers (`__able_runtime_struct_definition_value`, `__able_runtime_type_ref_value`) with preserved nil-pointer semantics.
-- Compiler tests: added `TestCompilerNormalizesInterfaceDispatchStaticReceiver` in `v12/interpreters/go/pkg/compiler/compiler_interface_dispatch_static_receiver_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceDispatchStaticReceiver|TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.130s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.392s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 527.628s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 254.320s`).
-- Compiler AOT: normalized `__able_interface_dispatch_member` candidate matching by extracting receiver-type/generic/`MatchType` resolution into shared helper `__able_interface_dispatch_match_entry`, preserving constraint enforcement and coerced-receiver semantics while removing duplicated inline match branches.
-- Compiler tests: added `TestCompilerNormalizesInterfaceDispatchMemberMatchResolution` in `v12/interpreters/go/pkg/compiler/compiler_interface_dispatch_member_match_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceDispatchMemberMatchResolution|TestCompilerNormalizesInterfaceDispatchStaticReceiver|TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.158s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.169s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 506.131s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 241.648s`).
-- Compiler AOT: generalized static method lowering for nominal-struct returns by replacing the hardcoded `String.from_bytes_unchecked` return-type override with shared helper `staticMethodNominalStructReturnType` used by both method and impl lowering (`fillMethodInfo`, `fillImplMethodInfo`), preserving no-fallback compileability for `impl Default for String` static dispatch while allowing additional static constructors that return their target struct type to compile without fallback.
-- Compiler tests: added `TestCompilerRegistersCompiledStringStaticStructReturnMethod` in `v12/interpreters/go/pkg/compiler/compiler_string_static_struct_return_registration_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod|TestCompilerRegistersCompiledStringStaticStructReturnMethod|TestCompilerNoFallbacksStringDefaultImplStaticEmpty|TestCompilerNormalizesInterfaceDispatchMemberMatchResolution' -count=1` (`ok ... 0.079s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 60.376s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 519.249s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 243.853s`).
-- Compiler AOT: normalized interface runtime method binding by replacing legacy method-kind pointer/value switches in `__able_interface_method_receiver` and `__able_interface_bind_method` with shared callable unwrapping helpers (`__able_callable_bound_method_value`, `__able_callable_native_function_value`, `__able_callable_native_bound_method_value`), preserving nil-pointer behavior and bound receiver semantics while reducing branch-local duplication.
-- Compiler tests: added `TestCompilerNormalizesInterfaceBindMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_bind_method_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceBindMethodDispatch|TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceDispatchMemberMatchResolution|TestCompilerNormalizesInterfaceDispatchStaticReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.096s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.544s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 526.627s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 239.138s`).
-- Compiler AOT: normalized callable-kind detection in `__able_is_callable_value` by replacing the legacy pointer/value type switch with shared callable unwrapping helpers (`__able_callable_native_function_value`, `__able_callable_native_bound_method_value`, `__able_callable_bound_method_value`, `__able_callable_partial_value`) plus direct compiled-function assertions, preserving typed-nil callable semantics while reducing dispatch-kind shim duplication.
-- Compiler tests: added `TestCompilerNormalizesIsCallableValueDispatch` in `v12/interpreters/go/pkg/compiler/compiler_is_callable_value_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.139s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.447s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 510.969s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 235.150s`).
-- Compiler AOT: normalized member-name extraction in `__able_member_name` by replacing the legacy pointer/value string switch with shared helper `__able_runtime_string_value`, preserving nil-pointer string behavior while reducing branch-local string-kind dispatch duplication.
-- Compiler tests: added `TestCompilerNormalizesMemberNameStringUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_member_name_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallableNameUnwrapBranches' -count=1` (`ok ... 0.167s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 63.281s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 536.874s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.355s`).
-- Compiler AOT: normalized qualified-callable candidate nil filtering in `__able_resolve_qualified_callable` by replacing the local `switch candidate.(type)` branch with shared `__able_is_nil(candidate)` checking, preserving nil-sentinel behavior while reducing branch-local nil-kind dispatch duplication.
-- Compiler tests: updated `TestCompilerRemovesNilPointerQualifiedCallableShim` in `v12/interpreters/go/pkg/compiler/compiler_nil_pointer_qualified_callable_shim_regression_test.go` to assert switch removal and shared nil-helper usage.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRemovesNilPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerQualifiedCallableShim|TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch' -count=1` (`ok ... 0.107s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.112s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 542.815s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 247.830s`).
-- Compiler AOT: normalized integer unwrapping in runtime string helper `__able_int64_from_value` by replacing the local pointer/value integer switch with shared helper `__able_runtime_integer_value`, preserving nil-pointer and 64-bit fit checks while reducing branch-local integer-kind dispatch duplication.
-- Compiler tests: added `TestCompilerNormalizesInt64FromValueIntegerUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_int64_from_value_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.092s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 57.353s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 493.730s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 226.789s`).
-- Compiler AOT: normalized string unwrapping in runtime helper `__able_string_from_builtin_impl` by replacing the local pointer/value string switch with shared helper `__able_runtime_string_value` while preserving struct-instance string handling (`__able_string_bytes_from_struct`), reducing branch-local string-kind dispatch duplication.
-- Compiler tests: added `TestCompilerNormalizesStringFromBuiltinUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_string_from_builtin_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.091s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.878s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 502.838s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 230.086s`).
-- Compiler AOT: normalized char unwrapping in runtime helper `__able_char_to_codepoint_impl` by replacing the local pointer/value char switch with shared helper `__able_runtime_char_value`, preserving nil-pointer char behavior while reducing branch-local char-kind dispatch duplication.
-- Compiler tests: added `TestCompilerNormalizesCharToCodepointUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_char_to_codepoint_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCharToCodepointUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.108s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 58.222s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 500.646s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 230.275s`).
-- Compiler AOT: normalized error unwrapping in core runtime helper `__able_struct_instance` by replacing the local error pointer/value switch with shared helper `__able_runtime_error_value`, preserving nil-pointer error handling while reducing branch-local error-kind dispatch duplication.
-- Compiler tests: added `TestCompilerNormalizesStructInstanceErrorUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_struct_instance_error_unwrap_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesStructInstanceErrorUnwrap|TestCompilerNormalizesCharToCodepointUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.131s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 56.380s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 484.316s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 225.983s`).
-- Compiler AOT: normalized nil detection in core runtime helper `__able_is_nil` by replacing the local `runtime.NilValue` pointer/value switch with shared helper `__able_runtime_nil_value`, preserving nil-pointer semantics while reducing branch-local nil-kind dispatch duplication.
-- Compiler tests: added `TestCompilerNormalizesIsNilUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_is_nil_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesIsNilUnwrap|TestCompilerNormalizesStructInstanceErrorUnwrap|TestCompilerNormalizesCharToCodepointUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerRemovesNilPointerQualifiedCallableShim' -count=1` (`ok ... 0.193s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 59.157s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 505.884s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 234.512s`).
-- Compiler AOT: normalized struct-instance unwrapping in core runtime helper `__able_struct_instance` by replacing direct `*runtime.StructInstanceValue` assertion with shared helper `__able_runtime_struct_instance_value`, preserving typed-nil behavior while keeping shared error unwrapping via `__able_runtime_error_value`.
-- Compiler tests: updated `TestCompilerNormalizesStructInstanceErrorUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_struct_instance_error_unwrap_shim_regression_test.go` to assert shared struct-instance helper emission/usage and direct-assertion removal.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesStructInstanceErrorUnwrap' -count=1` (`ok ... 0.021s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 61.170s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 501.871s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 235.305s`).
-- Compiler AOT: normalized struct-instance unwrapping in runtime helper `__able_string_from_builtin_impl` by replacing direct `*runtime.StructInstanceValue` assertion with shared helper `__able_runtime_struct_instance_value`, preserving struct-instance byte extraction (`__able_string_bytes_from_struct`) while routing typed-nil pointers through the existing argument error path.
-- Compiler tests: updated `TestCompilerNormalizesStringFromBuiltinUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_string_from_builtin_shim_regression_test.go` to assert shared struct-instance helper emission/usage and direct-assertion removal.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesStringFromBuiltinUnwrap' -count=1` (`ok ... 0.021s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 57.838s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 500.554s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 233.138s`).
-- Compiler AOT: normalized `Error` builtin receiver unwrapping in `__able_builtin_error_receiver` by replacing direct `runtime.ErrorValue`/`*runtime.ErrorValue` assertions with shared helper `__able_runtime_error_value`, preserving typed-nil pointer rejection and receiver validation semantics.
-- Compiler tests: updated `TestCompilerNormalizesErrorBuiltinMemberReceivers` in `v12/interpreters/go/pkg/compiler/compiler_error_member_receiver_shim_regression_test.go` to assert shared runtime error helper emission/usage and direct pointer assertion removal.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesErrorBuiltinMemberReceivers' -count=1` (`ok ... 0.021s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 61.417s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 521.518s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.068s`).
-- Compiler AOT: normalized `DynPackage` builtin member-call receiver unwrapping in `__able_builtin_dynpackage_member_call` by replacing direct `runtime.DynPackageValue`/`*runtime.DynPackageValue` assertions with shared helper `__able_runtime_dynpackage_value`, preserving typed-nil pointer rejection and receiver validation semantics.
-- Compiler tests: updated `TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver` in `v12/interpreters/go/pkg/compiler/compiler_dynpackage_member_call_receiver_shim_regression_test.go` to assert shared runtime dynpackage helper emission/usage and direct pointer assertion removal.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesDynPackageBuiltinMemberCallReceiver' -count=1` (`ok ... 0.021s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 58.894s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 508.755s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 265.551s`).
-- Compiler AOT: normalized `Future` builtin receiver unwrapping in `__able_builtin_future_receiver` by replacing direct `*runtime.FutureValue` assertion with shared helper `__able_runtime_future_value`, preserving typed-nil pointer rejection and receiver validation semantics.
-- Compiler tests: added `TestCompilerNormalizesFutureBuiltinMemberReceiver` in `v12/interpreters/go/pkg/compiler/compiler_future_member_receiver_shim_regression_test.go`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesFutureBuiltinMemberReceiver' -count=1` (`ok ... 0.021s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.639s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 511.689s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 243.107s`).
-- Compiler AOT: normalized interface-wrapped method dispatch in `__able_call_bound_method` by unwrapping `bound.Method` via shared helper `__able_callable_interface_value` before compiled-thunk/native dispatch checks, preserving typed-nil interface handling semantics.
-- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_bound_method_shim_regression_test.go` to assert interface helper unwrapping and local-method dispatch checks.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_dispatch_shim_regression_test.go` to assert normalized bound-method native unwrapping after interface unwrapping.
-- Compiler tests: updated `TestCompilerNormalizesCallValueFunctionThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_value_function_thunk_shim_regression_test.go` to assert normalized local-method thunk assertion path.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch' -count=1` (`ok ... 0.058s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.367s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 524.970s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 248.036s`).
-- Compiler AOT: normalized interface member-get dispatch in `__able_member_get_method` by replacing legacy `isIface` tracking + direct `runtime.InterfaceValue`/`*runtime.InterfaceValue` assertions with shared helper `__able_callable_interface_value`, preserving strict interface-miss panic behavior and typed-nil interface-pointer handling semantics.
-- Compiler tests: updated `TestCompilerNormalizesInterfaceMemberGetMethodDispatch` in `v12/interpreters/go/pkg/compiler/compiler_interface_member_get_method_shim_regression_test.go` to assert helper-based interface unwrapping and legacy assertion branch removal.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.021s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 62.491s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 540.533s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.675s`).
-- Compiler AOT: normalized `Iterator.next` builtin receiver unwrapping in `__able_builtin_iterator_next` by replacing direct `*runtime.IteratorValue` assertion with shared helper `__able_runtime_iterator_value`, preserving typed-nil pointer rejection and receiver validation semantics.
-- Compiler tests: added `TestCompilerNormalizesIteratorBuiltinMemberReceiver` in `v12/interpreters/go/pkg/compiler/compiler_iterator_member_receiver_shim_regression_test.go` to assert shared helper usage and legacy direct assertion removal.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.040s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.366s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 527.393s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 257.697s`).
-- Compiler AOT: normalized array receiver unwrapping in `__able_member_set` and `__able_member_get` by replacing duplicated direct `*runtime.ArrayValue` assertions with shared helper `__able_runtime_array_value`, preserving typed-nil pointer bypass behavior while removing branch-local array assertion duplication.
-- Compiler tests: added `TestCompilerNormalizesArrayMemberReceiverUnwrap` in `v12/interpreters/go/pkg/compiler/compiler_array_member_receiver_shim_regression_test.go` to assert helper usage and legacy direct assertion removal in both member-set and member-get helpers.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.058s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.895s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 530.935s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 252.561s`).
-- Compiler AOT: normalized direct callable pointer assertions in `__able_is_callable_value` by replacing legacy `*runtime.FunctionValue` / `*runtime.FunctionOverloadValue` checks with shared helpers (`__able_callable_function_value`, `__able_callable_function_overload_value`), preserving typed-nil callable semantics while removing branch-local assertion duplication.
-- Compiler tests: updated `TestCompilerNormalizesIsCallableValueDispatch` in `v12/interpreters/go/pkg/compiler/compiler_is_callable_value_shim_regression_test.go` to assert shared helper emission/usage and legacy direct assertion removal.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.076s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 62.788s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 531.135s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 242.430s`).
-- Compiler AOT: normalized function-thunk dispatch unwrapping in `__able_call_bound_method` and `__able_call_value` by replacing direct `*runtime.FunctionValue` assertions with shared helper `__able_callable_function_value`, preserving typed-nil thunk semantics while removing branch-local assertion duplication.
-- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` and `TestCompilerNormalizesCallValueFunctionThunkDispatch` to assert helper-based thunk unwrapping and direct assertion removal.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.131s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 58.581s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 521.272s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 232.812s`).
-- Compiler AOT: normalized thunk helper internals by changing `__able_call_function_thunk` to accept `runtime.Value` and unwrap via shared helper `__able_callable_function_value`, then routing `__able_call_bound_method` and `__able_call_value` through direct `__able_call_function_thunk(method, ...)` / `__able_call_function_thunk(fn, ...)` delegation.
-- Compiler tests: updated `TestCompilerNormalizesCallValueFunctionThunkDispatch` and `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` to assert helper-internal unwrapping and direct thunk-helper delegation.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.130s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.710s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 524.507s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.028s`).
-- Compiler AOT: normalized compiled-thunk bytecode dispatch in `__able_call_compiled_thunk` by extracting bytecode-to-thunk resolution into shared helper `__able_compiled_thunk_value` for both `interpreter.CompiledThunk` and function-signature bytecode forms, removing duplicated direct bytecode assertion branches from the call helper.
-- Compiler tests: added `TestCompilerNormalizesCallCompiledThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_compiled_thunk_shim_regression_test.go` to assert shared helper usage and direct assertion branch removal in `__able_call_compiled_thunk`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.147s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.547s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 526.948s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 257.062s`).
-- Compiler AOT: normalized compiled-thunk helper parity by updating `__able_compiled_thunk_value` to the shared helper return contract `(value, ok, nilPtr)` (typed-nil signaling aligned with other runtime unwrapping helpers) and routing `__able_call_compiled_thunk` through a unified `if !ok || nilPtr` guard.
-- Compiler tests: updated `TestCompilerNormalizesCallCompiledThunkDispatch` in `v12/interpreters/go/pkg/compiler/compiler_call_compiled_thunk_shim_regression_test.go` to assert helper signature change and typed-nil guard usage.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.160s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 62.343s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 524.781s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 242.480s`).
-- Compiler AOT: normalized native-function helper guard ordering in `__able_call_native_function_value` to shared helper style (`if !ok || nilPtr`) after `__able_callable_native_function_value` lookup, aligning guard semantics with other helper-based unwrap paths.
-- Compiler tests: updated `TestCompilerNormalizesCallValueNativeFunctionDispatchBranches` in `v12/interpreters/go/pkg/compiler/compiler_call_value_native_function_shim_regression_test.go` to assert normalized guard ordering and reject legacy ordering.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.178s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 66.466s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 522.997s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.271s`).
-- Compiler AOT: normalized helper-order guard semantics in `__able_callable_name` by replacing nilPtr-first helper branches with `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling across native/native-bound/bound/partial/interface unwrap paths.
-- Compiler tests: updated `TestCompilerNormalizesCallableNameUnwrapBranches` in `v12/interpreters/go/pkg/compiler/compiler_callable_name_shim_regression_test.go` to assert legacy nilPtr-first branch removal and normalized guard usage.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.203s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 64.010s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 546.965s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 253.677s`).
-- Compiler AOT: normalized remaining nilPtr-first unwrap loops in `__able_call_bound_method` and `__able_call_value` by replacing interface/partial helper branches with `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling.
-- Compiler tests: updated `TestCompilerNormalizesCallValueBoundMethodDispatchBranches` and `TestCompilerNormalizesCallValueUnwrapBranches` to assert legacy nilPtr-first branch removal and normalized guard usage.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallValueFunctionThunkDispatch|TestCompilerNormalizesCallValueNativeDispatchBranches|TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesCallValueNativeFunctionDispatchBranches|TestCompilerNormalizesCallCompiledThunkDispatch|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesArrayMemberReceiverUnwrap|TestCompilerNormalizesIteratorBuiltinMemberReceiver|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.211s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.994s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 527.428s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 238.177s`).
-- Compiler AOT: normalized remaining ok-only typed-nil helper branches in `__able_builtin_error_receiver` and `__able_member_name` by replacing `if ...; ok { if nilPtr { ... } }` with `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling.
-- Compiler tests: updated `TestCompilerNormalizesErrorBuiltinMemberReceivers` and `TestCompilerNormalizesMemberNameStringUnwrap` to reject legacy ok-only guard branches and assert normalized typed-nil helper guards.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesErrorBuiltinMemberReceivers|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesIsCallableValueDispatch|TestCompilerNormalizesCallValueUnwrapBranches|TestCompilerNormalizesCallValueBoundMethodDispatchBranches|TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.140s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.058s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 510.034s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 239.319s`).
-- Compiler AOT: normalized remaining ok-only typed-nil helper branches in interface/string renderers by updating `__able_interface_bind_method`, `__able_int64_from_value`, `__able_string_from_builtin_impl`, and `__able_char_to_codepoint_impl` from `if ...; ok { if nilPtr { ... } }` to `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling.
-- Compiler tests: updated `TestCompilerNormalizesInterfaceBindMethodDispatch`, `TestCompilerNormalizesInt64FromValueIntegerUnwrap`, `TestCompilerNormalizesStringFromBuiltinUnwrap`, and `TestCompilerNormalizesCharToCodepointUnwrap` to reject legacy ok-only guards and assert normalized typed-nil handling.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceBindMethodDispatch|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesCharToCodepointUnwrap|TestCompilerNormalizesErrorBuiltinMemberReceivers|TestCompilerNormalizesMemberNameStringUnwrap|TestCompilerNormalizesCallableNameUnwrapBranches|TestCompilerNormalizesCallValueUnwrapBranches' -count=1` (`ok ... 0.147s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 61.879s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 516.841s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 243.724s`).
-- Compiler AOT: normalized remaining ok-only typed-nil helper branches in interface-member/runtime helpers by updating `__able_interface_bind_receiver_method`, `__able_interface_dispatch_static_receiver`, `__able_runtime_value_type_name`, and `__able_struct_instance` from `if ...; ok { if nilPtr { ... } }` to `ok || nilPtr` checks followed by explicit `if !ok || nilPtr` handling (or equivalent `ok && !nilPtr` return for static receiver checks).
-- Compiler tests: updated `TestCompilerNormalizesInterfaceBindReceiverMethodDispatch`, `TestCompilerNormalizesInterfaceDispatchStaticReceiver`, `TestCompilerNormalizesRuntimeValueTypeNameUnwrapping`, and `TestCompilerNormalizesStructInstanceErrorUnwrap` to reject legacy ok-only guards and assert normalized typed-nil handling.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerNormalizesInterfaceBindReceiverMethodDispatch|TestCompilerNormalizesInterfaceDispatchStaticReceiver|TestCompilerNormalizesRuntimeValueTypeNameUnwrapping|TestCompilerNormalizesStructInstanceErrorUnwrap|TestCompilerNormalizesInterfaceBindMethodDispatch|TestCompilerNormalizesInt64FromValueIntegerUnwrap|TestCompilerNormalizesStringFromBuiltinUnwrap|TestCompilerNormalizesCharToCodepointUnwrap' -count=1` (`ok ... 0.150s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.195s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 515.407s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.694s`).
-- Compiler AOT: removed redundant value-form static lookup shim branches for `runtime.StructDefinitionValue` and `runtime.TypeRefValue` inside `__able_member_get_method`, routing static method resolution through shared `__able_runtime_value_type_name(base)` + `__able_interface_dispatch_static_receiver(base)` path.
-- Compiler tests: updated `TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim` and `TestCompilerRemovesTypeRefPointerMemberGetMethodShim` to assert direct branch/lookup shim removal in `__able_member_get_method` while preserving shared static-receiver lookup path assertions.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerNormalizesInterfaceMemberGetMethodDispatch|TestCompilerRemovesImplNamespacePointerMemberGetMethodShim|TestCompilerRemovesPackagePublicMemberGetMethodShim|TestCompilerRemovesErrorValueMemberGetMethodShim' -count=1` (`ok ... 0.116s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 59.635s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 526.853s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 236.553s`).
-- Compiler AOT: removed redundant value-form static lookup shim branches for `runtime.StructDefinitionValue` and `runtime.TypeRefValue` inside `__able_resolve_qualified_callable` (`resolveReceiver`), routing receiver static resolution through shared `__able_member_get_method` + nil-filter path.
-- Compiler tests: updated `TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim` and `TestCompilerRemovesTypeRefPointerQualifiedCallableShim` to assert direct resolver branch/lookup shim removal and shared member-get-method resolver path retention.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerQualifiedCallableShim|TestCompilerRemovesNilPointerQualifiedCallableShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.126s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.310s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 525.936s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 245.216s`).
-- Compiler AOT: deduped `env.StructDefinition(head)` static lookup in `__able_resolve_qualified_callable` by normalizing the local struct-definition branch to a single canonical type-name path (`structTypeName`, derived from `def.Node.ID.Name` when present), removing duplicated local `lookupStatic(head)` dispatch while preserving resolver-level `lookupStatic(head)` fallback behavior.
-- Compiler tests: updated `TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim` to assert canonical `structTypeName` lookup in the env struct-definition branch and exactly one remaining `lookupStatic(head)` fallback branch in the resolver helper segment.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRemovesStructDefinitionPointerQualifiedCallableShim|TestCompilerRemovesTypeRefPointerQualifiedCallableShim|TestCompilerRemovesImplNamespacePointerQualifiedCallableShim|TestCompilerRemovesNilPointerQualifiedCallableShim|TestCompilerRemovesStructDefinitionPointerMemberGetMethodShim|TestCompilerRemovesTypeRefPointerMemberGetMethodShim|TestCompilerNormalizesInterfaceMemberGetMethodDispatch' -count=1` (`ok ... 0.136s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1` (`ok ... 60.165s`).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all go test ./pkg/compiler -run TestCompilerInterfaceLookupBypassForStaticFixtures -count=1 -timeout=25m` (`ok ... 530.722s`).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (`ok ... 244.888s`).
-- Planning hygiene: rewrote the `PLAN.md` Compiler AOT section from a long historical stream into a concise active backlog + definition-of-done checklist, with completed shim-slice history retained in `LOG.md`.
-- Tests: `cd v12 && ./run_compiler_full_matrix.sh --typecheck-fixtures=strict` (`ABLE_COMPILER_EXEC_FIXTURES=all`, `ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=all`, `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all`, `ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all`, fallback audit enabled) completed successfully with gate timings: `ok ... 530.066s`, `ok ... 530.185s`, `ok ... 536.592s`, `ok ... 480.375s`, `ok ... 31.196s`.
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDynamicBoundary' -count=1` (`ok ... 60.913s`).
-- Spec: closed tracked Compiler AOT contract gaps by expanding `spec/full_spec_v12.md` compiled-boundary coverage with explicit sections for static compile-failure semantics (no silent fallback), compiled runtime ABI contract (Array/BigInt/Ratio/String/Channel/Mutex/Future), compiled interface+overload dispatch model, compiled stdlib/kernel resolution requirements, and compiled<->dynamic boundary conversion/error rules.
-- Spec TODO: cleared `spec/TODO_v12.md` Compiler AOT gap list after the above normative spec updates.
-- Compiler AOT: **no-bootstrap execution path complete**. Non-dynamic programs now execute fully compiled — `interpreter.New()` is instantiated for runtime services, but `EvaluateProgram()` is never called. `TestCompilerNoBootstrapExecFixtures` validates the path: 222 pass, 13 fail (12 inherently dynamic/IO fixtures + 1 pre-existing 06_12_17 heap ordering), 5 skip out of 240 total.
-- Compiler AOT: added `implSiblings` compile context for default interface methods in named impls. When a default method (e.g., `describe(self)`) calls `self.name()`, the compiler now detects the sibling method in the same named impl and generates a direct `__able_impl_self_method` call instead of falling through to `__able_member_get_method`. This fixed `10_05_interface_named_impl_defaults` in no-bootstrap mode.
-- Compiler AOT: added `__able_impl_self_method` runtime helper that creates a `NativeBoundMethodValue` with correct bound-arity semantics (subtracts 1 from total arity to account for auto-injected receiver).
-- Compiler AOT: `TestCompilerMainSkips` (7 tests) validates that generated `main.go` omits `EvaluateProgram()` for static programs importing stdlib.
-- Compiler AOT: all definition-of-done criteria met — non-dynamic programs execute fully compiled with no interpreter execution; dynamic features execute only through explicit boundary paths; stdlib and kernel compile and execute directly; compiler fixture + stdlib compiled gates green in strict no-fallback mode; spec semantics parity preserved.
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=all go test ./pkg/compiler -run '^TestCompilerNoBootstrapExecFixtures$' -count=1 -timeout=20m` (222 pass, 13 fail, 5 skip).
-- Tests: `cd v12/interpreters/go && ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURES=all go test ./pkg/compiler -run '^TestCompilerExecFixtureFallbacks$' -count=1 -timeout=20m` (clean).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run '^TestCompilerMainSkips' -count=1` (7/7 pass).
-- Tests: `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerBoundaryFallbackMarkerForStaticFixtures' -count=1` (pass).

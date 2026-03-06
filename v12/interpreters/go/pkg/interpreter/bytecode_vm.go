@@ -16,6 +16,12 @@ const (
 	bytecodeOpDup
 	bytecodeOpPop
 	bytecodeOpBinary
+	bytecodeOpBinaryIntAdd
+	bytecodeOpBinaryIntSub
+	bytecodeOpBinaryIntLessEqual
+	bytecodeOpBinaryIntDivCast
+	bytecodeOpBinaryIntSubSlotConst
+	bytecodeOpBinaryIntLessEqualSlotConst
 	bytecodeOpUnary
 	bytecodeOpRange
 	bytecodeOpCast
@@ -78,7 +84,11 @@ const (
 	bytecodeOpStoreSlot
 	bytecodeOpStoreSlotNew
 	bytecodeOpCompoundAssignSlot
+	bytecodeOpCallSelf
+	bytecodeOpCallSelfIntSubSlotConst
 )
+
+const bytecodeOpCount = int(bytecodeOpCallSelfIntSubSlotConst) + 1
 
 func (vm *bytecodeVM) run(program *bytecodeProgram) (runtime.Value, error) {
 	return vm.runResumable(program, false)

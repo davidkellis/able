@@ -1,6 +1,7 @@
 package matrixmultiply
 
 import able.kernel.{Array}
+import able.collections.array
 
 fn build_matrix(n: i32) -> Array (Array f64) {
   t := 1.0 / (n as f64) / (n as f64)

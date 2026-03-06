@@ -1,0 +1,9 @@
+{
+  "description": "quicksort hot loop fixture for bytecode performance profiling",
+  "expect": {
+    "stdout": [
+      "9989335"
+    ],
+    "exit": 0
+  }
+}

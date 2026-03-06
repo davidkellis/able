@@ -32,7 +32,7 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 				clone.TargetType = canonicalTarget
 				alias = &clone
 			}
-			i.typeAliases[n.ID.Name] = alias
+			i.setTypeAlias(n.ID.Name, alias)
 		}
 		return runtime.NilValue{}, nil
 	case *ast.MethodsDefinition:

@@ -330,6 +330,307 @@ func TestBytecodeVM_FunctionDefinitionAndCall(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_StatsCounters(t *testing.T) {
+	t.Setenv("ABLE_BYTECODE_STATS", "1")
+
+	fn := ast.Fn(
+		"add",
+		[]*ast.FunctionParameter{
+			ast.Param("a", nil),
+			ast.Param("b", nil),
+		},
+		[]ast.Statement{
+			ast.Bin("+", ast.ID("a"), ast.ID("b")),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod([]ast.Statement{
+		fn,
+		ast.Call("add", ast.Int(2), ast.Int(3)),
+	}, nil, nil)
+
+	interp := NewBytecode()
+	_ = runBytecodeModuleWithInterpreter(t, interp, module)
+
+	stats := interp.BytecodeStats()
+	if !stats.Enabled {
+		t.Fatalf("expected bytecode stats to be enabled")
+	}
+	if len(stats.OpCounts) != bytecodeOpCount {
+		t.Fatalf("unexpected op count length: got=%d want=%d", len(stats.OpCounts), bytecodeOpCount)
+	}
+	if stats.OpCounts[int(bytecodeOpCallName)] == 0 {
+		t.Fatalf("expected callname opcode count > 0")
+	}
+	if stats.CallNameLookups == 0 {
+		t.Fatalf("expected callname lookup count > 0")
+	}
+	if stats.InlineCallHits+stats.InlineCallMisses == 0 {
+		t.Fatalf("expected inline call attempts to be recorded")
+	}
+
+	interp.ResetBytecodeStats()
+	stats = interp.BytecodeStats()
+	if stats.CallNameLookups != 0 {
+		t.Fatalf("expected callname lookups to reset, got %d", stats.CallNameLookups)
+	}
+	if stats.InlineCallHits != 0 || stats.InlineCallMisses != 0 {
+		t.Fatalf("expected inline call counters to reset, got hits=%d misses=%d", stats.InlineCallHits, stats.InlineCallMisses)
+	}
+}
+
+func TestBytecodeVM_CallNameCacheInvalidatesOnRebind(t *testing.T) {
+	t.Setenv("ABLE_BYTECODE_STATS", "1")
+
+	fooIf := ast.IfExpr(
+		ast.Bin("<=", ast.ID("n"), ast.Int(0)),
+		ast.Block(ast.Int(0)),
+	)
+	fooIf.ElseBody = ast.Block(
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("foo"), ast.ID("bar")),
+		ast.Call("foo", ast.Bin("-", ast.ID("n"), ast.Int(1))),
+	)
+
+	foo := ast.Fn(
+		"foo",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("Int"))},
+		[]ast.Statement{fooIf},
+		ast.Ty("Int"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	bar := ast.Fn(
+		"bar",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("Int"))},
+		[]ast.Statement{ast.Int(42)},
+		ast.Ty("Int"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod([]ast.Statement{
+		foo,
+		bar,
+		ast.Call("foo", ast.Int(1)),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	interp := NewBytecode()
+	got := runBytecodeModuleWithInterpreter(t, interp, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode callname cache invalidation mismatch: got=%#v want=%#v", got, want)
+	}
+	stats := interp.BytecodeStats()
+	if stats.CallNameLookups == 0 {
+		t.Fatalf("expected callname lookups > 0")
+	}
+}
+
+func TestBytecodeVM_MemberMethodCacheInvalidatesOnImplChange(t *testing.T) {
+	iface := ast.Iface(
+		"Greeter",
+		[]*ast.FunctionSignature{
+			ast.FnSig(
+				"greet",
+				[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
+				ast.Ty("i32"),
+				nil,
+				nil,
+				nil,
+			),
+		},
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+	)
+
+	structDef := ast.StructDef(
+		"S",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "n"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+
+	scopeGreet := ast.Fn(
+		"greet",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("S")),
+		},
+		[]ast.Statement{
+			ast.Int(1),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	runFn := ast.Fn(
+		"run",
+		[]*ast.FunctionParameter{
+			ast.Param("s", ast.Ty("S")),
+		},
+		[]ast.Statement{
+			ast.CallExpr(ast.Member(ast.ID("s"), "greet")),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	implGreet := ast.Fn(
+		"greet",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("S")),
+		},
+		[]ast.Statement{
+			ast.Int(2),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	impl := ast.Impl(
+		"Greeter",
+		ast.Ty("S"),
+		[]*ast.FunctionDefinition{implGreet},
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+	)
+
+	module := ast.Mod([]ast.Statement{
+		iface,
+		structDef,
+		scopeGreet,
+		runFn,
+		ast.Assign(
+			ast.ID("s"),
+			ast.StructLit([]*ast.StructFieldInitializer{
+				ast.FieldInit(ast.Int(0), "n"),
+			}, false, "S", nil, nil),
+		),
+		ast.Assign(ast.ID("first"), ast.Call("run", ast.ID("s"))),
+		impl,
+		ast.Assign(ast.ID("second"), ast.Call("run", ast.ID("s"))),
+		ast.ID("second"),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode member method cache invalidation mismatch: got=%#v want=%#v", got, want)
+	}
+	if intVal, ok := got.(runtime.IntegerValue); !ok || intVal.BigInt().Int64() != 2 {
+		t.Fatalf("expected second run(s) to resolve impl greet and return 2, got %#v", got)
+	}
+}
+
+func TestBytecodeVM_StatsMemberMethodCacheCounters(t *testing.T) {
+	t.Setenv("ABLE_BYTECODE_STATS", "1")
+
+	structDef := ast.StructDef(
+		"S",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "n"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+
+	ping := ast.Fn(
+		"ping",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Self")),
+		},
+		[]ast.Statement{
+			ast.Int(7),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	methods := ast.Methods(
+		ast.Ty("S"),
+		[]*ast.FunctionDefinition{ping},
+		nil,
+		nil,
+	)
+
+	callPing := ast.Fn(
+		"call_ping",
+		[]*ast.FunctionParameter{
+			ast.Param("s", ast.Ty("S")),
+		},
+		[]ast.Statement{
+			ast.CallExpr(ast.Member(ast.ID("s"), "ping")),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	module := ast.Mod([]ast.Statement{
+		structDef,
+		methods,
+		callPing,
+		ast.Assign(
+			ast.ID("s"),
+			ast.StructLit([]*ast.StructFieldInitializer{
+				ast.FieldInit(ast.Int(0), "n"),
+			}, false, "S", nil, nil),
+		),
+		ast.Call("call_ping", ast.ID("s")),
+		ast.Call("call_ping", ast.ID("s")),
+	}, nil, nil)
+
+	interp := NewBytecode()
+	_ = runBytecodeModuleWithInterpreter(t, interp, module)
+
+	stats := interp.BytecodeStats()
+	if stats.MemberMethodCacheMiss == 0 {
+		t.Fatalf("expected member method cache misses > 0")
+	}
+	if stats.MemberMethodCacheHits == 0 {
+		t.Fatalf("expected member method cache hits > 0")
+	}
+
+	interp.ResetBytecodeStats()
+	stats = interp.BytecodeStats()
+	if stats.MemberMethodCacheHits != 0 || stats.MemberMethodCacheMiss != 0 {
+		t.Fatalf("expected member method cache counters to reset, got hits=%d misses=%d", stats.MemberMethodCacheHits, stats.MemberMethodCacheMiss)
+	}
+}
+
 func TestBytecodeVM_LambdaCall(t *testing.T) {
 	lambda := ast.Lam(
 		[]*ast.FunctionParameter{ast.Param("x", nil)},

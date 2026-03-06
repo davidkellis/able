@@ -8,6 +8,50 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
+type typeInfoCacheKey struct {
+	name     string
+	argCount uint8
+	arg0     ast.TypeExpression
+	arg1     ast.TypeExpression
+}
+
+func (i *Interpreter) cachedTypeInfoName(info typeInfo) string {
+	if len(info.typeArgs) == 0 {
+		return info.name
+	}
+	if len(info.typeArgs) > 2 {
+		return typeInfoToString(info)
+	}
+	key := typeInfoCacheKey{
+		name:     info.name,
+		argCount: uint8(len(info.typeArgs)),
+	}
+	if len(info.typeArgs) > 0 {
+		key.arg0 = info.typeArgs[0]
+	}
+	if len(info.typeArgs) > 1 {
+		key.arg1 = info.typeArgs[1]
+	}
+	i.typeInfoCacheMu.RLock()
+	if cached, ok := i.typeInfoNameCache[key]; ok {
+		i.typeInfoCacheMu.RUnlock()
+		return cached
+	}
+	i.typeInfoCacheMu.RUnlock()
+	typeName := typeInfoToString(info)
+	i.typeInfoCacheMu.Lock()
+	if i.typeInfoNameCache == nil {
+		i.typeInfoNameCache = make(map[typeInfoCacheKey]string)
+	}
+	if existing, ok := i.typeInfoNameCache[key]; ok {
+		i.typeInfoCacheMu.Unlock()
+		return existing
+	}
+	i.typeInfoNameCache[key] = typeName
+	i.typeInfoCacheMu.Unlock()
+	return typeName
+}
+
 func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) (*implCandidate, error) {
 	matches, err := i.collectImplCandidates(info, interfaceName, "", ifaceArgs)
 	if len(matches) == 0 {
@@ -29,16 +73,22 @@ func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string, iface
 }
 
 func (i *Interpreter) findMethodCached(info typeInfo, methodName string, interfaceFilter string) (runtime.Value, error) {
-	typeName := info.name
-	if len(info.typeArgs) > 0 {
-		typeName = typeInfoToString(info)
-	}
+	typeName := i.cachedTypeInfoName(info)
 	key := methodCacheKey{typeName: typeName, methodName: methodName, ifaceFilter: interfaceFilter}
-	if entry, ok := i.methodCache[key]; ok {
+	i.methodCacheMu.RLock()
+	entry, ok := i.methodCache[key]
+	i.methodCacheMu.RUnlock()
+	if ok {
 		return entry.method, entry.err
 	}
 	method, err := i.findMethod(info, methodName, interfaceFilter, nil)
+	i.methodCacheMu.Lock()
+	if existing, exists := i.methodCache[key]; exists {
+		i.methodCacheMu.Unlock()
+		return existing.method, existing.err
+	}
 	i.methodCache[key] = methodCacheEntry{method: method, err: err}
+	i.methodCacheMu.Unlock()
 	return method, err
 }
 

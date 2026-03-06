@@ -37,10 +37,21 @@ func TestStringCmpReturnsOrderingInstances(t *testing.T) {
 		call     func(receiver runtime.Value, other runtime.Value) (runtime.Value, error)
 	)
 	switch b := boundValue.(type) {
+	case runtime.NativeBoundMethodValue:
+		receiver = b.Receiver
+		call = func(receiver runtime.Value, other runtime.Value) (runtime.Value, error) {
+			return b.Method.Impl(ctx, []runtime.Value{receiver, other})
+		}
 	case *runtime.NativeBoundMethodValue:
 		receiver = b.Receiver
 		call = func(receiver runtime.Value, other runtime.Value) (runtime.Value, error) {
 			return b.Method.Impl(ctx, []runtime.Value{receiver, other})
+		}
+	case runtime.BoundMethodValue:
+		receiver = b.Receiver
+		call = func(receiver runtime.Value, other runtime.Value) (runtime.Value, error) {
+			bound := runtime.BoundMethodValue{Receiver: receiver, Method: b.Method}
+			return interp.callCallableValue(bound, []runtime.Value{other}, nil, nil)
 		}
 	case *runtime.BoundMethodValue:
 		receiver = b.Receiver

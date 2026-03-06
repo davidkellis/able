@@ -1,0 +1,155 @@
+package nbody
+
+import able.kernel.{Array}
+import able.collections.array
+import able.math
+
+fn offset_momentum(vx: Array f64, vy: Array f64, vz: Array f64, mass: Array f64, solar_mass: f64) {
+  px := 0.0
+  py := 0.0
+  pz := 0.0
+  n := vx.len()
+  i := 0
+  loop {
+    if i >= n { break }
+    px = px + vx.get(i)! * mass.get(i)!
+    py = py + vy.get(i)! * mass.get(i)!
+    pz = pz + vz.get(i)! * mass.get(i)!
+    i = i + 1
+  }
+  vx.set(0, -px / solar_mass)
+  vy.set(0, -py / solar_mass)
+  vz.set(0, -pz / solar_mass)
+}
+
+fn energy(x: Array f64, y: Array f64, z: Array f64, vx: Array f64, vy: Array f64, vz: Array f64, mass: Array f64) -> f64 {
+  e := 0.0
+  n := x.len()
+  i := 0
+  loop {
+    if i >= n { break }
+    mi := mass.get(i)!
+    e = e + 0.5 * mi * (vx.get(i)! * vx.get(i)! + vy.get(i)! * vy.get(i)! + vz.get(i)! * vz.get(i)!)
+    j := i + 1
+    loop {
+      if j >= n { break }
+      dx := x.get(i)! - x.get(j)!
+      dy := y.get(i)! - y.get(j)!
+      dz := z.get(i)! - z.get(j)!
+      dist := math.sqrt(dx * dx + dy * dy + dz * dz)
+      e = e - (mi * mass.get(j)!) / dist
+      j = j + 1
+    }
+    i = i + 1
+  }
+  e
+}
+
+fn advance(x: Array f64, y: Array f64, z: Array f64, vx: Array f64, vy: Array f64, vz: Array f64, mass: Array f64, dt: f64) {
+  n := x.len()
+  i := 0
+  loop {
+    if i >= n - 1 { break }
+    ivx := vx.get(i)!
+    ivy := vy.get(i)!
+    ivz := vz.get(i)!
+    mi := mass.get(i)!
+    j := i + 1
+    loop {
+      if j >= n { break }
+      dx := x.get(i)! - x.get(j)!
+      dy := y.get(i)! - y.get(j)!
+      dz := z.get(i)! - z.get(j)!
+      d_squared := dx * dx + dy * dy + dz * dz
+      dist := math.sqrt(d_squared)
+      mag := dt / (d_squared * dist)
+      mj := mass.get(j)!
+      ivx = ivx - dx * mj * mag
+      ivy = ivy - dy * mj * mag
+      ivz = ivz - dz * mj * mag
+      vx.set(j, vx.get(j)! + dx * mi * mag)
+      vy.set(j, vy.get(j)! + dy * mi * mag)
+      vz.set(j, vz.get(j)! + dz * mi * mag)
+      j = j + 1
+    }
+    vx.set(i, ivx)
+    vy.set(i, ivy)
+    vz.set(i, ivz)
+    i = i + 1
+  }
+  i = 0
+  loop {
+    if i >= n { break }
+    x.set(i, x.get(i)! + dt * vx.get(i)!)
+    y.set(i, y.get(i)! + dt * vy.get(i)!)
+    z.set(i, z.get(i)! + dt * vz.get(i)!)
+    i = i + 1
+  }
+}
+
+fn main() {
+  pi := 3.141592653589793
+  solar_mass := 4.0 * pi * pi
+  days_per_year := 365.24
+
+  x: Array f64 := Array.new()
+  y: Array f64 := Array.new()
+  z: Array f64 := Array.new()
+  vx: Array f64 := Array.new()
+  vy: Array f64 := Array.new()
+  vz: Array f64 := Array.new()
+  mass: Array f64 := Array.new()
+
+  x.push(0.0)
+  y.push(0.0)
+  z.push(0.0)
+  vx.push(0.0)
+  vy.push(0.0)
+  vz.push(0.0)
+  mass.push(solar_mass)
+
+  x.push(4.84143144246472090e+00)
+  y.push(-1.16032004402742839e+00)
+  z.push(-1.03622044471123109e-01)
+  vx.push(1.66007664274403694e-03 * days_per_year)
+  vy.push(7.69901118419740425e-03 * days_per_year)
+  vz.push(-6.90460016972063023e-05 * days_per_year)
+  mass.push(9.54791938424326609e-04 * solar_mass)
+
+  x.push(8.34336671824457987e+00)
+  y.push(4.12479856412430479e+00)
+  z.push(-4.03523417114321381e-01)
+  vx.push(-2.76742510726862411e-03 * days_per_year)
+  vy.push(4.99852801234917238e-03 * days_per_year)
+  vz.push(2.30417297573763929e-05 * days_per_year)
+  mass.push(2.85885980666130812e-04 * solar_mass)
+
+  x.push(1.28943695621391310e+01)
+  y.push(-1.51111514016986312e+01)
+  z.push(-2.23307578892655734e-01)
+  vx.push(2.96460137564761618e-03 * days_per_year)
+  vy.push(2.37847173959480950e-03 * days_per_year)
+  vz.push(-2.96589568540237556e-05 * days_per_year)
+  mass.push(4.36624404335156298e-05 * solar_mass)
+
+  x.push(1.53796971148509165e+01)
+  y.push(-2.59193146099879641e+01)
+  z.push(1.79258772950371181e-01)
+  vx.push(2.68067772490389322e-03 * days_per_year)
+  vy.push(1.62824170038242295e-03 * days_per_year)
+  vz.push(-9.51592254519715870e-05 * days_per_year)
+  mass.push(5.15138902046611451e-05 * solar_mass)
+
+  offset_momentum(vx, vy, vz, mass, solar_mass)
+  print(energy(x, y, z, vx, vy, vz, mass))
+
+  iterations := 500000
+  i := 0
+  loop {
+    if i >= iterations { break }
+    advance(x, y, z, vx, vy, vz, mass, 0.01)
+    i = i + 1
+  }
+
+  print(energy(x, y, z, vx, vy, vz, mass))
+}

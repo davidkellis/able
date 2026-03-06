@@ -37,6 +37,23 @@ func isResultVoidType(expr ast.TypeExpression) bool {
 	return false
 }
 
+func canReuseFunctionClosureEnvForBytecode(slotProgram *bytecodeProgram, decl *ast.FunctionDefinition, call *ast.FunctionCall, closure *runtime.Environment) bool {
+	if closure == nil || decl == nil || slotProgram == nil || slotProgram.frameLayout == nil {
+		return false
+	}
+	if slotProgram.frameLayout.needsEnvScopes {
+		return false
+	}
+	// Generic calls bind inferred/explicit type args into call-local env.
+	if len(decl.GenericParams) > 0 {
+		return false
+	}
+	if call != nil && len(call.TypeArguments) > 0 {
+		return false
+	}
+	return true
+}
+
 func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value runtime.Value, genericNames map[string]struct{}, env *runtime.Environment) (runtime.Value, error) {
 	if returnType == nil {
 		return value, nil
@@ -96,7 +113,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 		return i.callCallableValue(calleeVal, argValues, env, call)
 	}
 	if ident, ok := call.Callee.(*ast.Identifier); ok && ident != nil {
-		calleeVal, lookupErr := env.Get(ident.Name)
+		calleeVal, found := env.Lookup(ident.Name)
 		argValues := make([]runtime.Value, 0, len(call.Arguments))
 		for _, argExpr := range call.Arguments {
 			val, err := i.evaluateExpression(argExpr, env)
@@ -105,12 +122,12 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			argValues = append(argValues, val)
 		}
-		if lookupErr != nil {
+		if !found {
 			if dotIdx := strings.Index(ident.Name, "."); dotIdx > 0 && dotIdx < len(ident.Name)-1 {
 				head := ident.Name[:dotIdx]
 				tail := ident.Name[dotIdx+1:]
-				receiver, err := env.Get(head)
-				if err != nil {
+				receiver, headFound := env.Lookup(head)
+				if !headFound {
 					if def, ok := env.StructDefinition(head); ok {
 						receiver = def
 					} else {
@@ -124,7 +141,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 				}
 				return i.callCallableValue(candidate, argValues, env, call)
 			}
-			return nil, lookupErr
+			return nil, fmt.Errorf("Undefined variable '%s'", ident.Name)
 		}
 		return i.callCallableValue(calleeVal, argValues, env, call)
 	}
@@ -143,7 +160,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 	return i.callCallableValue(calleeVal, argValues, env, call)
 }
 
-func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall) (runtime.Value, error) {
+func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall, argsMutable bool) (runtime.Value, error) {
 	switch decl := fn.Declaration.(type) {
 	case *ast.FunctionDefinition:
 		if decl.Body == nil {
@@ -178,11 +195,25 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				return nil, err
 			}
 		}
-		localEnv := runtime.NewEnvironment(fn.Closure)
-		if call != nil {
-			i.bindTypeArgumentsIfAny(decl, call, localEnv)
+		// Check for slot-enabled bytecode program.
+		var slotProgram *bytecodeProgram
+		if i.execMode == execModeBytecode {
+			if p, ok := fn.Bytecode.(*bytecodeProgram); ok && p != nil && p.frameLayout != nil {
+				slotProgram = p
+			}
+		}
+		// When slot execution never writes call-local env bindings, reusing the
+		// closure env avoids per-call Environment allocation churn.
+		reuseClosureEnv := canReuseFunctionClosureEnvForBytecode(slotProgram, decl, call, fn.Closure)
+		localEnv := fn.Closure
+		if !reuseClosureEnv {
+			localEnv = runtime.NewEnvironment(fn.Closure)
+			if call != nil {
+				i.bindTypeArgumentsIfAny(decl, call, localEnv)
+			}
 		}
 		bindArgs := args
+		var mutableBindArgs []runtime.Value
 		var implicitReceiver runtime.Value
 		hasImplicit := false
 		if decl.IsMethodShorthand {
@@ -200,7 +231,17 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			}
 		}
 		if missingOptional {
+			if mutableBindArgs == nil {
+				if argsMutable {
+					mutableBindArgs = bindArgs
+				} else {
+					mutableBindArgs = append([]runtime.Value(nil), bindArgs...)
+					argsMutable = true
+				}
+				bindArgs = mutableBindArgs
+			}
 			bindArgs = append(bindArgs, runtime.NilValue{})
+			mutableBindArgs = bindArgs
 		}
 		if len(bindArgs) != paramCount {
 			name := "<anonymous>"
@@ -210,22 +251,24 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, paramCount, len(bindArgs))
 		}
 		generics := functionGenericNameSet(fn, decl)
-		// Check for slot-enabled bytecode program.
-		var slotProgram *bytecodeProgram
-		if i.execMode == execModeBytecode {
-			if p, ok := fn.Bytecode.(*bytecodeProgram); ok && p != nil && p.frameLayout != nil {
-				slotProgram = p
-			}
-		}
 		for idx, param := range decl.Params {
 			if param == nil {
 				return nil, fmt.Errorf("function parameter %d is nil", idx)
 			}
 			arg := bindArgs[idx]
-			if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) {
+			if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !inlineCoercionUnnecessary(param.ParamType, arg) {
 				coerced, err := i.coerceValueToType(param.ParamType, arg)
 				if err != nil {
 					return nil, err
+				}
+				if mutableBindArgs == nil {
+					if argsMutable {
+						mutableBindArgs = bindArgs
+					} else {
+						mutableBindArgs = append([]runtime.Value(nil), bindArgs...)
+						argsMutable = true
+					}
+					bindArgs = mutableBindArgs
 				}
 				arg = coerced
 				bindArgs[idx] = coerced
@@ -270,12 +313,16 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		}
 		if i.execMode == execModeBytecode {
 			if program, ok := fn.Bytecode.(*bytecodeProgram); ok && program != nil {
-				vm := newBytecodeVM(i, localEnv)
+				vm := i.acquireBytecodeVM(localEnv)
+				defer i.releaseBytecodeVM(vm)
 				if slotProgram != nil {
 					layout := slotProgram.frameLayout
-					slots := make([]runtime.Value, layout.slotCount)
+					slots := vm.acquireSlotFrame(layout.slotCount)
 					for idx := 0; idx < len(bindArgs) && idx < layout.paramSlots; idx++ {
 						slots[idx] = bindArgs[idx]
+					}
+					if layout.selfCallSlot >= 0 && layout.selfCallSlot < len(slots) {
+						slots[layout.selfCallSlot] = fn
 					}
 					vm.slots = slots
 				}
@@ -368,7 +415,8 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		lambdaGenerics := genericNameSet(decl.GenericParams)
 		if i.execMode == execModeBytecode {
 			if program, ok := fn.Bytecode.(*bytecodeProgram); ok && program != nil {
-				vm := newBytecodeVM(i, localEnv)
+				vm := i.acquireBytecodeVM(localEnv)
+				defer i.releaseBytecodeVM(vm)
 				result, err := vm.run(program)
 				if err != nil {
 					if ret, ok := err.(returnSignal); ok {
@@ -431,22 +479,42 @@ func makePartialFunctionValue(target runtime.Value, bound []runtime.Value, call 
 	}
 }
 
+func mergePartialCallArgs(bound []runtime.Value, args []runtime.Value) []runtime.Value {
+	if len(bound) == 0 {
+		return args
+	}
+	if len(args) == 0 {
+		return bound
+	}
+	total := len(bound) + len(args)
+	merged := make([]runtime.Value, total)
+	copy(merged, bound)
+	copy(merged[len(bound):], args)
+	return merged
+}
+
 func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall) (runtime.Value, error) {
+	return i.callCallableValueWithMutability(callee, args, env, call, false)
+}
+
+func (i *Interpreter) callCallableValueMutable(callee runtime.Value, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall) (runtime.Value, error) {
+	return i.callCallableValueWithMutability(callee, args, env, call, true)
+}
+
+func (i *Interpreter) callCallableValueWithMutability(callee runtime.Value, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall, argsMutable bool) (runtime.Value, error) {
 	if callee == nil {
 		return nil, fmt.Errorf("call target missing function value")
 	}
 	switch fn := callee.(type) {
 	case runtime.PartialFunctionValue:
-		merged := append([]runtime.Value{}, fn.BoundArgs...)
-		merged = append(merged, args...)
-		return i.callCallableValue(fn.Target, merged, env, call)
+		merged := mergePartialCallArgs(fn.BoundArgs, args)
+		return i.callCallableValueWithMutability(fn.Target, merged, env, call, false)
 	case *runtime.PartialFunctionValue:
 		if fn == nil {
 			return nil, fmt.Errorf("partial function is nil")
 		}
-		merged := append([]runtime.Value{}, fn.BoundArgs...)
-		merged = append(merged, args...)
-		return i.callCallableValue(fn.Target, merged, env, call)
+		merged := mergePartialCallArgs(fn.BoundArgs, args)
+		return i.callCallableValueWithMutability(fn.Target, merged, env, call, false)
 	}
 	if state := i.stateFromEnv(env); call != nil {
 		state.pushCallFrame(call)
@@ -456,35 +524,55 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 	if env != nil {
 		callState = env.RuntimeData()
 	}
-	var native *runtime.NativeFunctionValue
-	var injected []runtime.Value
+	var native runtime.NativeFunctionValue
+	hasNative := false
+	var injectedReceiver runtime.Value
+	hasInjectedReceiver := false
+	var directFunction *runtime.FunctionValue
 	var overloads []*runtime.FunctionValue
 	partialTarget := callee
 
 	switch fn := callee.(type) {
+	case *runtime.FunctionValue:
+		if fn == nil {
+			return nil, fmt.Errorf("function is nil")
+		}
+		directFunction = fn
+	case *runtime.FunctionOverloadValue:
+		if fn == nil {
+			return nil, fmt.Errorf("function overload is nil")
+		}
+		overloads = functionOverloadsView(fn)
 	case runtime.NativeFunctionValue:
-		native = &fn
-		partialTarget = native
-	case *runtime.NativeFunctionValue:
 		native = fn
-		partialTarget = fn
+		hasNative = true
+	case *runtime.NativeFunctionValue:
+		if fn == nil {
+			return nil, fmt.Errorf("native function is nil")
+		}
+		native = *fn
+		hasNative = true
 	case runtime.NativeBoundMethodValue:
-		native = &fn.Method
-		injected = append(injected, fn.Receiver)
-		partialTarget = native
+		native = fn.Method
+		hasNative = true
+		injectedReceiver = fn.Receiver
+		hasInjectedReceiver = true
+		partialTarget = fn.Method
 	case *runtime.NativeBoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("native bound method is nil")
 		}
-		native = &fn.Method
-		injected = append(injected, fn.Receiver)
-		partialTarget = native
+		native = fn.Method
+		hasNative = true
+		injectedReceiver = fn.Receiver
+		hasInjectedReceiver = true
+		partialTarget = fn.Method
 	case runtime.DynRefValue:
 		resolved, err := i.resolveDynRef(fn)
 		if err != nil {
 			return nil, err
 		}
-		return i.callCallableValue(resolved, args, env, call)
+		return i.callCallableValueWithMutability(resolved, args, env, call, argsMutable)
 	case *runtime.DynRefValue:
 		if fn == nil {
 			return nil, fmt.Errorf("dyn ref is nil")
@@ -493,46 +581,59 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 		if err != nil {
 			return nil, err
 		}
-		return i.callCallableValue(resolved, args, env, call)
+		return i.callCallableValueWithMutability(resolved, args, env, call, argsMutable)
 	case runtime.BoundMethodValue:
-		injected = append(injected, fn.Receiver)
+		injectedReceiver = fn.Receiver
+		hasInjectedReceiver = true
 		if nfv, ok := fn.Method.(*runtime.NativeFunctionValue); ok && nfv != nil {
-			native = nfv
-			partialTarget = nfv
+			native = *nfv
+			hasNative = true
+			partialTarget = fn.Method
 		} else if nfv, ok := fn.Method.(runtime.NativeFunctionValue); ok {
-			native = &nfv
-			partialTarget = native
+			native = nfv
+			hasNative = true
+			partialTarget = fn.Method
+		} else if methodFn, ok := fn.Method.(*runtime.FunctionValue); ok && methodFn != nil {
+			directFunction = methodFn
+			partialTarget = fn.Method
 		} else {
-			overloads = functionOverloads(fn.Method)
+			overloads = functionOverloadsView(fn.Method)
 			partialTarget = fn.Method
 		}
 	case *runtime.BoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("bound method is nil")
 		}
-		injected = append(injected, fn.Receiver)
+		injectedReceiver = fn.Receiver
+		hasInjectedReceiver = true
 		if nfv, ok := fn.Method.(*runtime.NativeFunctionValue); ok && nfv != nil {
-			native = nfv
-			partialTarget = nfv
+			native = *nfv
+			hasNative = true
+			partialTarget = fn.Method
 		} else if nfv, ok := fn.Method.(runtime.NativeFunctionValue); ok {
-			native = &nfv
-			partialTarget = native
+			native = nfv
+			hasNative = true
+			partialTarget = fn.Method
+		} else if methodFn, ok := fn.Method.(*runtime.FunctionValue); ok && methodFn != nil {
+			directFunction = methodFn
+			partialTarget = fn.Method
 		} else {
-			overloads = functionOverloads(fn.Method)
+			overloads = functionOverloadsView(fn.Method)
 			partialTarget = fn.Method
 		}
 	default:
-		overloads = functionOverloads(callee)
+		overloads = functionOverloadsView(callee)
 	}
 
-	evalArgs := append(injected, args...)
+	evalArgs := args
+	if hasInjectedReceiver {
+		evalArgs = prependReceiverCallArgs(injectedReceiver, args, argsMutable)
+		argsMutable = true
+	}
 
-	if native != nil {
+	if hasNative {
 		if native.Arity >= 0 {
-			provided := len(evalArgs) - len(injected)
-			if provided < 0 {
-				provided = 0
-			}
+			provided := len(args)
 			if provided > native.Arity {
 				name := native.Name
 				if name == "" {
@@ -544,8 +645,29 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 				return makePartialFunctionValue(partialTarget, evalArgs, call), nil
 			}
 		}
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return native.Impl(ctx, evalArgs)
+		ctx := i.acquireNativeCallContext(env, callState)
+		result, err := native.Impl(ctx, evalArgs)
+		i.releaseNativeCallContext(ctx)
+		return result, err
+	}
+	if directFunction != nil {
+		minRequired := minArgsForFunctionValue(directFunction)
+		if len(evalArgs) < minRequired {
+			return makePartialFunctionValue(partialTarget, evalArgs, call), nil
+		}
+		if directFunction.TypeQualified {
+			if mismatchErr := i.reportOverloadMismatch(directFunction, evalArgs, call); mismatchErr != nil {
+				return nil, mismatchErr
+			}
+		}
+		result, err := i.invokeFunction(directFunction, evalArgs, env, call, argsMutable)
+		if err != nil {
+			if mismatchErr := i.reportOverloadMismatch(directFunction, evalArgs, call); mismatchErr != nil {
+				return nil, mismatchErr
+			}
+			return nil, err
+		}
+		return result, nil
 	}
 
 	if len(overloads) == 0 {
@@ -558,7 +680,22 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 		return nil, fmt.Errorf("calling non-function value of kind %s (%T)", callee.Kind(), callee)
 	}
 
-	if len(overloads) > 0 {
+	if len(overloads) == 1 {
+		only := overloads[0]
+		minRequired := minArgsForFunctionValue(only)
+		if len(evalArgs) < minRequired {
+			return makePartialFunctionValue(partialTarget, evalArgs, call), nil
+		}
+		if i.matchesSingleRuntimeOverload(only, evalArgs) {
+			return i.invokeFunction(only, evalArgs, env, call, argsMutable)
+		}
+		if mismatchErr := i.reportOverloadMismatch(only, evalArgs, call); mismatchErr != nil {
+			return nil, mismatchErr
+		}
+		return nil, fmt.Errorf("No overloads of %s match provided arguments", overloadName(call))
+	}
+
+	if len(overloads) > 1 {
 		minRequired := minArgsForOverloads(overloads)
 		if len(evalArgs) < minRequired {
 			return makePartialFunctionValue(partialTarget, evalArgs, call), nil
@@ -570,14 +707,9 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 		return nil, err
 	}
 	if selected == nil {
-		if len(overloads) == 1 {
-			if mismatchErr := i.reportOverloadMismatch(overloads[0], evalArgs, call); mismatchErr != nil {
-				return nil, mismatchErr
-			}
-		}
 		return nil, fmt.Errorf("No overloads of %s match provided arguments", overloadName(call))
 	}
-	return i.invokeFunction(selected, evalArgs, env, call)
+	return i.invokeFunction(selected, evalArgs, env, call, argsMutable)
 }
 
 func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expression, env *runtime.Environment) (runtime.Value, error) {

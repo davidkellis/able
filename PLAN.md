@@ -57,8 +57,107 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 ### Runtime Performance Program (active priority: 10x targets)
 - Goal: reach at least 10x speedup for bytecode and 10x for compiler relative to current benchmark baselines under `/home/david/sync/projects/benchmarks`.
 - Execution order:
-  - [ ] Freeze a reproducible baseline snapshot (date, commit, machine profile, benchmark inputs) and check in structured results.
-  - [ ] Add a benchmark harness that emits machine-readable results for treewalker, bytecode, and compiled modes on the shared benchmark suite.
+  - [x] Freeze a reproducible baseline snapshot (date, commit, machine profile, benchmark inputs) and check in structured results.
+  - [x] Add a benchmark harness that emits machine-readable results for treewalker, bytecode, and compiled modes on the shared benchmark suite.
+  - [x] Resolve baseline correctness blockers so benchmark statuses reflect performance limits rather than semantic/build failures (`matrixmultiply` stdlib helper import; `sudoku.solve` static-compileable body shape).
+  - [x] Land first Bytecode Phase 1 call-dispatch fast path: inline `call`/`callname` now consume args directly from VM stack (no transient args slice on successful inline path).
+  - [x] Add optional bytecode execution counters (`ABLE_BYTECODE_STATS`) with snapshot/reset APIs to guide hotspot work (opcode mix, name lookups, inline-call hit/miss).
+  - [x] Add safe global-scope lookup cache for bytecode `LoadName`/`CallName`, keyed per VM instruction site with environment revision invalidation.
+  - [x] Add inline slot-frame pooling for bytecode function calls to avoid per-call slot-slice allocation churn in recursive/hot-call workloads.
+  - [x] Add regression coverage for lookup-cache invalidation on global rebinding plus runtime environment revision mutation semantics.
+  - [x] Remove method-resolution miss-error allocations in hot paths (`Environment.Lookup` + resolver switch from `Get` to `Lookup` when probing scope callables).
+  - [x] Reduce `resolveMethodFromPool` per-call allocation churn (drop map/closure candidate bookkeeping in favor of compact linear dedupe accumulator).
+  - [x] Add conservative bytecode member-call inline cache (call-position member access only) with strict invalidation on global env revision + interpreter method-cache version.
+  - [x] Add bytecode regression coverage proving member-call cache invalidates when unnamed `impl` definitions change dispatch without touching global bindings.
+  - [x] Extend `ABLE_BYTECODE_STATS` with member-call cache hit/miss counters and wire instrumentation to cache lookup outcomes.
+  - [x] Add bytecode regression coverage proving member-call cache counters snapshot/reset correctly (`BytecodeStats` / `ResetBytecodeStats`).
+  - [x] Extend bytecode inline-call setup to support `BoundMethodValue` callees (inject receiver directly into slot frame) so call-position member dispatch can hit the no-args-slice inline fast path.
+  - [x] Add bytecode regression coverage proving bound-method call sites record inline-call hits under `ABLE_BYTECODE_STATS`.
+  - [x] Reduce call-dispatch fallback argument-slice churn in `callCallableValue` by avoiding unconditional `append(injected, args...)` allocation when no receiver injection is required.
+  - [x] Update `invokeFunction` argument binding to use lazy writable copies (only when optional-arg fill/coercion needs mutation) and add regression coverage that host-provided arg slices are not mutated by coercion.
+  - [x] Add conservative non-global current-scope lookup cache for bytecode `LoadName`/`CallName` (cache current-scope hits only, keyed per instruction site, invalidated by environment pointer + scope revision).
+  - [x] Add regression coverage proving scoped lookup cache invalidates on local `=` rebinding (`CallName`) and local value reassignment (`LoadName`) within the same function activation.
+  - [x] Extend dotted `CallName` fallback (`name.member`) to resolve the head receiver through the same cached-name path, reusing safe invalidation semantics for non-global/current-scope and global lookup sites.
+  - [x] Add regression coverage proving dotted `CallName` receiver-head cache invalidates on local receiver rebinding at the same call site.
+  - [x] Reduce partial-function dispatch merge churn by replacing two-step append concatenation with a single-pass merge buffer per partial call transition.
+  - [x] Add single-overload runtime dispatch fast path (arity/type compatibility check + direct invoke) to skip full overload candidate scoring when only one callable overload exists.
+  - [x] Remove unconditional generic-name-set map allocation in call dispatch (`functionGenericNameSet`) for non-generic functions/method sets.
+  - [x] Share environment thread mode across lexical scope chains so child scopes stay lock-free in single-thread runs until first `spawn` flips the shared mode to multi-thread.
+  - [x] Remove dotted `CallName` miss-error allocation churn by using non-error lookup probing before dotted fallback/head-member resolution.
+  - [x] Expand slot coverage for recursive named calls by lowering stable self-recursive call sites to reserved slot loads (`LoadSlot+Call`) and bypassing `CallName` lookups in recursion hot paths.
+  - [x] Skip `EnterScope`/`ExitScope` opcode emission for slot-enabled frames that do not require runtime environment scopes (`needsEnvScopes=false`).
+  - [x] Add `bytecodeOpCallSelf` and lower stable self-recursive call sites to direct slot-indexed self calls (remove recursive callee `LoadSlot` stack churn while preserving inline-call fast paths).
+  - [x] Memoize bytecode integer-literal range validation per instruction site (first execution only) so hot loops avoid repeated `ensureFitsInteger` checks while preserving lazy path semantics.
+  - [x] Add `execBinary` numeric/operator fast path (`+`, `-`, `<`, `<=`, `>`, `>=`, `==`, `!=`) via `ApplyBinaryOperatorFast` with fallback to full operator dispatch for non-fast-path semantics.
+  - [x] Add dedicated bytecode opcodes for hot integer binary operators (`+`, `-`, `<=`) and lower to them directly, with integer-specialized execution and fallback to full semantics for non-integer operands.
+  - [x] Tighten `bytecodeOpCallSelf` inline setup with a dedicated self-call fast path (skip bound-method/general inline checks) and remove duplicate slot-frame clearing in frame-pool acquire/release cycle.
+  - [x] Add slot+immediate integer opcodes for hot recursion forms (`slot - const`, `slot <= const`) and lower eligible slot-identifier/literal expressions directly to reduce repeated `LoadSlot`+`Const` dispatch.
+  - [x] Add a single-parameter self-recursive inline shortcut in `tryInlineSelfCallFromStack` (skip generic param-loop setup when coercion is trivially unnecessary) for common `fib`-style recursion.
+  - [x] Fuse self-recursive call lowering/execution for `f(slot - const)` into `bytecodeOpCallSelfIntSubSlotConst` to bypass arg stack traffic on the hot recursion shape.
+  - [x] Harden interpreter method-cache synchronization for concurrent future execution (lock-guarded method cache map + version reads for bytecode member cache invalidation).
+  - [x] Fast-path same-suffix integer arithmetic in bytecode hot ops (`+`/`-`) to skip repeated promotion/type-info lookups on recursive integer paths.
+  - [x] Add hot-size slot-frame pool path to avoid per-call map lookup/insert churn in recursive bytecode call-frame reuse.
+  - [x] Cache one-arg self-call inline metadata on frame layout (first-param type/simple-name) so fused self-recursive inline calls avoid repeated declaration/type-expression introspection.
+  - [x] Add direct integer extraction fast path in bytecode specialized arithmetic (`bytecodeIntegerValue`) to avoid unnecessary unwrap work on common scalar cases.
+  - [x] Bypass generic specialized-binary helper for slot+immediate recursion ops (`slot - const`, `slot <= const`) by executing direct integer paths before generic fallback.
+  - [x] Execute hot specialized bytecode binary opcodes (`BinaryIntAdd/Sub/<=`) via direct `execBinary` opcode-specific paths with direct fallback operator dispatch, reducing helper/switch overhead in recursion loops.
+  - [x] Restrict fused `CallSelfIntSubSlotConst` lowering to one-arg, no-type-arg, integer-coercion-safe layouts so runtime recursion can skip repeated generic/type-arg eligibility checks.
+  - [x] Refactor bytecode call-frame push/pop into dedicated helpers and inline fused self-recursive `slot-const` frame setup against current layout to reduce per-call dispatch overhead.
+  - [x] Add per-program sparse cache for decoded slot-const integer immediates and thread it through run-loop program switching; skip redundant same-program cache refreshes on inline self-recursive program switches.
+  - [x] Reuse pre-boxed small integer runtime values in fused slot-const recursion paths (`CallSelfIntSubSlotConst`/`BinaryIntSubSlotConst`) to reduce repeated integer-interface boxing (`runtime.convT`) overhead.
+  - [x] Extend boxed same-suffix int64 fast path to specialized integer `BinaryIntAdd`/`BinaryIntSub` opcodes and add direct slot-const immediate IP lookups (skip generic helper/switch on hot opcodes).
+  - [x] Switch bytecode run-loop instruction fetch to pointer-based dispatch and keep hot handlers pointer-based (`execBinary`, fused self-call) to remove per-op `bytecodeInstruction` struct copies (`runtime.duffcopy`) in recursion loops.
+  - [x] Inline binary stack pops in `execBinary` and remove call-frame tail clearing on pop; add direct-integer fast extraction for specialized binary opcodes to reduce hot loop dispatch overhead.
+  - [x] Add `selfFast` inline-call frame flag for same-program/same-env recursion and skip redundant run-loop program switching on inline returns when the caller frame is known to remain in the current program/env.
+  - [x] Reorder slot-const immediate decode in hot bytecode paths (`execBinary`, `execCallSelfIntSubSlotConst`) to read `instr.value` first and fall back to per-program immediate cache only when needed, removing hot-loop hash-map lookup pressure.
+  - [x] Align bytecode serial scheduling with tree-walker synchronous-section semantics for non-async runs (`runResumable`), and add regression coverage proving `spawn` tasks do not run ahead of the main flow before explicit `future_flush`.
+  - [x] Add `SerialExecutor.beginSynchronousSectionIfNeeded` and use it in bytecode run-loop entry so nested bytecode `vm.run` calls reuse the same sync section instead of repeatedly lock/unlock thrashing.
+  - [x] Reduce call-frame hot-path overhead by preallocating bytecode VM call-frame capacity in `newBytecodeVM` and appending populated frame literals directly in `pushCallFrame`.
+  - [x] Split `execBinary` dispatch by opcode class (slot-const specialized, specialized int opcodes, generic binary) so hot specialized integer opcodes bypass generic branch paths.
+  - [x] Inline the `bytecodeOpReturn` stack pop in the VM run loop to remove `vm.pop()` call overhead on recursion return paths.
+  - [x] Add conservative bytecode `Index.get` callsite cache for array receivers (keyed by instruction site + first-element type token, invalidated by global revision and interpreter method-cache version) to bypass repeated `findIndexMethod` churn without bypassing `Index` semantics.
+  - [x] Extend conservative bytecode index-method caching to `IndexMut.set` + compound index assignment paths (`+=`, etc.), reusing strict invalidation semantics and preserving fallback array behavior when no index methods exist.
+  - [x] Make bytecode call-frame backing storage lazy: allocate call-frame capacity on first push instead of eager `newBytecodeVM` preallocation to cut per-call VM allocation churn.
+  - [x] Preserve bytecode per-program const caches (`validatedIntegerConstSlots`, slot-const immediate decode tables) across pooled VM resets so repeated calls avoid re-allocating instruction-sized cache state.
+  - [x] Memoize function generic-name sets per `runtime.FunctionValue` so hot call dispatch avoids repeated generic-map allocation in `functionGenericNameSet`.
+  - [x] Add cast identity fast paths for same-suffix primitive casts (`as i32`, `as f64`, etc.) and skip non-aliased primitive alias-expansion work in `castValueToType`.
+  - [x] Return existing runtime values from same-type cast fast paths (`castValueToType`) to avoid repeated integer/float re-boxing allocations on hot `as` sites.
+  - [x] Add allocation-light type-info/type-expression fast paths for primitive runtime values (cached simple AST nodes + direct `typeInfo` construction in `getTypeInfoForValue`) to reduce `ast.Ty`/parse churn in dispatch and type matching.
+  - [x] Make runtime `Environment` map storage lazy (`values`/`structs` allocated on first write) to reduce per-call scope allocation pressure in bytecode function invocation.
+  - [x] Refactor `expandTypeAliases` to preserve original type-expression nodes when alias expansion is a no-op (avoid unconditional generic/union/function node reconstruction in hot type-matching paths).
+  - [x] Replace UFCS scope-membership map construction (`functionScopeSet`) with an allocation-light scope filter over existing function/overload pointers.
+  - [x] Remove native call-dispatch boxing churn in `callCallableValue` (value-native fast path without pointer-escape temporaries; stack `NativeCallContext`; bound-native partial target normalization).
+  - [x] Reuse cached boxed small integers for hot array scalar members (`storage_handle`, `length`, `capacity`) to remove repeated `runtime.NewSmallInt` allocation churn during member dispatch.
+  - [x] Cache canonical alias-base expansion results for `canonicalTypeNames(...)` and invalidate on alias registration/import rebinding so hot method-resolution paths avoid repeated alias-chain reconstruction.
+  - [x] Cache hot inferred generic type expressions for `Array<T>` and `Iterator<_>` in runtime type inference to eliminate repeated `ast.NewGenericTypeExpression` churn in dispatch/type matching.
+  - [x] Reuse bytecode member-method callsite cache for dotted `CallName` fallback (`head.tail`) so repeated calls at the same instruction site avoid repeated bound-method reconstruction and resolver traversal.
+  - [x] Replace hot type/call-path miss lookups (`Environment.Get`) with allocation-light probing (`Lookup`) in canonical type-name resolution and direct identifier call dispatch fallback, removing miss-error churn in bytecode-heavy runs.
+  - [x] Reduce `runtime.NewEnvironment` churn by eliminating child-scope thread-mode throwaway allocations and reusing closure env for slot-enabled, non-generic bytecode calls that do not require runtime env scopes.
+  - [x] Remove `typeExpressionToString`/`typeInfoToString` formatting churn (`fmt.Sprintf` + join slices) by switching to builder-based rendering for hot method/type paths.
+  - [x] Remove generic type-argument slice copy churn in `parseTypeExpression` by treating AST argument slices as immutable in runtime resolution paths.
+  - [x] Reduce bound-method allocation churn by returning value-form `runtime.BoundMethodValue`/`runtime.NativeBoundMethodValue` in hot method-resolution/member-cache paths.
+  - [x] Add native-call arg borrowing metadata (`runtime.NativeFunctionValue.BorrowArgs`) and skip bytecode fallback arg-slice cloning for borrow-safe native call targets.
+  - [x] Expand bytecode pre-boxed small-int cache upper bound (`4096` -> `16384`) to reduce hot integer boxing allocations in arithmetic recursion/loop paths.
+  - [x] Add bounded dynamic boxed-int caching for out-of-range `i32`/`i64`/`isize` values and route specialized bytecode integer add/sub fast paths through it.
+  - [x] Replace bytecode index-cache array element type key strings with compact numeric tokens to reduce hot cache-key hashing overhead while preserving element-type invalidation semantics.
+  - [x] Return bytecode slot frames to the pool on all non-yield run exits (success + error unwind) and use pooled slot-frame acquire for top-level `invokeFunction` bytecode entry frames.
+  - [x] Reuse bytecode string-interpolation part buffers across op executions and split literal/stack-op handlers out of `bytecode_vm_run.go` (keeps run loop under 1000 lines while reducing interpolation scratch allocations).
+  - [x] Add direct `*runtime.FunctionValue` call-dispatch fast path in `callCallableValue(...)` (including bound-method function targets) to bypass overload flattening/scoring on common single-function calls while preserving mismatch diagnostics.
+  - [x] Refactor method-resolution candidate accumulation to single-candidate-first storage (promote to slices only on ambiguity) to reduce `resolveMethodFromPool`/`callCallableValue` allocation churn in hot dispatch paths.
+  - [x] Isolate quicksort hotloop memprofiles from one-time setup churn by suspending memory sampling during fixture/load/typecheck bootstrap and restoring before the timed call loop.
+  - [x] Add an untimed quicksort hotloop warmup call before benchmark sampling/timer reset so one-time first-call cache/bootstrap work is excluded from steady-state perf and memprofile signals.
+  - [x] Reduce call-dispatch allocation churn with zero-copy partial-arg merge shortcuts and overload-slice view reuse for `*runtime.FunctionOverloadValue` targets.
+  - [x] Cache `typeInfo` generic signature strings used for method-cache keys so `findMethodCached(...)` avoids repeated `typeInfoToString(...)` allocations on hot generic receiver paths.
+  - [x] Add capped pointer-receiver bound-method cache in `resolveMethodFromPool(...)` (keyed by receiver identity + method + interface filter + inherent gate) and clear it alongside method-cache invalidation.
+  - [x] Add mutability-aware internal call dispatch (`callCallableValueMutable`) for bytecode-originated arg slices so `invokeFunction(...)` can skip defensive arg-slice cloning during coercion while preserving external/partial-call arg immutability guarantees.
+  - [x] Add int64-first `div/mod` fast return path with boxed small-integer reuse in `evaluateDivMod(...)`/`evaluateDivModFast(...)` to reduce `%`/`//` result boxing churn in hot numeric loops.
+  - [x] Reuse receiver-injection arg backing storage when bytecode passes mutable arg slices and pool `NativeCallContext` objects in call dispatch to reduce per-call allocation churn on hot native/member call paths.
+  - [x] Extend bytecode slot fast paths to typed identifier declarations (`name: T := expr`) by lowering simple typed declarations to slot stores with typed-pattern coercion semantics preserved at runtime.
+  - [x] Keep typed `=`/compound typed-pattern assignment semantics on `AssignPattern` paths (interface coercion + fallback binding behavior) while still enabling slot eligibility for typed `:=` declarations.
+  - [x] Defer `getIntegerInfo(...)` map lookups off int64 arithmetic/div-mod fast paths and use `ensureFitsInt64Type(...)` directly until big-int fallback is needed.
+  - [x] Cache boxed `u64` results for hot array metadata externs (`__able_array_size`, `__able_array_capacity`) and add an early primitive-receiver bound-method cache probe in `resolveMethodFromPool(...)` to reduce hot-loop allocation churn.
+  - [x] Add specialized bytecode lowering/opcode for `(<int> / <int>) as <int>` with guarded fast execution + semantic fallback, and optimize dynamic `ArrayStoreWrite` append writes (`index == len`) to avoid nil-fill+overwrite churn.
+  - [x] Pre-grow empty dynamic array append path to capacity 4 before first write so hot push loops avoid extra `cap=1`/`cap=2` realloc steps.
   - [ ] Bytecode Phase 1: remove remaining high-frequency environment/path lookups in hot loops (slot coverage expansion + call dispatch fast paths).
   - [ ] Bytecode Phase 2: cut allocation pressure (integer/array/hash map hot-path allocations, iterator churn, closure scaffolding in loops).
   - [ ] Compiler Phase 1: eliminate avoidable `runtime.Value` carriers in statically-typed locals, struct fields, and loop temporaries.
@@ -81,6 +180,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   - [x] Split bytecode VM tests out of `pkg/interpreter/bytecode_vm_test.go` (core VM tests vs async/member/collection tail tests and shared helpers).
   - [x] Split call-overload resolution helpers out of `pkg/interpreter/eval_expressions_calls.go`.
   - [x] Split dynamic/interface/package member resolution out of `pkg/interpreter/interpreter_members.go`.
+  - [x] Split bytecode lowering support helpers out of `pkg/interpreter/bytecode_lowering.go` and run-loop program-switch helper out of `pkg/interpreter/bytecode_vm_run.go`.
   - [x] No remaining >1000-line `.go/.ts/.able` files under `v12/` (including tests), verified via `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}'`.
 
 ### Compiler AOT
