@@ -174,7 +174,7 @@ func runCompilerExecFixture(t *testing.T, dir string, rel string) {
 	if expected.Stdout != nil {
 		expectedStdout := expandFixtureLines(expected.Stdout)
 		if !reflect.DeepEqual(actualStdout, expectedStdout) {
-			t.Fatalf("stdout mismatch: expected %v, got %v", expectedStdout, actualStdout)
+			t.Fatalf("stdout mismatch: expected %v, got %v\nstderr: %s", expectedStdout, actualStdout, stderr.String())
 		}
 	}
 	if expected.Stderr != nil {
@@ -414,6 +414,8 @@ func defaultCompilerExecFixtures() []string {
 		"06_01_compiler_await_future",
 		"06_01_compiler_rescue",
 		"06_01_compiler_ensure_rethrow",
+		"06_01_compiler_breakpoint",
+		"08_03_breakpoint_nonlocal_jump",
 		"14_01_language_interfaces_index_apply_iterable",
 		"14_02_regex_core_match_streaming",
 		"10_17_interface_overload_dispatch",

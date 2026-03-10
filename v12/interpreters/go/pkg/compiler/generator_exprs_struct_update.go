@@ -2,15 +2,15 @@ package compiler
 
 import "able/interpreter-go/pkg/ast"
 
-func (g *generator) compileStructUpdateFallback(ctx *compileContext, lit *ast.StructLiteral, structType string, expected string) (string, string, bool, bool) {
+func (g *generator) compileStructUpdateFallback(ctx *compileContext, lit *ast.StructLiteral, structType string, expected string) ([]string, string, string, bool, bool) {
 	if g == nil || ctx == nil || lit == nil || len(lit.FunctionalUpdateSources) == 0 {
-		return "", "", false, false
+		return nil, "", "", false, false
 	}
 	prevReason := ctx.reason
 	for _, source := range lit.FunctionalUpdateSources {
 		if source == nil {
 			ctx.setReason("functional update source missing")
-			return "", "", false, true
+			return nil, "", "", false, true
 		}
 		if _, _, ok := g.compileExpr(ctx, source, structType); ok {
 			continue
@@ -19,23 +19,24 @@ func (g *generator) compileStructUpdateFallback(ctx *compileContext, lit *ast.St
 		ctx.reason = prevReason
 		if _, _, ok := g.compileExpr(ctx, source, "runtime.Value"); ok {
 			ctx.reason = prevReason
-			expr, exprType, ok := g.compileStructLiteralRuntime(ctx, lit)
+			lines, expr, exprType, ok := g.compileStructLiteralRuntime(ctx, lit)
 			if !ok {
-				return "", "", false, true
+				return nil, "", "", false, true
 			}
 			if expected != "" && expected != "runtime.Value" {
-				converted, ok := g.expectRuntimeValueExpr(expr, expected)
+				convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, expected)
 				if !ok {
 					ctx.setReason("struct literal type mismatch")
-					return "", "", false, true
+					return nil, "", "", false, true
 				}
-				return converted, expected, true, true
+				lines = append(lines, convLines...)
+				return lines, converted, expected, true, true
 			}
-			return expr, exprType, true, true
+			return lines, expr, exprType, true, true
 		}
 		ctx.reason = failReason
-		return "", "", false, true
+		return nil, "", "", false, true
 	}
 	ctx.reason = prevReason
-	return "", "", false, false
+	return nil, "", "", false, false
 }

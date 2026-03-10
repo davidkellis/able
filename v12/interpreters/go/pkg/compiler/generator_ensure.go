@@ -2,23 +2,22 @@ package compiler
 
 import (
 	"fmt"
-	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
 
-func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.EnsureExpression, expected string) (string, string, bool) {
+func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.EnsureExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.TryExpression == nil {
 		ctx.setReason("missing ensure expression")
-		return "", "", false
+		return nil, "", "", false
 	}
 	if expr.EnsureBlock == nil {
 		ctx.setReason("missing ensure block")
-		return "", "", false
+		return nil, "", "", false
 	}
 	tryLines, tryExpr, tryType, ok := g.compileTailExpression(ctx, expected, expr.TryExpression)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	resultType := expected
 	if resultType == "" {
@@ -29,11 +28,11 @@ func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.Ensur
 	}
 	if !g.typeMatches(resultType, tryType) {
 		ctx.setReason("ensure type mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
 	ensureLines, ok := g.compileBlockStatement(ctx.child(), expr.EnsureBlock)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	resultTemp := ctx.newTemp()
 	recoveredTemp := ctx.newTemp()
@@ -50,7 +49,5 @@ func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.Ensur
 	lines = append(lines, "}()")
 	lines = append(lines, ensureLines...)
 	lines = append(lines, fmt.Sprintf("if %s { panic(%s) }", recoveredOkTemp, recoveredTemp))
-	lines = append(lines, fmt.Sprintf("return %s", resultTemp))
-	exprValue := fmt.Sprintf("func() %s { %s }()", resultType, strings.Join(lines, "; "))
-	return exprValue, resultType, true
+	return lines, resultTemp, resultType, true
 }

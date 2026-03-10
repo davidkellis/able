@@ -185,6 +185,8 @@ func (g *generator) typeCategory(goType string) string {
 	switch goType {
 	case "runtime.Value":
 		return "runtime"
+	case "any":
+		return "any"
 	case "struct{}":
 		return "void"
 	case "bool":
@@ -205,6 +207,9 @@ func (g *generator) typeCategory(goType string) string {
 		return "int" + goType[3:]
 	case "uint8", "uint16", "uint32", "uint64":
 		return "uint" + goType[4:]
+	}
+	if strings.HasPrefix(goType, "[]") {
+		return "slice"
 	}
 	for _, info := range g.structs {
 		if info.GoName == goType {
