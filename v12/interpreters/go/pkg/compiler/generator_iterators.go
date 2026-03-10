@@ -12,7 +12,7 @@ func (g *generator) compileIteratorLiteral(ctx *compileContext, expr *ast.Iterat
 		ctx.setReason("missing iterator literal")
 		return "", "", false
 	}
-	if expected != "" && expected != "runtime.Value" {
+	if expected != "" && expected != "runtime.Value" && expected != "any" {
 		ctx.setReason("iterator literal type mismatch")
 		return "", "", false
 	}
@@ -56,18 +56,21 @@ func (g *generator) compileYieldStatement(ctx *compileContext, stmt *ast.YieldSt
 		return nil, false
 	}
 	genValue := genExpr
+	var genConvLines []string
 	if genParam.GoType != "runtime.Value" {
-		converted, ok := g.runtimeValueExpr(genExpr, genParam.GoType)
+		convLines, converted, ok := g.runtimeValueLines(ctx, genExpr, genParam.GoType)
 		if !ok {
 			ctx.setReason("yield generator unsupported")
 			return nil, false
 		}
+		genConvLines = convLines
 		genValue = converted
 	}
 	yieldFnTemp := ctx.newTemp()
-	lines := []string{
+	lines := append([]string{}, genConvLines...)
+	lines = append(lines,
 		fmt.Sprintf("%s := __able_member_get_method(%s, runtime.StringValue{Val: %q})", yieldFnTemp, genValue, "yield"),
-	}
+	)
 	args := []string{}
 	if stmt.Expression != nil {
 		expr, _, ok := g.compileExpr(ctx, stmt.Expression, "runtime.Value")

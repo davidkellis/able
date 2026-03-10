@@ -16,6 +16,13 @@ func (c *compileContext) setReason(reason string) {
 	if c.reason == "" {
 		c.reason = reason
 	}
+	// Propagate reason to all ancestor contexts for diagnostics.
+	for p := c.parent; p != nil; p = p.parent {
+		if p.reason != "" {
+			break
+		}
+		p.reason = reason
+	}
 }
 
 func (c *compileContext) lookup(name string) (paramInfo, bool) {
@@ -61,9 +68,13 @@ func (c *compileContext) child() *compileContext {
 		parent:              c,
 		temps:               c.temps,
 		loopDepth:           c.loopDepth,
+		loopLabel:           c.loopLabel,
+		loopBreakValueTemp:  c.loopBreakValueTemp,
 		rethrowVar:          c.rethrowVar,
 		rethrowErrVar:       c.rethrowErrVar,
-		breakpoints:         c.breakpoints,
+		breakpoints:             c.breakpoints,
+		breakpointGoLabels:      c.breakpointGoLabels,
+		breakpointResultTemps:   c.breakpointResultTemps,
 		implicitReceiver:    c.implicitReceiver,
 		hasImplicitReceiver: c.hasImplicitReceiver,
 		placeholderParams:   c.placeholderParams,

@@ -44,6 +44,9 @@ func (g *generator) renderStructFrom(buf *bytes.Buffer, info *structInfo) {
 	fmt.Fprintf(buf, "func __able_struct_%s_from(value runtime.Value) (*%s, error) {\n", info.GoName, info.GoName)
 	fmt.Fprintf(buf, "\tout := &%s{}\n", info.GoName)
 	fmt.Fprintf(buf, "\tcurrent := __able_unwrap_interface(value)\n")
+	fmt.Fprintf(buf, "\tif _, isNil := current.(runtime.NilValue); isNil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, nil\n")
+	fmt.Fprintf(buf, "\t}\n")
 	if info.Name == "Array" {
 		fmt.Fprintf(buf, "\tif raw, ok, nilPtr := __able_runtime_array_value(current); ok || nilPtr {\n")
 		fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
@@ -243,6 +246,8 @@ func (g *generator) renderValueConversion(buf *bytes.Buffer, indent, valueVar, g
 		fmt.Fprintf(buf, "%sconverted, err := __able_struct_%s_from(%s)\n", indent, baseName, valueVar)
 		g.renderConvertErrWith(buf, indent, returnExpr)
 		fmt.Fprintf(buf, "%s%s = converted\n", indent, assignTarget)
+	case "any":
+		fmt.Fprintf(buf, "%s%s = %s\n", indent, assignTarget, valueVar)
 	default:
 		fmt.Fprintf(buf, "%sreturn %s, fmt.Errorf(\"unsupported field type\")\n", indent, returnExpr)
 	}
@@ -283,17 +288,9 @@ func (g *generator) renderValueToRuntime(buf *bytes.Buffer, valueExpr, goType, t
 	case "uint64":
 		fmt.Fprintf(buf, "\t%s = append(%s, bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\")))\n", targetSlice, targetSlice, valueExpr)
 	case "struct":
-		baseName, ok := g.structBaseName(goType)
-		if !ok {
-			baseName = strings.TrimPrefix(goType, "*")
-		}
-		fmt.Fprintf(buf, "\t{\n")
-		fmt.Fprintf(buf, "\t\tvalueField, err := __able_struct_%s_to(rt, %s)\n", baseName, valueExpr)
-		fmt.Fprintf(buf, "\t\tif err != nil {\n")
-		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
-		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t\t%s = append(%s, valueField)\n", targetSlice, targetSlice)
-		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\t%s = append(%s, __able_any_to_value(%s))\n", targetSlice, targetSlice, valueExpr)
+	case "any":
+		fmt.Fprintf(buf, "\t%s = append(%s, __able_any_to_value(%s))\n", targetSlice, targetSlice, valueExpr)
 	}
 }
 
@@ -332,17 +329,9 @@ func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goTy
 	case "uint64":
 		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))\n", fieldName, valueExpr)
 	case "struct":
-		baseName, ok := g.structBaseName(goType)
-		if !ok {
-			baseName = strings.TrimPrefix(goType, "*")
-		}
-		fmt.Fprintf(buf, "\t{\n")
-		fmt.Fprintf(buf, "\t\tvalueField, err := __able_struct_%s_to(rt, %s)\n", baseName, valueExpr)
-		fmt.Fprintf(buf, "\t\tif err != nil {\n")
-		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
-		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t\tfields[%q] = valueField\n", fieldName)
-		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tfields[%q] = __able_any_to_value(%s)\n", fieldName, valueExpr)
+	case "any":
+		fmt.Fprintf(buf, "\tfields[%q] = __able_any_to_value(%s)\n", fieldName, valueExpr)
 	}
 }
 

@@ -25,14 +25,14 @@ func (g *generator) awaitExprName(expr *ast.AwaitExpression) string {
 	return name
 }
 
-func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnExpression, expected string) (string, string, bool) {
+func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.Expression == nil {
 		ctx.setReason("missing spawn expression")
-		return "", "", false
+		return nil, "", "", false
 	}
 	if expected != "" && expected != "runtime.Value" {
 		ctx.setReason("spawn return type mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
 	child := ctx.child()
 	child.loopDepth = 0
@@ -40,54 +40,60 @@ func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnE
 	child.rethrowVar = ""
 	bodyLines, bodyExpr, bodyType, ok := g.compileTailExpression(child, "", expr.Expression)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	resultExpr := ""
+	var convLines []string
 	if g.isVoidType(bodyType) {
 		resultExpr = "runtime.VoidValue{}"
 	} else {
-		runtimeExpr, ok := g.runtimeValueExpr(bodyExpr, bodyType)
+		cl, runtimeExpr, ok := g.runtimeValueLines(ctx, bodyExpr, bodyType)
 		if !ok {
 			ctx.setReason("spawn body unsupported")
-			return "", "", false
+			return nil, "", "", false
 		}
+		convLines = cl
 		resultExpr = runtimeExpr
 	}
 	taskLines := append([]string{}, bodyLines...)
+	taskLines = append(taskLines, convLines...)
 	taskLines = append(taskLines, fmt.Sprintf("return %s, nil", resultExpr))
 	taskBody := strings.Join(taskLines, "; ")
 	taskExpr := fmt.Sprintf("func(_ *runtime.Environment) (runtime.Value, error) { %s }", taskBody)
-	return fmt.Sprintf("__able_spawn(%s)", taskExpr), "runtime.Value", true
+	return nil, fmt.Sprintf("__able_spawn(%s)", taskExpr), "runtime.Value", true
 }
 
-func (g *generator) compileAwaitExpression(ctx *compileContext, expr *ast.AwaitExpression, expected string) (string, string, bool) {
+func (g *generator) compileAwaitExpression(ctx *compileContext, expr *ast.AwaitExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.Expression == nil {
 		ctx.setReason("missing await expression")
-		return "", "", false
+		return nil, "", "", false
 	}
 	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) && g.typeCategory(expected) == "unknown" {
 		ctx.setReason("await return type mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
-	iterExpr, iterType, ok := g.compileExpr(ctx, expr.Expression, "")
+	iterLines, iterExpr, iterType, ok := g.compileExprLines(ctx, expr.Expression, "")
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
-	iterRuntime, ok := g.runtimeValueExpr(iterExpr, iterType)
+	iterConvLines, iterRuntime, ok := g.runtimeValueLines(ctx, iterExpr, iterType)
 	if !ok {
 		ctx.setReason("await iterable unsupported")
-		return "", "", false
+		return nil, "", "", false
 	}
+	var lines []string
+	lines = append(lines, iterLines...)
+	lines = append(lines, iterConvLines...)
 	awaitName := g.awaitExprName(expr)
 	awaitExpr := fmt.Sprintf("__able_await(%s, %s)", awaitName, iterRuntime)
-	resultType := "runtime.Value"
 	if expected != "" && expected != "runtime.Value" {
-		converted, ok := g.expectRuntimeValueExpr(awaitExpr, expected)
+		expectLines, converted, ok := g.expectRuntimeValueExprLines(ctx, awaitExpr, expected)
 		if !ok {
 			ctx.setReason("await return type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
-		return converted, expected, true
+		lines = append(lines, expectLines...)
+		return lines, converted, expected, true
 	}
-	return awaitExpr, resultType, true
+	return lines, awaitExpr, "runtime.Value", true
 }

@@ -7,22 +7,25 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionCall, expected string) (string, string, bool) {
+func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionCall, expected string) ([]string, string, string, bool) {
 	if call == nil {
 		ctx.setReason("missing function call")
-		return "", "", false
+		return nil, "", "", false
 	}
 	callNode := g.diagNodeName(call, "*ast.FunctionCall", "call")
 	if len(call.TypeArguments) > 0 {
 		if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
 			// Generic calls on local values (e.g. generic lambdas) must call the
 			// bound value, not global name lookup.
-			if _, ok := ctx.lookup(callee.Name); ok {
+			if binding, ok := ctx.lookup(callee.Name); ok {
+				if binding.GoType == "runtime.Value" && isFunctionTypeExpr(binding.TypeExpr) {
+					return g.compileFnParamCall(ctx, call, expected, binding, callNode)
+				}
 				return g.compileDynamicCall(ctx, call, expected, "", callNode)
 			}
 			if !g.hasDynamicFeature && !g.mayResolveStaticNamedCall(ctx, callee.Name) && !g.mayResolveStaticUFCSCall(ctx, call, callee.Name) {
 				ctx.setReason(fmt.Sprintf("unresolved static call (%s)", callee.Name))
-				return "", "", false
+				return nil, "", "", false
 			}
 			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 		}
@@ -34,23 +37,24 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 			needsExpect := expected != "" && expected != "runtime.Value" && info.ReturnType == "runtime.Value"
 			if !g.typeMatches(expected, info.ReturnType) && !needsRuntimeValue && !needsExpect {
 				ctx.setReason("call return type mismatch")
-				return "", "", false
+				return nil, "", "", false
 			}
 			optionalLast := g.hasOptionalLastParam(info)
 			if len(call.Arguments) != len(info.Params) {
 				if !(optionalLast && len(call.Arguments) == len(info.Params)-1) {
 					ctx.setReason("call arity mismatch")
-					return "", "", false
+					return nil, "", "", false
 				}
 			}
 			missingOptional := optionalLast && len(call.Arguments) == len(info.Params)-1
 			if missingOptional && len(info.Params) > 0 && info.Params[len(info.Params)-1].GoType != "runtime.Value" {
 				ctx.setReason("call arity mismatch")
-				return "", "", false
+				return nil, "", "", false
 			}
 			args := make([]string, 0, len(call.Arguments))
 			preLines := make([]string, 0, len(call.Arguments))
 			postLines := make([]string, 0, len(call.Arguments))
+			var writebackIdents []string // Able variable names that get struct writeback
 			for idx, arg := range call.Arguments {
 				param := info.Params[idx]
 				if g.typeCategory(param.GoType) == "struct" {
@@ -58,11 +62,12 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 						if binding, ok := ctx.lookup(ident.Name); ok && binding.GoType == "runtime.Value" {
 							runtimeTemp := ctx.newTemp()
 							preLines = append(preLines, fmt.Sprintf("%s := %s", runtimeTemp, binding.GoName))
-							structExpr, ok := g.expectRuntimeValueExpr(runtimeTemp, param.GoType)
+							convLines, structExpr, ok := g.expectRuntimeValueExprLines(ctx, runtimeTemp, param.GoType)
 							if !ok {
 								ctx.setReason("call argument unsupported")
-								return "", "", false
+								return nil, "", "", false
 							}
+							preLines = append(preLines, convLines...)
 							structTemp := ctx.newTemp()
 							preLines = append(preLines, fmt.Sprintf("%s := %s", structTemp, structExpr))
 							args = append(args, structTemp)
@@ -71,31 +76,35 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 								baseName = strings.TrimPrefix(param.GoType, "*")
 							}
 							postLines = append(postLines, fmt.Sprintf("if err := __able_struct_%s_apply(__able_runtime, %s, %s); err != nil { panic(err) }", baseName, runtimeTemp, structTemp))
+							writebackIdents = append(writebackIdents, ident.Name)
 							continue
 						}
 					}
 				}
-				expr, exprType, ok := g.compileExpr(ctx, arg, param.GoType)
+				argLines, expr, exprType, ok := g.compileExprLines(ctx, arg, param.GoType)
 				if !ok {
-					return "", "", false
+					return nil, "", "", false
 				}
+				preLines = append(preLines, argLines...)
 				argExpr := expr
 				argType := exprType
 				if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok {
 					if argType != "runtime.Value" {
-						valueExpr, ok := g.runtimeValueExpr(argExpr, argType)
+						argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, argExpr, argType)
 						if !ok {
 							ctx.setReason("interface argument unsupported")
-							return "", "", false
+							return nil, "", "", false
 						}
+						preLines = append(preLines, argConvLines...)
 						argExpr = valueExpr
 						argType = "runtime.Value"
 					}
-					coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, callee.Name, ctx.genericNames)
+					ifaceLines, coerced, ok := g.interfaceArgExprLines(ctx, argExpr, ifaceType, callee.Name, ctx.genericNames)
 					if !ok {
 						ctx.setReason("interface argument unsupported")
-						return "", "", false
+						return nil, "", "", false
 					}
+					preLines = append(preLines, ifaceLines...)
 					argExpr = coerced
 				}
 				args = append(args, argExpr)
@@ -104,64 +113,126 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 				args = append(args, "runtime.NilValue{}")
 			}
 			callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
-			bodyLines := []string{
-				fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-				"defer __able_pop_call_frame()",
+			resultTemp := ctx.newTemp()
+			lines := make([]string, 0, len(preLines)+len(postLines)+4)
+			lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
+			lines = append(lines, preLines...)
+			lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, callExpr))
+			lines = append(lines, postLines...)
+			lines = append(lines, "__able_pop_call_frame()")
+			// Writeback invalidates cached struct extractions for written-back variables.
+			if len(writebackIdents) > 0 && ctx.originExtractions != nil {
+				for _, name := range writebackIdents {
+					delete(ctx.originExtractions, name)
+				}
 			}
-			bodyLines = append(bodyLines, preLines...)
-			if len(postLines) == 0 {
-				bodyLines = append(bodyLines, fmt.Sprintf("return %s", callExpr))
-			} else {
-				resultTemp := ctx.newTemp()
-				bodyLines = append(bodyLines, fmt.Sprintf("%s := %s", resultTemp, callExpr))
-				bodyLines = append(bodyLines, postLines...)
-				bodyLines = append(bodyLines, fmt.Sprintf("return %s", resultTemp))
-			}
-			wrapped := fmt.Sprintf("func() %s { %s }()", info.ReturnType, strings.Join(bodyLines, "; "))
 			if needsRuntimeValue {
-				converted, ok := g.runtimeValueExpr(wrapped, info.ReturnType)
+				convLines, converted, ok := g.runtimeValueLines(ctx, resultTemp, info.ReturnType)
 				if !ok {
 					ctx.setReason("call return type mismatch")
-					return "", "", false
+					return nil, "", "", false
 				}
-				return converted, "runtime.Value", true
+				lines = append(lines, convLines...)
+				return lines, converted, "runtime.Value", true
 			}
 			if needsExpect {
-				converted, ok := g.expectRuntimeValueExpr(wrapped, expected)
+				convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
 				if !ok {
 					ctx.setReason("call return type mismatch")
-					return "", "", false
+					return nil, "", "", false
 				}
-				return converted, expected, true
+				lines = append(lines, convLines...)
+				return lines, converted, expected, true
 			}
-			return wrapped, info.ReturnType, true
+			return lines, resultTemp, info.ReturnType, true
 		}
 		if _, ok := ctx.overloads[callee.Name]; ok {
 			return g.compileOverloadCall(ctx, call, expected, callee.Name, callNode)
 		}
-		if _, ok := ctx.lookup(callee.Name); !ok {
+		binding, found := ctx.lookup(callee.Name)
+		if !found {
 			if !g.hasDynamicFeature && !g.mayResolveStaticNamedCall(ctx, callee.Name) && !g.mayResolveStaticUFCSCall(ctx, call, callee.Name) {
 				ctx.setReason(fmt.Sprintf("unresolved static call (%s)", callee.Name))
-				return "", "", false
+				return nil, "", "", false
 			}
 			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
+		}
+		// When calling a local binding whose type is a function (e.g. a lambda
+		// parameter like `predicate: T -> bool`), use the fast call path which
+		// avoids interface unwrapping, partial application checks, and overload
+		// resolution overhead.
+		if binding.GoType == "runtime.Value" && isFunctionTypeExpr(binding.TypeExpr) {
+			return g.compileFnParamCall(ctx, call, expected, binding, callNode)
 		}
 	}
 	return g.compileDynamicCall(ctx, call, expected, "", callNode)
 }
 
-func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCall, expected string, calleeName string, callNode string) (string, string, bool) {
+// compileFnParamCall compiles a call to a local binding known to be a function
+// value (e.g. a lambda parameter like `predicate: T -> bool`). Uses the fast
+// call path that type-switches directly on NativeFunctionValue, skipping
+// interface unwrapping, partial application, thunk, and overload resolution.
+func (g *generator) compileFnParamCall(ctx *compileContext, call *ast.FunctionCall, expected string, binding paramInfo, callNode string) ([]string, string, string, bool) {
+	lines := make([]string, 0, len(call.Arguments)+4)
+	args := make([]string, 0, len(call.Arguments))
+	for _, arg := range call.Arguments {
+		argLines, expr, goType, ok := g.compileExprLines(ctx, arg, "")
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, argLines...)
+		argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
+		if !ok {
+			ctx.setReason("call argument unsupported")
+			return nil, "", "", false
+		}
+		lines = append(lines, argConvLines...)
+		temp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", temp, valueExpr))
+		args = append(args, temp)
+	}
+	argList := "nil"
+	if len(args) > 0 {
+		argList = "[]runtime.Value{" + strings.Join(args, ", ") + "}"
+	}
+	resultTemp := ctx.newTemp()
+	errTemp := ctx.newTemp()
+	lines = append(lines,
+		fmt.Sprintf("%s, %s := __able_call_value_fast(%s, %s)", resultTemp, errTemp, binding.GoName, argList),
+		fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
+	)
+	resultExpr := resultTemp
+	resultType := "runtime.Value"
+	if g.isVoidType(expected) {
+		lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
+		return lines, "struct{}{}", "struct{}", true
+	}
+	if expected != "" && expected != "runtime.Value" {
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		if !ok {
+			ctx.setReason("call return type mismatch")
+			return nil, "", "", false
+		}
+		lines = append(lines, convLines...)
+		resultExpr = converted
+		resultType = expected
+	}
+	return lines, resultExpr, resultType, true
+}
+
+func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCall, expected string, calleeName string, callNode string) ([]string, string, string, bool) {
 	if call == nil {
 		ctx.setReason("missing function call")
-		return "", "", false
+		return nil, "", "", false
 	}
 	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) && g.typeCategory(expected) == "unknown" {
 		ctx.setReason("call return type mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
 	lines := make([]string, 0, len(call.Arguments)+2)
 	args := make([]string, 0, len(call.Arguments))
 	calleeTemp := ""
+	fastMethodName := ""
 	writebackNeeded := false
 	writebackObjExpr := ""
 	writebackObjType := ""
@@ -176,22 +247,39 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 					}
 				}
 			}
-			objExpr, objType, ok := g.compileExpr(ctx, callee.Object, "")
+			objLines, objExpr, objType, ok := g.compileExprLines(ctx, callee.Object, "")
 			if !ok {
-				return "", "", false
+				return nil, "", "", false
 			}
+			lines = append(lines, objLines...)
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
-					if expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, callee.Object, objExpr, objType, ident.Name, call.Arguments, expected, callNode); ok {
-						return expr, retType, true
+					if intrLines, expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, callee.Object, objExpr, objType, ident.Name, call.Arguments, expected, callNode); ok {
+						lines = append(lines, intrLines...)
+						return lines, expr, retType, true
 					}
 					if method := g.methodForReceiver(objType, ident.Name); method != nil {
-						return g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, callNode)
+						methodLines, v, t, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, callNode)
+						lines = append(lines, methodLines...)
+						return lines, v, t, ok
+					}
+					// When receiver is runtime.Value with known origin struct type,
+					// extract the struct, call the compiled method directly, and writeback.
+					if objType == "runtime.Value" {
+						if originLines, v, t, ok := g.compileOriginStructMethodCall(ctx, call, expected, callee, objExpr, ident.Name, callNode); ok {
+							lines = append(lines, originLines...)
+							return lines, v, t, true
+						}
 					}
 				}
 			}
-			if callee.Safe && g.typeCategory(objType) == "runtime" {
-				return g.compileSafeMemberCall(ctx, call, callee, expected, objExpr, objType, callNode)
+			if callee.Safe {
+				cat := g.typeCategory(objType)
+				if cat == "runtime" || cat == "any" || (cat == "struct" && strings.HasPrefix(objType, "*")) {
+					safeLines, v, t, ok := g.compileSafeMemberCall(ctx, call, callee, expected, objExpr, objType, callNode)
+					lines = append(lines, safeLines...)
+					return lines, v, t, ok
+				}
 			}
 			// Check for impl sibling methods: default interface methods calling
 			// sibling methods on self (e.g., describe() calling self.name())
@@ -200,10 +288,26 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil {
 					if sibling, hasSibling := ctx.implSiblings[ident.Name]; hasSibling {
 						if objIdent, ok := callee.Object.(*ast.Identifier); ok && objIdent != nil && objIdent.Name == ctx.implicitReceiver.Name {
-							objValue, ok := g.runtimeValueExpr(objExpr, objType)
+							// Try direct compiled call first — only when receiver type matches
+							if sibling.Info != nil && sibling.Info.Compileable && objType != "runtime.Value" &&
+								len(sibling.Info.Params) > 0 && g.typeMatches(sibling.Info.Params[0].GoType, objType) {
+								method := &methodInfo{
+									MethodName:  ident.Name,
+									ExpectsSelf: true,
+									Info:        sibling.Info,
+								}
+								methodLines, v, t, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, callNode)
+								if ok {
+									lines = append(lines, methodLines...)
+									return lines, v, t, true
+								}
+							}
+							// Fall back to dynamic dispatch
+							objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
 							if ok {
 								objTemp := ctx.newTemp()
 								calleeTemp = ctx.newTemp()
+								lines = append(lines, objConvLines...)
 								lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
 								lines = append(lines, fmt.Sprintf("%s := __able_impl_self_method(%s, %q, %d, __able_wrap_%s)", calleeTemp, objTemp, ident.Name, sibling.Arity, sibling.GoName))
 								if g.typeCategory(objType) == "struct" && g.isAddressableMemberObject(callee.Object) {
@@ -219,22 +323,31 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 				}
 			}
 			if !siblingHandled {
-				objValue, ok := g.runtimeValueExpr(objExpr, objType)
+				objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
 				if !ok {
 					ctx.setReason("method call receiver unsupported")
-					return "", "", false
-				}
-				memberValue, ok := g.memberAssignmentRuntimeValue(ctx, callee.Member)
-				if !ok {
-					ctx.setReason("method call target unsupported")
-					return "", "", false
+					return nil, "", "", false
 				}
 				objTemp := ctx.newTemp()
-				memberTemp := ctx.newTemp()
-				calleeTemp = ctx.newTemp()
+				lines = append(lines, objConvLines...)
 				lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
-				lines = append(lines, fmt.Sprintf("%s := %s", memberTemp, memberValue))
-				lines = append(lines, fmt.Sprintf("%s := __able_member_get_method(%s, %s)", calleeTemp, objTemp, memberTemp))
+				// When the member is a literal identifier, use __able_method_call
+				// which combines member_get_method + call_value_fast in one step,
+				// avoiding bridge.ToString allocation and __able_call_value overhead.
+				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+					fastMethodName = ident.Name
+					calleeTemp = objTemp
+				} else {
+					memberValue, ok := g.memberAssignmentRuntimeValue(ctx, callee.Member)
+					if !ok {
+						ctx.setReason("method call target unsupported")
+						return nil, "", "", false
+					}
+					memberTemp := ctx.newTemp()
+					calleeTemp = ctx.newTemp()
+					lines = append(lines, fmt.Sprintf("%s := %s", memberTemp, memberValue))
+					lines = append(lines, fmt.Sprintf("%s := __able_member_get_method(%s, %s)", calleeTemp, objTemp, memberTemp))
+				}
 				if g.typeCategory(objType) == "struct" && g.isAddressableMemberObject(callee.Object) {
 					writebackNeeded = true
 					writebackObjExpr = objExpr
@@ -243,30 +356,34 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 				}
 			}
 		default:
-			calleeExpr, calleeType, ok := g.compileExpr(ctx, call.Callee, "")
+			calleeLines, calleeExpr, calleeType, ok := g.compileExprLines(ctx, call.Callee, "")
 			if !ok {
-				return "", "", false
+				return nil, "", "", false
 			}
-			calleeValue, ok := g.runtimeValueExpr(calleeExpr, calleeType)
+			lines = append(lines, calleeLines...)
+			calleeConvLines, calleeValue, ok := g.runtimeValueLines(ctx, calleeExpr, calleeType)
 			if !ok {
 				ctx.setReason("call target unsupported")
-				return "", "", false
+				return nil, "", "", false
 			}
 			calleeTemp = ctx.newTemp()
+			lines = append(lines, calleeConvLines...)
 			lines = append(lines, fmt.Sprintf("%s := %s", calleeTemp, calleeValue))
 		}
 	}
 
 	for _, arg := range call.Arguments {
-		expr, goType, ok := g.compileExpr(ctx, arg, "")
+		argLines, expr, goType, ok := g.compileExprLines(ctx, arg, "")
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
-		valueExpr, ok := g.runtimeValueExpr(expr, goType)
+		lines = append(lines, argLines...)
+		argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("call argument unsupported")
-			return "", "", false
+			return nil, "", "", false
 		}
+		lines = append(lines, argConvLines...)
 		temp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := %s", temp, valueExpr))
 		args = append(args, temp)
@@ -286,6 +403,16 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		} else {
 			callExpr = fmt.Sprintf("__able_call_named(%q, %s, %s)", calleeName, argList, callNode)
 		}
+	} else if fastMethodName != "" {
+		// Fast path: combined member lookup + call, avoids bridge.ToString
+		// allocation and __able_call_value partial/overload overhead.
+		resultTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		lines = append(lines,
+			fmt.Sprintf("%s, %s := __able_method_call(%s, %q, %s)", resultTemp, errTemp, calleeTemp, fastMethodName, argList),
+			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
+		)
+		callExpr = resultTemp
 	} else {
 		callExpr = fmt.Sprintf("__able_call_value(%s, %s, %s)", calleeTemp, argList, callNode)
 	}
@@ -295,58 +422,55 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		if !ok {
 			baseName = strings.TrimPrefix(writebackObjType, "*")
 		}
-		convertedTemp := ctx.newTemp()
-		writebackLines := []string{
-			fmt.Sprintf("%s, err := __able_struct_%s_from(%s)", convertedTemp, baseName, writebackObjTemp),
-			"if err != nil { panic(err) }",
-		}
-		if strings.HasPrefix(writebackObjType, "*") {
-			writebackLines = append(writebackLines, fmt.Sprintf("*%s = *%s", writebackObjExpr, convertedTemp))
-		} else {
-			writebackLines = append(writebackLines, fmt.Sprintf("%s = *%s", writebackObjExpr, convertedTemp))
-		}
-		if g.isVoidType(expected) {
-			lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
-			lines = append(lines, writebackLines...)
-			return fmt.Sprintf("func() struct{} { %s; return struct{}{} }()", strings.Join(lines, "; ")), "struct{}", true
-		}
 		resultTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, callExpr))
-		lines = append(lines, writebackLines...)
+		convertedTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		lines = append(lines,
+			fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", convertedTemp, errTemp, baseName, writebackObjTemp),
+			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
+		)
+		if strings.HasPrefix(writebackObjType, "*") {
+			lines = append(lines, fmt.Sprintf("*%s = *%s", writebackObjExpr, convertedTemp))
+		} else {
+			lines = append(lines, fmt.Sprintf("%s = *%s", writebackObjExpr, convertedTemp))
+		}
+		if g.isVoidType(expected) {
+			return lines, "struct{}{}", "struct{}", true
+		}
 		resultExpr := resultTemp
 		resultType := "runtime.Value"
 		if expected != "" && expected != "runtime.Value" {
-			converted, ok := g.expectRuntimeValueExpr(resultTemp, expected)
+			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
 			if !ok {
 				ctx.setReason("call return type mismatch")
-				return "", "", false
+				return nil, "", "", false
 			}
+			lines = append(lines, convLines...)
 			resultExpr = converted
 			resultType = expected
 		}
-		return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
+		return lines, resultExpr, resultType, true
 	}
 
 	if g.isVoidType(expected) {
 		lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
-		return fmt.Sprintf("func() struct{} { %s; return struct{}{} }()", strings.Join(lines, "; ")), "struct{}", true
+		return lines, "struct{}{}", "struct{}", true
 	}
 
 	resultExpr := callExpr
 	resultType := "runtime.Value"
 	if expected != "" && expected != "runtime.Value" {
-		converted, ok := g.expectRuntimeValueExpr(callExpr, expected)
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, callExpr, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
+		lines = append(lines, convLines...)
 		resultExpr = converted
 		resultType = expected
 	}
-	if len(lines) == 0 {
-		return resultExpr, resultType, true
-	}
-	return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
+	return lines, resultExpr, resultType, true
 }
 
 func (g *generator) externCallWrapper(name string) (string, bool) {
@@ -459,26 +583,31 @@ func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expr
 	return method, true
 }
 
-func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, method *methodInfo, receiverExpr string, callNode string) (string, string, bool) {
+func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, method *methodInfo, receiverExpr string, callNode string) ([]string, string, string, bool) {
 	if call == nil || method == nil || method.Info == nil {
 		ctx.setReason("missing method call")
-		return "", "", false
+		return nil, "", "", false
 	}
 	info := method.Info
 	if !info.Compileable {
 		ctx.setReason("unsupported method call")
-		return "", "", false
+		return nil, "", "", false
 	}
+	needsIntCast := false
 	if !g.typeMatches(expected, info.ReturnType) {
-		ctx.setReason("call return type mismatch")
-		return "", "", false
+		if g.isIntegerType(expected) && g.isIntegerType(info.ReturnType) {
+			needsIntCast = true
+		} else {
+			ctx.setReason("call return type mismatch")
+			return nil, "", "", false
+		}
 	}
 	paramOffset := 0
 	args := make([]string, 0, len(call.Arguments)+1)
 	if method.ExpectsSelf {
 		if receiverExpr == "" {
 			ctx.setReason("method receiver missing")
-			return "", "", false
+			return nil, "", "", false
 		}
 		args = append(args, receiverExpr)
 		paramOffset = 1
@@ -486,7 +615,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 	params := info.Params
 	if paramOffset > len(params) {
 		ctx.setReason("method params missing")
-		return "", "", false
+		return nil, "", "", false
 	}
 	callArgCount := len(call.Arguments)
 	paramCount := len(params) - paramOffset
@@ -494,37 +623,41 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 	if callArgCount != paramCount {
 		if !(optionalLast && callArgCount == paramCount-1) {
 			ctx.setReason("call arity mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
 	}
 	missingOptional := optionalLast && callArgCount == paramCount-1
 	if missingOptional && paramCount > 0 && params[len(params)-1].GoType != "runtime.Value" {
 		ctx.setReason("call arity mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
+	var argPreLines []string
 	for idx, arg := range call.Arguments {
 		param := params[paramOffset+idx]
-		expr, exprType, ok := g.compileExpr(ctx, arg, param.GoType)
+		argLines, expr, exprType, ok := g.compileExprLines(ctx, arg, param.GoType)
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
+		argPreLines = append(argPreLines, argLines...)
 		argExpr := expr
 		argType := exprType
 		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok {
 			if argType != "runtime.Value" {
-				valueExpr, ok := g.runtimeValueExpr(argExpr, argType)
+				convLines, valueExpr, ok := g.runtimeValueLines(ctx, argExpr, argType)
 				if !ok {
 					ctx.setReason("interface argument unsupported")
-					return "", "", false
+					return nil, "", "", false
 				}
+				argPreLines = append(argPreLines, convLines...)
 				argExpr = valueExpr
 				argType = "runtime.Value"
 			}
-			coerced, ok := g.interfaceArgExpr(argExpr, ifaceType, info.Name, ctx.genericNames)
+			ifaceLines, coerced, ok := g.interfaceArgExprLines(ctx, argExpr, ifaceType, info.Name, ctx.genericNames)
 			if !ok {
 				ctx.setReason("interface argument unsupported")
-				return "", "", false
+				return nil, "", "", false
 			}
+			argPreLines = append(argPreLines, ifaceLines...)
 			argExpr = coerced
 		}
 		args = append(args, argExpr)
@@ -533,43 +666,74 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		args = append(args, "runtime.NilValue{}")
 	}
 	callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
-	return fmt.Sprintf("func() %s { __able_push_call_frame(%s); defer __able_pop_call_frame(); return %s }()", info.ReturnType, callNode, callExpr), info.ReturnType, true
+	resultTemp := ctx.newTemp()
+	lines := append(argPreLines, []string{
+		fmt.Sprintf("__able_push_call_frame(%s)", callNode),
+		fmt.Sprintf("%s := %s", resultTemp, callExpr),
+		"__able_pop_call_frame()",
+	}...)
+	if needsIntCast {
+		castTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s(%s)", castTemp, expected, resultTemp))
+		return lines, castTemp, expected, true
+	}
+	return lines, resultTemp, info.ReturnType, true
 }
 
-func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string, callNode string) (string, string, bool) {
+func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string, callNode string) ([]string, string, string, bool) {
 	if call == nil || callee == nil {
 		ctx.setReason("missing safe member call")
-		return "", "", false
+		return nil, "", "", false
 	}
-	objValue, ok := g.runtimeValueExpr(objExpr, objType)
+	objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
 	if !ok {
 		ctx.setReason("method call receiver unsupported")
-		return "", "", false
+		return nil, "", "", false
 	}
 	memberValue, ok := g.memberAssignmentRuntimeValue(ctx, callee.Member)
 	if !ok {
 		ctx.setReason("method call target unsupported")
-		return "", "", false
+		return nil, "", "", false
 	}
-	lines := make([]string, 0, len(call.Arguments)+4)
-	args := make([]string, 0, len(call.Arguments))
-	objTemp := ctx.newTemp()
-	memberTemp := ctx.newTemp()
-	calleeTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
-	lines = append(lines, fmt.Sprintf("if __able_is_nil(%s) { return %s }", objTemp, safeNilReturnExpr(expected)))
-	lines = append(lines, fmt.Sprintf("%s := %s", memberTemp, memberValue))
-	lines = append(lines, fmt.Sprintf("%s := __able_member_get_method(%s, %s)", calleeTemp, objTemp, memberTemp))
+	// Pre-compile arguments before the if/else so temps are in scope.
+	argConvLinesList := make([][]string, 0, len(call.Arguments))
+	argTemps := make([]string, 0, len(call.Arguments))
+	var argPreLines []string
 	for _, arg := range call.Arguments {
-		expr, goType, ok := g.compileExpr(ctx, arg, "")
+		argLines, expr, goType, ok := g.compileExprLines(ctx, arg, "")
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
-		valueExpr, ok := g.runtimeValueExpr(expr, goType)
+		argPreLines = append(argPreLines, argLines...)
+		convLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("call argument unsupported")
-			return "", "", false
+			return nil, "", "", false
 		}
+		argConvLinesList = append(argConvLinesList, convLines)
+		argTemps = append(argTemps, valueExpr)
+	}
+	resultType := "runtime.Value"
+	if g.isVoidType(expected) {
+		resultType = "struct{}"
+	}
+	resultTemp := ctx.newTemp()
+	objTemp := ctx.newTemp()
+	lines := make([]string, 0, len(argPreLines)+len(call.Arguments)*2+8+len(objConvLines))
+	lines = append(lines, objConvLines...)
+	lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
+	lines = append(lines, fmt.Sprintf("var %s %s", resultTemp, resultType))
+	lines = append(lines, fmt.Sprintf("if __able_is_nil(%s) {", objTemp))
+	lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, safeNilReturnExpr(expected)))
+	lines = append(lines, "} else {")
+	lines = append(lines, indentLines(argPreLines, 1)...)
+	memberTemp := ctx.newTemp()
+	calleeTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s := %s", memberTemp, memberValue))
+	lines = append(lines, fmt.Sprintf("%s := __able_member_get_method(%s, %s)", calleeTemp, objTemp, memberTemp))
+	args := make([]string, 0, len(call.Arguments))
+	for i, valueExpr := range argTemps {
+		lines = append(lines, argConvLinesList[i]...)
 		temp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := %s", temp, valueExpr))
 		args = append(args, temp)
@@ -583,25 +747,116 @@ func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.Functio
 	callExpr := fmt.Sprintf("__able_call_value(%s, %s, %s)", calleeTemp, argList, callNode)
 	if g.isVoidType(expected) {
 		lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
-		lines = append(lines, "return struct{}{}")
-		return fmt.Sprintf("func() struct{} { %s }()", strings.Join(lines, "; ")), "struct{}", true
+	} else {
+		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, callExpr))
 	}
-	lines = append(lines, fmt.Sprintf("return %s", callExpr))
-	baseExpr := fmt.Sprintf("func() runtime.Value { %s }()", strings.Join(lines, "; "))
-	if expected == "" || expected == "runtime.Value" {
-		return baseExpr, "runtime.Value", true
+	lines = append(lines, "}")
+	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) {
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		if !ok {
+			ctx.setReason("call return type mismatch")
+			return nil, "", "", false
+		}
+		lines = append(lines, convLines...)
+		return lines, converted, expected, true
 	}
-	converted, ok := g.expectRuntimeValueExpr(baseExpr, expected)
-	if !ok {
-		ctx.setReason("call return type mismatch")
-		return "", "", false
-	}
-	return converted, expected, true
+	return lines, resultTemp, resultType, true
 }
 
 func safeNilReturnExpr(expected string) string {
 	if expected == "struct{}" {
 		return "struct{}{}"
 	}
+	if expected == "any" {
+		return "nil"
+	}
 	return "runtime.NilValue{}"
+}
+
+// compileOriginStructMethodCall resolves a method call on a runtime.Value variable
+// whose underlying struct type is known (via OriginGoType). It extracts the struct,
+// calls the compiled method directly, and writes back if the object is addressable.
+func (g *generator) compileOriginStructMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, callee *ast.MemberAccessExpression, objExpr string, methodName string, callNode string) ([]string, string, string, bool) {
+	if callee == nil || callee.Object == nil {
+		return nil, "", "", false
+	}
+	objIdent, ok := callee.Object.(*ast.Identifier)
+	if !ok || objIdent == nil || objIdent.Name == "" {
+		return nil, "", "", false
+	}
+	info, ok := ctx.lookup(objIdent.Name)
+	if !ok || info.OriginGoType == "" {
+		return nil, "", "", false
+	}
+	originType := info.OriginGoType
+	method := g.methodForReceiver(originType, methodName)
+	if method == nil {
+		return nil, "", "", false
+	}
+	baseName, ok := g.structBaseName(originType)
+	if !ok {
+		return nil, "", "", false
+	}
+	// CSE: reuse existing extraction temp if available.
+	var lines []string
+	var extractTemp string
+	cacheHit := false
+	if cached, ok := ctx.originExtractions[objIdent.Name]; ok {
+		extractTemp = cached
+		cacheHit = true
+	} else {
+		extractTemp = ctx.newTemp()
+		extractErrTemp := ctx.newTemp()
+		lines = []string{
+			fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", extractTemp, extractErrTemp, baseName, objExpr),
+			fmt.Sprintf("if %s != nil { panic(%s) }", extractErrTemp, extractErrTemp),
+		}
+	}
+	// Try array intrinsic first — avoids compiled method overhead (SwapEnv, frame push/pop).
+	if intrLines, expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, callee.Object, extractTemp, originType, methodName, call.Arguments, expected, callNode); ok {
+		if !cacheHit {
+			if ctx.originExtractions == nil {
+				ctx.originExtractions = make(map[string]string)
+			}
+			ctx.originExtractions[objIdent.Name] = extractTemp
+		}
+		lines = append(lines, intrLines...)
+		if g.isAddressableMemberObject(callee.Object) {
+			wbTemp := ctx.newTemp()
+			wbErrTemp := ctx.newTemp()
+			lines = append(lines,
+				fmt.Sprintf("%s, %s := __able_struct_%s_to(__able_runtime, %s)", wbTemp, wbErrTemp, baseName, extractTemp),
+				fmt.Sprintf("if %s != nil { panic(%s) }", wbErrTemp, wbErrTemp),
+				fmt.Sprintf("%s = %s", objExpr, wbTemp),
+			)
+			delete(ctx.originExtractions, objIdent.Name)
+		}
+		return lines, expr, retType, true
+	}
+	// Call the compiled method with the extracted struct as receiver.
+	methodLines, resultExpr, resultType, ok := g.compileResolvedMethodCall(ctx, call, expected, method, extractTemp, callNode)
+	if !ok {
+		return nil, "", "", false
+	}
+	// Cache extraction only after successful compilation.
+	if !cacheHit {
+		if ctx.originExtractions == nil {
+			ctx.originExtractions = make(map[string]string)
+		}
+		ctx.originExtractions[objIdent.Name] = extractTemp
+	}
+	lines = append(lines, methodLines...)
+	// Writeback: convert the potentially-mutated struct back to runtime.Value.
+	if g.isAddressableMemberObject(callee.Object) {
+		wbTemp := ctx.newTemp()
+		wbErrTemp := ctx.newTemp()
+		lines = append(lines,
+			fmt.Sprintf("%s, %s := __able_struct_%s_to(__able_runtime, %s)", wbTemp, wbErrTemp, baseName, extractTemp),
+			fmt.Sprintf("if %s != nil { panic(%s) }", wbErrTemp, wbErrTemp),
+			fmt.Sprintf("%s = %s", objExpr, wbTemp),
+		)
+		// Writeback invalidates the cached extraction — the struct has been mutated.
+		delete(ctx.originExtractions, objIdent.Name)
+	}
+	return lines, resultExpr, resultType, true
 }

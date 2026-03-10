@@ -33,6 +33,7 @@ type generator struct {
 	mangler                *nameMangler
 	needsAst               bool
 	needsIterator          bool
+	needsStrconv           bool
 	awaitExprs             []string
 	awaitNames             map[*ast.AwaitExpression]string
 	diagNodes              []diagNodeInfo
@@ -60,6 +61,7 @@ type diagNodeInfo struct {
 type implSiblingInfo struct {
 	GoName string
 	Arity  int
+	Info   *functionInfo
 }
 
 type compileContext struct {
@@ -72,9 +74,13 @@ type compileContext struct {
 	temps               *int
 	reason              string
 	loopDepth           int
+	loopLabel           string
+	loopBreakValueTemp  string
 	rethrowVar          string
 	rethrowErrVar       string
-	breakpoints         map[string]int
+	breakpoints             map[string]int
+	breakpointGoLabels      map[string]string
+	breakpointResultTemps   map[string]string
 	implicitReceiver    paramInfo
 	hasImplicitReceiver bool
 	placeholderParams   map[int]paramInfo
@@ -84,6 +90,7 @@ type compileContext struct {
 	expectedTypeExpr    ast.TypeExpression
 	genericNames        map[string]struct{}
 	implSiblings        map[string]implSiblingInfo
+	originExtractions   map[string]string // CSE cache: Able variable name → Go extraction temp
 }
 
 func newGenerator(opts Options) *generator {
@@ -654,7 +661,7 @@ func (g *generator) compileReturnStatement(ctx *compileContext, returnType strin
 		if g.isVoidType(returnType) {
 			return lines, "struct{}{}", true
 		}
-		if returnType == "runtime.Value" && g.isResultVoidTypeExpr(ctx.returnTypeExpr) {
+		if (returnType == "runtime.Value" || returnType == "any") && g.isResultVoidTypeExpr(ctx.returnTypeExpr) {
 			return lines, "runtime.VoidValue{}", true
 		}
 		ctx.setReason("missing return expression")
@@ -678,18 +685,20 @@ func (g *generator) compileReturnStatement(ctx *compileContext, returnType strin
 	if returnType == "runtime.Value" {
 		if ifaceType, ok := g.interfaceTypeExpr(ctx.returnTypeExpr); ok {
 			if exprType != "runtime.Value" {
-				converted, ok := g.runtimeValueExpr(expr, exprType)
+				convLines, converted, ok := g.runtimeValueLines(ctx, expr, exprType)
 				if !ok {
 					ctx.setReason("return type mismatch")
 					return nil, "", false
 				}
+				exprLines = append(exprLines, convLines...)
 				expr = converted
 			}
-			coerced, ok := g.interfaceReturnExpr(expr, ifaceType, ctx.genericNames)
+			ifaceLines, coerced, ok := g.interfaceReturnExprLines(ctx, expr, ifaceType, ctx.genericNames)
 			if !ok {
 				ctx.setReason("return type mismatch")
 				return nil, "", false
 			}
+			exprLines = append(exprLines, ifaceLines...)
 			expr = coerced
 		}
 	}
@@ -720,18 +729,20 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 	if returnType == "runtime.Value" {
 		if ifaceType, ok := g.interfaceTypeExpr(ctx.returnTypeExpr); ok {
 			if valueType != "runtime.Value" {
-				converted, ok := g.runtimeValueExpr(valueExpr, valueType)
+				convLines, converted, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
 				if !ok {
 					ctx.setReason("return type mismatch")
 					return nil, "", false
 				}
+				stmtLines = append(stmtLines, convLines...)
 				valueExpr = converted
 			}
-			coerced, ok := g.interfaceReturnExpr(valueExpr, ifaceType, ctx.genericNames)
+			ifaceLines, coerced, ok := g.interfaceReturnExprLines(ctx, valueExpr, ifaceType, ctx.genericNames)
 			if !ok {
 				ctx.setReason("return type mismatch")
 				return nil, "", false
 			}
+			stmtLines = append(stmtLines, ifaceLines...)
 			valueExpr = coerced
 		}
 	}
@@ -763,11 +774,12 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 						return nil, false
 					}
 					pipeExpr := ast.NewBinaryExpression(s.Operator, ast.NewIdentifier(name), s.Right)
-					pipeValue, _, ok := g.compilePipeExpression(ctx, pipeExpr, "")
+					pipeLines, pipeValue, _, ok := g.compilePipeExpression(ctx, pipeExpr, "")
 					if !ok {
 						return nil, false
 					}
 					lines := append([]string{}, assignLines...)
+					lines = append(lines, pipeLines...)
 					if pipeValue != "" {
 						lines = append(lines, fmt.Sprintf("_ = %s", pipeValue))
 					}
@@ -824,7 +836,7 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		if s.Argument == nil {
 			if !g.isVoidType(ctx.returnType) {
 				if ctx.returnType == "runtime.Value" && g.isResultVoidTypeExpr(ctx.returnTypeExpr) {
-					return []string{"panic(__able_return{value: runtime.VoidValue{}})"}, true
+					return []string{"return runtime.VoidValue{}"}, true
 				}
 				expected := typeExpressionToString(ctx.returnTypeExpr)
 				if expected == "" || expected == "<?>" {
@@ -833,10 +845,10 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 				nodeName := g.diagNodeName(s, "*ast.ReturnStatement", "return")
 				return []string{fmt.Sprintf("__able_raise_return_type_mismatch(%s, %q, %q)", nodeName, expected, "void")}, true
 			}
-			return []string{"panic(__able_return{value: struct{}{}})"}, true
+			return []string{"return struct{}{}"}, true
 		}
 		if g.isVoidType(ctx.returnType) {
-			lines := []string{}
+			var lines []string
 			stmtLines, valueExpr, _, ok := g.compileTailExpression(ctx, "", s.Argument)
 			if !ok {
 				return nil, false
@@ -845,7 +857,7 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 			if valueExpr != "" {
 				lines = append(lines, fmt.Sprintf("_ = %s", valueExpr))
 			}
-			lines = append(lines, "panic(__able_return{value: struct{}{}})")
+			lines = append(lines, "return struct{}{}")
 			return lines, true
 		}
 		stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, ctx.returnType, s.Argument)
@@ -857,7 +869,7 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 			return nil, false
 		}
 		lines := append([]string{}, stmtLines...)
-		lines = append(lines, fmt.Sprintf("panic(__able_return{value: %s})", valueExpr))
+		lines = append(lines, fmt.Sprintf("return %s", valueExpr))
 		return lines, true
 	case *ast.IfExpression:
 		return g.compileIfStatement(ctx, s)
