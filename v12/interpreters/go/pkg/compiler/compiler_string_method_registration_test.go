@@ -5,7 +5,11 @@ import (
 	"testing"
 )
 
-func TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod(t *testing.T) {
+// TestCompilerStringFromBytesUncheckedFallsBackForBuiltinMapping verifies
+// that String.from_bytes_unchecked correctly falls back to the interpreter
+// when String maps to the builtin Go string type, since struct-literal
+// construction is incompatible with the builtin mapping.
+func TestCompilerStringFromBytesUncheckedFallsBackForBuiltinMapping(t *testing.T) {
 	_, compiledSrc := compileOutputs(t, "demo", map[string]string{
 		"main.able": strings.Join([]string{
 			"package demo",
@@ -36,10 +40,9 @@ func TestCompilerRegistersCompiledStringFromBytesUncheckedStaticMethod(t *testin
 		}, "\n"),
 	})
 
-	if !strings.Contains(compiledSrc, "__able_register_compiled_method(\"String\", \"from_bytes_unchecked\", false") {
-		t.Fatalf("expected String.from_bytes_unchecked to be registered as a compiled static method")
-	}
-	if strings.Contains(compiledSrc, "__able_call_named(\"String.from_bytes_unchecked\"") {
-		t.Fatalf("expected String.from_bytes_unchecked wrapper to avoid __able_call_named fallback path")
+	// String maps to Go string (builtin), so struct-literal construction
+	// cannot be compiled — the method should NOT be registered as compiled.
+	if strings.Contains(compiledSrc, "__able_register_compiled_method(\"String\", \"from_bytes_unchecked\", false") {
+		t.Fatalf("String.from_bytes_unchecked should not be compiled when String maps to builtin string")
 	}
 }

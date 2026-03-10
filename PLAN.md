@@ -215,8 +215,16 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   - [x] Lower typed `Array` index read/write (`arr[idx]`, `arr[idx] = v`) through direct `runtime.ArrayStore*` paths for compiled `*Array` receivers.
   - [x] Keep static no-fallback enforcement active while applying these optimizations.
 - Immediate unit of work (execute in order):
-  - [ ] Add a static native-lowering audit for user-defined nominal types (struct/union/interface views) and primitive locals to identify/remove avoidable `runtime.Value` carriers in compiled function bodies.
-  - [ ] Add regression fixtures that assert struct-heavy static programs emit concrete Go typed locals/field access paths and avoid dynamic dispatch helpers (`__able_member_get_method`, `__able_call_value`, `__able_call_named`) outside explicit dynamic-boundary wrappers.
+  - [x] Add a static native-lowering audit for user-defined nominal types (struct/union/interface views) and primitive locals to identify/remove avoidable `runtime.Value` carriers in compiled function bodies.
+    - Origin-type tracking (`OriginGoType` in `paramInfo`) enables static method/field resolution on `runtime.Value` struct locals.
+    - `compileOriginStructMethodCall`: extracts struct, calls compiled method directly, writes back.
+    - `compileOriginStructFieldAccess`: extracts struct, accesses Go field directly.
+    - Default impl sibling dispatch: direct compiled calls via `compileResolvedMethodCall` instead of `__able_impl_self_method` + `__able_call_value`.
+    - Struct literal → runtime.Value IIFE eliminated (inline lines in assignments).
+  - [x] Add regression fixtures that assert struct-heavy static programs emit concrete Go typed locals/field access paths and avoid dynamic dispatch helpers (`__able_member_get_method`, `__able_call_value`, `__able_call_named`) outside explicit dynamic-boundary wrappers.
+    - `TestCompilerStructMethodStaticDispatch`: struct method calls → direct compiled dispatch.
+    - `TestCompilerStructFieldStaticAccess`: struct field access → direct Go field access.
+    - `TestCompilerDefaultImplSiblingDirectCall`: default impl sibling → direct compiled call.
   - [ ] Encode/enforce allowed dynamic-carrier touchpoints in codegen (explicit dynamic boundary adapters, residual runtime-polymorphic dispatch, extern ABI conversion), with compile-time errors for new static misuse.
   - [x] Add call-site intrinsics for typed `Array` methods in hot paths (`push`, `len`, `get`, `set`) to bypass dynamic member lookup / `__able_call_value`.
   - [x] Add compiler regression fixtures proving typed-array locals in static code emit no `__able_global_get/__able_global_set` in compiled function bodies.

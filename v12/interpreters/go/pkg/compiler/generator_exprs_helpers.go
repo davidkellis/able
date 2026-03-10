@@ -11,7 +11,14 @@ func (g *generator) typeMatches(expected, actual string) bool {
 	if expected == "" {
 		return true
 	}
-	return expected == actual
+	if expected == actual {
+		return true
+	}
+	// any accepts all types (any is Go's interface{}, all types satisfy it).
+	if expected == "any" {
+		return true
+	}
+	return false
 }
 
 func (g *generator) wrapLinesAsExpression(ctx *compileContext, lines []string, expr string, exprType string) (string, string, bool) {
@@ -31,6 +38,8 @@ func (g *generator) zeroValueExpr(goType string) (string, bool) {
 		return "struct{}{}", true
 	case "runtime.Value":
 		return "runtime.NilValue{}", true
+	case "any":
+		return "nil", true
 	case "bool":
 		return "false", true
 	case "string":
@@ -72,35 +81,96 @@ func (g *generator) zeroValueExpr(goType string) (string, bool) {
 	return "", false
 }
 
-func (g *generator) interfaceArgExpr(argExpr string, ifaceType ast.TypeExpression, context string, genericNames map[string]struct{}) (string, bool) {
-	if argExpr == "" {
-		return "", false
+func (g *generator) typedStringifyExpr(expr string, goType string) (string, bool) {
+	switch goType {
+	case "bool":
+		g.needsStrconv = true
+		return fmt.Sprintf("strconv.FormatBool(%s)", expr), true
+	case "rune":
+		return fmt.Sprintf("string(%s)", expr), true
+	case "float32":
+		g.needsStrconv = true
+		return fmt.Sprintf("strconv.FormatFloat(float64(%s), 'f', -1, 32)", expr), true
+	case "float64":
+		g.needsStrconv = true
+		return fmt.Sprintf("strconv.FormatFloat(%s, 'f', -1, 64)", expr), true
+	case "int":
+		g.needsStrconv = true
+		return fmt.Sprintf("strconv.FormatInt(int64(%s), 10)", expr), true
+	case "int8", "int16", "int32", "int64":
+		g.needsStrconv = true
+		return fmt.Sprintf("strconv.FormatInt(int64(%s), 10)", expr), true
+	case "uint":
+		g.needsStrconv = true
+		return fmt.Sprintf("strconv.FormatUint(uint64(%s), 10)", expr), true
+	case "uint8", "uint16", "uint32", "uint64":
+		g.needsStrconv = true
+		return fmt.Sprintf("strconv.FormatUint(uint64(%s), 10)", expr), true
 	}
+	return "", false
+}
+
+func (g *generator) interfaceArgExprLines(ctx *compileContext, argExpr string, ifaceType ast.TypeExpression, context string, genericNames map[string]struct{}) ([]string, string, bool) {
+	if argExpr == "" {
+		return nil, "", false
+	}
+	resultTemp := ctx.newTemp()
 	if g.typeExprHasGeneric(ifaceType, genericNames) {
-		return fmt.Sprintf("func() runtime.Value { if %s == nil { return runtime.NilValue{} }; return %s }()", argExpr, argExpr), true
+		lines := []string{
+			fmt.Sprintf("var %s runtime.Value", resultTemp),
+			fmt.Sprintf("if %s == nil { %s = runtime.NilValue{} } else { %s = %s }", argExpr, resultTemp, resultTemp, argExpr),
+		}
+		return lines, resultTemp, true
 	}
 	rendered, ok := g.renderTypeExpression(ifaceType)
 	if !ok {
-		return "", false
+		return nil, "", false
 	}
 	expected := typeExpressionToString(ifaceType)
 	if context == "" {
 		context = "<call>"
 	}
-	return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; val, ok, err := bridge.MatchType(__able_runtime, %s, %s); __able_panic_on_error(err); if !ok { panic(fmt.Errorf(\"type mismatch calling %s: expected %s\")) }; if val == nil { return runtime.NilValue{} }; return val }()", rendered, argExpr, context, expected), true
+	valTemp := ctx.newTemp()
+	okTemp := ctx.newTemp()
+	errTemp := ctx.newTemp()
+	lines := []string{
+		fmt.Sprintf("if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }"),
+		fmt.Sprintf("%s, %s, %s := bridge.MatchType(__able_runtime, %s, %s)", valTemp, okTemp, errTemp, rendered, argExpr),
+		fmt.Sprintf("__able_panic_on_error(%s)", errTemp),
+		fmt.Sprintf("if !%s { panic(fmt.Errorf(\"type mismatch calling %s: expected %s\")) }", okTemp, context, expected),
+		fmt.Sprintf("var %s runtime.Value", resultTemp),
+		fmt.Sprintf("if %s == nil { %s = runtime.NilValue{} } else { %s = %s }", valTemp, resultTemp, resultTemp, valTemp),
+	}
+	return lines, resultTemp, true
 }
 
-func (g *generator) interfaceReturnExpr(valueExpr string, ifaceType ast.TypeExpression, genericNames map[string]struct{}) (string, bool) {
+func (g *generator) interfaceReturnExprLines(ctx *compileContext, valueExpr string, ifaceType ast.TypeExpression, genericNames map[string]struct{}) ([]string, string, bool) {
 	if valueExpr == "" {
-		return "", false
+		return nil, "", false
 	}
+	resultTemp := ctx.newTemp()
 	if g.typeExprHasGeneric(ifaceType, genericNames) {
-		return fmt.Sprintf("func() runtime.Value { if %s == nil { return runtime.NilValue{} }; return %s }()", valueExpr, valueExpr), true
+		lines := []string{
+			fmt.Sprintf("var %s runtime.Value", resultTemp),
+			fmt.Sprintf("if %s == nil { %s = runtime.NilValue{} } else { %s = %s }", valueExpr, resultTemp, resultTemp, valueExpr),
+		}
+		return lines, resultTemp, true
 	}
 	rendered, ok := g.renderTypeExpression(ifaceType)
 	if !ok {
-		return "", false
+		return nil, "", false
 	}
 	expected := typeExpressionToString(ifaceType)
-	return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; val, ok, err := bridge.MatchType(__able_runtime, %s, %s); __able_panic_on_error(err); if !ok { panic(fmt.Errorf(\"return type mismatch: expected %s\")) }; if val == nil { return runtime.NilValue{} }; return val }()", rendered, valueExpr, expected), true
+	valTemp := ctx.newTemp()
+	okTemp := ctx.newTemp()
+	errTemp := ctx.newTemp()
+	lines := []string{
+		fmt.Sprintf("if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }"),
+		fmt.Sprintf("%s, %s, %s := bridge.MatchType(__able_runtime, %s, %s)", valTemp, okTemp, errTemp, rendered, valueExpr),
+		fmt.Sprintf("__able_panic_on_error(%s)", errTemp),
+		fmt.Sprintf("if !%s { panic(fmt.Errorf(\"return type mismatch: expected %s\")) }", okTemp, expected),
+		fmt.Sprintf("var %s runtime.Value", resultTemp),
+		fmt.Sprintf("if %s == nil { %s = runtime.NilValue{} } else { %s = %s }", valTemp, resultTemp, resultTemp, valTemp),
+	}
+	return lines, resultTemp, true
 }

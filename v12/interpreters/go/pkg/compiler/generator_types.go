@@ -318,6 +318,11 @@ func (g *generator) renderTypeExpression(expr ast.TypeExpression) (string, bool)
 	}
 }
 
+func isFunctionTypeExpr(expr ast.TypeExpression) bool {
+	_, ok := expr.(*ast.FunctionTypeExpression)
+	return ok
+}
+
 func typeExpressionToString(expr ast.TypeExpression) string {
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:

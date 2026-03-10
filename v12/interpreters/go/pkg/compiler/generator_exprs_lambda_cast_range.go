@@ -7,14 +7,14 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpression, expected string) (string, string, bool) {
+func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.Expression == nil || expr.TargetType == nil {
 		ctx.setReason("missing type cast")
-		return "", "", false
+		return nil, "", "", false
 	}
-	valueExpr, valueType, ok := g.compileExpr(ctx, expr.Expression, "")
+	valueLines, valueExpr, valueType, ok := g.compileExprLines(ctx, expr.Expression, "")
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	targetGoType := ""
 	if mapped, mappedOK := g.mapTypeExpressionInPackage(ctx.packageName, expr.TargetType); mappedOK && mapped != "" {
@@ -23,31 +23,35 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 	if targetGoType != "" && valueType != "runtime.Value" {
 		if nativeCastExpr, castOK := g.nativeIntegerWidenExpr(valueExpr, valueType, targetGoType); castOK {
 			if expected == "runtime.Value" {
-				runtimeExpr, ok := g.runtimeValueExpr(nativeCastExpr, targetGoType)
+				convLines, runtimeExpr, ok := g.runtimeValueLines(ctx, nativeCastExpr, targetGoType)
 				if !ok {
 					ctx.setReason("cast type mismatch")
-					return "", "", false
+					return nil, "", "", false
 				}
-				return runtimeExpr, "runtime.Value", true
+				lines := append([]string{}, valueLines...)
+				lines = append(lines, convLines...)
+				return lines, runtimeExpr, "runtime.Value", true
 			}
 			if expected == "" || expected == targetGoType {
-				return nativeCastExpr, targetGoType, true
+				return valueLines, nativeCastExpr, targetGoType, true
 			}
 		}
 	}
-	valueRuntime, ok := g.runtimeValueExpr(valueExpr, valueType)
+	convLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
 	if !ok {
 		ctx.setReason("cast operand unsupported")
-		return "", "", false
+		return nil, "", "", false
 	}
+	lines := append([]string{}, valueLines...)
+	lines = append(lines, convLines...)
 	targetExpr, ok := g.renderTypeExpression(expr.TargetType)
 	if !ok {
 		ctx.setReason("unsupported cast type")
-		return "", "", false
+		return nil, "", "", false
 	}
 	castExpr := fmt.Sprintf("__able_cast(%s, %s)", valueRuntime, targetExpr)
 	if expected == "runtime.Value" {
-		return castExpr, "runtime.Value", true
+		return lines, castExpr, "runtime.Value", true
 	}
 	desiredType := "runtime.Value"
 	if expected != "" && expected != "runtime.Value" {
@@ -57,61 +61,63 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 	}
 	if desiredType == "struct{}" {
 		ctx.setReason("cast to void unsupported")
-		return "", "", false
+		return nil, "", "", false
 	}
 	if desiredType == "runtime.Value" {
-		return castExpr, "runtime.Value", true
+		return lines, castExpr, "runtime.Value", true
 	}
-	converted, ok := g.expectRuntimeValueExpr(castExpr, desiredType)
+	expectLines, converted, ok := g.expectRuntimeValueExprLines(ctx, castExpr, desiredType)
 	if !ok {
 		ctx.setReason("cast type mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
-	return converted, desiredType, true
+	lines = append(lines, expectLines...)
+	return lines, converted, desiredType, true
 }
 
-func (g *generator) compileRangeExpression(ctx *compileContext, expr *ast.RangeExpression, expected string) (string, string, bool) {
+func (g *generator) compileRangeExpression(ctx *compileContext, expr *ast.RangeExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.Start == nil || expr.End == nil {
 		ctx.setReason("missing range expression")
-		return "", "", false
+		return nil, "", "", false
 	}
-	startExpr, startType, ok := g.compileExpr(ctx, expr.Start, "")
+	startLines, startExpr, startType, ok := g.compileExprLines(ctx, expr.Start, "")
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
-	endExpr, endType, ok := g.compileExpr(ctx, expr.End, "")
+	endLines, endExpr, endType, ok := g.compileExprLines(ctx, expr.End, "")
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
-	startRuntime, ok := g.runtimeValueExpr(startExpr, startType)
+	startConvLines, startRuntime, ok := g.runtimeValueLines(ctx, startExpr, startType)
 	if !ok {
 		ctx.setReason("range start unsupported")
-		return "", "", false
+		return nil, "", "", false
 	}
-	endRuntime, ok := g.runtimeValueExpr(endExpr, endType)
+	endConvLines, endRuntime, ok := g.runtimeValueLines(ctx, endExpr, endType)
 	if !ok {
 		ctx.setReason("range end unsupported")
-		return "", "", false
+		return nil, "", "", false
 	}
 	startTemp := ctx.newTemp()
 	endTemp := ctx.newTemp()
-	lines := []string{
-		fmt.Sprintf("%s := %s", startTemp, startRuntime),
-		fmt.Sprintf("%s := %s", endTemp, endRuntime),
-	}
+	var lines []string
+	lines = append(lines, startLines...)
+	lines = append(lines, startConvLines...)
+	lines = append(lines, fmt.Sprintf("%s := %s", startTemp, startRuntime))
+	lines = append(lines, endLines...)
+	lines = append(lines, endConvLines...)
+	lines = append(lines, fmt.Sprintf("%s := %s", endTemp, endRuntime))
 	rangeExpr := fmt.Sprintf("__able_range(%s, %s, %t)", startTemp, endTemp, expr.Inclusive)
-	resultType := "runtime.Value"
-	resultExpr := rangeExpr
 	if expected != "" && expected != "runtime.Value" {
-		converted, ok := g.expectRuntimeValueExpr(rangeExpr, expected)
+		expectLines, converted, ok := g.expectRuntimeValueExprLines(ctx, rangeExpr, expected)
 		if !ok {
 			ctx.setReason("range expression type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
-		resultExpr = converted
-		resultType = expected
+		lines = append(lines, expectLines...)
+		return lines, converted, expected, true
 	}
-	return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
+	return lines, rangeExpr, "runtime.Value", true
 }
 
 func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.LambdaExpression, expected string) (string, string, bool) {
@@ -119,7 +125,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		ctx.setReason("missing lambda expression")
 		return "", "", false
 	}
-	if expected != "" && expected != "runtime.Value" {
+	if expected != "" && expected != "runtime.Value" && expected != "any" {
 		ctx.setReason("lambda expression type mismatch")
 		return "", "", false
 	}
@@ -217,7 +223,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 	lambdaResultName := lambdaCtx.newTemp()
 	lambdaErrName := lambdaCtx.newTemp()
 	implLines := make([]string, 0, len(bodyLines)+len(params)*4+7)
-	implLines = append(implLines, fmt.Sprintf("defer func() { if recovered := recover(); recovered != nil { switch recovered.(type) { case __able_break, __able_break_label_signal, __able_continue_signal, __able_continue_label_signal: panic(recovered) }; %s = nil; %s = bridge.Recover(__able_runtime, callCtx, recovered) } }()", lambdaResultName, lambdaErrName))
+	implLines = append(implLines, fmt.Sprintf("defer func() { if recovered := recover(); recovered != nil { %s = nil; %s = bridge.Recover(__able_runtime, callCtx, recovered) } }()", lambdaResultName, lambdaErrName))
 	implLines = append(implLines, "if __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }")
 	implLines = append(implLines, fmt.Sprintf("if len(args) != %d { return nil, fmt.Errorf(\"lambda expects %d arguments, got %%d\", len(args)) }", len(params), len(params)))
 	for idx, param := range params {
@@ -477,6 +483,9 @@ func (g *generator) lambdaReturnLines(resultName string, goType string) ([]strin
 	case "uint64":
 		return []string{fmt.Sprintf("return bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\")), nil", resultName)}, true
 	case "struct":
+		if strings.HasPrefix(goType, "*") {
+			return []string{fmt.Sprintf("return __able_any_to_value(%s), nil", resultName)}, true
+		}
 		baseName, ok := g.structBaseName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")

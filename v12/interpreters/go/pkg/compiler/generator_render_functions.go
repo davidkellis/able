@@ -15,7 +15,7 @@ func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
 			continue
 		}
 		ctx := newCompileContext(info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
-		if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault && implInfo.ImplName != "" {
+		if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
 			ctx.implSiblings = g.implSiblingsForDefault(implInfo)
 		}
 		lines, retExpr, ok := g.compileBody(ctx, info)
@@ -38,27 +38,13 @@ func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
 			}
 			fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 		}
-		resultName := "__able_result"
-		fmt.Fprintf(buf, ") (%s %s) {\n", resultName, info.ReturnType)
+		fmt.Fprintf(buf, ") %s {\n", info.ReturnType)
 		if envVar, ok := g.packageEnvVar(info.Package); ok {
 			fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
 			fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
 			fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
 			fmt.Fprintf(buf, "\t}\n")
 		}
-		recoverValue := fmt.Sprintf("val, ok := ret.value.(%s); if !ok { panic(fmt.Errorf(\"compiler: return type mismatch\")) }; %s = val", info.ReturnType, resultName)
-		if info.ReturnType == "runtime.Value" {
-			recoverValue = fmt.Sprintf("if ret.value == nil { %s = runtime.NilValue{}; return }; val, ok := ret.value.(%s); if !ok { panic(fmt.Errorf(\"compiler: return type mismatch\")) }; %s = val", resultName, info.ReturnType, resultName)
-		}
-		fmt.Fprintf(buf, "\tdefer func() {\n")
-		fmt.Fprintf(buf, "\t\tif recovered := recover(); recovered != nil {\n")
-		fmt.Fprintf(buf, "\t\t\tif ret, ok := recovered.(__able_return); ok {\n")
-		fmt.Fprintf(buf, "\t\t\t\t%s\n", recoverValue)
-		fmt.Fprintf(buf, "\t\t\t\treturn\n")
-		fmt.Fprintf(buf, "\t\t\t}\n")
-		fmt.Fprintf(buf, "\t\t\tpanic(recovered)\n")
-		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t}()\n")
 		for _, line := range lines {
 			fmt.Fprintf(buf, "\t%s\n", line)
 		}
@@ -78,8 +64,7 @@ func (g *generator) renderCompiledFunctionFallback(buf *bytes.Buffer, info *func
 		}
 		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 	}
-	resultName := "__able_result"
-	fmt.Fprintf(buf, ") (%s %s) {\n", resultName, info.ReturnType)
+	fmt.Fprintf(buf, ") %s {\n", info.ReturnType)
 	if envVar, ok := g.packageEnvVar(info.Package); ok {
 		fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
 		fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
@@ -155,27 +140,13 @@ func (g *generator) renderCompiledMethods(buf *bytes.Buffer) {
 			}
 			fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 		}
-		resultName := "__able_result"
-		fmt.Fprintf(buf, ") (%s %s) {\n", resultName, info.ReturnType)
+		fmt.Fprintf(buf, ") %s {\n", info.ReturnType)
 		if envVar, ok := g.packageEnvVar(info.Package); ok {
 			fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
 			fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
 			fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
 			fmt.Fprintf(buf, "\t}\n")
 		}
-		recoverValue := fmt.Sprintf("val, ok := ret.value.(%s); if !ok { panic(fmt.Errorf(\"compiler: return type mismatch\")) }; %s = val", info.ReturnType, resultName)
-		if info.ReturnType == "runtime.Value" {
-			recoverValue = fmt.Sprintf("if ret.value == nil { %s = runtime.NilValue{}; return }; val, ok := ret.value.(%s); if !ok { panic(fmt.Errorf(\"compiler: return type mismatch\")) }; %s = val", resultName, info.ReturnType, resultName)
-		}
-		fmt.Fprintf(buf, "\tdefer func() {\n")
-		fmt.Fprintf(buf, "\t\tif recovered := recover(); recovered != nil {\n")
-		fmt.Fprintf(buf, "\t\t\tif ret, ok := recovered.(__able_return); ok {\n")
-		fmt.Fprintf(buf, "\t\t\t\t%s\n", recoverValue)
-		fmt.Fprintf(buf, "\t\t\t\treturn\n")
-		fmt.Fprintf(buf, "\t\t\t}\n")
-		fmt.Fprintf(buf, "\t\t\tpanic(recovered)\n")
-		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t}()\n")
 		for _, line := range lines {
 			fmt.Fprintf(buf, "\t%s\n", line)
 		}
@@ -196,8 +167,7 @@ func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *meth
 		}
 		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 	}
-	resultName := "__able_result"
-	fmt.Fprintf(buf, ") (%s %s) {\n", resultName, info.ReturnType)
+	fmt.Fprintf(buf, ") %s {\n", info.ReturnType)
 	if envVar, ok := g.packageEnvVar(info.Package); ok {
 		fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
 		fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
@@ -583,6 +553,9 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param
 	switch g.typeCategory(goType) {
 	case "runtime":
 		fmt.Fprintf(buf, "\t%s := %sValue\n", target, argName)
+	case "any":
+		// runtime.Value satisfies any — direct assignment.
+		fmt.Fprintf(buf, "\t%s := %sValue\n", target, argName)
 	case "bool":
 		fmt.Fprintf(buf, "\t%s, err := bridge.AsBool(%sValue)\n", target, argName)
 		g.renderConvertErr(buf)
@@ -653,6 +626,8 @@ func (g *generator) renderReturnConversion(buf *bytes.Buffer, resultName, goType
 	switch g.typeCategory(goType) {
 	case "runtime":
 		fmt.Fprintf(buf, "\treturn %s, nil\n", resultName)
+	case "any":
+		fmt.Fprintf(buf, "\treturn __able_any_to_value(%s), nil\n", resultName)
 	case "void":
 		fmt.Fprintf(buf, "\t_ = %s\n", resultName)
 		fmt.Fprintf(buf, "\treturn runtime.VoidValue{}, nil\n")
@@ -687,11 +662,9 @@ func (g *generator) renderReturnConversion(buf *bytes.Buffer, resultName, goType
 	case "uint64":
 		fmt.Fprintf(buf, "\treturn bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\")), nil\n", resultName)
 	case "struct":
-		baseName, ok := g.structBaseName(goType)
-		if !ok {
-			baseName = strings.TrimPrefix(goType, "*")
-		}
-		fmt.Fprintf(buf, "\treturn __able_struct_%s_to(rt, %s)\n", baseName, resultName)
+		// Struct pointers can be nil for nullable return types (?T).
+		// Use __able_any_to_value which handles nil and all struct types.
+		fmt.Fprintf(buf, "\treturn __able_any_to_value(%s), nil\n", resultName)
 	default:
 		fmt.Fprintf(buf, "\treturn %s, nil\n", resultName)
 	}

@@ -83,7 +83,7 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 			ctx.setReason("missing typed pattern annotation")
 			return nil, false
 		}
-		if subjectType != "runtime.Value" {
+		if subjectType != "runtime.Value" && subjectType != "any" {
 			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, p.TypeAnnotation)
 			if !ok || mapped == "" || mapped == "struct{}" {
 				ctx.setReason("unsupported typed pattern")
@@ -109,11 +109,29 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 		if len(bindLines) == 0 {
 			return nil, true
 		}
-		lines := []string{fmt.Sprintf("%s, _ := __able_try_cast(%s, %s)", convertedTemp, subjectTemp, typeExpr)}
+		var lines []string
+		castSubject := subjectTemp
+		if subjectType == "any" {
+			convTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, subjectTemp))
+			castSubject = convTemp
+		}
+		lines = append(lines, fmt.Sprintf("%s, _ := __able_try_cast(%s, %s)", convertedTemp, castSubject, typeExpr))
 		lines = append(lines, bindLines...)
 		return lines, true
 	case *ast.StructPattern:
-		if subjectType == "runtime.Value" {
+		if subjectType == "runtime.Value" || subjectType == "any" {
+			if subjectType == "any" {
+				convTemp := ctx.newTemp()
+				bindLines, ok := g.compileRuntimeStructPatternAssignmentBindings(ctx, p, convTemp, mode)
+				if !ok {
+					return nil, false
+				}
+				if len(bindLines) == 0 {
+					return nil, true
+				}
+				return append([]string{fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, subjectTemp)}, bindLines...), true
+			}
 			return g.compileRuntimeStructPatternAssignmentBindings(ctx, p, subjectTemp, mode)
 		}
 		info := g.structInfoByGoName(subjectType)
@@ -228,20 +246,22 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 		}
 		if !g.typeMatches(existing.GoType, goType) {
 			if existing.GoType == "runtime.Value" {
-				converted, ok := g.runtimeValueExpr(expr, goType)
+				convLines, converted, ok := g.runtimeValueLines(ctx, expr, goType)
 				if !ok {
 					ctx.setReason("pattern assignment type mismatch")
 					return nil, false
 				}
-				return []string{fmt.Sprintf("%s = %s", existing.GoName, converted)}, true
+				convLines = append(convLines, fmt.Sprintf("%s = %s", existing.GoName, converted))
+				return convLines, true
 			}
 			if goType == "runtime.Value" {
-				converted, ok := g.expectRuntimeValueExpr(expr, existing.GoType)
+				convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, existing.GoType)
 				if !ok {
 					ctx.setReason("pattern assignment type mismatch")
 					return nil, false
 				}
-				return []string{fmt.Sprintf("%s = %s", existing.GoName, converted)}, true
+				convLines = append(convLines, fmt.Sprintf("%s = %s", existing.GoName, converted))
+				return convLines, true
 			}
 			ctx.setReason("pattern assignment type mismatch")
 			return nil, false
@@ -252,20 +272,22 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 	if exists {
 		if !g.typeMatches(existing.GoType, goType) {
 			if existing.GoType == "runtime.Value" {
-				converted, ok := g.runtimeValueExpr(expr, goType)
+				convLines, converted, ok := g.runtimeValueLines(ctx, expr, goType)
 				if !ok {
 					ctx.setReason("pattern assignment type mismatch")
 					return nil, false
 				}
-				return []string{fmt.Sprintf("%s = %s", existing.GoName, converted)}, true
+				convLines = append(convLines, fmt.Sprintf("%s = %s", existing.GoName, converted))
+				return convLines, true
 			}
 			if goType == "runtime.Value" {
-				converted, ok := g.expectRuntimeValueExpr(expr, existing.GoType)
+				convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, existing.GoType)
 				if !ok {
 					ctx.setReason("pattern assignment type mismatch")
 					return nil, false
 				}
-				return []string{fmt.Sprintf("%s = %s", existing.GoName, converted)}, true
+				convLines = append(convLines, fmt.Sprintf("%s = %s", existing.GoName, converted))
+				return convLines, true
 			}
 			ctx.setReason("pattern assignment type mismatch")
 			return nil, false
@@ -297,12 +319,16 @@ func (g *generator) compileRuntimeStructPatternAssignmentBindings(ctx *compileCo
 			ctx.setReason("invalid struct pattern field")
 			return nil, false
 		}
-		fieldExpr := ""
+		fieldTemp := ctx.newTemp()
 		if field.FieldName != nil && field.FieldName.Name != "" {
-			fieldExpr = fmt.Sprintf("func() runtime.Value { if %s != nil { return %s[%d] }; return %s.Fields[%q] }()", positionalTemp, positionalTemp, idx, instTemp, field.FieldName.Name)
+			lines = append(lines, fmt.Sprintf("var %s runtime.Value", fieldTemp))
+			lines = append(lines, fmt.Sprintf("if %s != nil { %s = %s[%d] } else { %s = %s.Fields[%q] }", positionalTemp, fieldTemp, positionalTemp, idx, fieldTemp, instTemp, field.FieldName.Name))
 		} else {
-			fieldExpr = fmt.Sprintf("func() runtime.Value { if %s != nil { return %s[%d] }; return runtime.NilValue{} }()", positionalTemp, positionalTemp, idx)
+			lines = append(lines, fmt.Sprintf("var %s runtime.Value", fieldTemp))
+			lines = append(lines, fmt.Sprintf("if %s != nil { %s = %s[%d] } else { %s = runtime.NilValue{} }", positionalTemp, fieldTemp, positionalTemp, idx, fieldTemp))
 		}
+		lines = append(lines, fmt.Sprintf("_ = %s", fieldTemp))
+		fieldExpr := fieldTemp
 		fieldLines, ok := g.compileAssignmentPatternBindings(ctx, fieldPattern, fieldExpr, "runtime.Value", mode)
 		if !ok {
 			return nil, false

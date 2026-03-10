@@ -2,24 +2,23 @@ package compiler
 
 import (
 	"fmt"
-	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
 
-func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.PropagationExpression, expected string) (string, string, bool) {
+func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.PropagationExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.Expression == nil {
 		ctx.setReason("missing propagation expression")
-		return "", "", false
+		return nil, "", "", false
 	}
 	if indexExpr, ok := expr.Expression.(*ast.IndexExpression); ok {
-		if fastExpr, fastType, fastOK := g.compilePropagationMonoArrayIndex(ctx, indexExpr, expected); fastOK {
-			return fastExpr, fastType, true
+		if lines, fastExpr, fastType, fastOK := g.compilePropagationMonoArrayIndex(ctx, indexExpr, expected); fastOK {
+			return lines, fastExpr, fastType, true
 		}
 	}
 	valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", expr.Expression)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	resultType := expected
 	if resultType == "" {
@@ -31,13 +30,9 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 	if valueType != "runtime.Value" {
 		if !g.typeMatches(resultType, valueType) {
 			ctx.setReason("propagation type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
-		if len(valueLines) == 0 {
-			return valueExpr, valueType, true
-		}
-		exprValue := fmt.Sprintf("func() %s { %s; return %s }()", valueType, strings.Join(valueLines, "; "), valueExpr)
-		return exprValue, valueType, true
+		return valueLines, valueExpr, valueType, true
 	}
 	valueTemp := ctx.newTemp()
 	lines := append([]string{}, valueLines...)
@@ -45,32 +40,32 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 	lines = append(lines, fmt.Sprintf("if __able_is_error(%s) { bridge.Raise(__able_error_value(%s)) }", valueTemp, valueTemp))
 	resultExpr := valueTemp
 	if resultType != "runtime.Value" {
-		converted, ok := g.expectRuntimeValueExpr(valueTemp, resultType)
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueTemp, resultType)
 		if !ok {
 			ctx.setReason("propagation type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
+		lines = append(lines, convLines...)
 		resultExpr = converted
 	}
-	exprValue := fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr)
-	return exprValue, resultType, true
+	return lines, resultExpr, resultType, true
 }
 
-func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *ast.IndexExpression, expected string) (string, string, bool) {
+func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *ast.IndexExpression, expected string) ([]string, string, string, bool) {
 	if g == nil || ctx == nil || expr == nil {
-		return "", "", false
+		return nil, "", "", false
 	}
 	objExpr, objType, ok := g.compileExpr(ctx, expr.Object, "")
 	if !ok || !g.isArrayStructType(objType) {
-		return "", "", false
+		return nil, "", "", false
 	}
 	monoKind, monoEnabled := g.monoArrayKindForObject(ctx, expr.Object, objType)
 	if !monoEnabled {
-		return "", "", false
+		return nil, "", "", false
 	}
 	idxExpr, idxType, ok := g.compileExpr(ctx, expr.Index, "")
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	objTemp := ctx.newTemp()
 	idxTemp := ctx.newTemp()
@@ -81,7 +76,7 @@ func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *
 	nativeTemp := ctx.newTemp()
 	readExpr, readType, ok := g.monoArrayReadExpr(monoKind, handleTemp, indexTemp)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	resultType := expected
 	if resultType == "" {
@@ -95,11 +90,13 @@ func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *
 	}
 	lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
+	handleErrTemp := ctx.newTemp()
 	lines = append(lines,
 		fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp),
-		fmt.Sprintf("%s := func() int64 { raw, err := bridge.AsInt(%s, 64); if err != nil { panic(err) }; return raw }()", handleTemp, handleRawTemp),
+		fmt.Sprintf("%s, %s := bridge.AsInt(%s, 64)", handleTemp, handleErrTemp, handleRawTemp),
+		fmt.Sprintf("if %s != nil { panic(%s) }", handleErrTemp, handleErrTemp),
 		fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
 		"if err != nil { panic(err) }",
 		fmt.Sprintf("if %s < 0 || %s >= %s { bridge.Raise(__able_error_value(__able_index_error(%s, %s))) }", indexTemp, indexTemp, lengthTemp, indexTemp, lengthTemp),
@@ -108,37 +105,40 @@ func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *
 	)
 	switch {
 	case resultType == readType:
-		return g.wrapLinesAsExpression(ctx, lines, nativeTemp, readType)
+		return lines, nativeTemp, readType, true
 	case resultType == "runtime.Value":
-		runtimeExpr, ok := g.runtimeValueExpr(nativeTemp, readType)
+		rtConvLines, runtimeExpr, ok := g.runtimeValueLines(ctx, nativeTemp, readType)
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
-		return g.wrapLinesAsExpression(ctx, lines, runtimeExpr, "runtime.Value")
+		lines = append(lines, rtConvLines...)
+		return lines, runtimeExpr, "runtime.Value", true
 	default:
 		if widenedExpr, ok := g.nativeIntegerWidenExpr(nativeTemp, readType, resultType); ok {
-			return g.wrapLinesAsExpression(ctx, lines, widenedExpr, resultType)
+			return lines, widenedExpr, resultType, true
 		}
-		runtimeExpr, ok := g.runtimeValueExpr(nativeTemp, readType)
+		rtConvLines, runtimeExpr, ok := g.runtimeValueLines(ctx, nativeTemp, readType)
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
-		convertedExpr, ok := g.expectRuntimeValueExpr(runtimeExpr, resultType)
+		lines = append(lines, rtConvLines...)
+		convLines, convertedExpr, ok := g.expectRuntimeValueExprLines(ctx, runtimeExpr, resultType)
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
-		return g.wrapLinesAsExpression(ctx, lines, convertedExpr, resultType)
+		lines = append(lines, convLines...)
+		return lines, convertedExpr, resultType, true
 	}
 }
 
-func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrElseExpression, expected string) (string, string, bool) {
+func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrElseExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.Expression == nil || expr.Handler == nil {
 		ctx.setReason("missing or-else expression")
-		return "", "", false
+		return nil, "", "", false
 	}
 	valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", expr.Expression)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	handlerCtx := ctx.child()
 	bindingName := ""
@@ -153,7 +153,7 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	}
 	handlerLines, handlerExpr, handlerType, ok := g.compileBlockExpression(handlerCtx, expr.Handler, preferredType)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 
 	resultType := expected
@@ -176,25 +176,28 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	}
 
 	handlerResultExpr := handlerExpr
+	var handlerCoerceLines []string
 	switch {
 	case handlerType == resultType:
 	case handlerType == "runtime.Value" && resultType != "runtime.Value":
-		converted, ok := g.expectRuntimeValueExpr(handlerExpr, resultType)
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, handlerExpr, resultType)
 		if !ok {
 			ctx.setReason("or-else type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
+		handlerCoerceLines = convLines
 		handlerResultExpr = converted
 	case resultType == "runtime.Value" && handlerType != "runtime.Value":
-		converted, ok := g.runtimeValueExpr(handlerExpr, handlerType)
+		convLines, converted, ok := g.runtimeValueLines(ctx, handlerExpr, handlerType)
 		if !ok {
 			ctx.setReason("or-else type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
+		handlerCoerceLines = convLines
 		handlerResultExpr = converted
 	default:
 		ctx.setReason("or-else type mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
 
 	resultTemp := ctx.newTemp()
@@ -224,35 +227,44 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	lines = append(lines, indentLines(valueLines, 1)...)
 	lines = append(lines, fmt.Sprintf("\t%s := %s", valueTemp, valueExpr))
 	successExpr := valueTemp
+	var successConvLines []string
 	switch {
 	case valueType == resultType:
 	case valueType == "runtime.Value" && resultType != "runtime.Value":
-		converted, ok := g.expectRuntimeValueExpr(valueTemp, resultType)
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueTemp, resultType)
 		if !ok {
 			ctx.setReason("or-else type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
+		successConvLines = convLines
 		successExpr = converted
 	case resultType == "runtime.Value" && valueType != "runtime.Value":
-		converted, ok := g.runtimeValueExpr(valueTemp, valueType)
+		convLines, converted, ok := g.runtimeValueLines(ctx, valueTemp, valueType)
 		if !ok {
 			ctx.setReason("or-else type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
+		successConvLines = convLines
 		successExpr = converted
 	default:
 		ctx.setReason("or-else type mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
-	if valueType == "runtime.Value" {
+	if valueType == "runtime.Value" || valueType == "any" {
+		checkTemp := valueTemp
+		if valueType == "any" {
+			checkTemp = ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("\t%s := __able_any_to_value(%s)", checkTemp, valueTemp))
+		}
 		if bindingName != "" {
-			lines = append(lines, fmt.Sprintf("\tif __able_is_nil(%s) { %s = runtime.NilValue{}; %s = true; return }", valueTemp, failureTemp, failedTemp))
-			lines = append(lines, fmt.Sprintf("\tif __able_is_error(%s) { %s = %s; %s = true; %s = true; return }", valueTemp, failureTemp, valueTemp, failedTemp, errorTemp))
+			lines = append(lines, fmt.Sprintf("\tif __able_is_nil(%s) { %s = runtime.NilValue{}; %s = true; return }", checkTemp, failureTemp, failedTemp))
+			lines = append(lines, fmt.Sprintf("\tif __able_is_error(%s) { %s = %s; %s = true; %s = true; return }", checkTemp, failureTemp, checkTemp, failedTemp, errorTemp))
 		} else {
-			lines = append(lines, fmt.Sprintf("\tif __able_is_nil(%s) { %s = true; return }", valueTemp, failedTemp))
-			lines = append(lines, fmt.Sprintf("\tif __able_is_error(%s) { %s = true; return }", valueTemp, failedTemp))
+			lines = append(lines, fmt.Sprintf("\tif __able_is_nil(%s) { %s = true; return }", checkTemp, failedTemp))
+			lines = append(lines, fmt.Sprintf("\tif __able_is_error(%s) { %s = true; return }", checkTemp, failedTemp))
 		}
 	}
+	lines = append(lines, indentLines(successConvLines, 1)...)
 	lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, successExpr))
 	lines = append(lines, "}()")
 
@@ -264,10 +276,8 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		lines = append(lines, fmt.Sprintf("\t_ = %s", goName))
 	}
 	lines = append(lines, indentLines(handlerLines, 1)...)
-	lines = append(lines, fmt.Sprintf("\treturn %s", handlerResultExpr))
+	lines = append(lines, indentLines(handlerCoerceLines, 1)...)
+	lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, handlerResultExpr))
 	lines = append(lines, "}")
-	lines = append(lines, fmt.Sprintf("return %s", resultTemp))
-
-	exprValue := fmt.Sprintf("func() %s { %s }()", resultType, strings.Join(lines, "; "))
-	return exprValue, resultType, true
+	return lines, resultTemp, resultType, true
 }

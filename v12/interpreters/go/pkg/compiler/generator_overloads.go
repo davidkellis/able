@@ -402,27 +402,29 @@ func (g *generator) methodOverloadGroups() []*methodOverloadGroup {
 	return result
 }
 
-func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionCall, expected string, name string, callNode string) (string, string, bool) {
+func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionCall, expected string, name string, callNode string) ([]string, string, string, bool) {
 	if call == nil {
 		ctx.setReason("missing function call")
-		return "", "", false
+		return nil, "", "", false
 	}
 	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) && g.typeCategory(expected) == "unknown" {
 		ctx.setReason("call return type mismatch")
-		return "", "", false
+		return nil, "", "", false
 	}
-	lines := make([]string, 0, len(call.Arguments)+2)
+	var lines []string
 	args := make([]string, 0, len(call.Arguments))
 	for _, arg := range call.Arguments {
-		expr, goType, ok := g.compileExpr(ctx, arg, "")
+		argLines, expr, goType, ok := g.compileExprLines(ctx, arg, "")
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
-		valueExpr, ok := g.runtimeValueExpr(expr, goType)
+		lines = append(lines, argLines...)
+		argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("call argument unsupported")
-			return "", "", false
+			return nil, "", "", false
 		}
+		lines = append(lines, argConvLines...)
 		temp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := %s", temp, valueExpr))
 		args = append(args, temp)
@@ -436,20 +438,18 @@ func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionC
 	callExpr := fmt.Sprintf("%s(%s, %s)", g.overloadCallName(ctx.packageName, name), argList, callNode)
 	if g.isVoidType(expected) {
 		lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
-		return fmt.Sprintf("func() struct{} { %s; return struct{}{} }()", strings.Join(lines, "; ")), "struct{}", true
+		return lines, "struct{}{}", "struct{}", true
 	}
 	resultTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, callExpr))
-	resultExpr := resultTemp
-	resultType := "runtime.Value"
 	if expected != "" && expected != "runtime.Value" {
-		converted, ok := g.expectRuntimeValueExpr(resultTemp, expected)
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
-			return "", "", false
+			return nil, "", "", false
 		}
-		resultExpr = converted
-		resultType = expected
+		lines = append(lines, convLines...)
+		return lines, converted, expected, true
 	}
-	return fmt.Sprintf("func() %s { %s; return %s }()", resultType, strings.Join(lines, "; "), resultExpr), resultType, true
+	return lines, resultTemp, "runtime.Value", true
 }

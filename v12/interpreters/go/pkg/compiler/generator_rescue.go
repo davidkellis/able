@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"fmt"
-	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -12,39 +11,44 @@ func (g *generator) compileRaiseStatement(ctx *compileContext, stmt *ast.RaiseSt
 		ctx.setReason("missing raise expression")
 		return nil, false
 	}
-	expr, goType, ok := g.compileExpr(ctx, stmt.Expression, "")
+	exprLines, expr, goType, ok := g.compileExprLines(ctx, stmt.Expression, "")
 	if !ok {
 		return nil, false
 	}
-	valueRuntime, ok := g.runtimeValueExpr(expr, goType)
+	convLines, valueRuntime, ok := g.runtimeValueLines(ctx, expr, goType)
 	if !ok {
 		ctx.setReason("raise value unsupported")
 		return nil, false
 	}
 	raiseNode := g.diagNodeName(stmt, "*ast.RaiseStatement", "raise")
-	return []string{fmt.Sprintf("bridge.RaiseWithContext(__able_runtime, %s, %s)", raiseNode, valueRuntime)}, true
+	lines := append([]string{}, exprLines...)
+	lines = append(lines, convLines...)
+	lines = append(lines, fmt.Sprintf("bridge.RaiseWithContext(__able_runtime, %s, %s)", raiseNode, valueRuntime))
+	return lines, true
 }
 
-func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.RescueExpression, expected string) (string, string, bool) {
+func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.RescueExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.MonitoredExpression == nil {
 		ctx.setReason("missing rescue expression")
-		return "", "", false
+		return nil, "", "", false
 	}
 	monitoredLines, monitoredExpr, monitoredType, ok := g.compileTailExpression(ctx, expected, expr.MonitoredExpression)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
 	if len(expr.Clauses) == 0 {
 		ctx.setReason("rescue requires clauses")
-		return "", "", false
+		return nil, "", "", false
 	}
 	type rescueClause struct {
-		cond      string
-		bindLines []string
-		guardExpr string
-		bodyLines []string
-		bodyExpr  string
-		bodyType  string
+		condLines  []string
+		cond       string
+		bindLines  []string
+		guardLines []string
+		guardExpr  string
+		bodyLines  []string
+		bodyExpr   string
+		bodyType   string
 	}
 	clauses := make([]rescueClause, 0, len(expr.Clauses))
 	subjectTemp := ctx.newTemp()
@@ -56,29 +60,31 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 		clauseCtx := ctx.child()
 		clauseCtx.rethrowVar = subjectTemp
 		clauseCtx.rethrowErrVar = recoveredErrTemp
-		cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, subjectTemp, "runtime.Value")
+		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, subjectTemp, "runtime.Value")
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
 		guardExpr := ""
+		var guardLines []string
 		if clause.Guard != nil {
-			guardValue, ok := g.compileCondition(clauseCtx, clause.Guard)
+			guardLines, guardExpr, ok = g.compileCondition(clauseCtx, clause.Guard)
 			if !ok {
-				return "", "", false
+				return nil, "", "", false
 			}
-			guardExpr = guardValue
 		}
 		bodyLines, bodyExpr, bodyType, ok := g.compileTailExpression(clauseCtx, expected, clause.Body)
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
 		clauses = append(clauses, rescueClause{
-			cond:      cond,
-			bindLines: bindLines,
-			guardExpr: guardExpr,
-			bodyLines: bodyLines,
-			bodyExpr:  bodyExpr,
-			bodyType:  bodyType,
+			condLines:  condLines,
+			cond:       cond,
+			bindLines:  bindLines,
+			guardLines: guardLines,
+			guardExpr:  guardExpr,
+			bodyLines:  bodyLines,
+			bodyExpr:   bodyExpr,
+			bodyType:   bodyType,
 		})
 	}
 	resultType := expected
@@ -103,15 +109,17 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			resultType = "runtime.Value"
 		}
 	}
-	monitoredExpr, ok = g.coerceRescueBranch(ctx, resultType, monitoredExpr, monitoredType)
+	monitoredCoerceLines, monitoredExpr, ok := g.coerceRescueBranch(ctx, resultType, monitoredExpr, monitoredType)
 	if !ok {
-		return "", "", false
+		return nil, "", "", false
 	}
+	monitoredLines = append(monitoredLines, monitoredCoerceLines...)
 	for i := range clauses {
-		coerced, ok := g.coerceRescueBranch(ctx, resultType, clauses[i].bodyExpr, clauses[i].bodyType)
+		coerceLines, coerced, ok := g.coerceRescueBranch(ctx, resultType, clauses[i].bodyExpr, clauses[i].bodyType)
 		if !ok {
-			return "", "", false
+			return nil, "", "", false
 		}
+		clauses[i].bodyLines = append(clauses[i].bodyLines, coerceLines...)
 		clauses[i].bodyExpr = coerced
 		clauses[i].bodyType = resultType
 	}
@@ -131,14 +139,15 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 	lines = append(lines, indentLines(monitoredLines, 1)...)
 	lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, monitoredExpr))
 	lines = append(lines, "}()")
-	lines = append(lines, fmt.Sprintf("if !%s { return %s }", recoveredOkTemp, resultTemp))
-	lines = append(lines, fmt.Sprintf("%s := %s", subjectTemp, recoveredTemp))
-	lines = append(lines, fmt.Sprintf("_ = %s", subjectTemp))
-	lines = append(lines, fmt.Sprintf("%s := false", matchedTemp))
+	lines = append(lines, fmt.Sprintf("if %s {", recoveredOkTemp))
+	lines = append(lines, fmt.Sprintf("\t%s := %s", subjectTemp, recoveredTemp))
+	lines = append(lines, fmt.Sprintf("\t_ = %s", subjectTemp))
+	lines = append(lines, fmt.Sprintf("\t%s := false", matchedTemp))
 	for _, clause := range clauses {
 		branchLines := []string{}
 		branchLines = append(branchLines, clause.bindLines...)
 		if clause.guardExpr != "" {
+			branchLines = append(branchLines, clause.guardLines...)
 			branchLines = append(branchLines, fmt.Sprintf("if %s {", clause.guardExpr))
 			branchLines = append(branchLines, indentLines(clause.bodyLines, 1)...)
 			branchLines = append(branchLines, fmt.Sprintf("\t%s = %s", resultTemp, clause.bodyExpr))
@@ -149,42 +158,61 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			branchLines = append(branchLines, fmt.Sprintf("%s = %s", resultTemp, clause.bodyExpr))
 			branchLines = append(branchLines, fmt.Sprintf("%s = true", matchedTemp))
 		}
-		lines = append(lines, fmt.Sprintf("if !%s && %s {", matchedTemp, clause.cond))
-		lines = append(lines, indentLines(branchLines, 1)...)
-		lines = append(lines, "}")
+		if len(clause.condLines) > 0 {
+			lines = append(lines, fmt.Sprintf("\tif !%s {", matchedTemp))
+			lines = append(lines, indentLines(clause.condLines, 2)...)
+			lines = append(lines, fmt.Sprintf("\t\tif %s {", clause.cond))
+			lines = append(lines, indentLines(branchLines, 3)...)
+			lines = append(lines, "\t\t}")
+			lines = append(lines, "\t}")
+		} else {
+			lines = append(lines, fmt.Sprintf("\tif !%s && %s {", matchedTemp, clause.cond))
+			lines = append(lines, indentLines(branchLines, 2)...)
+			lines = append(lines, "\t}")
+		}
 	}
-	lines = append(lines, fmt.Sprintf("if !%s { panic(%s) }", matchedTemp, recoveredTemp))
-	lines = append(lines, fmt.Sprintf("return %s", resultTemp))
-	exprValue := fmt.Sprintf("func() %s { %s }()", resultType, strings.Join(lines, "; "))
-	return exprValue, resultType, true
+	lines = append(lines, fmt.Sprintf("\tif !%s { panic(%s) }", matchedTemp, recoveredTemp))
+	lines = append(lines, "}")
+	return lines, resultTemp, resultType, true
 }
 
-func (g *generator) coerceRescueBranch(ctx *compileContext, resultType string, expr string, exprType string) (string, bool) {
+func (g *generator) coerceRescueBranch(ctx *compileContext, resultType string, expr string, exprType string) ([]string, string, bool) {
 	if resultType == "" || exprType == "" || expr == "" {
 		ctx.setReason("rescue clause type mismatch")
-		return "", false
+		return nil, "", false
 	}
-	if resultType == exprType {
-		return expr, true
+	if g.typeMatches(resultType, exprType) {
+		return nil, expr, true
 	}
 	if resultType == "runtime.Value" && exprType != "runtime.Value" {
-		converted, ok := g.runtimeValueExpr(expr, exprType)
+		convLines, converted, ok := g.runtimeValueLines(ctx, expr, exprType)
 		if !ok {
 			ctx.setReason("rescue clause type mismatch")
-			return "", false
+			return nil, "", false
 		}
-		return converted, true
+		return convLines, converted, true
+	}
+	if resultType == "any" {
+		return nil, expr, true
 	}
 	if resultType != "runtime.Value" && exprType == "runtime.Value" {
-		converted, ok := g.expectRuntimeValueExpr(expr, resultType)
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, resultType)
 		if !ok {
 			ctx.setReason("rescue clause type mismatch")
-			return "", false
+			return nil, "", false
 		}
-		return converted, true
+		return convLines, converted, true
+	}
+	if exprType == "any" {
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, resultType)
+		if !ok {
+			ctx.setReason("rescue clause type mismatch")
+			return nil, "", false
+		}
+		return convLines, converted, true
 	}
 	ctx.setReason("rescue clause type mismatch")
-	return "", false
+	return nil, "", false
 }
 
 func (g *generator) compileRethrowStatement(ctx *compileContext, stmt *ast.RethrowStatement) ([]string, bool) {

@@ -20,11 +20,12 @@ type fieldInfo struct {
 }
 
 type paramInfo struct {
-	Name      string
-	GoName    string
-	GoType    string
-	TypeExpr  ast.TypeExpression
-	Supported bool
+	Name         string
+	GoName       string
+	GoType       string
+	TypeExpr     ast.TypeExpression
+	Supported    bool
+	OriginGoType string // underlying struct type when GoType is runtime.Value
 }
 
 type functionInfo struct {

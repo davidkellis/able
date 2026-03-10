@@ -75,9 +75,41 @@ func (g *generator) render() (map[string][]byte, error) {
 }
 
 func (g *generator) renderCompiled() ([]byte, error) {
+	// Render body first so compilation sets flags (e.g. needsStrconv)
+	// that affect import selection.
+	var body bytes.Buffer
+
+	if g.hasFunctions() {
+		fmt.Fprintf(&body, "const __able_experimental_mono_arrays = %t\n\n", g.opts.ExperimentalMonoArrays)
+		fmt.Fprintf(&body, "var __able_runtime *bridge.Runtime\n\n")
+		g.ensurePackageEnvVars()
+		if len(g.packageEnvOrder) > 0 {
+			for _, pkgName := range g.packageEnvOrder {
+				if envVar, ok := g.packageEnvVars[pkgName]; ok {
+					fmt.Fprintf(&body, "var %s *runtime.Environment\n", envVar)
+				}
+			}
+			fmt.Fprintf(&body, "\n")
+		}
+		g.renderRuntimeHelpers(&body)
+	}
+
+	g.renderStructs(&body)
+	if g.hasFunctions() {
+		g.renderStructConverters(&body)
+		g.renderCompiledMethods(&body)
+		g.renderCompiledFunctions(&body)
+		g.renderMethodWrappers(&body)
+		g.renderWrappers(&body)
+		g.renderFunctionThunks(&body)
+		g.renderOverloadDispatchers(&body)
+		g.renderMethodThunks(&body)
+		g.renderDiagnosticGlobals(&body)
+	}
+
+	// Now render the header with imports (flags are set by body rendering).
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "package %s\n\n", g.opts.PackageName)
-
 	imports := g.importsForCompiled()
 	if len(imports) > 0 {
 		fmt.Fprintf(&buf, "import (\n")
@@ -86,34 +118,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		}
 		fmt.Fprintf(&buf, ")\n\n")
 	}
-
-	if g.hasFunctions() {
-		fmt.Fprintf(&buf, "const __able_experimental_mono_arrays = %t\n\n", g.opts.ExperimentalMonoArrays)
-		fmt.Fprintf(&buf, "var __able_runtime *bridge.Runtime\n\n")
-		g.ensurePackageEnvVars()
-		if len(g.packageEnvOrder) > 0 {
-			for _, pkgName := range g.packageEnvOrder {
-				if envVar, ok := g.packageEnvVars[pkgName]; ok {
-					fmt.Fprintf(&buf, "var %s *runtime.Environment\n", envVar)
-				}
-			}
-			fmt.Fprintf(&buf, "\n")
-		}
-		g.renderRuntimeHelpers(&buf)
-	}
-
-	g.renderStructs(&buf)
-	if g.hasFunctions() {
-		g.renderStructConverters(&buf)
-		g.renderCompiledMethods(&buf)
-		g.renderCompiledFunctions(&buf)
-		g.renderMethodWrappers(&buf)
-		g.renderWrappers(&buf)
-		g.renderFunctionThunks(&buf)
-		g.renderOverloadDispatchers(&buf)
-		g.renderMethodThunks(&buf)
-		g.renderDiagnosticGlobals(&buf)
-	}
+	buf.Write(body.Bytes())
 
 	return formatSource(buf.Bytes())
 }
@@ -177,6 +182,9 @@ func (g *generator) importsForCompiled() []string {
 	}
 	if g.hasFunctions() && g.needsIterator {
 		importSet["sync"] = struct{}{}
+	}
+	if g.needsStrconv {
+		importSet["strconv"] = struct{}{}
 	}
 	imports := make([]string, 0, len(importSet))
 	for imp := range importSet {

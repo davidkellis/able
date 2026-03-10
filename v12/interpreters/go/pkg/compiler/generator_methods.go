@@ -246,11 +246,26 @@ func (g *generator) staticMethodNominalStructReturnType(pkgName string, target a
 	if simple.Name.Name != targetName {
 		return "", false
 	}
+	// Skip for types that have builtin Go mappings (String→string, Bool→bool, etc.)
+	// — their return types should use the builtin mapping, not the struct pointer.
+	if isBuiltinMappedType(targetName) {
+		return "", false
+	}
 	info, ok := g.structInfoForTypeName(pkgName, targetName)
 	if !ok || info == nil {
 		return "", false
 	}
 	return "*" + info.GoName, true
+}
+
+func isBuiltinMappedType(name string) bool {
+	switch name {
+	case "bool", "Bool", "String", "string", "char", "Char",
+		"i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64",
+		"isize", "usize", "f32", "f64", "void", "Void":
+		return true
+	}
+	return false
 }
 
 func resolveSelfTypeExpr(expr ast.TypeExpression, target ast.TypeExpression) ast.TypeExpression {
@@ -396,17 +411,93 @@ func (g *generator) methodForReceiver(goType string, methodName string) *methodI
 		return nil
 	}
 	info := g.structInfoByGoName(goType)
-	if info == nil || info.Name == "" {
+	if info != nil && info.Name != "" {
+		// Look up by struct Able name. Unlike methodForStruct, skip the
+		// package check: methods may be defined in a different package
+		// (e.g., able.collections.array extends able.kernel.Array) and
+		// since we resolved the struct by concrete GoType, there is no
+		// ambiguity.
+		typeBucket := g.methods[info.Name]
+		if len(typeBucket) > 0 {
+			entries := typeBucket[methodName]
+			var found *methodInfo
+			for _, method := range entries {
+				if method == nil || method.Info == nil || !method.Info.Compileable {
+					continue
+				}
+				if !method.ExpectsSelf {
+					continue
+				}
+				if method.ReceiverType != "" && method.ReceiverType != goType {
+					continue
+				}
+				if found != nil && found != method {
+					return nil // ambiguous
+				}
+				found = method
+			}
+			if found != nil {
+				return found
+			}
+		}
 		return nil
 	}
-	method := g.methodForStruct(info, methodName, true)
-	if method == nil {
+	// For primitive types (bool, int32, string, etc.) search by receiver Go type.
+	return g.methodForReceiverGoType(goType, methodName)
+}
+
+func (g *generator) methodForReceiverGoType(goType string, methodName string) *methodInfo {
+	if g == nil {
 		return nil
 	}
-	if method.ReceiverType != "" && method.ReceiverType != goType {
+	// Only match concrete primitive Go types, not generic carriers.
+	if goType == "runtime.Value" || strings.HasPrefix(goType, "*") {
 		return nil
 	}
-	return method
+	var found *methodInfo
+	for _, typeBucket := range g.methods {
+		entries := typeBucket[methodName]
+		for _, method := range entries {
+			if method == nil || method.Info == nil || !method.Info.Compileable {
+				continue
+			}
+			if !method.ExpectsSelf || method.ReceiverType != goType {
+				continue
+			}
+			if found != nil && found != method {
+				return nil // ambiguous
+			}
+			found = method
+		}
+	}
+	if found != nil {
+		return found
+	}
+	// Also search impl method list (impl I for T { ... } methods).
+	for _, impl := range g.implMethodList {
+		if impl == nil || impl.Info == nil || !impl.Info.Compileable {
+			continue
+		}
+		if impl.MethodName != methodName {
+			continue
+		}
+		if len(impl.Info.Params) == 0 || impl.Info.Params[0].GoType != goType {
+			continue
+		}
+		m := &methodInfo{
+			TargetName:   typeExpressionToString(impl.TargetType),
+			TargetType:   impl.TargetType,
+			MethodName:   impl.MethodName,
+			ExpectsSelf:  true,
+			Info:         impl.Info,
+			ReceiverType: goType,
+		}
+		if found != nil {
+			return nil // ambiguous
+		}
+		found = m
+	}
+	return found
 }
 
 func (g *generator) registerableMethod(method *methodInfo) bool {
