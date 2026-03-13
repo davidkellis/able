@@ -13,29 +13,67 @@ func Raise(value runtime.Value) {
 	panic(value)
 }
 
-// RaiseWithContext raises a value with attached runtime diagnostics.
-func RaiseWithContext(rt *Runtime, node ast.Node, value runtime.Value) {
+// RaisedError converts a raised runtime value into an interpreter-compatible error.
+func RaisedError(rt *Runtime, node ast.Node, value runtime.Value) error {
+	if value == nil {
+		value = runtime.NilValue{}
+	}
 	if rt == nil || rt.interp == nil {
-		panic(value)
+		if errVal, ok := value.(runtime.ErrorValue); ok {
+			return fmt.Errorf("%s", errVal.Message)
+		}
+		return fmt.Errorf("%v", value)
 	}
 	env := rt.currentEnv()
 	err := interpreter.Raise(rt.interp, value, env)
 	if node != nil {
 		err = rt.interp.AttachRuntimeContext(err, node, env)
 	}
-	panic(err)
+	return err
+}
+
+// RaisedErrorIn converts a raised runtime value into an interpreter-compatible
+// error using the native-call context environment when available.
+func RaisedErrorIn(rt *Runtime, ctx *runtime.NativeCallContext, value runtime.Value) error {
+	if value == nil {
+		value = runtime.NilValue{}
+	}
+	var env *runtime.Environment
+	if ctx != nil {
+		env = ctx.Env
+	}
+	if env == nil && rt != nil {
+		env = rt.currentEnv()
+	}
+	if rt == nil || rt.interp == nil {
+		if errVal, ok := value.(runtime.ErrorValue); ok {
+			return fmt.Errorf("%s", errVal.Message)
+		}
+		return fmt.Errorf("%v", value)
+	}
+	return interpreter.Raise(rt.interp, value, env)
+}
+
+// RaiseWithContext raises a value with attached runtime diagnostics.
+func RaiseWithContext(rt *Runtime, node ast.Node, value runtime.Value) {
+	panic(RaisedError(rt, node, value))
 }
 
 // RaiseRuntimeErrorWithContext attaches runtime diagnostics to an error and panics.
 func RaiseRuntimeErrorWithContext(rt *Runtime, node ast.Node, err error) {
+	panic(RuntimeErrorWithContext(rt, node, err))
+}
+
+// RuntimeErrorWithContext attaches runtime diagnostics to an error without panicking.
+func RuntimeErrorWithContext(rt *Runtime, node ast.Node, err error) error {
 	if err == nil {
-		return
+		return nil
 	}
 	if rt == nil || rt.interp == nil {
-		panic(err)
+		return err
 	}
 	env := rt.currentEnv()
-	panic(rt.interp.AttachRuntimeContext(err, node, env))
+	return rt.interp.AttachRuntimeContext(err, node, env)
 }
 
 // RegisterNodeOrigin wires a node origin path for compiled diagnostics.
@@ -73,14 +111,7 @@ func Recover(rt *Runtime, ctx *runtime.NativeCallContext, recovered any) error {
 		return err
 	}
 	if val, ok := recovered.(runtime.Value); ok {
-		var env *runtime.Environment
-		if ctx != nil {
-			env = ctx.Env
-		}
-		if rt == nil || rt.interp == nil {
-			return fmt.Errorf("panic: %v", val)
-		}
-		return interpreter.Raise(rt.interp, val, env)
+		return RaisedErrorIn(rt, ctx, val)
 	}
 	return fmt.Errorf("panic: %v", recovered)
 }

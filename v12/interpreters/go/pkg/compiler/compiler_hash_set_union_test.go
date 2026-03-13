@@ -18,18 +18,7 @@ func TestCompilerCompiledHashSetUnionStdlib(t *testing.T) {
 		t.Skip("go toolchain not available")
 	}
 
-	moduleRoot, err := filepath.Abs(filepath.Join(".", "..", ".."))
-	if err != nil {
-		t.Fatalf("module root: %v", err)
-	}
-	tmpRoot := filepath.Join(moduleRoot, "tmp")
-	if err := os.MkdirAll(tmpRoot, 0o755); err != nil {
-		t.Fatalf("mkdir tmp: %v", err)
-	}
-	workDir, err := os.MkdirTemp(tmpRoot, "ablec-hashset-union-")
-	if err != nil {
-		t.Fatalf("temp dir: %v", err)
-	}
+	moduleRoot, workDir := compilerTestWorkDirNoCleanup(t, "ablec-hashset-union")
 	if os.Getenv("ABLE_TEST_KEEP_WORKDIR") == "" {
 		t.Cleanup(func() { _ = os.RemoveAll(workDir) })
 	} else {

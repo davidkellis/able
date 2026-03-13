@@ -17,7 +17,7 @@ func TestCompilerNormalizesInterfaceMemberGetMethodDispatch(t *testing.T) {
 		}, "\n"),
 	})
 
-	start := strings.Index(compiledSrc, "func __able_member_get_method(obj runtime.Value, member runtime.Value) runtime.Value {")
+	start := strings.Index(compiledSrc, "func __able_try_member_get_method(obj runtime.Value, member runtime.Value) (runtime.Value, error) {")
 	if start < 0 {
 		t.Fatalf("expected __able_member_get_method helper to be emitted")
 	}

@@ -17,7 +17,7 @@ func TestCompilerNormalizesCallValueBoundMethodDispatchBranches(t *testing.T) {
 		}, "\n"),
 	})
 
-	if !strings.Contains(compiledSrc, "func __able_call_bound_method(bound runtime.BoundMethodValue, partialTarget runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, bool) {") {
+	if !strings.Contains(compiledSrc, "func __able_call_bound_method(bound runtime.BoundMethodValue, partialTarget runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, *__ableControl, bool) {") {
 		t.Fatalf("expected shared bound-method dispatch helper for __able_call_value")
 	}
 	helperStart := strings.Index(compiledSrc, "func __able_call_bound_method(")
@@ -45,13 +45,13 @@ func TestCompilerNormalizesCallValueBoundMethodDispatchBranches(t *testing.T) {
 	if strings.Contains(helperSegment, "if methodThunk, ok := method.(*runtime.FunctionValue); ok {") || strings.Contains(helperSegment, "if methodThunk, ok, nilPtr := __able_callable_function_value(method); ok || nilPtr {") {
 		t.Fatalf("expected local methodThunk unwrapping branches to be removed from __able_call_bound_method")
 	}
-	if !strings.Contains(helperSegment, "if val, handled := __able_call_function_thunk(method, injected, call); handled {") {
+	if !strings.Contains(helperSegment, "if val, control, handled := __able_call_function_thunk(method, injected, call); handled {") {
 		t.Fatalf("expected __able_call_bound_method thunk dispatch to delegate through shared helper directly")
 	}
 	if !strings.Contains(helperSegment, "if native, ok, nilPtr := __able_callable_native_function_value(method); ok && !nilPtr {") {
 		t.Fatalf("expected __able_call_bound_method to use normalized native-function unwrapping helper path")
 	}
-	if !strings.Contains(helperSegment, "return __able_call_native_function(native, partialTarget, args, injected, call, ctx), true") {
+	if !strings.Contains(helperSegment, "val, control := __able_call_native_function(native, partialTarget, args, injected, call, ctx)") {
 		t.Fatalf("expected __able_call_bound_method native dispatch to route through shared native-call helper")
 	}
 
@@ -81,7 +81,7 @@ func TestCompilerNormalizesCallValueBoundMethodDispatchBranches(t *testing.T) {
 	if !strings.Contains(segment, "if bound, ok, _ := __able_callable_bound_method_value(fn); ok {") {
 		t.Fatalf("expected __able_call_value to use normalized bound-method unwrapping helper path")
 	}
-	if !strings.Contains(segment, "if val, handled := __able_call_bound_method(bound, fn, args, call, ctx); handled {") {
+	if !strings.Contains(segment, "if val, control, handled := __able_call_bound_method(bound, fn, args, call, ctx); handled {") {
 		t.Fatalf("expected normalized bound-method dispatch to use shared helper")
 	}
 }

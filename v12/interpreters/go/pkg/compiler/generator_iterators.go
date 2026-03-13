@@ -22,6 +22,7 @@ func (g *generator) compileIteratorLiteral(ctx *compileContext, expr *ast.Iterat
 	}
 	genParam := "__able_gen"
 	bodyCtx := ctx.child()
+	bodyCtx.controlMode = compileControlModeErrorOnly
 	bodyCtx.locals[binding] = paramInfo{Name: binding, GoName: genParam, GoType: "runtime.Value"}
 	if binding != "gen" {
 		bodyCtx.locals["gen"] = paramInfo{Name: "gen", GoName: genParam, GoType: "runtime.Value"}
@@ -66,11 +67,7 @@ func (g *generator) compileYieldStatement(ctx *compileContext, stmt *ast.YieldSt
 		genConvLines = convLines
 		genValue = converted
 	}
-	yieldFnTemp := ctx.newTemp()
 	lines := append([]string{}, genConvLines...)
-	lines = append(lines,
-		fmt.Sprintf("%s := __able_member_get_method(%s, runtime.StringValue{Val: %q})", yieldFnTemp, genValue, "yield"),
-	)
 	args := []string{}
 	if stmt.Expression != nil {
 		expr, _, ok := g.compileExpr(ctx, stmt.Expression, "runtime.Value")
@@ -85,6 +82,10 @@ func (g *generator) compileYieldStatement(ctx *compileContext, stmt *ast.YieldSt
 	if len(args) > 0 {
 		argList = "[]runtime.Value{" + strings.Join(args, ", ") + "}"
 	}
-	lines = append(lines, fmt.Sprintf("_ = __able_call_value(%s, %s, nil)", yieldFnTemp, argList))
+	var callOK bool
+	lines, _, callOK = g.appendRuntimeCallControlLines(ctx, lines, fmt.Sprintf("__able_method_call(%s, %q, %s)", genValue, "yield", argList))
+	if !callOK {
+		return nil, false
+	}
 	return lines, true
 }

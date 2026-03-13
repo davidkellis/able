@@ -82,6 +82,12 @@ func TestCompilerStructMethodStaticDispatch(t *testing.T) {
 	if !strings.Contains(funcBody, "__able_compiled_method_Counter_inc") {
 		t.Errorf("fn_bump should call __able_compiled_method_Counter_inc:\n%s", funcBody)
 	}
+	if strings.Contains(funcBody, "__able_struct_Counter_from") || strings.Contains(funcBody, "__able_struct_Counter_to") {
+		t.Errorf("fn_bump should keep native Counter locals instead of runtime extract/writeback:\n%s", funcBody)
+	}
+	if !strings.Contains(funcBody, "var counter *Counter =") {
+		t.Errorf("fn_bump should keep counter as a native *Counter local:\n%s", funcBody)
+	}
 }
 
 // TestCompilerStructFieldStaticAccess verifies that field access on struct
@@ -147,10 +153,11 @@ func TestCompilerStructFieldStaticAccess(t *testing.T) {
 	if !strings.Contains(funcBody, ".X") || !strings.Contains(funcBody, ".Y") {
 		t.Errorf("fn_sum should access .X and .Y directly:\n%s", funcBody)
 	}
-	// CSE: struct should be extracted at most once (p.x + p.y reuses extraction).
-	fromCount := strings.Count(funcBody, "__able_struct_Point_from")
-	if fromCount > 1 {
-		t.Errorf("fn_sum should extract struct at most once, got %d extractions:\n%s", fromCount, funcBody)
+	if strings.Contains(funcBody, "__able_struct_Point_from") || strings.Contains(funcBody, "__able_struct_Point_to") {
+		t.Errorf("fn_sum should keep native Point locals instead of runtime extract/writeback:\n%s", funcBody)
+	}
+	if !strings.Contains(funcBody, "var p *Point =") {
+		t.Errorf("fn_sum should keep p as a native *Point local:\n%s", funcBody)
 	}
 }
 
@@ -231,6 +238,131 @@ func TestCompilerDefaultImplSiblingDirectCall(t *testing.T) {
 	}
 }
 
+func TestCompilerStructFunctionParamAndReturnStayNative(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Point { x: i32, y: i32 }",
+		"",
+		"fn make_point() -> Point {",
+		"  Point { x: 3, y: 4 }",
+		"}",
+		"",
+		"fn sum_point(p: Point) -> i32 {",
+		"  p.x + p.y",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  p := make_point()",
+		"  sum_point(p)",
+		"}",
+		"",
+	}, "\n"))
+
+	compiled := string(result.Files["compiled.go"])
+	if !strings.Contains(compiled, "func __able_compiled_fn_make_point() (*Point, *__ableControl)") {
+		t.Fatalf("make_point should return native *Point:\n%s", compiled)
+	}
+	if !strings.Contains(compiled, "func __able_compiled_fn_sum_point(p *Point) (int32, *__ableControl)") {
+		t.Fatalf("sum_point should accept native *Point:\n%s", compiled)
+	}
+
+	mainBody := extractCompiledFunctionBody(compiled, "fn_main")
+	if mainBody == "" {
+		t.Fatalf("fn_main not found in compiled output")
+	}
+	if strings.Contains(mainBody, "__able_struct_Point_from") || strings.Contains(mainBody, "__able_struct_Point_to") {
+		t.Fatalf("fn_main should keep Point on the native static path:\n%s", mainBody)
+	}
+	if !strings.Contains(mainBody, "var p *Point =") {
+		t.Fatalf("fn_main should keep p as a native *Point local:\n%s", mainBody)
+	}
+	if !strings.Contains(mainBody, "__able_compiled_fn_make_point()") || !strings.Contains(mainBody, "__able_compiled_fn_sum_point(") {
+		t.Fatalf("fn_main should call compiled native functions directly:\n%s", mainBody)
+	}
+
+	sumBody := extractCompiledFunctionBody(compiled, "fn_sum_point")
+	if sumBody == "" {
+		t.Fatalf("fn_sum_point not found in compiled output")
+	}
+	if strings.Contains(sumBody, "__able_struct_Point_from") || strings.Contains(sumBody, "__able_member_get(") {
+		t.Fatalf("fn_sum_point should use native Point access:\n%s", sumBody)
+	}
+	if !strings.Contains(sumBody, "p.X") || !strings.Contains(sumBody, "p.Y") {
+		t.Fatalf("fn_sum_point should use native field access:\n%s", sumBody)
+	}
+}
+
+func TestCompilerStructMutationAcrossStaticFunctionCallStaysNative(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Counter { value: i32 }",
+		"",
+		"fn bump(counter: Counter) -> void {",
+		"  counter.value = counter.value + 1",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  counter := Counter { value: 1 }",
+		"  bump(counter)",
+		"  counter.value",
+		"}",
+		"",
+	}, "\n"))
+
+	compiled := string(result.Files["compiled.go"])
+	if !strings.Contains(compiled, "func __able_compiled_fn_bump(counter *Counter) (struct{}, *__ableControl)") {
+		t.Fatalf("bump should accept native *Counter:\n%s", compiled)
+	}
+
+	mainBody := extractCompiledFunctionBody(compiled, "fn_main")
+	if mainBody == "" {
+		t.Fatalf("fn_main not found in compiled output")
+	}
+	if strings.Contains(mainBody, "__able_struct_Counter_from") || strings.Contains(mainBody, "__able_struct_Counter_to") {
+		t.Fatalf("fn_main should keep Counter on the native static path:\n%s", mainBody)
+	}
+	if !strings.Contains(mainBody, "__able_compiled_fn_bump(counter)") {
+		t.Fatalf("fn_main should call bump with the native pointer local:\n%s", mainBody)
+	}
+
+	bumpBody := extractCompiledFunctionBody(compiled, "fn_bump")
+	if bumpBody == "" {
+		t.Fatalf("fn_bump not found in compiled output")
+	}
+	if strings.Contains(bumpBody, "__able_struct_Counter_from") || strings.Contains(bumpBody, "__able_member_set(") {
+		t.Fatalf("fn_bump should mutate Counter natively:\n%s", bumpBody)
+	}
+	if !strings.Contains(bumpBody, "counter.Value =") {
+		t.Fatalf("fn_bump should mutate the native Counter field directly:\n%s", bumpBody)
+	}
+}
+
+func TestCompilerStructWrapperReturnUsesExplicitStructConverter(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Point { x: i32, y: i32 }",
+		"",
+		"fn make_point() -> Point {",
+		"  Point { x: 3, y: 4 }",
+		"}",
+		"",
+	}, "\n"))
+
+	wrapBody, ok := findCompiledFunction(result, "__able_wrap_fn_make_point")
+	if !ok {
+		t.Fatalf("could not find wrapper for make_point")
+	}
+	if !strings.Contains(wrapBody, "return __able_struct_Point_to(rt, compiledResult)") {
+		t.Fatalf("expected wrapper to use explicit Point boundary conversion:\n%s", wrapBody)
+	}
+	if strings.Contains(wrapBody, "__able_any_to_value(compiledResult)") {
+		t.Fatalf("wrapper should not route Point return through __able_any_to_value:\n%s", wrapBody)
+	}
+}
+
 // extractCompiledFunctionBody finds the func definition for a compiled function
 // containing the given name fragment and returns its body.
 func extractCompiledFunctionBody(code string, nameFragment string) string {
@@ -239,7 +371,12 @@ func extractCompiledFunctionBody(code string, nameFragment string) string {
 	if idx < 0 {
 		return ""
 	}
-	braceStart := strings.Index(code[idx:], "{")
+	lineEnd := strings.Index(code[idx:], "\n")
+	if lineEnd < 0 {
+		return ""
+	}
+	signature := code[idx : idx+lineEnd]
+	braceStart := strings.LastIndex(signature, "{")
 	if braceStart < 0 {
 		return ""
 	}

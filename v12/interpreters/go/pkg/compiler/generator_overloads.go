@@ -407,7 +407,7 @@ func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionC
 		ctx.setReason("missing function call")
 		return nil, "", "", false
 	}
-	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) && g.typeCategory(expected) == "unknown" {
+	if !g.isStaticallyKnownExpectedType(expected) {
 		ctx.setReason("call return type mismatch")
 		return nil, "", "", false
 	}

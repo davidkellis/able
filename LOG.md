@@ -1,5 +1,700 @@
 # Able Project Log
 
+# 2026-03-11 — Compiler test build-cache stabilization (v12)
+- Documented the next post-object-safe compiler lowering categories in
+  `PLAN.md`:
+  - non-object-safe/generic interface existentials;
+  - native callable/function-type existential ABI;
+  - tighter runtime-boundary auditing for residual interface/callable
+    `runtime.Value` usage.
+- Investigated the oversized repo-local Go build cache at
+  `v12/interpreters/go/.gocache` and confirmed the dominant growth source was
+  compiler tests building generated packages from fresh random module-local
+  temp directories like `tmp/ablec-interface-lookup-fixture-2902499314`.
+- Landed deterministic compiler test workdirs in
+  `v12/interpreters/go/pkg/compiler/compiler_test_workdir_test.go` and updated
+  the compiler exec/audit/benchmark harness tests to reuse stable module-local
+  `tmp/ablec-*` paths instead of `os.MkdirTemp(...)` package roots.
+- Fixed a native-interface synthesis recursion bug surfaced by the stricter
+  rerun path:
+  - `generator_native_interfaces.go` now installs an in-progress placeholder
+    entry before recursively mapping interface method signatures;
+  - `generator.go` tracks native interfaces currently under construction so
+    recursive interface/union signatures reuse the existing carrier token
+    instead of re-entering synthesis until stack overflow.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ExecHarness|InterfaceParamAndReturnStayNative|NativeInterfaceExecutes|TypedInterfaceAssignmentStaysNative)$|TestCompilerDynamicBoundary(CallbackInterfaceConversion(Success|Failure)Markers|MonoArrayCallbackInterfaceConversion(Success|Failure)Markers)$' -count=1` (pass).
+  - Repeated identical compiled-harness runs now reuse the same cache entries:
+    two back-to-back `TestCompilerExecHarness` runs produced
+    `delta_bytes=0 delta_files=0` for `v12/interpreters/go/.gocache`.
+- Current state:
+  - the cache-growth mechanism is fixed for these compiler tests going forward,
+    but the existing `v12/interpreters/go/.gocache` contents remain huge until
+    explicitly pruned;
+  - the broad `TestCompilerInterfaceLookupBypassForStaticFixtures` audit still
+    has unrelated staged-compiler correctness/build failures, but the previous
+    stack-overflow failure is resolved.
+
+# 2026-03-11 — Compiler object-safe native interface lowering completion (v12)
+- Closed the fully bound object-safe native interface/existential tranche in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_value_conversions.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_union_broad_test.go`
+- Behavior / architecture changes:
+  - fully bound object-safe Able interfaces now lower to generated native Go
+    interface carriers plus concrete/runtime adapters instead of collapsing
+    static compiled paths back to `runtime.Value` or `any`;
+  - static params, returns, typed local assignment, struct fields, and direct
+    method dispatch now stay on those native interface carriers;
+  - wrapper returns/args, lambda ABI conversion, and dynamic callback boundary
+    conversion now use explicit generated interface adapters instead of
+    implicitly binding interface-typed values as raw `runtime.Value`;
+  - native interface adapter population now refreshes against the current impl
+    set instead of freezing the first cached adapter view, which fixed the
+    no-fallback static-fixture regression where typed interface locals rejected
+    struct literals even though matching compiled impls existed;
+  - interface/open unions such as `String | Tag` still keep residual
+    non-native branches as explicit `runtime.Value` union members, but the
+    interface branch itself now stays native end-to-end on the static path.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InterfaceParamAndReturnStayNative|NativeInterfaceExecutes|TypedInterfaceAssignmentStaysNative|InterfaceBranchUnionStaysOnNativeCarrier|BroadNativeUnionExecutes|GenericUnionAliasesStayNative|MultiMemberUnionMatchStaysNative)$|TestCompilerExecFixtures/(10_03_interface_type_dynamic_dispatch|10_10_interface_inheritance_defaults|10_16_interface_value_storage|10_17_interface_overload_dispatch|11_02_option_result_or_handlers)$' -count=1` (pass).
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES='10_03_interface_type_dynamic_dispatch,10_10_interface_inheritance_defaults,10_16_interface_value_storage,10_17_interface_overload_dispatch' GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerDynamicBoundary(CallbackInterfaceConversion(Success|Failure)Markers|MonoArrayCallbackInterfaceConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - this object-safe interface carrier category is complete; the next category
+    is different work: non-object-safe/generic interface existentials,
+    callable/function-type existentials, and further runtime-boundary
+    tightening around those residual surfaces.
+
+# 2026-03-11 — Compiler residual dynamic-helper panic cleanup completion (v12)
+- Closed the residual dynamic-helper panic cleanup tranche in:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls_tail.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_runtime_call_control.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_iterators.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_await.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_concurrency.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_dynamic_helper_reachability_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_*shim_regression_test.go`
+- Behavior / architecture changes:
+  - generated `__able_member_get`, `__able_member_set`,
+    `__able_member_get_method`, `__able_member`, and `__able_method_call*`
+    helpers now use explicit ordinary Go `error` / `*__ableControl` returns
+    instead of raw panic-based error signaling;
+  - the temporary `recover`-based bridge wrappers
+    (`__able_error_from_panic`, `__able_bridge_call_value_with_node`,
+    `__able_bridge_call_named_with_node`) are gone, and generated bridge sites
+    now call the runtime bridge directly;
+  - generated compiler callsites that consume dynamic member/method helpers now
+    branch through shared control-return helpers instead of embedding bare
+    helper calls as value expressions;
+  - lambda callback argument conversion now preserves nullable pointer-struct
+    carriers by retaining the original Able parameter type expression, while
+    still rejecting `nil` for non-nullable struct params.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(DynamicHelpersRemovePanicBridgeWrappers|NormalizesArrayMemberReceiverUnwrap|RemovesTypeRefPointerMemberGetMethodShim|NormalizesInterfaceMemberGetMethodDispatch|PrefersInterfaceDispatchBeforeUFCSInMemberGetMethod|RemovesStructDefinitionPointerMemberGetMethodShim|RemovesStructDefinitionPointerQualifiedCallableShim|RemovesTypeRefPointerQualifiedCallableShim|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerDynamicBoundary' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NormalizesCallValue(UnwrapBranches|NativeFunctionDispatchBranches|NativeDispatchBranches|NativeBoundMethodDispatchBranches|BoundMethodDispatchBranches|FunctionThunkDispatch)|Removes(StructDefinitionPointerQualifiedCallableShim|NilPointerQualifiedCallableShim|TypeRefPointerQualifiedCallableShim|StructDefinitionPointerMemberGetMethodShim|TypeRefPointerMemberGetMethodShim|PackagePublicMemberGetMethodShim|ImplNamespacePointerQualifiedCallableShim|ImplNamespacePointerMemberGetMethodShim|ErrorValueMemberGetMethodShim)|NormalizesInterfaceMemberGetMethodDispatch|PrefersInterfaceDispatchBeforeUFCSInMemberGetMethod|DynamicHelpersRemovePanicBridgeWrappers)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|DirectErrorMessageAndCauseStayNative|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|NullableErrorReturnAndMatchStayNative|NullableErrorReturnExecutes|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionExecutes|ExplicitErrorUnionParamAndMatchStayNative|MultiMemberUnionMatchStaysNative|GenericUnionAliasesStayNative|InterfaceBranchUnionStaysOnNativeCarrier|SingletonStructBoundaryAcceptsRuntimeDefinition|BroadNativeUnionExecutes|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|DynamicHelpersRemovePanicBridgeWrappers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|NormalizesArrayMemberReceiverUnwrap)$|TestCompilerExecFixtures/(06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns|06_01_compiler_or_else_error_union|06_01_compiler_or_else|06_01_compiler_rescue|06_01_compiler_ensure_rethrow|06_01_compiler_ensure_error_passthrough|06_01_compiler_result_return|06_01_compiler_raise_error_interface|06_01_compiler_raise_non_error|11_02_option_result_or_handlers)$' -count=1` (pass).
+- Remaining gap:
+  - this cleanup category is complete; the next category is broader
+    interface/existential lowering and further runtime-boundary tightening, not
+    more residual panic-wrapper cleanup.
+
+# 2026-03-11 — Compiler dynamic-boundary control propagation completion (v12)
+- Closed the explicit dynamic-call boundary control tranche in:
+  - `v12/interpreters/go/pkg/compiler/generator_render_control.go`
+  - `v12/interpreters/go/pkg/compiler/generator_runtime_call_control.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls_tail.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_binary.go`
+  - `v12/interpreters/go/pkg/compiler/generator_iterators.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_strings.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_hash_maps.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_await.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_concurrency.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_call_value_*_shim_regression_test.go`
+- Behavior / architecture changes:
+  - compiled functions and helper-generated static callsites now propagate
+    explicit `*__ableControl` results through dynamic `call_value` /
+    `call_named` paths instead of letting native-wrapper errors explode through
+    `__able_panic_on_error(...)`;
+  - `__able_call_value(...)` and `__able_call_named(...)` now return
+    `(runtime.Value, *__ableControl)`, and compiled dynamic callsites convert
+    that control with ordinary Go branching via generated `controlCheckLines`;
+  - callback-bearing runtime helpers (`await`, mutex/channel callbacks,
+    hashmap iteration helpers, string-byte extraction, iterator yield) now
+    translate dynamic call-boundary control back into ordinary Go `error`
+    returns instead of panicking;
+  - plain non-nullable struct wrapper arg conversion now rejects `nil` before
+    compiled bodies run, fixing the dynamic callback struct-conversion failure
+    path;
+  - explicit dynamic bridge calls now contain residual panic-based helper
+    failures (`bridge.CallValueWithNode` / `bridge.CallNamedWithNode`) at the
+    boundary and normalize them back into ordinary errors so boundary markers
+    and diagnostics survive callback failures instead of being lost to raw
+    panics.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerDynamicBoundaryCallback(Array|Union|Nullable)ConversionFailureMarkers$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerDynamicBoundary' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NormalizesCallValue(UnwrapBranches|NativeFunctionDispatchBranches|NativeDispatchBranches|NativeBoundMethodDispatchBranches|BoundMethodDispatchBranches|FunctionThunkDispatch)|Removes(StructDefinitionPointerQualifiedCallableShim|NilPointerQualifiedCallableShim|TypeRefPointerQualifiedCallableShim|StructDefinitionPointerMemberGetMethodShim|TypeRefPointerMemberGetMethodShim|PackagePublicMemberGetMethodShim|ImplNamespacePointerQualifiedCallableShim|ImplNamespacePointerMemberGetMethodShim|ErrorValueMemberGetMethodShim)|NormalizesInterfaceMemberGetMethodDispatch|PrefersInterfaceDispatchBeforeUFCSInMemberGetMethod)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|DirectErrorMessageAndCauseStayNative|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|NullableErrorReturnAndMatchStayNative|NullableErrorReturnExecutes|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionExecutes|ExplicitErrorUnionParamAndMatchStayNative|MultiMemberUnionMatchStaysNative|GenericUnionAliasesStayNative|InterfaceBranchUnionStaysOnNativeCarrier|SingletonStructBoundaryAcceptsRuntimeDefinition|BroadNativeUnionExecutes|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap))$|TestCompilerExecFixtures/(06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns|06_01_compiler_or_else_error_union|06_01_compiler_or_else|06_01_compiler_rescue|06_01_compiler_ensure_rethrow|06_01_compiler_ensure_error_passthrough|06_01_compiler_result_return|06_01_compiler_raise_error_interface|06_01_compiler_raise_non_error|11_02_option_result_or_handlers)$' -count=1` (pass).
+- Remaining gap:
+  - this explicit dynamic-boundary control category is complete; the next,
+    separate hardening category is to remove the residual panic-based dynamic
+    helper internals (`__able_member_get_method`, `__able_member_get`, etc.)
+    so the narrow boundary `recover` containment layer can be deleted.
+
+# 2026-03-11 — Compiler broader native-union carrier widening (v12)
+- Completed the next native-union widening tranche in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_unions.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_ident.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_union_broad_test.go`
+- Behavior / architecture changes:
+  - closed native unions are no longer limited to the first two-member nominal
+    slice; multi-member nominal unions now stay on generated native union
+    carriers instead of falling back to `any`;
+  - generic union aliases that normalize to native nullable/result carrier
+    families, such as `Option T = nil | T` and `Result T = Error | T`, now stay
+    on those same native carriers on compiled static paths;
+  - broader interface/open unions such as `String | Tag` now also stay on
+    generated native union carriers, with non-native residual members carried as
+    explicit `runtime.Value` branches inside the generated carrier instead of
+    forcing the whole union back to `any`;
+  - singleton struct boundary converters now accept runtime
+    `StructDefinitionValue` inputs as well as `StructInstanceValue`, which fixes
+    interpreted callers passing bare singleton values like `Blue` into compiled
+    native struct/union params and keeps the widened native union path
+    executable, not just compile-time green.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(MultiMemberUnionMatchStaysNative|GenericUnionAliasesStayNative|InterfaceBranchUnionStaysOnNativeCarrier|SingletonStructBoundaryAcceptsRuntimeDefinition|BroadNativeUnionExecutes)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|ExplicitErrorUnionParamAndMatchStayNative|ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionExecutes|NullableErrorReturnAndMatchStayNative|NullableErrorReturnExecutes|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|MultiMemberUnionMatchStaysNative|GenericUnionAliasesStayNative|InterfaceBranchUnionStaysOnNativeCarrier|SingletonStructBoundaryAcceptsRuntimeDefinition|BroadNativeUnionExecutes)$|TestCompilerExecFixtures/(06_01_compiler_result_return|06_01_compiler_or_else_error_union|11_02_option_result_or_handlers|06_01_compiler_nullable_param|06_01_compiler_nullable_return)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackUnionConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - this broader carrier-widening category is complete for the current native
+    union ABI tranche; the next category is explicit control-result
+    propagation, while deeper interface existential lowering beyond the current
+    residual `runtime.Value` union branches remains later follow-on work.
+
+# 2026-03-11 — Compiler native `Error` cleanup completion (v12)
+- Closed the remaining narrow native-`Error` cleanup gaps in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_error_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_overloads.go`
+  - `v12/interpreters/go/pkg/compiler/generator_concurrency.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_result_test.go`
+- Behavior / architecture changes:
+  - direct compiled `Error.message()` now lowers to native
+    `runtime.ErrorValue.Message` field reads instead of
+    `__able_method_call_node(...)` / dynamic member lookup;
+  - direct compiled `Error.cause()` now lowers to native
+    `runtime.ErrorValue.Payload["cause"]` extraction plus normalized nullable
+    error coercion only when needed, instead of dynamic method dispatch;
+  - native concrete-error normalization now preserves compiled `cause()`
+    payloads as well as compiled `message()` text when constructing
+    `runtime.ErrorValue`;
+  - struct field conversion/rendering now supports both `Error` and `?Error`
+    native carriers, so error-bearing structs no longer fall back to
+    unsupported-field codegen on static paths;
+  - the generic expected-type guards used by dynamic-call / overload / await
+    lowering now recognize compiler-native nullable carriers, so `*runtime.ErrorValue`
+    no longer trips false "unknown expected type" compile failures.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|DirectErrorMessageAndCauseStayNative|DirectErrorCauseExecutes|ExplicitErrorUnionParamAndMatchStayNative|ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionExecutes|NullableErrorReturnAndMatchStayNative|NullableErrorReturnExecutes)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|DirectErrorMessageAndCauseStayNative|DirectErrorCauseExecutes|ExplicitErrorUnionParamAndMatchStayNative|ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|NullableErrorReturnAndMatchStayNative|NullableErrorReturnExecutes|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|MatchOnErrorUnionExecutes|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_result_return|11_02_option_result_or_handlers|06_01_compiler_or_else_error_union|06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackUnionConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NormalizesStructInstanceErrorUnwrap|RemovesErrorValueMemberGetMethodShim|NormalizesErrorBuiltinMemberReceivers|RegistersBuiltinErrorMemberMethods)$' -count=1` (pass).
+- Remaining gap:
+  - the native `Error` special-case cleanup is complete; remaining union work
+    now moves into a different category: broader interface/open/generic union
+    lowering, followed by explicit control-result propagation.
+
+# 2026-03-11 — Compiler native nullable `?Error` slice (v12)
+- Extended the native error-carrier family to `?Error` in:
+  - `v12/interpreters/go/pkg/compiler/generator_nullable_native.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_nullable.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_nullable_native_test.go`
+- Behavior / architecture changes:
+  - `?Error` now lowers to `*runtime.ErrorValue` on compiled static paths
+    instead of falling back to `any` / `runtime.Value`;
+  - concrete `Error` implementers flowing into nullable `Error` positions now
+    normalize through the same compiled `runtime.ErrorValue` path used by the
+    direct `Error` / `!T` slices, then wrap into the native nullable pointer
+    carrier;
+  - native nullable helper emission now includes explicit `Error` adapter
+    helpers, so wrapper/lambda boundaries and native `match` on `?Error` stay
+    on the compiled nullable path without `__able_try_cast(...)` /
+    `bridge.MatchType(...)`.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NullableErrorReturnAndMatchStayNative|NullableErrorReturnExecutes|DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|ExplicitErrorUnionParamAndMatchStayNative|ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NullableErrorReturnAndMatchStayNative|NullableErrorReturnExecutes|DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|ExplicitErrorUnionParamAndMatchStayNative|ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|MatchOnErrorUnionExecutes|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_result_return|11_02_option_result_or_handlers|06_01_compiler_or_else_error_union|06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackUnionConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - this is still part of the narrow native `Error` carrier family, not a
+    general native lowering for arbitrary interface existential types.
+
+# 2026-03-11 — Compiler native `Error` carrier widening (v12)
+- Widened the first native union/result slice so plain `Error` type positions
+  now use the native `runtime.ErrorValue` carrier in:
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_result_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_union_test.go`
+- Behavior / architecture changes:
+  - `Error` no longer maps to `runtime.Value` on compiled static paths; it now
+    maps to `runtime.ErrorValue`, which lets explicit `Error` returns and
+    explicit `String | Error` unions stay on the native carrier family already
+    used by the first `!T` slice;
+  - static coercion now normalizes concrete `Error` implementers into
+    `runtime.ErrorValue` at the compiled edge, including direct `Error`
+    returns and concrete-error values flowing into native `Error` union
+    members;
+  - wrapper argument conversion for native `Error` params now validates the
+    runtime value against `Error` first, then normalizes it into the compiled
+    `runtime.ErrorValue` carrier instead of defaulting back to `runtime.Value`.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|ExplicitErrorUnionParamAndMatchStayNative|ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionExecutes)$|TestCompilerExecFixtures/(06_01_compiler_result_return|06_01_compiler_or_else_error_union|11_02_option_result_or_handlers)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(DirectErrorReturnUsesNativeCarrier|DirectErrorReturnExecutes|ExplicitErrorUnionParamAndMatchStayNative|ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|MatchOnErrorUnionExecutes|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_result_return|11_02_option_result_or_handlers|06_01_compiler_or_else_error_union|06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackUnionConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - this is still only a native `Error` special-case, not a general native
+    interface-carrier ABI; broader interface branches and open/generic unions
+    still remain follow-on work.
+
+# 2026-03-11 — Compiler native result `!T` slice (v12)
+- Landed the first compiler-native `ResultTypeExpression` slice in:
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_value_conversions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_rescue.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_result_test.go`
+- Behavior / architecture changes:
+  - `types.go` now maps the first native `!T` slice to generated native union
+    carriers when the result shape normalizes to the current two-member
+    `runtime.ErrorValue | T` ABI;
+  - compiled returns, branch coercion, and propagation on those shapes now wrap
+    and unwrap the native carrier directly instead of lowering the whole result
+    path to `any`;
+  - no-bootstrap concrete `Error` implementers now normalize into
+    `runtime.ErrorValue` by calling the compiled `Error.message()` impl first,
+    instead of depending on `bridge.ErrorValue(...)` to recover the message at
+    runtime from interpreter-backed interface machinery;
+  - `value(false)! or { err => ... }` now executes correctly on the compiled
+    no-bootstrap path for the current native result carrier slice.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|ResultPropagationExecutes|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|MatchOnErrorUnionExecutes|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_result_return|11_02_option_result_or_handlers|06_01_compiler_or_else_error_union|06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackUnionConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - the current result slice is still deliberately narrow: broader
+    interface-branch, generic/open union, and explicit control-result lowering
+    work is still pending.
+
+# 2026-03-11 — Compiler native union `Error` match branches (v12)
+- Extended the first closed native union slice so typed `Error` match branches
+  on native union carriers now stay on the static path in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_union_test.go`
+- Behavior / architecture changes:
+  - native closed-union typed-pattern resolution now recognizes the case where
+    exactly one concrete union member implements the requested interface name,
+    starting with the `Error`-typed branch shape used by the current result /
+    error-handling surface;
+  - static `match` conditions on those branches now unwrap through the
+    generated native union helper first instead of falling back to
+    `bridge.MatchType(...)` / `__able_try_cast(...)`;
+  - when the typed branch binds the whole matched error value
+    (`case err: Error => ...`), the matched concrete value converts to
+    `runtime.Value` only at that branch edge so existing dynamic `Error`
+    method calls keep working without re-boxing the whole match path;
+  - the same typed-pattern resolution is now shared with assignment-pattern
+    lowering so the union/interface discrimination logic stays centralized.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|MatchOnErrorUnionUsesNativeCarrierDetection|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter|MatchOnErrorUnionExecutes)$|TestCompilerExecFixtures/(06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns|06_01_compiler_or_else_error_union|06_01_compiler_result_return|11_02_option_result_or_handlers)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers|CallbackUnionConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - `ResultTypeExpression` still lowers to `any`, and this new static typed
+    branch support is still limited to the narrow “one concrete member
+    implements the interface” closed-union case rather than a full native
+    interface carrier ABI.
+
+# 2026-03-11 — Compiler native union `or {}` failure detection (v12)
+- Corrected `or {}` lowering for the first closed native union slice in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_union_test.go`
+- Behavior / architecture changes:
+  - `compileOrElseExpression(...)` now recognizes native two-branch union
+    carriers whose failure branch is a native `Error` implementer and treats
+    that branch as the failure path instead of only probing `runtime.Value` /
+    nullable carriers;
+  - the success path stays on the native success carrier and unwraps through the
+    generated union helper instead of forcing the whole `or {}` expression back
+    through runtime-value failure checks;
+  - when an `err => ...` binding is present, the failure branch converts to
+    `runtime.Value` only at the handler edge so handler code can keep using the
+    existing `Error` method surface without re-boxing the whole expression path;
+  - nullable `or {}` inference was tightened at the same time so unannotated
+    handlers prefer the unwrapped payload type (`T`), not the native carrier
+    type (`*T`), preserving nil-failure semantics for the existing native
+    nullable slice.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|NullableI32ReturnAndOrElseStayNative)$|TestCompilerExecFixtures/(06_01_compiler_or_else_error_union|11_02_option_result_or_handlers|06_01_compiler_result_return)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|OrElseOnErrorUnionUsesNativeCarrierDetection|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns|06_01_compiler_or_else_error_union|06_01_compiler_result_return|11_02_option_result_or_handlers)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers|CallbackUnionConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - `ResultTypeExpression` still lowers to `any` because a fully native `!T`
+    slice is coupled to native interface/error carriers; the broader result
+    ABI remains follow-on work.
+
+# 2026-03-11 — Compiler closed native union slice (v12)
+- Landed the first closed native union carrier pass in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_unions.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_value_conversions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_union_test.go`
+- Behavior / architecture changes:
+  - direct two-member `UnionTypeExpression` shapes whose branches already map to
+    native Go carriers now lower to generated Go interfaces plus wrapper
+    carrier structs instead of `any`;
+  - named union definitions that normalize to the same two-branch native shape
+    now map to those same generated carriers;
+  - compiled params/returns, explicit wrapper/lambda boundary adapters, and
+    runtime-value conversion helpers now use explicit generated union helpers
+    instead of broad `any` conversion for those shapes;
+  - typed `match` lowering on static native union carriers now unwraps branches
+    through generated helper functions instead of routing through
+    `__able_try_cast(...)`;
+  - the named-union path now normalizes parser output where `union A = B | C`
+    arrives as a single `UnionTypeExpression` inside `def.Variants`.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers|CallbackUnionConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - `ResultTypeExpression` still lowers to `any`, and broader union surfaces
+    such as generic/open unions, interface-branch unions, and non-typed union
+    pattern forms still need native lowering.
+
+# 2026-03-10 — Compiler native nullable scalar widening (v12)
+- Broadened the compiler-native nullable carrier slice from the original trio to
+  the full compiler-native scalar family in:
+  - `v12/interpreters/go/pkg/compiler/generator_nullable_native.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_nullable.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_literals.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_nullable_native_test.go`
+- Behavior / architecture changes:
+  - `mapNullableType(...)` now lowers compiler-native scalar nullable values to
+    typed Go pointer carriers across the full currently supported scalar set:
+    `?bool`, `?String`, `?char`, `?f32`, `?f64`, `?isize`, `?usize`, `?i8`,
+    `?i16`, `?i32`, `?i64`, `?u8`, `?u16`, `?u32`, `?u64`;
+  - generated runtime helper emission for those carriers now lives in
+    `generator_render_runtime_nullable.go`, which keeps
+    `generator_render_runtime.go` under the repo's 1000-line limit while
+    centralizing the native nullable boundary adapter family;
+  - nullable integer, float, and char literals now lower directly to typed
+    native pointer carriers (`__able_ptr(...)`) when a static nullable scalar
+    type is expected instead of falling back to `any`.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - general unions/results still lower to `any`, and typed union/result pattern
+    matching still needs a native carrier/type-switch ABI instead of the
+    current staged dynamic coercion path.
+
+# 2026-03-10 — Compiler native nullable value carriers (v12)
+- Landed the first code-bearing union/nullable compiler slice in:
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_nullable_native.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime.go`
+  - `v12/interpreters/go/pkg/compiler/generator_value_conversions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_ident.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match_runtime_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_nullable_native_test.go`
+- Behavior / architecture changes:
+  - `?i32`, `?bool`, and `?String` now lower to native Go pointer carriers
+    (`*int32`, `*bool`, `*string`) instead of `any`;
+  - compiled wrappers/lambdas now convert those nullable carriers explicitly at
+    dynamic boundaries via dedicated generated helpers instead of routing
+    through `any`;
+  - typed nullable `match` cases on static paths now lower through native nil
+    checks plus direct payload dereference instead of `__able_try_cast(...)`;
+  - `or {}` on native nullable values now branches on nil directly and unwraps
+    the payload natively on success.
+- Structural maintenance:
+  - split conversion helpers out of `generator_collections.go` into
+    `generator_value_conversions.go`;
+  - split runtime/literal match tail helpers out of `generator_match.go` into
+    `generator_match_runtime_types.go`;
+  - both previously affected compiler files are back under the repo's
+    1000-line limit.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative)$|TestCompilerExecFixtures/(06_01_compiler_nullable_param|06_01_compiler_nullable_return)$|TestCompilerDynamicBoundaryCallbackNullableConversion(Success|Failure)Markers$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_nullable_param|06_01_compiler_nullable_return|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$|TestCompilerDynamicBoundary(CallbackNullableConversion(Success|Failure)Markers|CallbackArrayConversion(Success|Failure)Markers)$' -count=1` (pass).
+- Remaining gap:
+  - this first native nullable pass landed the architecture and was then
+    broadened later the same day; see the follow-on scalar-widening entry above
+    for the current carrier surface.
+
+# 2026-03-10 — Compiler union ABI kickoff audit (v12)
+- Started the native union-lowering tranche by documenting the target ABI in:
+  - `v12/design/compiler-union-abi.md`
+  - `PLAN.md`
+- Audit result captured:
+  - current compiler lowering still maps `UnionTypeExpression` and
+    `ResultTypeExpression` to `any`;
+  - nullable lowering only keeps pointer/slice forms native today; nullable
+    value types still fall back to `any`;
+  - typed union/nullable pattern checks and wrapper coercions still rely on
+    dynamic `bridge.MatchType(...)` / `__able_try_cast(...)`.
+- First implementation order was fixed before code work starts:
+  - native nullable value carriers first (`?i32`, `?bool`, `?String`);
+  - then closed two-branch native unions over nominal types;
+  - then native pattern dispatch over those carriers;
+  - then wrapper/boundary adapters for those same shapes.
+- Remaining gap:
+  - no native union carrier code has landed yet; this tranche only established
+    the implementation order and target ABI so follow-on compiler work can
+    reduce `any` deliberately instead of continuing the staged fallback.
+
+# 2026-03-10 — Compiler dynamic-helper reachability audit (v12)
+- Added a stricter reachability audit for residual dynamic helpers in:
+  - `v12/interpreters/go/pkg/compiler/compiler_dynamic_helper_reachability_test.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime.go`
+- Behavior / enforcement changes:
+  - static native array/struct compiled paths are now regression-audited to
+    prove they do not call `__able_index`, `__able_index_set`,
+    `__able_member_get`, `__able_member_set`, `__able_member_get_method`, or
+    `__able_call_value`;
+  - an explicit dynamic package/member/index example is regression-audited to
+    prove the residual helper layer is still reachable when dynamic behavior is
+    actually requested, specifically through `__able_member_get`,
+    `__able_call_value`, and `__able_index`;
+  - `__able_index` / `__able_index_set` now use the same normalized runtime
+    array receiver shim as the member helpers.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(StaticNativePathsAvoidDynamicHelperReachability|ExplicitDynamicPathsUseDynamicHelpers|NormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges)$|TestCompilerExecFixtures/(06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$|TestCompilerDynamicBoundaryCallbackArrayConversion(Success|Failure)Markers$' -count=1` (pass).
+- Remaining gap:
+  - this audit proves helper reachability from representative static vs dynamic
+    cases, but it does not yet prove the same property for every remaining
+    residual dynamic helper surface such as more exotic `member_set` paths.
+
+# 2026-03-10 — Compiler residual array dynamic-helper audit (v12)
+- Audited the remaining array dynamic helpers in:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_index_receiver_shim_regression_test.go`
+- Behavior / architecture changes:
+  - normalized `__able_index` and `__able_index_set` to use the shared
+    `__able_runtime_array_value(...)` unwrapping helper instead of direct
+    `*runtime.ArrayValue` pointer assertions;
+  - confirmed current static array compiler slices continue to bypass
+    `__able_index`, `__able_index_set`, `__able_member_get`, and
+    `__able_member_set` on native `*Array` paths, leaving these helpers as
+    residual dynamic/boundary machinery rather than the primary static lowering;
+  - the remaining dynamic helper surface still preserves legacy handle-oriented
+    behavior for interpreter-owned array values and `Array` struct instances,
+    which is acceptable for now because those helpers are boundary-only.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NormalizesArrayIndexReceiverUnwrap|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges)$|TestCompilerNormalizesArray(IndexReceiverUnwrap|MemberReceiverUnwrap)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures/(06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$' -count=1` (pass).
+- Remaining gap:
+  - the helper layer still needs a broader reachability audit if we want to
+    mechanically prove every remaining `__able_index` / `__able_member_*`
+    emission site is tied only to explicit dynamic behavior.
+
+# 2026-03-10 — Compiler array boundary helper narrowing (v12)
+- Continued the compiler native-lowering work by tightening generated `Array`
+  boundary adapters in:
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+- Behavior / architecture changes:
+  - `__able_struct_Array_from` now reads existing `runtime.ArrayValue` handle
+    state with `runtime.ArrayStoreState` instead of re-normalizing through
+    `runtime.ArrayStoreEnsure`;
+  - `__able_struct_Array_to` now routes through a shared
+    `__able_struct_Array_runtime_value` helper and keeps plain
+    `*runtime.ArrayValue` boundaries handle-free when no handle is already
+    present on the compiled `Array`;
+  - `__able_struct_Array_apply` now keeps raw `*runtime.ArrayValue` targets
+    handle-free unless the raw target or compiled value already carries a
+    handle, and allocates/synchronizes a handle only when applying back into an
+    interpreter `Array` struct instance target that requires `storage_handle`
+    semantics;
+  - removed the legacy `Array_apply -> Array_to -> *runtime.StructInstanceValue`
+    fallback for `Array` struct-instance targets; the Array-specific apply path
+    now updates those targets directly.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures/(06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range|06_01_compiler_match_patterns|06_01_compiler_assignment_patterns)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerDynamicBoundaryCallbackArrayConversion(Success|Failure)Markers$' -count=1` (pass).
+- Remaining gap:
+  - explicit array dynamic runtime helpers outside struct conversion
+    (`generator_render_runtime*.go`) still preserve legacy handle-oriented
+    behavior and need a separate audit to confirm they are only used at true
+    dynamic boundaries.
+
+# 2026-03-10 — Compiler native array pattern lowering (v12)
+- Continued the compiler native-lowering work by removing remaining
+  `runtime.ArrayValue` rest-tail materialization from static compiled array
+  destructuring in:
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_match.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+- Behavior / architecture changes:
+  - static array pattern conditions and bindings now accept compiled `*Array`
+    subjects directly instead of rejecting them and forcing runtime-only
+    destructuring paths;
+  - array rest bindings in both `match` and pattern assignment now synthesize a
+    native compiled `*Array` tail via the compiler-owned `Array` carrier plus
+    `__able_struct_Array_sync`, instead of materializing
+    `&runtime.ArrayValue{Elements: ...}`;
+  - pattern assignments on static subjects now match/bind against the native
+    compiled subject type first and convert back to `runtime.Value` only at the
+    assignment-expression result edge;
+  - `match` expressions no longer blanket-convert struct subjects to
+    `runtime.Value` before pattern dispatch, which keeps static `Array`
+    destructuring native on direct compiled paths;
+  - split match lowering into `generator_controlflow_match.go`, bringing
+    `generator_controlflow.go` back under the repo's 1000-line limit.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures/(06_01_compiler_match_patterns|06_01_compiler_assignment_patterns|05_02_array_nested_patterns|06_01_compiler_assignment_pattern_rest_mismatch)$' -count=1` (pass).
+- Remaining gap:
+  - compiled array boundaries still retain explicit `runtime.ArrayValue` /
+    `ArrayStore*` adapters, which is acceptable only at explicit dynamic
+    boundaries and still needs further narrowing.
+
+# 2026-03-10 — Compiler native struct-local carrier correction (v12)
+- Continued the compiler native-lowering work by removing declaration-time
+  boxing of unannotated local struct values in:
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_struct_static_dispatch_test.go`
+- Behavior / architecture changes:
+  - unannotated local struct declarations no longer rewrite native compiled
+    struct pointers back into `runtime.Value` just to preserve dispatch/identity;
+  - static field access and static method dispatch now keep those locals as
+    native Go struct pointers and use direct compiled field/method paths
+    without `__able_struct_*_from` / `__able_struct_*_to` extract-writeback
+    shims in the tested static cases;
+  - direct compiled function calls on static struct paths are now regression-
+    covered for native param passing, native returns, and native mutation-
+    through-call behavior;
+  - wrapper returns for native struct and array values now use explicit
+    `__able_struct_*_to` conversion instead of routing through the broad
+    `__able_any_to_value` helper;
+  - the legacy `OriginGoType` runtime-value bridge remains available only for
+    residual boxed cases, but static locals no longer depend on it by default.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata)$|TestCompilerExecFixtures/(06_01_compiler_bound_method_value|07_04_trailing_lambda_method_syntax|10_07_interface_default_chain|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata)$|TestCompilerExecFixtures/(06_01_compiler_bound_method_value|07_04_trailing_lambda_method_syntax|10_07_interface_default_chain|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|StructFunctionParamAndReturnStayNative|StructMutationAcrossStaticFunctionCallStaysNative|StructWrapperReturnUsesExplicitStructConverter)$|TestCompilerExecFixtures/(06_01_compiler_bound_method_value|07_04_trailing_lambda_method_syntax|10_07_interface_default_chain|06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range)$' -count=1` (pass).
+- Remaining gap:
+  - the broader struct native-lowering contract is not complete yet; explicit
+    dynamic-boundary conversions, params/returns crossing residual runtime
+    carriers, and union lowering still need follow-through.
+
+# 2026-03-10 — Compiler static array carrier correction (v12)
+- Continued the compiler native-lowering reset by correcting the static `Array`
+  path in:
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_builtin_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_intrinsics.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+- Behavior / architecture changes:
+  - the compiler now synthesizes built-in `Array` struct metadata even when no
+    source module defines `Array`, so array literals can lower to a native
+    compiled carrier instead of immediately falling back to `runtime.ArrayValue`;
+  - compiled `Array` values now keep the spec-visible metadata fields
+    (`length`, `capacity`, `storage_handle`) and carry hidden native
+    `Elements []runtime.Value` storage for static execution;
+  - unannotated local `Array` declarations now stay as native compiled `*Array`
+    values instead of being auto-boxed back into `runtime.Value`;
+  - static array literal / `push` / `write_slot` / direct index assignment /
+    `clear` lowering now mutates the native slice directly and synchronizes
+    metadata after mutation.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(WhileLoopFastPath|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata)$|TestCompilerExecFixtures/(06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range|06_01_compiler_index_assignment|06_01_compiler_index_assignment_value)$' -count=1` (pass).
+  - attempted `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -count=1`, but stopped the run after roughly 3 minutes because it exceeded the repo's stated quick-test expectation; no failures surfaced before cancellation.
+- Remaining gap:
+  - explicit compiled/interpreter array boundary adapters still use
+    `runtime.ArrayValue` / `ArrayStore*`; that is acceptable only at the
+    boundary, and this workstream remains open until those adapters are
+    narrowed and the rest of the static nominal-value lowering contract is
+    enforced.
+
+# 2026-03-10 — Compiler native-lowering contract documented (v12)
+- Recorded the active compiler direction in:
+  - `v12/design/compiler-native-lowering.md`
+  - `v12/design/compiler-monomorphization.md`
+  - `v12/design/compiler-no-panic-flow-control.md`
+  - `spec/TODO_v12.md`
+  - `PLAN.md`
+- Direction reset captured:
+  - static compiled code should lower Able constructs to native Go carriers wherever semantics are representable;
+  - arrays should use compiler-native Go array-backed storage on static paths, not `runtime.ArrayValue`, `ArrayStore*`, or kernel `storage_handle` plumbing;
+  - structs should remain native Go structs/pointers on static paths rather than being auto-boxed to `runtime.Value`;
+  - unions should target generated Go interfaces plus native variant carriers rather than stopping at `any`;
+  - compiled flow should avoid IIFEs and `panic`/`recover`, using explicit control-result signaling for non-local jumps and exceptions.
+- Current state note:
+  - the recent compiler-side `Array -> Elements []runtime.Value` rewrite is being treated as an in-flight experiment under audit, not as an accepted final architecture.
+- Next steps:
+  - audit/back out the runtime-backed static array hybrid in the staged compiler diff;
+  - define the compiler-native array ABI for static code;
+  - remove struct-local boxing and design native union lowering plus explicit control-result propagation.
+
 # 2026-03-05 — Dynamic array first-append pre-grow (v12)
 - Reduced hot append-loop allocation churn in:
   - `v12/interpreters/go/pkg/runtime/array_store.go`

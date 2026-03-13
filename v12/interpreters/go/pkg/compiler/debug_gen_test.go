@@ -14,7 +14,7 @@ import (
 
 func TestDebugArrayBoundary(t *testing.T) {
 	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
-	dir := filepath.Join(root, "06_12_01_stdlib_string_helpers")
+	dir := filepath.Join(root, "06_12_16_stdlib_collections_deque_queue")
 	manifest, err := interpreter.LoadFixtureManifest(dir)
 	if err != nil {
 		t.Fatalf("read manifest: %v", err)

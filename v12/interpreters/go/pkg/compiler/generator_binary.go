@@ -348,7 +348,11 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 		argsTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("var %s []runtime.Value", argsTemp))
 		lines = append(lines, fmt.Sprintf("switch %s.(type) { case runtime.BoundMethodValue, *runtime.BoundMethodValue, runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue: %s = nil; default: %s = []runtime.Value{%s} }", rhsTemp, argsTemp, argsTemp, subjectTemp))
-		lines = append(lines, fmt.Sprintf("%s := __able_call_value(%s, %s, nil)", callTemp, rhsTemp, argsTemp))
+		var callOK bool
+		lines, callTemp, callOK = g.appendRuntimeCallControlLines(ctx, lines, fmt.Sprintf("__able_call_value(%s, %s, nil)", rhsTemp, argsTemp))
+		if !callOK {
+			return nil, "", "", false
+		}
 		return g.pipeResultLines(ctx, expected, lines, callTemp)
 	}
 
@@ -388,7 +392,11 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 		lines = append(lines, fmt.Sprintf("switch %s.(type) { case runtime.BoundMethodValue, *runtime.BoundMethodValue, runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue: %s = %s; default: %s = %s }", calleeTemp, argsTemp, runtimeValueSlice(argTemps), argsTemp, runtimeValueSliceWithSubject(subjectTemp, argTemps)))
 		callTemp := ctx.newTemp()
 		callNode := g.diagNodeName(call, "*ast.FunctionCall", "call")
-		lines = append(lines, fmt.Sprintf("%s := __able_call_value(%s, %s, %s)", callTemp, calleeTemp, argsTemp, callNode))
+		var callOK bool
+		lines, callTemp, callOK = g.appendRuntimeCallControlLines(ctx, lines, fmt.Sprintf("__able_call_value(%s, %s, %s)", calleeTemp, argsTemp, callNode))
+		if !callOK {
+			return nil, "", "", false
+		}
 		return g.pipeResultLines(ctx, expected, lines, callTemp)
 	}
 
@@ -409,7 +417,11 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 	lines = append(lines, fmt.Sprintf("var %s []runtime.Value", argsTemp))
 	lines = append(lines, fmt.Sprintf("switch %s.(type) { case runtime.BoundMethodValue, *runtime.BoundMethodValue, runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue: %s = nil; default: %s = []runtime.Value{%s} }", rhsTemp, argsTemp, argsTemp, subjectTemp))
 	callTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s := __able_call_value(%s, %s, nil)", callTemp, rhsTemp, argsTemp))
+	var callOK bool
+	lines, callTemp, callOK = g.appendRuntimeCallControlLines(ctx, lines, fmt.Sprintf("__able_call_value(%s, %s, nil)", rhsTemp, argsTemp))
+	if !callOK {
+		return nil, "", "", false
+	}
 	return g.pipeResultLines(ctx, expected, lines, callTemp)
 }
 
@@ -459,7 +471,15 @@ func (g *generator) compileRuntimeBinaryOperation(ctx *compileContext, op string
 	var lines []string
 	lines = append(lines, leftLines...)
 	lines = append(lines, rightLines...)
-	expr := fmt.Sprintf("__able_binary_op(%q, %s, %s)", op, leftVal, rightVal)
+	resultTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s, %s := __able_binary_op(%q, %s, %s)", resultTemp, controlTemp, op, leftVal, rightVal))
+	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, controlLines...)
+	expr := resultTemp
 	switch op {
 	case "==", "!=", "<", "<=", ">", ">=":
 		if expected != "" && expected != "bool" {
@@ -550,15 +570,30 @@ func (g *generator) bitSizeExpr(goType string) string {
 func (g *generator) compileDivisionExpression(ctx *compileContext, left string, right string, operandType string, resultType string, nodeName string) ([]string, string) {
 	leftTemp := ctx.newTemp()
 	rightTemp := ctx.newTemp()
+	resultTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s := %s", leftTemp, left),
 		fmt.Sprintf("%s := %s", rightTemp, right),
 	}
 	if g.isIntegerType(operandType) {
-		lines = append(lines, fmt.Sprintf("if %s == 0 { __able_raise_division_by_zero(%s) }", rightTemp, nodeName))
-		return lines, fmt.Sprintf("float64(%s) / float64(%s)", leftTemp, rightTemp)
+		transferLines, ok := g.controlTransferLines(ctx, fmt.Sprintf("control"))
+		if !ok {
+			return nil, ""
+		}
+		lines = append(lines, fmt.Sprintf("if %s == 0 {", rightTemp))
+		lines = append(lines, indentLines([]string{
+			fmt.Sprintf("if control := __able_raise_division_by_zero(%s); control != nil {", nodeName),
+		}, 1)...)
+		lines = append(lines, indentLines(transferLines, 2)...)
+		lines = append(lines, indentLines([]string{
+			"}",
+		}, 1)...)
+		lines = append(lines, "}")
+		lines = append(lines, fmt.Sprintf("%s := float64(%s) / float64(%s)", resultTemp, leftTemp, rightTemp))
+		return lines, resultTemp
 	}
-	return lines, fmt.Sprintf("(%s / %s)", leftTemp, rightTemp)
+	lines = append(lines, fmt.Sprintf("%s := (%s / %s)", resultTemp, leftTemp, rightTemp))
+	return lines, resultTemp
 }
 
 func (g *generator) compileDivModExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) ([]string, string) {
@@ -572,15 +607,21 @@ func (g *generator) compileDivModExpression(ctx *compileContext, left string, ri
 		cast = "uint64"
 	}
 	resultTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s := %s", leftTemp, left),
 		fmt.Sprintf("%s := %s", rightTemp, right),
 	}
 	if op == "//" {
-		lines = append(lines, fmt.Sprintf("%s, _ := %s(%s(%s), %s(%s), %s, %s)", resultTemp, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName))
+		lines = append(lines, fmt.Sprintf("%s, _, %s := %s(%s(%s), %s(%s), %s, %s)", resultTemp, controlTemp, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName))
 	} else {
-		lines = append(lines, fmt.Sprintf("_, %s := %s(%s(%s), %s(%s), %s, %s)", resultTemp, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName))
+		lines = append(lines, fmt.Sprintf("_, %s, %s := %s(%s(%s), %s(%s), %s, %s)", resultTemp, controlTemp, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName))
 	}
+	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	if !ok {
+		return nil, ""
+	}
+	lines = append(lines, controlLines...)
 	return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 }
 
@@ -611,13 +652,19 @@ func (g *generator) compileDivModResultExpression(ctx *compileContext, left stri
 	typeExpr := fmt.Sprintf("ast.Ty(%q)", suffix)
 	qTemp := ctx.newTemp()
 	rTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s := %s", leftTemp, left),
 		fmt.Sprintf("%s := %s", rightTemp, right),
-		fmt.Sprintf("%s, %s := %s(%s(%s), %s(%s), %s, %s)", qTemp, rTemp, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName),
+		fmt.Sprintf("%s, %s, %s := %s(%s(%s), %s(%s), %s, %s)", qTemp, rTemp, controlTemp, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName),
 		fmt.Sprintf("%s := %s(%s)", quotTemp, operandType, qTemp),
 		fmt.Sprintf("%s := %s(%s)", remTemp, operandType, rTemp),
 	}
+	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	if !ok {
+		return nil, "", false
+	}
+	lines = append(lines, controlLines...)
 	return lines, fmt.Sprintf("__able_divmod_result(%s, %s, %s)", quotVal, remVal, typeExpr), true
 }
 
@@ -634,13 +681,29 @@ func (g *generator) compileShiftExpression(ctx *compileContext, left string, rig
 		if op == ">>" {
 			helper = "__able_shift_right_unsigned"
 		}
-		return lines, fmt.Sprintf("%s(%s(uint64(%s), uint64(%s), %s, %s))", operandType, helper, leftTemp, rightTemp, bitsExpr, nodeName)
+		resultTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s, %s := %s(uint64(%s), uint64(%s), %s, %s)", resultTemp, controlTemp, helper, leftTemp, rightTemp, bitsExpr, nodeName))
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, ""
+		}
+		lines = append(lines, controlLines...)
+		return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 	}
 	helper := "__able_shift_left_signed"
 	if op == ">>" {
 		helper = "__able_shift_right_signed"
 	}
-	return lines, fmt.Sprintf("%s(%s(int64(%s), int64(%s), %s, %s))", operandType, helper, leftTemp, rightTemp, bitsExpr, nodeName)
+	resultTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s, %s := %s(int64(%s), int64(%s), %s, %s)", resultTemp, controlTemp, helper, leftTemp, rightTemp, bitsExpr, nodeName))
+	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	if !ok {
+		return nil, ""
+	}
+	lines = append(lines, controlLines...)
+	return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 }
 
 func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) ([]string, string) {
@@ -659,7 +722,15 @@ func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, l
 		case "*":
 			helper = "__able_checked_mul_unsigned"
 		}
-		return lines, fmt.Sprintf("%s(%s(uint64(%s), uint64(%s), %s, %s))", operandType, helper, leftTemp, rightTemp, bitsExpr, nodeName)
+		resultTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s, %s := %s(uint64(%s), uint64(%s), %s, %s)", resultTemp, controlTemp, helper, leftTemp, rightTemp, bitsExpr, nodeName))
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, ""
+		}
+		lines = append(lines, controlLines...)
+		return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 	}
 	helper := "__able_checked_add_signed"
 	switch op {
@@ -668,7 +739,15 @@ func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, l
 	case "*":
 		helper = "__able_checked_mul_signed"
 	}
-	return lines, fmt.Sprintf("%s(%s(int64(%s), int64(%s), %s, %s))", operandType, helper, leftTemp, rightTemp, bitsExpr, nodeName)
+	resultTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s, %s := %s(int64(%s), int64(%s), %s, %s)", resultTemp, controlTemp, helper, leftTemp, rightTemp, bitsExpr, nodeName))
+	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	if !ok {
+		return nil, ""
+	}
+	lines = append(lines, controlLines...)
+	return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 }
 
 func (g *generator) compilePowExpression(ctx *compileContext, left string, right string, operandType string, nodeName string) ([]string, string) {
@@ -680,9 +759,25 @@ func (g *generator) compilePowExpression(ctx *compileContext, left string, right
 		fmt.Sprintf("%s := %s", rightTemp, right),
 	}
 	if g.isUnsignedIntegerType(operandType) {
-		return lines, fmt.Sprintf("%s(__able_pow_unsigned(uint64(%s), uint64(%s), %s, %s))", operandType, leftTemp, rightTemp, bitsExpr, nodeName)
+		resultTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s, %s := __able_pow_unsigned(uint64(%s), uint64(%s), %s, %s)", resultTemp, controlTemp, leftTemp, rightTemp, bitsExpr, nodeName))
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, ""
+		}
+		lines = append(lines, controlLines...)
+		return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 	}
-	return lines, fmt.Sprintf("%s(__able_pow_signed(int64(%s), int64(%s), %s, %s))", operandType, leftTemp, rightTemp, bitsExpr, nodeName)
+	resultTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s, %s := __able_pow_signed(int64(%s), int64(%s), %s, %s)", resultTemp, controlTemp, leftTemp, rightTemp, bitsExpr, nodeName))
+	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	if !ok {
+		return nil, ""
+	}
+	lines = append(lines, controlLines...)
+	return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 }
 
 func (g *generator) compileFloatPowExpression(ctx *compileContext, left string, right string, operandType string) ([]string, string) {

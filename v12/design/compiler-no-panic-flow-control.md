@@ -1,137 +1,134 @@
-# Compiler: No Panic-Based Flow Control
+# Compiler: Explicit Control Flow, No IIFEs
+
+This note refines [compiler-native-lowering.md](./compiler-native-lowering.md)
+for control flow and exception propagation.
 
 ## Principle
 
-The compiled Go output must not use `panic`/`recover` for normal control flow (break, continue, return, loop exit). Go panics are reserved exclusively for exceptions — Able's error propagation via `bridge.Raise`, `rescue`, and `or_else`. Using panics for structural flow control is slow, obscures intent, and requires IIFE wrappers with defer/recover stacks.
+Compiled Go output should not use `panic` / `recover` or IIFEs for normal Able
+control flow.
 
-## Goals
+That applies to:
 
-1. **Eliminate all IIFEs** — Replace `func() T { stmts; return expr }()` with inline setup lines hoisted to statement context. Where a true function boundary is needed, use a named helper function instead.
-2. **Eliminate panic-based flow control** for break, continue, and return. Use Go's native control flow (labeled break/continue, regular return, labeled switch for breakpoints).
-3. **Keep panic for exceptions only** — `bridge.Raise`/`rescue`/`or_else` model truly exceptional error propagation. Go's `panic`/`recover` is appropriate here. Converting exceptions to return-value signaling would require signal checks after every function call — significant complexity for something that rarely fires.
+- `return`
+- `break`
+- `continue`
+- `breakpoint` / labeled non-local exits
+- `raise`
+- `rescue`
+- `or_else`
 
-## Architecture: Lines Hoisting
+Panics are reserved for true compiler/runtime faults or host-level fatal
+conditions where there is no meaningful language-level recovery path.
 
-The core technique is `compileExprLines`: every expression compiler returns `([]string, string, string, bool)` — setup lines separated from the final expression value. Lines are hoisted to the nearest statement context. This eliminates the need for IIFEs because statements execute in the function body (where Go `return` works normally) rather than inside an anonymous closure.
+## Required Model
 
-Example — an Able block expression used as a value:
+Normal Able control flow should lower to ordinary Go statements and regular
+returns.
 
-```able
-x := {
-    if something { return 42 }
-    other_value
+When a lowered helper or expression context needs to communicate a non-local
+effect to its caller, it should return an explicit control signal rather than
+panic.
+
+Representative shape:
+
+```go
+type __ableControlKind uint8
+
+const (
+    __ableControlNone __ableControlKind = iota
+    __ableControlReturn
+    __ableControlBreak
+    __ableControlContinue
+    __ableControlRaise
+)
+
+type __ableControl struct {
+    Kind  __ableControlKind
+    Label string
+    Value any
 }
 ```
 
-Before (IIFE + panic):
-```go
-x := func() runtime.Value {
-    if something { panic(__able_return{value: wrap(42)}) }
-    return other_value
-}()
-// enclosing function has defer/recover to catch __able_return
-```
+The exact generated shape may be specialized, but callers must be able to
+distinguish:
 
-After (lines hoisted):
-```go
-if something { return wrap(42) }  // regular Go return
-x := other_value
-```
+- normal completion
+- ordinary function return
+- loop/breakpoint jump
+- raised exception
 
-The setup lines (including the `if/return`) hoist to the enclosing function body. The expression (`other_value`) is used directly. No IIFE, no panic.
+using regular Go conditionals, not `recover`.
 
-For deeply nested expressions like `f(g(complex_expr))`, each nesting level hoists its sub-expression's lines:
-```go
-// lines from complex_expr
-__tmp := complex_expr_value
-f(g(__tmp))
-```
+## IIFEs
 
-## Implementation Plan
+IIFEs are not part of the target architecture.
 
-### Phase 1: Complete `compileExprLines` Conversion — DONE
+Instead:
 
-All expression compilers that can produce setup lines now return `([]string, string, string, bool)`. `wrapLinesAsExpression` is down to 2 call sites (canonical `compileExpr` fallback + `compileFunctionCall` array intrinsics caller).
+- expression lowering should emit setup lines plus a final value expression;
+- statement contexts should execute those lines directly;
+- helper boundaries should be named helpers or explicit local temporaries, not
+  anonymous closures used as expression wrappers.
 
-Dead duplicate cases in `compileExprExpected` were removed — lines-based types are now exclusively routed through `compileExprLines`.
+## Lowering Rules
 
-### Phase 2: Remove `iifeDepth` and `__able_return` Panic — DONE
+### Returns
 
-- `compileBlockExpression` no longer wraps in IIFEs — returns lines + tail expression directly
-- `compileReturnStatement` always emits regular Go `return` (no conditional panic)
-- Removed `iifeDepth` field from `compileContext`
-- Removed `needsReturnRecover` mechanism
-- Removed `__able_return` panic type and its defer/recover handler from function rendering
-- Removed `iifeDepth++` from match clause compilation
+- Lower ordinary Able `return` to ordinary Go `return`.
+- If a nested lowered helper must report a return to its caller, return a
+  control signal with `Kind == __ableControlReturn`.
 
-### Phase 3: Convert Breakpoint Expressions to Labeled Switch — DONE
+### Break / Continue
 
-Breakpoint expressions (`#label { ... break #label value ... }`) now use Go's labeled `switch` for the labeled break:
+- Lower loop control with normal Go loop labels where a plain statement context
+  is enough.
+- If control must cross a lowered helper boundary, return
+  `__ableControlBreak` / `__ableControlContinue` with the relevant label.
 
-```go
-var __result runtime.Value = runtime.NilValue{}
-__label: switch { default:
-    // body...
-    if something {
-        __result = value
-        break __label
-    }
-    __result = other_value
-}
-```
+### Breakpoints
 
-`break #label value` compiles to `__result = value; break __label`. The Go label and result temp are propagated through `breakpointGoLabels` and `breakpointResultTemps` maps on `compileContext`.
+- A breakpoint body should evaluate with normal statements and explicit result
+  temporaries.
+- A `break 'label value` should become a returned control signal or ordinary
+  branch logic, depending on whether a helper boundary exists.
 
-**Dead code removed:** All panic-based flow control signal types and functions:
-- `__able_break`, `__able_break_value` — loop break (replaced by labeled `break`)
-- `__able_continue_signal`, `__able_continue` — loop continue (replaced by labeled `continue`)
-- `__able_break_label_signal`, `__able_break_label` — breakpoint break (replaced by labeled switch `break`)
-- `__able_continue_label_signal`, `__able_continue_label` — never used
-- Lambda recover handler simplified — no longer re-panics flow control signals
+### Raise / Rescue / Or Else
 
-## Completed Work
+- `raise` should produce an explicit control signal representing an exception.
+- `rescue` / `or_else` should branch on returned control information, consume
+  exception signals when appropriate, and propagate anything else explicitly.
+- The compiler must not rely on `panic` / `recover` to model the common
+  exception path.
 
-**Loop break/continue (done):** Loops use Go's native labeled break/continue:
+## Current Status
 
-```go
-__able_tmp_1: for {
-    // body
-    if condition { break __able_tmp_1 }
-    if other { continue __able_tmp_1 }
-}
-```
+- Static compiled function bodies now use explicit `*__ableControl`
+  propagation for the common non-local-flow path.
+- `raise`, `rescue`, `or_else`, `ensure`, compiled helper calls, and generated
+  dynamic `call_value` / `call_named` sites now branch on returned control
+  instead of relying on `panic` / `recover`.
+- Explicit dynamic callback boundaries now normalize callback failures back
+  into ordinary Go `error` returns so boundary markers and diagnostics survive
+  runtime callback failures.
+- Residual dynamic member/helper paths now do the same: generated
+  `__able_member_get`, `__able_member_set`, `__able_member_get_method`, and
+  `__able_method_call*` helpers now return ordinary `error` /
+  `*__ableControl` results instead of panicking internally, and the temporary
+  recover-based bridge wrappers have been removed.
 
-Break-with-value uses a temp variable:
+## Remaining Violations To Remove
 
-```go
-var __able_tmp_2 runtime.Value = runtime.NilValue{}
-__able_tmp_1: for {
-    // body
-    __able_tmp_2 = someValue
-    break __able_tmp_1
-}
-```
+- Any remaining IIFE-based expression wrappers (`func() T { ... }()`).
+- Any lowering that still requires `defer` / `recover` stacks for loop or
+  block control.
+- Any remaining helper/runtime paths that still use `panic` for ordinary
+  language-level error/control propagation instead of explicit returns.
 
-**Dead code removed:** `blockHasBreakContinueRescue` and related analysis functions.
+## Execution Plan
 
-## Exceptions: Permanent Panic
-
-`bridge.Raise`, `rescue`, and `or_else` model Able's error propagation. These will continue to use Go's `panic`/`recover`:
-
-- `bridge.Raise(err)` panics with the error value
-- `rescue` expressions use `defer/recover` to catch raised errors
-- `or_else` expressions use `defer/recover` to provide fallback values
-
-This is appropriate because: (a) exceptions are truly exceptional — they fire rarely, (b) Go's panic is zero-cost on the happy path, (c) converting to return-value signaling would require `if sig != nil` checks after every function call, adding overhead to every call site for a condition that rarely triggers.
-
-## Lambda Break/Continue
-
-The compiler does not support `break`/`continue` inside lambdas — `loopDepth` resets to 0 when compiling a lambda body, so break/continue statements are rejected. If this is ever needed, Go's labeled break/continue cannot cross function boundaries, so a panic-based signal would be required as a narrow exception.
-
-## Guidelines for New Code
-
-- **Never** introduce new panic-based flow control for break, continue, return, or loop exit.
-- **Always** return `([]string, string, string, bool)` from new expression compilers. Do not create new `wrapLinesAsExpression` call sites.
-- **Prefer** Go's native control flow: labeled `break`/`continue` for loops, regular `return`, labeled `switch` for non-loop breaks.
-- **Use** temp variables for break-with-value and expression results.
-- **Watch for `:=` shadowing** when restructuring `return` to `if/else`: `result, err := ...` inside an `if` block creates a new scoped variable shadowing the outer one.
+1. Audit remaining helper/runtime paths for ordinary-language panic usage now
+   that the residual dynamic member/call helpers no longer need recover-based
+   containment.
+2. Add/extend regression audits that fail when generated static code contains
+   new IIFEs or panic-based flow-control scaffolding.

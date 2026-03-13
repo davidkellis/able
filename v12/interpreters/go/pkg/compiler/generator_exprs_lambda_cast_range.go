@@ -49,7 +49,15 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 		ctx.setReason("unsupported cast type")
 		return nil, "", "", false
 	}
-	castExpr := fmt.Sprintf("__able_cast(%s, %s)", valueRuntime, targetExpr)
+	castTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s, %s := __able_cast(%s, %s)", castTemp, controlTemp, valueRuntime, targetExpr))
+	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, controlLines...)
+	castExpr := castTemp
 	if expected == "runtime.Value" {
 		return lines, castExpr, "runtime.Value", true
 	}
@@ -140,6 +148,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		return "", "", false
 	}
 	lambdaCtx.loopDepth = 0
+	lambdaCtx.controlMode = compileControlModeNativeCall
 
 	params := make([]paramInfo, 0, len(expr.Params))
 	for idx, param := range expr.Params {
@@ -162,7 +171,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 			}
 			goType = mapped
 		}
-		info := paramInfo{Name: ident.Name, GoName: goName, GoType: goType}
+		info := paramInfo{Name: ident.Name, GoName: goName, GoType: goType, TypeExpr: param.ParamType}
 		lambdaCtx.locals[ident.Name] = info
 		params = append(params, info)
 	}
@@ -223,14 +232,13 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 	lambdaResultName := lambdaCtx.newTemp()
 	lambdaErrName := lambdaCtx.newTemp()
 	implLines := make([]string, 0, len(bodyLines)+len(params)*4+7)
-	implLines = append(implLines, fmt.Sprintf("defer func() { if recovered := recover(); recovered != nil { %s = nil; %s = bridge.Recover(__able_runtime, callCtx, recovered) } }()", lambdaResultName, lambdaErrName))
 	implLines = append(implLines, "if __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }")
 	implLines = append(implLines, fmt.Sprintf("if len(args) != %d { return nil, fmt.Errorf(\"lambda expects %d arguments, got %%d\", len(args)) }", len(params), len(params)))
 	for idx, param := range params {
 		argVar := fmt.Sprintf("__able_lambda_arg_%d", idx)
 		valueVar := argVar + "_value"
 		implLines = append(implLines, fmt.Sprintf("%s := args[%d]", valueVar, idx))
-		convLines, ok := g.lambdaArgConversionLines(argVar, valueVar, param.GoType, param.GoName)
+		convLines, ok := g.lambdaArgConversionLines(ctx.packageName, argVar, valueVar, param.GoType, param.TypeExpr, param.GoName)
 		if !ok {
 			ctx.setReason("unsupported lambda parameter type")
 			return "", "", false
@@ -368,7 +376,25 @@ func (g *generator) compileLambdaBlockBody(ctx *compileContext, returnType strin
 	return nil, "", "", false
 }
 
-func (g *generator) lambdaArgConversionLines(argVar string, valueVar string, goType string, target string) ([]string, bool) {
+func (g *generator) lambdaArgConversionLines(pkgName string, argVar string, valueVar string, goType string, typeExpr ast.TypeExpression, target string) ([]string, bool) {
+	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
+		return []string{
+			fmt.Sprintf("%s, err := %s(__able_runtime, %s)", target, iface.FromRuntimeHelper, valueVar),
+			"if err != nil { return nil, err }",
+		}, true
+	}
+	if union := g.nativeUnionInfoForGoType(goType); union != nil {
+		return []string{
+			fmt.Sprintf("%s, err := %s(__able_runtime, %s)", target, union.FromRuntimeHelper, valueVar),
+			"if err != nil { return nil, err }",
+		}, true
+	}
+	if helper, ok := g.nativeNullableFromRuntimeHelper(goType); ok {
+		return []string{
+			fmt.Sprintf("%s, err := %s(%s)", target, helper, valueVar),
+			"if err != nil { return nil, err }",
+		}, true
+	}
 	switch g.typeCategory(goType) {
 	case "runtime":
 		return []string{fmt.Sprintf("%s := %s", target, valueVar)}, true
@@ -434,16 +460,50 @@ func (g *generator) lambdaArgConversionLines(argVar string, valueVar string, goT
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
 		}
-		return []string{
+		lines := []string{
 			fmt.Sprintf("%s, err := __able_struct_%s_from(%s)", target, baseName, valueVar),
 			"if err != nil { return nil, err }",
-		}, true
+		}
+		if g.lambdaStructArgRequiresValue(pkgName, typeExpr, goType) {
+			lines = append(lines, fmt.Sprintf("if %s == nil { return nil, fmt.Errorf(\"type mismatch calling lambda: expected %s\") }", target, baseName))
+		}
+		return lines, true
 	default:
 		return []string{fmt.Sprintf("%s := %s", target, valueVar)}, true
 	}
 }
 
+func (g *generator) lambdaStructArgRequiresValue(pkgName string, typeExpr ast.TypeExpression, goType string) bool {
+	if g == nil || g.typeCategory(goType) != "struct" {
+		return false
+	}
+	if !strings.HasPrefix(goType, "*") {
+		return true
+	}
+	if typeExpr == nil {
+		return true
+	}
+	if _, ok := typeExpr.(*ast.NullableTypeExpression); ok {
+		return false
+	}
+	if _, members, ok := g.expandedUnionMembersInPackage(pkgName, typeExpr); ok {
+		if _, nullable := nativeUnionNullableInnerTypeExpr(members); nullable {
+			return false
+		}
+	}
+	return true
+}
+
 func (g *generator) lambdaReturnLines(resultName string, goType string) ([]string, bool) {
+	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
+		return []string{fmt.Sprintf("return %s(__able_runtime, %s)", iface.ToRuntimeHelper, resultName)}, true
+	}
+	if union := g.nativeUnionInfoForGoType(goType); union != nil {
+		return []string{fmt.Sprintf("return %s(__able_runtime, %s)", union.ToRuntimeHelper, resultName)}, true
+	}
+	if helper, ok := g.nativeNullableToRuntimeHelper(goType); ok {
+		return []string{fmt.Sprintf("return %s(%s), nil", helper, resultName)}, true
+	}
 	switch g.typeCategory(goType) {
 	case "runtime":
 		return []string{fmt.Sprintf("return %s, nil", resultName)}, true
@@ -483,14 +543,11 @@ func (g *generator) lambdaReturnLines(resultName string, goType string) ([]strin
 	case "uint64":
 		return []string{fmt.Sprintf("return bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\")), nil", resultName)}, true
 	case "struct":
-		if strings.HasPrefix(goType, "*") {
-			return []string{fmt.Sprintf("return __able_any_to_value(%s), nil", resultName)}, true
-		}
-		baseName, ok := g.structBaseName(goType)
+		lines, ok := g.structReturnConversionLines(resultName, goType, "__able_runtime")
 		if !ok {
-			baseName = strings.TrimPrefix(goType, "*")
+			return []string{fmt.Sprintf("return %s, nil", resultName)}, true
 		}
-		return []string{fmt.Sprintf("return __able_struct_%s_to(__able_runtime, %s)", baseName, resultName)}, true
+		return lines, true
 	default:
 		return []string{fmt.Sprintf("return %s, nil", resultName)}, true
 	}

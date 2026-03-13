@@ -17,7 +17,7 @@ func TestCompilerNormalizesCallValueNativeFunctionDispatchBranches(t *testing.T)
 		}, "\n"),
 	})
 
-	if !strings.Contains(compiledSrc, "func __able_call_native_function_value(value runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, bool) {") {
+	if !strings.Contains(compiledSrc, "func __able_call_native_function_value(value runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, *__ableControl, bool) {") {
 		t.Fatalf("expected shared native-function value helper for __able_call_value dispatch")
 	}
 	if !strings.Contains(compiledSrc, "native, ok, nilPtr := __able_callable_native_function_value(value)") {
@@ -29,7 +29,7 @@ func TestCompilerNormalizesCallValueNativeFunctionDispatchBranches(t *testing.T)
 	if !strings.Contains(compiledSrc, "if !ok || nilPtr {") {
 		t.Fatalf("expected native-function helper guard to use normalized helper-order check")
 	}
-	if !strings.Contains(compiledSrc, "return __able_call_native_function(native, partialTarget, args, args, call, ctx), true") {
+	if !strings.Contains(compiledSrc, "val, control := __able_call_native_function(native, partialTarget, args, args, call, ctx)") {
 		t.Fatalf("expected native-function helper to delegate through shared native-call helper")
 	}
 
@@ -50,7 +50,7 @@ func TestCompilerNormalizesCallValueNativeFunctionDispatchBranches(t *testing.T)
 	if strings.Contains(segment, "case *runtime.NativeFunctionValue:") {
 		t.Fatalf("expected inline *runtime.NativeFunctionValue dispatch branch to be removed from __able_call_value")
 	}
-	if !strings.Contains(segment, "if val, handled := __able_call_native_function_value(fn, args, call, ctx); handled {") {
+	if !strings.Contains(segment, "if val, control, handled := __able_call_native_function_value(fn, args, call, ctx); handled {") {
 		t.Fatalf("expected __able_call_value to use shared native-function value helper")
 	}
 }

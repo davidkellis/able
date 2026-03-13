@@ -104,19 +104,7 @@ func runCompilerBoundaryAuditFixture(t *testing.T, root, rel string) {
 		t.Fatalf("load program: %v", err)
 	}
 
-	moduleRoot, err := filepath.Abs(filepath.Join(".", "..", ".."))
-	if err != nil {
-		t.Fatalf("module root: %v", err)
-	}
-	tmpRoot := filepath.Join(moduleRoot, "tmp")
-	if err := os.MkdirAll(tmpRoot, 0o755); err != nil {
-		t.Fatalf("mkdir tmp: %v", err)
-	}
-	workDir, err := os.MkdirTemp(tmpRoot, "ablec-boundary-fixture-")
-	if err != nil {
-		t.Fatalf("temp dir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(workDir) })
+	moduleRoot, workDir := compilerTestWorkDir(t, "ablec-boundary-fixture")
 
 	comp := New(Options{
 		PackageName:        "main",

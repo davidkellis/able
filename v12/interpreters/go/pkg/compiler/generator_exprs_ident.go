@@ -15,7 +15,7 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 	if !ok {
 		if info, found := g.structInfoForTypeName(ctx.packageName, ident.Name); found && info != nil && info.Supported && len(info.Fields) == 0 {
 			structType := "*" + info.GoName
-			if expected == "" || expected == structType {
+			if expected == "" || g.typeMatches(expected, structType) {
 				return nil, "&" + info.GoName + "{}", structType, true
 			}
 		}
@@ -32,6 +32,9 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 		return convLines, converted, expected, true
 	}
 	if !g.typeMatches(expected, param.GoType) {
+		if g.nativeNullableWraps(expected, param.GoType) {
+			return nil, fmt.Sprintf("__able_ptr(%s)", param.GoName), expected, true
+		}
 		if expected == "runtime.Value" && param.GoType != "runtime.Value" {
 			convLines, converted, ok := g.runtimeValueLines(ctx, param.GoName, param.GoType)
 			if !ok {

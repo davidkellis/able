@@ -46,61 +46,10 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			if !ok {
 				return nil, "", "", false
 			}
-			if monoKind, monoEnabled := g.monoArrayKindForObject(ctx, indexTarget.Object, objType); monoEnabled {
-				monoGoType := g.monoArrayElemGoType(monoKind)
-				if monoGoType == "" {
-					ctx.setReason("index assignment mono type unsupported")
-					return nil, "", "", false
-				}
-				coercedValueExpr, ok := g.coerceExprToGoType(valueExpr, valueType, monoGoType)
-				if !ok {
-					ctx.setReason("index assignment value unsupported")
-					return nil, "", "", false
-				}
-				valueTemp := ctx.newTemp()
-				objTemp := ctx.newTemp()
-				idxTemp := ctx.newTemp()
-				indexTemp := ctx.newTemp()
-				handleRawTemp := ctx.newTemp()
-				handleTemp := ctx.newTemp()
-				lengthTemp := ctx.newTemp()
-				resultTemp := ctx.newTemp()
-				runtimeAssignedExpr, ok := g.runtimeValueExpr(valueTemp, monoGoType)
-				if !ok {
-					ctx.setReason("index assignment value unsupported")
-					return nil, "", "", false
-				}
-				writeExpr, ok := g.monoArrayWriteExpr(monoKind, handleTemp, indexTemp, valueTemp)
-				if !ok {
-					ctx.setReason("index assignment mono write unsupported")
-					return nil, "", "", false
-				}
-				lines := append([]string{}, valueLines...)
-				lines = append(lines, objLines...)
-				lines = append(lines, idxLines...)
-				lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, coercedValueExpr))
-				lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
-				lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
-				if !ok {
-					ctx.setReason("index assignment index unsupported")
-					return nil, "", "", false
-				}
-				lines = append(lines, fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp))
-				handleErrTemp := ctx.newTemp()
-				lines = append(lines, fmt.Sprintf("%s, %s := bridge.AsInt(%s, 64)", handleTemp, handleErrTemp, handleRawTemp))
-				lines = append(lines, fmt.Sprintf("if %s != nil { panic(%s) }", handleErrTemp, handleErrTemp))
-				lines = append(lines, fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp))
-				lines = append(lines, "if err != nil { panic(err) }")
-				lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
-				lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { __able_panic_on_error(%s); %s = %s }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, writeExpr, resultTemp, runtimeAssignedExpr))
-				return lines, resultTemp, "runtime.Value", true
-			}
 			valueTemp := ctx.newTemp()
 			objTemp := ctx.newTemp()
 			idxTemp := ctx.newTemp()
 			indexTemp := ctx.newTemp()
-			handleRawTemp := ctx.newTemp()
-			handleTemp := ctx.newTemp()
 			lengthTemp := ctx.newTemp()
 			resultTemp := ctx.newTemp()
 			lines := append([]string{}, valueLines...)
@@ -114,14 +63,10 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				ctx.setReason("index assignment index unsupported")
 				return nil, "", "", false
 			}
-			lines = append(lines, fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp))
-			handleErrTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s, %s := bridge.AsInt(%s, 64)", handleTemp, handleErrTemp, handleRawTemp))
-			lines = append(lines, fmt.Sprintf("if %s != nil { panic(%s) }", handleErrTemp, handleErrTemp))
-			lines = append(lines, fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp))
-			lines = append(lines, "if err != nil { panic(err) }")
+			lines = append(lines, fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp))
 			lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, valueTemp))
-			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { __able_panic_on_error(runtime.ArrayStoreWrite(%s, %s, %s)) }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, handleTemp, indexTemp, valueTemp))
+			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { %s.Elements[%s] = %s }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, objTemp, indexTemp, valueTemp))
+			lines = append(lines, fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp))
 			return lines, resultTemp, "runtime.Value", true
 		}
 		objConvLines, objRuntime, ok := g.runtimeValueLines(ctx, objExpr, objType)
@@ -152,7 +97,13 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		lines = append(lines, fmt.Sprintf("%s := %s", idxTemp, idxRuntime))
 		if assign.Operator == ast.AssignmentAssign {
 			resultTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s := __able_index_set(%s, %s, %s)", resultTemp, objTemp, idxTemp, valueTemp))
+			controlTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("%s, %s := __able_index_set(%s, %s, %s)", resultTemp, controlTemp, objTemp, idxTemp, valueTemp))
+			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, controlLines...)
 			lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
 			return lines, resultTemp, "runtime.Value", true
 		}
@@ -163,9 +114,27 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		currentTemp := ctx.newTemp()
 		computedTemp := ctx.newTemp()
 		resultTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := __able_index(%s, %s)", currentTemp, objTemp, idxTemp))
-		lines = append(lines, fmt.Sprintf("%s := __able_binary_op(%q, %s, %s)", computedTemp, op, currentTemp, valueTemp))
-		lines = append(lines, fmt.Sprintf("%s := __able_index_set(%s, %s, %s)", resultTemp, objTemp, idxTemp, computedTemp))
+		currentControlTemp := ctx.newTemp()
+		computedControlTemp := ctx.newTemp()
+		resultControlTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s, %s := __able_index(%s, %s)", currentTemp, currentControlTemp, objTemp, idxTemp))
+		controlLines, ok := g.controlCheckLines(ctx, currentControlTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, controlLines...)
+		lines = append(lines, fmt.Sprintf("%s, %s := __able_binary_op(%q, %s, %s)", computedTemp, computedControlTemp, op, currentTemp, valueTemp))
+		controlLines, ok = g.controlCheckLines(ctx, computedControlTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, controlLines...)
+		lines = append(lines, fmt.Sprintf("%s, %s := __able_index_set(%s, %s, %s)", resultTemp, resultControlTemp, objTemp, idxTemp, computedTemp))
+		controlLines, ok = g.controlCheckLines(ctx, resultControlTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, controlLines...)
 		lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
 		return lines, computedTemp, "runtime.Value", true
 	}
@@ -337,7 +306,10 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			}
 		}
 		if assign.Operator == ast.AssignmentAssign {
-			lines = append(lines, fmt.Sprintf("%s := __able_member_set(%s, %s, %s)", resultTemp, objTemp, memberTemp, valueTemp))
+			lines, resultTemp, ok = g.appendRuntimeMemberSetControlLines(ctx, lines, objTemp, memberTemp, valueTemp)
+			if !ok {
+				return nil, "", "", false
+			}
 			lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
 			invalidateAfterMemberSet()
 			return lines, resultTemp, "runtime.Value", true
@@ -347,11 +319,22 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			ctx.setReason("unsupported member assignment operator")
 			return nil, "", "", false
 		}
-		currentTemp := ctx.newTemp()
 		computedTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := __able_member_get(%s, %s)", currentTemp, objTemp, memberTemp))
-		lines = append(lines, fmt.Sprintf("%s := __able_binary_op(%q, %s, %s)", computedTemp, op, currentTemp, valueTemp))
-		lines = append(lines, fmt.Sprintf("%s := __able_member_set(%s, %s, %s)", resultTemp, objTemp, memberTemp, computedTemp))
+		computedControlTemp := ctx.newTemp()
+		lines, currentTemp, ok := g.appendRuntimeMemberGetControlLines(ctx, lines, objTemp, memberTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, fmt.Sprintf("%s, %s := __able_binary_op(%q, %s, %s)", computedTemp, computedControlTemp, op, currentTemp, valueTemp))
+		controlLines, ok := g.controlCheckLines(ctx, computedControlTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, controlLines...)
+		lines, resultTemp, ok = g.appendRuntimeMemberSetControlLines(ctx, lines, objTemp, memberTemp, computedTemp)
+		if !ok {
+			return nil, "", "", false
+		}
 		lines = append(lines, fmt.Sprintf("_ = %s", resultTemp))
 		invalidateAfterMemberSet()
 		return lines, computedTemp, "runtime.Value", true
@@ -511,41 +494,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		lines = append(lines, fmt.Sprintf("%s := __able_env_set(%q, %s, %s)", resultTemp, name, valueRuntime, nodeName))
 		return lines, resultTemp, "runtime.Value", true
 	}
-	// Struct-typed locals without annotations keep runtime.Value because
-	// method call arguments need consistent identity (each struct→runtime.Value
-	// conversion creates a new wrapper, breaking identity-based lookups).
-	// We track the underlying struct type so method calls can still be resolved
-	// statically via the known origin type.
 	originStructType := ""
-	if declaring && typeAnnotation == nil && goType != "runtime.Value" && g.typeCategory(goType) == "struct" {
-		if strings.HasPrefix(goType, "*") {
-			// Struct pointers can be nil for nullable types (?T).
-			// Use __able_any_to_value which handles nil.
-			convTemp := ctx.newTemp()
-			exprLines = append(exprLines,
-				fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, expr),
-			)
-			originStructType = goType
-			expr = convTemp
-			goType = "runtime.Value"
-		} else {
-			baseName, ok := g.structBaseName(goType)
-			if !ok {
-				ctx.setReason("assignment type mismatch")
-				return nil, "", "", false
-			}
-			convTemp := ctx.newTemp()
-			errTemp := ctx.newTemp()
-			exprLines = append(exprLines,
-				fmt.Sprintf("if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }"),
-				fmt.Sprintf("%s, %s := __able_struct_%s_to(__able_runtime, %s)", convTemp, errTemp, baseName, expr),
-				fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-			)
-			originStructType = goType
-			expr = convTemp
-			goType = "runtime.Value"
-		}
-	}
 	goName := existing.GoName
 	if declaring {
 		goName = sanitizeIdent(name)
@@ -571,15 +520,27 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		line = fmt.Sprintf("%s = %s", goName, expr)
 	}
 	lines := append(exprLines, line)
-	if typeAnnotation != nil && goType == "runtime.Value" {
+	if typeAnnotation != nil && (goType == "runtime.Value" || goType == "any") {
 		typeExpr, ok := g.renderTypeExpression(typeAnnotation)
 		if ok {
 			g.needsAst = true
 			checkOk := ctx.newTemp()
 			resultTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("_, %s := __able_try_cast(%s, %s)", checkOk, goName, typeExpr))
+			castSubject := goName
+			if goType == "any" {
+				convTemp := ctx.newTemp()
+				lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, goName))
+				castSubject = convTemp
+			}
+			controlTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("_, %s, %s := __able_try_cast(%s, %s)", checkOk, controlTemp, castSubject, typeExpr))
+			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, controlLines...)
 			lines = append(lines, fmt.Sprintf("var %s runtime.Value", resultTemp))
-			lines = append(lines, fmt.Sprintf("if %s { %s = %s } else { %s = runtime.ErrorValue{Message: \"pattern assignment mismatch\"} }", checkOk, resultTemp, goName, resultTemp))
+			lines = append(lines, fmt.Sprintf("if %s { %s = %s } else { %s = runtime.ErrorValue{Message: \"pattern assignment mismatch\"} }", checkOk, resultTemp, castSubject, resultTemp))
 			return lines, resultTemp, "runtime.Value", true
 		}
 	}
@@ -599,16 +560,6 @@ func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.As
 	if !ok {
 		return nil, "", "", false
 	}
-	valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
-	if !ok {
-		ctx.setReason("pattern assignment value unsupported")
-		return nil, "", "", false
-	}
-	valueTemp := ctx.newTemp()
-	lines := append([]string{}, valueLines...)
-	lines = append(lines, valConvLines...)
-	lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
-
 	mode := patternBindingMode{declare: assign.Operator == ast.AssignmentDeclare}
 	if mode.declare {
 		newNames := map[string]struct{}{}
@@ -630,11 +581,49 @@ func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.As
 		mode.newNames = filtered
 	}
 
-	condLines, cond, ok := g.compileMatchPatternCondition(ctx, pattern, valueTemp, "runtime.Value")
+	if valueType == "runtime.Value" || valueType == "any" {
+		valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		if !ok {
+			ctx.setReason("pattern assignment value unsupported")
+			return nil, "", "", false
+		}
+		valueTemp := ctx.newTemp()
+		lines := append([]string{}, valueLines...)
+		lines = append(lines, valConvLines...)
+		lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
+		condLines, cond, ok := g.compileMatchPatternCondition(ctx, pattern, valueTemp, "runtime.Value")
+		if !ok {
+			return nil, "", "", false
+		}
+		bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, valueTemp, "runtime.Value", mode)
+		if !ok {
+			return nil, "", "", false
+		}
+		declLines, assignLines := splitPatternBindingLines(bindLines)
+		lines = append(lines, declLines...)
+		lines = append(lines, condLines...)
+		resultTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("var %s runtime.Value", resultTemp))
+		if cond != "true" {
+			lines = append(lines, fmt.Sprintf("if !(%s) { %s = runtime.ErrorValue{Message: \"pattern assignment mismatch\"} } else {", cond, resultTemp))
+			lines = append(lines, assignLines...)
+			lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, valueTemp))
+			lines = append(lines, "}")
+		} else {
+			lines = append(lines, assignLines...)
+			lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, valueTemp))
+		}
+		return lines, resultTemp, "runtime.Value", true
+	}
+
+	valueTemp := ctx.newTemp()
+	lines := append([]string{}, valueLines...)
+	lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
+	condLines, cond, ok := g.compileMatchPatternCondition(ctx, pattern, valueTemp, valueType)
 	if !ok {
 		return nil, "", "", false
 	}
-	bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, valueTemp, "runtime.Value", mode)
+	bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, valueTemp, valueType, mode)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -643,14 +632,21 @@ func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.As
 	lines = append(lines, condLines...)
 	resultTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("var %s runtime.Value", resultTemp))
+	resultLines, resultExpr, ok := g.runtimeValueLines(ctx, valueTemp, valueType)
+	if !ok {
+		ctx.setReason("pattern assignment value unsupported")
+		return nil, "", "", false
+	}
 	if cond != "true" {
 		lines = append(lines, fmt.Sprintf("if !(%s) { %s = runtime.ErrorValue{Message: \"pattern assignment mismatch\"} } else {", cond, resultTemp))
 		lines = append(lines, assignLines...)
-		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, valueTemp))
+		lines = append(lines, resultLines...)
+		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, resultExpr))
 		lines = append(lines, "}")
 	} else {
 		lines = append(lines, assignLines...)
-		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, valueTemp))
+		lines = append(lines, resultLines...)
+		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, resultExpr))
 	}
 	return lines, resultTemp, "runtime.Value", true
 }

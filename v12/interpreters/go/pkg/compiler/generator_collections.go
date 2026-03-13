@@ -33,13 +33,9 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 	}
 	elementExprs := make([]string, 0, len(lit.Elements))
 	elementTypes := make([]string, 0, len(lit.Elements))
-	elementExpectedType := ""
-	if kind, ok := g.monoArrayKindForLiteral(ctx, nil); ok {
-		elementExpectedType = g.monoArrayElemGoType(kind)
-	}
 	var elementLines []string
 	for _, element := range lit.Elements {
-		elLines, expr, goType, ok := g.compileExprLines(ctx, element, elementExpectedType)
+		elLines, expr, goType, ok := g.compileExprLines(ctx, element, "")
 		if !ok {
 			return nil, "", "", false
 		}
@@ -47,71 +43,33 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 		elementExprs = append(elementExprs, expr)
 		elementTypes = append(elementTypes, goType)
 	}
-	if returnType != "runtime.Value" {
-		if monoKind, ok := g.monoArrayKindForLiteral(ctx, elementTypes); ok {
-			monoGoType := g.monoArrayElemGoType(monoKind)
-			capacityExpr := fmt.Sprintf("%d", len(lit.Elements))
-			newHandleExpr, ok := g.monoArrayNewWithCapacityExpr(monoKind, capacityExpr)
-			if !ok {
-				ctx.setReason("array literal unsupported mono kind")
-				return nil, "", "", false
-			}
-			lines := append([]string{}, elementLines...)
-			handleTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s := %s", handleTemp, newHandleExpr))
-			for idx, elementExpr := range elementExprs {
-				coercedExpr, ok := g.coerceExprToGoType(elementExpr, elementTypes[idx], monoGoType)
-				if !ok {
-					ctx.setReason("array literal element unsupported")
-					return nil, "", "", false
-				}
-				valueTemp := ctx.newTemp()
-				lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, coercedExpr))
-				writeExpr, ok := g.monoArrayWriteExpr(monoKind, handleTemp, fmt.Sprintf("%d", idx), valueTemp)
-				if !ok {
-					ctx.setReason("array literal mono write unsupported")
-					return nil, "", "", false
-				}
-				lines = append(lines, fmt.Sprintf("__able_panic_on_error(%s)", writeExpr))
-			}
-			arrTemp := ctx.newTemp()
-			arrExpr := fmt.Sprintf("&Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: bridge.ToInt(%s, runtime.IntegerType(\"i64\"))}", len(lit.Elements), len(lit.Elements), handleTemp)
-			if !strings.HasPrefix(returnType, "*") {
-				arrExpr = fmt.Sprintf("Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: bridge.ToInt(%s, runtime.IntegerType(\"i64\"))}", len(lit.Elements), len(lit.Elements), handleTemp)
-			}
-			lines = append(lines, fmt.Sprintf("%s := %s", arrTemp, arrExpr))
-			return lines, arrTemp, returnType, true
-		}
-	}
-	callNode := g.diagNodeName(lit, "*ast.ArrayLiteral", "array")
+	// Build []runtime.Value slice directly — no interpreter array store.
 	lines := append([]string{}, elementLines...)
-	lines = append(lines, "if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }")
-	handleTemp := ctx.newTemp()
-	capacityExpr := fmt.Sprintf("bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\"))", len(lit.Elements))
-	lines = append(lines, fmt.Sprintf("%s := __able_extern_array_with_capacity([]runtime.Value{%s}, %s)", handleTemp, capacityExpr, callNode))
+	valueExprs := make([]string, 0, len(elementExprs))
 	for idx, expr := range elementExprs {
 		goType := elementTypes[idx]
+		if goType == "runtime.Value" {
+			valueExprs = append(valueExprs, expr)
+			continue
+		}
 		elemConvLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("array literal element unsupported")
 			return nil, "", "", false
 		}
 		lines = append(lines, elemConvLines...)
-		valueTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
-		indexExpr := fmt.Sprintf("bridge.ToInt(int64(%d), runtime.IntegerType(\"i32\"))", idx)
-		lines = append(lines, fmt.Sprintf("_ = __able_extern_array_write([]runtime.Value{%s, %s, %s}, %s)", handleTemp, indexExpr, valueTemp, callNode))
+		valueExprs = append(valueExprs, valueExpr)
 	}
+	sliceExpr := fmt.Sprintf("[]runtime.Value{%s}", strings.Join(valueExprs, ", "))
 	if returnType == "runtime.Value" {
 		arrTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s, err := __able_struct_Array_to(__able_runtime, &Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: %s})", arrTemp, len(lit.Elements), len(lit.Elements), handleTemp))
-		lines = append(lines, "if err != nil { panic(err) }")
+		lines = append(lines, fmt.Sprintf("%s := &runtime.ArrayValue{Elements: %s}", arrTemp, sliceExpr))
 		return lines, arrTemp, "runtime.Value", true
 	}
 	arrTemp := ctx.newTemp()
-	arrExpr := fmt.Sprintf("&Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: %s}", len(lit.Elements), len(lit.Elements), handleTemp)
+	arrExpr := fmt.Sprintf("&Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: int64(0), Elements: %s}", len(valueExprs), len(valueExprs), sliceExpr)
 	if !strings.HasPrefix(returnType, "*") {
-		arrExpr = fmt.Sprintf("Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: %s}", len(lit.Elements), len(lit.Elements), handleTemp)
+		arrExpr = fmt.Sprintf("Array{Length: int32(%d), Capacity: int32(%d), Storage_handle: int64(0), Elements: %s}", len(valueExprs), len(valueExprs), sliceExpr)
 	}
 	lines = append(lines, fmt.Sprintf("%s := %s", arrTemp, arrExpr))
 	return lines, arrTemp, returnType, true
@@ -503,15 +461,26 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 			objTemp := ctx.newTemp()
 			memberTemp := ctx.newTemp()
 			resultTemp := ctx.newTemp()
+			controlTemp := ctx.newTemp()
 			lines = append(lines,
 				fmt.Sprintf("%s := %s", objTemp, objValue),
 				fmt.Sprintf("%s := %s", memberTemp, memberValue),
 				fmt.Sprintf("var %s runtime.Value", resultTemp),
-				fmt.Sprintf("if __able_is_nil(%s) { %s = runtime.NilValue{} } else { %s = __able_member_get(%s, %s) }", objTemp, resultTemp, resultTemp, objTemp, memberTemp),
+				fmt.Sprintf("var %s *__ableControl", controlTemp),
+				fmt.Sprintf("if __able_is_nil(%s) { %s = runtime.NilValue{} } else { %s, %s = __able_member_get(%s, %s) }", objTemp, resultTemp, resultTemp, controlTemp, objTemp, memberTemp),
 			)
+			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, controlLines...)
 			baseExpr = resultTemp
 		} else {
-			baseExpr = fmt.Sprintf("__able_member_get(%s, %s)", objValue, memberValue)
+			var ok bool
+			lines, baseExpr, ok = g.appendRuntimeMemberGetControlLines(ctx, lines, objValue, memberValue)
+			if !ok {
+				return nil, "", "", false
+			}
 		}
 		if expected == "" || expected == "runtime.Value" || expected == "any" {
 			return lines, baseExpr, "runtime.Value", true
@@ -528,11 +497,16 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 	if objectType == "string" {
 		if memberName := g.memberName(expr.Member); memberName != "" {
 			if fieldExpr, fieldType, ok := g.stringBuiltinFieldAccess(objectExpr, memberName); ok {
-				if !g.typeMatches(expected, fieldType) {
-					ctx.setReason("member access type mismatch")
-					return nil, "", "", false
+				if g.typeMatches(expected, fieldType) {
+					return objLines, fieldExpr, fieldType, true
 				}
-				return objLines, fieldExpr, fieldType, true
+				// Allow integer cast for len_bytes (uint) to the expected integer type.
+				if expected != "" && g.isIntegerType(expected) && g.isIntegerType(fieldType) {
+					castExpr := fmt.Sprintf("%s(%s)", expected, fieldExpr)
+					return objLines, castExpr, expected, true
+				}
+				ctx.setReason("member access type mismatch")
+				return nil, "", "", false
 			}
 		}
 	}
@@ -547,11 +521,33 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		return nil, "", "", false
 	}
 	if field != nil {
+		fieldExpr := fmt.Sprintf("%s.%s", objectExpr, field.GoName)
+		fieldType := field.GoType
 		if !g.typeMatches(expected, field.GoType) {
+			coerceLines, coercedExpr, coercedType, ok := g.coerceExpectedStaticExpr(ctx, append([]string{}, objLines...), fieldExpr, fieldType, expected)
+			if ok && (expected == "" || g.typeMatches(expected, coercedType)) {
+				return coerceLines, coercedExpr, coercedType, true
+			}
 			ctx.setReason("member access type mismatch")
 			return nil, "", "", false
 		}
-		return objLines, fmt.Sprintf("%s.%s", objectExpr, field.GoName), field.GoType, true
+		if expr.Safe && strings.HasPrefix(objectType, "*") {
+			objTemp := ctx.newTemp()
+			resultType := expected
+			if resultType == "" {
+				resultType = "any"
+			}
+			resultTemp := ctx.newTemp()
+			nilExpr := safeNilReturnExpr(resultType)
+			lines := append([]string{}, objLines...)
+			lines = append(lines,
+				fmt.Sprintf("%s := %s", objTemp, objectExpr),
+				fmt.Sprintf("var %s %s", resultTemp, resultType),
+				fmt.Sprintf("if %s == nil { %s = %s } else { %s = %s.%s }", objTemp, resultTemp, nilExpr, resultTemp, objTemp, field.GoName),
+			)
+			return lines, resultTemp, resultType, true
+		}
+		return objLines, fieldExpr, fieldType, true
 	}
 	memberValue, ok := g.memberAssignmentRuntimeValue(ctx, expr.Member)
 	if !ok {
@@ -563,10 +559,14 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("unknown struct field")
 		return nil, "", "", false
 	}
-	baseExpr := fmt.Sprintf("__able_member_get(%s, %s)", objValue, memberValue)
+	lines := append([]string{}, objLines...)
+	lines = append(lines, objConvLines...)
+	baseExpr := ""
+	lines, baseExpr, ok = g.appendRuntimeMemberGetControlLines(ctx, lines, objValue, memberValue)
+	if !ok {
+		return nil, "", "", false
+	}
 	if expected == "" || expected == "runtime.Value" {
-		lines := append([]string{}, objLines...)
-		lines = append(lines, objConvLines...)
 		return lines, baseExpr, "runtime.Value", true
 	}
 	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, baseExpr, expected)
@@ -574,8 +574,6 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("member access type mismatch")
 		return nil, "", "", false
 	}
-	lines := append([]string{}, objLines...)
-	lines = append(lines, objConvLines...)
 	lines = append(lines, convLines...)
 	return lines, converted, expected, true
 }
@@ -637,62 +635,6 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 		return nil, "", "", false
 	}
 	if g.isArrayStructType(objType) {
-		if monoKind, monoEnabled := g.monoArrayKindForObject(ctx, expr.Object, objType); monoEnabled {
-			idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, expr.Index, "")
-			if !ok {
-				return nil, "", "", false
-			}
-			objTemp := ctx.newTemp()
-			idxTemp := ctx.newTemp()
-			indexTemp := ctx.newTemp()
-			handleRawTemp := ctx.newTemp()
-			handleTemp := ctx.newTemp()
-			lengthTemp := ctx.newTemp()
-			nativeTemp := ctx.newTemp()
-			resultTemp := ctx.newTemp()
-			readExpr, readType, ok := g.monoArrayReadExpr(monoKind, handleTemp, indexTemp)
-			if !ok {
-				ctx.setReason("index expression unsupported mono read")
-				return nil, "", "", false
-			}
-			monoConvLines, runtimeExpr, ok := g.runtimeValueLines(ctx, nativeTemp, readType)
-			if !ok {
-				ctx.setReason("index expression unsupported mono conversion")
-				return nil, "", "", false
-			}
-			lines := append([]string{}, objLines...)
-			lines = append(lines, idxLines...)
-			lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
-			lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
-			if !ok {
-				ctx.setReason("index expression unsupported")
-				return nil, "", "", false
-			}
-			lines = append(lines, monoConvLines...)
-			lines = append(lines,
-				fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp),
-				fmt.Sprintf("%s, %s_err := bridge.AsInt(%s, 64)", handleTemp, handleTemp, handleRawTemp),
-			fmt.Sprintf("if %s_err != nil { panic(%s_err) }", handleTemp, handleTemp),
-				fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-				"if err != nil { panic(err) }",
-				fmt.Sprintf("var %s runtime.Value", resultTemp),
-				fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else {", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp),
-				fmt.Sprintf("\t%s, err := %s", nativeTemp, readExpr),
-				"\tif err != nil { panic(err) }",
-				fmt.Sprintf("\t%s = %s", resultTemp, runtimeExpr),
-				"}",
-			)
-			if expected == "" || expected == "runtime.Value" {
-				return lines, resultTemp, "runtime.Value", true
-			}
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-			if !ok {
-				ctx.setReason("index expression type mismatch")
-				return nil, "", "", false
-			}
-			lines = append(lines, convLines...)
-			return lines, converted, expected, true
-		}
 		idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, expr.Index, "")
 		if !ok {
 			return nil, "", "", false
@@ -700,8 +642,6 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 		objTemp := ctx.newTemp()
 		idxTemp := ctx.newTemp()
 		indexTemp := ctx.newTemp()
-		handleRawTemp := ctx.newTemp()
-		handleTemp := ctx.newTemp()
 		lengthTemp := ctx.newTemp()
 		resultTemp := ctx.newTemp()
 		readTemp := ctx.newTemp()
@@ -714,15 +654,10 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 			return nil, "", "", false
 		}
 		lines = append(lines,
-			fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp),
-			fmt.Sprintf("%s, %s_err := bridge.AsInt(%s, 64)", handleTemp, handleTemp, handleRawTemp),
-			fmt.Sprintf("if %s_err != nil { panic(%s_err) }", handleTemp, handleTemp),
-			fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-			"if err != nil { panic(err) }",
+			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
 			fmt.Sprintf("var %s runtime.Value", resultTemp),
 			fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else {", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp),
-			fmt.Sprintf("\t%s, err := runtime.ArrayStoreRead(%s, %s)", readTemp, handleTemp, indexTemp),
-			"\tif err != nil { panic(err) }",
+			fmt.Sprintf("\t%s := %s.Elements[%s]", readTemp, objTemp, indexTemp),
 			fmt.Sprintf("\tif %s == nil { %s = runtime.NilValue{} } else { %s = %s }", readTemp, resultTemp, resultTemp, readTemp),
 			"}",
 		)
@@ -755,7 +690,15 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 	lines = append(lines, objConvLines...)
 	lines = append(lines, idxLines...)
 	lines = append(lines, idxConvLines...)
-	baseExpr := fmt.Sprintf("__able_index(%s, %s)", objValue, idxValue)
+	baseTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s, %s := __able_index(%s, %s)", baseTemp, controlTemp, objValue, idxValue))
+	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, controlLines...)
+	baseExpr := baseTemp
 	if expected == "" || expected == "runtime.Value" {
 		return lines, baseExpr, "runtime.Value", true
 	}
@@ -770,7 +713,6 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 
 func (g *generator) compileArrayMethodIntrinsicCall(
 	ctx *compileContext,
-	objNode ast.Expression,
 	objExpr string,
 	objType string,
 	methodName string,
@@ -781,12 +723,11 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 	if g == nil || ctx == nil || !g.isArrayStructType(objType) {
 		return nil, "", "", false
 	}
-	monoKind, monoEnabled := g.monoArrayKindForObject(ctx, objNode, objType)
 	switch methodName {
 	case "len":
 		return g.compileArrayMethodLenIntrinsic(ctx, objExpr, args, expected, callNode)
 	case "push":
-		return g.compileArrayMethodPushIntrinsic(ctx, objExpr, monoKind, monoEnabled, args, expected, callNode)
+		return g.compileArrayMethodPushIntrinsic(ctx, objExpr, args, expected, callNode)
 	case "pop":
 		return g.compileArrayMethodPopIntrinsic(ctx, objExpr, args, expected, callNode)
 	case "first":
@@ -810,8 +751,6 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		objTemp := ctx.newTemp()
 		idxTemp := ctx.newTemp()
 		indexTemp := ctx.newTemp()
-		handleRawTemp := ctx.newTemp()
-		handleTemp := ctx.newTemp()
 		lengthTemp := ctx.newTemp()
 		resultTemp := ctx.newTemp()
 		lines := append(idxLines, []string{
@@ -823,42 +762,13 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 			return nil, "", "", false
 		}
 		lines = append(lines,
-			fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp),
-			fmt.Sprintf("%s, %s_err := bridge.AsInt(%s, 64)", handleTemp, handleTemp, handleRawTemp),
-			fmt.Sprintf("if %s_err != nil { panic(%s_err) }", handleTemp, handleTemp),
-			fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-			"if err != nil { panic(err) }",
-			fmt.Sprintf("%s.Length = int32(%s)", objTemp, lengthTemp),
+			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
 			fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
+			fmt.Sprintf("if %s >= 0 && %s < %s {", indexTemp, indexTemp, lengthTemp),
+			fmt.Sprintf("\tif __v := %s.Elements[%s]; __v != nil { %s = __v }", objTemp, indexTemp, resultTemp),
+			"}",
+			"__able_pop_call_frame()",
 		)
-		if monoEnabled {
-			readExpr, readType, ok := g.monoArrayReadExpr(monoKind, handleTemp, indexTemp)
-			if !ok {
-				return nil, "", "", false
-			}
-			nativeTemp := ctx.newTemp()
-			runtimeExpr, ok := g.runtimeValueExpr(nativeTemp, readType)
-			if !ok {
-				return nil, "", "", false
-			}
-			lines = append(lines,
-				fmt.Sprintf("if %s >= 0 && %s < %s {", indexTemp, indexTemp, lengthTemp),
-				fmt.Sprintf("\t%s, err := %s", nativeTemp, readExpr),
-				"\tif err != nil { panic(err) }",
-				fmt.Sprintf("\t%s = %s", resultTemp, runtimeExpr),
-				"}",
-			)
-		} else {
-			readTemp := ctx.newTemp()
-			lines = append(lines,
-				fmt.Sprintf("if %s >= 0 && %s < %s {", indexTemp, indexTemp, lengthTemp),
-				fmt.Sprintf("\t%s, err := runtime.ArrayStoreRead(%s, %s)", readTemp, handleTemp, indexTemp),
-				"\tif err != nil { panic(err) }",
-				fmt.Sprintf("\tif %s != nil { %s = %s }", readTemp, resultTemp, readTemp),
-				"}",
-			)
-		}
-		lines = append(lines, "__able_pop_call_frame()")
 		if expected == "" || expected == "runtime.Value" {
 			return lines, resultTemp, "runtime.Value", true
 		}
@@ -880,15 +790,18 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		if !ok {
 			return nil, "", "", false
 		}
+		valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		if !ok {
+			return nil, "", "", false
+		}
 		objTemp := ctx.newTemp()
 		idxTemp := ctx.newTemp()
 		indexTemp := ctx.newTemp()
 		valueTemp := ctx.newTemp()
-		handleRawTemp := ctx.newTemp()
-		handleTemp := ctx.newTemp()
 		lengthTemp := ctx.newTemp()
 		resultTemp := ctx.newTemp()
 		lines := append(setIdxLines, setValLines...)
+		lines = append(lines, valConvLines...)
 		lines = append(lines, []string{
 			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
 			fmt.Sprintf("%s := %s", objTemp, objExpr),
@@ -898,43 +811,13 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 			return nil, "", "", false
 		}
 		lines = append(lines,
-			fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp),
-			fmt.Sprintf("%s, %s_err := bridge.AsInt(%s, 64)", handleTemp, handleTemp, handleRawTemp),
-			fmt.Sprintf("if %s_err != nil { panic(%s_err) }", handleTemp, handleTemp),
-			fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-			"if err != nil { panic(err) }",
-			fmt.Sprintf("%s.Length = int32(%s)", objTemp, lengthTemp),
+			fmt.Sprintf("%s := %s", valueTemp, valueRuntime),
+			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
 			fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
+			fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { %s.Elements[%s] = %s }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, objTemp, indexTemp, valueTemp),
+			fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
+			"__able_pop_call_frame()",
 		)
-		if monoEnabled {
-			monoGoType := g.monoArrayElemGoType(monoKind)
-			if monoGoType == "" {
-				return nil, "", "", false
-			}
-			coercedValueExpr, ok := g.coerceExprToGoType(valueExpr, valueType, monoGoType)
-			if !ok {
-				return nil, "", "", false
-			}
-			runtimeAssignedExpr, ok := g.runtimeValueExpr(valueTemp, monoGoType)
-			if !ok {
-				return nil, "", "", false
-			}
-			writeExpr, ok := g.monoArrayWriteExpr(monoKind, handleTemp, indexTemp, valueTemp)
-			if !ok {
-				return nil, "", "", false
-			}
-			lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, coercedValueExpr))
-			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { __able_panic_on_error(%s); %s = %s }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, writeExpr, resultTemp, runtimeAssignedExpr))
-		} else {
-			valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
-			if !ok {
-				return nil, "", "", false
-			}
-			lines = append(lines, valConvLines...)
-			lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
-			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { __able_panic_on_error(runtime.ArrayStoreWrite(%s, %s, %s)) }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, handleTemp, indexTemp, valueTemp))
-		}
-		lines = append(lines, "__able_pop_call_frame()")
 		if expected == "" || expected == "runtime.Value" {
 			return lines, resultTemp, "runtime.Value", true
 		}
@@ -944,292 +827,93 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		}
 		lines = append(lines, convLines...)
 		return lines, converted, expected, true
+	case "read_slot":
+		// read_slot(idx) → direct element access without bounds check
+		if len(args) != 1 {
+			return nil, "", "", false
+		}
+		idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, args[0], "")
+		if !ok {
+			return nil, "", "", false
+		}
+		objTemp := ctx.newTemp()
+		idxTemp := ctx.newTemp()
+		indexTemp := ctx.newTemp()
+		resultTemp := ctx.newTemp()
+		lines := append(idxLines, []string{
+			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
+			fmt.Sprintf("%s := %s", objTemp, objExpr),
+		}...)
+		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines,
+			fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
+			fmt.Sprintf("if %s >= 0 && %s < len(%s.Elements) {", indexTemp, indexTemp, objTemp),
+			fmt.Sprintf("\tif __v := %s.Elements[%s]; __v != nil { %s = __v }", objTemp, indexTemp, resultTemp),
+			"}",
+			"__able_pop_call_frame()",
+		)
+		if expected == "" || expected == "runtime.Value" {
+			return lines, resultTemp, "runtime.Value", true
+		}
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, convLines...)
+		return lines, converted, expected, true
+	case "write_slot":
+		// write_slot(idx, value) → direct element write without bounds check
+		if len(args) != 2 {
+			return nil, "", "", false
+		}
+		setIdxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, args[0], "")
+		if !ok {
+			return nil, "", "", false
+		}
+		setValLines, valueExpr, valueType, ok := g.compileExprLines(ctx, args[1], "")
+		if !ok {
+			return nil, "", "", false
+		}
+		valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		if !ok {
+			return nil, "", "", false
+		}
+		objTemp := ctx.newTemp()
+		idxTemp := ctx.newTemp()
+		indexTemp := ctx.newTemp()
+		valueTemp := ctx.newTemp()
+		lines := append(setIdxLines, setValLines...)
+		lines = append(lines, valConvLines...)
+		lines = append(lines, []string{
+			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
+			fmt.Sprintf("%s := %s", objTemp, objExpr),
+		}...)
+		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines,
+			fmt.Sprintf("%s := %s", valueTemp, valueRuntime),
+			fmt.Sprintf("if %s >= 0 && %s < len(%s.Elements) {", indexTemp, indexTemp, objTemp),
+			fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp),
+			fmt.Sprintf("} else if %s >= 0 {", indexTemp),
+			fmt.Sprintf("\tfor len(%s.Elements) <= %s { %s.Elements = append(%s.Elements, runtime.NilValue{}) }", objTemp, indexTemp, objTemp, objTemp),
+			fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp),
+			"}",
+			fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
+			"__able_pop_call_frame()",
+		)
+		if expected == "runtime.Value" {
+			return lines, "runtime.VoidValue{}", "runtime.Value", true
+		}
+		if expected == "" || expected == "struct{}" {
+			return lines, "struct{}{}", "struct{}", true
+		}
+		return nil, "", "", false
 	default:
 		return nil, "", "", false
-	}
-}
-
-func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (string, bool) {
-	switch g.typeCategory(expected) {
-	case "bool":
-		return fmt.Sprintf("func() bool { val := %s; v, err := bridge.AsBool(val); if err != nil { panic(err) }; return v }()", valueExpr), true
-	case "string":
-		return fmt.Sprintf("func() string { val := %s; v, err := bridge.AsString(val); if err != nil { panic(err) }; return v }()", valueExpr), true
-	case "rune":
-		return fmt.Sprintf("func() rune { val := %s; v, err := bridge.AsRune(val); if err != nil { panic(err) }; return v }()", valueExpr), true
-	case "float32":
-		return fmt.Sprintf("func() float32 { val := %s; v, err := bridge.AsFloat(val); if err != nil { panic(err) }; return float32(v) }()", valueExpr), true
-	case "float64":
-		return fmt.Sprintf("func() float64 { val := %s; v, err := bridge.AsFloat(val); if err != nil { panic(err) }; return v }()", valueExpr), true
-	case "int":
-		return fmt.Sprintf("func() int { val := %s; v, err := bridge.AsInt(val, bridge.NativeIntBits); if err != nil { panic(err) }; return int(v) }()", valueExpr), true
-	case "uint":
-		return fmt.Sprintf("func() uint { val := %s; v, err := bridge.AsUint(val, bridge.NativeIntBits); if err != nil { panic(err) }; return uint(v) }()", valueExpr), true
-	case "int8", "int16", "int32", "int64":
-		bits := g.intBits(expected)
-		return fmt.Sprintf("func() %s { val := %s; v, err := bridge.AsInt(val, %d); if err != nil { panic(err) }; return %s(v) }()", expected, valueExpr, bits, expected), true
-	case "uint8", "uint16", "uint32", "uint64":
-		bits := g.intBits(expected)
-		return fmt.Sprintf("func() %s { val := %s; v, err := bridge.AsUint(val, %d); if err != nil { panic(err) }; return %s(v) }()", expected, valueExpr, bits, expected), true
-	case "struct":
-		baseName, ok := g.structBaseName(expected)
-		if !ok {
-			baseName = strings.TrimPrefix(expected, "*")
-		}
-		return fmt.Sprintf("func() %s { val := %s; v, err := __able_struct_%s_from(val); if err != nil { panic(err) }; return v }()", expected, valueExpr, baseName), true
-	}
-	return "", false
-}
-
-// expectRuntimeValueExprLines converts a runtime.Value expression to a concrete Go type
-// using setup lines instead of an IIFE. Returns (lines, expression, ok).
-func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr string, expected string) ([]string, string, bool) {
-	// runtime.Value satisfies any — no conversion needed.
-	if expected == "any" {
-		return nil, valueExpr, true
-	}
-	valTemp := ctx.newTemp()
-	vTemp := ctx.newTemp()
-	errTemp := ctx.newTemp()
-	switch g.typeCategory(expected) {
-	case "bool":
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsBool(%s)", vTemp, errTemp, valTemp),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, vTemp, true
-	case "string":
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsString(%s)", vTemp, errTemp, valTemp),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, vTemp, true
-	case "rune":
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsRune(%s)", vTemp, errTemp, valTemp),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, vTemp, true
-	case "float32":
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsFloat(%s)", vTemp, errTemp, valTemp),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, fmt.Sprintf("float32(%s)", vTemp), true
-	case "float64":
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsFloat(%s)", vTemp, errTemp, valTemp),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, vTemp, true
-	case "int":
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsInt(%s, bridge.NativeIntBits)", vTemp, errTemp, valTemp),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, fmt.Sprintf("int(%s)", vTemp), true
-	case "uint":
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsUint(%s, bridge.NativeIntBits)", vTemp, errTemp, valTemp),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, fmt.Sprintf("uint(%s)", vTemp), true
-	case "int8", "int16", "int32", "int64":
-		bits := g.intBits(expected)
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsInt(%s, %d)", vTemp, errTemp, valTemp, bits),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, fmt.Sprintf("%s(%s)", expected, vTemp), true
-	case "uint8", "uint16", "uint32", "uint64":
-		bits := g.intBits(expected)
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := bridge.AsUint(%s, %d)", vTemp, errTemp, valTemp, bits),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, fmt.Sprintf("%s(%s)", expected, vTemp), true
-	case "struct":
-		baseName, ok := g.structBaseName(expected)
-		if !ok {
-			baseName = strings.TrimPrefix(expected, "*")
-		}
-		lines := []string{
-			fmt.Sprintf("%s := %s", valTemp, valueExpr),
-			fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", vTemp, errTemp, baseName, valTemp),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, vTemp, true
-	}
-	return nil, "", false
-}
-
-// memberName extracts the string name from a member access expression.
-func (g *generator) memberName(member ast.Expression) string {
-	if ident, ok := member.(*ast.Identifier); ok && ident != nil {
-		return ident.Name
-	}
-	return ""
-}
-
-// stringBuiltinFieldAccess maps Able String struct field names to Go string equivalents.
-func (g *generator) stringBuiltinFieldAccess(objectExpr, fieldName string) (string, string, bool) {
-	switch fieldName {
-	case "len_bytes":
-		return fmt.Sprintf("uint(len(%s))", objectExpr), "uint", true
-	}
-	return "", "", false
-}
-
-func (g *generator) isArrayStructType(goType string) bool {
-	if g == nil || g.typeCategory(goType) != "struct" {
-		return false
-	}
-	baseName, ok := g.structBaseName(goType)
-	return ok && baseName == "Array"
-}
-
-func (g *generator) structInfoByGoName(goName string) *structInfo {
-	if goName == "" {
-		return nil
-	}
-	if strings.HasPrefix(goName, "*") {
-		goName = strings.TrimPrefix(goName, "*")
-	}
-	for _, info := range g.structs {
-		if info != nil && info.GoName == goName {
-			return info
-		}
-	}
-	return nil
-}
-
-func (g *generator) nativeIndexIntExpr(expr string, goType string) (string, bool) {
-	switch g.typeCategory(goType) {
-	case "int", "int8", "int16", "int32", "uint8", "uint16":
-		return fmt.Sprintf("int(%s)", expr), true
-	case "int64":
-		return fmt.Sprintf("func() int { raw := int64(%s); idx := int(raw); if int64(idx) != raw { panic(fmt.Errorf(\"index overflows native int\")) }; return idx }()", expr), true
-	case "uint", "uint32", "uint64":
-		return fmt.Sprintf("func() int { raw := uint64(%s); idx := int(raw); if uint64(idx) != raw { panic(fmt.Errorf(\"index overflows native int\")) }; return idx }()", expr), true
-	default:
-		return "", false
-	}
-}
-
-func (g *generator) appendIndexIntLines(ctx *compileContext, lines []string, idxExpr string, idxType string, idxTemp string, indexTemp string) ([]string, bool) {
-	lines = append(lines, fmt.Sprintf("%s := %s", idxTemp, idxExpr))
-	if nativeExpr, ok := g.nativeIndexIntExpr(idxTemp, idxType); ok {
-		lines = append(lines, fmt.Sprintf("%s := %s", indexTemp, nativeExpr))
-		return lines, true
-	}
-	idxConvLines, idxValueExpr, ok := g.runtimeValueLines(ctx, idxTemp, idxType)
-	if !ok {
-		return nil, false
-	}
-	lines = append(lines, idxConvLines...)
-	idxRuntimeTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s := %s", idxRuntimeTemp, idxValueExpr))
-	idxRawTemp := ctx.newTemp()
-	idxErrTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s, %s := bridge.AsInt(%s, 64)", idxRawTemp, idxErrTemp, idxRuntimeTemp))
-	lines = append(lines, fmt.Sprintf("if %s != nil { panic(%s) }", idxErrTemp, idxErrTemp))
-	lines = append(lines, fmt.Sprintf("%s := int(%s)", indexTemp, idxRawTemp))
-	return lines, true
-}
-
-func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) {
-	switch g.typeCategory(goType) {
-	case "runtime":
-		return expr, true
-	case "any":
-		return fmt.Sprintf("__able_any_to_value(%s)", expr), true
-	case "void":
-		return fmt.Sprintf("func() runtime.Value { _ = %s; return runtime.VoidValue{} }()", expr), true
-	case "bool":
-		return fmt.Sprintf("bridge.ToBool(%s)", expr), true
-	case "string":
-		return fmt.Sprintf("bridge.ToString(%s)", expr), true
-	case "rune":
-		return fmt.Sprintf("bridge.ToRune(%s)", expr), true
-	case "float32":
-		return fmt.Sprintf("bridge.ToFloat32(%s)", expr), true
-	case "float64":
-		return fmt.Sprintf("bridge.ToFloat64(%s)", expr), true
-	case "int":
-		return fmt.Sprintf("bridge.ToInt(int64(%s), runtime.IntegerType(\"isize\"))", expr), true
-	case "uint":
-		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"usize\"))", expr), true
-	case "int8":
-		return fmt.Sprintf("bridge.ToInt(int64(%s), runtime.IntegerType(\"i8\"))", expr), true
-	case "int16":
-		return fmt.Sprintf("bridge.ToInt(int64(%s), runtime.IntegerType(\"i16\"))", expr), true
-	case "int32":
-		return fmt.Sprintf("bridge.ToInt(int64(%s), runtime.IntegerType(\"i32\"))", expr), true
-	case "int64":
-		return fmt.Sprintf("bridge.ToInt(int64(%s), runtime.IntegerType(\"i64\"))", expr), true
-	case "uint8":
-		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u8\"))", expr), true
-	case "uint16":
-		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u16\"))", expr), true
-	case "uint32":
-		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u32\"))", expr), true
-	case "uint64":
-		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))", expr), true
-	case "struct":
-		baseName, ok := g.structBaseName(goType)
-		if !ok {
-			baseName = strings.TrimPrefix(goType, "*")
-		}
-		if strings.HasPrefix(goType, "*") {
-			return fmt.Sprintf("__able_any_to_value(%s)", expr), true
-		}
-		return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; v, err := __able_struct_%s_to(__able_runtime, %s); if err != nil { panic(err) }; return v }()", baseName, expr), true
-	default:
-		return "", false
-	}
-}
-
-// runtimeValueLines is like runtimeValueExpr but returns setup lines + a clean
-// expression instead of wrapping multi-statement conversions in IIFEs.
-// Use this at call sites that have a lines slice and compileContext available.
-func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType string) ([]string, string, bool) {
-	switch g.typeCategory(goType) {
-	case "void":
-		return []string{fmt.Sprintf("_ = %s", expr)}, "runtime.VoidValue{}", true
-	case "struct":
-		baseName, ok := g.structBaseName(goType)
-		if !ok {
-			baseName = strings.TrimPrefix(goType, "*")
-		}
-		// Struct pointers can be nil for nullable types (?T). Handle by
-		// converting to runtime.Value first, using __able_any_to_value which
-		// already has nil and struct pointer handling.
-		if strings.HasPrefix(goType, "*") {
-			convTemp := ctx.newTemp()
-			lines := []string{
-				fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, expr),
-			}
-			return lines, convTemp, true
-		}
-		convTemp := ctx.newTemp()
-		errTemp := ctx.newTemp()
-		lines := []string{
-			"if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }",
-			fmt.Sprintf("%s, %s := __able_struct_%s_to(__able_runtime, %s)", convTemp, errTemp, baseName, expr),
-			fmt.Sprintf("if %s != nil { panic(%s) }", errTemp, errTemp),
-		}
-		return lines, convTemp, true
-	default:
-		converted, ok := g.runtimeValueExpr(expr, goType)
-		return nil, converted, ok
 	}
 }

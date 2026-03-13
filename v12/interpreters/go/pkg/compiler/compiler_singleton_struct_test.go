@@ -60,19 +60,7 @@ func compileAndRunSource(t *testing.T, tempPrefix string, source string) {
 		t.Skip("go toolchain not available")
 	}
 
-	moduleRoot, err := filepath.Abs(filepath.Join(".", "..", ".."))
-	if err != nil {
-		t.Fatalf("module root: %v", err)
-	}
-	tmpRoot := filepath.Join(moduleRoot, "tmp")
-	if err := os.MkdirAll(tmpRoot, 0o755); err != nil {
-		t.Fatalf("mkdir tmp: %v", err)
-	}
-	workDir, err := os.MkdirTemp(tmpRoot, tempPrefix)
-	if err != nil {
-		t.Fatalf("temp dir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(workDir) })
+	moduleRoot, workDir := compilerTestWorkDir(t, tempPrefix)
 
 	entryPath := filepath.Join(workDir, "app.able")
 	if err := os.WriteFile(entryPath, []byte(source), 0o600); err != nil {

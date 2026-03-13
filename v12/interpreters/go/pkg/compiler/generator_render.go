@@ -95,6 +95,8 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	}
 
 	g.renderStructs(&body)
+	g.renderNativeInterfaces(&body)
+	g.renderNativeUnions(&body)
 	if g.hasFunctions() {
 		g.renderStructConverters(&body)
 		g.renderCompiledMethods(&body)
