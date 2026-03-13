@@ -22,7 +22,7 @@ func TestCompilerRemovesTypeRefPointerQualifiedCallableShim(t *testing.T) {
 		t.Fatalf("expected qualified callable resolver helper")
 	}
 	segment := compiledSrc[start:]
-	end := strings.Index(segment, "func __able_call_named(name string, args []runtime.Value, call *ast.FunctionCall) runtime.Value {")
+	end := strings.Index(segment, "func __able_call_named(")
 	if end < 0 {
 		t.Fatalf("expected qualified callable resolver segment terminator")
 	}
@@ -34,7 +34,7 @@ func TestCompilerRemovesTypeRefPointerQualifiedCallableShim(t *testing.T) {
 	if strings.Contains(segment, "if method, ok := lookupStatic(typed.TypeName); ok {") {
 		t.Fatalf("expected direct TypeRef lookupStatic shim branch to be removed")
 	}
-	if !strings.Contains(segment, "candidate := __able_member_get_method(receiver, runtime.StringValue{Val: tail})") {
+	if !strings.Contains(segment, "candidate, err := __able_try_member_get_method(receiver, runtime.StringValue{Val: tail})") {
 		t.Fatalf("expected qualified callable resolver to use shared member_get_method path")
 	}
 }

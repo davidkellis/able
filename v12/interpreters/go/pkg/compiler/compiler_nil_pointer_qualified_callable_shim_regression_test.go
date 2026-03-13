@@ -22,7 +22,7 @@ func TestCompilerRemovesNilPointerQualifiedCallableShim(t *testing.T) {
 		t.Fatalf("expected qualified callable resolver helper")
 	}
 	segment := compiledSrc[start:]
-	end := strings.Index(segment, "func __able_call_named(name string, args []runtime.Value, call *ast.FunctionCall) runtime.Value {")
+	end := strings.Index(segment, "func __able_call_named(")
 	if end < 0 {
 		t.Fatalf("expected qualified callable resolver segment terminator")
 	}

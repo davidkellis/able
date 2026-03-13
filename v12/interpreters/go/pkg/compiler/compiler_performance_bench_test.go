@@ -35,19 +35,7 @@ func BenchmarkCompilerExecFixtureBinary(b *testing.B) {
 		b.Skip("diagnostic-only fixture is not suitable for runtime baseline")
 	}
 
-	moduleRoot, err := filepath.Abs(filepath.Join(".", "..", ".."))
-	if err != nil {
-		b.Fatalf("module root: %v", err)
-	}
-	tmpRoot := filepath.Join(moduleRoot, "tmp")
-	if err := os.MkdirAll(tmpRoot, 0o755); err != nil {
-		b.Fatalf("mkdir tmp: %v", err)
-	}
-	workDir, err := os.MkdirTemp(tmpRoot, "ablec-bench-")
-	if err != nil {
-		b.Fatalf("temp dir: %v", err)
-	}
-	b.Cleanup(func() { _ = os.RemoveAll(workDir) })
+	_, workDir := compilerTestWorkDir(b, "ablec-bench")
 
 	binPath, env, err := buildCompilerBenchmarkBinary(workDir, dir, manifest)
 	if err != nil {

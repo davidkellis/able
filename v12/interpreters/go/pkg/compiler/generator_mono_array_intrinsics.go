@@ -6,21 +6,15 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-// arrayHandleLines generates the common preamble for array intrinsics:
-// extract storage handle and convert to int64.
-func (g *generator) arrayHandleLines(ctx *compileContext, objExpr string, callNode string) (lines []string, objTemp, handleTemp string) {
+// arrayObjLines generates the common preamble for array intrinsics:
+// capture the array object pointer.
+func (g *generator) arrayObjLines(ctx *compileContext, objExpr string, callNode string) (lines []string, objTemp string) {
 	objTemp = ctx.newTemp()
-	handleRawTemp := ctx.newTemp()
-	handleTemp = ctx.newTemp()
-	handleErrTemp := ctx.newTemp()
 	lines = []string{
 		fmt.Sprintf("__able_push_call_frame(%s)", callNode),
 		fmt.Sprintf("%s := %s", objTemp, objExpr),
-		fmt.Sprintf("%s := %s.Storage_handle", handleRawTemp, objTemp),
-		fmt.Sprintf("%s, %s := bridge.AsInt(%s, 64)", handleTemp, handleErrTemp, handleRawTemp),
-		fmt.Sprintf("if %s != nil { panic(%s) }", handleErrTemp, handleErrTemp),
 	}
-	return lines, objTemp, handleTemp
+	return lines, objTemp
 }
 
 // compileArrayMethodLenIntrinsic compiles arr.len() → int32 for all arrays.
@@ -34,16 +28,12 @@ func (g *generator) compileArrayMethodLenIntrinsic(
 	if len(args) != 0 {
 		return nil, "", "", false
 	}
-	lines, objTemp, handleTemp := g.arrayHandleLines(ctx, objExpr, callNode)
-	lengthTemp := ctx.newTemp()
-	lines = append(lines,
-		fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-		"if err != nil { panic(err) }",
-		fmt.Sprintf("%s.Length = int32(%s)", objTemp, lengthTemp),
-	)
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s := int32(%s)", resultTemp, lengthTemp))
-	lines = append(lines, "__able_pop_call_frame()")
+	lines = append(lines,
+		fmt.Sprintf("%s := int32(len(%s.Elements))", resultTemp, objTemp),
+		"__able_pop_call_frame()",
+	)
 	if expected == "runtime.Value" {
 		valueExpr, ok := g.runtimeValueExpr(resultTemp, "int32")
 		if !ok {
@@ -67,12 +57,9 @@ func (g *generator) compileArrayMethodLenIntrinsic(
 }
 
 // compileArrayMethodPushIntrinsic compiles arr.push(value) for all arrays.
-// For mono arrays it uses typed writes; for non-mono it uses runtime.ArrayStoreWrite.
 func (g *generator) compileArrayMethodPushIntrinsic(
 	ctx *compileContext,
 	objExpr string,
-	monoKind monoArrayElemKind,
-	monoEnabled bool,
 	args []ast.Expression,
 	expected string,
 	callNode string,
@@ -80,52 +67,7 @@ func (g *generator) compileArrayMethodPushIntrinsic(
 	if len(args) != 1 {
 		return nil, "", "", false
 	}
-	// Mono path: use typed write.
-	if monoEnabled {
-		monoGoType := g.monoArrayElemGoType(monoKind)
-		if monoGoType == "" {
-			return nil, "", "", false
-		}
-		valArgLines, valueExpr, valueType, ok := g.compileExprLines(ctx, args[0], monoGoType)
-		if !ok {
-			return nil, "", "", false
-		}
-		coercedValueExpr, ok := g.coerceExprToGoType(valueExpr, valueType, monoGoType)
-		if !ok {
-			return nil, "", "", false
-		}
-		valueTemp := ctx.newTemp()
-		lines, objTemp, handleTemp := g.arrayHandleLines(ctx, objExpr, callNode)
-		lengthTemp := ctx.newTemp()
-		nextLenTemp := ctx.newTemp()
-		capacityTemp := ctx.newTemp()
-		writeExpr, ok := g.monoArrayWriteExpr(monoKind, handleTemp, lengthTemp, valueTemp)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(valArgLines, append(lines, []string{
-			fmt.Sprintf("%s := %s", valueTemp, coercedValueExpr),
-			fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-			"if err != nil { panic(err) }",
-			fmt.Sprintf("__able_panic_on_error(%s)", writeExpr),
-			fmt.Sprintf("%s := %s + 1", nextLenTemp, lengthTemp),
-			fmt.Sprintf("%s.Length = int32(%s)", objTemp, nextLenTemp),
-			fmt.Sprintf("if int(%s.Capacity) < %s {", objTemp, nextLenTemp),
-			fmt.Sprintf("\t%s, err := runtime.ArrayStoreCapacity(%s)", capacityTemp, handleTemp),
-			"\tif err != nil { panic(err) }",
-			fmt.Sprintf("\t%s.Capacity = int32(%s)", objTemp, capacityTemp),
-			"}",
-			"__able_pop_call_frame()",
-		}...)...)
-		if expected == "runtime.Value" {
-			return lines, "runtime.VoidValue{}", "runtime.Value", true
-		}
-		if expected == "" || expected == "struct{}" {
-			return lines, "struct{}{}", "struct{}", true
-		}
-		return nil, "", "", false
-	}
-	// Non-mono path: use runtime.ArrayStoreWrite with runtime.Value.
+	// Compile the value argument and convert to runtime.Value.
 	valArgLines, valueExpr, valueType, ok := g.compileExprLines(ctx, args[0], "")
 	if !ok {
 		return nil, "", "", false
@@ -134,23 +76,12 @@ func (g *generator) compileArrayMethodPushIntrinsic(
 	if !ok {
 		return nil, "", "", false
 	}
-	lines, objTemp, handleTemp := g.arrayHandleLines(ctx, objExpr, callNode)
-	lengthTemp := ctx.newTemp()
-	nextLenTemp := ctx.newTemp()
-	capacityTemp := ctx.newTemp()
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	valueTemp := ctx.newTemp()
 	lines = append(valArgLines, append(valConvLines, append(lines, []string{
 		fmt.Sprintf("%s := %s", valueTemp, valueRuntime),
-		fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-		"if err != nil { panic(err) }",
-		fmt.Sprintf("__able_panic_on_error(runtime.ArrayStoreWrite(%s, %s, %s))", handleTemp, lengthTemp, valueTemp),
-		fmt.Sprintf("%s := %s + 1", nextLenTemp, lengthTemp),
-		fmt.Sprintf("%s.Length = int32(%s)", objTemp, nextLenTemp),
-		fmt.Sprintf("if int(%s.Capacity) < %s {", objTemp, nextLenTemp),
-		fmt.Sprintf("\t%s, err := runtime.ArrayStoreCapacity(%s)", capacityTemp, handleTemp),
-		"\tif err != nil { panic(err) }",
-		fmt.Sprintf("\t%s.Capacity = int32(%s)", objTemp, capacityTemp),
-		"}",
+		fmt.Sprintf("%s.Elements = append(%s.Elements, %s)", objTemp, objTemp, valueTemp),
+		fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
 		"__able_pop_call_frame()",
 	}...)...)...)
 	if expected == "runtime.Value" {
@@ -173,23 +104,17 @@ func (g *generator) compileArrayMethodPopIntrinsic(
 	if len(args) != 0 {
 		return nil, "", "", false
 	}
-	lines, objTemp, handleTemp := g.arrayHandleLines(ctx, objExpr, callNode)
-	lengthTemp := ctx.newTemp()
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
-	idxTemp := ctx.newTemp()
+	lengthTemp := ctx.newTemp()
 	lines = append(lines,
-		fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-		"if err != nil { panic(err) }",
-		fmt.Sprintf("%s.Length = int32(%s)", objTemp, lengthTemp),
+		fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
 		fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
 		fmt.Sprintf("if %s > 0 {", lengthTemp),
-		fmt.Sprintf("\t%s := %s - 1", idxTemp, lengthTemp),
-		fmt.Sprintf("\t%s_read, err := runtime.ArrayStoreRead(%s, %s)", resultTemp, handleTemp, idxTemp),
-		"\tif err != nil { panic(err) }",
-		fmt.Sprintf("\tif %s_read != nil { %s = %s_read }", resultTemp, resultTemp, resultTemp),
-		fmt.Sprintf("\t__able_panic_on_error(runtime.ArrayStoreSetLength(%s, %s))", handleTemp, idxTemp),
-		fmt.Sprintf("\t%s.Length = int32(%s)", objTemp, idxTemp),
+		fmt.Sprintf("\t%s = %s.Elements[%s-1]", resultTemp, objTemp, lengthTemp),
+		fmt.Sprintf("\t%s.Elements = %s.Elements[:%s-1]", objTemp, objTemp, lengthTemp),
 		"}",
+		fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
 		"__able_pop_call_frame()",
 	)
 	if expected == "" || expected == "runtime.Value" {
@@ -215,28 +140,20 @@ func (g *generator) compileArrayMethodFirstLastIntrinsic(
 	if len(args) != 0 {
 		return nil, "", "", false
 	}
-	lines, objTemp, handleTemp := g.arrayHandleLines(ctx, objExpr, callNode)
-	lengthTemp := ctx.newTemp()
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
+	lengthTemp := ctx.newTemp()
 	lines = append(lines,
-		fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-		"if err != nil { panic(err) }",
-		fmt.Sprintf("%s.Length = int32(%s)", objTemp, lengthTemp),
+		fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
 		fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
 		fmt.Sprintf("if %s > 0 {", lengthTemp),
 	)
-	var idxExpr string
 	if isFirst {
-		idxExpr = "0"
+		lines = append(lines, fmt.Sprintf("\t%s = %s.Elements[0]", resultTemp, objTemp))
 	} else {
-		idxTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("\t%s := %s - 1", idxTemp, lengthTemp))
-		idxExpr = idxTemp
+		lines = append(lines, fmt.Sprintf("\t%s = %s.Elements[%s-1]", resultTemp, objTemp, lengthTemp))
 	}
 	lines = append(lines,
-		fmt.Sprintf("\t%s_read, err := runtime.ArrayStoreRead(%s, %s)", resultTemp, handleTemp, idxExpr),
-		"\tif err != nil { panic(err) }",
-		fmt.Sprintf("\tif %s_read != nil { %s = %s_read }", resultTemp, resultTemp, resultTemp),
 		"}",
 		"__able_pop_call_frame()",
 	)
@@ -262,14 +179,10 @@ func (g *generator) compileArrayMethodIsEmptyIntrinsic(
 	if len(args) != 0 {
 		return nil, "", "", false
 	}
-	lines, objTemp, handleTemp := g.arrayHandleLines(ctx, objExpr, callNode)
-	lengthTemp := ctx.newTemp()
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
 	lines = append(lines,
-		fmt.Sprintf("%s, err := runtime.ArrayStoreSize(%s)", lengthTemp, handleTemp),
-		"if err != nil { panic(err) }",
-		fmt.Sprintf("%s.Length = int32(%s)", objTemp, lengthTemp),
-		fmt.Sprintf("%s := %s == 0", resultTemp, lengthTemp),
+		fmt.Sprintf("%s := len(%s.Elements) == 0", resultTemp, objTemp),
 		"__able_pop_call_frame()",
 	)
 	if expected == "" || expected == "bool" {
@@ -296,10 +209,10 @@ func (g *generator) compileArrayMethodClearIntrinsic(
 	if len(args) != 0 {
 		return nil, "", "", false
 	}
-	lines, objTemp, handleTemp := g.arrayHandleLines(ctx, objExpr, callNode)
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	lines = append(lines,
-		fmt.Sprintf("__able_panic_on_error(runtime.ArrayStoreSetLength(%s, 0))", handleTemp),
-		fmt.Sprintf("%s.Length = int32(0)", objTemp),
+		fmt.Sprintf("%s.Elements = %s.Elements[:0]", objTemp, objTemp),
+		fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
 		"__able_pop_call_frame()",
 	)
 	if expected == "runtime.Value" {
@@ -322,14 +235,10 @@ func (g *generator) compileArrayMethodCapacityIntrinsic(
 	if len(args) != 0 {
 		return nil, "", "", false
 	}
-	lines, objTemp, handleTemp := g.arrayHandleLines(ctx, objExpr, callNode)
-	capacityTemp := ctx.newTemp()
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
 	lines = append(lines,
-		fmt.Sprintf("%s, err := runtime.ArrayStoreCapacity(%s)", capacityTemp, handleTemp),
-		"if err != nil { panic(err) }",
-		fmt.Sprintf("%s.Capacity = int32(%s)", objTemp, capacityTemp),
-		fmt.Sprintf("%s := int32(%s)", resultTemp, capacityTemp),
+		fmt.Sprintf("%s := int32(cap(%s.Elements))", resultTemp, objTemp),
 		"__able_pop_call_frame()",
 	)
 	if expected == "" || expected == "int32" {

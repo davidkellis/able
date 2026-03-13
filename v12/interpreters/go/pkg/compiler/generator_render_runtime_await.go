@@ -106,7 +106,8 @@ func __able_make_default_awaitable(callback runtime.Value) runtime.Value {
 			if callback == nil {
 				return runtime.NilValue{}, nil
 			}
-			return __able_call_value(callback, nil, nil), nil
+			value, control := __able_call_value(callback, nil, nil)
+			return value, __able_control_to_error(__able_runtime, nil, control)
 		},
 	}
 	isDefault := runtime.NativeFunctionValue{
@@ -219,7 +220,8 @@ func (a *__able_timer_awaitable) commit() (runtime.Value, error) {
 	if callback == nil {
 		return runtime.NilValue{}, nil
 	}
-	return __able_call_value(callback, nil, nil), nil
+	value, control := __able_call_value(callback, nil, nil)
+	return value, __able_control_to_error(__able_runtime, nil, control)
 }
 
 func (a *__able_timer_awaitable) toStruct() *runtime.StructInstanceValue {
@@ -525,13 +527,16 @@ func __able_cancel_await_registration(reg runtime.Value) {
 	if reg == nil {
 		return
 	}
-	member := __able_member(reg, runtime.StringValue{Val: "cancel"})
-	_, _ = __able_call_value_fast(member, nil)
+	_, control := __able_method_call(reg, "cancel", nil)
+	_ = __able_control_to_error(__able_runtime, nil, control)
 }
 
 func __able_invoke_awaitable_method(awaitable runtime.Value, method string, args []runtime.Value) (runtime.Value, error) {
-	member := __able_member(awaitable, runtime.StringValue{Val: method})
-	return __able_call_value_fast(member, args)
+	val, control := __able_method_call(awaitable, method, args)
+	if control != nil {
+		return nil, __able_control_to_error(__able_runtime, nil, control)
+	}
+	return val, nil
 }
 
 func __able_make_await_waker(payload *__able_async_payload, state *__able_await_state) (runtime.Value, error) {

@@ -68,7 +68,7 @@ func (g *generator) compileAwaitExpression(ctx *compileContext, expr *ast.AwaitE
 		ctx.setReason("missing await expression")
 		return nil, "", "", false
 	}
-	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) && g.typeCategory(expected) == "unknown" {
+	if !g.isStaticallyKnownExpectedType(expected) {
 		ctx.setReason("await return type mismatch")
 		return nil, "", "", false
 	}

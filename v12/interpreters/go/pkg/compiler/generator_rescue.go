@@ -23,7 +23,11 @@ func (g *generator) compileRaiseStatement(ctx *compileContext, stmt *ast.RaiseSt
 	raiseNode := g.diagNodeName(stmt, "*ast.RaiseStatement", "raise")
 	lines := append([]string{}, exprLines...)
 	lines = append(lines, convLines...)
-	lines = append(lines, fmt.Sprintf("bridge.RaiseWithContext(__able_runtime, %s, %s)", raiseNode, valueRuntime))
+	transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr(raiseNode, valueRuntime))
+	if !ok {
+		return nil, false
+	}
+	lines = append(lines, transferLines...)
 	return lines, true
 }
 
@@ -32,14 +36,11 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 		ctx.setReason("missing rescue expression")
 		return nil, "", "", false
 	}
-	monitoredLines, monitoredExpr, monitoredType, ok := g.compileTailExpression(ctx, expected, expr.MonitoredExpression)
-	if !ok {
-		return nil, "", "", false
-	}
 	if len(expr.Clauses) == 0 {
 		ctx.setReason("rescue requires clauses")
 		return nil, "", "", false
 	}
+
 	type rescueClause struct {
 		condLines  []string
 		cond       string
@@ -50,16 +51,26 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 		bodyExpr   string
 		bodyType   string
 	}
-	clauses := make([]rescueClause, 0, len(expr.Clauses))
+
+	controlTemp := ctx.newTemp()
+	monitoredDoneLabel := ctx.newTemp()
 	subjectTemp := ctx.newTemp()
-	recoveredErrTemp := ctx.newTemp()
+	monitoredCtx := ctx.child()
+	monitoredCtx.controlCaptureVar = controlTemp
+	monitoredCtx.controlCaptureLabel = monitoredDoneLabel
+	monitoredLines, monitoredExpr, monitoredType, ok := g.compileTailExpression(monitoredCtx, expected, expr.MonitoredExpression)
+	if !ok {
+		return nil, "", "", false
+	}
+
+	clauses := make([]rescueClause, 0, len(expr.Clauses))
 	for _, clause := range expr.Clauses {
 		if clause == nil {
 			continue
 		}
 		clauseCtx := ctx.child()
 		clauseCtx.rethrowVar = subjectTemp
-		clauseCtx.rethrowErrVar = recoveredErrTemp
+		clauseCtx.rethrowControlVar = controlTemp
 		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, subjectTemp, "runtime.Value")
 		if !ok {
 			return nil, "", "", false
@@ -87,6 +98,7 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			bodyType:   bodyType,
 		})
 	}
+
 	resultType := expected
 	if resultType == "" {
 		resultType = monitoredType
@@ -109,6 +121,7 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			resultType = "runtime.Value"
 		}
 	}
+
 	monitoredCoerceLines, monitoredExpr, ok := g.coerceRescueBranch(ctx, resultType, monitoredExpr, monitoredType)
 	if !ok {
 		return nil, "", "", false
@@ -123,29 +136,25 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 		clauses[i].bodyExpr = coerced
 		clauses[i].bodyType = resultType
 	}
+
 	resultTemp := ctx.newTemp()
-	recoveredTemp := ctx.newTemp()
-	recoveredOkTemp := ctx.newTemp()
 	matchedTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("var %s %s", resultTemp, resultType),
-		fmt.Sprintf("var %s runtime.Value", recoveredTemp),
-		fmt.Sprintf("var %s bool", recoveredOkTemp),
-		fmt.Sprintf("var %s error", recoveredErrTemp),
-		fmt.Sprintf("_ = %s", recoveredErrTemp),
-		"func() {",
-		fmt.Sprintf("\tdefer func() { if recovered := recover(); recovered != nil { switch v := recovered.(type) { case runtime.Value: %s = v; %s = true; case error: if val, ok := interpreter.RaisedValue(v); ok { %s = val; %s = true; %s = v } else { panic(recovered) }; default: panic(recovered) } } }()", recoveredTemp, recoveredOkTemp, recoveredTemp, recoveredOkTemp, recoveredErrTemp),
+		fmt.Sprintf("var %s *__ableControl", controlTemp),
+		"{",
 	}
 	lines = append(lines, indentLines(monitoredLines, 1)...)
 	lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, monitoredExpr))
-	lines = append(lines, "}()")
-	lines = append(lines, fmt.Sprintf("if %s {", recoveredOkTemp))
-	lines = append(lines, fmt.Sprintf("\t%s := %s", subjectTemp, recoveredTemp))
+	lines = append(lines, "}")
+	lines = append(lines, fmt.Sprintf("if false { goto %s }", monitoredDoneLabel))
+	lines = append(lines, fmt.Sprintf("%s:", monitoredDoneLabel))
+	lines = append(lines, fmt.Sprintf("if %s != nil {", controlTemp))
+	lines = append(lines, fmt.Sprintf("\t%s := __able_control_value(%s)", subjectTemp, controlTemp))
 	lines = append(lines, fmt.Sprintf("\t_ = %s", subjectTemp))
 	lines = append(lines, fmt.Sprintf("\t%s := false", matchedTemp))
 	for _, clause := range clauses {
-		branchLines := []string{}
-		branchLines = append(branchLines, clause.bindLines...)
+		branchLines := append([]string{}, clause.bindLines...)
 		if clause.guardExpr != "" {
 			branchLines = append(branchLines, clause.guardLines...)
 			branchLines = append(branchLines, fmt.Sprintf("if %s {", clause.guardExpr))
@@ -171,7 +180,13 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			lines = append(lines, "\t}")
 		}
 	}
-	lines = append(lines, fmt.Sprintf("\tif !%s { panic(%s) }", matchedTemp, recoveredTemp))
+	propagateLines, ok := g.controlTransferLines(ctx, controlTemp)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, fmt.Sprintf("\tif !%s {", matchedTemp))
+	lines = append(lines, indentLines(propagateLines, 2)...)
+	lines = append(lines, "\t}")
 	lines = append(lines, "}")
 	return lines, resultTemp, resultType, true
 }
@@ -182,6 +197,9 @@ func (g *generator) coerceRescueBranch(ctx *compileContext, resultType string, e
 		return nil, "", false
 	}
 	if g.typeMatches(resultType, exprType) {
+		if wrapLines, wrapped, ok := g.nativeUnionWrapLines(ctx, resultType, exprType, expr); ok {
+			return wrapLines, wrapped, true
+		}
 		return nil, expr, true
 	}
 	if resultType == "runtime.Value" && exprType != "runtime.Value" {
@@ -220,14 +238,23 @@ func (g *generator) compileRethrowStatement(ctx *compileContext, stmt *ast.Rethr
 		ctx.setReason("missing rethrow")
 		return nil, false
 	}
-	if ctx != nil && ctx.rethrowVar != "" {
-		if ctx.rethrowErrVar != "" {
-			return []string{
-				fmt.Sprintf("if %s != nil { panic(%s) }", ctx.rethrowErrVar, ctx.rethrowErrVar),
-				fmt.Sprintf("bridge.Raise(%s)", ctx.rethrowVar),
-			}, true
+	if ctx != nil && ctx.rethrowControlVar != "" {
+		lines, ok := g.controlTransferLines(ctx, ctx.rethrowControlVar)
+		if !ok {
+			return nil, false
 		}
-		return []string{fmt.Sprintf("bridge.Raise(%s)", ctx.rethrowVar)}, true
+		return lines, true
 	}
-	return []string{`bridge.Raise(runtime.ErrorValue{Message: "Unknown rethrow"})`}, true
+	if ctx != nil && ctx.rethrowVar != "" {
+		lines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", ctx.rethrowVar))
+		if !ok {
+			return nil, false
+		}
+		return lines, true
+	}
+	lines, ok := g.controlTransferLines(ctx, `__able_raise_control(nil, runtime.ErrorValue{Message: "Unknown rethrow"})`)
+	if !ok {
+		return nil, false
+	}
+	return lines, true
 }

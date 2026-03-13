@@ -17,7 +17,7 @@ func TestCompilerNormalizesCallValueFunctionThunkDispatch(t *testing.T) {
 		}, "\n"),
 	})
 
-	if !strings.Contains(compiledSrc, "func __able_call_function_thunk(value runtime.Value, args []runtime.Value, call *ast.FunctionCall) (runtime.Value, bool) {") {
+	if !strings.Contains(compiledSrc, "func __able_call_function_thunk(value runtime.Value, args []runtime.Value, call *ast.FunctionCall) (runtime.Value, *__ableControl, bool) {") {
 		t.Fatalf("expected shared function-thunk helper for __able_call_value dispatch")
 	}
 	if !strings.Contains(compiledSrc, "fn, ok, nilPtr := __able_callable_function_value(value)") {
@@ -46,7 +46,7 @@ func TestCompilerNormalizesCallValueFunctionThunkDispatch(t *testing.T) {
 	if strings.Contains(segment, "if methodThunk, ok := method.(*runtime.FunctionValue); ok {") || strings.Contains(segment, "if methodThunk, ok, nilPtr := __able_callable_function_value(method); ok || nilPtr {") {
 		t.Fatalf("expected __able_call_bound_method to avoid local methodThunk unwrapping branches")
 	}
-	if !strings.Contains(segment, "if val, handled := __able_call_function_thunk(method, injected, call); handled {") {
+	if !strings.Contains(segment, "if val, control, handled := __able_call_function_thunk(method, injected, call); handled {") {
 		t.Fatalf("expected __able_call_bound_method to delegate thunk dispatch directly to shared helper")
 	}
 
@@ -69,7 +69,7 @@ func TestCompilerNormalizesCallValueFunctionThunkDispatch(t *testing.T) {
 	if strings.Contains(segment, "if fnThunk, ok := fn.(*runtime.FunctionValue); ok {") || strings.Contains(segment, "if fnThunk, ok, nilPtr := __able_callable_function_value(fn); ok || nilPtr {") {
 		t.Fatalf("expected __able_call_value to avoid local fnThunk unwrapping branches")
 	}
-	if !strings.Contains(segment, "if val, handled := __able_call_function_thunk(fn, args, call); handled {") {
+	if !strings.Contains(segment, "if val, control, handled := __able_call_function_thunk(fn, args, call); handled {") {
 		t.Fatalf("expected __able_call_value to delegate thunk dispatch directly to shared helper")
 	}
 }

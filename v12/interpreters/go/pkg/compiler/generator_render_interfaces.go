@@ -1,0 +1,418 @@
+package compiler
+
+import (
+	"bytes"
+	"fmt"
+	"strings"
+)
+
+func (g *generator) renderNativeInterfaces(buf *bytes.Buffer) {
+	if g == nil || buf == nil || len(g.nativeInterfaces) == 0 {
+		return
+	}
+	for _, key := range g.sortedNativeInterfaceKeys() {
+		info := g.nativeInterfaces[key]
+		if info == nil {
+			continue
+		}
+		g.renderNativeInterfaceType(buf, info)
+		g.renderNativeInterfaceRuntimeAdapter(buf, info)
+		for _, adapter := range info.Adapters {
+			if adapter == nil {
+				continue
+			}
+			g.renderNativeInterfaceConcreteAdapter(buf, info, adapter)
+		}
+		g.renderNativeInterfaceBoundaryHelpers(buf, info)
+	}
+}
+
+func (g *generator) renderNativeInterfaceType(buf *bytes.Buffer, info *nativeInterfaceInfo) {
+	fmt.Fprintf(buf, "type %s interface {\n", info.GoType)
+	fmt.Fprintf(buf, "\t%s()\n", info.MarkerMethod)
+	fmt.Fprintf(buf, "\t%s(*bridge.Runtime) (runtime.Value, error)\n", info.ToRuntimeMethod)
+	for _, method := range info.Methods {
+		if method == nil {
+			continue
+		}
+		fmt.Fprintf(buf, "\t%s(", method.GoName)
+		for idx, paramType := range method.ParamGoTypes {
+			if idx > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			fmt.Fprintf(buf, "arg%d %s", idx, paramType)
+		}
+		fmt.Fprintf(buf, ") (%s, *__ableControl)\n", method.ReturnGoType)
+	}
+	fmt.Fprintf(buf, "}\n\n")
+}
+
+func (g *generator) renderNativeInterfaceRuntimeAdapter(buf *bytes.Buffer, info *nativeInterfaceInfo) {
+	fmt.Fprintf(buf, "type %s struct {\n", info.RuntimeAdapter)
+	fmt.Fprintf(buf, "\tValue runtime.Value\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func (%s) %s() {}\n\n", info.RuntimeAdapter, info.MarkerMethod)
+	fmt.Fprintf(buf, "func %s(value runtime.Value) %s {\n", info.RuntimeWrapHelper, info.GoType)
+	fmt.Fprintf(buf, "\treturn %s{Value: value}\n", info.RuntimeAdapter)
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func (w %s) %s(rt *bridge.Runtime) (runtime.Value, error) {\n", info.RuntimeAdapter, info.ToRuntimeMethod)
+	fmt.Fprintf(buf, "\t_ = rt\n")
+	fmt.Fprintf(buf, "\tif w.Value == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, nil\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn w.Value, nil\n")
+	fmt.Fprintf(buf, "}\n\n")
+	for _, method := range info.Methods {
+		if method == nil {
+			continue
+		}
+		g.renderNativeInterfaceRuntimeMethod(buf, info, method)
+	}
+}
+
+func (g *generator) renderNativeInterfaceRuntimeMethod(buf *bytes.Buffer, info *nativeInterfaceInfo, method *nativeInterfaceMethod) {
+	fmt.Fprintf(buf, "func (w %s) %s(", info.RuntimeAdapter, method.GoName)
+	for idx, paramType := range method.ParamGoTypes {
+		if idx > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "arg%d %s", idx, paramType)
+	}
+	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", method.ReturnGoType)
+	zeroExpr, zeroOK := g.zeroValueExpr(method.ReturnGoType)
+	if !zeroOK {
+		fmt.Fprintf(buf, "\tvar zero %s\n", method.ReturnGoType)
+	}
+	fmt.Fprintf(buf, "\tif w.Value == nil {\n")
+	if zeroOK {
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(fmt.Errorf(\"missing interface value\"))\n", zeroExpr)
+	} else {
+		fmt.Fprintf(buf, "\t\treturn zero, __able_control_from_error(fmt.Errorf(\"missing interface value\"))\n")
+	}
+	fmt.Fprintf(buf, "\t}\n")
+	argList := "nil"
+	if len(method.ParamGoTypes) > 0 {
+		fmt.Fprintf(buf, "\targs := make([]runtime.Value, 0, %d)\n", len(method.ParamGoTypes))
+		for idx, paramType := range method.ParamGoTypes {
+			target := fmt.Sprintf("arg%dValue", idx)
+			g.renderNativeInterfaceGoToRuntimeValueControl(buf, target, fmt.Sprintf("arg%d", idx), paramType, method.ReturnGoType)
+			fmt.Fprintf(buf, "\targs = append(args, %s)\n", target)
+		}
+		argList = "args"
+	}
+	fmt.Fprintf(buf, "\tresult, control := __able_method_call(w.Value, %q, %s)\n", method.Name, argList)
+	fmt.Fprintf(buf, "\tif control != nil {\n")
+	if zeroOK {
+		fmt.Fprintf(buf, "\t\treturn %s, control\n", zeroExpr)
+	} else {
+		fmt.Fprintf(buf, "\t\treturn zero, control\n")
+	}
+	fmt.Fprintf(buf, "\t}\n")
+	if g.renderNativeInterfaceRuntimeToGoValueControl(buf, "converted", "result", method.ReturnGoType, method.ReturnGoType) {
+		fmt.Fprintf(buf, "\treturn converted, nil\n")
+	}
+	fmt.Fprintf(buf, "}\n\n")
+}
+
+func (g *generator) renderNativeInterfaceConcreteAdapter(buf *bytes.Buffer, info *nativeInterfaceInfo, adapter *nativeInterfaceAdapter) {
+	fmt.Fprintf(buf, "type %s struct {\n", adapter.AdapterType)
+	fmt.Fprintf(buf, "\tValue %s\n", adapter.GoType)
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func (%s) %s() {}\n\n", adapter.AdapterType, info.MarkerMethod)
+	fmt.Fprintf(buf, "func %s(value %s) %s {\n", adapter.WrapHelper, adapter.GoType, info.GoType)
+	fmt.Fprintf(buf, "\treturn %s{Value: value}\n", adapter.AdapterType)
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func (w %s) %s(rt *bridge.Runtime) (runtime.Value, error) {\n", adapter.AdapterType, info.ToRuntimeMethod)
+	g.renderNativeInterfaceGoToRuntimeValueError(buf, "converted", "w.Value", adapter.GoType)
+	fmt.Fprintf(buf, "\treturn converted, nil\n")
+	fmt.Fprintf(buf, "}\n\n")
+	for _, method := range info.Methods {
+		if method == nil {
+			continue
+		}
+		impl := adapter.Methods[method.Name]
+		if impl == nil {
+			continue
+		}
+		fmt.Fprintf(buf, "func (w %s) %s(", adapter.AdapterType, method.GoName)
+		for idx, paramType := range method.ParamGoTypes {
+			if idx > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			fmt.Fprintf(buf, "arg%d %s", idx, paramType)
+		}
+		fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", method.ReturnGoType)
+		args := make([]string, 0, len(method.ParamGoTypes)+1)
+		args = append(args, "w.Value")
+		for idx := range method.ParamGoTypes {
+			args = append(args, fmt.Sprintf("arg%d", idx))
+		}
+		fmt.Fprintf(buf, "\treturn __able_compiled_%s(%s)\n", impl.GoName, strings.Join(args, ", "))
+		fmt.Fprintf(buf, "}\n\n")
+	}
+}
+
+func (g *generator) renderNativeInterfaceBoundaryHelpers(buf *bytes.Buffer, info *nativeInterfaceInfo) {
+	renderedType, ok := g.renderTypeExpression(info.TypeExpr)
+	if !ok {
+		return
+	}
+	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, error) {\n", info.FromRuntimeHelper, info.GoType)
+	fmt.Fprintf(buf, "\tif rt == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tcoerced, ok, err := bridge.MatchType(rt, %s, value)\n", renderedType)
+	fmt.Fprintf(buf, "\tif err != nil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, err\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif !ok {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"type mismatch: expected %s\")\n", info.TypeString)
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn %s(coerced), nil\n", info.RuntimeWrapHelper)
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func %s(value runtime.Value) %s {\n", info.FromRuntimePanic, info.GoType)
+	fmt.Fprintf(buf, "\tconverted, err := %s(__able_runtime, value)\n", info.FromRuntimeHelper)
+	fmt.Fprintf(buf, "\tif err != nil {\n")
+	fmt.Fprintf(buf, "\t\tpanic(err)\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn converted\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value %s) (runtime.Value, error) {\n", info.ToRuntimeHelper, info.GoType)
+	fmt.Fprintf(buf, "\tif rt == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif value == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, nil\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn value.%s(rt)\n", info.ToRuntimeMethod)
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func %s(value %s) runtime.Value {\n", info.ToRuntimePanic, info.GoType)
+	fmt.Fprintf(buf, "\tconverted, err := %s(__able_runtime, value)\n", info.ToRuntimeHelper)
+	fmt.Fprintf(buf, "\tif err != nil {\n")
+	fmt.Fprintf(buf, "\t\tpanic(err)\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn converted\n")
+	fmt.Fprintf(buf, "}\n\n")
+}
+
+func (g *generator) renderNativeInterfaceGoToRuntimeValueControl(buf *bytes.Buffer, target string, expr string, goType string, returnType string) {
+	fmt.Fprintf(buf, "\t")
+	if g.renderNativeInterfaceGoToRuntimeValue(buf, target, expr, goType, "\t", false, returnType) {
+		return
+	}
+}
+
+func (g *generator) renderNativeInterfaceGoToRuntimeValueError(buf *bytes.Buffer, target string, expr string, goType string) {
+	g.renderNativeInterfaceGoToRuntimeValue(buf, target, expr, goType, "\t", true, "")
+}
+
+func (g *generator) renderNativeInterfaceGoToRuntimeValue(buf *bytes.Buffer, target string, expr string, goType string, indent string, returnError bool, returnType string) bool {
+	failErr := func(errExpr string) {
+		if returnError {
+			fmt.Fprintf(buf, "%sif err != nil {\n", indent)
+			fmt.Fprintf(buf, "%s\treturn nil, err\n", indent)
+			fmt.Fprintf(buf, "%s}\n", indent)
+			return
+		}
+		zeroExpr, ok := g.zeroValueExpr(returnType)
+		if !ok {
+			fmt.Fprintf(buf, "%svar zero %s\n", indent, returnType)
+			zeroExpr = "zero"
+		}
+		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
+		fmt.Fprintf(buf, "%s\treturn %s, __able_control_from_error(%s)\n", indent, zeroExpr, errExpr)
+		fmt.Fprintf(buf, "%s}\n", indent)
+	}
+	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
+		fmt.Fprintf(buf, "%s%s, err := %s(__able_runtime, %s)\n", indent, target, iface.ToRuntimeHelper, expr)
+		failErr("err")
+		return true
+	}
+	if union := g.nativeUnionInfoForGoType(goType); union != nil {
+		fmt.Fprintf(buf, "%s%s, err := %s(__able_runtime, %s)\n", indent, target, union.ToRuntimeHelper, expr)
+		failErr("err")
+		return true
+	}
+	if helper, ok := g.nativeNullableToRuntimeHelper(goType); ok {
+		fmt.Fprintf(buf, "%s%s := %s(%s)\n", indent, target, helper, expr)
+		return true
+	}
+	switch goType {
+	case "runtime.Value":
+		fmt.Fprintf(buf, "%s%s := %s\n", indent, target, expr)
+		return true
+	case "runtime.ErrorValue":
+		fmt.Fprintf(buf, "%s%s := %s\n", indent, target, expr)
+		return true
+	case "any":
+		fmt.Fprintf(buf, "%s%s := __able_any_to_value(%s)\n", indent, target, expr)
+		return true
+	case "struct{}":
+		fmt.Fprintf(buf, "%s_ = %s\n", indent, expr)
+		fmt.Fprintf(buf, "%s%s := runtime.VoidValue{}\n", indent, target)
+		return true
+	case "bool":
+		fmt.Fprintf(buf, "%s%s := bridge.ToBool(%s)\n", indent, target, expr)
+		return true
+	case "string":
+		fmt.Fprintf(buf, "%s%s := bridge.ToString(%s)\n", indent, target, expr)
+		return true
+	case "rune":
+		fmt.Fprintf(buf, "%s%s := bridge.ToRune(%s)\n", indent, target, expr)
+		return true
+	case "float32":
+		fmt.Fprintf(buf, "%s%s := bridge.ToFloat32(%s)\n", indent, target, expr)
+		return true
+	case "float64":
+		fmt.Fprintf(buf, "%s%s := bridge.ToFloat64(%s)\n", indent, target, expr)
+		return true
+	case "int":
+		fmt.Fprintf(buf, "%s%s := bridge.ToInt(int64(%s), runtime.IntegerType(\"isize\"))\n", indent, target, expr)
+		return true
+	case "uint":
+		fmt.Fprintf(buf, "%s%s := bridge.ToUint(uint64(%s), runtime.IntegerType(\"usize\"))\n", indent, target, expr)
+		return true
+	case "int8", "int16", "int32", "int64":
+		suffix, _ := g.integerTypeSuffix(goType)
+		fmt.Fprintf(buf, "%s%s := bridge.ToInt(int64(%s), runtime.IntegerType(%q))\n", indent, target, expr, suffix)
+		return true
+	case "uint8", "uint16", "uint32", "uint64":
+		suffix, _ := g.integerTypeSuffix(goType)
+		fmt.Fprintf(buf, "%s%s := bridge.ToUint(uint64(%s), runtime.IntegerType(%q))\n", indent, target, expr, suffix)
+		return true
+	}
+	if g.typeCategory(goType) == "struct" {
+		baseName, ok := g.structBaseName(goType)
+		if !ok {
+			baseName = strings.TrimPrefix(goType, "*")
+		}
+		fmt.Fprintf(buf, "%s%s, err := __able_struct_%s_to(__able_runtime, %s)\n", indent, target, baseName, expr)
+		failErr("err")
+		return true
+	}
+	if returnError {
+		fmt.Fprintf(buf, "%sreturn nil, fmt.Errorf(\"unsupported native interface conversion from %s\")\n", indent, goType)
+	} else {
+		zeroExpr, ok := g.zeroValueExpr(returnType)
+		if !ok {
+			fmt.Fprintf(buf, "%svar zero %s\n", indent, returnType)
+			zeroExpr = "zero"
+		}
+		fmt.Fprintf(buf, "%sreturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native interface conversion from %s\"))\n", indent, zeroExpr, goType)
+	}
+	return false
+}
+
+func (g *generator) renderNativeInterfaceRuntimeToGoValueControl(buf *bytes.Buffer, target string, expr string, goType string, returnType string) bool {
+	zeroExpr, zeroOK := g.zeroValueExpr(returnType)
+	if !zeroOK {
+		fmt.Fprintf(buf, "\tvar zero %s\n", returnType)
+		zeroExpr = "zero"
+	}
+	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
+		fmt.Fprintf(buf, "\t%s, err := %s(__able_runtime, %s)\n", target, iface.FromRuntimeHelper, expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		return true
+	}
+	if union := g.nativeUnionInfoForGoType(goType); union != nil {
+		fmt.Fprintf(buf, "\t%s, err := %s(__able_runtime, %s)\n", target, union.FromRuntimeHelper, expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		return true
+	}
+	if helper, ok := g.nativeNullableFromRuntimeHelper(goType); ok {
+		fmt.Fprintf(buf, "\t%s, err := %s(%s)\n", target, helper, expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		return true
+	}
+	switch goType {
+	case "runtime.Value":
+		fmt.Fprintf(buf, "\t%s := %s\n", target, expr)
+		return true
+	case "runtime.ErrorValue":
+		fmt.Fprintf(buf, "\t%s := bridge.ErrorValue(__able_runtime, %s)\n", target, expr)
+		return true
+	case "any":
+		fmt.Fprintf(buf, "\tvar %s any = %s\n", target, expr)
+		return true
+	case "bool":
+		fmt.Fprintf(buf, "\t%s, err := bridge.AsBool(%s)\n", target, expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		return true
+	case "string":
+		fmt.Fprintf(buf, "\t%s, err := bridge.AsString(%s)\n", target, expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		return true
+	case "rune":
+		fmt.Fprintf(buf, "\t%s, err := bridge.AsRune(%s)\n", target, expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		return true
+	case "float32":
+		fmt.Fprintf(buf, "\traw, err := bridge.AsFloat(%s)\n", expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\t%s := float32(raw)\n", target)
+		return true
+	case "float64":
+		fmt.Fprintf(buf, "\t%s, err := bridge.AsFloat(%s)\n", target, expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		return true
+	case "int":
+		fmt.Fprintf(buf, "\traw, err := bridge.AsInt(%s, bridge.NativeIntBits)\n", expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\t%s := int(raw)\n", target)
+		return true
+	case "uint":
+		fmt.Fprintf(buf, "\traw, err := bridge.AsUint(%s, bridge.NativeIntBits)\n", expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\t%s := uint(raw)\n", target)
+		return true
+	case "int8", "int16", "int32", "int64":
+		fmt.Fprintf(buf, "\traw, err := bridge.AsInt(%s, %d)\n", expr, g.intBits(goType))
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\t%s := %s(raw)\n", target, goType)
+		return true
+	case "uint8", "uint16", "uint32", "uint64":
+		fmt.Fprintf(buf, "\traw, err := bridge.AsUint(%s, %d)\n", expr, g.intBits(goType))
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\t%s := %s(raw)\n", target, goType)
+		return true
+	default:
+		if g.typeCategory(goType) == "struct" {
+			baseName, ok := g.structBaseName(goType)
+			if !ok {
+				baseName = strings.TrimPrefix(goType, "*")
+			}
+			fmt.Fprintf(buf, "\t%s, err := __able_struct_%s_from(%s)\n", target, baseName, expr)
+			fmt.Fprintf(buf, "\tif err != nil {\n")
+			fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+			fmt.Fprintf(buf, "\t}\n")
+			return true
+		}
+		fmt.Fprintf(buf, "\t_ = %s\n", expr)
+		fmt.Fprintf(buf, "\treturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native interface conversion to %s\"))\n", zeroExpr, goType)
+		return false
+	}
+}

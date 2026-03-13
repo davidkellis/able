@@ -12,13 +12,16 @@ func (g *generator) compileCharLiteral(ctx *compileContext, lit *ast.CharLiteral
 		return "", "", false
 	}
 	actual := "rune"
-	if !g.typeMatches(expected, actual) {
-		ctx.setReason("unsupported char literal type")
-		return "", "", false
-	}
 	runes := []rune(lit.Value)
 	if len(runes) != 1 {
 		ctx.setReason("invalid char literal")
+		return "", "", false
+	}
+	if g.nativeNullableWraps(expected, actual) {
+		return fmt.Sprintf("__able_ptr(rune(%q))", runes[0]), expected, true
+	}
+	if !g.typeMatches(expected, actual) {
+		ctx.setReason("unsupported char literal type")
 		return "", "", false
 	}
 	return fmt.Sprintf("rune(%q)", runes[0]), actual, true

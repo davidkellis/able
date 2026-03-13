@@ -36,6 +36,12 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 			case "HashMap", "Map", "DivMod":
 				return "any", true
 			}
+			if info, ok := m.gen.ensureNativeInterfaceInfo(m.packageName, t); ok && info != nil {
+				return info.GoType, true
+			}
+			if unionPkg, members, ok := m.gen.expandedUnionMembersInPackage(m.packageName, t); ok {
+				return m.mapExpandedUnionMembers(unionPkg, t, members)
+			}
 		}
 		// Generic struct types (TreeMap<K,V>, etc.) keep runtime.Value
 		// so that self-as-runtime.Value field access works correctly.
@@ -45,14 +51,24 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 	case *ast.NullableTypeExpression:
 		return m.mapNullableType(t)
 	case *ast.ResultTypeExpression:
-		return "any", true
+		return m.mapResultType(t)
 	case *ast.UnionTypeExpression:
-		return "any", true
+		return m.mapUnionType(t)
 	case *ast.WildcardTypeExpression:
 		return "any", true
 	default:
 		return "any", false
 	}
+}
+
+func (m *TypeMapper) mapResultType(t *ast.ResultTypeExpression) (string, bool) {
+	if t == nil || m == nil || m.gen == nil {
+		return "any", true
+	}
+	if info, ok := m.gen.ensureNativeResultUnionInfo(m.packageName, t); ok && info != nil {
+		return info.GoType, true
+	}
+	return "any", true
 }
 
 // mapArrayType maps Array<T>. Currently returns the existing Array struct
@@ -69,8 +85,8 @@ func (m *TypeMapper) mapArrayType(t *ast.GenericTypeExpression) (string, bool) {
 	return "any", true
 }
 
-// mapNullableType maps ?T. For pointer types (structs), nil is the absent
-// value so the Go type is just the pointer. For value types and any, use any.
+// mapNullableType maps ?T. Pointer and slice types already have a nil carrier.
+// Native scalar nullable values use typed Go pointers instead of any.
 func (m *TypeMapper) mapNullableType(t *ast.NullableTypeExpression) (string, bool) {
 	if t == nil || t.InnerType == nil {
 		return "any", true
@@ -87,8 +103,29 @@ func (m *TypeMapper) mapNullableType(t *ast.NullableTypeExpression) (string, boo
 	if strings.HasPrefix(innerType, "[]") {
 		return innerType, true
 	}
-	// For value types (int32, string, bool, etc.), nullable requires any
-	// since the value type itself has no nil representation.
+	if spec, ok := nativeNullableSpecForInnerType(innerType); ok {
+		return spec.PtrType, true
+	}
+	return "any", true
+}
+
+func (m *TypeMapper) mapUnionType(t *ast.UnionTypeExpression) (string, bool) {
+	if t == nil || m == nil || m.gen == nil {
+		return "any", true
+	}
+	return m.mapExpandedUnionMembers(m.packageName, t, t.Members)
+}
+
+func (m *TypeMapper) mapExpandedUnionMembers(pkgName string, expr ast.TypeExpression, members []ast.TypeExpression) (string, bool) {
+	if m == nil || m.gen == nil || expr == nil {
+		return "any", true
+	}
+	if inner, ok := nativeUnionNullableInnerTypeExpr(members); ok {
+		return (&TypeMapper{gen: m.gen, packageName: pkgName}).mapNullableType(ast.NewNullableTypeExpression(inner))
+	}
+	if info, ok := m.gen.nativeUnionTypeExprInPackage(pkgName, expr); ok && info != nil {
+		return info.GoType, true
+	}
 	return "any", true
 }
 
@@ -128,6 +165,23 @@ func (m *TypeMapper) mapSimple(name string) (string, bool) {
 		return "float64", true
 	case "void", "Void":
 		return "struct{}", true
+	case "Error":
+		return "runtime.ErrorValue", true
+	}
+	if m != nil && m.gen != nil {
+		if info, ok := m.gen.ensureNativeInterfaceInfo(m.packageName, ast.Ty(name)); ok && info != nil {
+			return info.GoType, true
+		}
+	}
+	if m != nil && m.gen != nil {
+		if unionPkg, members, ok := m.gen.expandedUnionMembersInPackage(m.packageName, ast.Ty(name)); ok {
+			if inner, ok := nativeUnionNullableInnerTypeExpr(members); ok {
+				return (&TypeMapper{gen: m.gen, packageName: unionPkg}).mapNullableType(ast.NewNullableTypeExpression(inner))
+			}
+			if info, ok := m.gen.ensureNativeUnionInfo(unionPkg, members); ok && info != nil {
+				return info.GoType, true
+			}
+		}
 	}
 	if m != nil && m.gen != nil {
 		if info, ok := m.gen.structInfoForTypeName(m.packageName, name); ok && info != nil {

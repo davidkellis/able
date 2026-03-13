@@ -97,18 +97,7 @@ func runCompilerNoBootstrapExecFixture(t *testing.T, dir string, rel string) {
 		t.Fatalf("load program: %v", err)
 	}
 
-	moduleRoot, err := filepath.Abs(filepath.Join(".", "..", ".."))
-	if err != nil {
-		t.Fatalf("module root: %v", err)
-	}
-	tmpRoot := filepath.Join(moduleRoot, "tmp")
-	if err := os.MkdirAll(tmpRoot, 0o755); err != nil {
-		t.Fatalf("mkdir tmp: %v", err)
-	}
-	workDir, err := os.MkdirTemp(tmpRoot, "ablec-noboot-")
-	if err != nil {
-		t.Fatalf("temp dir: %v", err)
-	}
+	moduleRoot, workDir := compilerTestWorkDirNoCleanup(t, "ablec-noboot")
 	passed := false
 	t.Cleanup(func() {
 		if passed {
