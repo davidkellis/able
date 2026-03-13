@@ -17,7 +17,7 @@ func TestCompilerNormalizesCallValueNativeBoundMethodDispatchBranches(t *testing
 		}, "\n"),
 	})
 
-	if !strings.Contains(compiledSrc, "func __able_call_native_bound_method(bound runtime.NativeBoundMethodValue, partialTarget runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) runtime.Value {") {
+	if !strings.Contains(compiledSrc, "func __able_call_native_bound_method(bound runtime.NativeBoundMethodValue, partialTarget runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, *__ableControl) {") {
 		t.Fatalf("expected shared native-bound helper for __able_call_value dispatch")
 	}
 

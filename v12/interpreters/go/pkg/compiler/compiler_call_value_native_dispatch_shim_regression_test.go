@@ -17,13 +17,13 @@ func TestCompilerNormalizesCallValueNativeDispatchBranches(t *testing.T) {
 		}, "\n"),
 	})
 
-	if !strings.Contains(compiledSrc, "func __able_call_native_function(fn runtime.NativeFunctionValue, partialTarget runtime.Value, providedArgs []runtime.Value, invokeArgs []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) runtime.Value {") {
+	if !strings.Contains(compiledSrc, "func __able_call_native_function(fn runtime.NativeFunctionValue, partialTarget runtime.Value, providedArgs []runtime.Value, invokeArgs []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, *__ableControl) {") {
 		t.Fatalf("expected shared native-call helper for __able_call_value dispatch")
 	}
-	if !strings.Contains(compiledSrc, "func __able_call_native_function_value(value runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, bool) {") {
+	if !strings.Contains(compiledSrc, "func __able_call_native_function_value(value runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, *__ableControl, bool) {") {
 		t.Fatalf("expected shared native-function value helper for __able_call_value dispatch")
 	}
-	if !strings.Contains(compiledSrc, "func __able_call_native_bound_method(bound runtime.NativeBoundMethodValue, partialTarget runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) runtime.Value {") {
+	if !strings.Contains(compiledSrc, "func __able_call_native_bound_method(bound runtime.NativeBoundMethodValue, partialTarget runtime.Value, args []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) (runtime.Value, *__ableControl) {") {
 		t.Fatalf("expected shared native-bound helper for __able_call_value dispatch")
 	}
 
@@ -48,7 +48,7 @@ func TestCompilerNormalizesCallValueNativeDispatchBranches(t *testing.T) {
 		t.Fatalf("expected inline bound-method native dispatch block to be removed from __able_call_value")
 	}
 
-	if !strings.Contains(segment, "if val, handled := __able_call_native_function_value(fn, args, call, ctx); handled {") {
+	if !strings.Contains(segment, "if val, control, handled := __able_call_native_function_value(fn, args, call, ctx); handled {") {
 		t.Fatalf("expected __able_call_value to use shared native-function value helper")
 	}
 	if strings.Contains(segment, "case runtime.NativeBoundMethodValue:") {
@@ -72,7 +72,7 @@ func TestCompilerNormalizesCallValueNativeDispatchBranches(t *testing.T) {
 	if !strings.Contains(segment, "if bound, ok, _ := __able_callable_bound_method_value(fn); ok {") {
 		t.Fatalf("expected __able_call_value to use normalized bound-method unwrapping helper path")
 	}
-	if !strings.Contains(segment, "if val, handled := __able_call_bound_method(bound, fn, args, call, ctx); handled {") {
+	if !strings.Contains(segment, "if val, control, handled := __able_call_bound_method(bound, fn, args, call, ctx); handled {") {
 		t.Fatalf("expected __able_call_value bound-method dispatch to use shared helper")
 	}
 	if !strings.Contains(compiledSrc, "return __able_call_native_function(bound.Method, partialTarget, args, injected, call, ctx)") {
@@ -81,7 +81,7 @@ func TestCompilerNormalizesCallValueNativeDispatchBranches(t *testing.T) {
 	if !strings.Contains(compiledSrc, "if native, ok, nilPtr := __able_callable_native_function_value(method); ok && !nilPtr {") {
 		t.Fatalf("expected bound-method native dispatch to use normalized native-function unwrapping helper after interface unwrapping")
 	}
-	if !strings.Contains(compiledSrc, "return __able_call_native_function(native, partialTarget, args, injected, call, ctx), true") {
+	if !strings.Contains(compiledSrc, "val, control := __able_call_native_function(native, partialTarget, args, injected, call, ctx)") {
 		t.Fatalf("expected bound-method native dispatch to remain normalized through shared native-call helper")
 	}
 }

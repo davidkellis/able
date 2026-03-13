@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -21,142 +20,6 @@ func findCompiledFunction(result *Result, funcName string) (string, bool) {
 		}
 	}
 	return compiledSrc[idx:endIdx], true
-}
-
-func TestCompilerTypedArrayMethodIntrinsics(t *testing.T) {
-	result := compileNoFallbackSource(t, strings.Join([]string{
-		"package demo",
-		"",
-		"struct Array { length: i32, capacity: i32, storage_handle: i64 }",
-		"",
-		"methods Array {",
-		"  fn push(self: Self, value: i32) -> void {",
-		"    self.length = self.length + 1",
-		"  }",
-		"  fn len(self: Self) -> i32 { self.length }",
-		"}",
-		"",
-		"fn main() -> i32 {",
-		"  arr: Array := Array { length: 3, capacity: 3, storage_handle: 1 }",
-		"  arr.push(4)",
-		"  _ = arr.set(1, 9)",
-		"  len := arr.len()",
-		"  arr.get(1) match {",
-		"    case value: i32 => value + len,",
-		"    case nil => 0",
-		"  }",
-		"}",
-		"",
-	}, "\n"))
-
-	fnBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
-	if !ok {
-		t.Fatalf("could not find compiled main function")
-	}
-
-	// Push and len may be inlined as array intrinsics (ArrayStoreWrite)
-	// or compiled as static method calls — both are valid optimizations.
-	hasPushIntrinsic := strings.Contains(fnBody, "runtime.ArrayStoreWrite(")
-	hasPushMethod := strings.Contains(fnBody, "__able_compiled_method_Array_push")
-	if !hasPushIntrinsic && !hasPushMethod {
-		t.Fatalf("expected typed-array push to compile to static method call or intrinsic:\n%s", fnBody)
-	}
-	hasLenIntrinsic := strings.Contains(fnBody, "runtime.ArrayStoreSize(")
-	hasLenMethod := strings.Contains(fnBody, "__able_compiled_method_Array_len")
-	if !hasLenIntrinsic && !hasLenMethod {
-		t.Fatalf("expected typed-array len to compile to static method call or intrinsic")
-	}
-	if strings.Contains(fnBody, "__able_member_get_method(") {
-		t.Fatalf("expected typed-array get/set to avoid __able_member_get_method")
-	}
-	if strings.Contains(fnBody, "__able_call_value(") {
-		t.Fatalf("expected typed-array get/set to avoid __able_call_value")
-	}
-}
-
-func TestCompilerTypedArrayLocalsAvoidGlobalHelpers(t *testing.T) {
-	result := compileNoFallbackSource(t, strings.Join([]string{
-		"package demo",
-		"",
-		"struct Array { length: i32, capacity: i32, storage_handle: i64 }",
-		"",
-		"methods Array {",
-		"  fn push(self: Self, value: i32) -> void {",
-		"    self.length = self.length + 1",
-		"  }",
-		"  fn len(self: Self) -> i32 { self.length }",
-		"}",
-		"",
-		"fn main() -> i32 {",
-		"  arr: Array = Array { length: 0, capacity: 0, storage_handle: 1 }",
-		"  arr.push(1)",
-		"  arr.len()",
-		"}",
-		"",
-	}, "\n"))
-
-	fnBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
-	if !ok {
-		t.Fatalf("could not find compiled main function")
-	}
-	if strings.Contains(fnBody, "__able_env_get(") {
-		t.Fatalf("expected typed-array local declarations to avoid __able_env_get")
-	}
-	if strings.Contains(fnBody, "__able_env_set(") {
-		t.Fatalf("expected typed-array local declarations to avoid __able_env_set")
-	}
-}
-
-func TestCompilerTypedArrayLoopsAvoidDynamicDispatch(t *testing.T) {
-	result := compileNoFallbackSource(t, strings.Join([]string{
-		"package demo",
-		"",
-		"struct Array { length: i32, capacity: i32, storage_handle: i64 }",
-		"",
-		"methods Array {",
-		"  fn push(self: Self, value: i32) -> void {",
-		"    self.length = self.length + 1",
-		"  }",
-		"  fn len(self: Self) -> i32 { self.length }",
-		"}",
-		"",
-		"fn main() -> i32 {",
-		"  arr: Array := Array { length: 0, capacity: 0, storage_handle: 1 }",
-		"  i := 0",
-		"  while i < 6 {",
-		"    arr.push(i)",
-		"    i = i + 1",
-		"  }",
-		"",
-		"  j := 0",
-		"  total := 0",
-		"  while j < arr.len() {",
-		"    _ = arr.set(j, j)",
-		"    arr.get(j) match {",
-		"      case n: i32 => { total = total + n },",
-		"      case nil => {}",
-		"    }",
-		"    j = j + 1",
-		"  }",
-		"  total",
-		"}",
-		"",
-	}, "\n"))
-
-	fnBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
-	if !ok {
-		t.Fatalf("could not find compiled main function")
-	}
-
-	if strings.Contains(fnBody, "__able_member_get_method(") {
-		t.Fatalf("expected typed-array loops to avoid __able_member_get_method for push/get/set/len")
-	}
-	if strings.Contains(fnBody, "__able_call_value(") {
-		t.Fatalf("expected typed-array loops to avoid __able_call_value for push/get/set/len")
-	}
-	if strings.Contains(fnBody, "__able_env_get(") || strings.Contains(fnBody, "__able_env_set(") {
-		t.Fatalf("expected typed-array loops to avoid global helper routing")
-	}
 }
 
 func TestCompilerWhileLoopFastPath(t *testing.T) {
@@ -185,33 +48,246 @@ func TestCompilerWhileLoopFastPath(t *testing.T) {
 	}
 }
 
-func TestCompilerMonoArrayPropagationCastAvoidsIndexBoxing(t *testing.T) {
-	result := compileNoFallbackSourceWithCompilerOptions(t, strings.Join([]string{
+func TestCompilerArrayStructKeepsSpecFieldsAndNativeStorage(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
 		"",
-		"struct Array { length: i32, capacity: i32, storage_handle: i64 }",
-		"",
-		"fn main() -> i64 {",
-		"  arr: Array i32 := [1, 2, 3]",
-		"  idx := 1",
-		"  total: i64 := 0",
-		"  while idx < 3 {",
-		"    total = total + (arr[idx]! as i64)",
-		"    idx = idx + 1",
-		"  }",
-		"  total",
+		"fn main() -> i32 {",
+		"  arr := [1, 2]",
+		"  arr.len()",
 		"}",
 		"",
-	}, "\n"), Options{
-		ExperimentalMonoArrays: true,
-	})
+	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "runtime.ArrayStoreMonoReadI32(") {
-		t.Fatalf("expected mono i32 reads in compiled output")
+	for _, fragment := range []string{
+		"type Array struct {",
+		"Length         int32",
+		"Capacity       int32",
+		"Storage_handle int64",
+		"Elements       []runtime.Value",
+		"func __able_struct_Array_sync(value *Array) {",
+		"&Array{Length: int32(2), Capacity: int32(2), Storage_handle: int64(0), Elements: []runtime.Value{",
+	} {
+		if !strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected compiled array lowering to contain %q", fragment)
+		}
 	}
-	readToRuntimeBox := regexp.MustCompile(`runtime\.ArrayStoreMonoReadI32\([^\n]+\)\n\s*if err != nil \{\n\s*panic\(err\)\n\s*\}\n\s*__able_tmp_[0-9]+ := bridge\.ToInt\(int64\(__able_tmp_[0-9]+\), runtime\.IntegerType\(\"i32\"\)\)`)
-	if readToRuntimeBox.MatchString(compiledSrc) {
-		t.Fatalf("expected mono propagation/cast path to avoid bridge.ToInt boxing immediately after mono read")
+}
+
+func TestCompilerArrayMutationsSyncMetadata(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  arr := [1, 2]",
+		"  arr.push(3)",
+		"  arr.write_slot(4, 9)",
+		"  arr[0] = 7",
+		"  arr.clear()",
+		"  arr.capacity()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if count := strings.Count(mainBody, "__able_struct_Array_sync("); count < 4 {
+		t.Fatalf("expected static array mutations to sync metadata, found %d sync calls in main", count)
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"append(__able_tmp_1.Elements",
+		"__able_tmp_3.Elements[__able_tmp_5] = __able_tmp_6",
+		"__able_tmp_8.Elements[__able_tmp_10] = __able_tmp_7",
+		"__able_tmp_13.Elements = __able_tmp_13.Elements[:0]",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected static array lowering to contain %q", fragment)
+		}
+	}
+	if strings.Contains(mainBody, "__able_method_call_node(") || strings.Contains(mainBody, "__able_index_set(") {
+		t.Fatalf("expected static array lowering to avoid dynamic method/index helpers")
+	}
+}
+
+func TestCompilerArrayWrapperUsesExplicitArrayBoundaryConverters(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn cloneish(arr: Array i32) -> Array i32 {",
+		"  arr.push(3)",
+		"  arr",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_cloneish(arr *Array) (*Array, *__ableControl)") {
+		t.Fatalf("expected cloneish to keep a native *Array signature")
+	}
+
+	wrapBody, ok := findCompiledFunction(result, "__able_wrap_fn_cloneish")
+	if !ok {
+		t.Fatalf("could not find wrapper for cloneish")
+	}
+	if !strings.Contains(wrapBody, "__able_struct_Array_from(arg0Value)") {
+		t.Fatalf("expected wrapper arg conversion to use explicit Array_from:\n%s", wrapBody)
+	}
+	if !strings.Contains(wrapBody, "return __able_struct_Array_to(rt, compiledResult)") {
+		t.Fatalf("expected wrapper return to use explicit Array_to:\n%s", wrapBody)
+	}
+	if strings.Contains(wrapBody, "__able_any_to_value(compiledResult)") {
+		t.Fatalf("wrapper should not route Array return through __able_any_to_value:\n%s", wrapBody)
+	}
+}
+
+func TestCompilerMatchArrayRestBindingStaysNative(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  arr := [1, 2, 3, 4]",
+		"  arr match {",
+		"    case [1, 2, ...tail] => tail[0] as i32,",
+		"    case _ => 0,",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var tail *Array",
+		"__able_struct_Array_sync(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected native array rest lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"&runtime.ArrayValue{Elements: append([]runtime.Value(nil),",
+		"__able_array_values(",
+		"var tail runtime.Value =",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected native array rest lowering to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerPatternAssignmentArrayRestBindingStaysNative(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  arr := [1, 2, 3, 4]",
+		"  [1, 2, ...tail] := arr",
+		"  tail[0] as i32",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var tail *Array",
+		"__able_struct_Array_sync(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected native pattern assignment rest lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"&runtime.ArrayValue{Elements: append([]runtime.Value(nil),",
+		"__able_array_values(",
+		"var tail runtime.Value =",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected native pattern assignment rest lowering to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  arr := [1, 2, 3]",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	arrayFrom, ok := findCompiledFunction(result, "__able_struct_Array_from")
+	if !ok {
+		t.Fatalf("could not find __able_struct_Array_from")
+	}
+	if strings.Contains(arrayFrom, "runtime.ArrayStoreEnsure(raw, len(raw.Elements))") {
+		t.Fatalf("Array_from should not normalize runtime ArrayValue via ArrayStoreEnsure anymore:\n%s", arrayFrom)
+	}
+	if !strings.Contains(arrayFrom, "state, err := runtime.ArrayStoreState(raw.Handle)") {
+		t.Fatalf("Array_from should read existing handle state directly:\n%s", arrayFrom)
+	}
+
+	arrayRuntimeValue, ok := findCompiledFunction(result, "__able_struct_Array_runtime_value")
+	if !ok {
+		t.Fatalf("could not find __able_struct_Array_runtime_value")
+	}
+	for _, fragment := range []string{
+		"if preferredHandle == 0 {",
+		"return &runtime.ArrayValue{Elements: elems}, nil",
+		"runtime.ArrayStoreEnsureHandle(preferredHandle, len(elems), cap(elems))",
+	} {
+		if !strings.Contains(arrayRuntimeValue, fragment) {
+			t.Fatalf("expected Array runtime-value helper to contain %q:\n%s", fragment, arrayRuntimeValue)
+		}
+	}
+
+	arrayTo, ok := findCompiledFunction(result, "__able_struct_Array_to")
+	if !ok {
+		t.Fatalf("could not find __able_struct_Array_to")
+	}
+	if !strings.Contains(arrayTo, "arr, err := __able_struct_Array_runtime_value(value, value.Storage_handle)") {
+		t.Fatalf("Array_to should route through the shared runtime-value helper:\n%s", arrayTo)
+	}
+	for _, fragment := range []string{
+		"runtime.ArrayStoreEnsure(arr, capHint)",
+		"value.Storage_handle = arr.Handle",
+		"value.Elements = arr.Elements",
+	} {
+		if strings.Contains(arrayTo, fragment) {
+			t.Fatalf("Array_to should avoid legacy in-place ArrayStore sync fragment %q:\n%s", fragment, arrayTo)
+		}
+	}
+
+	arrayApply, ok := findCompiledFunction(result, "__able_struct_Array_apply")
+	if !ok {
+		t.Fatalf("could not find __able_struct_Array_apply")
+	}
+	for _, fragment := range []string{
+		"preferredHandle := raw.Handle",
+		"preferredHandle = runtime.ArrayStoreNewWithCapacity(__able_struct_Array_capacity_hint(value))",
+		"inst.Fields[\"storage_handle\"] = bridge.ToInt(arr.Handle, runtime.IntegerI64)",
+	} {
+		if !strings.Contains(arrayApply, fragment) {
+			t.Fatalf("expected Array_apply to contain %q:\n%s", fragment, arrayApply)
+		}
+	}
+	for _, fragment := range []string{
+		"_, _, _ = runtime.ArrayStoreEnsure(raw, len(value.Elements))",
+		"converted, err := __able_struct_Array_to(rt, value)",
+	} {
+		if strings.Contains(arrayApply, fragment) {
+			t.Fatalf("Array_apply should avoid legacy boundary fragment %q:\n%s", fragment, arrayApply)
+		}
 	}
 }

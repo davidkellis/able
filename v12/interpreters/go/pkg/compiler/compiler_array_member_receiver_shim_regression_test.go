@@ -21,12 +21,12 @@ func TestCompilerNormalizesArrayMemberReceiverUnwrap(t *testing.T) {
 		t.Fatalf("expected shared runtime array unwrapping helper to be emitted")
 	}
 
-	memberSetStart := strings.Index(compiledSrc, "func __able_member_set(obj runtime.Value, member runtime.Value, value runtime.Value) runtime.Value {")
+	memberSetStart := strings.Index(compiledSrc, "func __able_try_member_set(obj runtime.Value, member runtime.Value, value runtime.Value) (runtime.Value, error) {")
 	if memberSetStart < 0 {
 		t.Fatalf("expected __able_member_set helper to be emitted")
 	}
 	memberSetSegment := compiledSrc[memberSetStart:]
-	memberSetEnd := strings.Index(memberSetSegment, "func __able_member_get(obj runtime.Value, member runtime.Value) runtime.Value {")
+	memberSetEnd := strings.Index(memberSetSegment, "func __able_member_set(obj runtime.Value, member runtime.Value, value runtime.Value) (runtime.Value, *__ableControl) {")
 	if memberSetEnd < 0 {
 		t.Fatalf("expected __able_member_set segment terminator")
 	}
@@ -38,12 +38,12 @@ func TestCompilerNormalizesArrayMemberReceiverUnwrap(t *testing.T) {
 		t.Fatalf("expected __able_member_set to use shared runtime array unwrapping helper")
 	}
 
-	memberGetStart := strings.Index(compiledSrc, "func __able_member_get(obj runtime.Value, member runtime.Value) runtime.Value {")
+	memberGetStart := strings.Index(compiledSrc, "func __able_try_member_get(obj runtime.Value, member runtime.Value) (runtime.Value, error) {")
 	if memberGetStart < 0 {
 		t.Fatalf("expected __able_member_get helper to be emitted")
 	}
 	memberGetSegment := compiledSrc[memberGetStart:]
-	memberGetEnd := strings.Index(memberGetSegment, "func __able_member_get_method(obj runtime.Value, member runtime.Value) runtime.Value {")
+	memberGetEnd := strings.Index(memberGetSegment, "func __able_member_get(obj runtime.Value, member runtime.Value) (runtime.Value, *__ableControl) {")
 	if memberGetEnd < 0 {
 		t.Fatalf("expected __able_member_get segment terminator")
 	}
@@ -55,4 +55,3 @@ func TestCompilerNormalizesArrayMemberReceiverUnwrap(t *testing.T) {
 		t.Fatalf("expected __able_member_get to use shared runtime array unwrapping helper")
 	}
 }
-
