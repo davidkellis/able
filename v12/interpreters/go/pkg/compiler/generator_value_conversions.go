@@ -11,6 +11,9 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 	if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil {
 		return fmt.Sprintf("%s(%s)", iface.FromRuntimePanic, valueExpr), true
 	}
+	if callable := g.nativeCallableInfoForGoType(expected); callable != nil {
+		return fmt.Sprintf("%s(%s)", callable.FromRuntimePanic, valueExpr), true
+	}
 	if union := g.nativeUnionInfoForGoType(expected); union != nil {
 		return fmt.Sprintf("%s(%s)", union.FromRuntimePanic, valueExpr), true
 	}
@@ -63,6 +66,23 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		lines := []string{
 			fmt.Sprintf("%s := %s", valTemp, valueExpr),
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", vTemp, errTemp, iface.FromRuntimeHelper, valTemp),
+			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
+		}
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, vTemp, true
+	}
+	if callable := g.nativeCallableInfoForGoType(expected); callable != nil {
+		valTemp := ctx.newTemp()
+		vTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s := %s", valTemp, valueExpr),
+			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", vTemp, errTemp, callable.FromRuntimeHelper, valTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
 		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
@@ -344,6 +364,9 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		return fmt.Sprintf("%s(%s)", iface.ToRuntimePanic, expr), true
 	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		return fmt.Sprintf("%s(%s)", callable.ToRuntimePanic, expr), true
+	}
 	if union := g.nativeUnionInfoForGoType(goType); union != nil {
 		return fmt.Sprintf("%s(%s)", union.ToRuntimePanic, expr), true
 	}
@@ -411,6 +434,21 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 		controlTemp := ctx.newTemp()
 		lines := []string{
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convTemp, errTemp, iface.ToRuntimeHelper, expr),
+			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
+		}
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, convTemp, true
+	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		convTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convTemp, errTemp, callable.ToRuntimeHelper, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
 		controlLines, ok := g.controlCheckLines(ctx, controlTemp)

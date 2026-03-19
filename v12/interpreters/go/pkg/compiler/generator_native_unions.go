@@ -263,7 +263,7 @@ func (g *generator) nativeUnionExpectedTypeForExpr(ctx *compileContext, expected
 		if e == nil || e.StructType == nil || e.StructType.Name == "" {
 			return expected
 		}
-		mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, ast.Ty(e.StructType.Name))
+		mapped, ok := g.mapTypeExpressionInContext(ctx, ast.Ty(e.StructType.Name))
 		if !ok {
 			return expected
 		}

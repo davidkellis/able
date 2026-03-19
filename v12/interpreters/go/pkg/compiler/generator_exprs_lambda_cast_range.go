@@ -17,7 +17,7 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 		return nil, "", "", false
 	}
 	targetGoType := ""
-	if mapped, mappedOK := g.mapTypeExpressionInPackage(ctx.packageName, expr.TargetType); mappedOK && mapped != "" {
+	if mapped, mappedOK := g.mapTypeExpressionInContext(ctx, expr.TargetType); mappedOK && mapped != "" {
 		targetGoType = mapped
 	}
 	if targetGoType != "" && valueType != "runtime.Value" {
@@ -133,7 +133,8 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		ctx.setReason("missing lambda expression")
 		return "", "", false
 	}
-	if expected != "" && expected != "runtime.Value" && expected != "any" {
+	expectedCallable := g.nativeCallableInfoForGoType(expected)
+	if expected != "" && expected != "runtime.Value" && expected != "any" && expectedCallable == nil {
 		ctx.setReason("lambda expression type mismatch")
 		return "", "", false
 	}
@@ -148,7 +149,17 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		return "", "", false
 	}
 	lambdaCtx.loopDepth = 0
-	lambdaCtx.controlMode = compileControlModeNativeCall
+	lambdaCtx.controlMode = ""
+	controlTemp := lambdaCtx.newTemp()
+	controlDoneLabel := lambdaCtx.newTemp()
+	lambdaCtx.controlCaptureVar = controlTemp
+	lambdaCtx.controlCaptureLabel = controlDoneLabel
+	lambdaCtx.controlCaptureBreak = true
+
+	expectedFnType := g.expectedLambdaFunctionType(ctx)
+	if expectedFnType != nil && len(expectedFnType.ParamTypes) != len(expr.Params) {
+		expectedFnType = nil
+	}
 
 	params := make([]paramInfo, 0, len(expr.Params))
 	for idx, param := range expr.Params {
@@ -163,15 +174,19 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		}
 		goName := safeParamName(ident.Name, idx)
 		goType := "runtime.Value"
-		if param.ParamType != nil {
-			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, param.ParamType)
+		paramTypeExpr := param.ParamType
+		if paramTypeExpr == nil && expectedFnType != nil && idx < len(expectedFnType.ParamTypes) {
+			paramTypeExpr = expectedFnType.ParamTypes[idx]
+		}
+		if paramTypeExpr != nil {
+			mapped, ok := g.mapTypeExpressionInContext(ctx, paramTypeExpr)
 			if !ok {
 				ctx.setReason("unsupported lambda parameter type")
 				return "", "", false
 			}
 			goType = mapped
 		}
-		info := paramInfo{Name: ident.Name, GoName: goName, GoType: goType, TypeExpr: param.ParamType}
+		info := paramInfo{Name: ident.Name, GoName: goName, GoType: goType, TypeExpr: paramTypeExpr}
 		lambdaCtx.locals[ident.Name] = info
 		params = append(params, info)
 	}
@@ -182,11 +197,11 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 	genericValueVars := make(map[string]string)
 	if len(expr.GenericParams) > 0 || len(expr.WhereClause) > 0 {
 		generics := genericNameSet(expr.GenericParams)
-		for idx, param := range expr.Params {
-			if param == nil || param.ParamType == nil {
+		for idx, param := range params {
+			if param.TypeExpr == nil {
 				continue
 			}
-			if simple, ok := param.ParamType.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
+			if simple, ok := param.TypeExpr.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
 				if _, ok := generics[simple.Name.Name]; ok {
 					genericValueVars[simple.Name.Name] = fmt.Sprintf("__able_lambda_arg_%d_value", idx)
 				}
@@ -195,8 +210,12 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 	}
 
 	desiredReturn := ""
-	if expr.ReturnType != nil {
-		mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, expr.ReturnType)
+	lambdaReturnTypeExpr := expr.ReturnType
+	if lambdaReturnTypeExpr == nil && expectedFnType != nil {
+		lambdaReturnTypeExpr = expectedFnType.ReturnType
+	}
+	if lambdaReturnTypeExpr != nil {
+		mapped, ok := g.mapTypeExpressionInContext(ctx, lambdaReturnTypeExpr)
 		if !ok {
 			ctx.setReason("unsupported lambda return type")
 			return "", "", false
@@ -228,27 +247,61 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		ctx.setReason("lambda return type mismatch")
 		return "", "", false
 	}
-
-	lambdaResultName := lambdaCtx.newTemp()
-	lambdaErrName := lambdaCtx.newTemp()
-	implLines := make([]string, 0, len(bodyLines)+len(params)*4+7)
-	implLines = append(implLines, "if __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }")
-	implLines = append(implLines, fmt.Sprintf("if len(args) != %d { return nil, fmt.Errorf(\"lambda expects %d arguments, got %%d\", len(args)) }", len(params), len(params)))
-	for idx, param := range params {
-		argVar := fmt.Sprintf("__able_lambda_arg_%d", idx)
-		valueVar := argVar + "_value"
-		implLines = append(implLines, fmt.Sprintf("%s := args[%d]", valueVar, idx))
-		convLines, ok := g.lambdaArgConversionLines(ctx.packageName, argVar, valueVar, param.GoType, param.TypeExpr, param.GoName)
-		if !ok {
+	paramExprs := make([]ast.TypeExpression, 0, len(params))
+	paramGoTypes := make([]string, 0, len(params))
+	for _, param := range params {
+		paramExpr := param.TypeExpr
+		if paramExpr == nil {
+			if fallback, ok := g.typeExprForGoType(param.GoType); ok {
+				paramExpr = fallback
+			}
+		}
+		if paramExpr == nil {
 			ctx.setReason("unsupported lambda parameter type")
 			return "", "", false
 		}
-		implLines = append(implLines, convLines...)
-		if param.GoName != "_" {
-			implLines = append(implLines, fmt.Sprintf("_ = %s", param.GoName))
+		paramExprs = append(paramExprs, paramExpr)
+		paramGoTypes = append(paramGoTypes, param.GoType)
+	}
+	returnTypeExpr := lambdaReturnTypeExpr
+	if returnTypeExpr == nil {
+		if expectedFnType != nil {
+			returnTypeExpr = expectedFnType.ReturnType
+		} else if fallback, ok := g.typeExprForGoType(bodyType); ok {
+			returnTypeExpr = fallback
 		}
 	}
+	if returnTypeExpr == nil {
+		ctx.setReason("unsupported lambda return type")
+		return "", "", false
+	}
+	callableInfo, ok := g.ensureNativeCallableInfoFromSignature(paramExprs, paramGoTypes, returnTypeExpr, bodyType)
+	if !ok || callableInfo == nil {
+		ctx.setReason("unsupported lambda type")
+		return "", "", false
+	}
+	implLines := make([]string, 0, len(bodyLines)+len(params)*2+3)
+	implLines = append(implLines, fmt.Sprintf("var %s *__ableControl", controlTemp))
 	if len(genericValueVars) > 0 {
+		for _, param := range params {
+			if param.TypeExpr == nil {
+				continue
+			}
+			simple, ok := param.TypeExpr.(*ast.SimpleTypeExpression)
+			if !ok || simple == nil || simple.Name == nil {
+				continue
+			}
+			valueVar, ok := genericValueVars[simple.Name.Name]
+			if !ok || valueVar == "" {
+				continue
+			}
+			runtimeExpr, ok := g.runtimeValueExpr(param.GoName, param.GoType)
+			if !ok {
+				ctx.setReason("unsupported lambda generic constraint type")
+				return "", "", false
+			}
+			implLines = append(implLines, fmt.Sprintf("%s := %s", valueVar, runtimeExpr))
+		}
 		constraintLines, ok := g.lambdaConstraintLines(expr, genericValueVars)
 		if !ok {
 			ctx.setReason("unsupported lambda constraints")
@@ -256,27 +309,53 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		}
 		implLines = append(implLines, constraintLines...)
 	}
-
-	implLines = append(implLines, bodyLines...)
+	zeroExpr, zeroOK := g.zeroValueExpr(callableInfo.ReturnGoType)
+	if !zeroOK {
+		implLines = append(implLines, fmt.Sprintf("var __able_zero %s", callableInfo.ReturnGoType))
+		zeroExpr = "__able_zero"
+	}
 	if g.isVoidType(bodyType) {
+		implLines = append(implLines, fmt.Sprintf("%s: for {", controlDoneLabel))
+		implLines = append(implLines, bodyLines...)
 		if bodyExpr != "" {
 			implLines = append(implLines, fmt.Sprintf("_ = %s", bodyExpr))
 		}
-		implLines = append(implLines, "return runtime.VoidValue{}, nil")
+		implLines = append(implLines, fmt.Sprintf("break %s", controlDoneLabel))
+		implLines = append(implLines, "}")
+		implLines = append(implLines, fmt.Sprintf("if %s != nil { return %s, %s }", controlTemp, zeroExpr, controlTemp))
+		implLines = append(implLines, "return struct{}{}, nil")
 	} else {
 		resultTemp := lambdaCtx.newTemp()
-		implLines = append(implLines, fmt.Sprintf("%s := %s", resultTemp, bodyExpr))
-		returnLines, ok := g.lambdaReturnLines(resultTemp, bodyType)
-		if !ok {
-			ctx.setReason("unsupported lambda return type")
-			return "", "", false
-		}
-		implLines = append(implLines, returnLines...)
+		implLines = append(implLines, fmt.Sprintf("var %s %s", resultTemp, callableInfo.ReturnGoType))
+		implLines = append(implLines, fmt.Sprintf("%s: for {", controlDoneLabel))
+		implLines = append(implLines, bodyLines...)
+		implLines = append(implLines, fmt.Sprintf("%s = %s", resultTemp, bodyExpr))
+		implLines = append(implLines, fmt.Sprintf("break %s", controlDoneLabel))
+		implLines = append(implLines, "}")
+		implLines = append(implLines, fmt.Sprintf("if %s != nil { return %s, %s }", controlTemp, zeroExpr, controlTemp))
+		implLines = append(implLines, fmt.Sprintf("return %s, nil", resultTemp))
 	}
+	lambdaExpr := fmt.Sprintf("%s(func(", callableInfo.GoType)
+	for idx, param := range params {
+		if idx > 0 {
+			lambdaExpr += ", "
+		}
+		lambdaExpr += fmt.Sprintf("%s %s", param.GoName, param.GoType)
+	}
+	lambdaExpr += fmt.Sprintf(") (%s, *__ableControl) { %s })", callableInfo.ReturnGoType, strings.Join(implLines, "; "))
+	return lambdaExpr, callableInfo.GoType, true
+}
 
-	implBody := strings.Join(implLines, "; ")
-	lambdaExpr := fmt.Sprintf("runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (%s runtime.Value, %s error) { %s }}", "<lambda>", len(params), lambdaResultName, lambdaErrName, implBody)
-	return lambdaExpr, "runtime.Value", true
+func (g *generator) expectedLambdaFunctionType(ctx *compileContext) *ast.FunctionTypeExpression {
+	if g == nil || ctx == nil || ctx.expectedTypeExpr == nil {
+		return nil
+	}
+	expectedExpr := g.typeExprInContext(ctx, ctx.expectedTypeExpr)
+	fnType, ok := expectedExpr.(*ast.FunctionTypeExpression)
+	if !ok || fnType == nil {
+		return nil
+	}
+	return fnType
 }
 
 func (g *generator) compileLambdaBlockBody(ctx *compileContext, returnType string, block *ast.BlockExpression) ([]string, string, string, bool) {
@@ -329,11 +408,16 @@ func (g *generator) compileLambdaBlockBody(ctx *compileContext, returnType strin
 			return lines, valueExpr, finalType, true
 		}
 		if isLast {
+			if g.isVoidType(returnType) {
+				stmtLines, ok := g.compileStatement(ctx, stmt)
+				if !ok {
+					return nil, "", "", false
+				}
+				lines = append(lines, stmtLines...)
+				return lines, "struct{}{}", "struct{}", true
+			}
 			if expr, ok := stmt.(ast.Expression); ok && expr != nil {
 				compileExpected := returnType
-				if g.isVoidType(returnType) {
-					compileExpected = ""
-				}
 				stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, compileExpected, expr)
 				if !ok {
 					return nil, "", "", false
@@ -343,12 +427,6 @@ func (g *generator) compileLambdaBlockBody(ctx *compileContext, returnType strin
 					return nil, "", "", false
 				}
 				lines = append(lines, stmtLines...)
-				if g.isVoidType(returnType) {
-					if valueExpr != "" {
-						lines = append(lines, fmt.Sprintf("_ = %s", valueExpr))
-					}
-					return lines, "struct{}{}", "struct{}", true
-				}
 				finalType := valueType
 				if returnType != "" {
 					finalType = returnType
@@ -380,6 +458,12 @@ func (g *generator) lambdaArgConversionLines(pkgName string, argVar string, valu
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		return []string{
 			fmt.Sprintf("%s, err := %s(__able_runtime, %s)", target, iface.FromRuntimeHelper, valueVar),
+			"if err != nil { return nil, err }",
+		}, true
+	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		return []string{
+			fmt.Sprintf("%s, err := %s(__able_runtime, %s)", target, callable.FromRuntimeHelper, valueVar),
 			"if err != nil { return nil, err }",
 		}, true
 	}
@@ -464,7 +548,7 @@ func (g *generator) lambdaArgConversionLines(pkgName string, argVar string, valu
 			fmt.Sprintf("%s, err := __able_struct_%s_from(%s)", target, baseName, valueVar),
 			"if err != nil { return nil, err }",
 		}
-		if g.lambdaStructArgRequiresValue(pkgName, typeExpr, goType) {
+		if g.structArgRequiresValue(pkgName, typeExpr, goType) {
 			lines = append(lines, fmt.Sprintf("if %s == nil { return nil, fmt.Errorf(\"type mismatch calling lambda: expected %s\") }", target, baseName))
 		}
 		return lines, true
@@ -473,7 +557,7 @@ func (g *generator) lambdaArgConversionLines(pkgName string, argVar string, valu
 	}
 }
 
-func (g *generator) lambdaStructArgRequiresValue(pkgName string, typeExpr ast.TypeExpression, goType string) bool {
+func (g *generator) structArgRequiresValue(pkgName string, typeExpr ast.TypeExpression, goType string) bool {
 	if g == nil || g.typeCategory(goType) != "struct" {
 		return false
 	}
@@ -497,6 +581,9 @@ func (g *generator) lambdaStructArgRequiresValue(pkgName string, typeExpr ast.Ty
 func (g *generator) lambdaReturnLines(resultName string, goType string) ([]string, bool) {
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		return []string{fmt.Sprintf("return %s(__able_runtime, %s)", iface.ToRuntimeHelper, resultName)}, true
+	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		return []string{fmt.Sprintf("return %s(__able_runtime, %s)", callable.ToRuntimeHelper, resultName)}, true
 	}
 	if union := g.nativeUnionInfoForGoType(goType); union != nil {
 		return []string{fmt.Sprintf("return %s(__able_runtime, %s)", union.ToRuntimeHelper, resultName)}, true

@@ -10,9 +10,13 @@ func (g *generator) controlTransferLines(ctx *compileContext, controlExpr string
 		return nil, false
 	}
 	if ctx.controlCaptureVar != "" && ctx.controlCaptureLabel != "" {
+		transfer := fmt.Sprintf("goto %s", ctx.controlCaptureLabel)
+		if ctx.controlCaptureBreak {
+			transfer = fmt.Sprintf("break %s", ctx.controlCaptureLabel)
+		}
 		return []string{
 			fmt.Sprintf("%s = %s", ctx.controlCaptureVar, controlExpr),
-			fmt.Sprintf("goto %s", ctx.controlCaptureLabel),
+			transfer,
 		}, true
 	}
 	if ctx.controlMode == compileControlModeNativeCall {

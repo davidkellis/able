@@ -24,6 +24,13 @@ func (g *generator) compileTailExpression(ctx *compileContext, expected string, 
 		ctx.setReason("missing expression")
 		return nil, "", "", false
 	}
+	if expected != "" && g.isVoidType(expected) {
+		stmtLines, ok := g.compileStatement(ctx, expr)
+		if !ok {
+			return nil, "", "", false
+		}
+		return stmtLines, "struct{}{}", "struct{}", true
+	}
 	runtimeExpected := expected == "runtime.Value"
 	switch e := expr.(type) {
 	case *ast.AssignmentExpression:

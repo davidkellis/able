@@ -39,6 +39,50 @@ func (g *generator) typeMatches(expected, actual string) bool {
 	return false
 }
 
+func (g *generator) canCoerceStaticExpr(expected, actual string) bool {
+	if expected == "" || expected == "any" || actual == "" {
+		return true
+	}
+	if g.nativeNullableWraps(expected, actual) {
+		return true
+	}
+	if g.typeMatches(expected, actual) {
+		return true
+	}
+	if g != nil && g.isIntegerType(expected) && g.isIntegerType(actual) {
+		return true
+	}
+	if expected == "runtime.ErrorValue" && g.isNativeErrorCarrierType(actual) {
+		return true
+	}
+	if innerType, nullable := g.nativeNullableValueInnerType(expected); nullable && innerType == "runtime.ErrorValue" && g.isNativeErrorCarrierType(actual) {
+		return true
+	}
+	if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil {
+		return g.nativeInterfaceAcceptsActual(iface, actual)
+	}
+	if union := g.nativeUnionInfoForGoType(expected); union != nil {
+		if _, ok := g.nativeUnionMember(union, actual); ok {
+			return true
+		}
+		for _, member := range union.Members {
+			if member == nil {
+				continue
+			}
+			if iface := g.nativeInterfaceInfoForGoType(member.GoType); iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
+				return true
+			}
+			if member.GoType == "runtime.ErrorValue" && g.isNativeErrorCarrierType(actual) {
+				return true
+			}
+			if g.nativeUnionRuntimeMemberAcceptsActual(member, actual) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (g *generator) isStaticallyKnownExpectedType(goType string) bool {
 	if goType == "" || goType == "runtime.Value" || g.isVoidType(goType) {
 		return true
@@ -53,6 +97,18 @@ func (g *generator) isStaticallyKnownExpectedType(goType string) bool {
 		return true
 	}
 	return g.typeCategory(goType) != "unknown"
+}
+
+func (g *generator) compileExprLinesWithExpectedTypeExpr(ctx *compileContext, expr ast.Expression, expectedGoType string, expectedTypeExpr ast.TypeExpression) ([]string, string, string, bool) {
+	if ctx == nil || expectedTypeExpr == nil {
+		return g.compileExprLines(ctx, expr, expectedGoType)
+	}
+	previous := ctx.expectedTypeExpr
+	ctx.expectedTypeExpr = expectedTypeExpr
+	defer func() {
+		ctx.expectedTypeExpr = previous
+	}()
+	return g.compileExprLines(ctx, expr, expectedGoType)
 }
 
 func (g *generator) nativeUnionWrapLines(ctx *compileContext, expected, actual, expr string) ([]string, string, bool) {
@@ -106,7 +162,7 @@ func (g *generator) nativeUnionWrapLines(ctx *compileContext, expected, actual, 
 }
 
 func (g *generator) compileableInterfaceMethodForReceiver(goType string, interfaceName string, methodName string) *functionInfo {
-	if g == nil || goType == "" || interfaceName == "" || methodName == "" {
+	if g == nil || goType == "" || goType == "runtime.Value" || goType == "any" || interfaceName == "" || methodName == "" {
 		return nil
 	}
 	var found *functionInfo
@@ -128,6 +184,31 @@ func (g *generator) compileableInterfaceMethodForReceiver(goType string, interfa
 			return nil
 		}
 		found = impl.Info
+	}
+	return found
+}
+
+func (g *generator) compileableInterfaceMethodForConcreteReceiver(goType string, methodName string) *methodInfo {
+	if g == nil || goType == "" || goType == "runtime.Value" || goType == "any" || methodName == "" {
+		return nil
+	}
+	var found *methodInfo
+	for _, impl := range g.implMethodList {
+		if impl == nil || impl.Info == nil || !impl.Info.Compileable || impl.ImplName != "" {
+			continue
+		}
+		if impl.MethodName != methodName || len(impl.Info.Params) == 0 || impl.Info.Params[0].GoType == "" {
+			continue
+		}
+		receiverType := impl.Info.Params[0].GoType
+		if receiverType != goType && !g.typeMatches(receiverType, goType) {
+			continue
+		}
+		candidate := &methodInfo{MethodName: methodName, ExpectsSelf: true, Info: impl.Info}
+		if found != nil && found.Info != candidate.Info {
+			return nil
+		}
+		found = candidate
 	}
 	return found
 }
@@ -233,6 +314,9 @@ func (g *generator) zeroValueExpr(goType string) (string, bool) {
 		return "nil", true
 	}
 	if g.nativeInterfaceInfoForGoType(goType) != nil {
+		return "nil", true
+	}
+	if g.nativeCallableInfoForGoType(goType) != nil {
 		return "nil", true
 	}
 	if g.nativeUnionInfoForGoType(goType) != nil {
