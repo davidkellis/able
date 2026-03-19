@@ -1,6 +1,10 @@
 package compiler
 
-import "fmt"
+import (
+	"fmt"
+
+	"able/interpreter-go/pkg/ast"
+)
 
 func qualifiedName(pkg string, name string) string {
 	if pkg == "" {
@@ -85,10 +89,39 @@ func (c *compileContext) child() *compileContext {
 		controlMode:           c.controlMode,
 		controlCaptureVar:     c.controlCaptureVar,
 		controlCaptureLabel:   c.controlCaptureLabel,
+		controlCaptureBreak:   c.controlCaptureBreak,
 		rethrowControlVar:     c.rethrowControlVar,
 		genericNames:          c.genericNames,
+		typeBindings:          c.typeBindings,
 		implSiblings:          c.implSiblings,
 	}
+}
+
+func (c *compileContext) substituteTypeBindings(expr ast.TypeExpression) ast.TypeExpression {
+	if c == nil || len(c.typeBindings) == 0 || expr == nil {
+		return expr
+	}
+	return substituteTypeParams(expr, c.typeBindings)
+}
+
+func (g *generator) typeExprInContext(ctx *compileContext, expr ast.TypeExpression) ast.TypeExpression {
+	if g == nil || expr == nil {
+		return expr
+	}
+	if ctx == nil {
+		return expr
+	}
+	return normalizeTypeExprForPackage(g, ctx.packageName, ctx.substituteTypeBindings(expr))
+}
+
+func (g *generator) mapTypeExpressionInContext(ctx *compileContext, expr ast.TypeExpression) (string, bool) {
+	if g == nil {
+		return "", false
+	}
+	if ctx == nil {
+		return g.mapTypeExpressionInPackage("", expr)
+	}
+	return g.mapTypeExpressionInPackage(ctx.packageName, g.typeExprInContext(ctx, expr))
 }
 
 func (c *compileContext) pushBreakpoint(label string) {

@@ -10,47 +10,49 @@ import (
 )
 
 type generator struct {
-	opts                     Options
-	structs                  map[string]*structInfo
-	typeAliases              map[string]map[string]ast.TypeExpression
-	typeAliasGenericParams   map[string]map[string][]*ast.GenericParameter
-	unions                   map[string]*ast.UnionDefinition
-	unionPackages            map[string]string
-	nativeUnions             map[string]*nativeUnionInfo
-	nativeInterfaces         map[string]*nativeInterfaceInfo
-	nativeInterfaceBuilding  map[string]struct{}
-	interfaces               map[string]*ast.InterfaceDefinition
-	interfacePackages        map[string]string
-	staticImports            map[string][]staticImportBinding
-	functions                map[string]map[string]*functionInfo
-	overloads                map[string]map[string]*overloadInfo
-	packages                 []string
-	entryPackage             string
-	methods                  map[string]map[string][]*methodInfo
-	methodList               []*methodInfo
-	implMethodList           []*implMethodInfo
-	implDefinitions          []*implDefinitionInfo
-	implMethodByInfo         map[*functionInfo]*implMethodInfo
-	warnings                 []string
-	fallbacks                []FallbackInfo
-	mangler                  *nameMangler
-	needsAst                 bool
-	needsIterator            bool
-	needsStrconv             bool
-	needsStringFromByteArray bool
-	awaitExprs               []string
-	awaitNames               map[*ast.AwaitExpression]string
-	diagNodes                []diagNodeInfo
-	diagNames                map[ast.Node]string
-	nodeOrigins              map[ast.Node]string
-	packageEnvVars           map[string]string
-	packageEnvOrder          []string
-	hasDynamicFeature        bool
-	moduleBindings           map[string][]moduleBinding // package -> bindings
-	moduleBindingNames       map[string]map[string]struct{}
-	evaluatedConstants       map[string]*evaluatedConst // "pkg::name" -> value
-	staticCallableNames      map[string]map[string]struct{}
-	externCallables          map[string]map[string]struct{}
+	opts                      Options
+	structs                   map[string]*structInfo
+	typeAliases               map[string]map[string]ast.TypeExpression
+	typeAliasGenericParams    map[string]map[string][]*ast.GenericParameter
+	unions                    map[string]*ast.UnionDefinition
+	unionPackages             map[string]string
+	nativeUnions              map[string]*nativeUnionInfo
+	nativeCallables           map[string]*nativeCallableInfo
+	nativeInterfaces          map[string]*nativeInterfaceInfo
+	nativeInterfaceBuilding   map[string]struct{}
+	nativeInterfaceRefreshing map[string]struct{}
+	interfaces                map[string]*ast.InterfaceDefinition
+	interfacePackages         map[string]string
+	staticImports             map[string][]staticImportBinding
+	functions                 map[string]map[string]*functionInfo
+	overloads                 map[string]map[string]*overloadInfo
+	packages                  []string
+	entryPackage              string
+	methods                   map[string]map[string][]*methodInfo
+	methodList                []*methodInfo
+	implMethodList            []*implMethodInfo
+	implDefinitions           []*implDefinitionInfo
+	implMethodByInfo          map[*functionInfo]*implMethodInfo
+	warnings                  []string
+	fallbacks                 []FallbackInfo
+	mangler                   *nameMangler
+	needsAst                  bool
+	needsIterator             bool
+	needsStrconv              bool
+	needsStringFromByteArray  bool
+	awaitExprs                []string
+	awaitNames                map[*ast.AwaitExpression]string
+	diagNodes                 []diagNodeInfo
+	diagNames                 map[ast.Node]string
+	nodeOrigins               map[ast.Node]string
+	packageEnvVars            map[string]string
+	packageEnvOrder           []string
+	hasDynamicFeature         bool
+	moduleBindings            map[string][]moduleBinding // package -> bindings
+	moduleBindingNames        map[string]map[string]struct{}
+	evaluatedConstants        map[string]*evaluatedConst // "pkg::name" -> value
+	staticCallableNames       map[string]map[string]struct{}
+	externCallables           map[string]map[string]struct{}
 }
 
 type diagNodeInfo struct {
@@ -95,34 +97,38 @@ type compileContext struct {
 	controlMode           string
 	controlCaptureVar     string
 	controlCaptureLabel   string
+	controlCaptureBreak   bool
 	rethrowControlVar     string
 	genericNames          map[string]struct{}
+	typeBindings          map[string]ast.TypeExpression
 	implSiblings          map[string]implSiblingInfo
 	originExtractions     map[string]string // CSE cache: Able variable name → Go extraction temp
 }
 
 func newGenerator(opts Options) *generator {
 	return &generator{
-		opts:                    opts,
-		structs:                 make(map[string]*structInfo),
-		typeAliases:             make(map[string]map[string]ast.TypeExpression),
-		typeAliasGenericParams:  make(map[string]map[string][]*ast.GenericParameter),
-		unions:                  make(map[string]*ast.UnionDefinition),
-		unionPackages:           make(map[string]string),
-		nativeUnions:            make(map[string]*nativeUnionInfo),
-		nativeInterfaces:        make(map[string]*nativeInterfaceInfo),
-		nativeInterfaceBuilding: make(map[string]struct{}),
-		interfaces:              make(map[string]*ast.InterfaceDefinition),
-		interfacePackages:       make(map[string]string),
-		staticImports:           make(map[string][]staticImportBinding),
-		functions:               make(map[string]map[string]*functionInfo),
-		overloads:               make(map[string]map[string]*overloadInfo),
-		methods:                 make(map[string]map[string][]*methodInfo),
-		mangler:                 newNameMangler(),
-		awaitNames:              make(map[*ast.AwaitExpression]string),
-		implMethodByInfo:        make(map[*functionInfo]*implMethodInfo),
-		moduleBindingNames:      make(map[string]map[string]struct{}),
-		externCallables:         make(map[string]map[string]struct{}),
+		opts:                      opts,
+		structs:                   make(map[string]*structInfo),
+		typeAliases:               make(map[string]map[string]ast.TypeExpression),
+		typeAliasGenericParams:    make(map[string]map[string][]*ast.GenericParameter),
+		unions:                    make(map[string]*ast.UnionDefinition),
+		unionPackages:             make(map[string]string),
+		nativeUnions:              make(map[string]*nativeUnionInfo),
+		nativeCallables:           make(map[string]*nativeCallableInfo),
+		nativeInterfaces:          make(map[string]*nativeInterfaceInfo),
+		nativeInterfaceBuilding:   make(map[string]struct{}),
+		nativeInterfaceRefreshing: make(map[string]struct{}),
+		interfaces:                make(map[string]*ast.InterfaceDefinition),
+		interfacePackages:         make(map[string]string),
+		staticImports:             make(map[string][]staticImportBinding),
+		functions:                 make(map[string]map[string]*functionInfo),
+		overloads:                 make(map[string]map[string]*overloadInfo),
+		methods:                   make(map[string]map[string][]*methodInfo),
+		mangler:                   newNameMangler(),
+		awaitNames:                make(map[*ast.AwaitExpression]string),
+		implMethodByInfo:          make(map[*functionInfo]*implMethodInfo),
+		moduleBindingNames:        make(map[string]map[string]struct{}),
+		externCallables:           make(map[string]map[string]struct{}),
 	}
 }
 
@@ -195,8 +201,10 @@ func (g *generator) collect(program *driver.Program) error {
 	g.unions = make(map[string]*ast.UnionDefinition)
 	g.unionPackages = make(map[string]string)
 	g.nativeUnions = make(map[string]*nativeUnionInfo)
+	g.nativeCallables = make(map[string]*nativeCallableInfo)
 	g.nativeInterfaces = make(map[string]*nativeInterfaceInfo)
 	g.nativeInterfaceBuilding = make(map[string]struct{})
+	g.nativeInterfaceRefreshing = make(map[string]struct{})
 	g.interfaces = make(map[string]*ast.InterfaceDefinition)
 	g.interfacePackages = make(map[string]string)
 	g.staticCallableNames = nil
@@ -544,7 +552,7 @@ func (g *generator) bodyCompileable(info *functionInfo, retType string) bool {
 		info.Reason = "missing function body"
 		return false
 	}
-	ctx := newCompileContext(info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+	ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
 	_, _, ok := g.compileBody(ctx, info)
 	if !ok {
 		info.Reason = ctx.reason
@@ -762,21 +770,41 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 	if !ok {
 		return nil, "", false
 	}
-	if !g.typeMatches(returnType, valueType) {
-		ctx.setReason("assignment return type mismatch")
-		return nil, "", false
+	if returnType == "runtime.Value" && valueType != "runtime.Value" {
+		convLines, converted, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		if !ok {
+			ctx.setReason("return type mismatch")
+			return nil, "", false
+		}
+		stmtLines = append(stmtLines, convLines...)
+		valueExpr = converted
+		valueType = "runtime.Value"
+	} else if returnType != "" && returnType != "runtime.Value" && returnType != "any" && returnType != valueType && g.canCoerceStaticExpr(returnType, valueType) {
+		coercedLines, coercedExpr, coercedType, ok := g.coerceExpectedStaticExpr(ctx, stmtLines, valueExpr, valueType, returnType)
+		if !ok {
+			ctx.setReason("assignment return type mismatch")
+			return nil, "", false
+		}
+		stmtLines = coercedLines
+		valueExpr = coercedExpr
+		valueType = coercedType
+	} else if !g.typeMatches(returnType, valueType) {
+		if returnType != "" && returnType != "runtime.Value" && returnType != "any" && g.canCoerceStaticExpr(returnType, valueType) {
+			coercedLines, coercedExpr, coercedType, ok := g.coerceExpectedStaticExpr(ctx, stmtLines, valueExpr, valueType, returnType)
+			if !ok {
+				ctx.setReason("assignment return type mismatch")
+				return nil, "", false
+			}
+			stmtLines = coercedLines
+			valueExpr = coercedExpr
+			valueType = coercedType
+		} else {
+			ctx.setReason("assignment return type mismatch")
+			return nil, "", false
+		}
 	}
 	if returnType == "runtime.Value" {
 		if ifaceType, ok := g.interfaceTypeExpr(ctx.returnTypeExpr); ok {
-			if valueType != "runtime.Value" {
-				convLines, converted, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
-				if !ok {
-					ctx.setReason("return type mismatch")
-					return nil, "", false
-				}
-				stmtLines = append(stmtLines, convLines...)
-				valueExpr = converted
-			}
 			ifaceLines, coerced, ok := g.interfaceReturnExprLines(ctx, valueExpr, ifaceType, ctx.genericNames)
 			if !ok {
 				ctx.setReason("return type mismatch")
@@ -937,36 +965,4 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		ctx.setReason("unsupported statement")
 		return nil, false
 	}
-}
-
-func newCompileContext(info *functionInfo, functions map[string]*functionInfo, overloads map[string]*overloadInfo, packageName string, genericNames map[string]struct{}) *compileContext {
-	counter := 0
-	ctx := &compileContext{
-		params:       make(map[string]paramInfo),
-		locals:       make(map[string]paramInfo),
-		functions:    functions,
-		overloads:    overloads,
-		packageName:  packageName,
-		temps:        &counter,
-		loopDepth:    0,
-		breakpoints:  make(map[string]int),
-		genericNames: genericNames,
-	}
-	if info != nil {
-		ctx.returnType = info.ReturnType
-		if info.Definition != nil {
-			ctx.returnTypeExpr = info.Definition.ReturnType
-		}
-		for _, param := range info.Params {
-			if param.Name == "" {
-				continue
-			}
-			ctx.params[param.Name] = param
-		}
-		if len(info.Params) > 0 {
-			ctx.implicitReceiver = info.Params[0]
-			ctx.hasImplicitReceiver = true
-		}
-	}
-	return ctx
 }

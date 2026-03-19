@@ -171,11 +171,11 @@ surface needed before moving on to control-result work:
   callers passing bare singleton values compatible with compiled native
   struct/union params.
 
-This completes the current carrier-widening category. The next category is the
-explicit control-result envelope. After that, the remaining existential work is
-different in kind: non-object-safe/generic interface existentials,
-callable/function-type existentials, and other residual surfaces that still
-legitimately need dynamic carriers.
+This completes the current carrier-widening category. The later control-result,
+object-safe interface, generic-interface existential, and callable/function-type
+existential tranches are now also landed. Remaining work is now different in
+kind: broader audit/enforcement of explicit dynamic-carrier edges plus further
+specialization/performance work on top of the native carrier ABI.
 
 ## Target ABI
 

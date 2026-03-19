@@ -44,6 +44,7 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 	if iface := g.interfaces[ifaceName]; iface != nil {
 		ifaceGenerics = iface.GenericParams
 	}
+	interfaceBindings := implInterfaceTypeBindings(ifaceGenerics, def.InterfaceArgs)
 	for idx, fn := range def.Definitions {
 		if fn == nil || fn.ID == nil || fn.ID.Name == "" {
 			continue
@@ -56,7 +57,7 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 			Definition:  fn,
 			HasOriginal: false,
 		}
-		g.fillImplMethodInfo(info, mapper, targetType)
+		g.fillImplMethodInfo(info, mapper, targetType, interfaceBindings)
 		implInfo := &implMethodInfo{
 			InterfaceName:     ifaceName,
 			InterfaceArgs:     def.InterfaceArgs,
@@ -131,7 +132,8 @@ func (g *generator) collectDefaultImplMethods() {
 				Definition:  defaultDef,
 				HasOriginal: false,
 			}
-			g.fillImplMethodInfo(info, mapper, targetType)
+			interfaceBindings := implInterfaceTypeBindings(iface.GenericParams, def.InterfaceArgs)
+			g.fillImplMethodInfo(info, mapper, targetType, interfaceBindings)
 			implInfo := &implMethodInfo{
 				InterfaceName:     ifaceName,
 				InterfaceArgs:     def.InterfaceArgs,
@@ -153,7 +155,24 @@ func (g *generator) collectDefaultImplMethods() {
 	}
 }
 
-func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, target ast.TypeExpression) {
+func implInterfaceTypeBindings(params []*ast.GenericParameter, args []ast.TypeExpression) map[string]ast.TypeExpression {
+	if len(params) == 0 || len(args) == 0 {
+		return nil
+	}
+	bindings := make(map[string]ast.TypeExpression, len(args))
+	for idx, gp := range params {
+		if gp == nil || gp.Name == nil || gp.Name.Name == "" || idx >= len(args) || args[idx] == nil {
+			continue
+		}
+		bindings[gp.Name.Name] = args[idx]
+	}
+	if len(bindings) == 0 {
+		return nil
+	}
+	return bindings
+}
+
+func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, target ast.TypeExpression, interfaceBindings map[string]ast.TypeExpression) {
 	if info == nil || info.Definition == nil || mapper == nil {
 		return
 	}
@@ -183,6 +202,7 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 			}
 		}
 		paramType = resolveSelfTypeExpr(paramType, target)
+		paramType = substituteTypeParams(paramType, interfaceBindings)
 		goType, ok := mapper.Map(paramType)
 		if !ok {
 			supported = false
@@ -196,6 +216,7 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 		})
 	}
 	retExpr := resolveSelfTypeExpr(def.ReturnType, target)
+	retExpr = substituteTypeParams(retExpr, interfaceBindings)
 	expectsSelf := methodDefinitionExpectsSelf(def)
 	retType := ""
 	ok := false
@@ -254,12 +275,15 @@ func (g *generator) implSiblingsForDefault(target *implMethodInfo) map[string]im
 		return nil
 	}
 	targetTypeStr := typeExpressionToString(target.TargetType)
+	targetTypeName, targetTypeNameOK := g.methodTargetName(target.TargetType)
 	siblings := make(map[string]implSiblingInfo)
+	ambiguous := make(map[string]struct{})
+	allowedInterfaces := g.interfaceFamilyNames(target.InterfaceName)
 	for _, impl := range g.implMethodList {
 		if impl == nil || impl.Info == nil || !impl.Info.Compileable {
 			continue
 		}
-		if impl.InterfaceName != target.InterfaceName {
+		if _, ok := allowedInterfaces[impl.InterfaceName]; !ok {
 			continue
 		}
 		// For named impls, match by impl name; for unnamed, match by target type.
@@ -268,20 +292,64 @@ func (g *generator) implSiblingsForDefault(target *implMethodInfo) map[string]im
 				continue
 			}
 		}
-		if typeExpressionToString(impl.TargetType) != targetTypeStr {
+		if implTypeName, ok := g.methodTargetName(impl.TargetType); targetTypeNameOK && ok {
+			if implTypeName != targetTypeName {
+				continue
+			}
+		} else if typeExpressionToString(impl.TargetType) != targetTypeStr {
 			continue
 		}
 		if impl.MethodName == target.MethodName {
 			continue
 		}
-		siblings[impl.MethodName] = implSiblingInfo{
+		candidate := implSiblingInfo{
 			GoName: impl.Info.GoName,
 			Arity:  impl.Info.Arity,
 			Info:   impl.Info,
 		}
+		if existing, ok := siblings[impl.MethodName]; ok && existing.Info != candidate.Info {
+			delete(siblings, impl.MethodName)
+			ambiguous[impl.MethodName] = struct{}{}
+			continue
+		}
+		if _, blocked := ambiguous[impl.MethodName]; blocked {
+			continue
+		}
+		siblings[impl.MethodName] = candidate
 	}
 	if len(siblings) == 0 {
 		return nil
 	}
 	return siblings
+}
+
+func (g *generator) interfaceFamilyNames(interfaceName string) map[string]struct{} {
+	if g == nil || interfaceName == "" {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	var visit func(string)
+	visit = func(name string) {
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		iface := g.interfaces[name]
+		if iface == nil {
+			return
+		}
+		pkgName := g.interfacePackages[name]
+		for _, baseExpr := range iface.BaseInterfaces {
+			_, baseName, _, _, ok := interfaceExprInfo(g, pkgName, baseExpr)
+			if !ok {
+				continue
+			}
+			visit(baseName)
+		}
+	}
+	visit(interfaceName)
+	return seen
 }

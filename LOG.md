@@ -1,5 +1,168 @@
 # Able Project Log
 
+# 2026-03-18 — Compiler interface/global lookup audit batching (v12)
+- Closed the strict lookup-audit batching follow-up for the compiler-native
+  lowering arc.
+- Landed the audit split in:
+  - `v12/interpreters/go/pkg/compiler/compiler_interface_lookup_audit_test.go`
+- Batch-audit details:
+  - the default strict interface/global lookup audit no longer runs as one
+    oversized `TestCompilerInterfaceLookupBypassForStaticFixtures` sweep;
+  - the default fixture set is now distributed across four top-level batch
+    tests:
+    - `TestCompilerInterfaceLookupBypassForStaticFixturesBatch1`
+    - `TestCompilerInterfaceLookupBypassForStaticFixturesBatch2`
+    - `TestCompilerInterfaceLookupBypassForStaticFixturesBatch3`
+    - `TestCompilerInterfaceLookupBypassForStaticFixturesBatch4`
+  - the unsuffixed `TestCompilerInterfaceLookupBypassForStaticFixtures`
+    selector is now reserved for explicit fixture subsets via
+    `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES`, which keeps targeted auditing
+    available without forcing the whole default sweep through one test body;
+  - default batching uses a deterministic round-robin split over the fixture
+    list so the suite remains mechanically stable and stays under the repo's
+    per-test one-minute guardrail.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1` (pass, selector now skips quickly when no explicit fixture subset is requested).
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=10_03_interface_type_dynamic_dispatch GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1` (pass, `1.854s`).
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixturesBatch1$' -count=1` (pass, `19.241s`).
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixturesBatch2$' -count=1` (pass, `21.622s`).
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixturesBatch3$' -count=1` (pass, `18.178s`).
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerInterfaceLookupBypassForStaticFixturesBatch4$' -count=1` (pass, `18.234s`).
+- Handoff:
+  - the strict lookup-audit batching follow-up should now be treated as
+    closed;
+  - the next category is the broader compiler re-audit/enforcement pass:
+    tighten the allowed dynamic-carrier touchpoints mechanically, re-audit the
+    larger staged compiler arc against the native-lowering contract, and then
+    continue performance-oriented specialization/monomorphization work.
+
+# 2026-03-18 — Compiler native callable/function-type existential lowering completion (v12)
+- Closed the callable/function-type existential tranche for the current
+  compiler-native lowering arc.
+- Landed the callable carrier and boundary fixes in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_callables.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_callables.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_callable_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_bound_method_values.go`
+  - `v12/interpreters/go/pkg/compiler/generator_placeholders.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/generator_local_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_value_conversions.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+- Added/updated regression coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_callable_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_local_function_definition_no_fallback_test.go`
+- Closure details:
+  - `FunctionTypeExpression` now lowers to generated native Go callable
+    carriers instead of defaulting to `any`;
+  - direct lambdas, local function definitions, placeholder lambdas, and
+    captured bound methods now emit those native callable carriers instead of
+    `runtime.NativeFunctionValue` on static compiled paths;
+  - function-typed params, struct fields, wrapper arg/return conversion, and
+    native-interface conversion now round-trip through explicit generated
+    callable boundary helpers instead of broad `runtime.Value` coercion;
+  - callable-body control propagation no longer uses callback-style
+    `error` returns internally; native callable bodies capture
+    `*__ableControl` with labeled break blocks and return `(zero, control)`
+    directly like compiled functions;
+  - higher-order fixture surfaces including partial application, trailing
+    lambdas, callable `apply`, iterator/default-interface higher-order calls,
+    and the stdlib reporters fixture now stay on the native callable ABI.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(PlaceholderLambdaStaysNative|BoundMethodValueStaysNative|FunctionTypedParamStaysNative|NativeCallableExecutes)$|TestCompilerNoFallbacksForLocalFunctionDefinition(Statement|ShadowingTypedBinding)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(PlaceholderLambdaStaysNative|BoundMethodValueStaysNative|FunctionTypedParamStaysNative|NativeCallableExecutes|PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes|InterfaceLookupGenericMethodFixturesRegression)$|TestCompilerNoFallbacksForLocalFunctionDefinition(Statement|ShadowingTypedBinding)$|TestCompilerExecFixtures/(06_01_compiler_placeholder_lambda|06_01_compiler_bound_method_value|06_04_function_call_eval_order_trailing_lambda|07_02_lambdas_closures_capture|07_02_01_verbose_anonymous_fn|07_04_apply_callable_interface|07_04_trailing_lambda_method_syntax|07_05_partial_application|06_12_26_stdlib_test_harness_reporters|14_01_language_interfaces_index_apply_iterable|10_04_interface_dispatch_defaults_generics|10_15_interface_default_generic_method)$' -count=1` (pass).
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1` (pass, `72.154s`).
+- Handoff:
+  - the callable/function-type existential tranche should now be treated as
+    closed;
+  - the next category is genuinely different work: re-audit the broader
+    staged compiler arc against the current native-lowering contract, keep
+    shrinking dynamic-carrier touchpoints mechanically, and split/batch the
+    strict compiler audits so they meet the repo's one-minute test target.
+
+# 2026-03-18 — Compiler generic-interface existential lowering completion (v12)
+- Closed the non-object-safe/generic interface existential tranche for the
+  current compiler-native lowering arc.
+- Landed the generic-interface carrier and dispatch-edge fixes in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+- Added regression coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_test.go`
+- Closure details:
+  - pure-generic interfaces now keep generated native carriers instead of
+    collapsing typed locals/params back to `runtime.Value`;
+  - generic interface/default-interface methods now keep the receiver on that
+    native carrier and cross into runtime only at the explicit generic
+    dispatch edge via `__able_method_call_node(...)`;
+  - generic dispatch results now convert back from `runtime.Value` into the
+    best-known native Go carrier before the surrounding compiled code sees
+    them again;
+  - native-interface adapter population now requires actual generic-method
+    implementers for generic-only carriers instead of treating every compiled
+    type as a valid adapter when no object-safe methods are present.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes|InterfaceLookupGenericMethodFixturesRegression)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InterfaceParamAndReturnStayNative|NativeInterfaceExecutes|TypedInterfaceAssignmentStaysNative|GenericInterfaceReturnFromStructLiteralStaysNative|UnionTargetInterfaceAssignmentStaysNative|StaticIndexInterfacesStayNative|ConcreteReceiverInterfaceMethodStaysNative|ConcreteReceiverApplyStaysNative|InterfaceMethodWithLambdaArgStaysNative|NativeInterfaceRuntimeAdapterUsesStructZeroForVoidReturn|NativeInterfaceRuntimeAdapterWritesBackPointerArgs|PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes)$|TestCompilerExecFixtures/(10_04_interface_dispatch_defaults_generics|10_15_interface_default_generic_method|14_01_language_interfaces_index_apply_iterable)$|TestCompilerDynamicBoundary(CallbackInterfaceConversion(Success|Failure)Markers|MonoArrayCallbackInterfaceConversion(Success|Failure)Markers)$' -count=1` (pass).
+  - `cd v12/interpreters/go && ABLE_COMPILER_INTERFACE_LOOKUP_STRICT_TOTAL=1 ABLE_COMPILER_GLOBAL_LOOKUP_STRICT_TOTAL=1 GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerInterfaceLookup(BypassForStaticFixtures|GenericMethodFixturesRegression)$' -count=1` (pass).
+  - `git diff --check` (clean for touched files after this tranche).
+- Handoff:
+  - this generic-interface existential tranche should now be treated as
+    closed;
+  - the next category is callable/function-type existentials, especially the
+    callable-driven generic inference surfaces still present on `Iterator<T>`
+    (`map`, `filter`, `filter_map`, `collect`), followed by residual
+    runtime-boundary tightening around those callable surfaces.
+  - process note: the full strict interface lookup audit passed with total
+    lookup counters forced to zero, but the all-fixture run took about 88s and
+    should be split or batched later to stay inside the repo's sub-minute test
+    target.
+
+# 2026-03-18 — Compiler object-safe interface tranche audit closure (v12)
+- Closed the remaining cleanup and audit items for the object-safe native
+  interface tranche.
+- Landed the final codegen fixes in:
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_array_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match_arrays.go`
+- Final closure details:
+  - native interface runtime adapters now round-trip `void` as `struct{}` on
+    the Go side instead of failing conversion at runtime;
+  - pointer-backed native interface arguments are now written back after
+    runtime-backed interface dispatch, which closes the `ProgressReporter`
+    state-loss hole exposed by `06_12_26_stdlib_test_harness_reporters`;
+  - native interface `*_from_value(...)` helpers now recover concrete compiled
+    adapters directly before falling back to the generic runtime adapter path;
+  - match-pattern lowering no longer emits unused native-union unwrap temps
+    when a typed branch has no bindings;
+  - `generator_match.go` is back under the repository file-size limit after
+    splitting array-pattern helpers into `generator_match_arrays.go`.
+- Regression coverage added/updated in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_interface_lookup_audit_test.go`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NativeInterfaceRuntimeAdapterUsesStructZeroForVoidReturn|NativeInterfaceRuntimeAdapterWritesBackPointerArgs|GenericInterfaceReturnFromStructLiteralStaysNative|UnionTargetInterfaceAssignmentStaysNative|StaticIndexInterfacesStayNative|ConcreteReceiverInterfaceMethodStaysNative|ConcreteReceiverApplyStaysNative|InterfaceMethodWithLambdaArgStaysNative)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerInterfaceLookupReportersFixtureRegression$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerInterfaceLookupBypassForStaticFixtures$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges)$' -count=1` (pass).
+  - `git diff --check` (clean).
+- Handoff:
+  - the completed object-safe tranche should now be treated as closed;
+  - the next category is genuinely different work: non-object-safe/generic
+    interface existentials, callable/function-type existentials, and residual
+    runtime-boundary tightening around those surfaces.
+
 # 2026-03-11 — Compiler test build-cache stabilization (v12)
 - Documented the next post-object-safe compiler lowering categories in
   `PLAN.md`:
@@ -35,6 +198,45 @@
     has unrelated staged-compiler correctness/build failures, but the previous
     stack-overflow failure is resolved.
 
+# 2026-03-18 — Compiler object-safe interface concrete-receiver closure (v12)
+- Closed the remaining concrete-receiver holes in the object-safe native
+  interface tranche:
+  - concrete `Index` / `IndexMut` operator lowering now dispatches through
+    compiled impls instead of bridging native structs into `__able_index` /
+    `__able_index_set`;
+  - concrete receiver default-interface method calls now dispatch through
+    compiled impl bodies instead of falling back to `__able_method_call_node`;
+  - concrete `Apply` calls now dispatch through compiled impls instead of
+    `__able_call_value`;
+  - native integer-result coercion for compiled bitwise/shift expressions now
+    allows the stdlib `decode_multibyte` path to stay on the static compiler
+    path instead of failing with `binary expression type mismatch`.
+- Code landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_index_static.go`
+  - `v12/interpreters/go/pkg/compiler/generator_apply_static.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_binary.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_test.go`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(GenericInterfaceReturnFromStructLiteralStaysNative|UnionTargetInterfaceAssignmentStaysNative|StaticIndexInterfacesStayNative|ConcreteReceiverInterfaceMethodStaysNative|ConcreteReceiverApplyStaysNative|StaticCallReturningConcreteErrorCoercesToNativeResult)$' -count=1` (pass).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerInterfaceLookupBypassForStaticFixtures/(06_12_21_stdlib_fs_path|06_12_22_stdlib_io_temp|06_03_operator_overloading_interfaces|14_01_language_interfaces_index_apply_iterable)$' -count=1` now leaves only:
+    - `06_12_21_stdlib_fs_path`
+    - `06_12_22_stdlib_io_temp`
+    - the final `iter.next()` tail in `14_01_language_interfaces_index_apply_iterable`
+- Boundary / handoff:
+  - the remaining `14_01` dynamic surface is `Iterator<T>`: `counter.iterator()`
+    now dispatches through the compiled `Iterable.iterator` impl, but its
+    return still normalizes to `runtime.Value`, and `iter.next()` still routes
+    through `__able_method_call_node`;
+  - that is expected to move with the next category, not the completed
+    object-safe tranche, because `Iterator<T>` is not object-safe as defined in
+    the stdlib today (`filter`, `map`, `filter_map`, `collect` are generic
+    methods on the interface).
+
 # 2026-03-11 — Compiler object-safe native interface lowering completion (v12)
 - Closed the fully bound object-safe native interface/existential tranche in:
   - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
@@ -56,6 +258,10 @@
     static compiled paths back to `runtime.Value` or `any`;
   - static params, returns, typed local assignment, struct fields, and direct
     method dispatch now stay on those native interface carriers;
+  - residual concrete-receiver holes on that static path are now also closed:
+    concrete `Index` / `IndexMut`, default-interface method calls, and
+    concrete `Apply` lowering all dispatch through compiled impls instead of
+    dynamic member/call helpers;
   - wrapper returns/args, lambda ABI conversion, and dynamic callback boundary
     conversion now use explicit generated interface adapters instead of
     implicitly binding interface-typed values as raw `runtime.Value`;

@@ -42,11 +42,18 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 			if unionPkg, members, ok := m.gen.expandedUnionMembersInPackage(m.packageName, t); ok {
 				return m.mapExpandedUnionMembers(unionPkg, t, members)
 			}
+			if info, ok := m.gen.structInfoForTypeName(m.packageName, base.Name.Name); ok && info != nil {
+				return "*" + info.GoName, true
+			}
+			if info, ok := m.gen.structInfoByNameUnique(base.Name.Name); ok && info != nil {
+				return "*" + info.GoName, true
+			}
 		}
-		// Generic struct types (TreeMap<K,V>, etc.) keep runtime.Value
-		// so that self-as-runtime.Value field access works correctly.
 		return "runtime.Value", true
 	case *ast.FunctionTypeExpression:
+		if info, ok := m.gen.ensureNativeCallableInfo(m.packageName, t); ok && info != nil {
+			return info.GoType, true
+		}
 		return "any", true
 	case *ast.NullableTypeExpression:
 		return m.mapNullableType(t)

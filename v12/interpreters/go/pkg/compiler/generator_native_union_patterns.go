@@ -91,6 +91,13 @@ func (g *generator) resolveNativeUnionTypedPattern(subjectType string, patternTy
 	}, true
 }
 
+func (g *generator) resolveNativeUnionTypedPatternInContext(ctx *compileContext, subjectType string, patternType ast.TypeExpression) (nativeUnionPatternTarget, bool) {
+	if ctx == nil {
+		return g.resolveNativeUnionTypedPattern(subjectType, patternType, "")
+	}
+	return g.resolveNativeUnionTypedPattern(subjectType, g.typeExprInContext(ctx, patternType), ctx.packageName)
+}
+
 func nativeUnionWholeValueBinding(pattern ast.Pattern) bool {
 	ident, ok := pattern.(*ast.Identifier)
 	return ok && ident != nil && ident.Name != "" && ident.Name != "_"
@@ -101,7 +108,7 @@ func (g *generator) compileNativeUnionTypedPatternCondition(ctx *compileContext,
 		ctx.setReason("missing typed pattern annotation")
 		return nil, "", false
 	}
-	target, ok := g.resolveNativeUnionTypedPattern(subjectType, pattern.TypeAnnotation, ctx.packageName)
+	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
 	if !ok {
 		ctx.setReason("typed pattern type mismatch")
 		return nil, "", false
@@ -135,7 +142,7 @@ func (g *generator) compileNativeUnionTypedPatternBindings(ctx *compileContext, 
 		ctx.setReason("missing typed pattern annotation")
 		return nil, false
 	}
-	target, ok := g.resolveNativeUnionTypedPattern(subjectType, pattern.TypeAnnotation, ctx.packageName)
+	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
 	if !ok {
 		ctx.setReason("typed pattern type mismatch")
 		return nil, false
@@ -162,7 +169,7 @@ func (g *generator) compileNativeUnionTypedPatternBindings(ctx *compileContext, 
 		return nil, false
 	}
 	if len(bindLines) == 0 {
-		return lines, true
+		return nil, true
 	}
 	lines = append(lines, bindLines...)
 	return lines, true
@@ -173,7 +180,7 @@ func (g *generator) compileNativeUnionTypedAssignmentPatternBindings(ctx *compil
 		ctx.setReason("missing typed pattern annotation")
 		return nil, false
 	}
-	target, ok := g.resolveNativeUnionTypedPattern(subjectType, pattern.TypeAnnotation, ctx.packageName)
+	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
 	if !ok {
 		ctx.setReason("typed pattern type mismatch")
 		return nil, false
@@ -200,7 +207,7 @@ func (g *generator) compileNativeUnionTypedAssignmentPatternBindings(ctx *compil
 		return nil, false
 	}
 	if len(bindLines) == 0 {
-		return lines, true
+		return nil, true
 	}
 	lines = append(lines, bindLines...)
 	return lines, true

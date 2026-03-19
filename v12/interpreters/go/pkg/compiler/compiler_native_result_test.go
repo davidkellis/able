@@ -248,6 +248,42 @@ impl Error for RootError {
   fn cause(self: Self) -> ?Error { nil }
 }
 
+func TestCompilerStaticCallReturningConcreteErrorCoercesToNativeResult(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"impl Error for MyError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn fail() -> MyError {",
+		"  MyError { message: \"bad\" }",
+		"}",
+		"",
+		"fn value(flag: bool) -> !i32 {",
+		"  if flag { 7 } else { fail() }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_value")
+	if !ok {
+		t.Fatalf("could not find compiled value function")
+	}
+	if !strings.Contains(body, "__able_compiled_fn_fail()") {
+		t.Fatalf("expected value to call the compiled fail helper:\n%s", body)
+	}
+	if !strings.Contains(body, "_wrap_runtime_ErrorValue(") {
+		t.Fatalf("expected concrete error call result to be wrapped into the native result carrier:\n%s", body)
+	}
+	if strings.Contains(body, "__able_any_to_value(") {
+		t.Fatalf("expected concrete error call result coercion to avoid any conversion:\n%s", body)
+	}
+}
+
 impl Error for OuterError {
   fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { self.cause }

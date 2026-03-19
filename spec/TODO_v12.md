@@ -134,11 +134,38 @@ This list tracks the remaining v12 items after audit; completed work should be r
 - Current progress note: fully bound object-safe interfaces now lower to
   generated native Go interface carriers plus concrete/runtime adapters across
   static params, returns, typed local assignment, struct fields, direct method
-  dispatch, wrapper/lambda conversion, and dynamic callback boundaries.
-- Current staged compiler limit: the remaining interface/existential work is
-  now narrower: non-object-safe/generic interface existentials,
-  callable/function-type existentials, and residual runtime-boundary
-  tightening still rely on `runtime.Value` carrier branches by design.
+  dispatch, concrete receiver `Index` / `IndexMut`, default-interface method
+  calls, concrete `Apply`, wrapper/lambda conversion, and dynamic callback
+  boundaries. The strict no-fallback interface fixture audit is green again
+  end-to-end, `06_12_26_stdlib_test_harness_reporters` now has a dedicated
+  regression harness, runtime adapters now round-trip `void` as `struct{}`
+  and write back mutated pointer-backed interface args after runtime dispatch,
+  and native interface `*_from_value(...)` helpers now recover concrete
+  compiled adapters directly before falling back to the generic runtime
+  adapter path.
+- Current progress note: the non-object-safe/generic interface existential
+  tranche is now landed too. Pure-generic interfaces keep generated native
+  carriers instead of collapsing typed locals/params back to `runtime.Value`,
+  generic interface/default-interface methods now keep the receiver on that
+  native carrier and cross into runtime only at the explicit generic dispatch
+  edge, runtime dispatch results convert back into the best-known native Go
+  carrier before re-entering compiled code, and the strict interface lookup
+  audit is green with total interface/global lookup counts forced to zero.
+- Current progress note: the callable/function-type existential tranche is now
+  landed too. `FunctionTypeExpression` lowers to generated native callable
+  carriers, and direct lambdas, local functions, placeholder lambdas, bound
+  method values, function-typed params/fields, wrapper boundaries, and
+  interface conversions now stay on those carriers on static compiled paths.
+- Current progress note: the strict interface/global lookup audit now defaults
+  to four deterministic batch tests so each strict run stays below the repo's
+  one-minute per-test target; the unsuffixed
+  `TestCompilerInterfaceLookupBypassForStaticFixtures` selector remains
+  available for explicit fixture subsets via
+  `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES`.
+- Current staged compiler limit: remaining compiler-native work is now a
+  different category: broader full-arc audit/cleanup, stricter mechanical
+  enforcement of allowed dynamic-carrier touchpoints, and performance-oriented
+  specialization/monomorphization rather than missing callable existentials.
 - Stage-0 flag scaffolding landed: `--experimental-mono-arrays` and `ABLE_EXPERIMENTAL_MONO_ARRAYS` flow through compiler options; current CLI default is ON with explicit opt-out.
 - Stage-1 partial landed behind the flag: Go runtime now has typed array stores (`i32`, `i64`, `bool`, `u8`) and compiler lowering for typed literals/index plus `push/len/get/set` intrinsics when static element type is known.
 - Stage-1 boundary coverage now includes explicit dynamic-call mono-array roundtrip fixtures plus nullable/union/interface callback conversion success/failure fixtures under `--experimental-mono-arrays`.
@@ -150,9 +177,10 @@ This list tracks the remaining v12 items after audit; completed work should be r
 - Stage-1 strict sweep status (2026-02-26): compiler strict fixture audits and `TestCompilerDynamicBoundary*` are green.
 - Stage-1 perf snapshot (compiled-only, 5-run avg, 2026-02-26, post compatibility fixes): `bench/noop` default `0.062s` / `3.20` GC vs mono `0.060s` / `3.20`; `bench/sieve_count` default `0.072s` / `5.40` vs mono `0.074s` / `5.20`; `bench/sieve_full` default `0.164s` / `23.20` vs mono `0.164s` / `23.00`.
 - Staged Go runtime/compiler limit: generic/dynamic paths still rely on dynamic carrier values by design; remaining mono-array rollout work is staged rollout mechanics, observability, and eventual flag-retirement criteria.
-- Staged Go compiler limit: non-object-safe/generic interface existential
-  wrappers, callable/function-type existential surfaces, and extern boundary
-  shims still use dynamic carrier values by design; continue reducing avoidable
-  carrier usage only where static specialization is semantically valid.
+- Staged Go compiler note: callable/function-type existential surfaces no
+  longer default to dynamic carrier values on static compiled paths; residual
+  dynamic carrier use should now be limited to explicit dynamic boundaries,
+  open runtime-polymorphic dispatch, and other semantically necessary ABI
+  edges.
 - Pending workstream: monomorphized container ABI (`Array<T>` native element storage) behind a gated compiler/runtime rollout plan; staged proposal captured in `v12/design/monomorphized-container-abi.md`.
 - Pending workstream: broaden native lowering beyond arrays (struct/union/interface-call-site specialization where statically representable) and add regression guards that fail when new static paths regress to dynamic carrier helpers.

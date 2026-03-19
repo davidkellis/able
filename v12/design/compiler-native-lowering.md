@@ -172,6 +172,11 @@ not `panic` / `recover`.
   runtime adapters, and static params/returns, typed local assignment, struct
   fields, direct method dispatch, wrapper/lambda conversion, and dynamic
   callback boundaries now use those carriers instead of raw `runtime.Value`.
+- The object-safe tranche is now closed under the strict no-fallback fixture
+  audit too: the full interface audit is green again, the reporters fixture
+  has a dedicated regression harness, runtime adapters round-trip `void` as
+  `struct{}`, and pointer-backed native interface args are written back after
+  runtime-backed dispatch.
 - Native interface adapter population is now refreshed against the current impl
   set before reuse, which keeps no-fallback typed interface assignment and
   static interface-heavy fixtures on the native path instead of failing on a
@@ -198,10 +203,35 @@ not `panic` / `recover`.
 - Singleton struct boundary converters now also accept runtime
   `StructDefinitionValue` payloads, which keeps interpreted bare-singleton
   arguments compatible with compiled native struct/union params.
-- Remaining interface/existential work is now a different category:
-  non-object-safe/generic interface existentials, callable/function-type
-  existentials, and the residual runtime-boundary surfaces that still
-  legitimately require dynamic carriers.
+- The non-object-safe/generic interface existential tranche is now closed too:
+  pure-generic interfaces keep generated native carriers instead of
+  collapsing typed locals/params back to `runtime.Value`, and generic
+  interface/default-interface methods now keep the receiver on that native
+  carrier while narrowing the runtime crossing to the explicit generic
+  dispatch edge.
+- That generic dispatch edge is intentionally narrow: compiled code converts
+  the native receiver to runtime only for `__able_method_call_node(...)`,
+  writes back pointer-backed native carriers after the runtime call, and then
+  converts the returned `runtime.Value` back into the best-known native Go
+  carrier before continuing on the compiled static path.
+- The callable/function-type existential tranche is now landed too:
+  `FunctionTypeExpression` lowers to generated native Go callable carriers,
+  lambdas/local functions/placeholder lambdas/bound method values stay on
+  those carriers on static paths, wrapper/interface/struct-field conversion is
+  explicit, and callable-heavy generic surfaces like
+  `Iterator<T>.map/filter/filter_map/collect` now run on the narrowed
+  receiver-plus-callable carrier design instead of broad dynamic helper
+  fallback.
+- The strict interface/global lookup audit no longer relies on one oversized
+  default sweep: the default fixture set is now split across four
+  deterministic top-level batch tests so each strict audit run stays under the
+  repository's one-minute per-test target, while the unsuffixed selector test
+  remains available for explicit fixture subsets via
+  `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES`.
+- Remaining work is now genuinely different: broader audit/enforcement of the
+  allowed dynamic-carrier touchpoints, full-matrix verification, and
+  performance-oriented specialization/monomorphization on top of the now
+  mostly-native carrier ABI.
 
 ## Relationship To Other Design Notes
 

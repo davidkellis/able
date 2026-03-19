@@ -61,8 +61,8 @@ func TestCompilerNoFallbacksForLocalFunctionDefinitionStatement(t *testing.T) {
 		"",
 	}, "\n"))
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "var fact runtime.Value = runtime.NativeFunctionValue") {
-		t.Fatalf("expected local function definition to compile into a runtime function binding")
+	if !strings.Contains(compiledSrc, "var fact __able_fn_int32_to_int32 = __able_fn_int32_to_int32(") {
+		t.Fatalf("expected local function definition to compile into a native callable binding")
 	}
 	if strings.Contains(compiledSrc, "CallOriginal(\"demo.main\"") {
 		t.Fatalf("expected main to stay compiled without call_original fallback")
@@ -82,10 +82,14 @@ func TestCompilerNoFallbacksForLocalFunctionDefinitionShadowingTypedBinding(t *t
 		"}",
 		"",
 	}, "\n"))
-	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "runtime.NativeFunctionValue") {
-		t.Fatalf("expected local shadowing function definition to compile into a runtime callable")
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
 	}
+	if !strings.Contains(body, "__able_fn_int32_to_int32(") || strings.Contains(body, "runtime.NativeFunctionValue") {
+		t.Fatalf("expected local shadowing function definition to compile into a native callable")
+	}
+	compiledSrc := string(result.Files["compiled.go"])
 	if strings.Contains(compiledSrc, "CallOriginal(\"demo.main\"") {
 		t.Fatalf("expected shadowing local function path to stay compiled without call_original fallback")
 	}

@@ -69,6 +69,14 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			lines = append(lines, fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp))
 			return lines, resultTemp, "runtime.Value", true
 		}
+		if assign.Operator == ast.AssignmentAssign {
+			if staticLines, resultExpr, resultType, ok := g.compileStaticIndexSet(ctx, indexTarget, objExpr, objType, valueExpr, valueType); ok {
+				lines := append([]string{}, valueLines...)
+				lines = append(lines, objLines...)
+				lines = append(lines, staticLines...)
+				return lines, resultExpr, resultType, true
+			}
+		}
 		objConvLines, objRuntime, ok := g.runtimeValueLines(ctx, objExpr, objType)
 		if !ok {
 			ctx.setReason("index assignment target unsupported")
@@ -361,7 +369,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		}
 		goType := existing.GoType
 		if typeAnnotation != nil {
-			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, typeAnnotation)
+			mapped, ok := g.mapTypeExpressionInContext(ctx, typeAnnotation)
 			if !ok {
 				ctx.setReason("unsupported type annotation")
 				return nil, "", "", false
@@ -425,7 +433,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	useEnvSet := assign.Operator == ast.AssignmentAssign && !exists && (typeAnnotation == nil || g.hasModuleBindingName(ctx.packageName, name))
 	var goType string
 	if typeAnnotation != nil {
-		mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, typeAnnotation)
+		mapped, ok := g.mapTypeExpressionInContext(ctx, typeAnnotation)
 		if !ok {
 			ctx.setReason("unsupported type annotation")
 			return nil, "", "", false

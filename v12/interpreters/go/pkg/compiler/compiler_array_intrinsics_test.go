@@ -22,6 +22,22 @@ func findCompiledFunction(result *Result, funcName string) (string, bool) {
 	return compiledSrc[idx:endIdx], true
 }
 
+func findCompiledDeclByPrefix(result *Result, prefix string) (string, bool) {
+	compiledSrc := string(result.Files["compiled.go"])
+	idx := strings.Index(compiledSrc, prefix)
+	if idx == -1 {
+		return "", false
+	}
+	endMarkers := []string{"\n}\n\nfunc ", "\n}\n\ntype ", "\n}\n\nvar ", "\n}\n\nconst "}
+	endIdx := len(compiledSrc)
+	for _, marker := range endMarkers {
+		if pos := strings.Index(compiledSrc[idx:], marker); pos != -1 && idx+pos < endIdx {
+			endIdx = idx + pos + 3
+		}
+	}
+	return compiledSrc[idx:endIdx], true
+}
+
 func TestCompilerWhileLoopFastPath(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
