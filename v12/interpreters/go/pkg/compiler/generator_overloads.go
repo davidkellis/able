@@ -403,6 +403,10 @@ func (g *generator) methodOverloadGroups() []*methodOverloadGroup {
 }
 
 func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionCall, expected string, name string, callNode string) ([]string, string, string, bool) {
+	return g.compileResolvedOverloadCall(ctx, call, expected, ctx.packageName, name, callNode)
+}
+
+func (g *generator) compileResolvedOverloadCall(ctx *compileContext, call *ast.FunctionCall, expected string, pkgName string, name string, callNode string) ([]string, string, string, bool) {
 	if call == nil {
 		ctx.setReason("missing function call")
 		return nil, "", "", false
@@ -435,7 +439,7 @@ func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionC
 	} else {
 		argList = "nil"
 	}
-	callExpr := fmt.Sprintf("%s(%s, %s)", g.overloadCallName(ctx.packageName, name), argList, callNode)
+	callExpr := fmt.Sprintf("%s(%s, %s)", g.overloadCallName(pkgName, name), argList, callNode)
 	if g.isVoidType(expected) {
 		lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
 		return lines, "struct{}{}", "struct{}", true

@@ -466,7 +466,7 @@ func (p *placeholderAnalyzer) visitStatement(stmt ast.Statement) error {
 	return nil
 }
 
-func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expression) (string, string, bool) {
+func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expression, expected string) (string, string, bool) {
 	if ctx == nil || ctx.inPlaceholder {
 		return "", "", false
 	}
@@ -507,14 +507,38 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 	lambdaCtx := ctx.child()
 	lambdaCtx.inPlaceholder = true
 	lambdaCtx.placeholderParams = make(map[int]paramInfo, plan.paramCount)
+	lambdaCtx.controlMode = ""
+	controlTemp := lambdaCtx.newTemp()
+	controlDoneLabel := lambdaCtx.newTemp()
+	lambdaCtx.controlCaptureVar = controlTemp
+	lambdaCtx.controlCaptureLabel = controlDoneLabel
+	lambdaCtx.controlCaptureBreak = true
 	paramLines := make([]string, 0, plan.paramCount)
 	var firstParam paramInfo
+	expectedFnType := g.expectedLambdaFunctionType(ctx)
+	if expectedCallable := g.nativeCallableInfoForGoType(expected); expectedCallable != nil && expectedFnType == nil {
+		expectedFnType = expectedCallable.TypeExpr
+	}
+	if expectedFnType != nil && len(expectedFnType.ParamTypes) != plan.paramCount {
+		expectedFnType = nil
+	}
 	for i := 1; i <= plan.paramCount; i++ {
 		name := fmt.Sprintf("__able_ph_%d", i)
-		param := paramInfo{Name: name, GoName: name, GoType: "runtime.Value"}
+		paramTypeExpr := ast.TypeExpression(nil)
+		goType := "runtime.Value"
+		if expectedFnType != nil && i-1 < len(expectedFnType.ParamTypes) {
+			paramTypeExpr = expectedFnType.ParamTypes[i-1]
+			mapped, ok := g.mapTypeExpressionInContext(ctx, paramTypeExpr)
+			if !ok {
+				ctx.setReason("placeholder parameter type unsupported")
+				return "", "", false
+			}
+			goType = mapped
+		}
+		param := paramInfo{Name: name, GoName: name, GoType: goType, TypeExpr: paramTypeExpr}
 		lambdaCtx.placeholderParams[i] = param
 		lambdaCtx.locals[name] = param
-		paramLines = append(paramLines, fmt.Sprintf("%s := args[%d]", name, i-1))
+		paramLines = append(paramLines, fmt.Sprintf("%s := arg%d", name, i-1))
 		if i == 1 {
 			firstParam = param
 		}
@@ -524,33 +548,96 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 		lambdaCtx.hasImplicitReceiver = true
 	}
 
-	exprValue, exprType, ok := g.compileExpr(lambdaCtx, expr, "")
+	desiredReturn := ""
+	returnTypeExpr := ast.TypeExpression(nil)
+	if expectedFnType != nil {
+		returnTypeExpr = expectedFnType.ReturnType
+		if returnTypeExpr != nil {
+			mapped, ok := g.mapTypeExpressionInContext(ctx, returnTypeExpr)
+			if !ok {
+				ctx.setReason("placeholder return type unsupported")
+				return "", "", false
+			}
+			desiredReturn = mapped
+		}
+	}
+
+	exprLines, exprValue, exprType, ok := g.compileExprLines(lambdaCtx, expr, desiredReturn)
 	if !ok {
 		return "", "", false
 	}
+	if desiredReturn != "" && !g.typeMatches(desiredReturn, exprType) {
+		ctx.setReason("placeholder lambda type mismatch")
+		return "", "", false
+	}
+	paramTypeExprs := make([]ast.TypeExpression, 0, plan.paramCount)
+	paramGoTypes := make([]string, 0, plan.paramCount)
+	for i := 1; i <= plan.paramCount; i++ {
+		param := lambdaCtx.placeholderParams[i]
+		paramTypeExpr := param.TypeExpr
+		if paramTypeExpr == nil {
+			fallback, ok := g.typeExprForGoType(param.GoType)
+			if !ok {
+				ctx.setReason("placeholder parameter type unsupported")
+				return "", "", false
+			}
+			paramTypeExpr = fallback
+		}
+		paramTypeExprs = append(paramTypeExprs, paramTypeExpr)
+		paramGoTypes = append(paramGoTypes, param.GoType)
+	}
+	if returnTypeExpr == nil {
+		var ok bool
+		returnTypeExpr, ok = g.typeExprForGoType(exprType)
+		if !ok {
+			ctx.setReason("placeholder result unsupported")
+			return "", "", false
+		}
+	}
+	callableInfo, ok := g.ensureNativeCallableInfoFromSignature(paramTypeExprs, paramGoTypes, returnTypeExpr, exprType)
+	if !ok || callableInfo == nil {
+		ctx.setReason("placeholder lambda type unsupported")
+		return "", "", false
+	}
 	implLines := make([]string, 0, len(paramLines)+3)
-	implLines = append(implLines, "if __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }")
+	implLines = append(implLines, fmt.Sprintf("var %s *__ableControl", controlTemp))
 	implLines = append(implLines, paramLines...)
+	zeroExpr, zeroOK := g.zeroValueExpr(callableInfo.ReturnGoType)
+	if !zeroOK {
+		implLines = append(implLines, fmt.Sprintf("var __able_zero %s", callableInfo.ReturnGoType))
+		zeroExpr = "__able_zero"
+	}
 	if g.isVoidType(exprType) {
+		implLines = append(implLines, fmt.Sprintf("%s: for {", controlDoneLabel))
+		implLines = append(implLines, exprLines...)
 		if exprValue != "" {
 			implLines = append(implLines, fmt.Sprintf("_ = %s", exprValue))
 		}
-		implLines = append(implLines, "return runtime.VoidValue{}, nil")
+		implLines = append(implLines, fmt.Sprintf("break %s", controlDoneLabel))
+		implLines = append(implLines, "}")
+		implLines = append(implLines, fmt.Sprintf("if %s != nil { return %s, %s }", controlTemp, zeroExpr, controlTemp))
+		implLines = append(implLines, "return struct{}{}, nil")
 	} else {
-		resultExpr := exprValue
-		if exprType != "runtime.Value" {
-			converted, ok := g.runtimeValueExpr(exprValue, exprType)
-			if !ok {
-				ctx.setReason("placeholder result unsupported")
-				return "", "", false
-			}
-			resultExpr = converted
-		}
-		implLines = append(implLines, fmt.Sprintf("return %s, nil", resultExpr))
+		resultTemp := lambdaCtx.newTemp()
+		implLines = append(implLines, fmt.Sprintf("var %s %s", resultTemp, callableInfo.ReturnGoType))
+		implLines = append(implLines, fmt.Sprintf("%s: for {", controlDoneLabel))
+		implLines = append(implLines, exprLines...)
+		implLines = append(implLines, fmt.Sprintf("%s = %s", resultTemp, exprValue))
+		implLines = append(implLines, fmt.Sprintf("break %s", controlDoneLabel))
+		implLines = append(implLines, "}")
+		implLines = append(implLines, fmt.Sprintf("if %s != nil { return %s, %s }", controlTemp, zeroExpr, controlTemp))
+		implLines = append(implLines, fmt.Sprintf("return %s, nil", resultTemp))
 	}
-	implBody := strings.Join(implLines, "; ")
-	lambdaExpr := fmt.Sprintf("runtime.Value(runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) { %s }})", "<placeholder>", plan.paramCount, implBody)
-	return lambdaExpr, "runtime.Value", true
+	lambdaExpr := fmt.Sprintf("%s(func(", callableInfo.GoType)
+	for i := 1; i <= plan.paramCount; i++ {
+		if i > 1 {
+			lambdaExpr += ", "
+		}
+		param := lambdaCtx.placeholderParams[i]
+		lambdaExpr += fmt.Sprintf("arg%d %s", i-1, param.GoType)
+	}
+	lambdaExpr += fmt.Sprintf(") (%s, *__ableControl) { %s })", callableInfo.ReturnGoType, strings.Join(implLines, "; "))
+	return lambdaExpr, callableInfo.GoType, true
 }
 
 func (g *generator) compilePlaceholderExpression(ctx *compileContext, expr *ast.PlaceholderExpression, expected string) (string, string, bool) {

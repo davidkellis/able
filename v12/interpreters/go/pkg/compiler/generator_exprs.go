@@ -34,7 +34,7 @@ func (g *generator) compileExprLines(ctx *compileContext, expr ast.Expression, e
 		goType string
 		ok     bool
 	)
-	if value, goType, ok = g.compilePlaceholderLambda(ctx, expr); ok {
+	if value, goType, ok = g.compilePlaceholderLambda(ctx, expr, expected); ok {
 		if !g.typeMatches(expected, goType) {
 			ctx.setReason("placeholder lambda type mismatch")
 			return nil, "", "", false
@@ -98,6 +98,21 @@ func (g *generator) compileExprLines(ctx *compileContext, expr ast.Expression, e
 }
 
 func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string, expr string, actual string, expected string) ([]string, string, string, bool) {
+	if g != nil && expected != "" && expected != actual && g.isIntegerType(expected) && g.isIntegerType(actual) {
+		return lines, fmt.Sprintf("%s(%s)", expected, expr), expected, true
+	}
+	if g.nativeNullableWraps(expected, actual) {
+		ptrTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := __able_ptr(%s)", ptrTemp, expr))
+		return lines, ptrTemp, expected, true
+	}
+	if actual == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, expected)
+		if ok {
+			lines = append(lines, convLines...)
+			return lines, converted, expected, true
+		}
+	}
 	if innerType, nullable := g.nativeNullableValueInnerType(expected); nullable && innerType == "runtime.ErrorValue" {
 		if errorLines, errorExpr, ok := g.nativeErrorValueLines(ctx, actual, expr); ok {
 			ptrTemp := ctx.newTemp()
@@ -145,7 +160,7 @@ func (g *generator) compileExpr(ctx *compileContext, expr ast.Expression, expect
 }
 
 func (g *generator) compileExprExpected(ctx *compileContext, expr ast.Expression, expected string) (string, string, bool) {
-	if value, goType, ok := g.compilePlaceholderLambda(ctx, expr); ok {
+	if value, goType, ok := g.compilePlaceholderLambda(ctx, expr, expected); ok {
 		if !g.typeMatches(expected, goType) {
 			ctx.setReason("placeholder lambda type mismatch")
 			return "", "", false
@@ -211,7 +226,7 @@ func (g *generator) compileStringInterpolation(ctx *compileContext, expr *ast.St
 		return nil, "", "", false
 	}
 	actual := "string"
-	if !g.typeMatches(expected, actual) {
+	if expected != "" && !g.typeMatches(expected, actual) && !g.canCoerceStaticExpr(expected, actual) {
 		ctx.setReason("string interpolation type mismatch")
 		return nil, "", "", false
 	}
@@ -411,11 +426,14 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		return nil, "", "", false
 	}
 	info, ok := g.structInfoForTypeName(ctx.packageName, lit.StructType.Name)
-	if expected == "runtime.Value" || !ok || info == nil || !info.Supported || len(lit.TypeArguments) > 0 {
+	if expected == "runtime.Value" || !ok || info == nil || !info.Supported {
 		return g.compileStructLiteralRuntime(ctx, lit)
 	}
 	structType := "*" + info.GoName
 	if expected != "" && expected != "any" {
+		if g.canCoerceStaticExpr(expected, structType) {
+			expected = structType
+		}
 		if expected == "runtime.Value" {
 			return g.compileStructLiteralRuntime(ctx, lit)
 		}

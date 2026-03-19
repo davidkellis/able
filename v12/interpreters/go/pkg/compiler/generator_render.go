@@ -95,10 +95,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	}
 
 	g.renderStructs(&body)
-	g.renderNativeInterfaces(&body)
-	g.renderNativeUnions(&body)
 	if g.hasFunctions() {
-		g.renderStructConverters(&body)
 		g.renderCompiledMethods(&body)
 		g.renderCompiledFunctions(&body)
 		g.renderMethodWrappers(&body)
@@ -106,7 +103,17 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderFunctionThunks(&body)
 		g.renderOverloadDispatchers(&body)
 		g.renderMethodThunks(&body)
+		// Native interface/union carriers and boundary helpers can be discovered
+		// while compiling bodies above, so emit them after codegen has settled.
+		g.renderNativeCallables(&body)
+		g.renderNativeInterfaces(&body)
+		g.renderNativeUnions(&body)
+		g.renderStructConverters(&body)
 		g.renderDiagnosticGlobals(&body)
+	} else {
+		g.renderNativeCallables(&body)
+		g.renderNativeInterfaces(&body)
+		g.renderNativeUnions(&body)
 	}
 
 	// Now render the header with imports (flags are set by body rendering).

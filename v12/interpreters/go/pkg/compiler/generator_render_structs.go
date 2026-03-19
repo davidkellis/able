@@ -119,6 +119,17 @@ func (g *generator) renderStructFrom(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "}\n\n")
 		return
 	}
+	if info.Name == "IteratorEnd" {
+		fmt.Fprintf(buf, "\tif _, ok := current.(runtime.IteratorEndValue); ok {\n")
+		fmt.Fprintf(buf, "\t\treturn out, nil\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tif raw, ok := current.(*runtime.IteratorEndValue); ok {\n")
+		fmt.Fprintf(buf, "\t\tif raw == nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn out, fmt.Errorf(\"expected %s struct instance\")\n", info.Name)
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\treturn out, nil\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
 	if info.Kind == ast.StructKindSingleton || (info.Kind != ast.StructKindPositional && len(info.Fields) == 0) {
 		fmt.Fprintf(buf, "\tif def, ok, nilPtr := __able_runtime_struct_definition_value(current); ok || nilPtr {\n")
 		fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
@@ -192,6 +203,11 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\t\treturn nil, err\n")
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn arr, nil\n")
+		fmt.Fprintf(buf, "}\n\n")
+		return
+	}
+	if info.Name == "IteratorEnd" {
+		fmt.Fprintf(buf, "\treturn runtime.IteratorEnd, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
 		return
 	}
@@ -274,6 +290,17 @@ func (g *generator) renderStructApply(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\treturn nil\n")
 		fmt.Fprintf(buf, "}\n\n")
 		return
+	}
+	if info.Name == "IteratorEnd" {
+		fmt.Fprintf(buf, "\tif _, ok := targetCurrent.(runtime.IteratorEndValue); ok {\n")
+		fmt.Fprintf(buf, "\t\treturn nil\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tif raw, ok := targetCurrent.(*runtime.IteratorEndValue); ok {\n")
+		fmt.Fprintf(buf, "\t\tif raw == nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn fmt.Errorf(\"expected %s struct instance\")\n", info.Name)
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\treturn nil\n")
+		fmt.Fprintf(buf, "\t}\n")
 	}
 	fmt.Fprintf(buf, "\tinst, ok := targetCurrent.(*runtime.StructInstanceValue)\n")
 	if info.Kind == ast.StructKindSingleton || (info.Kind != ast.StructKindPositional && len(info.Fields) == 0) {
@@ -372,6 +399,12 @@ func (g *generator) renderValueConversion(buf *bytes.Buffer, indent, valueVar, g
 		fmt.Fprintf(buf, "%s%s = converted\n", indent, assignTarget)
 		return
 	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		fmt.Fprintf(buf, "%sconverted, err := %s(__able_runtime, %s)\n", indent, callable.FromRuntimeHelper, valueVar)
+		g.renderConvertErrWith(buf, indent, returnExpr)
+		fmt.Fprintf(buf, "%s%s = converted\n", indent, assignTarget)
+		return
+	}
 	switch g.typeCategory(goType) {
 	case "runtime":
 		fmt.Fprintf(buf, "%s%s = %s\n", indent, assignTarget, valueVar)
@@ -455,6 +488,16 @@ func (g *generator) renderValueToRuntime(buf *bytes.Buffer, valueExpr, goType, t
 		fmt.Fprintf(buf, "\t%s = append(%s, %s(%s))\n", targetSlice, targetSlice, helper, valueExpr)
 		return
 	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		fmt.Fprintf(buf, "\t{\n")
+		fmt.Fprintf(buf, "\t\tconverted, err := %s(rt, %s)\n", callable.ToRuntimeHelper, valueExpr)
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\t%s = append(%s, converted)\n", targetSlice, targetSlice)
+		fmt.Fprintf(buf, "\t}\n")
+		return
+	}
 	switch g.typeCategory(goType) {
 	case "runtime":
 		fmt.Fprintf(buf, "\t%s = append(%s, %s)\n", targetSlice, targetSlice, valueExpr)
@@ -526,6 +569,16 @@ func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goTy
 	}
 	if helper, ok := g.nativeNullableToRuntimeHelper(goType); ok {
 		fmt.Fprintf(buf, "\tfields[%q] = %s(%s)\n", fieldName, helper, valueExpr)
+		return
+	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		fmt.Fprintf(buf, "\t{\n")
+		fmt.Fprintf(buf, "\t\tconverted, err := %s(rt, %s)\n", callable.ToRuntimeHelper, valueExpr)
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\tfields[%q] = converted\n", fieldName)
+		fmt.Fprintf(buf, "\t}\n")
 		return
 	}
 	switch g.typeCategory(goType) {

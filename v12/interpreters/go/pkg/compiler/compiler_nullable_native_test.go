@@ -310,3 +310,60 @@ fn main() {
 `
 	compileAndRunSource(t, "ablec-nullable-error-", source)
 }
+
+func TestCompilerNullableStructTypedMatchRequiresNonNil(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"fn maybe(flag: bool) -> ?MyError {",
+		"  if flag { MyError { message: \"bad\" } } else { nil }",
+		"}",
+		"",
+		"fn describe(flag: bool) -> String {",
+		"  maybe(flag) match {",
+		"    case err: MyError => err.message,",
+		"    case nil => \"none\"",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_describe")
+	if !ok {
+		t.Fatalf("could not find compiled describe function")
+	}
+	if !strings.Contains(body, "!= nil") {
+		t.Fatalf("expected nullable struct typed match to guard against nil before narrowing:\n%s", body)
+	}
+	if strings.Contains(body, "if true {") {
+		t.Fatalf("expected nullable struct typed match to avoid unconditional typed-pattern success:\n%s", body)
+	}
+}
+
+func TestCompilerNullableStructTypedMatchExecutes(t *testing.T) {
+	source := `extern go fn __able_os_exit(code: i32) -> void {}
+
+struct MyError { message: String }
+
+fn maybe(flag: bool) -> ?MyError {
+  if flag { MyError { message: "bad" } } else { nil }
+}
+
+fn describe(flag: bool) -> String {
+  maybe(flag) match {
+    case err: MyError => err.message,
+    case nil => "none"
+  }
+}
+
+fn main() {
+  if describe(true) == "bad" && describe(false) == "none" {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`
+	compileAndRunSource(t, "ablec-nullable-struct-match-", source)
+}

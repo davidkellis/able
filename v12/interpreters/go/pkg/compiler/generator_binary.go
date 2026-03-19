@@ -74,7 +74,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			ctx.setReason("unsupported numeric operator type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -101,7 +101,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			ctx.setReason("unsupported bitwise operator type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -124,7 +124,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			ctx.setReason("unsupported shift operator type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -150,7 +150,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			}
 			return append(operandLines, rtLines...), rtExpr, rtType, true
 		}
-		if !g.typeMatches(expected, resultType) {
+		if !g.canCoerceStaticExpr(expected, resultType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -173,7 +173,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			}
 			return append(operandLines, rtLines...), rtExpr, rtType, true
 		}
-		if !g.typeMatches(expected, resultType) {
+		if !g.canCoerceStaticExpr(expected, resultType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -199,7 +199,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 		if g.isIntegerType(resultType) {
 			resultType = "float64"
 		}
-		if !g.typeMatches(expected, resultType) {
+		if !g.canCoerceStaticExpr(expected, resultType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -222,7 +222,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			ctx.setReason("unsupported integer operator type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -236,10 +236,6 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 		}
 		if !g.isIntegerType(leftType) {
 			ctx.setReason("unsupported integer operator type")
-			return nil, "", "", false
-		}
-		if expected != "" && expected != "runtime.Value" && expected != "any" {
-			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
 		nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
@@ -341,7 +337,7 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 	pipeCtx.implicitReceiver = subjectParam
 	pipeCtx.hasImplicitReceiver = true
 
-	if placeholderExpr, _, ok := g.compilePlaceholderLambda(pipeCtx, expr.Right); ok {
+	if placeholderExpr, _, ok := g.compilePlaceholderLambda(pipeCtx, expr.Right, ""); ok {
 		rhsTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := %s", rhsTemp, placeholderExpr))
 		callTemp := ctx.newTemp()
@@ -811,7 +807,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			ctx.setReason("unsupported + operand type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -825,7 +821,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			ctx.setReason("unsupported numeric operator type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -843,7 +839,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 		if g.isIntegerType(resultType) {
 			resultType = "float64"
 		}
-		if !g.typeMatches(expected, resultType) {
+		if !g.canCoerceStaticExpr(expected, resultType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -854,7 +850,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			ctx.setReason("unsupported integer operator type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -865,7 +861,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			ctx.setReason("unsupported bitwise operator type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}
@@ -883,7 +879,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			ctx.setReason("unsupported shift operator type")
 			return nil, "", "", false
 		}
-		if !g.typeMatches(expected, leftType) {
+		if !g.canCoerceStaticExpr(expected, leftType) {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
 		}

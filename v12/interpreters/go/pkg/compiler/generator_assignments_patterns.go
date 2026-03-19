@@ -87,7 +87,7 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 			return g.compileNativeUnionTypedAssignmentPatternBindings(ctx, subjectTemp, subjectType, p, mode)
 		}
 		if subjectType != "runtime.Value" && subjectType != "any" {
-			mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, p.TypeAnnotation)
+			mapped, ok := g.mapTypeExpressionInContext(ctx, p.TypeAnnotation)
 			if !ok || mapped == "" || mapped == "struct{}" {
 				ctx.setReason("unsupported typed pattern")
 				return nil, false
@@ -118,6 +118,27 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 			convTemp := ctx.newTemp()
 			lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, subjectTemp))
 			castSubject = convTemp
+		}
+		if mapped, mappedOK := g.mapTypeExpressionInContext(ctx, p.TypeAnnotation); mappedOK && g.isNativeStructPointerType(mapped) {
+			baseName, _ := g.structBaseName(mapped)
+			bindLines, ok := g.compileAssignmentPatternBindings(ctx, p.Pattern, convertedTemp, mapped, mode)
+			if !ok {
+				return nil, false
+			}
+			if len(bindLines) == 0 {
+				return nil, true
+			}
+			errTemp := ctx.newTemp()
+			controlTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", convertedTemp, errTemp, baseName, castSubject))
+			lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
+			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			if !ok {
+				return nil, false
+			}
+			lines = append(lines, controlLines...)
+			lines = append(lines, bindLines...)
+			return lines, true
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s, _, %s := __able_try_cast(%s, %s)", convertedTemp, controlTemp, castSubject, typeExpr))

@@ -24,6 +24,10 @@ func TestCompilerInterfaceLookupBypassForStaticFixtures(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping compiler interface-lookup audit in short mode")
 	}
+	raw := strings.TrimSpace(os.Getenv(compilerInterfaceLookupFixturesEnv))
+	if raw == "" {
+		t.Skip("default fixture set is split across TestCompilerInterfaceLookupBypassForStaticFixturesBatch{1,2,3,4}")
+	}
 	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		root = filepath.Join("..", "..", "fixtures", "exec")
@@ -32,12 +36,34 @@ func TestCompilerInterfaceLookupBypassForStaticFixtures(t *testing.T) {
 	if len(fixtures) == 0 {
 		t.Skip("no interface-lookup fixtures configured")
 	}
-	for _, rel := range fixtures {
-		rel := rel
-		t.Run(rel, func(t *testing.T) {
-			runCompilerInterfaceLookupAuditFixture(t, root, rel)
-		})
+	runCompilerInterfaceLookupAuditFixtureList(t, root, fixtures)
+}
+
+func TestCompilerInterfaceLookupBypassForStaticFixturesBatch1(t *testing.T) {
+	runCompilerInterfaceLookupAuditFixtureDefaultBatch(t, 0)
+}
+
+func TestCompilerInterfaceLookupBypassForStaticFixturesBatch2(t *testing.T) {
+	runCompilerInterfaceLookupAuditFixtureDefaultBatch(t, 1)
+}
+
+func TestCompilerInterfaceLookupBypassForStaticFixturesBatch3(t *testing.T) {
+	runCompilerInterfaceLookupAuditFixtureDefaultBatch(t, 2)
+}
+
+func TestCompilerInterfaceLookupBypassForStaticFixturesBatch4(t *testing.T) {
+	runCompilerInterfaceLookupAuditFixtureDefaultBatch(t, 3)
+}
+
+func TestCompilerInterfaceLookupReportersFixtureRegression(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping compiler interface-lookup reporters regression in short mode")
 	}
+	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		root = filepath.Join("..", "..", "fixtures", "exec")
+	}
+	runCompilerInterfaceLookupAuditFixture(t, root, "06_12_26_stdlib_test_harness_reporters")
 }
 
 func resolveInterfaceLookupAuditFixtures(t *testing.T, root string) []string {
@@ -65,6 +91,39 @@ func resolveInterfaceLookupAuditFixtures(t *testing.T, root string) []string {
 		fixtures = append(fixtures, part)
 	}
 	return fixtures
+}
+
+func runCompilerInterfaceLookupAuditFixtureDefaultBatch(t *testing.T, batch int) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("skipping compiler interface-lookup audit in short mode")
+	}
+	if strings.TrimSpace(os.Getenv(compilerInterfaceLookupFixturesEnv)) != "" {
+		t.Skip("explicit interface-lookup fixture selection requested")
+	}
+	batches := defaultCompilerInterfaceLookupAuditFixtureBatches()
+	if batch < 0 || batch >= len(batches) {
+		t.Fatalf("invalid interface-lookup audit batch %d", batch)
+	}
+	fixtures := batches[batch]
+	if len(fixtures) == 0 {
+		t.Skip("no interface-lookup fixtures configured for batch")
+	}
+	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		root = filepath.Join("..", "..", "fixtures", "exec")
+	}
+	runCompilerInterfaceLookupAuditFixtureList(t, root, fixtures)
+}
+
+func runCompilerInterfaceLookupAuditFixtureList(t *testing.T, root string, fixtures []string) {
+	t.Helper()
+	for _, rel := range fixtures {
+		rel := rel
+		t.Run(rel, func(t *testing.T) {
+			runCompilerInterfaceLookupAuditFixture(t, root, rel)
+		})
+	}
 }
 
 func defaultCompilerInterfaceLookupAuditFixtures() []string {
@@ -102,6 +161,17 @@ func defaultCompilerInterfaceLookupAuditFixtures() []string {
 		"14_01_language_interfaces_index_apply_iterable",
 		"14_01_operator_interfaces_arithmetic_comparison",
 	}
+}
+
+func defaultCompilerInterfaceLookupAuditFixtureBatches() [][]string {
+	fixtures := defaultCompilerInterfaceLookupAuditFixtures()
+	const batchCount = 4
+	batches := make([][]string, batchCount)
+	for idx, rel := range fixtures {
+		batch := idx % batchCount
+		batches[batch] = append(batches[batch], rel)
+	}
+	return batches
 }
 
 func runCompilerInterfaceLookupAuditFixture(t *testing.T, root, rel string) {

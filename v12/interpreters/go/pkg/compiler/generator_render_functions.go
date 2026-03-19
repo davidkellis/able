@@ -14,7 +14,7 @@ func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
 		if info == nil || !info.Compileable {
 			continue
 		}
-		ctx := newCompileContext(info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+		ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
 		if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
 			ctx.implSiblings = g.implSiblingsForDefault(implInfo)
 		}
@@ -130,12 +130,11 @@ func (g *generator) renderCompiledMethods(buf *bytes.Buffer) {
 			continue
 		}
 		info := method.Info
-		// Override Array.read_slot/write_slot to use Elements directly.
-		if method.TargetName == "Array" && (method.MethodName == "read_slot" || method.MethodName == "write_slot") {
-			g.renderArraySlotIntrinsicMethod(buf, method, info)
+		if isNativeArrayCoreMethod(method) {
+			g.renderNativeArrayCoreMethod(buf, method, info)
 			continue
 		}
-		ctx := newCompileContext(info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+		ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
 		lines, retExpr, ok := g.compileBody(ctx, info)
 		if !ok {
 			if info.Reason == "" {
@@ -169,44 +168,6 @@ func (g *generator) renderCompiledMethods(buf *bytes.Buffer) {
 		fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
 		fmt.Fprintf(buf, "}\n\n")
 	}
-}
-
-func (g *generator) renderArraySlotIntrinsicMethod(buf *bytes.Buffer, method *methodInfo, info *functionInfo) {
-	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
-	for i, param := range info.Params {
-		if i > 0 {
-			fmt.Fprintf(buf, ", ")
-		}
-		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
-	}
-	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
-	if envVar, ok := g.packageEnvVar(info.Package); ok {
-		fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
-		fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
-		fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
-		fmt.Fprintf(buf, "\t}\n")
-	}
-	if method.MethodName == "read_slot" {
-		// read_slot(self *Array, idx int32) → runtime.Value
-		fmt.Fprintf(buf, "\tif int(idx) >= 0 && int(idx) < len(self.Elements) {\n")
-		fmt.Fprintf(buf, "\t\tif v := self.Elements[int(idx)]; v != nil {\n")
-		fmt.Fprintf(buf, "\t\t\treturn v, nil\n")
-		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t}\n")
-		fmt.Fprintf(buf, "\treturn runtime.NilValue{}, nil\n")
-	} else {
-		// write_slot(self *Array, idx int32, value runtime.Value) → struct{}
-		fmt.Fprintf(buf, "\ti := int(idx)\n")
-		fmt.Fprintf(buf, "\tif i >= 0 && i < len(self.Elements) {\n")
-		fmt.Fprintf(buf, "\t\tself.Elements[i] = value\n")
-		fmt.Fprintf(buf, "\t} else if i >= 0 {\n")
-		fmt.Fprintf(buf, "\t\tfor len(self.Elements) <= i { self.Elements = append(self.Elements, runtime.NilValue{}) }\n")
-		fmt.Fprintf(buf, "\t\tself.Elements[i] = value\n")
-		fmt.Fprintf(buf, "\t}\n")
-		fmt.Fprintf(buf, "\t__able_struct_Array_sync(self)\n")
-		fmt.Fprintf(buf, "\treturn struct{}{}, nil\n")
-	}
-	fmt.Fprintf(buf, "}\n\n")
 }
 
 func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *methodInfo) {
@@ -316,7 +277,7 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 			for idx, param := range info.Params {
 				argName := fmt.Sprintf("arg%d", idx)
 				fmt.Fprintf(buf, "\t%sValue := args[%d]\n", argName, idx)
-				g.renderArgConversion(buf, argName, param, info.Name, genericNames)
+				g.renderArgConversion(buf, argName, param, info.Name, info.Package, genericNames)
 			}
 			fmt.Fprintf(buf, "\tcompiledResult, control := __able_compiled_%s(", info.GoName)
 			for i, param := range info.Params {
@@ -385,7 +346,7 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 		for idx, param := range info.Params {
 			argName := fmt.Sprintf("arg%d", idx)
 			fmt.Fprintf(buf, "\t%sValue := args[%d]\n", argName, idx)
-			g.renderArgConversion(buf, argName, param, info.Name, genericNames)
+			g.renderArgConversion(buf, argName, param, info.Name, info.Package, genericNames)
 		}
 		fmt.Fprintf(buf, "\tcompiledResult, control := __able_compiled_%s(", info.GoName)
 		for i, param := range info.Params {
@@ -587,7 +548,7 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "}\n")
 }
 
-func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param paramInfo, funcName string, genericNames map[string]struct{}) {
+func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param paramInfo, funcName string, pkgName string, genericNames map[string]struct{}) {
 	goType := param.GoType
 	target := param.GoName
 	if goType == "runtime.ErrorValue" {
@@ -632,6 +593,11 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param
 	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		fmt.Fprintf(buf, "\t%s, err := %s(rt, %sValue)\n", target, iface.FromRuntimeHelper, argName)
+		g.renderConvertErr(buf)
+		return
+	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		fmt.Fprintf(buf, "\t%s, err := %s(rt, %sValue)\n", target, callable.FromRuntimeHelper, argName)
 		g.renderConvertErr(buf)
 		return
 	}
@@ -687,9 +653,11 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param
 		}
 		fmt.Fprintf(buf, "\t%s, err := __able_struct_%s_from(%sValue)\n", target, baseName, argName)
 		g.renderConvertErr(buf)
-		fmt.Fprintf(buf, "\tif %s == nil {\n", target)
-		fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"type mismatch calling %s: expected %s\")\n", funcName, typeExpressionToString(param.TypeExpr))
-		fmt.Fprintf(buf, "\t}\n")
+		if g.structArgRequiresValue(pkgName, param.TypeExpr, goType) {
+			fmt.Fprintf(buf, "\tif %s == nil {\n", target)
+			fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"type mismatch calling %s: expected %s\")\n", funcName, typeExpressionToString(param.TypeExpr))
+			fmt.Fprintf(buf, "\t}\n")
+		}
 	default:
 		fmt.Fprintf(buf, "\t%s := %sValue\n", target, argName)
 	}
@@ -726,6 +694,10 @@ func (g *generator) renderReturnConversion(buf *bytes.Buffer, resultName, goType
 	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		fmt.Fprintf(buf, "\treturn %s(rt, %s)\n", iface.ToRuntimeHelper, resultName)
+		return
+	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		fmt.Fprintf(buf, "\treturn %s(rt, %s)\n", callable.ToRuntimeHelper, resultName)
 		return
 	}
 	if union := g.nativeUnionInfoForGoType(goType); union != nil {

@@ -48,6 +48,28 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\treturn bridge.ToFloat64(val)\n")
 	fmt.Fprintf(buf, "\tcase struct{}:\n")
 	fmt.Fprintf(buf, "\t\treturn runtime.VoidValue{}\n")
+	for _, key := range g.sortedNativeInterfaceKeys() {
+		info := g.nativeInterfaces[key]
+		if info == nil || info.GoType == "" {
+			continue
+		}
+		fmt.Fprintf(buf, "\tcase %s:\n", info.GoType)
+		fmt.Fprintf(buf, "\t\tif val == nil { return runtime.NilValue{} }\n")
+		fmt.Fprintf(buf, "\t\trv, err := %s(__able_runtime, val)\n", info.ToRuntimeHelper)
+		fmt.Fprintf(buf, "\t\tif err != nil { panic(err) }\n")
+		fmt.Fprintf(buf, "\t\treturn rv\n")
+	}
+	for _, key := range g.sortedNativeCallableKeys() {
+		info := g.nativeCallables[key]
+		if info == nil || info.GoType == "" {
+			continue
+		}
+		fmt.Fprintf(buf, "\tcase %s:\n", info.GoType)
+		fmt.Fprintf(buf, "\t\tif val == nil { return runtime.NilValue{} }\n")
+		fmt.Fprintf(buf, "\t\trv, err := %s(__able_runtime, val)\n", info.ToRuntimeHelper)
+		fmt.Fprintf(buf, "\t\tif err != nil { panic(err) }\n")
+		fmt.Fprintf(buf, "\t\treturn rv\n")
+	}
 	// Add cases for each compiled struct type so that struct pointers stored
 	// in any can be converted back to runtime.Value via __able_struct_*_to.
 	{

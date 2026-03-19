@@ -520,9 +520,18 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("unsupported member access")
 		return nil, "", "", false
 	}
+	memberName := g.memberName(expr.Member)
 	if field != nil {
 		fieldExpr := fmt.Sprintf("%s.%s", objectExpr, field.GoName)
 		fieldType := field.GoType
+		if fieldType == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
+			lines := append([]string{}, objLines...)
+			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, fieldExpr, expected)
+			if ok {
+				lines = append(lines, convLines...)
+				return lines, converted, expected, true
+			}
+		}
 		if !g.typeMatches(expected, field.GoType) {
 			coerceLines, coercedExpr, coercedType, ok := g.coerceExpectedStaticExpr(ctx, append([]string{}, objLines...), fieldExpr, fieldType, expected)
 			if ok && (expected == "" || g.typeMatches(expected, coercedType)) {
@@ -548,6 +557,32 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 			return lines, resultTemp, resultType, true
 		}
 		return objLines, fieldExpr, fieldType, true
+	}
+	if !expr.Safe && memberName != "" {
+		if ifaceMethod, ok := g.nativeInterfaceMethodForGoType(objectType, memberName); ok {
+			lines, callableExpr, callableType, ok := g.compileNativeInterfaceBoundMethodValue(ctx, objectExpr, objectType, ifaceMethod)
+			if ok {
+				allLines := append([]string{}, objLines...)
+				allLines = append(allLines, lines...)
+				return allLines, callableExpr, callableType, true
+			}
+		}
+		if method := g.methodForReceiver(objectType, memberName); method != nil {
+			lines, callableExpr, callableType, ok := g.compileNativeBoundMethodValue(ctx, objectExpr, objectType, method)
+			if ok {
+				allLines := append([]string{}, objLines...)
+				allLines = append(allLines, lines...)
+				return allLines, callableExpr, callableType, true
+			}
+		}
+		if method := g.compileableInterfaceMethodForConcreteReceiver(objectType, memberName); method != nil {
+			lines, callableExpr, callableType, ok := g.compileNativeBoundMethodValue(ctx, objectExpr, objectType, method)
+			if ok {
+				allLines := append([]string{}, objLines...)
+				allLines = append(allLines, lines...)
+				return allLines, callableExpr, callableType, true
+			}
+		}
 	}
 	memberValue, ok := g.memberAssignmentRuntimeValue(ctx, expr.Member)
 	if !ok {
@@ -600,7 +635,7 @@ func (g *generator) compileOriginStructFieldAccess(ctx *compileContext, expr *as
 	if !ok || field == nil {
 		return nil, "", "", false
 	}
-	if !g.typeMatches(expected, field.GoType) {
+	if field.GoType != "runtime.Value" && !g.typeMatches(expected, field.GoType) {
 		return nil, "", "", false
 	}
 	baseName, ok := g.structBaseName(info.OriginGoType)
@@ -609,6 +644,13 @@ func (g *generator) compileOriginStructFieldAccess(ctx *compileContext, expr *as
 	}
 	// CSE: reuse existing extraction temp if available.
 	if cached, ok := ctx.originExtractions[objIdent.Name]; ok {
+		if field.GoType == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
+			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, fmt.Sprintf("%s.%s", cached, field.GoName), expected)
+			if !ok {
+				return nil, "", "", false
+			}
+			return convLines, converted, expected, true
+		}
 		return nil, fmt.Sprintf("%s.%s", cached, field.GoName), field.GoType, true
 	}
 	extractTemp := ctx.newTemp()
@@ -622,6 +664,14 @@ func (g *generator) compileOriginStructFieldAccess(ctx *compileContext, expr *as
 		ctx.originExtractions = make(map[string]string)
 	}
 	ctx.originExtractions[objIdent.Name] = extractTemp
+	if field.GoType == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
+		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, fmt.Sprintf("%s.%s", extractTemp, field.GoName), expected)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, convLines...)
+		return lines, converted, expected, true
+	}
 	return lines, fmt.Sprintf("%s.%s", extractTemp, field.GoName), field.GoType, true
 }
 
@@ -671,6 +721,11 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 		}
 		lines = append(lines, convLines...)
 		return lines, converted, expected, true
+	}
+	if staticLines, staticExpr, staticType, ok := g.compileStaticIndexGet(ctx, expr, expected, objExpr, objType); ok {
+		lines := append([]string{}, objLines...)
+		lines = append(lines, staticLines...)
+		return lines, staticExpr, staticType, true
 	}
 	objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
 	if !ok {

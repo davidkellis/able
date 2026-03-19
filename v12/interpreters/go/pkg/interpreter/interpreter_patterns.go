@@ -74,10 +74,10 @@ func (i *Interpreter) collectPatternBindings(pattern ast.Pattern, value runtime.
 			return patternMismatchError{message: "Cannot destructure non-struct value"}
 		}
 		if errVal, ok := value.(runtime.ErrorValue); ok {
-			value = errorValueToStructInstance(errVal)
+			value = i.errorValueToStructInstance(errVal)
 		}
 		if errValPtr, ok := value.(*runtime.ErrorValue); ok {
-			value = errorValueToStructInstance(*errValPtr)
+			value = i.errorValueToStructInstance(*errValPtr)
 		}
 		structVal, ok := value.(*runtime.StructInstanceValue)
 		if !ok {
@@ -293,10 +293,10 @@ func (i *Interpreter) assignPattern(
 			return fmt.Errorf("Cannot destructure non-struct value")
 		}
 		if errVal, ok := value.(runtime.ErrorValue); ok {
-			value = errorValueToStructInstance(errVal)
+			value = i.errorValueToStructInstance(errVal)
 		}
 		if errValPtr, ok := value.(*runtime.ErrorValue); ok {
-			value = errorValueToStructInstance(*errValPtr)
+			value = i.errorValueToStructInstance(*errValPtr)
 		}
 		structVal, ok := value.(*runtime.StructInstanceValue)
 		if !ok {
@@ -415,7 +415,7 @@ func (i *Interpreter) assignPattern(
 	}
 }
 
-func errorValueToStructInstance(err runtime.ErrorValue) *runtime.StructInstanceValue {
+func (i *Interpreter) errorValueToStructInstance(err runtime.ErrorValue) *runtime.StructInstanceValue {
 	fields := make(map[string]runtime.Value)
 	if err.Payload != nil {
 		for k, v := range err.Payload {
@@ -423,7 +423,13 @@ func errorValueToStructInstance(err runtime.ErrorValue) *runtime.StructInstanceV
 		}
 	}
 	fields["message"] = runtime.StringValue{Val: err.Message}
-	return &runtime.StructInstanceValue{Fields: fields}
+	inst := &runtime.StructInstanceValue{Fields: fields}
+	if i != nil && err.TypeName != nil && err.TypeName.Name != "" {
+		if def, ok := i.lookupStructDefinition(err.TypeName.Name); ok && def != nil {
+			inst.Definition = def
+		}
+	}
+	return inst
 }
 
 func (i *Interpreter) matchPattern(pattern ast.Pattern, value runtime.Value, base *runtime.Environment) (*runtime.Environment, bool) {

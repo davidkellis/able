@@ -30,7 +30,11 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	var argLines []string
 	for idx, arg := range call.Arguments {
 		expectedType := method.ParamGoTypes[idx]
-		nextLines, expr, _, ok := g.compileExprLines(ctx, arg, expectedType)
+		var expectedTypeExpr ast.TypeExpression
+		if idx < len(method.ParamTypeExprs) {
+			expectedTypeExpr = method.ParamTypeExprs[idx]
+		}
+		nextLines, expr, _, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, expectedType, expectedTypeExpr)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -88,6 +92,9 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 		}
 		lines = append(lines, convLines...)
 		return lines, converted, expected, true
+	}
+	if expected != "" && expected != "runtime.Value" && expected != "any" && g.canCoerceStaticExpr(expected, method.ReturnGoType) {
+		return g.coerceExpectedStaticExpr(ctx, lines, resultTemp, method.ReturnGoType, expected)
 	}
 	ctx.setReason("call return type mismatch")
 	return nil, "", "", false

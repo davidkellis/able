@@ -54,6 +54,9 @@ func (i *Interpreter) errorMember(err runtime.ErrorValue, member ast.Expression,
 				return val, nil
 			}
 		}
+		if err.TypeName != nil && err.TypeName.Name != "" {
+			return i.errorValueToStructInstance(err), nil
+		}
 		return runtime.NilValue{}, nil
 	}
 	if method, ok := i.errorNativeMethods[ident.Name]; ok {

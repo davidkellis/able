@@ -289,6 +289,7 @@ func (g *generator) mapMethodType(mapper *TypeMapper, expr ast.TypeExpression, t
 }
 
 func (g *generator) resolveCompileableMethods() {
+	pending := make(map[*methodInfo]struct{})
 	for _, method := range g.methodList {
 		if method == nil || method.Info == nil {
 			continue
@@ -297,9 +298,32 @@ func (g *generator) resolveCompileableMethods() {
 			method.Info.Compileable = false
 			continue
 		}
-		if ok := g.bodyCompileable(method.Info, method.Info.ReturnType); ok {
-			method.Info.Compileable = true
-			method.Info.Reason = ""
+		pending[method] = struct{}{}
+	}
+	for {
+		progress := false
+		for method := range pending {
+			if method == nil || method.Info == nil {
+				delete(pending, method)
+				continue
+			}
+			if method.Info.Compileable {
+				delete(pending, method)
+				continue
+			}
+			if ok := g.bodyCompileable(method.Info, method.Info.ReturnType); ok {
+				method.Info.Compileable = true
+				method.Info.Reason = ""
+				progress = true
+				delete(pending, method)
+			}
+		}
+		if !progress {
+			break
+		}
+	}
+	for method := range pending {
+		if method == nil || method.Info == nil {
 			continue
 		}
 		if method.Info.Reason == "" {

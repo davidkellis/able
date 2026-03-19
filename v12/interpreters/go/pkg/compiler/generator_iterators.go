@@ -12,7 +12,7 @@ func (g *generator) compileIteratorLiteral(ctx *compileContext, expr *ast.Iterat
 		ctx.setReason("missing iterator literal")
 		return "", "", false
 	}
-	if expected != "" && expected != "runtime.Value" && expected != "any" {
+	if expected != "" && expected != "runtime.Value" && expected != "any" && !g.canCoerceStaticExpr(expected, "runtime.Value") {
 		ctx.setReason("iterator literal type mismatch")
 		return "", "", false
 	}

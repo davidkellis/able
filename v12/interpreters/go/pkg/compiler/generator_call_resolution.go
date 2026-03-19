@@ -108,7 +108,7 @@ func (g *generator) ufcsReceiverGoType(ctx *compileContext, receiver ast.Express
 	if binding.TypeExpr == nil {
 		return ""
 	}
-	mapped, ok := g.mapTypeExpressionInPackage(ctx.packageName, binding.TypeExpr)
+	mapped, ok := g.mapTypeExpressionInContext(ctx, binding.TypeExpr)
 	if !ok {
 		return ""
 	}
@@ -204,6 +204,94 @@ func (g *generator) callableAccessibleFromPackage(currentPkg string, targetPkg s
 		return false
 	}
 	return g.callableExists(targetPkg, name)
+}
+
+func (g *generator) resolveStaticCallable(ctx *compileContext, name string) (*functionInfo, *overloadInfo, bool) {
+	if g == nil || ctx == nil {
+		return nil, nil, false
+	}
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, nil, false
+	}
+	if info, ok := ctx.functions[trimmed]; ok && info != nil {
+		return info, nil, true
+	}
+	if overload, ok := ctx.overloads[trimmed]; ok && overload != nil {
+		return nil, overload, true
+	}
+	if _, targetPkg, targetName, ok := g.resolveQualifiedStaticCallable(ctx, trimmed); ok {
+		if info := g.functions[targetPkg][targetName]; info != nil {
+			return info, nil, true
+		}
+		if overload := g.overloads[targetPkg][targetName]; overload != nil {
+			return nil, overload, true
+		}
+	}
+
+	var resolvedInfo *functionInfo
+	var resolvedOverload *overloadInfo
+	recordResolution := func(info *functionInfo, overload *overloadInfo) bool {
+		if info != nil {
+			if resolvedOverload != nil {
+				return false
+			}
+			if resolvedInfo != nil && resolvedInfo != info {
+				return false
+			}
+			resolvedInfo = info
+			return true
+		}
+		if overload != nil {
+			if resolvedInfo != nil {
+				return false
+			}
+			if resolvedOverload != nil && resolvedOverload != overload {
+				return false
+			}
+			resolvedOverload = overload
+			return true
+		}
+		return true
+	}
+
+	for _, binding := range g.staticImportsForPackage(strings.TrimSpace(ctx.packageName)) {
+		targetPkg := strings.TrimSpace(binding.SourcePackage)
+		targetName := ""
+		switch binding.Kind {
+		case staticImportBindingSelector:
+			if strings.TrimSpace(binding.LocalName) != trimmed {
+				continue
+			}
+			targetName = strings.TrimSpace(binding.SourceName)
+		case staticImportBindingWildcard:
+			if !g.callableExists(targetPkg, trimmed) {
+				continue
+			}
+			targetName = trimmed
+		default:
+			continue
+		}
+		if targetPkg == "" || targetName == "" {
+			continue
+		}
+		if info := g.functions[targetPkg][targetName]; info != nil {
+			if !recordResolution(info, nil) {
+				return nil, nil, false
+			}
+			continue
+		}
+		if overload := g.overloads[targetPkg][targetName]; overload != nil {
+			if !recordResolution(nil, overload) {
+				return nil, nil, false
+			}
+		}
+	}
+
+	if resolvedInfo != nil || resolvedOverload != nil {
+		return resolvedInfo, resolvedOverload, true
+	}
+	return nil, nil, false
 }
 
 func (g *generator) staticCallableNameSet(pkgName string) map[string]struct{} {

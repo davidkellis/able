@@ -6,6 +6,64 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+func (g *generator) narrowedNativeUnionSubjectType(ctx *compileContext, subjectType string, pattern ast.Pattern) string {
+	union := g.nativeUnionInfoForGoType(subjectType)
+	if g == nil || union == nil || pattern == nil {
+		return subjectType
+	}
+	removeType := ""
+	switch p := pattern.(type) {
+	case *ast.StructPattern:
+		if p != nil && p.StructType != nil && p.StructType.Name != "" {
+			if mapped, ok := g.mapTypeExpressionInContext(ctx, ast.Ty(p.StructType.Name)); ok {
+				removeType = mapped
+			}
+		}
+	case *ast.TypedPattern:
+		if p != nil && p.TypeAnnotation != nil {
+			if target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, p.TypeAnnotation); ok && target.Member != nil {
+				removeType = target.Member.GoType
+			}
+		}
+	case *ast.Identifier:
+		if p != nil && p.Name != "" && g.isSingletonPattern(ctx, p.Name) {
+			if mapped, ok := g.mapTypeExpressionInContext(ctx, ast.Ty(p.Name)); ok {
+				removeType = mapped
+			}
+		}
+	}
+	if removeType == "" {
+		return subjectType
+	}
+	remaining := make([]string, 0, len(union.Members))
+	for _, member := range union.Members {
+		if member == nil || member.GoType == removeType {
+			continue
+		}
+		remaining = append(remaining, member.GoType)
+	}
+	if len(remaining) == 1 {
+		return remaining[0]
+	}
+	return subjectType
+}
+
+func (g *generator) narrowedNativeUnionSubjectExpr(ctx *compileContext, originalSubjectExpr string, originalSubjectType string, narrowedType string) ([]string, string) {
+	if g == nil || ctx == nil || originalSubjectExpr == "" || originalSubjectType == "" || narrowedType == "" || narrowedType == originalSubjectType {
+		return nil, originalSubjectExpr
+	}
+	union := g.nativeUnionInfoForGoType(originalSubjectType)
+	if union == nil {
+		return nil, originalSubjectExpr
+	}
+	member, ok := g.nativeUnionMember(union, narrowedType)
+	if !ok || member == nil {
+		return nil, originalSubjectExpr
+	}
+	narrowedTemp := ctx.newTemp()
+	return []string{fmt.Sprintf("%s, _ := %s(%s)", narrowedTemp, member.UnwrapHelper, originalSubjectExpr)}, narrowedTemp
+}
+
 func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.MatchExpression, expected string) ([]string, string, string, bool) {
 	if match == nil || match.Subject == nil {
 		ctx.setReason("missing match expression")
@@ -35,14 +93,19 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		bodyType   string
 	}
 	clauses := make([]matchClause, 0, len(match.Clauses))
+	clauseSubjectType := subjectType
 	for _, clause := range match.Clauses {
 		if clause == nil {
 			continue
 		}
 		clauseCtx := ctx.child()
-		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, subjectTemp, subjectType)
+		clauseSubjectLines, clauseSubjectExpr := g.narrowedNativeUnionSubjectExpr(clauseCtx, subjectTemp, subjectType, clauseSubjectType)
+		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, clauseSubjectExpr, clauseSubjectType)
 		if !ok {
 			return nil, "", "", false
+		}
+		if cond == "true" && len(condLines) == 0 && len(bindLines) == 0 {
+			clauseSubjectLines = nil
 		}
 		guardExpr := ""
 		var guardLines []string
@@ -60,7 +123,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		}
 		if explicitExpected {
 			if !g.typeMatches(resultType, bodyType) {
-				ctx.setReason("match clause type mismatch")
+				ctx.setReason(fmt.Sprintf("match clause type mismatch (%s != %s, subject=%s, pattern=%T)", bodyType, resultType, clauseSubjectType, clause.Pattern))
 				return nil, "", "", false
 			}
 		} else {
@@ -71,7 +134,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 			}
 		}
 		clauses = append(clauses, matchClause{
-			condLines:  condLines,
+			condLines:  append(clauseSubjectLines, condLines...),
 			cond:       cond,
 			bindLines:  bindLines,
 			guardLines: guardLines,
@@ -80,6 +143,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 			bodyExpr:   bodyExpr,
 			bodyType:   bodyType,
 		})
+		clauseSubjectType = g.narrowedNativeUnionSubjectType(clauseCtx, clauseSubjectType, clause.Pattern)
 	}
 	if !explicitExpected {
 		if inferredType == "" || mismatch {
@@ -113,7 +177,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		case resultType == "runtime.Value" && clause.bodyType != "runtime.Value":
 			convLines, converted, ok := g.runtimeValueLines(ctx, clause.bodyExpr, clause.bodyType)
 			if !ok {
-				ctx.setReason("match clause type mismatch")
+				ctx.setReason(fmt.Sprintf("match clause type mismatch (%s -> %s)", clause.bodyType, resultType))
 				return nil, "", "", false
 			}
 			clause.bodyLines = append(clause.bodyLines, convLines...)
@@ -124,7 +188,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		case clause.bodyType == "runtime.Value" && resultType != "runtime.Value":
 			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, clause.bodyExpr, resultType)
 			if !ok {
-				ctx.setReason("match clause type mismatch")
+				ctx.setReason(fmt.Sprintf("match clause type mismatch (%s -> %s)", clause.bodyType, resultType))
 				return nil, "", "", false
 			}
 			clause.bodyLines = append(clause.bodyLines, convLines...)
@@ -133,14 +197,14 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		case clause.bodyType == "any":
 			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, clause.bodyExpr, resultType)
 			if !ok {
-				ctx.setReason("match clause type mismatch")
+				ctx.setReason(fmt.Sprintf("match clause type mismatch (%s -> %s)", clause.bodyType, resultType))
 				return nil, "", "", false
 			}
 			clause.bodyLines = append(clause.bodyLines, convLines...)
 			clause.bodyExpr = converted
 			clause.bodyType = resultType
 		default:
-			ctx.setReason("match clause type mismatch")
+			ctx.setReason(fmt.Sprintf("match clause type mismatch (%s != %s)", clause.bodyType, resultType))
 			return nil, "", "", false
 		}
 	}
@@ -202,15 +266,20 @@ func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchE
 		fmt.Sprintf("%s := %s", subjectTemp, subjectExpr),
 		fmt.Sprintf("%s := false", matchedTemp),
 	)
+	clauseSubjectType := subjectType
 	for _, clause := range match.Clauses {
 		if clause == nil {
 			continue
 		}
 		clauseCtx := ctx.child()
-		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, subjectTemp, subjectType)
+		clauseSubjectLines, clauseSubjectExpr := g.narrowedNativeUnionSubjectExpr(clauseCtx, subjectTemp, subjectType, clauseSubjectType)
+		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, clauseSubjectExpr, clauseSubjectType)
 		if !ok {
 			ctx.setReason(clauseCtx.reason)
 			return nil, false
+		}
+		if cond == "true" && len(condLines) == 0 && len(bindLines) == 0 {
+			clauseSubjectLines = nil
 		}
 		guardExpr := ""
 		var guardLines []string
@@ -252,16 +321,25 @@ func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchE
 		}
 		if len(condLines) > 0 {
 			lines = append(lines, fmt.Sprintf("if !%s {", matchedTemp))
-			lines = append(lines, indentLines(condLines, 1)...)
+			lines = append(lines, indentLines(append(clauseSubjectLines, condLines...), 1)...)
 			lines = append(lines, fmt.Sprintf("\tif %s {", cond))
 			lines = append(lines, indentLines(branchLines, 2)...)
 			lines = append(lines, "\t}")
 			lines = append(lines, "}")
 		} else {
 			lines = append(lines, fmt.Sprintf("if !%s && %s {", matchedTemp, cond))
-			lines = append(lines, indentLines(branchLines, 1)...)
+			if len(clauseSubjectLines) > 0 {
+				lines[len(lines)-1] = fmt.Sprintf("if !%s {", matchedTemp)
+				lines = append(lines, indentLines(clauseSubjectLines, 1)...)
+				lines = append(lines, fmt.Sprintf("\tif %s {", cond))
+				lines = append(lines, indentLines(branchLines, 2)...)
+				lines = append(lines, "\t}")
+			} else {
+				lines = append(lines, indentLines(branchLines, 1)...)
+			}
 			lines = append(lines, "}")
 		}
+		clauseSubjectType = g.narrowedNativeUnionSubjectType(clauseCtx, clauseSubjectType, clause.Pattern)
 	}
 	lines = append(lines, fmt.Sprintf("if !%s { bridge.RaiseRuntimeErrorWithContext(__able_runtime, %s, fmt.Errorf(\"Non-exhaustive match\")) }", matchedTemp, matchNode))
 	return lines, true

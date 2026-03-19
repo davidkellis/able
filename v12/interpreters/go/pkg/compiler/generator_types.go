@@ -67,6 +67,10 @@ func (g *generator) structBaseName(goType string) (string, bool) {
 	return "", false
 }
 
+func (g *generator) isNativeStructPointerType(goType string) bool {
+	return strings.HasPrefix(goType, "*") && g.structInfoByGoName(goType) != nil
+}
+
 func (g *generator) intBits(goType string) int {
 	switch goType {
 	case "int8", "uint8":
