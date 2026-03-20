@@ -32,18 +32,18 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		if !ok {
 			return nil, "", "", false
 		}
-		valueConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
-		if !ok {
-			ctx.setReason("index assignment value unsupported")
-			return nil, "", "", false
-		}
 		objLines, objExpr, objType, ok := g.compileExprLines(ctx, indexTarget.Object, "")
 		if !ok {
 			return nil, "", "", false
 		}
-		if assign.Operator == ast.AssignmentAssign && g.isArrayStructType(objType) {
+		if assign.Operator == ast.AssignmentAssign && g.isStaticArrayType(objType) {
 			idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, indexTarget.Index, "")
 			if !ok {
+				return nil, "", "", false
+			}
+			valueArgLines, valueAssignedExpr, ok := g.staticArrayCoerceValueExprLines(ctx, objType, valueExpr, valueType)
+			if !ok {
+				ctx.setReason("index assignment value unsupported")
 				return nil, "", "", false
 			}
 			valueTemp := ctx.newTemp()
@@ -53,10 +53,10 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			lengthTemp := ctx.newTemp()
 			resultTemp := ctx.newTemp()
 			lines := append([]string{}, valueLines...)
-			lines = append(lines, valueConvLines...)
+			lines = append(lines, valueArgLines...)
 			lines = append(lines, objLines...)
 			lines = append(lines, idxLines...)
-			lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
+			lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueAssignedExpr))
 			lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
 			lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
 			if !ok {
@@ -64,10 +64,19 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				return nil, "", "", false
 			}
 			lines = append(lines, fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp))
-			lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, valueTemp))
-			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { %s.Elements[%s] = %s }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, objTemp, indexTemp, valueTemp))
-			lines = append(lines, fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp))
+			lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
+			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp))
+			lines = append(lines, fmt.Sprintf("\t%s = __able_index_error(%s, %s)", resultTemp, indexTemp, lengthTemp))
+			lines = append(lines, "} else {")
+			lines = append(lines, fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp))
+			lines = append(lines, "}")
+			lines = append(lines, g.staticArraySyncCall(objType, objTemp))
 			return lines, resultTemp, "runtime.Value", true
+		}
+		valueConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		if !ok {
+			ctx.setReason("index assignment value unsupported")
+			return nil, "", "", false
 		}
 		if assign.Operator == ast.AssignmentAssign {
 			if staticLines, resultExpr, resultType, ok := g.compileStaticIndexSet(ctx, indexTarget, objExpr, objType, valueExpr, valueType); ok {
@@ -480,6 +489,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	if assignmentTypeExpr == nil && exists {
 		assignmentTypeExpr = existing.TypeExpr
 	}
+	if assignmentTypeExpr == nil {
+		if inferredTypeExpr, ok := g.inferLocalTypeExpr(ctx, assign.Right, goType); ok {
+			assignmentTypeExpr = inferredTypeExpr
+		}
+	}
 	if ifaceType, ok := g.interfaceTypeExpr(assignmentTypeExpr); ok && goType == "runtime.Value" {
 		ifaceLines, coerced, ok := g.interfaceReturnExprLines(ctx, expr, ifaceType, ctx.genericNames)
 		if !ok {
@@ -506,7 +520,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	goName := existing.GoName
 	if declaring {
 		goName = sanitizeIdent(name)
-		ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: typeAnnotation, OriginGoType: originStructType}
+		ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: assignmentTypeExpr, OriginGoType: originStructType}
 	} else {
 		// Invalidate CSE extraction cache on reassignment.
 		if ctx.originExtractions != nil {

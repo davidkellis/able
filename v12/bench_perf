@@ -13,6 +13,7 @@ modes_csv="compiled,treewalker,bytecode"
 workdir=""
 keep_artifacts=false
 show_output=false
+compiled_build_args=()
 
 usage() {
   cat <<'EOF'
@@ -23,11 +24,15 @@ Examples:
   v12/bench_perf
   v12/bench_perf v12/fixtures/bench/sieve_full/main.able
   v12/bench_perf --runs 5 --timeout 20 --modes compiled,treewalker
+  v12/bench_perf --modes compiled --compiled-build-arg=--no-experimental-mono-arrays
 
 Options:
   -r, --runs N        Number of runs per mode (default: 3)
   -t, --timeout SEC   Timeout per run in seconds (default: 30)
   -m, --modes CSV     Modes: compiled,treewalker,bytecode (default: all)
+      --compiled-build-arg ARG
+                       Extra arg forwarded to `able build` for compiled mode.
+                       May be repeated.
       --workdir DIR   Keep build artifacts in DIR
       --keep          Keep temporary workdir when done
       --show-output   Print program stdout/stderr for each run
@@ -91,6 +96,14 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 ]] || die "missing value for --modes"
       modes_csv="$1"
       ;;
+    --compiled-build-arg)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --compiled-build-arg"
+      compiled_build_args+=("$1")
+      ;;
+    --compiled-build-arg=*)
+      compiled_build_args+=("${1#*=}")
+      ;;
     --workdir)
       shift
       [[ $# -gt 0 ]] || die "missing value for --workdir"
@@ -132,26 +145,62 @@ if [[ "$keep_artifacts" == false ]]; then
 fi
 
 able_bin="$workdir/able"
+ablec_bin="$workdir/ablec"
 compiled_bin="$workdir/compiled"
+compiled_out_dir="$workdir/compiled-src"
 target_arg="$(resolve_target "$target")"
 
+need_able=false
+need_ablec=false
+IFS=',' read -r -a requested_modes <<<"$modes_csv"
+for mode in "${requested_modes[@]}"; do
+  case "$mode" in
+    compiled)
+      need_ablec=true
+      ;;
+    treewalker|bytecode)
+      need_able=true
+      ;;
+    "")
+      ;;
+    *)
+      die "unknown mode: $mode"
+      ;;
+  esac
+done
+
 echo ">>> Workdir: $workdir"
-echo ">>> Building Able CLI"
-env GOCACHE="$GO_CACHE" go build -C "$GO_DIR" -o "$able_bin" ./cmd/able
+if [[ "$need_able" == true ]]; then
+  echo ">>> Building Able CLI"
+  env GOCACHE="$GO_CACHE" go build -C "$GO_DIR" -o "$able_bin" ./cmd/able
+fi
+if [[ "$need_ablec" == true ]]; then
+  echo ">>> Building Able compiler CLI"
+  env GOCACHE="$GO_CACHE" go build -C "$GO_DIR" -o "$ablec_bin" ./cmd/ablec
+fi
 
-echo ">>> Building compiled binary"
-"$able_bin" build --bin "$compiled_bin" "$target_arg" >/dev/null
-
-compiled_cmd="$(shell_join "$compiled_bin")"
-tree_cmd="$(shell_join "$able_bin" --exec-mode=treewalker "$target_arg")"
-byte_cmd="$(shell_join "$able_bin" --exec-mode=bytecode "$target_arg")"
+if [[ "$need_ablec" == true ]]; then
+  echo ">>> Building compiled binary"
+  if ((${#compiled_build_args[@]} > 0)); then
+    echo ">>> Compiled build args: $(shell_join "${compiled_build_args[@]}")"
+  fi
+  "$ablec_bin" -build -o "$compiled_out_dir" "${compiled_build_args[@]}" -bin "$compiled_bin" "$target_arg" >/dev/null
+  compiled_cmd="$(shell_join "$compiled_bin")"
+else
+  compiled_cmd=""
+fi
+if [[ "$need_able" == true ]]; then
+  tree_cmd="$(shell_join "$able_bin" --exec-mode=treewalker "$target_arg")"
+  byte_cmd="$(shell_join "$able_bin" --exec-mode=bytecode "$target_arg")"
+else
+  tree_cmd=""
+  byte_cmd=""
+fi
 
 has_timeout=false
 if command -v timeout >/dev/null 2>&1 && ((timeout_seconds > 0)); then
   has_timeout=true
 fi
-
-IFS=',' read -r -a requested_modes <<<"$modes_csv"
 
 echo ">>> Target: $target_arg"
 printf "%-12s %-10s %-8s %-7s %-12s %-12s %-12s %-10s\n" \

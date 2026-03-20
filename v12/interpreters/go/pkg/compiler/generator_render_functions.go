@@ -551,6 +551,16 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param paramInfo, funcName string, pkgName string, genericNames map[string]struct{}) {
 	goType := param.GoType
 	target := param.GoName
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "\t%s, err := %s(%sValue)\n", target, spec.FromRuntimeHelper, argName)
+		g.renderConvertErr(buf)
+		if g.staticArrayArgRequiresValue(pkgName, param.TypeExpr, goType) {
+			fmt.Fprintf(buf, "\tif %s == nil {\n", target)
+			fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"type mismatch calling %s: expected %s\")\n", funcName, typeExpressionToString(param.TypeExpr))
+			fmt.Fprintf(buf, "\t}\n")
+		}
+		return
+	}
 	if goType == "runtime.ErrorValue" {
 		okName := fmt.Sprintf("%sOk", argName)
 		nilPtrName := fmt.Sprintf("%sNilPtr", argName)
@@ -664,6 +674,10 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param
 }
 
 func (g *generator) renderReturnConversion(buf *bytes.Buffer, resultName, goType string, returnType ast.TypeExpression, funcName string, genericNames map[string]struct{}) {
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "\treturn %s(rt, %s)\n", spec.ToRuntimeHelper, resultName)
+		return
+	}
 	if goType == "runtime.ErrorValue" {
 		fmt.Fprintf(buf, "\treturn %s, nil\n", resultName)
 		return

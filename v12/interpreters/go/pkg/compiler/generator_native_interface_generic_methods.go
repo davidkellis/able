@@ -112,6 +112,13 @@ func typeExpressionListKey(exprs []ast.TypeExpression) string {
 }
 
 func (g *generator) typeExprForGoType(goType string) (ast.TypeExpression, bool) {
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		innerExpr, ok := g.typeExprForGoType(spec.ElemGoType)
+		if !ok {
+			return nil, false
+		}
+		return ast.NewGenericTypeExpression(ast.Ty("Array"), []ast.TypeExpression{innerExpr}), true
+	}
 	switch goType {
 	case "runtime.Value", "any":
 		return ast.Ty("any"), true

@@ -91,6 +91,34 @@ func (g *generator) renderNativeInterfaceRuntimeMethod(buf *bytes.Buffer, info *
 		fmt.Fprintf(buf, "\t\treturn zero, __able_control_from_error(fmt.Errorf(\"missing interface value\"))\n")
 	}
 	fmt.Fprintf(buf, "\t}\n")
+	baseName, _ := typeExprBaseName(info.TypeExpr)
+	if baseName == "Iterator" && method.Name == "next" && len(method.ParamGoTypes) == 0 {
+		fmt.Fprintf(buf, "\tif iter, ok, nilPtr := __able_runtime_iterator_value(w.Value); ok || nilPtr {\n")
+		fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
+		if zeroOK {
+			fmt.Fprintf(buf, "\t\t\treturn %s, __able_control_from_error(fmt.Errorf(\"missing interface value\"))\n", zeroExpr)
+		} else {
+			fmt.Fprintf(buf, "\t\t\treturn zero, __able_control_from_error(fmt.Errorf(\"missing interface value\"))\n")
+		}
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\tresult, done, err := iter.Next()\n")
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		if zeroOK {
+			fmt.Fprintf(buf, "\t\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		} else {
+			fmt.Fprintf(buf, "\t\t\treturn zero, __able_control_from_error(err)\n")
+		}
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\tif done {\n")
+		fmt.Fprintf(buf, "\t\t\tresult = runtime.IteratorEnd\n")
+		fmt.Fprintf(buf, "\t\t} else if result == nil {\n")
+		fmt.Fprintf(buf, "\t\t\tresult = runtime.NilValue{}\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		if g.renderNativeInterfaceRuntimeToGoValueControl(buf, "converted", "result", method.ReturnGoType, method.ReturnGoType) {
+			fmt.Fprintf(buf, "\t\treturn converted, nil\n")
+		}
+		fmt.Fprintf(buf, "\t}\n")
+	}
 	argList := "nil"
 	if len(method.ParamGoTypes) > 0 {
 		fmt.Fprintf(buf, "\targs := make([]runtime.Value, 0, %d)\n", len(method.ParamGoTypes))
@@ -202,10 +230,19 @@ func (g *generator) renderNativeInterfaceBoundaryHelpers(buf *bytes.Buffer, info
 	if !ok {
 		return
 	}
+	baseName, _ := typeExprBaseName(info.TypeExpr)
 	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, error) {\n", info.FromRuntimeHelper, info.GoType)
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")
+	if baseName == "Iterator" {
+		fmt.Fprintf(buf, "\tif iter, ok, nilPtr := __able_runtime_iterator_value(value); ok || nilPtr {\n")
+		fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, fmt.Errorf(\"type mismatch: expected %s\")\n", info.TypeString)
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\treturn %s(iter), nil\n", info.RuntimeWrapHelper)
+		fmt.Fprintf(buf, "\t}\n")
+	}
 	for _, adapter := range info.Adapters {
 		if adapter == nil || adapter.TypeExpr == nil {
 			continue
@@ -302,6 +339,13 @@ func (g *generator) renderNativeInterfaceApplyRuntimeHelper(buf *bytes.Buffer, i
 }
 
 func (g *generator) renderNativeInterfaceRuntimeToGoValueError(buf *bytes.Buffer, target string, expr string, goType string, indent string) bool {
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "%s%s, err := %s(%s)\n", indent, target, spec.FromRuntimeHelper, expr)
+		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
+		fmt.Fprintf(buf, "%s\treturn nil, err\n", indent)
+		fmt.Fprintf(buf, "%s}\n", indent)
+		return true
+	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		fmt.Fprintf(buf, "%s%s, err := %s(__able_runtime, %s)\n", indent, target, iface.FromRuntimeHelper, expr)
 		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
@@ -436,6 +480,11 @@ func (g *generator) renderNativeInterfaceGoToRuntimeValue(buf *bytes.Buffer, tar
 		fmt.Fprintf(buf, "%s\treturn %s, __able_control_from_error(%s)\n", indent, zeroExpr, errExpr)
 		fmt.Fprintf(buf, "%s}\n", indent)
 	}
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "%s%s, err := %s(__able_runtime, %s)\n", indent, target, spec.ToRuntimeHelper, expr)
+		failErr("err")
+		return true
+	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		fmt.Fprintf(buf, "%s%s, err := %s(__able_runtime, %s)\n", indent, target, iface.ToRuntimeHelper, expr)
 		failErr("err")
@@ -526,6 +575,13 @@ func (g *generator) renderNativeInterfaceRuntimeToGoValueControl(buf *bytes.Buff
 	if !zeroOK {
 		fmt.Fprintf(buf, "\tvar zero %s\n", returnType)
 		zeroExpr = "zero"
+	}
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "\t%s, err := %s(%s)\n", target, spec.FromRuntimeHelper, expr)
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+		return true
 	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		fmt.Fprintf(buf, "\t%s, err := %s(__able_runtime, %s)\n", target, iface.FromRuntimeHelper, expr)

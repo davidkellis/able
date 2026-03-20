@@ -71,6 +71,25 @@ func (g *generator) isNativeStructPointerType(goType string) bool {
 	return strings.HasPrefix(goType, "*") && g.structInfoByGoName(goType) != nil
 }
 
+func (g *generator) isNilableStaticCarrierType(goType string) bool {
+	if goType == "" || goType == "runtime.Value" || goType == "any" {
+		return false
+	}
+	if strings.HasPrefix(goType, "*") {
+		return true
+	}
+	if g.nativeInterfaceInfoForGoType(goType) != nil {
+		return true
+	}
+	if g.nativeCallableInfoForGoType(goType) != nil {
+		return true
+	}
+	if g.nativeUnionInfoForGoType(goType) != nil {
+		return true
+	}
+	return false
+}
+
 func (g *generator) intBits(goType string) int {
 	switch goType {
 	case "int8", "uint8":

@@ -164,3 +164,34 @@ func TestCompilerInterfaceLookupGenericMethodFixturesRegression(t *testing.T) {
 		})
 	}
 }
+
+func TestCompilerIteratorInterfaceBoundaryAcceptsRuntimeIteratorDirectly(t *testing.T) {
+	result := compileExecFixtureResult(t, "06_12_18_stdlib_collections_array_range")
+
+	body, ok := findCompiledFunction(result, "__able_iface_Iterator_i32_from_value")
+	if !ok {
+		t.Fatalf("could not find Iterator<i32> boundary helper")
+	}
+	if !strings.Contains(body, "if iter, ok, nilPtr := __able_runtime_iterator_value(value); ok || nilPtr {") {
+		t.Fatalf("expected Iterator<i32> boundary helper to fast-path raw runtime iterators:\n%s", body)
+	}
+	if !strings.Contains(body, "return __able_iface_Iterator_i32_wrap_runtime(iter), nil") {
+		t.Fatalf("expected Iterator<i32> boundary helper to wrap raw runtime iterators directly:\n%s", body)
+	}
+
+	nextBody, ok := findCompiledFunction(result, "(w __able_iface_Iterator_i32_runtime_adapter) next")
+	if !ok {
+		t.Fatalf("could not find Iterator<i32> runtime adapter next method")
+	}
+	if !strings.Contains(nextBody, "result, done, err := iter.Next()") {
+		t.Fatalf("expected Iterator<i32> runtime adapter to fast-path raw iterator next calls:\n%s", nextBody)
+	}
+
+	controlBody, ok := findCompiledFunction(result, "__able_control_from_error_with_node")
+	if !ok {
+		t.Fatalf("could not find control error-normalization helper")
+	}
+	if !strings.Contains(controlBody, "case __able_generator_stop:") || !strings.Contains(controlBody, "return &__ableControl{Err: v}") {
+		t.Fatalf("expected control error-normalization helper to preserve generator stop sentinels:\n%s", controlBody)
+	}
+}

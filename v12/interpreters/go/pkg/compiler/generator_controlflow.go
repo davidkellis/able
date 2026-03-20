@@ -620,6 +620,9 @@ func (g *generator) compileForLoopInternal(ctx *compileContext, loop *ast.ForLoo
 	if !ok {
 		return nil, "", false
 	}
+	if g.isStaticArrayType(iterType) {
+		return g.compileStaticArrayForLoopInternal(ctx, loop, withResult, iterLines, iterExpr, iterType)
+	}
 	iterConvLines, iterRuntime, ok := g.runtimeValueLines(ctx, iterExpr, iterType)
 	if !ok {
 		ctx.setReason("for loop iterable unsupported")

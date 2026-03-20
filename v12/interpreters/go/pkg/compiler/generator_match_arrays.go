@@ -77,6 +77,11 @@ func (g *generator) compileNativeArrayPatternCondition(ctx *compileContext, patt
 		ctx.setReason("array pattern unsupported")
 		return nil, "", false
 	}
+	elemType := g.staticArrayElemGoType(subjectType)
+	if elemType == "" {
+		ctx.setReason("array pattern unsupported")
+		return nil, "", false
+	}
 	condTemp := ctx.newTemp()
 	condLabel := ctx.newTemp()
 	valuesTemp := ctx.newTemp()
@@ -96,7 +101,7 @@ func (g *generator) compileNativeArrayPatternCondition(ctx *compileContext, patt
 			return nil, "", false
 		}
 		elemExpr := fmt.Sprintf("%s[%d]", valuesTemp, idx)
-		elemCondLines, elemCond, ok := g.compileMatchPatternCondition(ctx, elem, elemExpr, "runtime.Value")
+		elemCondLines, elemCond, ok := g.compileMatchPatternCondition(ctx, elem, elemExpr, elemType)
 		if !ok {
 			return nil, "", false
 		}
@@ -180,6 +185,11 @@ func (g *generator) compileNativeArrayPatternBindings(ctx *compileContext, patte
 		ctx.setReason("array pattern unsupported")
 		return nil, false
 	}
+	elemType := g.staticArrayElemGoType(subjectType)
+	if elemType == "" {
+		ctx.setReason("array pattern unsupported")
+		return nil, false
+	}
 	valuesTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s := %s", valuesTemp, valuesExpr),
@@ -191,7 +201,7 @@ func (g *generator) compileNativeArrayPatternBindings(ctx *compileContext, patte
 			return nil, false
 		}
 		elemExpr := fmt.Sprintf("%s[%d]", valuesTemp, idx)
-		elemLines, ok := g.compileMatchPatternBindings(ctx, elem, elemExpr, "runtime.Value")
+		elemLines, ok := g.compileMatchPatternBindings(ctx, elem, elemExpr, elemType)
 		if !ok {
 			return nil, false
 		}
@@ -201,16 +211,16 @@ func (g *generator) compileNativeArrayPatternBindings(ctx *compileContext, patte
 		switch rest := pattern.RestPattern.(type) {
 		case *ast.Identifier:
 			if rest.Name != "" && rest.Name != "_" {
-				restLines, restExpr, ok := g.nativeArrayFromElementsLines(ctx, fmt.Sprintf("%s[%d:]", valuesTemp, len(pattern.Elements)))
+				restLines, restExpr, ok := g.nativeArrayFromElementsLines(ctx, subjectType, fmt.Sprintf("%s[%d:]", valuesTemp, len(pattern.Elements)))
 				if !ok {
 					ctx.setReason("array pattern unsupported")
 					return nil, false
 				}
 				lines = append(lines, restLines...)
 				goName := sanitizeIdent(rest.Name)
-				ctx.locals[rest.Name] = paramInfo{Name: rest.Name, GoName: goName, GoType: "*Array"}
+				ctx.locals[rest.Name] = paramInfo{Name: rest.Name, GoName: goName, GoType: subjectType}
 				lines = append(lines,
-					fmt.Sprintf("var %s *Array = %s", goName, restExpr),
+					fmt.Sprintf("var %s %s = %s", goName, subjectType, restExpr),
 					fmt.Sprintf("_ = %s", goName),
 				)
 			}

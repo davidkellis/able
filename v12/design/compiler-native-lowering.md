@@ -228,10 +228,114 @@ not `panic` / `recover`.
   repository's one-minute per-test target, while the unsuffixed selector test
   remains available for explicit fixture subsets via
   `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES`.
-- Remaining work is now genuinely different: broader audit/enforcement of the
-  allowed dynamic-carrier touchpoints, full-matrix verification, and
-  performance-oriented specialization/monomorphization on top of the now
-  mostly-native carrier ABI.
+- Allowed dynamic-carrier touchpoints are now also mechanically enforced:
+  combined-source audits fail if representative static native paths regress to
+  `__able_call_value(...)`, `__able_member_get*`, `__able_index*`,
+  `__able_method_call_node(...)`, `bridge.MatchType(...)`,
+  `__able_try_cast(...)`, `__able_any_to_value(...)`, or panic/IIFE-style
+  control scaffolding, and representative static fixtures now execute under
+  the boundary-marker harness with both fallback and explicit boundary counts
+  at zero. The intentionally residual generic-interface edge is audited
+  separately to stay narrowed to `__able_iface_*_to_runtime_value(...)` plus
+  `__able_method_call_node(...)`.
+- The broader compiler re-audit tranche is now closed too: the last surfaced
+  native array mismatch under the zero-boundary harness was
+  `runtime.ErrorValue` -> anonymous synthetic struct conversion dropping the
+  wrapped `IndexError` definition, which broke static `case _: IndexError`
+  matches on array bounds results. `__able_error_to_struct(...)` now preserves
+  concrete wrapped struct payloads before falling back to the synthetic error
+  view, and the zero-boundary fixture audit now includes
+  `06_08_array_ops_mutability`.
+- The mono-array design tranche is now revised too: the older typed-runtime-
+  store / handle-tag rollout has been superseded as the target architecture.
+  Future `Array<T>` specialization work must converge on compiler-owned
+  specialized wrappers over native Go slices, and a dedicated compiler audit
+  now proves that enabling `ExperimentalMonoArrays` still keeps representative
+  static array bodies on the compiler-owned array carrier today.
+- The first specialized-wrapper slice is now landed too for explicit typed
+  `Array i32` / `Array i64` / `Array bool` / `Array u8` positions: those types
+  map to compiler-owned wrappers over native typed Go slices, direct typed
+  literals and hot index/intrinsic paths operate on those wrappers, and the
+  explicit mono-array dynamic-boundary suite stays green on the specialized
+  carriers.
+- The widened mono-array slice is now landed too: non-empty unannotated local
+  array literals infer staged specialized carriers, `Array.new()` /
+  `Array.with_capacity()` lower directly to compiler-owned static carriers on
+  typed static paths, `reserve()` / `clone_shallow()` stay specialized, static
+  array `for` loops iterate directly over typed slices, and array-pattern rest
+  tails preserve specialized carriers instead of dropping back to generic
+  `*Array`.
+- The widened mono-array slice has now also been re-measured on the staged
+  compiled fixtures (`bench/noop`, `bench/sieve_count`, `bench/sieve_full`):
+  wall-clock stayed flat, but the heaviest staged array fixture reduced timed
+  GC (`1.00` vs `3.00` with mono arrays disabled).
+- The residual generic-array narrowing tranche is now closed too: static array
+  bindings that still carry a recoverable element type now keep generic helper
+  results (`get`, `pop`, `first`, `last`, `read_slot`) on native nullable
+  carriers where representable; static and residual runtime-backed array `set`
+  / index-assignment success is back in parity at `nil`; runtime-backed
+  iterator interface carriers now accept raw `*runtime.IteratorValue` payloads
+  directly; and `__able_control_from_error_with_node(...)` now preserves
+  `__able_generator_stop` as iterator completion instead of surfacing it as a
+  generic runtime error.
+- The staged specialized wrapper set now includes `f64`, and nested
+  `Array (Array f64)` hot loops now stay on the static compiler path too:
+  native nullable propagation now supports concrete expected-type coercion for
+  pointer-backed scalar carriers like `*float64`, which keeps
+  `rows.get(j)!.get(i)!` from regressing the surrounding `push(...)` back to
+  `__able_method_call_node(...)`.
+- The full compiled `examples/benchmarks/matrixmultiply.able` path is back in
+  parity too: under the existing `60s` `bench_perf` budget it now times out in
+  both mono-on and mono-off modes instead of failing early with
+  `runtime: runtime error` on the mono-array path.
+- A reduced checked-in benchmark fixture now measures the staged `f64` slice
+  directly:
+  - `v12/fixtures/bench/matrixmultiply_f64_small/main.able`
+  - compiled 3-run averages: mono on `5.4833s`, `280.00` GC; mono off
+    `45.3133s`, `3568.67` GC.
+- The remaining generic outer-row shell is now gone on the representative
+  nested staged path too: `Array (Array f64)` lowers to
+  `*__able_array_array_f64` over `[]*__able_array_f64`, rendered mono-array
+  converters/native `Array` helpers handle pointer-backed specialized
+  elements directly, and the post-outer-wrapper reduced benchmark snapshot is
+  `5.7233s` / `252.00` GC with mono arrays on versus `44.5167s` /
+  `3550.67` GC with mono arrays off.
+- Compiler-owned array wrapper synthesis now covers broader native carrier
+  element families too: generic inner arrays, native interfaces, native
+  callables, and other representable pointer-backed carriers now lower to
+  dedicated outer wrappers instead of falling back to generic `*Array` /
+  `runtime.Value` element storage, and dynamic-boundary callback coverage now
+  includes interface-carrier and callable-carrier arrays explicitly.
+- The staged text scalar family is now specialized too:
+  - `Array char` -> `*__able_array_char` over `[]rune`
+  - `Array String` -> `*__able_array_String` over `[]string`
+  - representative nested text rows (`Array (Array char)`) now lower to
+    `*__able_array_array_char`
+  - native result propagation now keeps `!Array char` on the static carrier
+    path instead of routing its success branch back through
+    `_from_value(__able_runtime, ...)`
+- The first focused text benchmark now exists too:
+  - `v12/fixtures/bench/zigzag_char_small/main.able`
+  - corrected compiled 3-run averages: mono on `0.9567s`, `88.00` GC; mono
+    off `1.0500s`, `384.00` GC
+  - the earlier mono-off comparison was invalid because nested
+    `Array (Array char)` rows were losing mutation identity when the outer
+    array fell back to generic `*Array` / `runtime.Value` storage
+- Carrier-array wrappers for already-native compiler carriers now stay
+  available even with `ExperimentalMonoArrays` disabled, which preserves
+  nested carrier identity on mono-off paths while still leaving staged scalar
+  specialization itself behind the flag.
+- The remaining primitive numeric scalar family is now staged too:
+  - `Array i8`, `Array i16`, `Array u16`, `Array u32`, `Array u64`,
+    `Array isize`, `Array usize`, and `Array f32` now lower to compiler-owned
+    wrappers on the staged specialized path
+  - reduced unsigned benchmark:
+    `v12/fixtures/bench/sum_u32_small/main.able`
+  - compiled 3-run averages: mono on `1.0933s`, `185.33` GC; mono off
+    `1.6800s`, `21.33` GC
+- Remaining work is now broader non-scalar/container carrier reduction again,
+  plus wider specialization/monomorphization on top of the now mostly-native
+  carrier ABI.
 
 ## Relationship To Other Design Notes
 
