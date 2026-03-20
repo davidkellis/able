@@ -97,6 +97,9 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\tif ok {\n")
 		switch {
+		case g.isMonoArrayType(member.GoType):
+			spec, _ := g.monoArraySpecForGoType(member.GoType)
+			fmt.Fprintf(buf, "\t\t\tconverted, err := %s(coerced)\n", spec.FromRuntimeHelper)
 		case g.typeCategory(member.GoType) == "struct":
 			baseName, _ := g.structBaseName(member.GoType)
 			if baseName == "" {

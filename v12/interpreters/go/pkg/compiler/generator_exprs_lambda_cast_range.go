@@ -479,6 +479,16 @@ func (g *generator) lambdaArgConversionLines(pkgName string, argVar string, valu
 			"if err != nil { return nil, err }",
 		}, true
 	}
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		lines := []string{
+			fmt.Sprintf("%s, err := %s(%s)", target, spec.FromRuntimeHelper, valueVar),
+			"if err != nil { return nil, err }",
+		}
+		if g.staticArrayArgRequiresValue(pkgName, typeExpr, goType) {
+			lines = append(lines, fmt.Sprintf("if %s == nil { return nil, fmt.Errorf(\"type mismatch calling lambda: expected %s\") }", target, typeExpressionToString(typeExpr)))
+		}
+		return lines, true
+	}
 	switch g.typeCategory(goType) {
 	case "runtime":
 		return []string{fmt.Sprintf("%s := %s", target, valueVar)}, true
@@ -579,6 +589,9 @@ func (g *generator) structArgRequiresValue(pkgName string, typeExpr ast.TypeExpr
 }
 
 func (g *generator) lambdaReturnLines(resultName string, goType string) ([]string, bool) {
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		return []string{fmt.Sprintf("return %s(__able_runtime, %s)", spec.ToRuntimeHelper, resultName)}, true
+	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		return []string{fmt.Sprintf("return %s(__able_runtime, %s)", iface.ToRuntimeHelper, resultName)}, true
 	}

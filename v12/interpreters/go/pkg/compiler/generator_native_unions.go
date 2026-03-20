@@ -290,6 +290,13 @@ func (g *generator) nativeUnionExpectedTypeForExpr(ctx *compileContext, expected
 			}
 		}
 	case *ast.ArrayLiteral:
+		if info != nil {
+			for _, member := range info.Members {
+				if member != nil && g.isMonoArrayType(member.GoType) {
+					return member.GoType
+				}
+			}
+		}
 		if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil && g.nativeInterfaceAcceptsActual(iface, "*Array") {
 			return "*Array"
 		}

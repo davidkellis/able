@@ -393,6 +393,12 @@ func (g *generator) renderValueConversion(buf *bytes.Buffer, indent, valueVar, g
 		fmt.Fprintf(buf, "%s%s = converted\n", indent, assignTarget)
 		return
 	}
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "%sconverted, err := %s(%s)\n", indent, spec.FromRuntimeHelper, valueVar)
+		g.renderConvertErrWith(buf, indent, returnExpr)
+		fmt.Fprintf(buf, "%s%s = converted\n", indent, assignTarget)
+		return
+	}
 	if helper, ok := g.nativeNullableFromRuntimeHelper(goType); ok {
 		fmt.Fprintf(buf, "%sconverted, err := %s(%s)\n", indent, helper, valueVar)
 		g.renderConvertErrWith(buf, indent, returnExpr)
@@ -484,6 +490,16 @@ func (g *generator) renderValueToRuntime(buf *bytes.Buffer, valueExpr, goType, t
 		fmt.Fprintf(buf, "\t%s = append(%s, %s)\n", targetSlice, targetSlice, valueExpr)
 		return
 	}
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "\t{\n")
+		fmt.Fprintf(buf, "\t\tconverted, err := %s(rt, %s)\n", spec.ToRuntimeHelper, valueExpr)
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\t%s = append(%s, converted)\n", targetSlice, targetSlice)
+		fmt.Fprintf(buf, "\t}\n")
+		return
+	}
 	if helper, ok := g.nativeNullableToRuntimeHelper(goType); ok {
 		fmt.Fprintf(buf, "\t%s = append(%s, %s(%s))\n", targetSlice, targetSlice, helper, valueExpr)
 		return
@@ -562,9 +578,104 @@ func (g *generator) renderValueToRuntime(buf *bytes.Buffer, valueExpr, goType, t
 	}
 }
 
+func (g *generator) renderValueToRuntimeAssign(buf *bytes.Buffer, valueExpr, goType, targetExpr string) {
+	if goType == "runtime.ErrorValue" {
+		fmt.Fprintf(buf, "\t\t%s = %s\n", targetExpr, valueExpr)
+		return
+	}
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "\t\tconverted, err := %s(rt, %s)\n", spec.ToRuntimeHelper, valueExpr)
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\t%s = converted\n", targetExpr)
+		return
+	}
+	if helper, ok := g.nativeNullableToRuntimeHelper(goType); ok {
+		fmt.Fprintf(buf, "\t\t%s = %s(%s)\n", targetExpr, helper, valueExpr)
+		return
+	}
+	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
+		fmt.Fprintf(buf, "\t\tconverted, err := %s(rt, %s)\n", callable.ToRuntimeHelper, valueExpr)
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\t%s = converted\n", targetExpr)
+		return
+	}
+	switch g.typeCategory(goType) {
+	case "runtime":
+		fmt.Fprintf(buf, "\t\t%s = %s\n", targetExpr, valueExpr)
+	case "bool":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToBool(%s)\n", targetExpr, valueExpr)
+	case "string":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToString(%s)\n", targetExpr, valueExpr)
+	case "rune":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToRune(%s)\n", targetExpr, valueExpr)
+	case "float32":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToFloat32(%s)\n", targetExpr, valueExpr)
+	case "float64":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToFloat64(%s)\n", targetExpr, valueExpr)
+	case "int":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToInt(int64(%s), runtime.IntegerType(\"isize\"))\n", targetExpr, valueExpr)
+	case "uint":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToUint(uint64(%s), runtime.IntegerType(\"usize\"))\n", targetExpr, valueExpr)
+	case "int8":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToInt(int64(%s), runtime.IntegerType(\"i8\"))\n", targetExpr, valueExpr)
+	case "int16":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToInt(int64(%s), runtime.IntegerType(\"i16\"))\n", targetExpr, valueExpr)
+	case "int32":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToInt(int64(%s), runtime.IntegerType(\"i32\"))\n", targetExpr, valueExpr)
+	case "int64":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToInt(int64(%s), runtime.IntegerType(\"i64\"))\n", targetExpr, valueExpr)
+	case "uint8":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u8\"))\n", targetExpr, valueExpr)
+	case "uint16":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u16\"))\n", targetExpr, valueExpr)
+	case "uint32":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u32\"))\n", targetExpr, valueExpr)
+	case "uint64":
+		fmt.Fprintf(buf, "\t\t%s = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))\n", targetExpr, valueExpr)
+	case "struct":
+		fmt.Fprintf(buf, "\t\t%s = __able_any_to_value(%s)\n", targetExpr, valueExpr)
+	case "interface":
+		info := g.nativeInterfaceInfoForGoType(goType)
+		if info == nil {
+			return
+		}
+		fmt.Fprintf(buf, "\t\tconverted, err := %s(rt, %s)\n", info.ToRuntimeHelper, valueExpr)
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\t%s = converted\n", targetExpr)
+	case "union":
+		info := g.nativeUnionInfoForGoType(goType)
+		if info == nil {
+			return
+		}
+		fmt.Fprintf(buf, "\t\tconverted, err := %s(rt, %s)\n", info.ToRuntimeHelper, valueExpr)
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\t%s = converted\n", targetExpr)
+	case "any":
+		fmt.Fprintf(buf, "\t\t%s = __able_any_to_value(%s)\n", targetExpr, valueExpr)
+	}
+}
+
 func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goType, fieldName string) {
 	if goType == "runtime.ErrorValue" {
 		fmt.Fprintf(buf, "\tfields[%q] = %s\n", fieldName, valueExpr)
+		return
+	}
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		fmt.Fprintf(buf, "\t{\n")
+		fmt.Fprintf(buf, "\t\tconverted, err := %s(rt, %s)\n", spec.ToRuntimeHelper, valueExpr)
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\tfields[%q] = converted\n", fieldName)
+		fmt.Fprintf(buf, "\t}\n")
 		return
 	}
 	if helper, ok := g.nativeNullableToRuntimeHelper(goType); ok {

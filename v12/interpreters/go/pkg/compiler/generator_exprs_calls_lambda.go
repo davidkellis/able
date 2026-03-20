@@ -13,6 +13,15 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 		return nil, "", "", false
 	}
 	callNode := g.diagNodeName(call, "*ast.FunctionCall", "call")
+	if callee, ok := call.Callee.(*ast.MemberAccessExpression); ok && callee != nil && !callee.Safe && callee.Member != nil {
+		if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+			if typeIdent, ok := callee.Object.(*ast.Identifier); ok && typeIdent != nil && typeIdent.Name != "" {
+				if lines, expr, goType, ok := g.compileStaticArrayFactoryCall(ctx, typeIdent.Name, ident.Name, call.Arguments, expected, callNode); ok {
+					return lines, expr, goType, true
+				}
+			}
+		}
+	}
 	if len(call.TypeArguments) > 0 {
 		if callee, ok := call.Callee.(*ast.MemberAccessExpression); ok && callee != nil && !callee.Safe && callee.Member != nil {
 			if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
@@ -327,7 +336,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			lines = append(lines, objLines...)
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
-					if intrLines, expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, objExpr, objType, ident.Name, call.Arguments, expected, callNode); ok {
+					if intrLines, expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, callee.Object, objExpr, objType, ident.Name, call.Arguments, expected, callNode); ok {
 						lines = append(lines, intrLines...)
 						return lines, expr, retType, true
 					}
@@ -687,10 +696,51 @@ func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expr
 			return nil, false
 		}
 	}
-	if _, ok := g.structInfoForTypeName(ctx.packageName, ident.Name); !ok {
+	info, ok := g.structInfoForTypeName(ctx.packageName, ident.Name)
+	if (!ok || info == nil) && g != nil {
+		info, _ = g.structInfoByNameUnique(ident.Name)
+	}
+	if info == nil {
 		return nil, false
 	}
-	method := g.methodForTypeNameInPackage(ctx.packageName, ident.Name, memberName, false)
+	method := g.methodForTypeName(ident.Name, memberName, false)
+	if method == nil {
+		if typeBucket := g.methods[ident.Name]; len(typeBucket) > 0 {
+			entries := typeBucket[memberName]
+			var found *methodInfo
+			for _, candidate := range entries {
+				if candidate == nil || candidate.Info == nil || !candidate.Info.Compileable || candidate.ExpectsSelf {
+					continue
+				}
+				if found != nil && found.Info != candidate.Info {
+					found = nil
+					break
+				}
+				found = candidate
+			}
+			method = found
+		}
+	}
+	if method == nil {
+		method = g.methodForStruct(info, memberName, false)
+	}
+	if method == nil {
+		var found *methodInfo
+		for _, candidate := range g.methodList {
+			if candidate == nil || candidate.Info == nil || !candidate.Info.Compileable || candidate.ExpectsSelf {
+				continue
+			}
+			if candidate.TargetName != ident.Name || candidate.MethodName != memberName {
+				continue
+			}
+			if found != nil && found.Info != candidate.Info {
+				found = nil
+				break
+			}
+			found = candidate
+		}
+		method = found
+	}
 	if method == nil {
 		return nil, false
 	}

@@ -253,7 +253,7 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 			}
 			return append(lines, bindLines...), true
 		}
-		if !g.isArrayStructType(subjectType) {
+		if !g.isStaticArrayType(subjectType) {
 			ctx.setReason("array pattern unsupported")
 			return nil, false
 		}
@@ -449,6 +449,11 @@ func (g *generator) compileNativeArrayPatternAssignmentBindings(ctx *compileCont
 		ctx.setReason("array pattern unsupported")
 		return nil, false
 	}
+	elemType := g.staticArrayElemGoType(subjectType)
+	if elemType == "" {
+		ctx.setReason("array pattern unsupported")
+		return nil, false
+	}
 	valuesTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s := %s", valuesTemp, valuesExpr),
@@ -459,7 +464,7 @@ func (g *generator) compileNativeArrayPatternAssignmentBindings(ctx *compileCont
 			return nil, false
 		}
 		elemExpr := fmt.Sprintf("%s[%d]", valuesTemp, idx)
-		elemLines, ok := g.compileAssignmentPatternBindings(ctx, elem, elemExpr, "runtime.Value", mode)
+		elemLines, ok := g.compileAssignmentPatternBindings(ctx, elem, elemExpr, elemType, mode)
 		if !ok {
 			return nil, false
 		}
@@ -468,13 +473,13 @@ func (g *generator) compileNativeArrayPatternAssignmentBindings(ctx *compileCont
 	if pattern.RestPattern != nil {
 		switch rest := pattern.RestPattern.(type) {
 		case *ast.Identifier:
-			restLines, restExpr, ok := g.nativeArrayFromElementsLines(ctx, fmt.Sprintf("%s[%d:]", valuesTemp, len(pattern.Elements)))
+			restLines, restExpr, ok := g.nativeArrayFromElementsLines(ctx, subjectType, fmt.Sprintf("%s[%d:]", valuesTemp, len(pattern.Elements)))
 			if !ok {
 				ctx.setReason("array pattern unsupported")
 				return nil, false
 			}
 			lines = append(lines, restLines...)
-			bindLines, ok := g.bindPatternIdentifier(ctx, rest.Name, restExpr, "*Array", mode)
+			bindLines, ok := g.bindPatternIdentifier(ctx, rest.Name, restExpr, subjectType, mode)
 			if !ok {
 				return nil, false
 			}

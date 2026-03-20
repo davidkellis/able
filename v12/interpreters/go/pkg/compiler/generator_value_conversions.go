@@ -8,6 +8,9 @@ import (
 )
 
 func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (string, bool) {
+	if spec, ok := g.monoArraySpecForGoType(expected); ok && spec != nil {
+		return fmt.Sprintf("func() %s { v, err := %s(%s); if err != nil { panic(err) }; return v }()", expected, spec.FromRuntimeHelper, valueExpr), true
+	}
 	if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil {
 		return fmt.Sprintf("%s(%s)", iface.FromRuntimePanic, valueExpr), true
 	}
@@ -57,6 +60,23 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr string, expected string) ([]string, string, bool) {
 	if expected == "any" {
 		return nil, valueExpr, true
+	}
+	if spec, ok := g.monoArraySpecForGoType(expected); ok && spec != nil {
+		valTemp := ctx.newTemp()
+		vTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s := %s", valTemp, valueExpr),
+			fmt.Sprintf("%s, %s := %s(%s)", vTemp, errTemp, spec.FromRuntimeHelper, valTemp),
+			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
+		}
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, vTemp, true
 	}
 	if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil {
 		valTemp := ctx.newTemp()
@@ -361,6 +381,9 @@ func (g *generator) appendIndexIntLines(ctx *compileContext, lines []string, idx
 }
 
 func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) {
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; v, err := %s(__able_runtime, %s); if err != nil { panic(err) }; return v }()", spec.ToRuntimeHelper, expr), true
+	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		return fmt.Sprintf("%s(%s)", iface.ToRuntimePanic, expr), true
 	}
@@ -428,6 +451,21 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 }
 
 func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType string) ([]string, string, bool) {
+	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
+		convTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convTemp, errTemp, spec.ToRuntimeHelper, expr),
+			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
+		}
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, convTemp, true
+	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
 		convTemp := ctx.newTemp()
 		errTemp := ctx.newTemp()

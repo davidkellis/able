@@ -12,8 +12,11 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 		ctx.setReason("missing array literal")
 		return nil, "", "", false
 	}
+	monoSpec, monoExpected := g.monoArraySpecForGoType(expected)
 	var returnType string
 	switch {
+	case monoExpected:
+		returnType = monoSpec.GoType
 	case expected == "" && g.isArrayStructType("*Array"):
 		// Return *Array so assignments can detect the struct type and set OriginGoType.
 		returnType = "*Array"
@@ -35,13 +38,33 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 	elementTypes := make([]string, 0, len(lit.Elements))
 	var elementLines []string
 	for _, element := range lit.Elements {
-		elLines, expr, goType, ok := g.compileExprLines(ctx, element, "")
+		elemExpected := ""
+		if monoExpected && monoSpec != nil {
+			elemExpected = monoSpec.ElemGoType
+		}
+		elLines, expr, goType, ok := g.compileExprLines(ctx, element, elemExpected)
 		if !ok {
 			return nil, "", "", false
 		}
 		elementLines = append(elementLines, elLines...)
 		elementExprs = append(elementExprs, expr)
 		elementTypes = append(elementTypes, goType)
+	}
+	if !monoExpected && expected == "" {
+		if inferredSpec, ok := g.inferMonoArraySpecForElementTypes(elementTypes); ok && inferredSpec != nil {
+			monoSpec = inferredSpec
+			monoExpected = true
+			returnType = inferredSpec.GoType
+		}
+	}
+	if monoExpected && monoSpec != nil {
+		lines := append([]string{}, elementLines...)
+		arrTemp := ctx.newTemp()
+		sliceExpr := fmt.Sprintf("[]%s{%s}", monoSpec.ElemGoType, strings.Join(elementExprs, ", "))
+		arrExpr := fmt.Sprintf("&%s{Length: int32(%d), Capacity: int32(%d), Storage_handle: int64(0), Elements: %s}", monoSpec.GoName, len(elementExprs), len(elementExprs), sliceExpr)
+		lines = append(lines, fmt.Sprintf("%s := %s", arrTemp, arrExpr))
+		lines = append(lines, g.staticArraySyncCall(returnType, arrTemp))
+		return lines, arrTemp, returnType, true
 	}
 	// Build []runtime.Value slice directly — no interpreter array store.
 	lines := append([]string{}, elementLines...)
@@ -673,302 +696,4 @@ func (g *generator) compileOriginStructFieldAccess(ctx *compileContext, expr *as
 		return lines, converted, expected, true
 	}
 	return lines, fmt.Sprintf("%s.%s", extractTemp, field.GoName), field.GoType, true
-}
-
-func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexExpression, expected string) ([]string, string, string, bool) {
-	if expr == nil {
-		ctx.setReason("missing index expression")
-		return nil, "", "", false
-	}
-	objLines, objExpr, objType, ok := g.compileExprLines(ctx, expr.Object, "")
-	if !ok {
-		return nil, "", "", false
-	}
-	if g.isArrayStructType(objType) {
-		idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, expr.Index, "")
-		if !ok {
-			return nil, "", "", false
-		}
-		objTemp := ctx.newTemp()
-		idxTemp := ctx.newTemp()
-		indexTemp := ctx.newTemp()
-		lengthTemp := ctx.newTemp()
-		resultTemp := ctx.newTemp()
-		readTemp := ctx.newTemp()
-		lines := append([]string{}, objLines...)
-		lines = append(lines, idxLines...)
-		lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
-		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
-		if !ok {
-			ctx.setReason("index expression unsupported")
-			return nil, "", "", false
-		}
-		lines = append(lines,
-			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
-			fmt.Sprintf("var %s runtime.Value", resultTemp),
-			fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else {", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp),
-			fmt.Sprintf("\t%s := %s.Elements[%s]", readTemp, objTemp, indexTemp),
-			fmt.Sprintf("\tif %s == nil { %s = runtime.NilValue{} } else { %s = %s }", readTemp, resultTemp, resultTemp, readTemp),
-			"}",
-		)
-		if expected == "" || expected == "runtime.Value" {
-			return lines, resultTemp, "runtime.Value", true
-		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-		if !ok {
-			ctx.setReason("index expression type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	}
-	if staticLines, staticExpr, staticType, ok := g.compileStaticIndexGet(ctx, expr, expected, objExpr, objType); ok {
-		lines := append([]string{}, objLines...)
-		lines = append(lines, staticLines...)
-		return lines, staticExpr, staticType, true
-	}
-	objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
-	if !ok {
-		ctx.setReason("index object unsupported")
-		return nil, "", "", false
-	}
-	idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, expr.Index, "")
-	if !ok {
-		return nil, "", "", false
-	}
-	idxConvLines, idxValue, ok := g.runtimeValueLines(ctx, idxExpr, idxType)
-	if !ok {
-		ctx.setReason("index expression unsupported")
-		return nil, "", "", false
-	}
-	lines := append([]string{}, objLines...)
-	lines = append(lines, objConvLines...)
-	lines = append(lines, idxLines...)
-	lines = append(lines, idxConvLines...)
-	baseTemp := ctx.newTemp()
-	controlTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s, %s := __able_index(%s, %s)", baseTemp, controlTemp, objValue, idxValue))
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
-	if !ok {
-		return nil, "", "", false
-	}
-	lines = append(lines, controlLines...)
-	baseExpr := baseTemp
-	if expected == "" || expected == "runtime.Value" {
-		return lines, baseExpr, "runtime.Value", true
-	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, baseExpr, expected)
-	if !ok {
-		ctx.setReason("index expression type mismatch")
-		return nil, "", "", false
-	}
-	lines = append(lines, convLines...)
-	return lines, converted, expected, true
-}
-
-func (g *generator) compileArrayMethodIntrinsicCall(
-	ctx *compileContext,
-	objExpr string,
-	objType string,
-	methodName string,
-	args []ast.Expression,
-	expected string,
-	callNode string,
-) ([]string, string, string, bool) {
-	if g == nil || ctx == nil || !g.isArrayStructType(objType) {
-		return nil, "", "", false
-	}
-	switch methodName {
-	case "len":
-		return g.compileArrayMethodLenIntrinsic(ctx, objExpr, args, expected, callNode)
-	case "push":
-		return g.compileArrayMethodPushIntrinsic(ctx, objExpr, args, expected, callNode)
-	case "pop":
-		return g.compileArrayMethodPopIntrinsic(ctx, objExpr, args, expected, callNode)
-	case "first":
-		return g.compileArrayMethodFirstLastIntrinsic(ctx, objExpr, args, expected, callNode, true)
-	case "last":
-		return g.compileArrayMethodFirstLastIntrinsic(ctx, objExpr, args, expected, callNode, false)
-	case "is_empty":
-		return g.compileArrayMethodIsEmptyIntrinsic(ctx, objExpr, args, expected, callNode)
-	case "clear":
-		return g.compileArrayMethodClearIntrinsic(ctx, objExpr, args, expected, callNode)
-	case "capacity":
-		return g.compileArrayMethodCapacityIntrinsic(ctx, objExpr, args, expected, callNode)
-	case "get":
-		if len(args) != 1 {
-			return nil, "", "", false
-		}
-		idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, args[0], "")
-		if !ok {
-			return nil, "", "", false
-		}
-		objTemp := ctx.newTemp()
-		idxTemp := ctx.newTemp()
-		indexTemp := ctx.newTemp()
-		lengthTemp := ctx.newTemp()
-		resultTemp := ctx.newTemp()
-		lines := append(idxLines, []string{
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s := %s", objTemp, objExpr),
-		}...)
-		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(lines,
-			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
-			fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
-			fmt.Sprintf("if %s >= 0 && %s < %s {", indexTemp, indexTemp, lengthTemp),
-			fmt.Sprintf("\tif __v := %s.Elements[%s]; __v != nil { %s = __v }", objTemp, indexTemp, resultTemp),
-			"}",
-			"__able_pop_call_frame()",
-		)
-		if expected == "" || expected == "runtime.Value" {
-			return lines, resultTemp, "runtime.Value", true
-		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	case "set":
-		if len(args) != 2 {
-			return nil, "", "", false
-		}
-		setIdxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, args[0], "")
-		if !ok {
-			return nil, "", "", false
-		}
-		setValLines, valueExpr, valueType, ok := g.compileExprLines(ctx, args[1], "")
-		if !ok {
-			return nil, "", "", false
-		}
-		valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
-		if !ok {
-			return nil, "", "", false
-		}
-		objTemp := ctx.newTemp()
-		idxTemp := ctx.newTemp()
-		indexTemp := ctx.newTemp()
-		valueTemp := ctx.newTemp()
-		lengthTemp := ctx.newTemp()
-		resultTemp := ctx.newTemp()
-		lines := append(setIdxLines, setValLines...)
-		lines = append(lines, valConvLines...)
-		lines = append(lines, []string{
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s := %s", objTemp, objExpr),
-		}...)
-		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(lines,
-			fmt.Sprintf("%s := %s", valueTemp, valueRuntime),
-			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
-			fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
-			fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else { %s.Elements[%s] = %s }", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp, objTemp, indexTemp, valueTemp),
-			fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
-			"__able_pop_call_frame()",
-		)
-		if expected == "" || expected == "runtime.Value" {
-			return lines, resultTemp, "runtime.Value", true
-		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	case "read_slot":
-		// read_slot(idx) → direct element access without bounds check
-		if len(args) != 1 {
-			return nil, "", "", false
-		}
-		idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, args[0], "")
-		if !ok {
-			return nil, "", "", false
-		}
-		objTemp := ctx.newTemp()
-		idxTemp := ctx.newTemp()
-		indexTemp := ctx.newTemp()
-		resultTemp := ctx.newTemp()
-		lines := append(idxLines, []string{
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s := %s", objTemp, objExpr),
-		}...)
-		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(lines,
-			fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
-			fmt.Sprintf("if %s >= 0 && %s < len(%s.Elements) {", indexTemp, indexTemp, objTemp),
-			fmt.Sprintf("\tif __v := %s.Elements[%s]; __v != nil { %s = __v }", objTemp, indexTemp, resultTemp),
-			"}",
-			"__able_pop_call_frame()",
-		)
-		if expected == "" || expected == "runtime.Value" {
-			return lines, resultTemp, "runtime.Value", true
-		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	case "write_slot":
-		// write_slot(idx, value) → direct element write without bounds check
-		if len(args) != 2 {
-			return nil, "", "", false
-		}
-		setIdxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, args[0], "")
-		if !ok {
-			return nil, "", "", false
-		}
-		setValLines, valueExpr, valueType, ok := g.compileExprLines(ctx, args[1], "")
-		if !ok {
-			return nil, "", "", false
-		}
-		valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
-		if !ok {
-			return nil, "", "", false
-		}
-		objTemp := ctx.newTemp()
-		idxTemp := ctx.newTemp()
-		indexTemp := ctx.newTemp()
-		valueTemp := ctx.newTemp()
-		lines := append(setIdxLines, setValLines...)
-		lines = append(lines, valConvLines...)
-		lines = append(lines, []string{
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s := %s", objTemp, objExpr),
-		}...)
-		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(lines,
-			fmt.Sprintf("%s := %s", valueTemp, valueRuntime),
-			fmt.Sprintf("if %s >= 0 && %s < len(%s.Elements) {", indexTemp, indexTemp, objTemp),
-			fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp),
-			fmt.Sprintf("} else if %s >= 0 {", indexTemp),
-			fmt.Sprintf("\tfor len(%s.Elements) <= %s { %s.Elements = append(%s.Elements, runtime.NilValue{}) }", objTemp, indexTemp, objTemp, objTemp),
-			fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp),
-			"}",
-			fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
-			"__able_pop_call_frame()",
-		)
-		if expected == "runtime.Value" {
-			return lines, "runtime.VoidValue{}", "runtime.Value", true
-		}
-		if expected == "" || expected == "struct{}" {
-			return lines, "struct{}{}", "struct{}", true
-		}
-		return nil, "", "", false
-	default:
-		return nil, "", "", false
-	}
 }

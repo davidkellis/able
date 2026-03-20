@@ -1,5 +1,534 @@
 # Able Project Log
 
+# 2026-03-19 — Remaining primitive numeric mono-array tranche (v12)
+- Closed the next widening slice by covering the remaining primitive numeric
+  scalar family with staged compiler-owned array wrappers.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_specs.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_numeric_family_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_mono_arrays_numeric_test.go`
+  - `v12/fixtures/bench/sum_u32_small/main.able`
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-u32-sum-small-compiled.md`
+- Tranche details:
+  - staged mono-array wrappers now also cover `Array i8`, `Array i16`,
+    `Array u16`, `Array u32`, `Array u64`, `Array isize`, `Array usize`, and
+    `Array f32`;
+  - focused compile-time regressions now pin the generated wrapper types for
+    those families and a runtime execution slice exercises all of them in a
+    single compiled program;
+  - dynamic-boundary callback coverage now explicitly includes `Array u32` and
+    `Array f32`.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-u32-sum-small-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/sum_u32_small`: mono on `1.0933s`, `185.33` GC; mono off
+    `1.6800s`, `21.33` GC.
+- Conclusion:
+  - the staged primitive numeric scalar family is now materially more complete;
+  - the checked-in `u32` benchmark shows a real wall-clock win on the
+    specialized path even though raw GC count is not lower on this workload,
+    which points to boxing/runtime dispatch as the main generic-path cost here.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ExperimentalMonoArraysRemainingNumericFamilyUsesSpecializedWrappers|ExperimentalMonoArraysRemainingNumericFamilyExecutes|ExperimentalMonoArrays(TypedArrayUsesSpecializedWrapper|F64TypedArrayUsesSpecializedWrapper|CharTypedArrayUsesSpecializedWrapper|StringTypedArrayUsesSpecializedWrapper|TextTypedArraysExecute|F64Executes|TypedArrayExecutes))$|TestCompilerDynamicBoundaryMonoArray(U32CallbackConversionSuccessMarkers|F32CallbackConversionSuccessMarkers)$' -count=1` (pass, `8.351s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|CarrierArrayWrappersRemainAvailableWithoutExperimentalMonoArrays|CarrierArrayWrappersPreserveNestedRowIdentityWithoutExperimentalMonoArrays|ExperimentalMonoArrays(RemainingNumericFamilyUsesSpecializedWrappers|RemainingNumericFamilyExecutes|TypedArrayUsesSpecializedWrapper|F64TypedArrayUsesSpecializedWrapper|CharTypedArrayUsesSpecializedWrapper|StringTypedArrayUsesSpecializedWrapper|TypedArrayWrapperUsesSpecializedBoundaryConverters|TypedArrayExecutes|F64Executes|TextTypedArraysExecute|CharResultPropagationStaysNative|CharResultPropagationExecutes|StaticBodyStaysOnCompilerOwnedArrayCarrier|InferredLiteralLoopAndPatternStaySpecialized|FactoryCloneAndReserveStaySpecialized|WidenedSliceExecutes|PropagationComputedIndexStaysHoisted|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes|NestedCharRowsStaySpecialized|InterfaceCarrierArrayStaysSpecialized|CallableCarrierArrayStaysSpecialized|CarrierArraysExecute)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges)$|TestCompilerDynamicBoundaryMonoArray(U32CallbackConversionSuccessMarkers|F32CallbackConversionSuccessMarkers|CharCallbackConversionSuccessMarkers|StringCallbackConversionSuccessMarkers|F64CallbackConversionSuccessMarkers|CallbackConversionSuccessMarkers)' -count=1` (pass, `20.911s`).
+  - direct `ablec` output parity check for `v12/fixtures/bench/sum_u32_small/main.able` with and without `--no-experimental-mono-arrays` (pass, both `17999997000003`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/sum_u32_small/main.able` (pass).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled --compiled-build-arg=--no-experimental-mono-arrays v12/fixtures/bench/sum_u32_small/main.able` (pass).
+
+# 2026-03-19 — Mono-off carrier-array identity correction tranche (v12)
+- Closed the next correctness/perf tranche on the widened mono-array work by
+  keeping compiler-owned carrier-array wrappers available even when staged
+  scalar mono arrays are disabled.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_specs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-zigzag-char-small-compiled.md`
+- Tranche details:
+  - staged scalar specializations remain gated by `ExperimentalMonoArrays`;
+  - carrier-array wrappers for already-native compiler carriers now synthesize
+    regardless of that flag, including outer arrays of `*Array`,
+    native interfaces, native callables, native unions, and other pointer-backed
+    compiler-owned carriers;
+  - this fixes the mono-off nested-text-row bug where `Array (Array char)`
+    fell back to generic `*Array` / `[]runtime.Value` outer storage, boxed rows
+    through `runtime.Value`, and then lost row mutation identity on
+    `rows[idx]!.push(...)`;
+  - the corrected mono-off `zigzag_char_small` compiled binary now prints the
+    same result as mono-on (`8192000`), so the prior mono-on/mono-off timing
+    comparison was invalid and has been replaced.
+- Snapshot corrected in:
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-zigzag-char-small-compiled.md`
+- Corrected compiled-only 3-run averages (`v12/bench_perf`, direct `ablec`
+  build path):
+  - `bench/zigzag_char_small`: mono on `0.9567s`, `88.00` GC; mono off
+    `1.0500s`, `384.00` GC.
+- Conclusion:
+  - the text-scalar widening slice is not regressing on the checked-in reduced
+    benchmark once the mono-off path is corrected;
+  - staged `Array char` specialization plus native outer carrier identity now
+    show a modest wall-clock win and a large GC win on this workload;
+  - the next mono-array category is broader carrier reduction/widening again,
+    not text-path rollback.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(CarrierArrayWrappersRemainAvailableWithoutExperimentalMonoArrays|CarrierArrayWrappersPreserveNestedRowIdentityWithoutExperimentalMonoArrays|ExperimentalMonoArraysNestedCharRowsStaySpecialized|ExperimentalMonoArraysCharResultPropagation(StaysNative|Executes)|ExperimentalMonoArrays(TextTypedArraysExecute|CharTypedArrayUsesSpecializedWrapper|StringTypedArrayUsesSpecializedWrapper))$|TestCompilerDynamicBoundaryMonoArray(CharCallbackConversionSuccessMarkers|StringCallbackConversionSuccessMarkers)$' -count=1` (pass, `5.722s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|CarrierArrayWrappersRemainAvailableWithoutExperimentalMonoArrays|CarrierArrayWrappersPreserveNestedRowIdentityWithoutExperimentalMonoArrays|ExperimentalMonoArrays(TypedArrayUsesSpecializedWrapper|F64TypedArrayUsesSpecializedWrapper|CharTypedArrayUsesSpecializedWrapper|StringTypedArrayUsesSpecializedWrapper|TypedArrayWrapperUsesSpecializedBoundaryConverters|TypedArrayExecutes|F64Executes|TextTypedArraysExecute|CharResultPropagationStaysNative|CharResultPropagationExecutes|StaticBodyStaysOnCompilerOwnedArrayCarrier|InferredLiteralLoopAndPatternStaySpecialized|FactoryCloneAndReserveStaySpecialized|WidenedSliceExecutes|PropagationComputedIndexStaysHoisted|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes|NestedCharRowsStaySpecialized|InterfaceCarrierArrayStaysSpecialized|CallableCarrierArrayStaysSpecialized|CarrierArraysExecute)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges)$|TestCompilerDynamicBoundaryMonoArray' -count=1` (pass, `31.130s`).
+  - direct `ablec` output parity check for `v12/fixtures/bench/zigzag_char_small/main.able` with and without `--no-experimental-mono-arrays` (pass, both `8192000`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/zigzag_char_small/main.able` (pass).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled --compiled-build-arg=--no-experimental-mono-arrays v12/fixtures/bench/zigzag_char_small/main.able` (pass).
+
+# 2026-03-19 — Compiler text-scalar mono-array tranche (v12)
+- Closed the next broader scalar-carrier slice by extending staged
+  compiler-owned mono arrays to the text scalar family and fixing the result
+  propagation bug that blocked `!Array char` on static compiled paths.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_specs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_specialized_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_mono_arrays_test.go`
+  - `v12/fixtures/bench/zigzag_char_small/main.able`
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-zigzag-char-small-compiled.md`
+- Tranche details:
+  - `Array char` now lowers to `*__able_array_char` over `[]rune`;
+  - `Array String` now lowers to `*__able_array_String` over `[]string`;
+  - nested `Array (Array char)` now stays on a dedicated compiler-owned outer
+    wrapper (`*__able_array_array_char`) instead of falling back to the generic
+    `*Array` shell;
+  - explicit dynamic-boundary callback coverage now includes specialized
+    `Array char` and `Array String` payloads;
+  - `compilePropagationExpression(...)` now re-wraps native result success
+    branches through the static coercion path, fixing the emitted
+    `!Array char` / `!Array String` bug where the compiler incorrectly called
+    `_from_value(__able_runtime, specializedCarrier)` on an already-native
+    success value.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-zigzag-char-small-compiled.md`
+- Initial mono-off comparison recorded here was later superseded by the
+  mono-off carrier-array identity correction tranche above. That earlier
+  baseline was invalid because the mono-off compiled path produced the wrong
+  result on nested text rows.
+- Conclusion:
+  - the text-scalar carrier widening is architecturally complete for this
+    slice, and `!Array char` now compiles/executes correctly on static paths
+  - the benchmark interpretation for this slice now comes from the corrected
+    mono-off identity tranche above, not the initial invalid mono-off run.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExperimentalMonoArrays(CharTypedArrayUsesSpecializedWrapper|StringTypedArrayUsesSpecializedWrapper|TextTypedArraysExecute|CharResultPropagationStaysNative|CharResultPropagationExecutes|NestedCharRowsStaySpecialized)$|TestCompilerDynamicBoundaryMonoArray(CharCallbackConversionSuccessMarkers|StringCallbackConversionSuccessMarkers)$' -count=1` (pass, `6.162s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|ExperimentalMonoArrays(TypedArrayUsesSpecializedWrapper|F64TypedArrayUsesSpecializedWrapper|CharTypedArrayUsesSpecializedWrapper|StringTypedArrayUsesSpecializedWrapper|TypedArrayWrapperUsesSpecializedBoundaryConverters|TypedArrayExecutes|F64Executes|TextTypedArraysExecute|CharResultPropagationStaysNative|CharResultPropagationExecutes|StaticBodyStaysOnCompilerOwnedArrayCarrier|InferredLiteralLoopAndPatternStaySpecialized|FactoryCloneAndReserveStaySpecialized|WidenedSliceExecutes|PropagationComputedIndexStaysHoisted|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes|NestedCharRowsStaySpecialized|InterfaceCarrierArrayStaysSpecialized|CallableCarrierArrayStaysSpecialized|CarrierArraysExecute)|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges)$|TestCompilerDynamicBoundaryMonoArray' -count=1` (pass, `33.355s`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/zigzag_char_small/main.able` (pass).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled --compiled-build-arg=--no-experimental-mono-arrays v12/fixtures/bench/zigzag_char_small/main.able` (pass).
+
+# 2026-03-19 — Compiler native carrier-array widening tranche (v12)
+- Closed the next broader carrier-reduction slice by extending compiler-owned
+  array wrapper synthesis beyond staged scalars / nested mono arrays to other
+  native carrier element families the compiler already owns.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_specs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_mono_arrays_test.go`
+- Tranche details:
+  - mono-array wrapper synthesis is no longer limited to staged scalar element
+    kinds plus nested mono-array wrappers;
+  - arrays whose element type is already a compiler-owned native carrier now
+    synthesize dedicated outer wrappers too, including:
+    - generic inner arrays (`Array (Array char)` -> `*__able_array_Array`)
+    - native interface carriers (`Array Greeter` ->
+      `*__able_array_iface_Greeter`)
+    - native callable carriers (`Array (i32 -> i32)` ->
+      `*__able_array_fn_int32_to_int32`)
+    - other representable pointer-backed carrier families covered by the same
+      spec synthesis path;
+  - rendered mono-array converters now reuse the compiler's existing native
+    value conversion rules for these carrier elements instead of only the
+    scalar/nested-mono special cases, and explicit dynamic-boundary callback
+    coverage now includes both interface-carrier arrays and callable-carrier
+    arrays.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExperimentalMonoArrays(GenericInnerArrayCarrierStaysSpecialized|InterfaceCarrierArrayStaysSpecialized|CallableCarrierArrayStaysSpecialized|CarrierArraysExecute|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes)$|TestCompilerDynamicBoundaryMonoArray(InterfaceCarrierCallbackConversionSuccessMarkers|CallableCarrierCallbackConversionSuccessMarkers|F64CallbackConversionSuccessMarkers|CallbackConversionSuccessMarkers)$' -count=1` (pass, `10.416s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InterfaceParamAndReturnStayNative|TypedInterfaceAssignmentStaysNative|PlaceholderLambdaStaysNative|BoundMethodValueStaysNative|FunctionTypedParamStaysNative|ExperimentalMonoArrays(GenericInnerArrayCarrierStaysSpecialized|InterfaceCarrierArrayStaysSpecialized|CallableCarrierArrayStaysSpecialized|CarrierArraysExecute|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes)|FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|ExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrier|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges)$|TestCompilerDynamicBoundaryMonoArray(InterfaceCarrierCallbackConversionSuccessMarkers|CallableCarrierCallbackConversionSuccessMarkers|F64CallbackConversionSuccessMarkers|CallbackConversionSuccessMarkers)$|TestCompilerExecFixtures/(06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range)$' -count=1` (pass, `16.838s`).
+  - `git diff --check` (pass).
+- Benchmark note:
+  - no new benchmark snapshot was added in this tranche because the current
+    shared benchmark set does not materially exercise interface/callable or
+    generic-inner-array carrier arrays; this slice is an architectural
+    widening pass rather than a benchmark-driven hot-loop optimization.
+- Handoff:
+  - the next category is now broader performance specialization again:
+    widen native storage coverage to more scalar/container families that still
+    fall back to generic `*Array` / `runtime.Value`, then remeasure on a
+    benchmark that actually exercises those paths.
+
+# 2026-03-19 — Compiler nested mono-array outer-carrier tranche (v12)
+- Closed the next mono-array carrier-reduction slice by removing the remaining
+  generic outer `*Array` shell for nested staged rows on static compiled paths.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_specs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_array_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-nested-wrapper-compiled.md`
+- Tranche details:
+  - `Array (Array f64)` and the same nested shape for other staged mono-array
+    rows now lower to dedicated compiler-owned outer wrappers such as
+    `*__able_array_array_f64` instead of the generic `*Array` carrier with
+    `[]runtime.Value` row storage;
+  - array literal/factory/inference/type-mapping paths now synthesize those
+    nested wrappers from the inner mono-array carrier type, so static
+    compiled bodies append rows directly as typed Go pointers;
+  - rendered mono-array boundary helpers and native `Array` core methods now
+    handle pointer-backed specialized element carriers directly, including nil
+    propagation for `read_slot` / `pop` and runtime boundary conversion via
+    explicit nested wrapper helpers instead of boxing through
+    `runtime.Value` element slots.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-nested-wrapper-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: mono on `5.7233s`, `252.00` GC; mono
+    off `44.5167s`, `3550.67` GC.
+- Conclusion:
+  - the outer nested carrier is now native and compiler-owned, which closes
+    the remaining generic outer-row shell on representative static compiled
+    paths;
+  - this tranche did not produce a second visible wall-clock step on the
+    reduced matrix benchmark beyond the earlier `f64` slice, so the next
+    material performance category is broader carrier reduction beyond nested
+    mono-array wrappers.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExperimentalMonoArrays(NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes|F64TypedArrayUsesSpecializedWrapper|F64Executes|WidenedSliceExecutes|InferredLiteralLoopAndPatternStaySpecialized|FactoryCloneAndReserveStaySpecialized)$|TestCompilerDynamicBoundaryMonoArray(F64CallbackConversionSuccessMarkers|CallbackConversionSuccessMarkers)$' -count=1` (pass, `7.503s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ExperimentalMonoArrays(NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes|F64TypedArrayUsesSpecializedWrapper|F64Executes|WidenedSliceExecutes|InferredLiteralLoopAndPatternStaySpecialized|FactoryCloneAndReserveStaySpecialized)|FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|ExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrier|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|ArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges)$|TestCompilerDynamicBoundaryMonoArray(F64CallbackConversionSuccessMarkers|CallbackConversionSuccessMarkers)$|TestCompilerExecFixtures/(06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range)$' -count=1` (pass, `12.151s`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled --compiled-build-arg=--no-experimental-mono-arrays v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass).
+
+# 2026-03-19 — Compiler mono-array `f64` nested carrier tranche (v12)
+- Closed the next mono-array specialization slice by extending the staged
+  specialized set to `f64` and fixing nested `Array (Array f64)` get/push
+  propagation on static compiled paths.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_specs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_specialized_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_mono_arrays_test.go`
+  - `v12/fixtures/bench/matrixmultiply_f64_small/main.able`
+- Tranche details:
+  - `Array f64` is now part of the staged specialized wrapper set
+    (`*__able_array_f64`);
+  - nested `Array (Array f64)` expressions such as
+    `rows.get(j)!.get(i)!` now stay on the static compiler path when a
+    concrete `float64` is required, instead of forcing the surrounding
+    `push(...)` call back through `__able_method_call_node(...)`;
+  - the fix was in native nullable propagation: pointer-backed nullable
+    carriers like `*float64` now coerce to the requested concrete static type
+    through the existing nullable runtime helper path instead of being treated
+    as an unrecoverable type mismatch;
+  - the full compiled `v12/examples/benchmarks/matrixmultiply.able` path no
+    longer aborts early with `runtime: runtime error` when mono arrays are
+    enabled; at the harness's `60s` timeout it now matches mono-off and the
+    historical compiled baseline by timing out rather than failing.
+- Added a reproducible reduced compiler benchmark target:
+  - `v12/fixtures/bench/matrixmultiply_f64_small/main.able`
+  - same algorithm and nested `Array (Array f64)` structure as the full
+    `matrixmultiply` example, but scaled to `300x300` so both mono-on and
+    mono-off compiled runs finish within the existing `60s` `bench_perf`
+    budget.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-f64-matrixmultiply-small-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: mono on `5.4833s`, `280.00` GC; mono
+    off `45.3133s`, `3568.67` GC.
+- Conclusion:
+  - staged `f64` specialization plus the nested get/push propagation fix now
+    produce a material wall-clock and GC win on a benchmark that directly
+    exercises the newly lowered path;
+  - the next category is no longer “finish the `f64` path”; it is broader
+    nested/container carrier reduction beyond the current scalar-specialized
+    inner-row strategy.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExperimentalMonoArrays(NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes|F64TypedArrayUsesSpecializedWrapper|F64Executes)$|TestCompilerDynamicBoundaryMonoArrayF64CallbackConversionSuccessMarkers$' -count=1` (pass, `4.994s`).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (timeout, no runtime failure).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --compiled-build-arg=--no-experimental-mono-arrays v12/examples/benchmarks/matrixmultiply.able` (timeout).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled --compiled-build-arg=--no-experimental-mono-arrays v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass).
+
+# 2026-03-19 — Compiler residual generic-array narrowing tranche (v12)
+- Closed the residual generic-array narrowing tranche for the current
+  compiler-native mono-array arc.
+- Landed the remaining generic static-array narrowing in:
+  - `v12/interpreters/go/pkg/compiler/generator_static_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections_static_array_access.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_intrinsics.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_origin_struct_calls.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+- Tranche details:
+  - inferred local `Array T` bindings now preserve recoverable element-type
+    metadata on static compiled paths, which lets generic static helper
+    results such as `get`, `pop`, `first`, `last`, and `read_slot` stay on
+    native nullable carriers where the element type is still representable;
+  - array `set` / index-assignment success semantics are back in parity across
+    static and residual runtime-backed paths: success now returns `nil`, while
+    failure remains `IndexError`;
+  - `06_08_array_ops_mutability` and `06_12_02_stdlib_array_helpers` were
+    failing because the success path still returned the assigned value, which
+    broke `match { case nil | case IndexError }` handling under compiled
+    native lowering; those fixtures are green again after the parity fix;
+  - `06_12_18_stdlib_collections_array_range` is green again too: iterator
+    interface boundary helpers now accept raw `*runtime.IteratorValue`
+    carriers directly, runtime-backed iterator adapters call `iter.Next()`
+    directly on that carrier, and `__able_control_from_error_with_node(...)`
+    now preserves `__able_generator_stop` as generator-completion control
+    instead of downgrading it into a raised runtime error.
+- Regression coverage added / tightened in:
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_test.go`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(IteratorInterfaceBoundaryAcceptsRuntimeIteratorDirectly|ArrayHelperFixtureNullableIntrinsicsStayNative|StaticNativeFixturesExecuteWithoutExplicitBoundaries/06_08_array_ops_mutability)$|TestCompilerExecFixtures/(06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range)$' -count=1` (pass, `4.727s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(IteratorInterfaceBoundaryAcceptsRuntimeIteratorDirectly|ArrayHelperFixtureNullableIntrinsicsStayNative|BroadStaticNativeTouchpointsStayNative|GenericResidualTouchpointsStayNarrow|StaticNativeFixturesExecuteWithoutExplicitBoundaries|ExperimentalMonoArrays(InferredLiteralLoopAndPatternStaySpecialized|FactoryCloneAndReserveStaySpecialized|WidenedSliceExecutes|PropagationComputedIndexStaysHoisted)|InterfaceLookupGenericMethodFixturesRegression)$|TestCompilerExecFixtures/(06_08_array_ops_mutability|06_12_02_stdlib_array_helpers|06_12_18_stdlib_collections_array_range|10_04_interface_dispatch_defaults_generics|10_15_interface_default_generic_method)$' -count=1` (pass, `17.397s`).
+  - `git diff --check` (pass).
+- Handoff:
+  - this residual generic-array narrowing tranche is complete;
+  - the next category is now genuinely different work: broaden
+    specialization/monomorphization beyond the currently representable array
+    residuals and other container/runtime-carrier surfaces, then re-measure
+    once those broader carrier reductions land.
+
+# 2026-03-19 — Compiler mono-array compiled remeasurement tranche (v12)
+- Closed the compiled remeasurement tranche for the widened mono-array slice.
+- Tightened the benchmark helper in:
+  - `v12/bench_perf`
+  - compiled mode now builds through `cmd/ablec` instead of `able build`, so
+    direct fixture benchmarking measures the compiler path without unrelated
+    package/bootstrap failures;
+  - `--compiled-build-arg` can now be repeated to forward flags such as
+    `--no-experimental-mono-arrays` to the compiled build step, which makes the
+    mono-on versus mono-off comparison reproducible from the checked-in helper.
+- Fixed a surfaced compiler codegen bug while measuring:
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - the propagated static-array index path (`arr[count - 1]!`) was still
+    routing the computed index through `compileExpr(...)`, which wrapped
+    checked-arithmetic setup in an IIFE and emitted invalid Go like
+    `func() int32 { return struct{}{}, *__ableControl }()`;
+  - the propagation path now hoists index setup lines normally, and a new
+    regression test proves computed mono-array propagation indices avoid those
+    residual IIFEs.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-19-mono-array-widened-compiled.md`
+- Compiled-only 5-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/noop`: mono on `0.0100s`, `0.00` GC; mono off `0.0100s`, `0.00` GC.
+  - `bench/sieve_count`: mono on `0.0100s`, `0.00` GC; mono off `0.0100s`,
+    `0.00` GC.
+  - `bench/sieve_full`: mono on `0.0200s`, `1.00` GC; mono off `0.0200s`,
+    `3.00` GC.
+- Conclusion:
+  - the widened mono-array slice does not yet produce a visible wall-clock win
+    on these three compiled fixtures;
+  - it does reduce timed GC pressure on the heaviest array fixture
+    (`sieve_full`), which supports continuing the compiler-native
+    specialization push rather than backing it out;
+  - the next category is now shrinking residual generic `*Array` /
+    `runtime.Value` paths and widening specialization coverage further, because
+    the staged explicit-typed slice alone is not enough to move overall
+    compiled runtime materially.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExperimentalMonoArrays(PropagationComputedIndexStaysHoisted|WidenedSliceExecutes|InferredLiteralLoopAndPatternStaySpecialized|FactoryCloneAndReserveStaySpecialized)$' -count=1` (pass, `1.068s`).
+  - `./v12/bench_perf --runs 1 --timeout 30 --modes compiled v12/fixtures/bench/sieve_full/main.able` (pass after codegen fix).
+  - `./v12/bench_perf --runs 5 --timeout 30 --modes compiled ...` for mono on / mono off across `noop`, `sieve_count`, `sieve_full` (all pass).
+  - `git diff --check` (pass).
+
+# 2026-03-19 — Compiler widened mono-array specialization tranche (v12)
+- Closed the second mono-array implementation slice: specialization is no
+  longer limited to explicit typed literals and first-hop intrinsics.
+- Landed widening work in:
+  - `v12/interpreters/go/pkg/compiler/generator_static_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_static_array_factories.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_static_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_intrinsics.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_array_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+- Tranche details:
+  - non-empty unannotated local array literals now infer staged specialized
+    carriers (`[1, 2, 3] -> *__able_array_i32`, etc.) when
+    `ExperimentalMonoArrays` is enabled and the element family is staged;
+  - static array `for` loops now iterate directly over typed slices for both
+    generic `*Array` and specialized wrappers, instead of routing through
+    `__able_array_values(...)` on the specialized path;
+  - static array pattern matching / destructuring now bind specialized element
+    locals with their concrete Go element type and preserve specialized rest
+    tails instead of dropping them back to generic `*Array`;
+  - `Array.new()` / `Array.with_capacity()` now lower directly to compiler-owned
+    static carriers on typed static paths, and `reserve()` / `clone_shallow()`
+    now stay specialized too.
+- Regression coverage added in:
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - updated `v12/interpreters/go/pkg/compiler/compiler_mono_array_contract_test.go`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|ExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrier|ExperimentalMonoArraysTypedArrayUsesSpecializedWrapper|ExperimentalMonoArraysTypedArrayWrapperUsesSpecializedBoundaryConverters|ExperimentalMonoArraysTypedArrayExecutes|ExperimentalMonoArraysInferredLiteralLoopAndPatternStaySpecialized|ExperimentalMonoArraysFactoryCloneAndReserveStaySpecialized|ExperimentalMonoArraysWidenedSliceExecutes)$|TestCompilerDynamicBoundaryMonoArray' -count=1` (pass, `16.981s`).
+  - `cd v12/interpreters/go && git diff --check` (pass).
+  - touched compiler files remain under the 1000-line limit.
+- Adjacent note:
+  - `TestCompilerExecFixtures/06_12_18_stdlib_collections_array_range` still
+    fails on the current branch with a runtime error after the array helper
+    section; narrowing the new array-factory interception did not change that
+    outcome, so it remains a separate compiler/runtime follow-up rather than a
+    mono-array widening regression.
+
+# 2026-03-19 — Compiler specialized mono-array carrier tranche (v12)
+- Closed the first specialized-wrapper implementation slice for compiler-native
+  mono arrays.
+- Landed compiler-owned staged carriers plus direct typed lowering in:
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_specs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/generator_value_conversions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - shared interface / struct / union conversion helpers
+- Tranche details:
+  - `Array i32`, `Array i64`, `Array bool`, and `Array u8` now map to
+    compiler-owned specialized wrappers (`*__able_array_i32`, etc.) when
+    `ExperimentalMonoArrays` is enabled and the array type is explicit;
+  - typed array literals, `push`, `get`, `set`, `read_slot`, `write_slot`,
+    direct `arr[idx]`, direct `arr[idx] = value`, and `or {}` propagation on
+    those typed arrays now operate on native typed Go slices instead of
+    `[]runtime.Value`;
+  - explicit wrapper/lambda/interface/union/struct boundary helpers now
+    convert specialized wrappers to/from runtime carriers directly, and the
+    existing dynamic mono-array boundary suite is green again;
+  - unannotated arrays intentionally remain on the generic compiler-owned
+    `*Array` carrier for now, so pattern/destructuring/iterator surfaces are
+    not half-migrated.
+- Regression coverage added in:
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_specialized_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_contract_test.go`
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|ExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrier|ExperimentalMonoArraysTypedArrayUsesSpecializedWrapper|ExperimentalMonoArraysTypedArrayWrapperUsesSpecializedBoundaryConverters|ExperimentalMonoArraysTypedArrayExecutes)$' -count=1` (pass, `0.734s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerDynamicBoundaryMonoArray' -count=1` (pass, `15.323s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|ExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrier|ExperimentalMonoArraysTypedArrayUsesSpecializedWrapper|ExperimentalMonoArraysTypedArrayWrapperUsesSpecializedBoundaryConverters|ExperimentalMonoArraysTypedArrayExecutes|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|ArrayWrapperUsesExplicitArrayBoundaryConverters)$|TestCompilerDynamicBoundaryMonoArray' -count=1` (pass, `16.414s`).
+- Handoff:
+  - the next mono-array category is widening specialization coverage beyond the
+    explicit typed slice: constructors / stdlib factories, unannotated local
+    inference, clone/iteration/pattern paths, and then compiled perf
+    re-measurement.
+
+# 2026-03-19 — Compiler mono-array plan revision tranche (v12)
+- Closed the mono-array plan-revision tranche for the compiler performance /
+  native-lowering arc.
+- Replaced the old handle-tagged typed-runtime-store plan with the accepted
+  compiler-native direction in:
+  - `v12/design/monomorphized-container-abi.md`
+  - `v12/design/compiler-monomorphization.md`
+  - `v12/design/compiler-native-lowering.md`
+  - `PLAN.md`
+  - `spec/TODO_v12.md`
+- Added a compiler guardrail in:
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_contract_test.go`
+- Tranche details:
+  - the historical experimental mono-array work remains in-tree, but it is now
+    explicitly documented as compatibility scaffolding / measurement reference,
+    not the accepted final architecture;
+  - the final target is now pinned to compiler-generated specialized wrappers
+    over native Go slices for staged element kinds, with `runtime.ArrayValue`,
+    `ArrayStore*`, and runtime typed stores reserved for explicit dynamic
+    boundaries or residual compatibility only;
+  - `TestCompilerExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrier`
+    now proves that enabling `ExperimentalMonoArrays` still keeps
+    representative static array bodies on the compiler-owned array carrier and
+    avoids `runtime.ArrayValue`, `runtime.ArrayStore*`, and broad dynamic
+    helper dispatch.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(FeatureFlagMonoArraysDefaultsDisabled|FeatureFlagMonoArraysEnabledViaOptions|ExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrier)$' -count=1` (pass).
+  - `git diff --check` (pass).
+- Handoff:
+  - the mono-array plan-revision tranche should now be treated as closed;
+  - the next category is the actual specialized-wrapper implementation and
+    performance measurement work on top of that revised design.
+
+# 2026-03-19 — Compiler native-lowering re-audit closure (v12)
+- Closed the broader compiler re-audit tranche for the current native-lowering
+  contract.
+- Landed the final array/error-unwrap fix in:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime.go`
+  - `v12/interpreters/go/pkg/compiler/ir_codegen.go`
+- Tightened regression coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_touchpoint_audit_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_struct_instance_error_unwrap_shim_regression_test.go`
+- Closure details:
+  - native array bounds/error paths were already returning `runtime.ErrorValue`
+    on compiled static paths, but `__able_struct_instance(...)` was still
+    rehydrating those errors through an anonymous synthetic struct;
+  - that dropped the wrapped `IndexError` definition, so static
+    `case _: IndexError => ...` matches on array `set` / index-assignment
+    results could fail under the boundary-marker harness with
+    `Non-exhaustive match`;
+  - `__able_error_to_struct(...)` now preserves the concrete wrapped struct
+    payload when an `ErrorValue` carries one, instead of always synthesizing a
+    fresh definition-less struct view;
+  - the zero-explicit-boundary fixture audit now includes
+    `06_08_array_ops_mutability`, so native array mutation/error semantics are
+    covered alongside the previously-audited lambda/interface fixtures.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(BroadStaticNativeTouchpointsStayNative|GenericResidualTouchpointsStayNarrow|StaticNativeFixturesExecuteWithoutExplicitBoundaries|NormalizesStructInstanceErrorUnwrap)$' -count=1` (pass, `8.860s`).
+  - `cd v12/interpreters/go && ABLE_COMPILER_FIXTURES=06_08_array_ops_mutability GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerStaticNativeFixturesExecuteWithoutExplicitBoundaries/06_08_array_ops_mutability$' -count=1` (pass, `2.461s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(BroadStaticNativeTouchpointsStayNative|GenericResidualTouchpointsStayNarrow|StaticNativeFixturesExecuteWithoutExplicitBoundaries|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|InterfaceParamAndReturnStayNative|TypedInterfaceAssignmentStaysNative|PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|PlaceholderLambdaStaysNative|BoundMethodValueStaysNative|FunctionTypedParamStaysNative|NormalizesStructInstanceErrorUnwrap)$|TestCompilerExecFixtures/(06_01_compiler_placeholder_lambda|06_01_compiler_bound_method_value|06_08_array_ops_mutability|10_03_interface_type_dynamic_dispatch|10_15_interface_default_generic_method)$' -count=1` (pass, `12.058s`).
+  - `git diff --check` (pass).
+- Handoff:
+  - the broader compiler re-audit tranche should now be treated as closed;
+  - the next category is now genuinely different work: performance-oriented
+    specialization/monomorphization on top of the enforced native-lowering
+    contract.
+
+# 2026-03-18 — Compiler native touchpoint enforcement tranche (v12)
+- Closed the touchpoint-enforcement follow-up for the compiler-native lowering
+  arc.
+- Landed the broader static/generic touchpoint audits in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_touchpoint_audit_test.go`
+- Tranche details:
+  - broad static compiled paths now have a combined-source audit that covers
+    arrays, structs, named unions, object-safe interfaces, and native
+    callables in one no-fallback source and fails if generated compiled
+    function bodies regress to `__able_call_value(...)`,
+    `__able_member_get*`, `__able_index*`, `__able_method_call_node(...)`,
+    `bridge.MatchType(...)`, `__able_try_cast(...)`, `__able_any_to_value(...)`,
+    or panic/IIFE-style control scaffolding on those native paths;
+  - the intentionally residual generic-interface edge now has a paired audit
+    that proves the compiled body stays on the native carrier and narrows the
+    runtime crossing to `__able_iface_*_to_runtime_value(...)` plus
+    `__able_method_call_node(...)`, without regressing to the broader dynamic
+    helper layer;
+  - representative static fixtures for placeholder lambdas, bound method
+    values, and object-safe interface dispatch now execute under the boundary
+    marker harness with both fallback and explicit boundary counts at zero.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(BroadStaticNativeTouchpointsStayNative|GenericResidualTouchpointsStayNarrow|StaticNativeFixturesExecuteWithoutExplicitBoundaries)$' -count=1` (pass, `5.828s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(BroadStaticNativeTouchpointsStayNative|GenericResidualTouchpointsStayNarrow|StaticNativeFixturesExecuteWithoutExplicitBoundaries|StructMethodStaticDispatch|StructFieldStaticAccess|DefaultImplSiblingDirectCall|ArrayStructKeepsSpecFieldsAndNativeStorage|ArrayMutationsSyncMetadata|MatchArrayRestBindingStaysNative|PatternAssignmentArrayRestBindingStaysNative|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|InterfaceParamAndReturnStayNative|TypedInterfaceAssignmentStaysNative|PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|PlaceholderLambdaStaysNative|BoundMethodValueStaysNative|FunctionTypedParamStaysNative)$|TestCompilerExecFixtures/(06_01_compiler_placeholder_lambda|06_01_compiler_bound_method_value|10_03_interface_type_dynamic_dispatch|10_15_interface_default_generic_method)$' -count=1` (pass, `10.747s`).
+- Handoff:
+  - the touchpoint-enforcement tranche should now be treated as closed;
+  - the next category is now genuinely different work: merge-time re-audit of
+    Claude's staged compiler changes against the contract, plus broader
+    performance-oriented specialization/monomorphization.
+
 # 2026-03-18 — Compiler interface/global lookup audit batching (v12)
 - Closed the strict lookup-audit batching follow-up for the compiler-native
   lowering arc.

@@ -1,0 +1,6 @@
+{
+  "description": "char-heavy zigzag benchmark for Array char and Array(Array char) compiled mono-array specialization",
+  "expect": {
+    "exit": 0
+  }
+}

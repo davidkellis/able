@@ -1,0 +1,6 @@
+{
+  "description": "reduced f64 matrix multiply benchmark for compiled mono-array comparisons",
+  "expect": {
+    "exit": 0
+  }
+}

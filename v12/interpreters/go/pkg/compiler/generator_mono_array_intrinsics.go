@@ -17,10 +17,34 @@ func (g *generator) arrayObjLines(ctx *compileContext, objExpr string, callNode 
 	return lines, objTemp
 }
 
+func (g *generator) compileStaticArrayValueArg(
+	ctx *compileContext,
+	arrayType string,
+	arg ast.Expression,
+) ([]string, string, bool) {
+	elemType := g.staticArrayElemGoType(arrayType)
+	if elemType == "" {
+		return nil, "", false
+	}
+	argLines, argExpr, argGoType, ok := g.compileExprLines(ctx, arg, elemType)
+	if !ok {
+		return nil, "", false
+	}
+	if elemType == "runtime.Value" {
+		valLines, valueExpr, ok := g.runtimeValueLines(ctx, argExpr, argGoType)
+		if !ok {
+			return nil, "", false
+		}
+		return append(argLines, valLines...), valueExpr, true
+	}
+	return argLines, argExpr, true
+}
+
 // compileArrayMethodLenIntrinsic compiles arr.len() → int32 for all arrays.
 func (g *generator) compileArrayMethodLenIntrinsic(
 	ctx *compileContext,
 	objExpr string,
+	objType string,
 	args []ast.Expression,
 	expected string,
 	callNode string,
@@ -60,6 +84,7 @@ func (g *generator) compileArrayMethodLenIntrinsic(
 func (g *generator) compileArrayMethodPushIntrinsic(
 	ctx *compileContext,
 	objExpr string,
+	objType string,
 	args []ast.Expression,
 	expected string,
 	callNode string,
@@ -67,23 +92,18 @@ func (g *generator) compileArrayMethodPushIntrinsic(
 	if len(args) != 1 {
 		return nil, "", "", false
 	}
-	// Compile the value argument and convert to runtime.Value.
-	valArgLines, valueExpr, valueType, ok := g.compileExprLines(ctx, args[0], "")
-	if !ok {
-		return nil, "", "", false
-	}
-	valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+	valArgLines, valueExpr, ok := g.compileStaticArrayValueArg(ctx, objType, args[0])
 	if !ok {
 		return nil, "", "", false
 	}
 	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	valueTemp := ctx.newTemp()
-	lines = append(valArgLines, append(valConvLines, append(lines, []string{
-		fmt.Sprintf("%s := %s", valueTemp, valueRuntime),
+	lines = append(valArgLines, append(lines, []string{
+		fmt.Sprintf("%s := %s", valueTemp, valueExpr),
 		fmt.Sprintf("%s.Elements = append(%s.Elements, %s)", objTemp, objTemp, valueTemp),
-		fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
+		g.staticArraySyncCall(objType, objTemp),
 		"__able_pop_call_frame()",
-	}...)...)...)
+	}...)...)
 	if expected == "runtime.Value" {
 		return lines, "runtime.VoidValue{}", "runtime.Value", true
 	}
@@ -97,6 +117,7 @@ func (g *generator) compileArrayMethodPushIntrinsic(
 func (g *generator) compileArrayMethodPopIntrinsic(
 	ctx *compileContext,
 	objExpr string,
+	objType string,
 	args []ast.Expression,
 	expected string,
 	callNode string,
@@ -107,31 +128,37 @@ func (g *generator) compileArrayMethodPopIntrinsic(
 	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
 	lengthTemp := ctx.newTemp()
-	lines = append(lines,
-		fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
-		fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
-		fmt.Sprintf("if %s > 0 {", lengthTemp),
-		fmt.Sprintf("\t%s = %s.Elements[%s-1]", resultTemp, objTemp, lengthTemp),
-		fmt.Sprintf("\t%s.Elements = %s.Elements[:%s-1]", objTemp, objTemp, lengthTemp),
-		"}",
-		fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
-		"__able_pop_call_frame()",
-	)
-	if expected == "" || expected == "runtime.Value" {
-		return lines, resultTemp, "runtime.Value", true
+	resultType := expected
+	if resultType == "" {
+		resultType = "runtime.Value"
 	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+	elemLines, elemExpr, _, ok := g.staticArrayResultExprLines(ctx, objType, fmt.Sprintf("%s.Elements[%s-1]", objTemp, lengthTemp), resultType)
 	if !ok {
 		return nil, "", "", false
 	}
-	lines = append(lines, convLines...)
-	return lines, converted, expected, true
+	lines = append(lines, fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp))
+	if resultType == "runtime.Value" {
+		lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
+	} else {
+		lines = append(lines, fmt.Sprintf("var %s %s", resultTemp, resultType))
+	}
+	lines = append(lines, fmt.Sprintf("if %s > 0 {", lengthTemp))
+	lines = append(lines, indentLines(elemLines, 1)...)
+	lines = append(lines,
+		fmt.Sprintf("\t%s = %s", resultTemp, elemExpr),
+		fmt.Sprintf("\t%s.Elements = %s.Elements[:%s-1]", objTemp, objTemp, lengthTemp),
+		"}",
+		g.staticArraySyncCall(objType, objTemp),
+		"__able_pop_call_frame()",
+	)
+	return lines, resultTemp, resultType, true
 }
 
 // compileArrayMethodFirstLastIntrinsic compiles arr.first() or arr.last() → ?T.
 func (g *generator) compileArrayMethodFirstLastIntrinsic(
 	ctx *compileContext,
 	objExpr string,
+	objType string,
 	args []ast.Expression,
 	expected string,
 	callNode string,
@@ -143,35 +170,39 @@ func (g *generator) compileArrayMethodFirstLastIntrinsic(
 	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
 	lengthTemp := ctx.newTemp()
-	lines = append(lines,
-		fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
-		fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
-		fmt.Sprintf("if %s > 0 {", lengthTemp),
-	)
-	if isFirst {
-		lines = append(lines, fmt.Sprintf("\t%s = %s.Elements[0]", resultTemp, objTemp))
-	} else {
-		lines = append(lines, fmt.Sprintf("\t%s = %s.Elements[%s-1]", resultTemp, objTemp, lengthTemp))
+	resultType := expected
+	if resultType == "" {
+		resultType = "runtime.Value"
 	}
-	lines = append(lines,
-		"}",
-		"__able_pop_call_frame()",
-	)
-	if expected == "" || expected == "runtime.Value" {
-		return lines, resultTemp, "runtime.Value", true
+	elemExprSource := fmt.Sprintf("%s.Elements[0]", objTemp)
+	if !isFirst {
+		elemExprSource = fmt.Sprintf("%s.Elements[%s-1]", objTemp, lengthTemp)
 	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+	elemLines, elemExpr, _, ok := g.staticArrayResultExprLines(ctx, objType, elemExprSource, resultType)
 	if !ok {
 		return nil, "", "", false
 	}
-	lines = append(lines, convLines...)
-	return lines, converted, expected, true
+	lines = append(lines, fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp))
+	if resultType == "runtime.Value" {
+		lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
+	} else {
+		lines = append(lines, fmt.Sprintf("var %s %s", resultTemp, resultType))
+	}
+	lines = append(lines, fmt.Sprintf("if %s > 0 {", lengthTemp))
+	lines = append(lines, indentLines(elemLines, 1)...)
+	lines = append(lines,
+		fmt.Sprintf("\t%s = %s", resultTemp, elemExpr),
+		"}",
+		"__able_pop_call_frame()",
+	)
+	return lines, resultTemp, resultType, true
 }
 
 // compileArrayMethodIsEmptyIntrinsic compiles arr.is_empty() → bool.
 func (g *generator) compileArrayMethodIsEmptyIntrinsic(
 	ctx *compileContext,
 	objExpr string,
+	objType string,
 	args []ast.Expression,
 	expected string,
 	callNode string,
@@ -202,6 +233,7 @@ func (g *generator) compileArrayMethodIsEmptyIntrinsic(
 func (g *generator) compileArrayMethodClearIntrinsic(
 	ctx *compileContext,
 	objExpr string,
+	objType string,
 	args []ast.Expression,
 	expected string,
 	callNode string,
@@ -212,7 +244,7 @@ func (g *generator) compileArrayMethodClearIntrinsic(
 	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	lines = append(lines,
 		fmt.Sprintf("%s.Elements = %s.Elements[:0]", objTemp, objTemp),
-		fmt.Sprintf("__able_struct_Array_sync(%s)", objTemp),
+		g.staticArraySyncCall(objType, objTemp),
 		"__able_pop_call_frame()",
 	)
 	if expected == "runtime.Value" {
@@ -228,6 +260,7 @@ func (g *generator) compileArrayMethodClearIntrinsic(
 func (g *generator) compileArrayMethodCapacityIntrinsic(
 	ctx *compileContext,
 	objExpr string,
+	objType string,
 	args []ast.Expression,
 	expected string,
 	callNode string,
@@ -252,6 +285,90 @@ func (g *generator) compileArrayMethodCapacityIntrinsic(
 		return lines, valueExpr, "runtime.Value", true
 	}
 	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, convLines...)
+	return lines, converted, expected, true
+}
+
+func (g *generator) compileArrayMethodReserveIntrinsic(
+	ctx *compileContext,
+	objExpr string,
+	objType string,
+	args []ast.Expression,
+	expected string,
+	callNode string,
+) ([]string, string, string, bool) {
+	if len(args) != 1 {
+		return nil, "", "", false
+	}
+	capLines, capExpr, capType, ok := g.compileExprLines(ctx, args[0], "")
+	if !ok {
+		return nil, "", "", false
+	}
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
+	capTemp := ctx.newTemp()
+	idxTemp := ctx.newTemp()
+	capacityTemp := ctx.newTemp()
+	lines = append(capLines, lines...)
+	lines = append(lines, fmt.Sprintf("%s := %s", capTemp, capExpr))
+	lines, ok = g.appendIndexIntLines(ctx, lines, capTemp, capType, idxTemp, capacityTemp)
+	if !ok {
+		return nil, "", "", false
+	}
+	elemType := g.staticArrayElemGoType(objType)
+	if elemType == "" {
+		return nil, "", "", false
+	}
+	lines = append(lines,
+		fmt.Sprintf("if %s > cap(%s.Elements) {", capacityTemp, objTemp),
+		fmt.Sprintf("\t__able_reserved := make([]%s, len(%s.Elements), %s)", elemType, objTemp, capacityTemp),
+		fmt.Sprintf("\tcopy(__able_reserved, %s.Elements)", objTemp),
+		fmt.Sprintf("\t%s.Elements = __able_reserved", objTemp),
+		"}",
+		g.staticArraySyncCall(objType, objTemp),
+		"__able_pop_call_frame()",
+	)
+	if expected == "runtime.Value" {
+		return lines, "runtime.VoidValue{}", "runtime.Value", true
+	}
+	if expected == "" || expected == "struct{}" {
+		return lines, "struct{}{}", "struct{}", true
+	}
+	return nil, "", "", false
+}
+
+func (g *generator) compileArrayMethodCloneShallowIntrinsic(
+	ctx *compileContext,
+	objExpr string,
+	objType string,
+	args []ast.Expression,
+	expected string,
+	callNode string,
+) ([]string, string, string, bool) {
+	if len(args) != 0 {
+		return nil, "", "", false
+	}
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
+	cloneLines, cloneExpr, ok := g.staticArrayCloneLines(ctx, objType, fmt.Sprintf("%s.Elements", objTemp), fmt.Sprintf("cap(%s.Elements)", objTemp))
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, cloneLines...)
+	lines = append(lines, "__able_pop_call_frame()")
+	if expected == "" || g.typeMatches(expected, objType) {
+		return lines, cloneExpr, objType, true
+	}
+	valueLines, valueExpr, ok := g.runtimeValueLines(ctx, cloneExpr, objType)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, valueLines...)
+	if expected == "runtime.Value" {
+		return lines, valueExpr, "runtime.Value", true
+	}
+	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueExpr, expected)
 	if !ok {
 		return nil, "", "", false
 	}

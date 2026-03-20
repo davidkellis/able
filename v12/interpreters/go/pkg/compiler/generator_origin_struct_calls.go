@@ -60,7 +60,7 @@ func (g *generator) compileOriginStructMethodCall(ctx *compileContext, call *ast
 		}
 		lines = append(lines, controlLines...)
 	}
-	if intrLines, expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, extractTemp, originType, methodName, call.Arguments, expected, callNode); ok {
+	if intrLines, expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, nil, extractTemp, originType, methodName, call.Arguments, expected, callNode); ok {
 		if !cacheHit {
 			if ctx.originExtractions == nil {
 				ctx.originExtractions = make(map[string]string)

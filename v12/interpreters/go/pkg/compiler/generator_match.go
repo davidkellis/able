@@ -422,7 +422,7 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			}
 			return append(lines, innerLines...), cond, true
 		}
-		if !g.isArrayStructType(subjectType) {
+		if !g.isStaticArrayType(subjectType) {
 			ctx.setReason("array pattern unsupported")
 			return nil, "", false
 		}
@@ -663,7 +663,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			}
 			return append(lines, bindLines...), true
 		}
-		if !g.isArrayStructType(subjectType) {
+		if !g.isStaticArrayType(subjectType) {
 			ctx.setReason("array pattern unsupported")
 			return nil, false
 		}

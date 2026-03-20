@@ -1,8 +1,12 @@
 package compiler
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/interpreter"
 )
 
 func findCompiledFunction(result *Result, funcName string) (string, bool) {
@@ -36,6 +40,41 @@ func findCompiledDeclByPrefix(result *Result, prefix string) (string, bool) {
 		}
 	}
 	return compiledSrc[idx:endIdx], true
+}
+
+func compileExecFixtureResult(t *testing.T, rel string) *Result {
+	t.Helper()
+	dir := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec", filepath.FromSlash(rel))
+	manifest, err := interpreter.LoadFixtureManifest(dir)
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	entry := manifest.Entry
+	if entry == "" {
+		entry = "main.able"
+	}
+	entryPath := filepath.Join(dir, entry)
+	searchPaths, err := buildExecSearchPaths(entryPath, dir, manifest)
+	if err != nil {
+		t.Fatalf("exec search paths: %v", err)
+	}
+	loader, err := driver.NewLoader(searchPaths)
+	if err != nil {
+		t.Fatalf("loader init: %v", err)
+	}
+	t.Cleanup(func() { loader.Close() })
+	program, err := loader.Load(entryPath)
+	if err != nil {
+		t.Fatalf("load program: %v", err)
+	}
+	result, err := New(Options{
+		PackageName:        "main",
+		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
+	}).Compile(program)
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	return result
 }
 
 func TestCompilerWhileLoopFastPath(t *testing.T) {
@@ -118,10 +157,11 @@ func TestCompilerArrayMutationsSyncMetadata(t *testing.T) {
 		"append(__able_tmp_1.Elements",
 		"__able_tmp_3.Elements[__able_tmp_5] = __able_tmp_6",
 		"__able_tmp_8.Elements[__able_tmp_10] = __able_tmp_7",
-		"__able_tmp_13.Elements = __able_tmp_13.Elements[:0]",
+		".Elements = ",
+		".Elements[:0]",
 	} {
 		if !strings.Contains(mainBody, fragment) {
-			t.Fatalf("expected static array lowering to contain %q", fragment)
+			t.Fatalf("expected static array lowering to contain %q:\n%s", fragment, mainBody)
 		}
 	}
 	if strings.Contains(mainBody, "__able_method_call_node(") || strings.Contains(mainBody, "__able_index_set(") {
@@ -228,6 +268,31 @@ func TestCompilerPatternAssignmentArrayRestBindingStaysNative(t *testing.T) {
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native pattern assignment rest lowering to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerArrayHelperFixtureNullableIntrinsicsStayNative(t *testing.T) {
+	result := compileExecFixtureResult(t, "06_12_02_stdlib_array_helpers")
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var popped *int32 =",
+		"__able_nullable_i32_from_value(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected stdlib array-helper lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"var popped runtime.Value =",
+		"func() runtime.Value {",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected stdlib array-helper lowering to avoid %q:\n%s", fragment, mainBody)
 		}
 	}
 }

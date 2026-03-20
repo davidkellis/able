@@ -313,6 +313,9 @@ func (g *generator) zeroValueExpr(goType string) (string, bool) {
 	if g.isNativeNullableValueType(goType) {
 		return "nil", true
 	}
+	if g.isMonoArrayType(goType) {
+		return "nil", true
+	}
 	if g.nativeInterfaceInfoForGoType(goType) != nil {
 		return "nil", true
 	}
@@ -489,14 +492,27 @@ func (g *generator) structReturnConversionLines(resultName, goType, runtimeVar s
 }
 
 func (g *generator) nativeArrayValuesExpr(subjectTemp, subjectType string) (string, bool) {
-	if g == nil || subjectTemp == "" || !g.isArrayStructType(subjectType) {
+	if g == nil || subjectTemp == "" || !g.isStaticArrayType(subjectType) {
 		return "", false
 	}
 	return fmt.Sprintf("%s.Elements", subjectTemp), true
 }
 
-func (g *generator) nativeArrayFromElementsLines(ctx *compileContext, elementsExpr string) ([]string, string, bool) {
-	if ctx == nil || elementsExpr == "" {
+func (g *generator) nativeArrayFromElementsLines(ctx *compileContext, arrayType string, elementsExpr string) ([]string, string, bool) {
+	if ctx == nil || arrayType == "" || elementsExpr == "" {
+		return nil, "", false
+	}
+	if spec, ok := g.monoArraySpecForGoType(arrayType); ok && spec != nil {
+		valuesTemp := ctx.newTemp()
+		arrayTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s := append([]%s(nil), %s...)", valuesTemp, spec.ElemGoType, elementsExpr),
+			fmt.Sprintf("%s := &%s{Elements: %s}", arrayTemp, spec.GoName, valuesTemp),
+			fmt.Sprintf("%s(%s)", spec.SyncHelper, arrayTemp),
+		}
+		return lines, arrayTemp, true
+	}
+	if !g.isArrayStructType(arrayType) {
 		return nil, "", false
 	}
 	valuesTemp := ctx.newTemp()

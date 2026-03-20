@@ -1,0 +1,6 @@
+{
+  "description": "u32-heavy checksum benchmark for staged unsigned mono-array specialization",
+  "expect": {
+    "exit": 0
+  }
+}

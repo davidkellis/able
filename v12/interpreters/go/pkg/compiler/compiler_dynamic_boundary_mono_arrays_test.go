@@ -111,6 +111,250 @@ func TestCompilerDynamicBoundaryMonoArrayIntoDynamicInterpreterSuccessMarkers(t 
 		t.Fatalf("expected call_value markers for mono array dynamic calls, markers=%q", markers.ExplicitNames)
 	}
 }
+
+func TestCompilerDynamicBoundaryMonoArrayF64CallbackConversionSuccessMarkers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping compiler dynamic mono-array f64 callback conversion success in short mode")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.yml"), []byte("name: exec_dynamic_boundary_mono_array_f64_callback_success\n"), 0o600); err != nil {
+		t.Fatalf("write package.yml: %v", err)
+	}
+	source := joinLines(
+		"package exec_dynamic_boundary_mono_array_f64_callback_success",
+		"",
+		"dynimport exec.dynamic_cb_array_f64_mono_ok.{invoke}",
+		"",
+		`pkg := dyn.def_package("exec.dynamic_cb_array_f64_mono_ok")!`,
+		`pkg.def("fn invoke(f, value) { f(value) }")!`,
+		"",
+		"fn main() -> void {",
+		"  callback := fn(values: Array f64) -> f64 { values[0]! + values[1]! }",
+		"  nums: Array f64 := [1.5, 2.25]",
+		"  print(invoke(callback, nums))",
+		"}",
+	)
+	if err := os.WriteFile(filepath.Join(dir, "main.able"), []byte(source), 0o600); err != nil {
+		t.Fatalf("write main.able: %v", err)
+	}
+
+	manifest := interpreter.FixtureManifest{Entry: "main.able"}
+	tree := runTreewalkerFixtureOutcome(t, dir, manifest)
+	compiled, markers := runCompiledFixtureBoundaryOutcomeWithOptions(t, dir, manifest, Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	expectedStdout := []string{"3.75"}
+	if !reflect.DeepEqual(tree.Stdout, expectedStdout) {
+		t.Fatalf("treewalker stdout mismatch: expected %v got %v", expectedStdout, tree.Stdout)
+	}
+	if !reflect.DeepEqual(compiled.Stdout, expectedStdout) {
+		t.Fatalf("compiled stdout mismatch: expected %v got %v", expectedStdout, compiled.Stdout)
+	}
+	if tree.Exit != 0 || compiled.Exit != 0 {
+		t.Fatalf("expected successful exit: treewalker=%d compiled=%d stderr=%v", tree.Exit, compiled.Exit, compiled.Stderr)
+	}
+	assertBoundaryCallValueMarkers(t, markers)
+}
+
+func TestCompilerDynamicBoundaryMonoArrayCharCallbackConversionSuccessMarkers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping compiler dynamic mono-array char callback conversion success in short mode")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.yml"), []byte("name: exec_dynamic_boundary_mono_array_char_callback_success\n"), 0o600); err != nil {
+		t.Fatalf("write package.yml: %v", err)
+	}
+	source := joinLines(
+		"package exec_dynamic_boundary_mono_array_char_callback_success",
+		"",
+		"dynimport exec.dynamic_cb_array_char_mono_ok.{invoke}",
+		"",
+		`pkg := dyn.def_package("exec.dynamic_cb_array_char_mono_ok")!`,
+		`pkg.def("fn invoke(f, value) { f(value) }")!`,
+		"",
+		"fn main() -> void {",
+		"  callback := fn(values: Array char) -> bool { values[0]! == 'q' }",
+		"  chars: Array char := ['q', 'r']",
+		"  print(invoke(callback, chars))",
+		"}",
+	)
+	if err := os.WriteFile(filepath.Join(dir, "main.able"), []byte(source), 0o600); err != nil {
+		t.Fatalf("write main.able: %v", err)
+	}
+
+	manifest := interpreter.FixtureManifest{Entry: "main.able"}
+	tree := runTreewalkerFixtureOutcome(t, dir, manifest)
+	compiled, markers := runCompiledFixtureBoundaryOutcomeWithOptions(t, dir, manifest, Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	expectedStdout := []string{"true"}
+	if !reflect.DeepEqual(tree.Stdout, expectedStdout) {
+		t.Fatalf("treewalker stdout mismatch: expected %v got %v", expectedStdout, tree.Stdout)
+	}
+	if !reflect.DeepEqual(compiled.Stdout, expectedStdout) {
+		t.Fatalf("compiled stdout mismatch: expected %v got %v", expectedStdout, compiled.Stdout)
+	}
+	if tree.Exit != 0 || compiled.Exit != 0 {
+		t.Fatalf("expected successful exit: treewalker=%d compiled=%d stderr=%v", tree.Exit, compiled.Exit, compiled.Stderr)
+	}
+	assertBoundaryCallValueMarkers(t, markers)
+}
+
+func TestCompilerDynamicBoundaryMonoArrayStringCallbackConversionSuccessMarkers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping compiler dynamic mono-array String callback conversion success in short mode")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.yml"), []byte("name: exec_dynamic_boundary_mono_array_string_callback_success\n"), 0o600); err != nil {
+		t.Fatalf("write package.yml: %v", err)
+	}
+	source := joinLines(
+		"package exec_dynamic_boundary_mono_array_string_callback_success",
+		"",
+		"dynimport exec.dynamic_cb_array_string_mono_ok.{invoke}",
+		"",
+		`pkg := dyn.def_package("exec.dynamic_cb_array_string_mono_ok")!`,
+		`pkg.def("fn invoke(f, value) { f(value) }")!`,
+		"",
+		"fn main() -> void {",
+		"  callback := fn(values: Array String) -> String { `${values[0]!}:${values[1]!}` }",
+		"  parts: Array String := [\"alpha\", \"beta\"]",
+		"  print(invoke(callback, parts))",
+		"}",
+	)
+	if err := os.WriteFile(filepath.Join(dir, "main.able"), []byte(source), 0o600); err != nil {
+		t.Fatalf("write main.able: %v", err)
+	}
+
+	manifest := interpreter.FixtureManifest{Entry: "main.able"}
+	tree := runTreewalkerFixtureOutcome(t, dir, manifest)
+	compiled, markers := runCompiledFixtureBoundaryOutcomeWithOptions(t, dir, manifest, Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	expectedStdout := []string{"alpha:beta"}
+	if !reflect.DeepEqual(tree.Stdout, expectedStdout) {
+		t.Fatalf("treewalker stdout mismatch: expected %v got %v", expectedStdout, tree.Stdout)
+	}
+	if !reflect.DeepEqual(compiled.Stdout, expectedStdout) {
+		t.Fatalf("compiled stdout mismatch: expected %v got %v", expectedStdout, compiled.Stdout)
+	}
+	if tree.Exit != 0 || compiled.Exit != 0 {
+		t.Fatalf("expected successful exit: treewalker=%d compiled=%d stderr=%v", tree.Exit, compiled.Exit, compiled.Stderr)
+	}
+	assertBoundaryCallValueMarkers(t, markers)
+}
+
+func TestCompilerDynamicBoundaryMonoArrayInterfaceCarrierCallbackConversionSuccessMarkers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping compiler dynamic mono-array interface-carrier callback conversion success in short mode")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.yml"), []byte("name: exec_dynamic_boundary_mono_array_iface_callback_success\n"), 0o600); err != nil {
+		t.Fatalf("write package.yml: %v", err)
+	}
+	source := joinLines(
+		"package exec_dynamic_boundary_mono_array_iface_callback_success",
+		"",
+		"dynimport exec.dynamic_cb_array_iface_mono_ok.{invoke}",
+		"",
+		`pkg := dyn.def_package("exec.dynamic_cb_array_iface_mono_ok")!`,
+		`pkg.def("fn invoke(f, value) { f(value) }")!`,
+		"",
+		"interface Greeter for Self {",
+		"  fn greet(self: Self) -> String",
+		"}",
+		"",
+		"struct Person { name: String }",
+		"",
+		"impl Greeter for Person {",
+		"  fn greet(self: Self) -> String { self.name }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  callback := fn(values: Array Greeter) -> String { `${values[0]!.greet()} ${values[1]!.greet()}` }",
+		"  values: Array Greeter = [Person { name: \"Ada\" }, Person { name: \"Grace\" }]",
+		"  print(invoke(callback, values))",
+		"}",
+	)
+	if err := os.WriteFile(filepath.Join(dir, "main.able"), []byte(source), 0o600); err != nil {
+		t.Fatalf("write main.able: %v", err)
+	}
+
+	manifest := interpreter.FixtureManifest{Entry: "main.able"}
+	tree := runTreewalkerFixtureOutcome(t, dir, manifest)
+	compiled, markers := runCompiledFixtureBoundaryOutcomeWithOptions(t, dir, manifest, Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	expectedStdout := []string{"Ada Grace"}
+	if !reflect.DeepEqual(tree.Stdout, expectedStdout) {
+		t.Fatalf("treewalker stdout mismatch: expected %v got %v", expectedStdout, tree.Stdout)
+	}
+	if !reflect.DeepEqual(compiled.Stdout, expectedStdout) {
+		t.Fatalf("compiled stdout mismatch: expected %v got %v", expectedStdout, compiled.Stdout)
+	}
+	if tree.Exit != 0 || compiled.Exit != 0 {
+		t.Fatalf("expected successful exit: treewalker=%d compiled=%d stderr=%v", tree.Exit, compiled.Exit, compiled.Stderr)
+	}
+	assertBoundaryCallValueMarkers(t, markers)
+}
+
+func TestCompilerDynamicBoundaryMonoArrayCallableCarrierCallbackConversionSuccessMarkers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping compiler dynamic mono-array callable-carrier callback conversion success in short mode")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.yml"), []byte("name: exec_dynamic_boundary_mono_array_callable_callback_success\n"), 0o600); err != nil {
+		t.Fatalf("write package.yml: %v", err)
+	}
+	source := joinLines(
+		"package exec_dynamic_boundary_mono_array_callable_callback_success",
+		"",
+		"dynimport exec.dynamic_cb_array_callable_mono_ok.{invoke}",
+		"",
+		`pkg := dyn.def_package("exec.dynamic_cb_array_callable_mono_ok")!`,
+		`pkg.def("fn invoke(f, value) { f(value) }")!`,
+		"",
+		"fn main() -> void {",
+		"  callback := fn(values: Array (i32 -> i32)) -> i32 { values[0]!(40) + values[1]!(40) }",
+		"  funcs: Array (i32 -> i32) = [",
+		"    fn(value: i32) -> i32 { value + 1 },",
+		"    fn(value: i32) -> i32 { value + 2 }",
+		"  ]",
+		"  print(invoke(callback, funcs))",
+		"}",
+	)
+	if err := os.WriteFile(filepath.Join(dir, "main.able"), []byte(source), 0o600); err != nil {
+		t.Fatalf("write main.able: %v", err)
+	}
+
+	manifest := interpreter.FixtureManifest{Entry: "main.able"}
+	tree := runTreewalkerFixtureOutcome(t, dir, manifest)
+	compiled, markers := runCompiledFixtureBoundaryOutcomeWithOptions(t, dir, manifest, Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	expectedStdout := []string{"83"}
+	if !reflect.DeepEqual(tree.Stdout, expectedStdout) {
+		t.Fatalf("treewalker stdout mismatch: expected %v got %v", expectedStdout, tree.Stdout)
+	}
+	if !reflect.DeepEqual(compiled.Stdout, expectedStdout) {
+		t.Fatalf("compiled stdout mismatch: expected %v got %v", expectedStdout, compiled.Stdout)
+	}
+	if tree.Exit != 0 || compiled.Exit != 0 {
+		t.Fatalf("expected successful exit: treewalker=%d compiled=%d stderr=%v", tree.Exit, compiled.Exit, compiled.Stderr)
+	}
+	assertBoundaryCallValueMarkers(t, markers)
+}
+
 func TestCompilerDynamicBoundaryMonoArrayCallbackNullableConversionSuccessMarkers(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping compiler dynamic mono-array callback nullable conversion success in short mode")
