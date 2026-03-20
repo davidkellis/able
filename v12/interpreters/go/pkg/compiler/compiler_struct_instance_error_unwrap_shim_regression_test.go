@@ -53,4 +53,10 @@ func TestCompilerNormalizesStructInstanceErrorUnwrap(t *testing.T) {
 	if !strings.Contains(segment, "if !ok || nilPtr {") {
 		t.Fatalf("expected __able_struct_instance to preserve explicit typed-nil rejection")
 	}
+	if !strings.Contains(compiledSrc, "if value, ok := err.Payload[\"value\"]; ok {") {
+		t.Fatalf("expected __able_error_to_struct to preserve wrapped struct payloads before synthesizing an anonymous struct")
+	}
+	if !strings.Contains(compiledSrc, "if inst, ok, nilPtr := __able_runtime_struct_instance_value(value); ok || nilPtr {") {
+		t.Fatalf("expected __able_error_to_struct to unwrap struct payloads through the shared runtime helper")
+	}
 }

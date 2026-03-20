@@ -82,6 +82,11 @@ func (m *TypeMapper) mapResultType(t *ast.ResultTypeExpression) (string, bool) {
 // pointer. TODO: monomorphize to []ElemGoType once slice intrinsics are ready.
 func (m *TypeMapper) mapArrayType(t *ast.GenericTypeExpression) (string, bool) {
 	if m != nil && m.gen != nil {
+		if spec, ok := m.gen.monoArraySpecForArrayTypeExpr(m.packageName, t); ok && spec != nil {
+			return spec.GoType, true
+		}
+	}
+	if m != nil && m.gen != nil {
 		if info, ok := m.gen.structInfoForTypeName(m.packageName, "Array"); ok && info != nil {
 			return "*" + info.GoName, true
 		}

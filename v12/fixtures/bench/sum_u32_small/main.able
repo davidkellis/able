@@ -1,0 +1,39 @@
+package bench_sum_u32_small
+
+import able.kernel.{Array}
+
+fn build(length: i32) -> Array u32 {
+  values: Array u32 = Array.with_capacity(length)
+  i := 0
+  loop {
+    if i >= length { break }
+    values.push(((i * 3) + 1) as u32)
+    i = i + 1
+  }
+  values
+}
+
+fn checksum(values: Array u32) -> u64 {
+  total: u64 = 0_u64
+  i := 0
+  length := values.len()
+  loop {
+    if i >= length { break }
+    total = total + (values[i]! as u64)
+    i = i + 1
+  }
+  total
+}
+
+fn main() -> void {
+  values := build(2_000_000)
+  rounds := 0
+  total: u64 = 0_u64
+  loop {
+    if rounds >= 3 { break }
+    total = total + checksum(values)
+    values[rounds] = values[rounds]! + 1_u32
+    rounds = rounds + 1
+  }
+  print(total)
+}

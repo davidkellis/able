@@ -19,6 +19,7 @@ type generator struct {
 	nativeUnions              map[string]*nativeUnionInfo
 	nativeCallables           map[string]*nativeCallableInfo
 	nativeInterfaces          map[string]*nativeInterfaceInfo
+	monoArraySpecs            map[string]*monoArraySpec
 	nativeInterfaceBuilding   map[string]struct{}
 	nativeInterfaceRefreshing map[string]struct{}
 	interfaces                map[string]*ast.InterfaceDefinition
@@ -116,6 +117,7 @@ func newGenerator(opts Options) *generator {
 		nativeUnions:              make(map[string]*nativeUnionInfo),
 		nativeCallables:           make(map[string]*nativeCallableInfo),
 		nativeInterfaces:          make(map[string]*nativeInterfaceInfo),
+		monoArraySpecs:            make(map[string]*monoArraySpec),
 		nativeInterfaceBuilding:   make(map[string]struct{}),
 		nativeInterfaceRefreshing: make(map[string]struct{}),
 		interfaces:                make(map[string]*ast.InterfaceDefinition),
@@ -203,6 +205,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.nativeUnions = make(map[string]*nativeUnionInfo)
 	g.nativeCallables = make(map[string]*nativeCallableInfo)
 	g.nativeInterfaces = make(map[string]*nativeInterfaceInfo)
+	g.monoArraySpecs = make(map[string]*monoArraySpec)
 	g.nativeInterfaceBuilding = make(map[string]struct{})
 	g.nativeInterfaceRefreshing = make(map[string]struct{})
 	g.interfaces = make(map[string]*ast.InterfaceDefinition)

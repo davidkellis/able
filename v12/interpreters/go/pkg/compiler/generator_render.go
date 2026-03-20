@@ -94,6 +94,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderRuntimeHelpers(&body)
 	}
 
+	g.renderMonoArrayTypes(&body)
 	g.renderStructs(&body)
 	if g.hasFunctions() {
 		g.renderCompiledMethods(&body)
@@ -109,6 +110,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderNativeInterfaces(&body)
 		g.renderNativeUnions(&body)
 		g.renderStructConverters(&body)
+		g.renderMonoArrayConverters(&body)
 		g.renderDiagnosticGlobals(&body)
 	} else {
 		g.renderNativeCallables(&body)

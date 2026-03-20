@@ -46,6 +46,15 @@ func (g *generator) renderControlHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\t\treturn nil\n")
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\treturn __able_raise_control(node, v.value)\n")
+	if g != nil && g.needsIterator {
+		fmt.Fprintf(buf, "\tcase __able_generator_stop:\n")
+		fmt.Fprintf(buf, "\t\treturn &__ableControl{Err: v}\n")
+		fmt.Fprintf(buf, "\tcase *__able_generator_stop:\n")
+		fmt.Fprintf(buf, "\t\tif v == nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\treturn &__ableControl{Err: *v}\n")
+	}
 	fmt.Fprintf(buf, "\tdefault:\n")
 	fmt.Fprintf(buf, "\t\treturn __able_runtime_error_control(node, err)\n")
 	fmt.Fprintf(buf, "\t}\n")

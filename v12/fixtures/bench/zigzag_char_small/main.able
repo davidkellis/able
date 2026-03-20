@@ -1,0 +1,89 @@
+package bench_zigzag_char_small
+
+import able.kernel.{Array}
+import able.collections.array
+
+fn build_input(length: i32) -> Array char {
+  pattern: Array char = [
+    'P','A','Y','P','A','L','I','S','H','I','R','I','N','G',
+    'A','B','L','E','L','A','N','G','X','Y','Z'
+  ]
+  pattern_len := pattern.len()
+  out: Array char = Array.with_capacity(length)
+  i := 0
+  loop {
+    if i >= length { break }
+    out.push(pattern[(i % pattern_len) as i32]!)
+    i = i + 1
+  }
+  out
+}
+
+fn zigzag(chars: Array char, rows: i32) -> !Array char {
+  if rows <= 1 || chars.len() <= rows {
+    return chars
+  }
+
+  buckets: Array (Array char) = Array.with_capacity(rows)
+  r := 0
+  loop {
+    if r >= rows { break }
+    buckets.push(Array.new())
+    r = r + 1
+  }
+
+  current_row := 0
+  direction := 1
+  i := 0
+  length := chars.len()
+
+  loop {
+    if i >= length { break }
+    buckets[current_row]!.push(chars[i]!)
+    current_row = current_row + direction
+
+    if current_row == rows {
+      current_row = rows - 2
+      direction = -1
+    } elsif current_row < 0 {
+      current_row = 1
+      direction = 1
+    }
+
+    i = i + 1
+  }
+
+  flatten(buckets)!
+}
+
+fn flatten(rows: Array (Array char)) -> !Array char {
+  result: Array char = Array.new()
+  i := 0
+  count := rows.len()
+  loop {
+    if i >= count { break }
+    row := rows[i]!
+    j := 0
+    row_len := row.len()
+    loop {
+      if j >= row_len { break }
+      result.push(row[j]!)
+      j = j + 1
+    }
+    i = i + 1
+  }
+  result
+}
+
+fn main() -> void {
+  current := build_input(4096)
+  total := 0
+  iter := 0
+  loop {
+    if iter >= 2000 { break }
+    current = zigzag(current, 7)!
+    total = total + current.len()
+    iter = iter + 1
+  }
+  print(total)
+}

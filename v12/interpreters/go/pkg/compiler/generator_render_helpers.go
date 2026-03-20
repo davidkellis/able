@@ -214,6 +214,9 @@ func (g *generator) typeCategory(goType string) string {
 		return "slice"
 	}
 	if g != nil {
+		if g.isMonoArrayType(goType) {
+			return "monoarray"
+		}
 		if g.nativeCallableInfoForGoType(goType) != nil {
 			return "callable"
 		}
