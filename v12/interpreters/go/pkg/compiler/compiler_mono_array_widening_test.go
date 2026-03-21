@@ -3,6 +3,7 @@ package compiler
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -322,7 +323,6 @@ func TestCompilerExperimentalMonoArraysNestedF64GetPushStaysSpecialized(t *testi
 		"var out *__able_array_array_f64 =",
 		"var col *__able_array_f64 =",
 		".Elements = append(",
-		"(*__able_tmp_",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected nested f64 get/push path to contain %q:\n%s", fragment, body)
@@ -335,6 +335,7 @@ func TestCompilerExperimentalMonoArraysNestedF64GetPushStaysSpecialized(t *testi
 		"__able_call_value(",
 		"__able_array_f64_to(__able_runtime, col)",
 		"__able_array_f64_from(",
+		"__able_ptr(",
 	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected nested f64 get/push path to avoid %q:\n%s", fragment, body)
@@ -369,7 +370,6 @@ func TestCompilerExperimentalMonoArraysMatrixMultiplyScalarLoopStaysNative(t *te
 	for _, fragment := range []string{
 		"func __able_compiled_fn_dot(ai *__able_array_f64, cj *__able_array_f64) (float64, *__ableControl)",
 		"var total float64",
-		"(*__able_tmp_",
 		" * ",
 	} {
 		if !strings.Contains(string(result.Files["compiled.go"]), fragment) && !strings.Contains(body, fragment) {
@@ -384,6 +384,7 @@ func TestCompilerExperimentalMonoArraysMatrixMultiplyScalarLoopStaysNative(t *te
 		"__able_method_call_node(",
 		"__able_push_call_frame(",
 		"__able_pop_call_frame()",
+		"__able_ptr(",
 	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected matrix scalar loop lowering to avoid %q:\n%s", fragment, body)
@@ -418,6 +419,7 @@ func TestCompilerExperimentalMonoArraysMatrixMultiplyMainStaysNative(t *testing.
 	for _, fragment := range []string{
 		"__able_cast(",
 		"bridge.AsInt(",
+		"__able_ptr(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected matrixmultiply main lowering to avoid %q:\n%s", fragment, mainBody)
@@ -438,10 +440,90 @@ func TestCompilerExperimentalMonoArraysMatrixMultiplyMainStaysNative(t *testing.
 			"__able_method_call_node(",
 			"__able_push_call_frame(",
 			"__able_pop_call_frame()",
+			"__able_ptr(",
 		} {
 			if strings.Contains(body, fragment) {
 				t.Fatalf("expected %s to avoid %q:\n%s", funcName, fragment, body)
 			}
+		}
+	}
+}
+
+func TestCompilerExperimentalMonoArraysMatrixMultiplyCountedLoopsStayNative(t *testing.T) {
+	sourcePath := filepath.Join(repositoryRoot(), "v12", "examples", "benchmarks", "matrixmultiply.able")
+	source, err := os.ReadFile(sourcePath)
+	if err != nil {
+		t.Fatalf("read matrixmultiply benchmark: %v", err)
+	}
+
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-matrixmultiply-counted-loops", string(source), Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	buildBody, ok := findCompiledFunction(result, "__able_compiled_fn_build_matrix")
+	if !ok {
+		t.Fatalf("could not find compiled build_matrix function")
+	}
+	for _, fragment := range []string{
+		"for i < n {",
+		"for j < n {",
+		"i++",
+		"j++",
+	} {
+		if !strings.Contains(buildBody, fragment) {
+			t.Fatalf("expected build_matrix counted-loop lowering to contain %q:\n%s", fragment, buildBody)
+		}
+	}
+	if !regexp.MustCompile(`__able_tmp_[0-9]+ := __able_tmp_[0-9]+ - __able_tmp_[0-9]+`).MatchString(buildBody) {
+		t.Fatalf("expected build_matrix to keep proven non-negative subtraction inline:\n%s", buildBody)
+	}
+	if regexp.MustCompile(`int64\(__able_tmp_[0-9]+\) - int64\(__able_tmp_[0-9]+\)`).MatchString(buildBody) {
+		t.Fatalf("expected build_matrix to avoid widened checked subtraction after range proof:\n%s", buildBody)
+	}
+	if !regexp.MustCompile(`__able_tmp_[0-9]+ := __able_tmp_[0-9]+ \+ __able_tmp_[0-9]+`).MatchString(buildBody) {
+		t.Fatalf("expected build_matrix to keep proven bounded addition inline:\n%s", buildBody)
+	}
+	if regexp.MustCompile(`int64\(__able_tmp_[0-9]+\) \+ int64\(__able_tmp_[0-9]+\)`).MatchString(buildBody) {
+		t.Fatalf("expected build_matrix to avoid widened checked addition after upper-bound proof:\n%s", buildBody)
+	}
+	for _, fragment := range []string{
+		"for {",
+		"if i >= n {",
+		"if j >= n {",
+		"__able_checked_add_signed(",
+		"__able_checked_sub_signed(",
+	} {
+		if strings.Contains(buildBody, fragment) {
+			t.Fatalf("expected build_matrix counted-loop lowering to avoid %q:\n%s", fragment, buildBody)
+		}
+	}
+
+	matmulBody, ok := findCompiledFunction(result, "__able_compiled_fn_matmul")
+	if !ok {
+		t.Fatalf("could not find compiled matmul function")
+	}
+	for _, fragment := range []string{
+		"for i < n {",
+		"for j < n {",
+		"for k < n {",
+		"i++",
+		"j++",
+		"k++",
+	} {
+		if !strings.Contains(matmulBody, fragment) {
+			t.Fatalf("expected matmul counted-loop lowering to contain %q:\n%s", fragment, matmulBody)
+		}
+	}
+	for _, fragment := range []string{
+		"for {",
+		"if i >= n {",
+		"if j >= n {",
+		"if k >= n {",
+		"__able_checked_add_signed(",
+	} {
+		if strings.Contains(matmulBody, fragment) {
+			t.Fatalf("expected matmul counted-loop lowering to avoid %q:\n%s", fragment, matmulBody)
 		}
 	}
 }

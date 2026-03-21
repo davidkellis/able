@@ -155,7 +155,7 @@ func (g *generator) compileRuntimeArrayPatternBindings(ctx *compileContext, patt
 		case *ast.Identifier:
 			if rest.Name != "" && rest.Name != "_" {
 				goName := sanitizeIdent(rest.Name)
-				ctx.locals[rest.Name] = paramInfo{Name: rest.Name, GoName: goName, GoType: "runtime.Value"}
+				ctx.setLocalBinding(rest.Name, paramInfo{Name: rest.Name, GoName: goName, GoType: "runtime.Value"})
 				lines = append(lines,
 					fmt.Sprintf("var %s runtime.Value = &runtime.ArrayValue{Elements: append([]runtime.Value(nil), %s[%d:]...)}", goName, valuesTemp, len(pattern.Elements)),
 					fmt.Sprintf("_ = %s", goName),
@@ -218,7 +218,7 @@ func (g *generator) compileNativeArrayPatternBindings(ctx *compileContext, patte
 				}
 				lines = append(lines, restLines...)
 				goName := sanitizeIdent(rest.Name)
-				ctx.locals[rest.Name] = paramInfo{Name: rest.Name, GoName: goName, GoType: subjectType}
+				ctx.setLocalBinding(rest.Name, paramInfo{Name: rest.Name, GoName: goName, GoType: subjectType})
 				lines = append(lines,
 					fmt.Sprintf("var %s %s = %s", goName, subjectType, restExpr),
 					fmt.Sprintf("_ = %s", goName),

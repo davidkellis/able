@@ -271,7 +271,7 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 	if mode.declare {
 		if _, ok := mode.newNames[name]; ok {
 			goName := sanitizeIdent(name)
-			ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType}
+			ctx.setLocalBinding(name, paramInfo{Name: name, GoName: goName, GoType: goType})
 			return []string{
 				fmt.Sprintf("var %s %s = %s", goName, goType, expr),
 				fmt.Sprintf("_ = %s", goName),
@@ -280,7 +280,7 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 		existing, exists := ctx.lookup(name)
 		if !exists {
 			goName := sanitizeIdent(name)
-			ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType}
+			ctx.setLocalBinding(name, paramInfo{Name: name, GoName: goName, GoType: goType})
 			return []string{
 				fmt.Sprintf("var %s %s = %s", goName, goType, expr),
 				fmt.Sprintf("_ = %s", goName),
@@ -337,7 +337,7 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 		return []string{fmt.Sprintf("%s = %s", existing.GoName, expr)}, true
 	}
 	goName := sanitizeIdent(name)
-	ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType}
+	ctx.setLocalBinding(name, paramInfo{Name: name, GoName: goName, GoType: goType})
 	return []string{
 		fmt.Sprintf("var %s %s = %s", goName, goType, expr),
 		fmt.Sprintf("_ = %s", goName),

@@ -103,6 +103,154 @@ func TestCompilerWhileLoopFastPath(t *testing.T) {
 	}
 }
 
+func TestCompilerCountedLoopFastPath(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn bump(n: i32) -> i32 {",
+		"  i := 0",
+		"  loop {",
+		"    if i >= n { break }",
+		"    i = i + 1",
+		"  }",
+		"  i",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_bump")
+	if !ok {
+		t.Fatalf("could not find compiled bump function")
+	}
+	for _, fragment := range []string{
+		"for i < n {",
+		"i++",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected counted-loop fast path to contain %q:\n%s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{
+		"for {",
+		"if i >= n {",
+		"__able_checked_add_signed(",
+		"__able_break",
+		"__able_continue_signal",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected counted-loop fast path to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerInlineCheckedIntegerAddSubStayStatic(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn sum_diff(a: i32, b: i32) -> i32 {",
+		"  (a + b) - (a - b)",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_sum_diff")
+	if !ok {
+		t.Fatalf("could not find compiled sum_diff function")
+	}
+	for _, fragment := range []string{
+		"int64(__able_tmp_0) + int64(__able_tmp_1)",
+		"int64(__able_tmp_4) - int64(__able_tmp_5)",
+		"__able_raise_overflow(",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected inline checked integer add/sub lowering to contain %q:\n%s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_checked_add_signed(",
+		"__able_checked_sub_signed(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected inline checked integer add/sub lowering to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerInlineCheckedSignedSubWithNonNegativeOperandsElidesOverflowBranch(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"fn diff() -> i32 {",
+		"  a: i32 = 7",
+		"  b: i32 = 3",
+		"  a - b",
+		"}",
+	}, "\n")
+
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-inline-sub-proof", source, Options{
+		PackageName: "demo",
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_diff")
+	if !ok {
+		t.Fatalf("could not find compiled diff function")
+	}
+	if strings.Contains(body, "__able_checked_sub_signed(") {
+		t.Fatalf("expected proven non-negative subtraction to avoid helper call:\n%s", body)
+	}
+	if strings.Contains(body, "__able_raise_overflow(") {
+		t.Fatalf("expected proven non-negative subtraction to elide overflow branch:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"__able_tmp_0 := a",
+		"__able_tmp_1 := b",
+		" := __able_tmp_0 - __able_tmp_1",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected proven non-negative subtraction to contain %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerInlineCheckedSignedAddWithCallsiteUpperBoundElidesOverflowBranch(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"fn sum(limit: i32) -> i32 {",
+		"  i := 0",
+		"  out := 0",
+		"  loop {",
+		"    if i >= limit { break }",
+		"    out = i + i",
+		"    i = i + 1",
+		"  }",
+		"  out",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  sum(300)",
+		"}",
+	}, "\n")
+
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-inline-add-proof", source, Options{
+		PackageName: "demo",
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_sum")
+	if !ok {
+		t.Fatalf("could not find compiled sum function")
+	}
+	if strings.Contains(body, "__able_checked_add_signed(") {
+		t.Fatalf("expected proven bounded addition to avoid helper call:\n%s", body)
+	}
+	if strings.Contains(body, "int64(") {
+		t.Fatalf("expected proven bounded addition to avoid widened checked-add lowering:\n%s", body)
+	}
+	if !strings.Contains(body, " = __able_tmp_") || !strings.Contains(body, " + __able_tmp_") {
+		t.Fatalf("expected proven bounded addition to remain direct in compiled body:\n%s", body)
+	}
+}
+
 func TestCompilerArrayStructKeepsSpecFieldsAndNativeStorage(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

@@ -252,6 +252,42 @@ This list tracks the remaining v12 items after audit; completed work should be r
   `7.00` GC, and the full compiled
   `v12/examples/benchmarks/matrixmultiply.able` benchmark now completes in
   `4.2267s` / `13.00` GC over 3 runs instead of timing out.
+- Propagated static built-in `Array` accessors (`get`, `first`, `last`,
+  `read_slot`, `pop`) now lower as direct bounds-check + element-load paths
+  with nil control transfer instead of manufacturing pointer-backed nullable
+  carriers on the success path. The current full compiled
+  `v12/examples/benchmarks/matrixmultiply.able` benchmark snapshot is now
+  `3.4367s` / `13.67` GC over 3 runs.
+- Shared counted-loop recognition now lowers canonical primitive
+  `loop { if i >= n { break } ... i = i + 1 }` shapes to direct
+  `for i < n { ... i++ }` loops on compiled static paths. The current matrix
+  snapshots are now `0.1133s` / `7.00` GC for
+  `v12/fixtures/bench/matrixmultiply_f64_small/main.able` and `1.0833s` /
+  `13.00` GC for `v12/examples/benchmarks/matrixmultiply.able`.
+- Shared fixed-width primitive checked `+` / `-` now lower inline on static
+  compiled paths too, so `build_matrix` no longer calls
+  `__able_checked_add_signed(...)` / `__able_checked_sub_signed(...)` for
+  `i - j` / `i + j`; those now compile as inline `int64(...) +/- int64(...)`
+  plus explicit range checks. The current matrix snapshots remain in the same
+  band: `0.1133s` / `7.00` GC for
+  `v12/fixtures/bench/matrixmultiply_f64_small/main.able` and `1.0867s` /
+  `13.00` GC for `v12/examples/benchmarks/matrixmultiply.able`.
+- Shared primitive sign/range facts are now landed too, so `build_matrix`
+  lowers `i - j` as a direct signed subtraction without the widened
+  `int64(...)` range-check branch. The current matrix snapshots remain in the
+  same band after that cleanup: `0.1167s` / `7.00` GC for
+  `v12/fixtures/bench/matrixmultiply_f64_small/main.able` and `1.1000s` /
+  `13.00` GC for `v12/examples/benchmarks/matrixmultiply.able`.
+- Shared primitive upper-bound propagation is now landed too, so
+  `build_matrix` lowers `i + j` as a direct signed addition without the
+  widened `int64(...)` range-check branch. The current matrix snapshots remain
+  in the same band after that cleanup: `0.1267s` / `7.00` GC for
+  `v12/fixtures/bench/matrixmultiply_f64_small/main.able` and `1.1367s` /
+  `13.00` GC for `v12/examples/benchmarks/matrixmultiply.able`.
+- Current matrix-family note after that tranche:
+  the hot affine integer residual inside `build_matrix` is now closed; any
+  further matrix work is a different category than loop-affine primitive
+  arithmetic.
 - A reduced checked-in compiler benchmark target now exists for the staged
   `f64` slice: `v12/fixtures/bench/matrixmultiply_f64_small/main.able`.
   Current compiled 3-run averages on that target are:

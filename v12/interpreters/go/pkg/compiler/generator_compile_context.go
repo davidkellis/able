@@ -25,6 +25,9 @@ func newCompileContext(gen *generator, info *functionInfo, functions map[string]
 				continue
 			}
 			ctx.params[param.Name] = param
+			if fact, ok := info.ParamFacts[param.Name]; ok && param.GoName != "" && fact.hasUsefulFact() {
+				ctx.setIntegerFact(param.GoName, fact)
+			}
 		}
 		if len(info.Params) > 0 {
 			ctx.implicitReceiver = info.Params[0]

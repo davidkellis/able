@@ -156,7 +156,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 		}
 		if g.isIntegerType(resultType) {
 			nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
-			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, left, right, resultType, expr.Operator, nodeName)
+			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, left, right, resultType, expr.Operator, nodeName, expr.Left, expr.Right)
 			return append(operandLines, opLines...), opExpr, resultType, true
 		}
 		return operandLines, fmt.Sprintf("(%s %s %s)", left, expr.Operator, right), resultType, true
@@ -179,7 +179,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 		}
 		if g.isIntegerType(resultType) {
 			nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
-			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, left, right, resultType, expr.Operator, nodeName)
+			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, left, right, resultType, expr.Operator, nodeName, expr.Left, expr.Right)
 			return append(operandLines, opLines...), opExpr, resultType, true
 		}
 		return operandLines, fmt.Sprintf("(%s %s %s)", left, expr.Operator, right), resultType, true
@@ -702,7 +702,10 @@ func (g *generator) compileShiftExpression(ctx *compileContext, left string, rig
 	return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 }
 
-func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) ([]string, string) {
+func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string, leftExpr ast.Expression, rightExpr ast.Expression) ([]string, string) {
+	if inlineLines, inlineExpr, ok := g.inlineCheckedIntegerBinaryExpression(ctx, left, right, operandType, op, nodeName, leftExpr, rightExpr); ok {
+		return inlineLines, inlineExpr
+	}
 	leftTemp := ctx.newTemp()
 	rightTemp := ctx.newTemp()
 	bitsExpr := g.bitSizeExpr(operandType)
@@ -812,7 +815,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			return nil, "", "", false
 		}
 		if g.isIntegerType(leftType) {
-			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, leftExpr, rightExpr, leftType, "+", nodeName)
+			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, leftExpr, rightExpr, leftType, "+", nodeName, nil, nil)
 			return opLines, opExpr, leftType, true
 		}
 		return nil, fmt.Sprintf("(%s + %s)", leftExpr, rightExpr), leftType, true
@@ -826,7 +829,7 @@ func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftE
 			return nil, "", "", false
 		}
 		if g.isIntegerType(leftType) {
-			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, leftExpr, rightExpr, leftType, op, nodeName)
+			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, leftExpr, rightExpr, leftType, op, nodeName, nil, nil)
 			return opLines, opExpr, leftType, true
 		}
 		return nil, fmt.Sprintf("(%s %s %s)", leftExpr, op, rightExpr), leftType, true
