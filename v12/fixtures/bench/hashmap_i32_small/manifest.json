@@ -1,0 +1,6 @@
+{
+  "description": "native HashMap i32/i32 benchmark for compiler-owned HashMap and Map carrier lowering",
+  "expect": {
+    "exit": 0
+  }
+}

@@ -12,6 +12,7 @@ import (
 type generator struct {
 	opts                      Options
 	structs                   map[string]*structInfo
+	specializedStructs        map[string]*structInfo
 	typeAliases               map[string]map[string]ast.TypeExpression
 	typeAliasGenericParams    map[string]map[string][]*ast.GenericParameter
 	unions                    map[string]*ast.UnionDefinition
@@ -19,6 +20,7 @@ type generator struct {
 	nativeUnions              map[string]*nativeUnionInfo
 	nativeCallables           map[string]*nativeCallableInfo
 	nativeInterfaces          map[string]*nativeInterfaceInfo
+	iteratorCollectMonoArrays map[string]*iteratorCollectMonoArrayInfo
 	monoArraySpecs            map[string]*monoArraySpec
 	nativeInterfaceBuilding   map[string]struct{}
 	nativeInterfaceRefreshing map[string]struct{}
@@ -34,6 +36,8 @@ type generator struct {
 	implMethodList            []*implMethodInfo
 	implDefinitions           []*implDefinitionInfo
 	implMethodByInfo          map[*functionInfo]*implMethodInfo
+	specializedFunctions      []*functionInfo
+	specializedFunctionIndex  map[string]*functionInfo
 	warnings                  []string
 	fallbacks                 []FallbackInfo
 	mangler                   *nameMangler
@@ -110,6 +114,7 @@ func newGenerator(opts Options) *generator {
 	return &generator{
 		opts:                      opts,
 		structs:                   make(map[string]*structInfo),
+		specializedStructs:        make(map[string]*structInfo),
 		typeAliases:               make(map[string]map[string]ast.TypeExpression),
 		typeAliasGenericParams:    make(map[string]map[string][]*ast.GenericParameter),
 		unions:                    make(map[string]*ast.UnionDefinition),
@@ -117,6 +122,7 @@ func newGenerator(opts Options) *generator {
 		nativeUnions:              make(map[string]*nativeUnionInfo),
 		nativeCallables:           make(map[string]*nativeCallableInfo),
 		nativeInterfaces:          make(map[string]*nativeInterfaceInfo),
+		iteratorCollectMonoArrays: make(map[string]*iteratorCollectMonoArrayInfo),
 		monoArraySpecs:            make(map[string]*monoArraySpec),
 		nativeInterfaceBuilding:   make(map[string]struct{}),
 		nativeInterfaceRefreshing: make(map[string]struct{}),
@@ -129,6 +135,7 @@ func newGenerator(opts Options) *generator {
 		mangler:                   newNameMangler(),
 		awaitNames:                make(map[*ast.AwaitExpression]string),
 		implMethodByInfo:          make(map[*functionInfo]*implMethodInfo),
+		specializedFunctionIndex:  make(map[string]*functionInfo),
 		moduleBindingNames:        make(map[string]map[string]struct{}),
 		externCallables:           make(map[string]map[string]struct{}),
 	}
@@ -198,6 +205,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.entryPackage = program.Entry.Package
 	g.packages = nil
 	g.staticImports = make(map[string][]staticImportBinding)
+	g.specializedStructs = make(map[string]*structInfo)
 	g.typeAliases = make(map[string]map[string]ast.TypeExpression)
 	g.typeAliasGenericParams = make(map[string]map[string][]*ast.GenericParameter)
 	g.unions = make(map[string]*ast.UnionDefinition)
@@ -205,6 +213,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.nativeUnions = make(map[string]*nativeUnionInfo)
 	g.nativeCallables = make(map[string]*nativeCallableInfo)
 	g.nativeInterfaces = make(map[string]*nativeInterfaceInfo)
+	g.iteratorCollectMonoArrays = make(map[string]*iteratorCollectMonoArrayInfo)
 	g.monoArraySpecs = make(map[string]*monoArraySpec)
 	g.nativeInterfaceBuilding = make(map[string]struct{})
 	g.nativeInterfaceRefreshing = make(map[string]struct{})
@@ -212,6 +221,8 @@ func (g *generator) collect(program *driver.Program) error {
 	g.interfacePackages = make(map[string]string)
 	g.staticCallableNames = nil
 	g.externCallables = make(map[string]map[string]struct{})
+	g.specializedFunctions = nil
+	g.specializedFunctionIndex = make(map[string]*functionInfo)
 	if g.nodeOrigins == nil {
 		g.nodeOrigins = make(map[ast.Node]string)
 	}
@@ -325,11 +336,12 @@ func (g *generator) collect(program *driver.Program) error {
 			}
 			goName := g.mangler.unique(exportIdent(name))
 			g.structs[qualified] = &structInfo{
-				Name:    name,
-				Package: module.Package,
-				GoName:  goName,
-				Kind:    def.Kind,
-				Node:    def,
+				Name:     name,
+				Package:  module.Package,
+				GoName:   goName,
+				TypeExpr: genericStructTypeExprForDefinition(def),
+				Kind:     def.Kind,
+				Node:     def,
 			}
 		}
 	}
@@ -355,6 +367,7 @@ func (g *generator) collect(program *driver.Program) error {
 				Name:      fieldName,
 				GoName:    goFieldName,
 				GoType:    goType,
+				TypeExpr:  normalizeTypeExprForPackage(g, info.Package, field.FieldType),
 				Supported: ok,
 			})
 		}
@@ -368,18 +381,21 @@ func (g *generator) collect(program *driver.Program) error {
 					Name:      "length",
 					GoName:    "Length",
 					GoType:    "int32",
+					TypeExpr:  ast.Ty("i32"),
 					Supported: true,
 				},
 				{
 					Name:      "capacity",
 					GoName:    "Capacity",
 					GoType:    "int32",
+					TypeExpr:  ast.Ty("i32"),
 					Supported: true,
 				},
 				{
 					Name:      "storage_handle",
 					GoName:    "Storage_handle",
 					GoType:    "int64",
+					TypeExpr:  ast.Ty("i64"),
 					Supported: true,
 				},
 			}
@@ -556,6 +572,9 @@ func (g *generator) bodyCompileable(info *functionInfo, retType string) bool {
 		return false
 	}
 	ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+	if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
+		ctx.implSiblings = g.implSiblingsForFunction(info)
+	}
 	_, _, ok := g.compileBody(ctx, info)
 	if !ok {
 		info.Reason = ctx.reason

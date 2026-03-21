@@ -33,31 +33,45 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 			ctx.setReason("index expression unsupported")
 			return nil, "", "", false
 		}
-		elemLines, elemExpr, _, ok := g.staticArrayResultExprLines(ctx, objType, fmt.Sprintf("%s.Elements[%s]", objTemp, indexTemp), "runtime.Value")
+		resultType := "runtime.Value"
+		if expected != "" && expected != "runtime.Value" && expected != "any" {
+			resultType = expected
+		}
+		elemLines, elemExpr, _, ok := g.staticArrayResultExprLines(ctx, objType, fmt.Sprintf("%s.Elements[%s]", objTemp, indexTemp), resultType)
 		if !ok {
 			ctx.setReason("index expression unsupported")
 			return nil, "", "", false
 		}
+		if resultType == "runtime.Value" {
+			lines = append(lines,
+				fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)),
+				fmt.Sprintf("var %s runtime.Value", resultTemp),
+				fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else {", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp),
+			)
+			lines = append(lines, indentLines(elemLines, 1)...)
+			lines = append(lines,
+				fmt.Sprintf("\t%s = %s", resultTemp, elemExpr),
+				"}",
+			)
+			return lines, resultTemp, "runtime.Value", true
+		}
+		transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(__able_index_error(%s, %s))", indexTemp, lengthTemp)))
+		if !ok {
+			return nil, "", "", false
+		}
 		lines = append(lines,
-			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
-			fmt.Sprintf("var %s runtime.Value", resultTemp),
-			fmt.Sprintf("if %s < 0 || %s >= %s { %s = __able_index_error(%s, %s) } else {", indexTemp, indexTemp, lengthTemp, resultTemp, indexTemp, lengthTemp),
+			fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)),
+			fmt.Sprintf("var %s %s", resultTemp, resultType),
+			fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp),
 		)
+		lines = append(lines, indentLines(transferLines, 1)...)
+		lines = append(lines, "} else {")
 		lines = append(lines, indentLines(elemLines, 1)...)
 		lines = append(lines,
 			fmt.Sprintf("\t%s = %s", resultTemp, elemExpr),
 			"}",
 		)
-		if expected == "" || expected == "runtime.Value" {
-			return lines, resultTemp, "runtime.Value", true
-		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-		if !ok {
-			ctx.setReason("index expression type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
+		return lines, resultTemp, resultType, true
 	}
 	if staticLines, staticExpr, staticType, ok := g.compileStaticIndexGet(ctx, expr, expected, objExpr, objType); ok {
 		lines := append([]string{}, objLines...)
@@ -163,10 +177,7 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		if resultType == "" {
 			resultType = "runtime.Value"
 		}
-		lines := append(idxLines, []string{
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s := %s", objTemp, objExpr),
-		}...)
+		lines := append(idxLines, fmt.Sprintf("%s := %s", objTemp, objExpr))
 		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
 		if !ok {
 			return nil, "", "", false
@@ -181,14 +192,13 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 			lines = append(lines, fmt.Sprintf("var %s %s", resultTemp, resultType))
 		}
 		lines = append(lines,
-			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
+			fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)),
 			fmt.Sprintf("if %s >= 0 && %s < %s {", indexTemp, indexTemp, lengthTemp),
 		)
 		lines = append(lines, indentLines(elemLines, 1)...)
 		lines = append(lines,
 			fmt.Sprintf("\t%s = %s", resultTemp, elemExpr),
 			"}",
-			"__able_pop_call_frame()",
 		)
 		return lines, resultTemp, resultType, true
 	case "set":
@@ -210,17 +220,14 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		lengthTemp := ctx.newTemp()
 		resultTemp := ctx.newTemp()
 		lines := append(setIdxLines, setValLines...)
-		lines = append(lines, []string{
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s := %s", objTemp, objExpr),
-		}...)
+		lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
 		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
 		if !ok {
 			return nil, "", "", false
 		}
 		lines = append(lines,
 			fmt.Sprintf("%s := %s", valueTemp, valueExpr),
-			fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
+			fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)),
 			fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
 			fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp),
 			fmt.Sprintf("\t%s = __able_index_error(%s, %s)", resultTemp, indexTemp, lengthTemp),
@@ -228,7 +235,6 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 			fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp),
 			"}",
 			g.staticArraySyncCall(objType, objTemp),
-			"__able_pop_call_frame()",
 		)
 		if effectiveExpected == "" || effectiveExpected == "runtime.Value" {
 			return lines, resultTemp, "runtime.Value", true
@@ -255,10 +261,7 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		if resultType == "" {
 			resultType = "runtime.Value"
 		}
-		lines := append(idxLines, []string{
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s := %s", objTemp, objExpr),
-		}...)
+		lines := append(idxLines, fmt.Sprintf("%s := %s", objTemp, objExpr))
 		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
 		if !ok {
 			return nil, "", "", false
@@ -272,12 +275,11 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		} else {
 			lines = append(lines, fmt.Sprintf("var %s %s", resultTemp, resultType))
 		}
-		lines = append(lines, fmt.Sprintf("if %s >= 0 && %s < len(%s.Elements) {", indexTemp, indexTemp, objTemp))
+		lines = append(lines, fmt.Sprintf("if %s >= 0 && %s < %s {", indexTemp, indexTemp, g.staticArrayLengthExpr(objTemp)))
 		lines = append(lines, indentLines(elemLines, 1)...)
 		lines = append(lines,
 			fmt.Sprintf("\t%s = %s", resultTemp, elemExpr),
 			"}",
-			"__able_pop_call_frame()",
 		)
 		return lines, resultTemp, resultType, true
 	case "write_slot":
@@ -297,24 +299,20 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		indexTemp := ctx.newTemp()
 		valueTemp := ctx.newTemp()
 		lines := append(setIdxLines, setValLines...)
-		lines = append(lines, []string{
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s := %s", objTemp, objExpr),
-		}...)
+		lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
 		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
 		if !ok {
 			return nil, "", "", false
 		}
 		lines = append(lines,
 			fmt.Sprintf("%s := %s", valueTemp, valueExpr),
-			fmt.Sprintf("if %s >= 0 && %s < len(%s.Elements) {", indexTemp, indexTemp, objTemp),
+			fmt.Sprintf("if %s >= 0 && %s < %s {", indexTemp, indexTemp, g.staticArrayLengthExpr(objTemp)),
 			fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp),
 			fmt.Sprintf("} else if %s >= 0 {", indexTemp),
-			fmt.Sprintf("\tfor len(%s.Elements) <= %s { %s.Elements = append(%s.Elements, %s) }", objTemp, indexTemp, objTemp, objTemp, g.staticArrayZeroValueExpr(objType)),
+			fmt.Sprintf("\tfor %s <= %s { %s.Elements = append(%s.Elements, %s) }", g.staticArrayLengthExpr(objTemp), indexTemp, objTemp, objTemp, g.staticArrayZeroValueExpr(objType)),
 			fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp),
 			"}",
 			g.staticArraySyncCall(objType, objTemp),
-			"__able_pop_call_frame()",
 		)
 		if effectiveExpected == "" || effectiveExpected == "runtime.Value" {
 			return lines, "runtime.VoidValue{}", "runtime.Value", true

@@ -56,13 +56,8 @@ func (g *generator) isOrderedComparable(goType string) bool {
 }
 
 func (g *generator) structBaseName(goType string) (string, bool) {
-	if strings.HasPrefix(goType, "*") {
-		goType = strings.TrimPrefix(goType, "*")
-	}
-	for _, info := range g.structs {
-		if info != nil && info.GoName == goType {
-			return info.GoName, true
-		}
+	if info := g.structInfoByGoName(goType); info != nil {
+		return info.GoName, true
 	}
 	return "", false
 }
@@ -118,6 +113,81 @@ func (g *generator) nativeIntegerWidenExpr(expr string, srcType string, targetTy
 		return "", false
 	}
 	return fmt.Sprintf("%s(%s)", targetType, expr), true
+}
+
+func (g *generator) nativePrimitiveCastExpr(expr string, srcType string, targetType string) (string, bool) {
+	if srcType == targetType {
+		return expr, true
+	}
+	if widened, ok := g.nativeIntegerWidenExpr(expr, srcType, targetType); ok {
+		return widened, true
+	}
+	if g.isIntegerType(srcType) && g.isFloatType(targetType) {
+		return fmt.Sprintf("%s(%s)", targetType, expr), true
+	}
+	if g.isFloatType(srcType) && g.isFloatType(targetType) {
+		return fmt.Sprintf("%s(%s)", targetType, expr), true
+	}
+	return "", false
+}
+
+func (g *generator) nativeFloatToIntBounds(targetType string) (string, string, bool) {
+	if !g.isIntegerType(targetType) {
+		return "", "", false
+	}
+	if g.isSignedIntegerType(targetType) {
+		bits := g.intBits(targetType)
+		if bits >= 64 {
+			return "-math.Ldexp(1, 63)", "math.Ldexp(1, 63)", true
+		}
+		upper := int64(1) << uint(bits-1)
+		return fmt.Sprintf("-%d.0", upper), fmt.Sprintf("%d.0", upper), true
+	}
+	bits := g.intBits(targetType)
+	if bits >= 64 {
+		return "0.0", "math.Ldexp(1, 64)", true
+	}
+	upper := uint64(1) << uint(bits)
+	return "0.0", fmt.Sprintf("%d.0", upper), true
+}
+
+func (g *generator) nativePrimitiveCastLines(ctx *compileContext, nodeExpr string, expr string, srcType string, targetType string) ([]string, string, string, bool) {
+	if directExpr, ok := g.nativePrimitiveCastExpr(expr, srcType, targetType); ok {
+		return nil, directExpr, targetType, true
+	}
+	if g == nil || ctx == nil || expr == "" || !g.isFloatType(srcType) || !g.isIntegerType(targetType) {
+		return nil, "", "", false
+	}
+	lowerBound, upperBound, ok := g.nativeFloatToIntBounds(targetType)
+	if !ok {
+		return nil, "", "", false
+	}
+	if nodeExpr == "" {
+		nodeExpr = "nil"
+	}
+	floatTemp := ctx.newTemp()
+	truncTemp := ctx.newTemp()
+	resultTemp := ctx.newTemp()
+	floatExpr := expr
+	if srcType != "float64" {
+		floatExpr = fmt.Sprintf("float64(%s)", expr)
+	}
+	overflowTransfer, ok := g.controlTransferLines(ctx, fmt.Sprintf("__able_raise_overflow(%s)", nodeExpr))
+	if !ok {
+		return nil, "", "", false
+	}
+	lines := []string{
+		fmt.Sprintf("%s := %s", floatTemp, floatExpr),
+		fmt.Sprintf("if math.IsNaN(%s) || math.IsInf(%s, 0) {", floatTemp, floatTemp),
+	}
+	lines = append(lines, indentLines(overflowTransfer, 1)...)
+	lines = append(lines, "}")
+	lines = append(lines, fmt.Sprintf("%s := math.Trunc(%s)", truncTemp, floatTemp))
+	lines = append(lines, fmt.Sprintf("if %s < %s || %s >= %s {", truncTemp, lowerBound, truncTemp, upperBound))
+	lines = append(lines, indentLines(overflowTransfer, 1)...)
+	lines = append(lines, "}")
+	lines = append(lines, fmt.Sprintf("%s := %s(%s)", resultTemp, targetType, truncTemp))
+	return lines, resultTemp, targetType, true
 }
 
 func (g *generator) integerTypeSuffix(goType string) (string, bool) {

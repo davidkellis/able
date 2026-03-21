@@ -19,9 +19,19 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 	if !ok || method == nil {
 		return nil, "", "", false
 	}
-	paramTypeExprs, paramGoTypes, _, returnGoType, ok := g.inferNativeInterfaceGenericMethodShape(ctx, call, method, expected)
+	paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType, bindings, ok := g.inferNativeInterfaceGenericMethodShape(ctx, call, method, expected)
 	if !ok {
 		return nil, "", "", false
+	}
+	if directLines, expr, retType, ok := g.compileStaticNativeInterfaceGenericDefaultMethodCall(ctx, call, expected, receiverExpr, receiverType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType, bindings, callNode); ok {
+		return directLines, expr, retType, true
+	}
+	// Built-in Array remains an explicit language/kernel container boundary.
+	// If the shared generic default-method path cannot materialize the bound
+	// accumulator statically, fall back to the dedicated Array collect helper
+	// rather than widening the generic path with more nominal-type branches.
+	if directLines, expr, retType, ok := g.compileStaticIteratorCollectMonoArrayCall(ctx, call, expected, receiverExpr, receiverType, method, returnGoType, callNode); ok {
+		return directLines, expr, retType, true
 	}
 	lines := make([]string, 0, len(call.Arguments)*5+10)
 	receiverTemp := ctx.newTemp()
@@ -132,41 +142,5 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 		resultExpr = converted
 		resultType = returnGoType
 	}
-	if expected == "" || g.typeMatches(expected, resultType) {
-		return lines, resultExpr, resultType, true
-	}
-	if expected != "runtime.Value" && resultType == "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultExpr, expected)
-		if !ok {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	}
-	if expected == "runtime.Value" && resultType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, resultExpr, resultType)
-		if !ok {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, "runtime.Value", true
-	}
-	if expected != "" && expected != "any" && resultType == "any" {
-		anyTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, resultExpr))
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, expected)
-		if !ok {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	}
-	if expected != "" && expected != "runtime.Value" && expected != "any" && g.canCoerceStaticExpr(expected, resultType) {
-		return g.coerceExpectedStaticExpr(ctx, lines, resultExpr, resultType, expected)
-	}
-	ctx.setReason("call return type mismatch")
-	return nil, "", "", false
+	return g.finishNativeInterfaceGenericCallReturn(ctx, lines, resultExpr, resultType, expected)
 }

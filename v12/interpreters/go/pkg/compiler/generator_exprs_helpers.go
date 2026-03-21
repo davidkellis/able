@@ -59,7 +59,22 @@ func (g *generator) canCoerceStaticExpr(expected, actual string) bool {
 		return true
 	}
 	if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil {
-		return g.nativeInterfaceAcceptsActual(iface, actual)
+		if g.nativeInterfaceAcceptsActual(iface, actual) {
+			return true
+		}
+		switch g.typeCategory(actual) {
+		case "struct", "interface", "union", "callable", "monoarray", "runtime", "runtime_error":
+			return true
+		}
+		return false
+	}
+	if g.nativeCallableInfoForGoType(expected) != nil {
+		if actual == expected || actual == "runtime.Value" || actual == "any" {
+			return true
+		}
+		if g.nativeCallableInfoForGoType(actual) != nil {
+			return true
+		}
 	}
 	if union := g.nativeUnionInfoForGoType(expected); union != nil {
 		if _, ok := g.nativeUnionMember(union, actual); ok {
@@ -81,6 +96,84 @@ func (g *generator) canCoerceStaticExpr(expected, actual string) bool {
 		}
 	}
 	return false
+}
+
+func (g *generator) nativeCallableWrapLines(ctx *compileContext, expected string, actual string, expr string) ([]string, string, bool) {
+	info := g.nativeCallableInfoForGoType(expected)
+	if info == nil || ctx == nil || actual == "" || expr == "" {
+		return nil, "", false
+	}
+	if actual == expected {
+		return nil, expr, true
+	}
+	if actual == "any" {
+		valueTemp := ctx.newTemp()
+		lines := []string{fmt.Sprintf("%s := __able_any_to_value(%s)", valueTemp, expr)}
+		moreLines, converted, ok := g.nativeCallableWrapLines(ctx, expected, "runtime.Value", valueTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, moreLines...)
+		return lines, converted, true
+	}
+	if actual == "runtime.Value" {
+		convertedTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, errTemp, info.FromRuntimeHelper, expr),
+			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
+		}
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, convertedTemp, true
+	}
+	if actualInfo := g.nativeCallableInfoForGoType(actual); actualInfo != nil {
+		runtimeTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		convertedTemp := ctx.newTemp()
+		convertErrTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", runtimeTemp, errTemp, actualInfo.ToRuntimeHelper, expr),
+			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
+		}
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		lines = append(lines,
+			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, convertErrTemp, info.FromRuntimeHelper, runtimeTemp),
+			fmt.Sprintf("%s = __able_control_from_error(%s)", controlTemp, convertErrTemp),
+		)
+		controlLines, ok = g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, convertedTemp, true
+	}
+	if valueLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, actual); ok {
+		convertedTemp := ctx.newTemp()
+		errTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines := append([]string{}, valueLines...)
+		lines = append(lines,
+			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, errTemp, info.FromRuntimeHelper, valueExpr),
+			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
+		)
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, convertedTemp, true
+	}
+	return nil, "", false
 }
 
 func (g *generator) isStaticallyKnownExpectedType(goType string) bool {
@@ -177,7 +270,7 @@ func (g *generator) compileableInterfaceMethodForReceiver(goType string, interfa
 			continue
 		}
 		receiverType := impl.Info.Params[0].GoType
-		if receiverType != goType && !g.typeMatches(receiverType, goType) {
+		if !g.receiverGoTypeCompatible(receiverType, goType) {
 			continue
 		}
 		if found != nil && found != impl.Info {
@@ -201,10 +294,67 @@ func (g *generator) compileableInterfaceMethodForConcreteReceiver(goType string,
 			continue
 		}
 		receiverType := impl.Info.Params[0].GoType
-		if receiverType != goType && !g.typeMatches(receiverType, goType) {
+		if !g.receiverGoTypeCompatible(receiverType, goType) {
 			continue
 		}
 		candidate := &methodInfo{MethodName: methodName, ExpectsSelf: true, Info: impl.Info}
+		if found != nil && found.Info != candidate.Info {
+			return nil
+		}
+		found = candidate
+	}
+	return found
+}
+
+func (g *generator) receiverGoTypeCompatible(expectedReceiverType string, actualGoType string) bool {
+	if g == nil || expectedReceiverType == "" || actualGoType == "" {
+		return false
+	}
+	if expectedReceiverType == actualGoType || g.typeMatches(expectedReceiverType, actualGoType) {
+		return true
+	}
+	if expectedInfo := g.structInfoByGoName(expectedReceiverType); expectedInfo != nil {
+		if actualInfo := g.structInfoByGoName(actualGoType); actualInfo != nil && expectedInfo.Name != "" && expectedInfo.Name == actualInfo.Name {
+			return true
+		}
+	}
+	// Compiler-owned static array wrappers should reuse the shared Array impl
+	// surface for specialization instead of dropping to dynamic dispatch.
+	if g.isArrayStructType(expectedReceiverType) && g.isStaticArrayType(actualGoType) {
+		return true
+	}
+	return false
+}
+
+func (g *generator) compileableInterfaceStaticMethodForConcreteTarget(target ast.TypeExpression, methodName string) *methodInfo {
+	if g == nil || target == nil || methodName == "" {
+		return nil
+	}
+	targetKey := typeExpressionToString(target)
+	targetName, targetNameOK := g.methodTargetName(target)
+	var found *methodInfo
+	for _, impl := range g.implMethodList {
+		if impl == nil || impl.Info == nil || !impl.Info.Compileable || impl.ImplName != "" || impl.TargetType == nil {
+			continue
+		}
+		if impl.MethodName != methodName || methodDefinitionExpectsSelf(impl.Info.Definition) {
+			continue
+		}
+		if implTypeName, ok := g.methodTargetName(impl.TargetType); targetNameOK && ok {
+			if implTypeName != targetName {
+				continue
+			}
+		} else if typeExpressionToString(impl.TargetType) != targetKey {
+			continue
+		}
+		candidate := &methodInfo{
+			TargetName:   typeExpressionToString(impl.TargetType),
+			TargetType:   impl.TargetType,
+			MethodName:   methodName,
+			ExpectsSelf:  false,
+			Info:         impl.Info,
+			ReceiverType: "",
+		}
 		if found != nil && found.Info != candidate.Info {
 			return nil
 		}
@@ -373,6 +523,41 @@ func (g *generator) zeroValueExpr(goType string) (string, bool) {
 		return fmt.Sprintf("%s{}", base), true
 	}
 	return "", false
+}
+
+func (g *generator) goTypeHasNilZeroValue(goType string) bool {
+	if goType == "" || goType == "runtime.Value" || goType == "runtime.ErrorValue" {
+		return false
+	}
+	if goType == "any" {
+		return true
+	}
+	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") {
+		return true
+	}
+	if g.isMonoArrayType(goType) {
+		return true
+	}
+	if g.nativeInterfaceInfoForGoType(goType) != nil {
+		return true
+	}
+	if g.nativeCallableInfoForGoType(goType) != nil {
+		return true
+	}
+	if g.nativeUnionInfoForGoType(goType) != nil {
+		return true
+	}
+	return false
+}
+
+func (g *generator) typedNilExpr(goType string) (string, bool) {
+	if !g.goTypeHasNilZeroValue(goType) {
+		return "", false
+	}
+	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") {
+		return fmt.Sprintf("(%s)(nil)", goType), true
+	}
+	return fmt.Sprintf("%s(nil)", goType), true
 }
 
 func (g *generator) typedStringifyExpr(expr string, goType string) (string, bool) {

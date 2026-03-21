@@ -1,0 +1,35 @@
+package bench_linked_list_iterator_collect_i64_small
+
+import able.collections.linked_list.{LinkedList}
+
+fn build(size: i32) -> LinkedList i32 {
+  values: LinkedList i32 = LinkedList.new()
+  i := 0
+  loop {
+    if i >= size { break }
+    values.push_back(i)
+    i = i + 1
+  }
+  values
+}
+
+fn score(values: LinkedList i32) -> i64 {
+  values
+    .lazy()
+    .map<i64>({ value => (value as i64) * 3_i64 })
+    .filter({ value => value >= 1500_i64 })
+    .collect<Array i64>()
+    .reduce<i64>(0_i64, { acc, value => acc + value })
+}
+
+fn main() -> void {
+  values := build(8_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 4 { break }
+    total = total + score(values)
+    rounds = rounds + 1
+  }
+  print(total)
+}

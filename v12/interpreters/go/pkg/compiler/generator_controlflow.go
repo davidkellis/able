@@ -121,6 +121,9 @@ func (g *generator) compileCondition(ctx *compileContext, expr ast.Expression) (
 	if condType == "bool" {
 		return condLines, condExpr, true
 	}
+	if g.isNilableStaticCarrierType(condType) {
+		return condLines, fmt.Sprintf("%s != nil", condExpr), true
+	}
 	condRuntime := condExpr
 	if condType != "runtime.Value" {
 		convLines, converted, ok := g.runtimeValueLines(ctx, condExpr, condType)
@@ -623,6 +626,9 @@ func (g *generator) compileForLoopInternal(ctx *compileContext, loop *ast.ForLoo
 	if g.isStaticArrayType(iterType) {
 		return g.compileStaticArrayForLoopInternal(ctx, loop, withResult, iterLines, iterExpr, iterType)
 	}
+	if lines, result, ok := g.compileStaticIterableForLoopInternal(ctx, loop, withResult, loop.Iterable, iterLines, iterExpr, iterType); ok {
+		return lines, result, true
+	}
 	iterConvLines, iterRuntime, ok := g.runtimeValueLines(ctx, iterExpr, iterType)
 	if !ok {
 		ctx.setReason("for loop iterable unsupported")
@@ -694,7 +700,7 @@ func (g *generator) compileForLoopInternal(ctx *compileContext, loop *ast.ForLoo
 	lines = append(lines,
 		forPrefix,
 		fmt.Sprintf("if %s {", isArrayTemp),
-		fmt.Sprintf("\tif %s >= len(%s) { break }", idxTemp, valuesTemp),
+		fmt.Sprintf("\tif %s >= %s { break }", idxTemp, g.staticSliceLenExpr(valuesTemp)),
 		fmt.Sprintf("\t%s = %s[%s]", elementTemp, valuesTemp, idxTemp),
 		fmt.Sprintf("\t%s++", idxTemp),
 		"} else {",

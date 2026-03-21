@@ -13,6 +13,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Use the Go tree-walking interpreter as the behavioral reference and keep the Go bytecode interpreter in strict semantic parity.
 - Preserve a single AST contract for every runtime so tree-sitter output can target both the historical branches and the actively developed v12 runtime; document any deltas immediately in the v12 spec.
 - Capture process/roadmap decisions in docs so follow-on agents can resume quickly, and keep every source file under 1000 lines by refactoring proactively.
+- For compiler/AOT work, only primitive Able types may use primitive-specific Go lowering. All non-primitive nominal types must lower through shared struct/union/interface/generic translation rules and semantic encoding rules. Avoid new per-structure lowering branches for named non-primitive types unless the special handling is required by a language-level syntax or kernel ABI boundary rather than by the nominal type itself.
 
 ## Existing Assets
 - `spec/full_spec_v10.md` + `spec/full_spec_v11.md`: authoritative semantics for archived toolchains. Keep them untouched unless a maintainer requests errata.
@@ -40,6 +41,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Diagnostics parity is mandatory: tree-walker and bytecode interpreters must emit identical runtime + typechecker output for every fixture when `ABLE_TYPECHECK_FIXTURES` is `warn|strict`.
 - After regenerating tree-sitter assets under `v12/parser/tree-sitter-able`, force Go to relink the parser by deleting `v12/interpreters/go/.gocache` or running `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser`.
 - It is expected that some new fixtures will fail due to interpreter bugs/deficiencies. Implement fixtures strictly in accordance with the v12 spec semantics. Do not weaken or sidestep the behavior under test to "make tests pass".
+- Compiler/AOT optimization work must not introduce new bespoke lowering rules for specific non-primitive structures or containers. The correct fix direction is to improve the general lowering machinery so user-defined and stdlib nominal types fall out of the same rules.
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 ### Staged Integration Audit & Stabilization (active priority)
@@ -336,7 +338,133 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
       - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-mono-array-u32-sum-small-compiled.md`.
       - Current compiled 3-run averages on that fixture: mono on `1.0933s` / `185.33` GC; mono off `1.6800s` / `21.33` GC.
       - Conclusion: the remaining primitive numeric scalar family is now materially more complete, and the specialized `u32` path shows a real wall-clock win on the checked-in reduced benchmark even though raw GC count is not lower on that workload.
-      - Next category: move beyond primitive scalars into broader container/non-scalar carrier families that still fall back to generic `*Array` / `runtime.Value`, then benchmark those surfaces directly.
+    - [x] Land the first broader non-array native container carrier slice for `HashMap`.
+      - `HashMap K V` now maps to native `*HashMap` carriers on static compiled paths instead of `any`.
+      - Typed/untyped map literals, `Array (HashMap K V)` outer carriers, and `Map K V` interface params now stay native in generated code.
+      - Generic interface return matching now binds instantiated interface generics correctly, which closes the old no-fallback breakage in stdlib `HashSet.iterator()` / `Enumerable.iterator`.
+      - Shared nominal struct lowering now expands simple type aliases before host-type mapping, so alias-backed fields like `HashMapHandle = i64` lower to concrete Go fields (`int64`) instead of regressing to `runtime.Value`.
+      - The remaining explicit map-literal boundary now normalizes runtime handle values back into the native `HashMap.handle` carrier before constructing the compiled struct.
+      - The compiled control-to-error bridge now preserves exit signals before wrapping raised values, so successful compiled stdlib flows that end in `__able_os_exit(0)` do not degrade into generic `runtime error` failures.
+      - `TestCompilerCompiledHashSetUnionStdlib` is green again on the shared native carrier path, which closes the last surfaced integration regression from the generic nominal-carrier refactor.
+      - Residual interface coercion on this path is now an explicit runtime roundtrip at the ABI edge rather than a compiler fallback.
+      - New reduced benchmark fixture: `v12/fixtures/bench/hashmap_i32_small/main.able`.
+      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-hashmap-i32-small-compiled.md`.
+      - Current compiled 3-run average on that fixture: `1.7633s` / `175.33` GC.
+    - [x] Follow through on broader nominal map/set container lowering via the shared struct/interface pipeline rather than new per-type compiler rules.
+      - `TreeMap` / `TreeSet` and `PersistentMap` / `PersistentSet` are now compiling on the same generic nominal carrier path as `HashMap`; no new container-specific host-type mapping was added for those families.
+      - Static compiled bodies now route slice/string builtin calls through generated helpers (`__able_slice_len`, `__able_slice_cap`, `__able_string_len_bytes`) so Able locals like `len` no longer shadow raw Go builtins and break container-heavy compiled code.
+      - The previously failing stdlib fixture gates are green again: `06_12_11_stdlib_collections_tree_map_set` and `06_12_12_stdlib_collections_persistent_map_set`.
+      - Focused regression coverage now pins builtin-shadowing hygiene plus native `TreeMap` / `PersistentMap` params and returns.
+    - [x] Audit the next broader stdlib container families on the shared native carrier path and add the first reduced benchmark for that slice.
+      - `Deque` / `Queue`, `BitSet` / `Heap`, and `PersistentSortedSet` / `PersistentQueue` now have explicit no-fallback compiler regressions proving representative static method bodies stay on native locals and avoid dynamic helper regressions.
+      - Shared compiled fixture gates are green for the same families: `06_12_13_stdlib_collections_persistent_sorted_queue`, `06_12_16_stdlib_collections_deque_queue`, and `06_12_17_stdlib_collections_bit_set_heap`.
+      - New reduced benchmark fixture: `v12/fixtures/bench/heap_i32_small/main.able`.
+      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-heap-i32-small-compiled.md`.
+      - Current compiled 3-run average on that fixture: `7.7533s` / `1105.00` GC, with direct compiled output parity at `-211812354`.
+    - [x] Close the next deeper generic-container correctness slice on the shared native carrier path.
+      - Generic nullable/interface carriers now stay native on deeper container paths like `LazySeq T` instead of collapsing back to `any`.
+      - Nil lowering now emits typed Go nils for native nilable carriers (`*ListNode`, native interface carriers, other pointer-backed carriers) instead of invalid raw `nil` short declarations.
+      - The compiled stdlib fixture gate `06_12_14_stdlib_collections_linked_list_lazy_seq` is green again, and `TestCompilerLazySeqIteratorCarrierStaysNative` now pins the generated `LazySeq.Source` carrier plus the typed-`nil` reset path.
+      - This tranche did not add a new reduced benchmark because it closes a native-carrier correctness gap rather than a newly identified hot loop.
+    - [x] Close the first benchmark-worthy generic-container hot-path slice on the shared native carrier path.
+      - Static `for value in iterable` lowering now uses native receiver calls (`iterator`, `next`) for concrete and native-interface iterable carriers instead of `__able_resolve_iterator(...)`.
+      - Identifier coercion now prefers static expected-type coercion before broad runtime conversion, which keeps native interface arguments on compiler-owned carriers more reliably.
+      - Native interface adapter synthesis now honors interface inheritance, so derived-interface impls such as `Enumerable A for LinkedList` synthesize the matching native base-interface carrier adapter (`Iterable A`) instead of falling back to `runtime.Value`.
+      - Native interface concrete adapters now directly coerce compatible native interface return carriers rather than round-tripping through runtime values, which removes the recursive `LinkedListIterator` / `ListNode` conversion bug on the compiled path.
+      - New regressions pin the `LinkedList -> Iterable -> Iterator` adapter path and the direct compiled callsite shape.
+      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_for_i32_small/main.able`.
+      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-for-i32-small-compiled.md`.
+      - Current compiled 3-run average on that fixture: `0.2000s` / `15.00` GC, with direct compiled output parity at `1199940000`.
+    - [x] Close the next concrete generic/default container-method hot-path slice on the shared native carrier path.
+      - Higher-kinded interface self patterns such as `Enumerable A for C _` now bind `C` to the concrete target type on compiled impl paths, so concrete `Enumerable.map/filter/reduce` calls can resolve to compiled impl functions instead of `__able_method_call_node(...)`.
+      - Bound type-constructor calls inside compiled default impl bodies, such as `C.default()`, now resolve through static compiled impl lookup instead of falling back to `__able_env_get("C")`.
+      - Native `Iterator<T>` carriers now satisfy compiled iterable lowering directly, so default `Enumerable` loops avoid iterator runtime-value round-trips (`to_runtime_value -> from_value -> iterator()`) that previously overflowed on large `LinkedList` graphs.
+      - New regression coverage pins both the concrete `Enumerable.map/filter/reduce` callsite shape and the native iterator loop inside the compiled default impl body.
+      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`.
+      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-compiled.md`.
+      - Current compiled 3-run average on that fixture: `0.1667s` / `12.00` GC, with direct compiled output parity at `382455000`.
+    - [x] Close the callback/runtime-value carrier reduction slice that remained inside the generic default-impl hot path.
+      - Specialized compiled impl methods now carry bound generic type bindings through compileability and render, with fixed-point rendering plus cached in-progress reuse so mutually recursive specialized siblings do not recurse forever during codegen.
+      - Direct sibling selection inside default impl bodies now prefers specialized sibling impls before the general concrete receiver path, so specialized `Enumerable.lazy()` helpers call `iterator_*_spec(...)` directly instead of round-tripping `Iterator_A -> runtime.Value -> Iterator_i32`.
+      - New regression coverage pins the specialized `Enumerable.lazy()` body itself, so the `LinkedList.map/filter/reduce` hot path fails if that iterator bridge reappears.
+      - Follow-up snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-specialized-default-impls-compiled.md`.
+      - Current compiled 3-run average on that fixture after the fix: `0.1667s` / `15.33` GC, with direct compiled output parity at `382455000`.
+    - [x] Close the next iterator default-method hot-path slice on the shared native carrier path.
+      - Ordinary default native-interface methods on native iterator carriers now lower through the direct compiled-helper path instead of routing through the runtime adapter method layer.
+      - On the representative `LinkedList.lazy().map<i64>(...).filter(...).next()` shape, compiled `Iterator.filter` now stays on native iterator helpers all the way into the `next()` loop body.
+      - New regressions pin both the direct iterator-method callsite shape and a function-shaped `map/filter -> next()` loop body, rejecting `__able_iface_Iterator_*_to_runtime_value(...)`, `__able_method_call_node(...)`, and `__able_call_value(...)` on this path.
+      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able`.
+      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-pipeline-i64-small-compiled.md`.
+      - Current compiled 3-run average on that fixture: `0.1800s` / `13.33` GC, with direct compiled output parity at `382455000`.
+    - [x] Close the mono-array-enabled `Iterator.collect<Array T>()` / specialized-array accumulator interaction and remeasure that iterator family.
+      - `Iterator.collect<Array i64>()` on native iterator carriers now lowers through a dedicated compiled helper with a specialized `*__able_array_i64` accumulator instead of falling back to `__able_method_call_node(...)` plus `__able_array_i64_from(...)`.
+      - The helper is emitted as a compiler-owned built-in array fast path, which is acceptable because `Array` is a language-level special form rather than an arbitrary user nominal type.
+      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able`.
+      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-collect-i64-small-compiled.md`.
+      - Current compiled 3-run averages on that fixture: mono on `0.1833s` / `14.00` GC; mono off `0.1833s` / `13.33` GC, with direct compiled output parity at `382455000`.
+      - Conclusion: this tranche is a correctness/native-carrier closure, not a new speed step; the next category is broader performance widening on the next hot generic-container/runtime edges.
+    - [x] Prove `Iterator.collect<C>()` lowers through the shared generic nominal path for user-defined accumulators, with Array-specific code kept only as the built-in fallback.
+      - Added a user-defined `SumCount` accumulator (`Default + Extend i64`) and locked `Iterator.collect<SumCount>()` against `__able_method_call_node(...)`, `__able_call_value(...)`, and iterator runtime-value conversion on the compiled path.
+      - The shared compiled `Iterator.collect<C>()` default helper now stays native for statically known user nominal accumulators; it resolves `Default.default()` and `Extend.extend(...)` through the ordinary compiled impl path.
+      - The built-in `Array` collect helper remains only as a fallback behind that shared path, which keeps the language/kernel `Array` exception narrow instead of treating arbitrary named structures specially.
+      - No new benchmark was added for this tranche because it is an architectural guardrail on the generic lowering contract, not a newly identified hot loop.
+    - [x] Specialize shared generic nominal `methods` when the concrete target type is statically known, and remeasure the first hot constrained-container path on top of that rule.
+      - Added shared nominal-method specialization for generic `methods` blocks, parallel to the existing impl specialization path, so statically known targets like `Box i32` and `Heap i32` now render specialized compiled method bodies instead of staying on unspecialized `runtime.Value` parameter signatures.
+      - Method param/return mapping now honors bound target/type-parameter bindings during specialization, which keeps this tranche on the shared struct/interface/generic lowering path instead of introducing another named-structure rule.
+      - Added a user-defined nominal proof case (`Box T`) to pin that ordinary generic nominal methods specialize without container-specific logic.
+      - Re-measured the existing reduced benchmark fixture `v12/fixtures/bench/heap_i32_small/main.able` because it is the first hot path that materially exercises generic nominal `methods` with interface-constrained element operations.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-heap-i32-generic-nominal-method-specialization-compiled.md`.
+      - Current compiled 3-run average on that fixture after the shared nominal-method specialization tranche: `4.2000s` / `1811.67` GC, with direct compiled output parity at `-211812354`.
+    - [x] Refine bound generic field/member carriers inside already-specialized nominal method bodies, and remeasure the first hot constrained-container path after that lands.
+      - Added a user-defined proof case (`Bucket T { items: Array T }`) and pinned it under `ExperimentalMonoArrays`, which proves fully bound generic struct fields now stay on their concrete native carrier (`Items *__able_array_i32`) inside specialized nominal method bodies instead of re-entering the residual generic `runtime.Value` index path.
+      - Static array index lowering now returns concrete element types directly when the expected type is known, with explicit control transfer on bounds failures, instead of materializing a temporary `runtime.Value` and converting back. This keeps bound generic field/member accesses on the native path once the field carrier is concrete.
+      - Sibling/default impl specialization now preserves concrete receiver-derived bindings instead of leaving placeholder self-bindings like `T -> T`; that closes the remaining mono-array `Iterable.iterator` / `Iterable.each` execute gap and keeps nested zero-arg helper calls inside specialized nominal bodies on their concrete target.
+      - The shared fix also closes the surfaced `PersistentSortedQueue` specialization regression without adding a new nominal-type rule; compiled main bodies now stay on `PersistentSortedSet_i32` / `PersistentQueue_i32` plus specialized impl siblings.
+      - Re-measured `v12/fixtures/bench/heap_i32_small/main.able` after the bound carrier refinement tranche.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-heap-i32-bound-generic-field-carrier-refinement-compiled.md`.
+      - Current compiled 3-run average on that fixture after the tranche: `0.7667s` / `91.33` GC, with direct compiled output parity at `-211812354`.
+      - Conclusion: the bound generic field/member carrier tranche is now closed; the next category is the next benchmark-worthy generic container/runtime edge that still crosses residual runtime carriers.
+    - [x] Close the remaining shared generic nominal default/static receiver and struct-literal refinement gap on the `Iterable -> LazySeq` path, and remeasure the reduced `LinkedList` `Enumerable` benchmark.
+      - Recursive type substitution now resolves chained bindings transitively during specialization, expected-type refinement now upgrades static nominal targets/struct literals like `LazySeq { ... }` to concrete specialized carriers such as `LazySeq<i32>`, and specialized nominal method info now fills against the concrete target instead of the generic template.
+      - Native interface concrete-impl matching now compares specialized receiver targets through the shared target-template path, which lets concrete receivers like `*LinkedList_i32` satisfy native `Iterable<i32>` adapters without re-entering fallback dispatch.
+      - This closes the surfaced residual `ConcreteEnumerableGenericMethods...`, `LinkedListIterableAdapter...`, and `LazySeqIteratorCarrier...` fallback gap without adding any `LinkedList`-specific or `LazySeq`-specific lowering rule.
+      - Re-measured `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` after the shared receiver/struct-literal refinement tranche.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-shared-static-nominal-closure-compiled.md`.
+      - Current compiled 3-run average on that fixture after the tranche: `0.1633s` / `8.33` GC, with direct compiled output parity at `382455000`.
+      - Conclusion: the shared generic nominal default/static path is now closed on this reduced `LinkedList -> Enumerable -> LazySeq` family; the next category is the next benchmark-worthy generic container/runtime edge that still crosses residual runtime carriers.
+    - [x] Close the iterator-literal controller/runtime-value edge that remained inside the generic iterator default-method family.
+      - Compiled iterator literals now bind `gen` as a compiler-owned `*__able_generator` controller instead of an opaque runtime object.
+      - `gen.yield(...)`, `gen.stop()`, and bound `gen.yield` callable captures now lower directly through the compiler-owned controller path instead of `__able_method_call_node(...)`.
+      - Native nilable/static-carrier conditions now lower as direct nil checks (`expr != nil`) instead of routing through `__able_truthy(...)`, which keeps `Iterator.filter_map` on the static path.
+      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/main.able`.
+      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-filter-map-i64-small-compiled.md`.
+      - Current compiled 3-run average on that fixture: `0.1267s` / `10.00` GC, with direct compiled output parity at `191952000`.
+      - Conclusion: the iterator default-method family is now closed through `filter_map`; the next category is the next hot generic-container/runtime edge beyond iterator-literal controller cleanup.
+    - [x] Remove the remaining shared built-in `Array` scalar propagation/runtime-cast crossings on the reduced matrix path, and remeasure `matrixmultiply_f64_small`.
+      - Static built-in `Array` propagation now returns concrete success element types on the compiled path, so nested staged-scalar `get(...)!` / index propagation no longer routes success values through `__able_nullable_*_to_value(...)`.
+      - The reduced matrix hot loop now stays on direct Go `float64` multiply/add instead of falling back through `bridge.AsFloat(...)` and `__able_binary_op(...)`.
+      - Primitive numeric casts such as `i32 -> f64` and float widening now lower directly to Go casts on static compiled paths instead of `__able_cast(...)`.
+      - This tranche stays within the compiler contract: only built-in `Array` semantics and primitive types received special lowering; no new named non-primitive structure rule was added.
+      - New regression coverage pins the generated shape for the nested `Array (Array f64)` transpose path and for a direct scalar dot-loop helper.
+      - Re-measured `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the shared scalar propagation/cast tranche.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-scalar-propagation-compiled.md`.
+      - Current compiled 3-run average on that fixture after the tranche: `1.9733s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
+      - At this point in the sequence, before the later static-array frame-elision tranche, the full compiled `v12/examples/benchmarks/matrixmultiply.able` macro benchmark still timed out at the current `60s` harness limit.
+      - Conclusion: the reduced matrix scalar-loop carrier gap is now closed; the next category is the remaining macro-scale built-in `Array` lowering work on the full matrix path.
+    - [x] Remove the remaining shared primitive `float -> int` runtime-cast crossings on the matrix entry path, and remeasure `matrixmultiply_f64_small`.
+      - Shared primitive `float -> int` casts now lower through native `math.Trunc(...)` plus explicit `NaN` / `Inf` / range overflow checks on static compiled paths instead of `__able_cast(...)` and `bridge.AsInt(...)`.
+      - The full `matrixmultiply` compile-shape audit now proves the compiled `main` body avoids those runtime cast helpers while `build_matrix` and `matmul` remain free of the known scalar runtime carrier helpers.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-float-int-casts-compiled.md`.
+      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `1.7567s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
+      - At this point in the sequence, before the later static-array frame-elision tranche, the full compiled `v12/examples/benchmarks/matrixmultiply.able` macro benchmark still timed out at the current `60s` harness limit.
+      - Conclusion: the primitive entry-cast gap on the matrix family is now closed; the next category is the remaining macro-scale built-in `Array` lowering work on the full matrix path beyond those entry casts.
+    - [x] Remove synthetic call-frame scaffolding from shared static built-in `Array` factories/intrinsics on the matrix path, and remeasure both the reduced and full matrix benchmarks.
+      - Shared static built-in `Array` factories and intrinsics no longer emit synthetic `__able_push_call_frame(...)` / `__able_pop_call_frame()` pairs on compiled static paths.
+      - The generated `build_matrix` and `matmul` bodies are now free of that frame scaffolding while staying on the same shared built-in `Array` lowering rules.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-frame-elision-compiled.md`.
+      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1933s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
+      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `4.2267s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
+      - Conclusion: the current macro-scale matrix built-in `Array` tranche is closed; the next category is the next benchmark-worthy shared built-in `Array` or primitive residual that still crosses runtime carriers.
 - Definition of done for this workstream:
   - [x] Static typed-array hot paths (`push/get/set/len` + index ops) compile without dynamic member dispatch in generated function bodies.
   - [x] Static local-variable fallback semantics (`=` declares when unbound) stay local-scope and do not route through global environment helpers.

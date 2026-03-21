@@ -135,6 +135,10 @@ func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string
 		lines = append(lines, wrapLines...)
 		return lines, wrapped, expected, true
 	}
+	if wrapLines, wrapped, ok := g.nativeCallableWrapLines(ctx, expected, actual, expr); ok {
+		lines = append(lines, wrapLines...)
+		return lines, wrapped, expected, true
+	}
 	if wrapped, ok := g.nativeUnionWrapExpr(expected, actual, expr); ok {
 		return lines, wrapped, expected, true
 	}
@@ -189,14 +193,14 @@ func (g *generator) compileExprExpected(ctx *compileContext, expr ast.Expression
 		}
 		return strconv.FormatBool(e.Value), actual, true
 	case *ast.NilLiteral:
-		if expected == "any" || expected == "" {
-			return "nil", "any", true
-		}
-		if strings.HasPrefix(expected, "*") || strings.HasPrefix(expected, "[]") {
-			return "nil", expected, true
-		}
 		if expected == "runtime.Value" {
 			return "runtime.NilValue{}", "runtime.Value", true
+		}
+		if expected == "any" || expected == "" {
+			return "any(nil)", "any", true
+		}
+		if typedNil, ok := g.typedNilExpr(expected); ok {
+			return typedNil, expected, true
 		}
 		ctx.setReason("nil literal type mismatch")
 		return "", "", false
@@ -420,12 +424,87 @@ func (g *generator) compileStringStructLiteral(ctx *compileContext, lit *ast.Str
 	return lines, resultTemp, "string", true
 }
 
+func (g *generator) staticStructLiteralTypeExpr(ctx *compileContext, lit *ast.StructLiteral, expected string) ast.TypeExpression {
+	if g == nil || ctx == nil || lit == nil || lit.StructType == nil || lit.StructType.Name == "" {
+		return nil
+	}
+	if len(lit.TypeArguments) > 0 {
+		args := make([]ast.TypeExpression, 0, len(lit.TypeArguments))
+		for _, arg := range lit.TypeArguments {
+			if arg == nil {
+				return nil
+			}
+			args = append(args, arg)
+		}
+		return normalizeTypeExprForPackage(g, ctx.packageName, ast.NewGenericTypeExpression(ast.Ty(lit.StructType.Name), args))
+	}
+	if ctx.expectedTypeExpr != nil {
+		if baseName, ok := typeExprBaseName(ctx.expectedTypeExpr); ok && baseName == lit.StructType.Name {
+			return normalizeTypeExprForPackage(g, ctx.packageName, ctx.expectedTypeExpr)
+		}
+	}
+	if expected != "" && expected != "runtime.Value" && expected != "any" {
+		if expectedInfo := g.structInfoByGoName(expected); expectedInfo != nil && expectedInfo.Name == lit.StructType.Name {
+			if expectedInfo.TypeExpr != nil {
+				return normalizeTypeExprForPackage(g, ctx.packageName, expectedInfo.TypeExpr)
+			}
+			return normalizeTypeExprForPackage(g, ctx.packageName, ast.Ty(expectedInfo.Name))
+		}
+		if expectedExpr, ok := g.typeExprForGoType(expected); ok && expectedExpr != nil {
+			if baseName, ok := typeExprBaseName(expectedExpr); ok && baseName == lit.StructType.Name {
+				return normalizeTypeExprForPackage(g, ctx.packageName, expectedExpr)
+			}
+		}
+	}
+	if bound := g.contextBoundGenericNominalTypeExpr(ctx, lit.StructType.Name); bound != nil {
+		return bound
+	}
+	if inferred := g.inferStructLiteralGenericTypeExpr(ctx, lit); inferred != nil {
+		return inferred
+	}
+	return normalizeTypeExprForPackage(g, ctx.packageName, ast.Ty(lit.StructType.Name))
+}
+
+func (g *generator) contextBoundGenericNominalTypeExpr(ctx *compileContext, typeName string) ast.TypeExpression {
+	if g == nil || ctx == nil || strings.TrimSpace(typeName) == "" || len(ctx.typeBindings) == 0 {
+		return nil
+	}
+	info, ok := g.structInfoForTypeName(ctx.packageName, typeName)
+	if !ok || info == nil || info.Node == nil || len(info.Node.GenericParams) == 0 {
+		return nil
+	}
+	args := make([]ast.TypeExpression, 0, len(info.Node.GenericParams))
+	for _, gp := range info.Node.GenericParams {
+		if gp == nil || gp.Name == nil || gp.Name.Name == "" {
+			return nil
+		}
+		bound, ok := ctx.typeBindings[gp.Name.Name]
+		if !ok || bound == nil {
+			return nil
+		}
+		bound = normalizeTypeExprForPackage(g, ctx.packageName, ctx.substituteTypeBindings(bound))
+		if bound == nil || g.typeExprHasGeneric(bound, ctx.genericNames) {
+			return nil
+		}
+		args = append(args, bound)
+	}
+	return normalizeTypeExprForPackage(g, ctx.packageName, ast.NewGenericTypeExpression(ast.Ty(typeName), args))
+}
+
 func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLiteral, expected string) ([]string, string, string, bool) {
 	if lit == nil || lit.StructType == nil {
 		ctx.setReason("unsupported struct literal")
 		return nil, "", "", false
 	}
-	info, ok := g.structInfoForTypeName(ctx.packageName, lit.StructType.Name)
+	structTypeExpr := g.staticStructLiteralTypeExpr(ctx, lit, expected)
+	if expectedInfo := g.structInfoByGoName(expected); expectedInfo != nil && expectedInfo.Name == lit.StructType.Name {
+		if expectedInfo.TypeExpr != nil {
+			structTypeExpr = normalizeTypeExprForPackage(g, ctx.packageName, expectedInfo.TypeExpr)
+		} else {
+			structTypeExpr = normalizeTypeExprForPackage(g, ctx.packageName, ast.Ty(expectedInfo.Name))
+		}
+	}
+	info, ok := g.structInfoForTypeExpr(ctx.packageName, structTypeExpr)
 	if expected == "runtime.Value" || !ok || info == nil || !info.Supported {
 		return g.compileStructLiteralRuntime(ctx, lit)
 	}
@@ -445,8 +524,12 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 			if expected == "string" && lit.StructType.Name == "String" {
 				return g.compileStringStructLiteral(ctx, lit)
 			}
-			ctx.setReason("struct literal type mismatch")
-			return nil, "", "", false
+			if g.nativeInterfaceInfoForGoType(expected) != nil || g.nativeUnionInfoForGoType(expected) != nil {
+				expected = ""
+			} else {
+				ctx.setReason("struct literal type mismatch")
+				return nil, "", "", false
+			}
 		}
 	}
 	if !info.Supported {
@@ -474,7 +557,7 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 				return nil, "", "", false
 			}
 			fieldInfo := info.Fields[idx]
-			fLines, expr, _, ok := g.compileExprLines(ctx, field.Value, fieldInfo.GoType)
+			fLines, expr, _, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, field.Value, fieldInfo.GoType, fieldInfo.TypeExpr)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -530,7 +613,7 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 			ctx.setReason("unknown struct field")
 			return nil, "", "", false
 		}
-		fLines, expr, _, ok := g.compileExprLines(ctx, valueExpr, fieldInfo.GoType)
+		fLines, expr, _, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, valueExpr, fieldInfo.GoType, fieldInfo.TypeExpr)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -633,7 +716,7 @@ func (g *generator) compileStructLiteralRuntime(ctx *compileContext, lit *ast.St
 		}
 		valuesTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := []runtime.Value{%s}", valuesTemp, strings.Join(values, ", ")))
-		lines = append(lines, fmt.Sprintf("if len(%s) != len(%s.Fields) { panic(fmt.Errorf(\"Struct '%s' expects %%d fields, got %%d\", len(%s.Fields), len(%s))) }", valuesTemp, structDefTemp, structName, structDefTemp, valuesTemp))
+		lines = append(lines, fmt.Sprintf("if %s != %s { panic(fmt.Errorf(\"Struct '%s' expects %%d fields, got %%d\", %s, %s)) }", g.staticSliceLenExpr(valuesTemp), g.staticSliceLenExpr(fmt.Sprintf("%s.Fields", structDefTemp)), structName, g.staticSliceLenExpr(fmt.Sprintf("%s.Fields", structDefTemp)), g.staticSliceLenExpr(valuesTemp)))
 		resultTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := &runtime.StructInstanceValue{Definition: %s, Positional: %s, TypeArguments: %s}", resultTemp, defTemp, valuesTemp, typeArgsExpr))
 		return lines, resultTemp, "runtime.Value", true
@@ -712,7 +795,7 @@ func (g *generator) compileStructLiteralRuntime(ctx *compileContext, lit *ast.St
 	typeArgsTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s := %s", typeArgsTemp, typeArgsExpr))
 	if updateCount > 0 {
-		lines = append(lines, fmt.Sprintf("if len(%s) == 0 && %s != nil { %s = %s.TypeArguments }", typeArgsTemp, baseTemp, typeArgsTemp, baseTemp))
+		lines = append(lines, fmt.Sprintf("if %s == 0 && %s != nil { %s = %s.TypeArguments }", g.staticSliceLenExpr(typeArgsTemp), baseTemp, typeArgsTemp, baseTemp))
 	}
 	resultTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s := &runtime.StructInstanceValue{Definition: %s, Fields: %s, TypeArguments: %s}", resultTemp, defTemp, fieldsTemp, typeArgsTemp))

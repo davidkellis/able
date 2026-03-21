@@ -1,0 +1,6 @@
+{
+  "description": "heap-heavy compiled benchmark for native container audit coverage",
+  "expect": {
+    "exit": 0
+  }
+}

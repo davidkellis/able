@@ -12,6 +12,7 @@ Shared coordination docs (`README.md`, `PLAN.md`, `AGENTS.md`) live at the repo 
 - **Spec-first**: `spec/full_spec_v12.md` is the active specification and must reflect behaviour before/alongside code. Older specs are reference-only.
 - **Go-first runtimes**: the v12 workspace ships Go interpreters (tree-walker + bytecode VM). These must stay in semantic lockstep.
 - **Canonical AST & semantics**: every runtime consumes the same AST contract captured in the spec. Divergences are bugs.
+- **Uniform nominal lowering**: for AOT/compiler work, only primitive Able types get primitive-specific Go lowering. All non-primitive Able structs, unions, interfaces, and generic nominal types must lower through shared translation and semantic-encoding rules, not ad hoc per-structure compiler rules.
 - **Cross-version clarity**: freezing v10/v11 preserves historical toolchains while v12 evolves the language.
 
 ## Repository Layout
@@ -25,7 +26,8 @@ Shared coordination docs (`README.md`, `PLAN.md`, `AGENTS.md`) live at the repo 
 1. Start with `spec/full_spec_v12.md`. Update wording (and the AST contract) before or alongside code.
 2. Keep AST structure identical across the v12 interpreters. Divergences are bugs.
 3. Mirror tests/fixtures across the v12 interpreters so behaviour stays consistent.
-4. Use the root `PLAN.md` for roadmap updates and `AGENTS.md` for onboarding guidance. Version-specific notes live under `v12/`.
+4. For compiler/AOT work, do not add bespoke lowering rules for specific non-primitive structs or containers; improve the general struct/union/interface lowering machinery instead.
+5. Use the root `PLAN.md` for roadmap updates and `AGENTS.md` for onboarding guidance. Version-specific notes live under `v12/`.
 
 ## Getting Started
 - **Go interpreter tests (v12)**: `cd v12/interpreters/go && go test ./...`

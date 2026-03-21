@@ -32,13 +32,13 @@ func (g *generator) staticArrayCloneLines(ctx *compileContext, arrayType string,
 		return nil, "", false
 	}
 	if capacityExpr == "" {
-		capacityExpr = fmt.Sprintf("len(%s)", valuesExpr)
+		capacityExpr = g.staticSliceLenExpr(valuesExpr)
 	}
 	valuesTemp := ctx.newTemp()
 	arrayTemp := ctx.newTemp()
 	if spec, ok := g.monoArraySpecForGoType(arrayType); ok && spec != nil {
 		lines := []string{
-			fmt.Sprintf("%s := make([]%s, len(%s), %s)", valuesTemp, spec.ElemGoType, valuesExpr, capacityExpr),
+			fmt.Sprintf("%s := make([]%s, %s, %s)", valuesTemp, spec.ElemGoType, g.staticSliceLenExpr(valuesExpr), capacityExpr),
 			fmt.Sprintf("copy(%s, %s)", valuesTemp, valuesExpr),
 			fmt.Sprintf("%s := &%s{Elements: %s}", arrayTemp, spec.GoName, valuesTemp),
 			fmt.Sprintf("%s(%s)", spec.SyncHelper, arrayTemp),
@@ -47,7 +47,7 @@ func (g *generator) staticArrayCloneLines(ctx *compileContext, arrayType string,
 	}
 	if g.isArrayStructType(arrayType) {
 		lines := []string{
-			fmt.Sprintf("%s := make([]runtime.Value, len(%s), %s)", valuesTemp, valuesExpr, capacityExpr),
+			fmt.Sprintf("%s := make([]runtime.Value, %s, %s)", valuesTemp, g.staticSliceLenExpr(valuesExpr), capacityExpr),
 			fmt.Sprintf("copy(%s, %s)", valuesTemp, valuesExpr),
 			fmt.Sprintf("%s := &Array{Elements: %s}", arrayTemp, valuesTemp),
 			fmt.Sprintf("__able_struct_Array_sync(%s)", arrayTemp),
@@ -108,8 +108,26 @@ func (g *generator) inferStaticCallResultTypeExpr(ctx *compileContext, call *ast
 		if !ok || memberIdent == nil {
 			return nil, false
 		}
-		if method, ok := g.resolveStaticMethodCall(ctx, callee.Object, memberIdent.Name); ok && method != nil && method.Info != nil && method.Info.Definition != nil && method.Info.Definition.ReturnType != nil {
-			return g.typeExprInContext(ctx, method.Info.Definition.ReturnType), true
+		if receiverTypeExpr, ok := g.inferExpressionTypeExpr(ctx, callee.Object, ""); ok && receiverTypeExpr != nil {
+			if receiverGoType, ok := g.mapTypeExpressionInContext(ctx, receiverTypeExpr); ok && receiverGoType != "" {
+				if method := g.methodForReceiver(receiverGoType, memberIdent.Name); method != nil && method.Info != nil {
+					method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, receiverGoType, "")
+					if returnExpr := g.functionReturnTypeExpr(method.Info); returnExpr != nil {
+						return returnExpr, true
+					}
+				}
+				if method := g.compileableInterfaceMethodForConcreteReceiver(receiverGoType, memberIdent.Name); method != nil && method.Info != nil {
+					method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, receiverGoType, "")
+					if returnExpr := g.functionReturnTypeExpr(method.Info); returnExpr != nil {
+						return returnExpr, true
+					}
+				}
+			}
+		}
+		if method, ok := g.resolveStaticMethodCall(ctx, callee.Object, memberIdent.Name); ok && method != nil && method.Info != nil {
+			if returnExpr := g.functionReturnTypeExpr(method.Info); returnExpr != nil {
+				return returnExpr, true
+			}
 		}
 	}
 	return nil, false
@@ -202,13 +220,39 @@ func (g *generator) staticArrayDefaultNullableResultType(ctx *compileContext, ex
 	return g.nativeNullablePointerType(elemGoType)
 }
 
+func (g *generator) staticArrayPropagationResultType(ctx *compileContext, expr ast.Expression, goType string) (string, bool) {
+	elemGoType := g.staticArrayElementGoTypeForExpr(ctx, expr, goType)
+	if elemGoType == "" {
+		return "", false
+	}
+	if innerType, ok := g.nativeNullableValueInnerType(elemGoType); ok {
+		return innerType, true
+	}
+	return elemGoType, true
+}
+
 func (g *generator) inferLocalTypeExpr(ctx *compileContext, expr ast.Expression, goType string) (ast.TypeExpression, bool) {
 	if typeExpr, ok := g.inferStaticArrayTypeExpr(ctx, expr, goType); ok && typeExpr != nil {
 		return typeExpr, true
 	}
+	if call, ok := expr.(*ast.FunctionCall); ok && call != nil {
+		if inferred, ok := g.inferStaticCallResultTypeExpr(ctx, call); ok && inferred != nil {
+			return inferred, true
+		}
+	}
 	if ident, ok := expr.(*ast.Identifier); ok && ident != nil && ctx != nil {
 		if binding, found := ctx.lookup(ident.Name); found && binding.TypeExpr != nil {
 			return g.typeExprInContext(ctx, binding.TypeExpr), true
+		}
+	}
+	if member, ok := expr.(*ast.MemberAccessExpression); ok && member != nil {
+		if inferred, ok := g.inferMemberAccessTypeExpr(ctx, member); ok && inferred != nil {
+			return inferred, true
+		}
+	}
+	if goType != "" {
+		if inferred, ok := g.typeExprForGoType(goType); ok && inferred != nil {
+			return g.typeExprInContext(ctx, inferred), true
 		}
 	}
 	return nil, false

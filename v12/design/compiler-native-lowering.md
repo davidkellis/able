@@ -325,6 +325,25 @@ not `panic` / `recover`.
   available even with `ExperimentalMonoArrays` disabled, which preserves
   nested carrier identity on mono-off paths while still leaving staged scalar
   specialization itself behind the flag.
+- The next shared built-in `Array` scalar-lowering step is now landed too:
+  - static staged-array propagation returns concrete success element types on
+    the compiled path instead of routing scalar success values back through
+    `__able_nullable_*_to_value(...)`;
+  - primitive numeric casts like `i32 -> f64` now lower directly to Go casts
+    on static compiled paths instead of `__able_cast(...)`;
+  - shared primitive `float -> int` casts now also lower natively through
+    truncate/range/overflow checks instead of `__able_cast(...)` and
+    `bridge.AsInt(...)`, which removes the last obvious runtime cast helper
+    use from the full `matrixmultiply` entry path;
+  - shared static built-in `Array` factories and intrinsics now lower without
+    synthetic `__able_push_call_frame(...)` / `__able_pop_call_frame()`
+    scaffolding on compiled static paths;
+  - the reduced matrix benchmark
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able` now measures
+    `0.1933s` / `7.00` GC over 3 compiled runs;
+  - the full macro benchmark `v12/examples/benchmarks/matrixmultiply.able`
+    now measures `4.2267s` / `13.00` GC over 3 compiled runs, which closes the
+    current macro-scale matrix built-in `Array` tranche.
 - The remaining primitive numeric scalar family is now staged too:
   - `Array i8`, `Array i16`, `Array u16`, `Array u32`, `Array u64`,
     `Array isize`, `Array usize`, and `Array f32` now lower to compiler-owned
@@ -333,9 +352,177 @@ not `panic` / `recover`.
     `v12/fixtures/bench/sum_u32_small/main.able`
   - compiled 3-run averages: mono on `1.0933s`, `185.33` GC; mono off
     `1.6800s`, `21.33` GC
-- Remaining work is now broader non-scalar/container carrier reduction again,
-  plus wider specialization/monomorphization on top of the now mostly-native
-  carrier ABI.
+- The first broader non-array container carrier slice is landed too:
+  - `HashMap K V` now lowers to native `*HashMap` carriers on static compiled
+    paths instead of collapsing to `any`
+  - typed/inferred map literals and `Array (HashMap K V)` shells stay native
+    in the compiled body
+  - shared nominal struct lowering now expands simple aliases before mapping,
+    so kernel-style alias-backed fields like `HashMapHandle = i64` stay native
+    on the same generic path instead of requiring another container-specific
+    exception
+  - the remaining map-literal handle edge now converts runtime handle values
+    back into the native `HashMap.handle` carrier explicitly
+  - `Map K V` interface params stay on the native interface carrier, and the
+    old `HashSet.iterator()` / `Enumerable.iterator` fallback is closed via
+    corrected generic interface return matching plus an explicit narrowed
+    runtime adapter roundtrip at the residual ABI edge
+  - the compiled control bridge now preserves exit signals before wrapping
+    raised values, which closes the false `runtime error` failure on compiled
+    stdlib flows that finish through `__able_os_exit(...)`
+  - reduced container benchmark:
+    `v12/fixtures/bench/hashmap_i32_small/main.able`
+  - compiled 3-run average: `1.7633s`, `175.33` GC
+- The nominal follow-through slice beyond `HashMap` is landed too:
+  - `TreeMap` / `TreeSet` and `PersistentMap` / `PersistentSet` now compile
+    through the same generic nominal struct/interface carrier path instead of
+    requiring new per-type lowering rules
+  - static compiled bodies no longer emit bare Go `len(...)` / `cap(...)` /
+    string-byte-length calls on these paths; they use generated helpers so
+    Able locals like `len` cannot break Go compilation
+  - the compiled stdlib fixture gates `06_12_11_stdlib_collections_tree_map_set`
+    and `06_12_12_stdlib_collections_persistent_map_set` are green again
+- The next broader stdlib container families are now mechanically covered on
+  that same shared native path too:
+  - new no-fallback regressions pin representative static methods for
+    `Deque` / `Queue`, `BitSet` / `Heap`, and
+    `PersistentSortedSet` / `PersistentQueue`
+  - those generated methods are now explicitly audited to avoid
+    `__able_call_value(...)`, `__able_member_get_method(...)`,
+    `__able_method_call_node(...)`, `bridge.MatchType(...)`, and
+    `__able_try_cast(...)`
+  - shared compiled fixture gates for
+    `06_12_13_stdlib_collections_persistent_sorted_queue`,
+    `06_12_16_stdlib_collections_deque_queue`, and
+    `06_12_17_stdlib_collections_bit_set_heap` are green
+  - reduced benchmark target:
+    `v12/fixtures/bench/heap_i32_small/main.able`
+  - compiled 3-run average: `7.7533s`, `1105.00` GC
+- The next deeper generic-container correctness slice is closed too:
+  - generic nullable/interface carriers such as `LazySeq.Source: ?(Iterator T)`
+    now stay on generated native carriers instead of degrading to `any`
+  - compiled `nil` lowering now emits typed Go nils for native nilable
+    carriers (`(*ListNode)(nil)`, `__able_iface_Iterator_T(nil)`, etc.)
+    instead of raw untyped `nil` temps
+  - the compiled stdlib fixture gate
+    `06_12_14_stdlib_collections_linked_list_lazy_seq` is green again on the
+    same shared native path
+- The first benchmark-worthy generic-container hot path is closed too:
+  - static `for value in iterable` lowering now uses native concrete/interface
+    receiver calls instead of `__able_resolve_iterator(...)`
+  - native interface adapter synthesis now honors interface inheritance, so
+    derived-interface impls such as `Enumerable A for LinkedList` synthesize
+    matching native base-interface carriers like `Iterable A`
+  - concrete native interface adapters now directly coerce compatible native
+    interface return carriers, which removes recursive runtime-value
+    round-trips on cyclic container graphs like `LinkedListIterator`
+  - reduced benchmark fixture:
+    `v12/fixtures/bench/linked_list_for_i32_small/main.able`
+  - compiled 3-run average: `0.2000s`, `15.00` GC
+- The next concrete generic/default container-method hot path is closed too:
+  - higher-kinded interface self patterns like `Enumerable A for C _` now bind
+    `C` to the concrete target type on compiled impl paths
+  - bound type-constructor calls like `C.default()` now resolve to compiled
+    impl methods instead of `__able_env_get("C")`
+  - native `Iterator<T>` carriers now satisfy compiled iterable lowering
+    directly inside generic default impl bodies, which removes the
+    `to_runtime_value -> from_value -> iterator()` round-trip that previously
+    overflowed on larger `LinkedList` graphs
+  - reduced benchmark fixture:
+    `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`
+  - compiled 3-run average: `0.1667s`, `12.00` GC
+- The callback/runtime-value carrier cleanup slice on that same hot path is
+  closed too:
+  - specialized impl functions now retain bound generic type bindings through
+    compileability checks and render, so compiled bodies discovered while
+    specializing other impls are emitted in the same pass
+  - specialized sibling impls are cached early enough to break mutually
+    recursive specialization loops during codegen
+  - direct sibling selection inside default impl bodies now prefers those
+    specialized sibling impls before the ordinary concrete-receiver path
+  - that fixes the last `LinkedList` `Enumerable.lazy()` regression:
+    specialized helpers now call `iterator_*_spec(...)` directly instead of
+    bridging `Iterator_A -> runtime.Value -> Iterator_i32`
+  - follow-up compiled 3-run average on
+    `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`:
+    `0.1667s`, `15.33` GC
+- The remaining shared static nominal receiver/struct-literal refinement gap
+  on that same reduced family is closed too:
+  - recursive type substitution now resolves chained specialization bindings
+    transitively instead of stopping on placeholder-to-placeholder maps
+  - static nominal target refinement now upgrades bare targets and struct
+    literals like `LazySeq { ... }` to the concrete specialized carrier when
+    the specialization context already knows the expected target type
+  - native interface concrete-impl matching now compares specialized receiver
+    targets through the shared target-template path, which keeps
+    `*LinkedList_i32` on the native `Iterable<i32>` adapter path
+  - follow-up compiled 3-run average on
+    `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`:
+    `0.1633s`, `8.33` GC
+- The next iterator default-method hot path is closed too:
+  - ordinary default native-interface methods now lower through the same
+    direct compiled-helper path already used for default generic methods when
+    the receiver stays on a native interface carrier
+  - on the representative `LinkedList.lazy().map<i64>(...).filter(...).next()`
+    shape, `Iterator.filter` no longer routes through the runtime adapter
+    method layer after `map(...)`; it resolves directly to the compiled
+    default helper on the native iterator carrier
+  - reduced benchmark fixture:
+    `v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able`
+  - compiled 3-run average: `0.1800s`, `13.33` GC
+- The mono-array-enabled `Iterator.collect<Array T>()` follow-up is now closed
+  too:
+  - the compiler now emits a generated compiled helper with a specialized
+    mono-array accumulator for `collect<Array i64>()` instead of routing
+    through `__able_method_call_node(...)` plus `__able_array_i64_from(...)`
+  - the shared generic default-method path now also has an explicit
+    user-defined nominal proof case: `Iterator.collect<C>()` stays native for
+    a `Default + Extend` accumulator struct (`SumCount`) without another
+    named-container branch; the Array helper remains only as a fallback for
+    the built-in `Array` exception
+  - reduced benchmark fixture:
+    `v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able`
+  - compiled 3-run averages: mono on `0.1833s`, `14.00` GC; mono off
+    `0.1833s`, `13.33` GC
+- The iterator-literal controller/runtime-value edge is now closed too:
+  - compiled iterator literals bind `gen` as a compiler-owned
+    `*__able_generator` controller instead of an opaque runtime object
+  - `gen.yield(...)`, `gen.stop()`, and bound `gen.yield` callable captures
+    now lower directly through that controller path instead of
+    `__able_method_call_node(...)`
+  - native nilable/static-carrier conditions now lower as direct nil checks,
+    which keeps `Iterator.filter_map` on the static path
+  - reduced benchmark fixture:
+    `v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/main.able`
+  - compiled 3-run average: `0.1267s`, `10.00` GC
+- Shared generic nominal `methods` specialization is now closed too:
+  - statically known concrete nominal targets now get specialized compiled
+    method bodies on the shared nominal-method path instead of reusing the
+    unspecialized `runtime.Value` signatures
+  - this now has an explicit user-defined proof case (`Box T`) and a hot
+    reduced benchmark proof case (`Heap i32`) without adding another
+    named-structure lowering rule
+  - reduced benchmark fixture:
+    `v12/fixtures/bench/heap_i32_small/main.able`
+  - compiled 3-run average after the tranche: `4.2000s`, `1811.67` GC
+- Bound generic field/member carrier refinement inside those already-
+  specialized nominal method bodies is now closed too:
+  - fully bound generic fields like `self.items: Array T` now stay on their
+    concrete native carrier once `T` is known, instead of re-entering the
+    residual `runtime.Value` index path
+  - user-defined proof case: `Bucket T { items: Array T }` now renders
+    `Items *__able_array_i32` plus specialized `Bucket.push` /
+    `Bucket.second` bodies under `ExperimentalMonoArrays`
+  - sibling/default impl specialization now upgrades placeholder receiver
+    bindings like `T -> T` to concrete bindings like `T -> i64`, which closes
+    the remaining mono-array `Iterable.iterator` / `Iterable.each` execute gap
+  - reduced benchmark fixture:
+    `v12/fixtures/bench/heap_i32_small/main.able`
+  - compiled 3-run average after the tranche: `0.7667s`, `91.33` GC
+- Remaining work on this family is now broader performance widening for the
+  next benchmark-worthy generic container/runtime carrier edges beyond the
+  now-closed `map/filter/filter_map/collect` iterator family and bound
+  generic field/member carrier tranche
 
 ## Relationship To Other Design Notes
 

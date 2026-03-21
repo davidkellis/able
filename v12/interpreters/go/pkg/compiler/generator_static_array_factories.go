@@ -17,6 +17,7 @@ func (g *generator) compileStaticArrayFactoryCall(
 	if g == nil || ctx == nil || typeName != "Array" {
 		return nil, "", "", false
 	}
+	_ = callNode
 	arrayType := expected
 	if arrayType == "" {
 		arrayType = "*Array"
@@ -24,7 +25,7 @@ func (g *generator) compileStaticArrayFactoryCall(
 	if !g.isStaticArrayType(arrayType) {
 		return nil, "", "", false
 	}
-	lines := []string{fmt.Sprintf("__able_push_call_frame(%s)", callNode)}
+	lines := []string{}
 	switch methodName {
 	case "new":
 		if len(args) != 0 {
@@ -36,7 +37,7 @@ func (g *generator) compileStaticArrayFactoryCall(
 		} else {
 			lines = append(lines, fmt.Sprintf("%s := &Array{}", arrayTemp))
 		}
-		lines = append(lines, g.staticArraySyncCall(arrayType, arrayTemp), "__able_pop_call_frame()")
+		lines = append(lines, g.staticArraySyncCall(arrayType, arrayTemp))
 		if expected == "" || g.typeMatches(expected, arrayType) {
 			return lines, arrayTemp, arrayType, true
 		}
@@ -71,7 +72,7 @@ func (g *generator) compileStaticArrayFactoryCall(
 		} else {
 			lines = append(lines, fmt.Sprintf("%s := &Array{Elements: make([]runtime.Value, 0, %s)}", arrayTemp, capacityTemp))
 		}
-		lines = append(lines, g.staticArraySyncCall(arrayType, arrayTemp), "__able_pop_call_frame()")
+		lines = append(lines, g.staticArraySyncCall(arrayType, arrayTemp))
 		if expected == "" || g.typeMatches(expected, arrayType) {
 			return lines, arrayTemp, arrayType, true
 		}

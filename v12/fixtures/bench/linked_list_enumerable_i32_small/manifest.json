@@ -1,0 +1,4 @@
+{
+  "description": "compiled LinkedList concrete Enumerable map/filter/reduce benchmark",
+  "entry": "main.able"
+}

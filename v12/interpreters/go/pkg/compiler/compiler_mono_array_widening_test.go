@@ -1,6 +1,8 @@
 package compiler
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -229,6 +231,7 @@ func TestCompilerExperimentalMonoArraysNestedF64RowsStaySpecialized(t *testing.T
 		"__able_array_array_f64_sync(",
 		"__able_array_f64_sync(",
 		".Elements = append(",
+		"float64(i)",
 	} {
 		if !strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected nested f64 mono-array build body to contain %q:\n%s", fragment, buildBody)
@@ -240,6 +243,8 @@ func TestCompilerExperimentalMonoArraysNestedF64RowsStaySpecialized(t *testing.T
 		"__able_array_values(",
 		"__able_array_f64_to(__able_runtime, row)",
 		"__able_array_f64_from(",
+		"__able_cast(",
+		"bridge.AsFloat(",
 	} {
 		if strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected nested f64 row lowering to avoid %q in build body:\n%s", fragment, buildBody)
@@ -317,14 +322,15 @@ func TestCompilerExperimentalMonoArraysNestedF64GetPushStaysSpecialized(t *testi
 		"var out *__able_array_array_f64 =",
 		"var col *__able_array_f64 =",
 		".Elements = append(",
-		"__able_nullable_f64_to_value(",
-		"bridge.AsFloat(",
+		"(*__able_tmp_",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected nested f64 get/push path to contain %q:\n%s", fragment, body)
 		}
 	}
 	for _, fragment := range []string{
+		"__able_nullable_f64_to_value(",
+		"bridge.AsFloat(",
 		"__able_method_call_node(",
 		"__able_call_value(",
 		"__able_array_f64_to(__able_runtime, col)",
@@ -332,6 +338,110 @@ func TestCompilerExperimentalMonoArraysNestedF64GetPushStaysSpecialized(t *testi
 	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected nested f64 get/push path to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerExperimentalMonoArraysMatrixMultiplyScalarLoopStaysNative(t *testing.T) {
+	result := compileNoFallbackSourceWithCompilerOptions(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn dot(ai: Array f64, cj: Array f64) -> f64 {",
+		"  total := 0.0",
+		"  k := 0",
+		"  loop {",
+		"    if k >= ai.len() { break }",
+		"    total = total + ai.get(k)! * cj.get(k)!",
+		"    k = k + 1",
+		"  }",
+		"  total",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_dot")
+	if !ok {
+		t.Fatalf("could not find compiled dot function")
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_dot(ai *__able_array_f64, cj *__able_array_f64) (float64, *__ableControl)",
+		"var total float64",
+		"(*__able_tmp_",
+		" * ",
+	} {
+		if !strings.Contains(string(result.Files["compiled.go"]), fragment) && !strings.Contains(body, fragment) {
+			t.Fatalf("expected matrix scalar loop lowering to contain %q", fragment)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_nullable_f64_to_value(",
+		"bridge.AsFloat(",
+		"__able_binary_op(\"*\",",
+		"__able_call_value(",
+		"__able_method_call_node(",
+		"__able_push_call_frame(",
+		"__able_pop_call_frame()",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected matrix scalar loop lowering to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerExperimentalMonoArraysMatrixMultiplyMainStaysNative(t *testing.T) {
+	sourcePath := filepath.Join(repositoryRoot(), "v12", "examples", "benchmarks", "matrixmultiply.able")
+	source, err := os.ReadFile(sourcePath)
+	if err != nil {
+		t.Fatalf("read matrixmultiply benchmark: %v", err)
+	}
+
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-matrixmultiply-main", string(source), Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"math.Trunc(",
+		"int32(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected matrixmultiply main lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_cast(",
+		"bridge.AsInt(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected matrixmultiply main lowering to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+
+	for _, funcName := range []string{"__able_compiled_fn_build_matrix", "__able_compiled_fn_matmul"} {
+		body, ok := findCompiledFunction(result, funcName)
+		if !ok {
+			t.Fatalf("could not find compiled %s function", funcName)
+		}
+		for _, fragment := range []string{
+			"__able_nullable_f64_to_value(",
+			"bridge.AsFloat(",
+			"__able_binary_op(\"*\",",
+			"__able_binary_op(\"+\",",
+			"__able_call_value(",
+			"__able_method_call_node(",
+			"__able_push_call_frame(",
+			"__able_pop_call_frame()",
+		} {
+			if strings.Contains(body, fragment) {
+				t.Fatalf("expected %s to avoid %q:\n%s", funcName, fragment, body)
+			}
 		}
 	}
 }

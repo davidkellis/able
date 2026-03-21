@@ -1,0 +1,4 @@
+{
+  "description": "compiled LinkedList lazy iterator filter_map/collect/reduce benchmark",
+  "entry": "main.able"
+}

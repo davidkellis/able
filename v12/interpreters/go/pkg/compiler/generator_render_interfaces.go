@@ -213,6 +213,11 @@ func (g *generator) renderNativeInterfaceConcreteAdapter(buf *bytes.Buffer, info
 			fmt.Fprintf(buf, "}\n\n")
 			continue
 		}
+		if g.renderNativeInterfaceDirectCoercionControl(buf, "converted", "result", impl.CompiledReturnGoType, method.ReturnGoType, method.ReturnGoType) {
+			fmt.Fprintf(buf, "\treturn converted, nil\n")
+			fmt.Fprintf(buf, "}\n\n")
+			continue
+		}
 		runtimeResult := "__able_result_value"
 		g.renderNativeInterfaceGoToRuntimeValueControl(buf, runtimeResult, "result", impl.CompiledReturnGoType, method.ReturnGoType)
 		if g.renderNativeInterfaceRuntimeToGoValueControl(buf, "converted", runtimeResult, method.ReturnGoType, method.ReturnGoType) {
@@ -223,6 +228,46 @@ func (g *generator) renderNativeInterfaceConcreteAdapter(buf *bytes.Buffer, info
 		fmt.Fprintf(buf, "\treturn result, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
 	}
+}
+
+func (g *generator) renderNativeInterfaceDirectCoercionControl(buf *bytes.Buffer, target string, expr string, actualGoType string, expectedGoType string, failureGoType string) bool {
+	if g == nil || buf == nil || target == "" || expr == "" || actualGoType == "" || expectedGoType == "" {
+		return false
+	}
+	if actualGoType == expectedGoType {
+		fmt.Fprintf(buf, "\t%s := %s\n", target, expr)
+		return true
+	}
+	actualInfo := g.nativeInterfaceInfoForGoType(actualGoType)
+	expectedInfo := g.nativeInterfaceInfoForGoType(expectedGoType)
+	if actualInfo == nil || expectedInfo == nil {
+		return false
+	}
+	zeroExpr, ok := g.zeroValueExpr(failureGoType)
+	if !ok {
+		return false
+	}
+	fmt.Fprintf(buf, "\tvar %s %s\n", target, expectedGoType)
+	fmt.Fprintf(buf, "\tswitch typed := %s.(type) {\n", expr)
+	for _, actualAdapter := range actualInfo.Adapters {
+		if actualAdapter == nil || actualAdapter.AdapterType == "" || actualAdapter.GoType == "" {
+			continue
+		}
+		expectedAdapter, ok := g.nativeInterfaceAdapterForActual(expectedInfo, actualAdapter.GoType)
+		if !ok || expectedAdapter == nil || expectedAdapter.WrapHelper == "" {
+			continue
+		}
+		fmt.Fprintf(buf, "\tcase %s:\n", actualAdapter.AdapterType)
+		fmt.Fprintf(buf, "\t\t%s = %s(typed.Value)\n", target, expectedAdapter.WrapHelper)
+	}
+	if actualInfo.RuntimeAdapter != "" && expectedInfo.RuntimeWrapHelper != "" {
+		fmt.Fprintf(buf, "\tcase %s:\n", actualInfo.RuntimeAdapter)
+		fmt.Fprintf(buf, "\t\t%s = %s(typed.Value)\n", target, expectedInfo.RuntimeWrapHelper)
+	}
+	fmt.Fprintf(buf, "\tdefault:\n")
+	fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native interface conversion from %s to %s\"))\n", zeroExpr, actualGoType, expectedGoType)
+	fmt.Fprintf(buf, "\t}\n")
+	return true
 }
 
 func (g *generator) renderNativeInterfaceBoundaryHelpers(buf *bytes.Buffer, info *nativeInterfaceInfo) {
@@ -339,6 +384,7 @@ func (g *generator) renderNativeInterfaceApplyRuntimeHelper(buf *bytes.Buffer, i
 }
 
 func (g *generator) renderNativeInterfaceRuntimeToGoValueError(buf *bytes.Buffer, target string, expr string, goType string, indent string) bool {
+	rawVar := sanitizeIdent(target) + "_raw"
 	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
 		fmt.Fprintf(buf, "%s%s, err := %s(%s)\n", indent, target, spec.FromRuntimeHelper, expr)
 		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
@@ -395,41 +441,41 @@ func (g *generator) renderNativeInterfaceRuntimeToGoValueError(buf *bytes.Buffer
 	case "rune":
 		fmt.Fprintf(buf, "%s%s, err := bridge.AsRune(%s)\n", indent, target, expr)
 	case "float32":
-		fmt.Fprintf(buf, "%sraw, err := bridge.AsFloat(%s)\n", indent, expr)
+		fmt.Fprintf(buf, "%s%s, err := bridge.AsFloat(%s)\n", indent, rawVar, expr)
 		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
 		fmt.Fprintf(buf, "%s\treturn nil, err\n", indent)
 		fmt.Fprintf(buf, "%s}\n", indent)
-		fmt.Fprintf(buf, "%s%s := float32(raw)\n", indent, target)
+		fmt.Fprintf(buf, "%s%s := float32(%s)\n", indent, target, rawVar)
 		return true
 	case "float64":
 		fmt.Fprintf(buf, "%s%s, err := bridge.AsFloat(%s)\n", indent, target, expr)
 	case "int":
-		fmt.Fprintf(buf, "%sraw, err := bridge.AsInt(%s, bridge.NativeIntBits)\n", indent, expr)
+		fmt.Fprintf(buf, "%s%s, err := bridge.AsInt(%s, bridge.NativeIntBits)\n", indent, rawVar, expr)
 		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
 		fmt.Fprintf(buf, "%s\treturn nil, err\n", indent)
 		fmt.Fprintf(buf, "%s}\n", indent)
-		fmt.Fprintf(buf, "%s%s := int(raw)\n", indent, target)
+		fmt.Fprintf(buf, "%s%s := int(%s)\n", indent, target, rawVar)
 		return true
 	case "uint":
-		fmt.Fprintf(buf, "%sraw, err := bridge.AsUint(%s, bridge.NativeIntBits)\n", indent, expr)
+		fmt.Fprintf(buf, "%s%s, err := bridge.AsUint(%s, bridge.NativeIntBits)\n", indent, rawVar, expr)
 		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
 		fmt.Fprintf(buf, "%s\treturn nil, err\n", indent)
 		fmt.Fprintf(buf, "%s}\n", indent)
-		fmt.Fprintf(buf, "%s%s := uint(raw)\n", indent, target)
+		fmt.Fprintf(buf, "%s%s := uint(%s)\n", indent, target, rawVar)
 		return true
 	case "int8", "int16", "int32", "int64":
-		fmt.Fprintf(buf, "%sraw, err := bridge.AsInt(%s, %d)\n", indent, expr, g.intBits(goType))
+		fmt.Fprintf(buf, "%s%s, err := bridge.AsInt(%s, %d)\n", indent, rawVar, expr, g.intBits(goType))
 		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
 		fmt.Fprintf(buf, "%s\treturn nil, err\n", indent)
 		fmt.Fprintf(buf, "%s}\n", indent)
-		fmt.Fprintf(buf, "%s%s := %s(raw)\n", indent, target, goType)
+		fmt.Fprintf(buf, "%s%s := %s(%s)\n", indent, target, goType, rawVar)
 		return true
 	case "uint8", "uint16", "uint32", "uint64":
-		fmt.Fprintf(buf, "%sraw, err := bridge.AsUint(%s, %d)\n", indent, expr, g.intBits(goType))
+		fmt.Fprintf(buf, "%s%s, err := bridge.AsUint(%s, %d)\n", indent, rawVar, expr, g.intBits(goType))
 		fmt.Fprintf(buf, "%sif err != nil {\n", indent)
 		fmt.Fprintf(buf, "%s\treturn nil, err\n", indent)
 		fmt.Fprintf(buf, "%s}\n", indent)
-		fmt.Fprintf(buf, "%s%s := %s(raw)\n", indent, target, goType)
+		fmt.Fprintf(buf, "%s%s := %s(%s)\n", indent, target, goType, rawVar)
 		return true
 	default:
 		if g.typeCategory(goType) == "struct" {

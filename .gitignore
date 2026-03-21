@@ -4,6 +4,7 @@
 .examples
 .tmp
 tmp/
+tmp*/
 target/
 v12/interpreters/go/able
 v12/interpreters/go/able.test

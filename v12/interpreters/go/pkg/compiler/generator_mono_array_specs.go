@@ -190,6 +190,14 @@ func (g *generator) monoArraySpecForGoType(goType string) (*monoArraySpec, bool)
 	return nil, false
 }
 
+func (g *generator) monoArrayGenericArrayHelper(goType string) (string, bool) {
+	spec, ok := g.monoArraySpecForGoType(goType)
+	if !ok || spec == nil {
+		return "", false
+	}
+	return spec.GoName + "_as_Array", true
+}
+
 func (g *generator) monoArraySpecForElementGoType(goType string) (*monoArraySpec, bool) {
 	if g == nil {
 		return nil, false

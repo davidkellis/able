@@ -63,7 +63,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				ctx.setReason("index assignment index unsupported")
 				return nil, "", "", false
 			}
-			lines = append(lines, fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp))
+			lines = append(lines, fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)))
 			lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
 			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp))
 			lines = append(lines, fmt.Sprintf("\t%s = __able_index_error(%s, %s)", resultTemp, indexTemp, lengthTemp))

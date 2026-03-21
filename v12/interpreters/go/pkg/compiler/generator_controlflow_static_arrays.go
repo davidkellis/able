@@ -87,7 +87,7 @@ func (g *generator) compileStaticArrayForLoopInternal(
 	}
 	lines = append(lines,
 		forPrefix,
-		fmt.Sprintf("if %s >= len(%s) { break }", idxTemp, valuesTemp),
+		fmt.Sprintf("if %s >= %s { break }", idxTemp, g.staticSliceLenExpr(valuesTemp)),
 		fmt.Sprintf("%s = %s[%s]", elementTemp, valuesTemp, idxTemp),
 		fmt.Sprintf("%s++", idxTemp),
 	)

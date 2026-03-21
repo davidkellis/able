@@ -14,6 +14,7 @@ Unconditionally read PLAN.md plus `spec/full_spec_v12.md` before starting any wo
 - Align code changes with the current design notes (e.g., `design/pattern-break-alignment.md`) and update `spec/todo.md`/`PLAN.md` when work lands.
 - Modularize larger features into smaller, self-contained modules. Keep each file under one thousdand (i.e. 1000) lines of code.
 - Defer AST mapping work until the parser produces the expected parse trees (as captured in the grammar corpus) for every feature under development; once grammar coverage is complete and stable, implement the mapping logic.
+- For compiler/AOT lowering, only primitive Able types may receive primitive-specific Go lowering rules. All non-primitive nominal types (`struct`, `union`, `interface`, generic nominal types, stdlib containers, user-defined containers) must lower through the shared nominal translation rules and semantic encoding machinery. Do not add new compiler fast paths or lowering branches just because a specific structure is `HashMap`, `LinkedList`, `TreeMap`, `Heap`, or any other named non-primitive type unless the special case is required by a language-level syntax/kernel boundary rather than by that nominal type itself.
 
 ## Repository Map
 - `v10/`: Frozen Able v10 workspace kept for historical context. Do not edit unless a maintainer assigns a blocking hotfix.
@@ -39,6 +40,7 @@ Unconditionally read PLAN.md plus `spec/full_spec_v12.md` before starting any wo
 - Keep `spec/TODO_v12.md` current when implementation work exposes gaps that need spec wording updates.
 - Treat the shared AST contract as canonical: when introducing new node structures or runtime semantics, implement them in both v12 interpreters and update fixtures so every runtime interprets them identically.
 - Treat the external `able-stdlib` repository as the canonical stdlib source. Mirror required runtime-facing changes there and keep this repo’s stdlib-deprecated snapshot read-only unless a maintainer explicitly asks for migration work.
+- When improving compiler lowering, prefer fixing the general nominal lowering pipeline over adding per-structure rules. If a change appears to require structure-specific treatment, document why the case is actually a language-syntax/kernel exception before proceeding.
 - When adding or modifying fixtures, update `v12/fixtures` and run the Go fixture harness (`go test ./pkg/interpreter`).
 - Fixture manifests can include an optional `setup` array when multi-module scenarios are required (e.g., dyn-import packages); the Go harness evaluates those modules before the entry `module.json`.
 - Use concise, high-signal comments in code. Avoid speculative abstractions.

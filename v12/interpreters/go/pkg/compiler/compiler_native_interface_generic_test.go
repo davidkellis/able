@@ -85,15 +85,18 @@ func TestCompilerDefaultGenericInterfaceMethodUsesNativeReceiverBoundary(t *test
 	if !strings.Contains(body, "var labeler __able_iface_Tagger = __able_iface_Tagger_wrap_ptr_Labeler(") {
 		t.Fatalf("expected interface-typed receiver to stay on the native carrier:\n%s", body)
 	}
-	if !strings.Contains(body, "__able_iface_Tagger_to_runtime_value(__able_runtime,") {
-		t.Fatalf("expected default generic method call to narrow the runtime boundary to receiver conversion:\n%s", body)
+	if !strings.Contains(body, "__able_compiled_iface_Tagger_tagged_default(") {
+		t.Fatalf("expected default generic method call to use the compiled native default body directly:\n%s", body)
 	}
-	if !strings.Contains(body, "__able_method_call_node(") {
-		t.Fatalf("expected default generic method call to dispatch through the generic-method boundary:\n%s", body)
-	}
-	for _, fragment := range []string{"__able_call_value(", "__able_member_get_method(", "bridge.MatchType("} {
+	for _, fragment := range []string{
+		"__able_iface_Tagger_to_runtime_value(__able_runtime,",
+		"__able_method_call_node(",
+		"__able_call_value(",
+		"__able_member_get_method(",
+		"bridge.MatchType(",
+	} {
 		if strings.Contains(body, fragment) {
-			t.Fatalf("expected default generic method dispatch to avoid %q:\n%s", fragment, body)
+			t.Fatalf("expected default generic method call to avoid %q:\n%s", fragment, body)
 		}
 	}
 }

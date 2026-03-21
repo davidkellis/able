@@ -234,10 +234,24 @@ This list tracks the remaining v12 items after audit; completed work should be r
   pointer-backed carriers such as `*float64`, which keeps nested static
   `rows.get(j)!.get(i)!` expressions on the compiler-native path instead of
   falling back to dynamic method dispatch.
-- The full compiled `v12/examples/benchmarks/matrixmultiply.able` path with
-  mono arrays enabled no longer fails early with `runtime: runtime error`; at
-  the current harness limit it now times out in parity with mono-off and the
-  historical compiled baseline.
+- Static built-in `Array` scalar propagation now returns concrete success
+  element types directly on the compiled path, and primitive numeric casts
+  such as `i32 -> f64` now lower to direct Go casts. The reduced matrix
+  benchmark `v12/fixtures/bench/matrixmultiply_f64_small/main.able` now
+  measures `1.9733s` / `7.00` GC over 3 compiled runs, down from the earlier
+  `5.7233s` / `252.00` GC post-outer-wrapper snapshot.
+- Shared primitive `float -> int` casts now also lower natively on static
+  compiled paths through truncate/range/overflow checks instead of
+  `__able_cast(...)` / `bridge.AsInt(...)`; the latest reduced matrix
+  snapshot for `v12/fixtures/bench/matrixmultiply_f64_small/main.able` is now
+  `1.7567s` / `7.00` GC.
+- Shared static built-in `Array` factories and intrinsics now lower without
+  synthetic `__able_push_call_frame(...)` / `__able_pop_call_frame()`
+  scaffolding on compiled static paths. The latest reduced matrix snapshot for
+  `v12/fixtures/bench/matrixmultiply_f64_small/main.able` is now `0.1933s` /
+  `7.00` GC, and the full compiled
+  `v12/examples/benchmarks/matrixmultiply.able` benchmark now completes in
+  `4.2267s` / `13.00` GC over 3 runs instead of timing out.
 - A reduced checked-in compiler benchmark target now exists for the staged
   `f64` slice: `v12/fixtures/bench/matrixmultiply_f64_small/main.able`.
   Current compiled 3-run averages on that target are:
@@ -293,13 +307,126 @@ This list tracks the remaining v12 items after audit; completed work should be r
   row carriers are specialized too, and broader native carrier-array families
   now stay compiler-owned as well, and the text scalar family now stays on
   specialized wrappers too. The remaining mono-array work is now primarily
-  performance work: remove the overhead exposed by the char-heavy benchmark
-  before widening to more scalar/container families.
+  performance work plus broader container lowering: `HashMap`, `TreeMap`, and
+  `PersistentMap` families now stay on native compiler carriers on static
+  compiled paths, but broader container families and deeper generic container
+  paths still need the same treatment and measurement.
 - Staged Go compiler note: callable/function-type existential surfaces no
   longer default to dynamic carrier values on static compiled paths; residual
   dynamic carrier use should now be limited to explicit dynamic boundaries,
   open runtime-polymorphic dispatch, and other semantically necessary ABI
   edges.
+- Staged Go compiler note: `HashMap K V` now lowers to native `*HashMap`
+  carriers on static compiled paths, typed/untyped map literals and
+  `Array (HashMap K V)` shells stay native in generated code, and the old
+  `HashSet.iterator()` / `Iterator T` generic interface return fallback is now
+  replaced by an explicit narrowed runtime adapter roundtrip instead of
+  compiler fallback.
+- Staged Go compiler note: generic nominal struct lowering now expands simple
+  type aliases before host-type mapping, so alias-backed fields like
+  `HashMapHandle = i64` lower through the same native carrier path instead of
+  regressing those fields to `runtime.Value`; the explicit map-literal handle
+  boundary and compiled exit-signal bridge have been tightened to match that
+  contract.
+- Staged Go compiler note: shared generic default-method lowering now has an
+  explicit user-defined nominal proof case too: `Iterator.collect<C>()`
+  stays on the compiled `Default + Extend` path for a user accumulator struct
+  (`SumCount`) without introducing another named-container rule. The
+  residual specialized collect helper remains only for the built-in `Array`
+  exception and only as a fallback behind that shared generic path.
+- Staged Go compiler note: compiled static bodies should not emit bare Go
+  builtin calls where Able user bindings can shadow them. Current slice/string
+  static lowering now routes through generated helpers
+  (`__able_slice_len`, `__able_slice_cap`, `__able_string_len_bytes`) so
+  container-heavy nominal code like `TreeMap` / `PersistentMap` no longer
+  fails due to Go builtin shadowing.
+- Staged Go compiler note: the next stdlib container family slice is now
+  mechanically audited on the same shared native-carrier path too.
+  Representative compiled methods for `Deque` / `Queue`, `BitSet` / `Heap`,
+  and `PersistentSortedSet` / `PersistentQueue` now have no-fallback
+  regressions proving they stay on native locals and avoid dynamic helper
+  regressions; reduced benchmark target
+  `v12/fixtures/bench/heap_i32_small/main.able` now has a follow-up shared
+  generic nominal-method specialization snapshot at `4.2000s` / `1811.67` GC
+  over 3 compiled runs.
+- Staged Go compiler note: generic nominal `methods` blocks now specialize on
+  statically known concrete targets too, so ordinary user-defined generic
+  nominal types (for example `Box T`) and stdlib generic nominal types
+  (for example `Heap T`) can render concrete compiled method signatures
+  without introducing another named-structure lowering rule. The next shared
+  gap is no longer nominal-method signature specialization; bound generic
+  field/member carrier refinement inside those already-specialized method
+  bodies is now closed too.
+- Staged Go compiler note: fully bound generic struct fields/members now stay
+  on their concrete native carriers inside specialized nominal method bodies.
+  A user-defined `Bucket T { items: Array T }` proof case now pins
+  `Items *__able_array_i32` plus specialized `Bucket.push` / `Bucket.second`
+  bodies under `ExperimentalMonoArrays`, the mono-array `Iterable.iterator` /
+  `Iterable.each` execute gap is closed, and the reduced
+  `v12/fixtures/bench/heap_i32_small/main.able` benchmark now has a follow-up
+  snapshot at `0.7667s` / `91.33` GC over 3 compiled runs.
+- Staged Go compiler note: the remaining shared generic nominal
+  default/static receiver and struct-literal refinement gap on the reduced
+  `LinkedList -> Enumerable -> LazySeq` family is now closed too. Recursive
+  type substitution now resolves chained bindings transitively, static nominal
+  target refinement upgrades `LazySeq { ... }` to concrete specialized
+  carriers like `LazySeq<i32>` when the expected type is known, and native
+  interface adapter synthesis now matches specialized concrete receivers like
+  `*LinkedList_i32` through the shared target-template path instead of
+  falling back.
+- Staged Go compiler note: the next deeper generic-container correctness
+  slice is now closed too. Generic nullable/interface carriers like
+  `LazySeq.Source: ?(Iterator T)` now stay on generated native carriers
+  instead of collapsing to `any`, and compiled nil lowering now emits typed Go
+  nils for native nilable carriers (`(*ListNode)(nil)`,
+  `__able_iface_Iterator_T(nil)`, etc.) instead of invalid raw `nil` temps.
+  The compiled fixture gate
+  `06_12_14_stdlib_collections_linked_list_lazy_seq` is green again on that
+  shared native path.
+- Staged Go compiler note: the first benchmark-worthy generic-container hot
+  path is now closed too. The compiled `LinkedList -> Iterable -> Iterator`
+  path stays native because inherited interface impls now synthesize native
+  base-interface adapters and concrete native interface adapters directly
+  coerce compatible native interface return carriers instead of round-tripping
+  through runtime values.
+- Staged Go compiler note: the next concrete generic/default container-method
+  hot path is now closed too. Higher-kinded self patterns like
+  `Enumerable A for C _` now bind `C` to the concrete target on compiled impl
+  paths, bound type-constructor calls like `C.default()` resolve statically,
+  and native `Iterator<T>` carriers now satisfy compiled iterable lowering
+  directly inside those default impl bodies.
+- Staged Go compiler note: the callback/runtime-value carrier cleanup slice on
+  that same concrete default-impl hot path is now closed too. Specialized impl
+  functions now retain bound generic type bindings through compileability and
+  render, default-impl sibling calls prefer specialized sibling impls before
+  the ordinary concrete receiver path, and the compiled
+  `LinkedList.map/filter/reduce` benchmark no longer overflows by bridging
+  `Iterator_A -> runtime.Value -> Iterator_i32` through cyclic
+  `LinkedListIterator` / `ListNode` conversion.
+- Staged Go compiler note: the same reduced
+  `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` benchmark
+  now has a follow-up shared static nominal closure snapshot at `0.1633s` /
+  `8.33` GC over 3 compiled runs, with direct compiled output parity at
+  `382455000`.
+- Staged Go compiler note: the next iterator default-method hot path is now
+  closed too. Ordinary default native-interface methods now lower to direct
+  compiled helpers on native iterator carriers, so the representative compiled
+  `LinkedList.lazy().map<i64>(...).filter(...).next()` path stays native
+  instead of re-entering the runtime adapter method layer.
+- Staged Go compiler note: the mono-array-enabled `Iterator.collect<Array T>()`
+  follow-up is now closed too. That path now lowers through a generated
+  compiled helper with a specialized mono-array accumulator instead of the old
+  residual dynamic bridge.
+- Staged Go compiler note: the iterator-literal controller/runtime-value edge
+  is now closed too. Compiled iterator literals bind `gen` as a
+  compiler-owned `*__able_generator`, `gen.yield(...)` / `gen.stop()` and
+  bound `gen.yield` callables lower directly, and native nilable/static
+  carrier conditions now use direct nil checks, which keeps
+  `Iterator.filter_map` on the static path.
+- Current staged Go compiler limit on this family: the next work is no longer
+  iterator-literal/controller cleanup; it is the next hot
+  generic-container/runtime edge beyond the now-closed
+  `map/filter/filter_map/collect` iterator family.
 - Pending workstream: implement the revised monomorphized container ABI
   (`Array<T>` specialized compiler-owned wrappers over native Go slices) under
   the existing gated rollout plumbing; accepted proposal captured in

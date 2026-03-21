@@ -312,7 +312,7 @@ func (g *generator) memberName(member ast.Expression) string {
 func (g *generator) stringBuiltinFieldAccess(objectExpr, fieldName string) (string, string, bool) {
 	switch fieldName {
 	case "len_bytes":
-		return fmt.Sprintf("uint(len(%s))", objectExpr), "uint", true
+		return fmt.Sprintf("uint(%s)", g.staticStringLenBytesExpr(objectExpr)), "uint", true
 	}
 	return "", "", false
 }
@@ -333,6 +333,11 @@ func (g *generator) structInfoByGoName(goName string) *structInfo {
 		goName = strings.TrimPrefix(goName, "*")
 	}
 	for _, info := range g.structs {
+		if info != nil && info.GoName == goName {
+			return info
+		}
+	}
+	for _, info := range g.specializedStructs {
 		if info != nil && info.GoName == goName {
 			return info
 		}
@@ -440,9 +445,6 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 		baseName, ok := g.structBaseName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
-		}
-		if strings.HasPrefix(goType, "*") {
-			return fmt.Sprintf("__able_any_to_value(%s)", expr), true
 		}
 		return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; v, err := __able_struct_%s_to(__able_runtime, %s); if err != nil { panic(err) }; return v }()", baseName, expr), true
 	default:

@@ -263,7 +263,11 @@ func (g *generator) nativeUnionExpectedTypeForExpr(ctx *compileContext, expected
 		if e == nil || e.StructType == nil || e.StructType.Name == "" {
 			return expected
 		}
-		mapped, ok := g.mapTypeExpressionInContext(ctx, ast.Ty(e.StructType.Name))
+		structTypeExpr := g.staticStructLiteralTypeExpr(ctx, e, "")
+		if structTypeExpr == nil {
+			structTypeExpr = ast.Ty(e.StructType.Name)
+		}
+		mapped, ok := g.mapTypeExpressionInContext(ctx, structTypeExpr)
 		if !ok {
 			return expected
 		}

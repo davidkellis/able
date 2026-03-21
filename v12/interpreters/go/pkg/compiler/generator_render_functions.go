@@ -10,46 +10,60 @@ import (
 )
 
 func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
-	for _, info := range g.sortedFunctionInfos() {
-		if info == nil || !info.Compileable {
-			continue
-		}
-		ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
-		if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
-			ctx.implSiblings = g.implSiblingsForDefault(implInfo)
-		}
-		lines, retExpr, ok := g.compileBody(ctx, info)
-		if !ok {
-			if info.Reason == "" {
-				reason := ctx.reason
-				if reason == "" {
-					reason = "unsupported function body"
+	rendered := make(map[*functionInfo]struct{})
+	for {
+		progress := false
+		for _, info := range g.sortedFunctionInfos() {
+			if info == nil || !info.Compileable {
+				continue
+			}
+			if _, ok := rendered[info]; ok {
+				continue
+			}
+			ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+			if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
+				ctx.implSiblings = g.implSiblingsForFunction(info)
+			}
+			lines, retExpr, ok := g.compileBody(ctx, info)
+			if !ok {
+				if info.Reason == "" {
+					reason := ctx.reason
+					if reason == "" {
+						reason = "unsupported function body"
+					}
+					info.Reason = reason
 				}
-				info.Reason = reason
+				info.Compileable = false
+				g.renderCompiledFunctionFallback(buf, info)
+				rendered[info] = struct{}{}
+				progress = true
+				continue
 			}
-			info.Compileable = false
-			g.renderCompiledFunctionFallback(buf, info)
-			continue
-		}
-		fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
-		for i, param := range info.Params {
-			if i > 0 {
-				fmt.Fprintf(buf, ", ")
+			fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
+			for i, param := range info.Params {
+				if i > 0 {
+					fmt.Fprintf(buf, ", ")
+				}
+				fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 			}
-			fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
+			fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
+			if envVar, ok := g.packageEnvVar(info.Package); ok {
+				fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
+				fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
+				fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
+				fmt.Fprintf(buf, "\t}\n")
+			}
+			for _, line := range lines {
+				fmt.Fprintf(buf, "\t%s\n", line)
+			}
+			fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
+			fmt.Fprintf(buf, "}\n\n")
+			rendered[info] = struct{}{}
+			progress = true
 		}
-		fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
-		if envVar, ok := g.packageEnvVar(info.Package); ok {
-			fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
-			fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
-			fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
-			fmt.Fprintf(buf, "\t}\n")
+		if !progress {
+			break
 		}
-		for _, line := range lines {
-			fmt.Fprintf(buf, "\t%s\n", line)
-		}
-		fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
-		fmt.Fprintf(buf, "}\n\n")
 	}
 }
 
@@ -254,6 +268,9 @@ func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *meth
 func (g *generator) renderWrappers(buf *bytes.Buffer) {
 	for _, info := range g.sortedFunctionInfos() {
 		if info == nil {
+			continue
+		}
+		if info.InternalOnly {
 			continue
 		}
 		if !info.Compileable && !info.HasOriginal {

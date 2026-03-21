@@ -7,7 +7,7 @@ import (
 
 func (g *generator) renderFunctionThunks(buf *bytes.Buffer) {
 	for _, info := range g.sortedFunctionInfos() {
-		if info == nil || !info.Compileable {
+		if info == nil || !info.Compileable || info.InternalOnly {
 			continue
 		}
 		fmt.Fprintf(buf, "func __able_function_thunk_%s(env *runtime.Environment, args []runtime.Value) (runtime.Value, error) {\n", info.GoName)
