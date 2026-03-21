@@ -8,6 +8,7 @@ import (
 )
 
 func (g *generator) render() (map[string][]byte, error) {
+	g.resolveStaticFunctionIntegerFacts()
 	files := make(map[string][]byte)
 	compiled, err := g.renderCompiled()
 	if err != nil {

@@ -286,14 +286,75 @@ Performance:
   - shared static built-in `Array` factories and intrinsics now lower without
     synthetic `__able_push_call_frame(...)` / `__able_pop_call_frame()`
     scaffolding on compiled static paths;
+  - propagated static built-in `Array` accessors (`get`, `first`, `last`,
+    `read_slot`, `pop`) now lower as direct bounds-check + element-load paths
+    with nil control transfer instead of manufacturing pointer-backed nullable
+    carriers on the success path;
   - the reduced matrix benchmark
     `v12/fixtures/bench/matrixmultiply_f64_small/main.able`
-    now measures `0.1933s` / `7.00` GC over 3 compiled runs;
+    now measures `0.1967s` / `7.33` GC over 3 compiled runs;
   - the full macro benchmark `v12/examples/benchmarks/matrixmultiply.able`
-    now measures `4.2267s` / `13.00` GC over 3 compiled runs;
+    now measures `3.4367s` / `13.67` GC over 3 compiled runs;
   - implication: the reduced nested numeric hot loop is now back on the
-    native path, the primitive entry-cast gap is closed, and the current
-    macro-scale matrix built-in `Array` tranche is closed too.
+    native path, the primitive entry-cast gap is closed, and the propagated
+    static-array accessor pointer-carrier gap is closed too.
+- the next shared primitive/control-flow step is now landed too:
+  - canonical primitive counted loops of the form
+    `loop { if i >= n { break } ... i = i + 1 }` now lower to direct Go
+    `for i < n { ... i++ }` loops on compiled static paths;
+  - the matcher is conservative by construction and traverses nested
+    function/lambda/iterator/ensure bodies before enabling the fast path;
+  - the reduced matrix benchmark
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`
+    now measures `0.1133s` / `7.00` GC over 3 compiled runs;
+  - the full macro benchmark `v12/examples/benchmarks/matrixmultiply.able`
+    now measures `1.0833s` / `13.00` GC over 3 compiled runs;
+  - implication: loop-control checked arithmetic is no longer the limiting
+    primitive residual on this matrix family; the remaining shared primitive
+    target is affine checked integer arithmetic inside `build_matrix`.
+- the next shared primitive affine-arithmetic step is now landed too:
+  - fixed-width primitive checked `+` / `-` under 64 bits now lower inline on
+    static compiled paths instead of calling the checked helper functions;
+  - `int`, `uint`, `i64`, and `u64` intentionally remain on the helper path
+    because they still depend on the wider-width/runtime-width overflow
+    machinery;
+  - `build_matrix` no longer carries
+    `__able_checked_add_signed(...)` / `__able_checked_sub_signed(...)`; its
+    affine integer ops now lower as inline `int64(...) +/- int64(...)` plus
+    explicit range checks;
+  - the reduced matrix benchmark remains `0.1133s` / `7.00` GC over 3 runs;
+  - the full macro benchmark remains `1.0867s` / `13.00` GC over 3 runs;
+  - implication: helper-call overhead is no longer the limiting primitive
+    residual on this matrix family; the next target is eliminating provably
+    unnecessary inline overflow branches via shared range-proof lowering.
+- shared primitive sign/range facts now remove the subtraction-side branch
+  where both fixed-width signed operands are proven non-negative:
+  - the compile context now tracks simple non-negative facts per Go binding
+    and carries them into child scopes while clearing them on
+    rebinding/shadowing;
+  - `build_matrix` now lowers `i - j` as a direct signed subtraction instead
+    of widened `int64(...)` subtraction plus overflow-branch scaffolding;
+  - the reduced matrix benchmark remains `0.1167s` / `7.00` GC over 3 runs;
+  - the full macro benchmark remains `1.1000s` / `13.00` GC over 3 runs;
+  - implication: subtraction-side overflow branching is now closed, and the
+    remaining primitive matrix residual is stronger upper-bound proofs for
+    affine addition like `i + j`.
+- shared primitive upper-bound propagation now removes the addition-side
+  branch too when fixed-width signed operands are proven non-negative and
+  bounded:
+  - the compiler now carries simple primitive upper-bound facts across
+    statically resolved function calls and seeds them back into callee param
+    contexts before render;
+  - counted-loop induction variables now inherit a conservative upper bound
+    from their loop guard when the bound is statically known;
+  - `build_matrix` now lowers both `i - j` and `i + j` as direct signed
+    arithmetic with no widened affine branch scaffolding left in the inner
+    loop;
+  - the reduced matrix benchmark remains `0.1267s` / `7.00` GC over 3 runs;
+  - the full macro benchmark remains `1.1367s` / `13.00` GC over 3 runs;
+  - implication: the hot affine integer residual on the matrix path is now
+    closed, so further work there is a different category than loop-affine
+    primitive arithmetic.
 - compiler-owned array wrapper synthesis now covers broader native carrier
   element families beyond nested mono arrays too:
   - generic inner arrays that are still genuinely generic on the inner level

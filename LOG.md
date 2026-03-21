@@ -1,5 +1,264 @@
 # Able Project Log
 
+# 2026-03-21 — Shared upper-bound addition range-proof tranche on the matrix path (v12)
+- Closed the next shared primitive-lowering gap on the matrix benchmark family
+  by proving fixed-width signed addition safe when both operands are
+  statically non-negative and bounded, without adding any named non-primitive
+  lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/model.go`
+  - `v12/interpreters/go/pkg/compiler/generator_compile_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_integer_facts.go`
+  - `v12/interpreters/go/pkg/compiler/generator_integer_param_facts.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_counted_loops.go`
+  - `v12/interpreters/go/pkg/compiler/generator_binary_checked_inline.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-21-matrixmultiply-bounded-add-range-proof-compiled.md`
+- Tranche details:
+  - the compiler now carries simple primitive upper-bound facts across
+    statically resolved function calls and seeds them back into callee param
+    contexts before render;
+  - counted-loop induction variables now inherit a conservative upper bound
+    from their loop guard when the bound is statically known;
+  - inline checked signed addition now lowers directly when both operands are
+    proven non-negative and their combined upper bound fits the target width;
+  - the matrix compile-shape audit now proves `build_matrix` lowers both
+    `i - j` and `i + j` as direct signed arithmetic with no widened
+    `int64(...)` affine branch scaffolding left in the inner loop.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-21-matrixmultiply-bounded-add-range-proof-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: `0.1267s`, `7.00` GC
+  - `examples/benchmarks/matrixmultiply`: `1.1367s`, `13.00` GC
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`:
+    `-28.500833332098754`
+  - direct compiled `ablec` output for
+    `v12/examples/benchmarks/matrixmultiply.able`:
+    `-95.58358333329998`
+- Conclusion:
+  - the matrix inner-loop affine add/sub branch gap is now closed through one
+    shared primitive/function range-proof rule;
+  - wall-clock remains in the same band, so the current best matrix timings
+    are still the earlier counted-loop snapshot;
+  - the next worthwhile category is no longer affine loop arithmetic on the
+    matrix path, but a different shared residual or benchmark family.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InlineCheckedIntegerAddSubStayStatic|InlineCheckedSignedSubWithNonNegativeOperandsElidesOverflowBranch|InlineCheckedSignedAddWithCallsiteUpperBoundElidesOverflowBranch|WhileLoopFastPath|CountedLoopFastPath|ExperimentalMonoArrays(MatrixMultiplyScalarLoopStaysNative|MatrixMultiplyMainStaysNative|MatrixMultiplyCountedLoopsStayNative|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes))$' -count=1` (pass, `4.390s`)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, output `-28.500833332098754`, `0.1500s`, `7.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, `0.1267s`, `7.00` GC)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/examples/benchmarks/matrixmultiply.able` (pass, output `-95.58358333329998`, `1.3200s`, `13.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (pass, `1.1367s`, `13.00` GC)
+  - `git diff --check` (pass)
+
+# 2026-03-21 — Shared non-negative subtraction range-proof tranche on the matrix path (v12)
+- Closed the next shared primitive-lowering gap on the matrix benchmark family
+  by proving signed subtraction safe when both fixed-width operands are
+  statically known non-negative, without adding any named non-primitive
+  lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_integer_facts.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_local_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_binary.go`
+  - `v12/interpreters/go/pkg/compiler/generator_binary_checked_inline.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-21-matrixmultiply-nonnegative-sub-range-proof-compiled.md`
+- Tranche details:
+  - the compile context now tracks simple primitive integer sign facts per Go
+    binding and carries them into child scopes while clearing them on
+    rebinding/shadowing;
+  - static assignments from non-negative integer expressions now preserve that
+    fact for later primitive lowering;
+  - inline checked signed subtraction now lowers directly when both operands
+    are proven non-negative, so it no longer emits widened `int64(...)`
+    subtraction plus overflow-branch scaffolding;
+  - the matrix compile-shape audit now proves `build_matrix` lowers `i - j`
+    as a direct signed subtraction, while the widened checked `i + j` path
+    remains as the next primitive residual.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-21-matrixmultiply-nonnegative-sub-range-proof-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: `0.1167s`, `7.00` GC
+  - `examples/benchmarks/matrixmultiply`: `1.1000s`, `13.00` GC
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`:
+    `-28.500833332098754`
+  - direct compiled `ablec` output for
+    `v12/examples/benchmarks/matrixmultiply.able`:
+    `-95.58358333329998`
+- Conclusion:
+  - the subtraction-side inline overflow-branch gap is now closed through one
+    shared primitive range-proof rule;
+  - this remains effectively performance-neutral on the matrix family, so the
+    next primitive residual is stronger upper-bound range proofs for affine
+    addition like `i + j`, not subtraction.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InlineCheckedIntegerAddSubStayStatic|InlineCheckedSignedSubWithNonNegativeOperandsElidesOverflowBranch|WhileLoopFastPath|CountedLoopFastPath|ExperimentalMonoArrays(MatrixMultiplyScalarLoopStaysNative|MatrixMultiplyMainStaysNative|MatrixMultiplyCountedLoopsStayNative|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes))$' -count=1` (pass, `3.723s`)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, output `-28.500833332098754`, `0.1200s`, `7.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, `0.1167s`, `7.00` GC)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/examples/benchmarks/matrixmultiply.able` (pass, output `-95.58358333329998`, `1.2000s`, `13.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (pass, `1.1000s`, `13.00` GC)
+  - `git diff --check` (pass)
+
+# 2026-03-21 — Shared inline affine integer-check tranche on the matrix path (v12)
+- Closed the next shared primitive-lowering gap on the matrix benchmark family
+  by inlining fixed-width checked integer `+` / `-` on static compiled paths,
+  without adding any named non-primitive lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_binary.go`
+  - `v12/interpreters/go/pkg/compiler/generator_binary_checked_inline.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-21-matrixmultiply-inline-affine-int-checks-compiled.md`
+- Tranche details:
+  - shared checked addition/subtraction for fixed-width integers under 64 bits
+    now lowers inline on static compiled paths instead of calling
+    `__able_checked_add_signed(...)`, `__able_checked_sub_signed(...)`, and
+    their unsigned equivalents
+  - this is intentionally narrow: `int`, `uint`, `i64`, and `u64` stay on the
+    existing helper path because those widths still rely on the wider-width or
+    runtime-width overflow machinery
+  - the compile-shape audit now proves `build_matrix` no longer carries the
+    signed checked helper calls; its affine integer ops now lower as inline
+    `int64(...) +/- int64(...)` plus explicit range checks
+  - this remains within the compiler contract documented in `PLAN.md`: only
+    built-in `Array` semantics and primitive types receive special lowering;
+    non-primitive nominal types still rely on shared
+    struct/union/interface/generic rules
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-21-matrixmultiply-inline-affine-int-checks-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: `0.1133s`, `7.00` GC
+  - `examples/benchmarks/matrixmultiply`: `1.0867s`, `13.00` GC
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`:
+    `-28.500833332098754`
+  - direct compiled `ablec` output for
+    `v12/examples/benchmarks/matrixmultiply.able`:
+    `-95.58358333329998`
+- Conclusion:
+  - the affine checked-helper call gap is now closed through one shared
+    primitive rule
+  - this workload is effectively perf-neutral after the earlier counted-loop
+    win, so the remaining primitive residual is now the inline overflow
+    branches themselves where static range proofs are available
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(InlineCheckedIntegerAddSubStayStatic|WhileLoopFastPath|CountedLoopFastPath|ExperimentalMonoArrays(MatrixMultiplyScalarLoopStaysNative|MatrixMultiplyMainStaysNative|MatrixMultiplyCountedLoopsStayNative|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes))$' -count=1` (pass, `3.929s`)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, output `-28.500833332098754`, `0.1200s`, `7.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, `0.1133s`, `7.00` GC)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/examples/benchmarks/matrixmultiply.able` (pass, output `-95.58358333329998`, `1.0700s`, `13.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (pass, `1.0867s`, `13.00` GC)
+  - `git diff --check` (pass)
+
+# 2026-03-20 — Shared counted-loop fast-path tranche on the matrix path (v12)
+- Closed the next shared primitive/control-flow lowering gap on the matrix
+  benchmark family by lowering canonical counted `loop` forms directly to Go
+  counted loops, without adding any named non-primitive lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_counted_loops.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-counted-loop-fast-path-compiled.md`
+- Tranche details:
+  - shared counted-loop recognition now lowers canonical
+    `loop { if i >= n { break } ... i = i + 1 }` shapes to direct
+    `for i < n { ... i++ }` when the induction variable and bound stay on
+    primitive integer carriers and the loop body does not mutate the counter
+    outside the trailing increment
+  - the matcher is conservative by construction: it now traverses nested
+    function/lambda/iterator/ensure bodies too, so the fast path rejects loop
+    bodies that can still mutate the counter through nested control flow
+  - the compile-shape audit now proves `build_matrix` and `matmul` stay on
+    direct counted loops, and `matmul` no longer carries
+    `__able_checked_add_signed(...)` for loop induction
+  - this remains within the compiler contract documented in `PLAN.md`: only
+    built-in `Array` semantics and primitive types receive special lowering;
+    non-primitive nominal types still rely on shared
+    struct/union/interface/generic rules
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-counted-loop-fast-path-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: `0.1133s`, `7.00` GC
+  - `examples/benchmarks/matrixmultiply`: `1.0833s`, `13.00` GC
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`:
+    `-28.500833332098754`
+  - direct compiled `ablec` output for
+    `v12/examples/benchmarks/matrixmultiply.able`:
+    `-95.58358333329998`
+- Conclusion:
+  - loop-induction checked arithmetic was the next shared primitive residual
+    on the matrix family
+  - that counted-loop gap is now closed
+  - the next primitive residual is affine checked integer arithmetic such as
+    `i - j` / `i + j` inside `build_matrix`, not loop-control scaffolding
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(WhileLoopFastPath|CountedLoopFastPath|ExperimentalMonoArrays(MatrixMultiplyScalarLoopStaysNative|MatrixMultiplyMainStaysNative|MatrixMultiplyCountedLoopsStayNative|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes))$' -count=1` (pass, `4.035s`)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, output `-28.500833332098754`, `0.1100s`, `7.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, `0.1133s`, `7.00` GC)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/examples/benchmarks/matrixmultiply.able` (pass, output `-95.58358333329998`, `1.0600s`, `13.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (pass, `1.0833s`, `13.00` GC)
+  - `git diff --check` (pass)
+
+# 2026-03-20 — Shared propagated static-array accessor pointer-elision tranche on the matrix path (v12)
+- Closed the next shared built-in `Array` lowering gap on the matrix benchmark
+  family by removing pointer-backed nullable-carrier construction from
+  propagated static array accessors, without adding any named non-primitive
+  lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-propagation-pointer-elision-compiled.md`
+- Tranche details:
+  - propagated static built-in `Array` accessors (`get`, `first`, `last`,
+    `read_slot`, `pop`) now lower as direct bounds-check + element-load paths
+    with nil control transfer instead of manufacturing pointer-backed nullable
+    carriers on the success path
+  - the generated `build_matrix`, `matmul`, and `main` bodies for the matrix
+    benchmark family are now free of `__able_ptr(...)` in those propagated
+    static array access paths
+  - this remains within the compiler contract documented in `PLAN.md`: only
+    built-in `Array` semantics and primitive types receive special lowering;
+    non-primitive nominal types still rely on shared
+    struct/union/interface/generic rules
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-propagation-pointer-elision-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: `0.1967s`, `7.33` GC
+  - `examples/benchmarks/matrixmultiply`: `3.4367s`, `13.67` GC
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`:
+    `-28.500833332098754`
+  - direct compiled `ablec` output for
+    `v12/examples/benchmarks/matrixmultiply.able`:
+    `-95.58358333329998`
+- Conclusion:
+  - propagated static-array accessor pointer construction was the next shared
+    macro-scale residual on the matrix family
+  - that pointer-carrier gap is now closed
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ExperimentalMonoArrays(MatrixMultiplyScalarLoopStaysNative|MatrixMultiplyMainStaysNative|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes)|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative)$' -count=1` (pass, `2.497s`)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, output `-28.500833332098754`, `0.2000s`, `7.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, `0.1967s`, `7.33` GC)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/examples/benchmarks/matrixmultiply.able` (pass, output `-95.58358333329998`, `3.5300s`, `14.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (pass, `3.4367s`, `13.67` GC)
+  - `git diff --check` (pass)
+
 # 2026-03-20 — Shared static built-in `Array` frame-elision tranche on the matrix path (v12)
 - Closed the remaining macro-scale shared built-in `Array` lowering gap on the
   matrix benchmark family by removing synthetic call-frame scaffolding from
