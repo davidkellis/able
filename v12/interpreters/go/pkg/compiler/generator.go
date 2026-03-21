@@ -78,6 +78,7 @@ type implSiblingInfo struct {
 type compileContext struct {
 	params                map[string]paramInfo
 	locals                map[string]paramInfo
+	integerFacts          map[string]integerFact
 	functions             map[string]*functionInfo
 	overloads             map[string]*overloadInfo
 	packageName           string

@@ -16,6 +16,11 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 			return lines, fastExpr, fastType, true
 		}
 	}
+	if callExpr, ok := expr.Expression.(*ast.FunctionCall); ok {
+		if lines, fastExpr, fastType, fastOK := g.compilePropagationStaticArrayAccessCall(ctx, callExpr, expected); fastOK {
+			return lines, fastExpr, fastType, true
+		}
+	}
 	valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", expr.Expression)
 	if !ok {
 		return nil, "", "", false
@@ -180,6 +185,114 @@ func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *
 		lines = append(lines, fmt.Sprintf("var %s %s = %s", resultTemp, resultType, elemExpr))
 	}
 	return lines, resultTemp, resultType, true
+}
+
+func (g *generator) compilePropagationStaticArrayAccessCall(ctx *compileContext, call *ast.FunctionCall, expected string) ([]string, string, string, bool) {
+	if g == nil || ctx == nil || call == nil {
+		return nil, "", "", false
+	}
+	member, ok := call.Callee.(*ast.MemberAccessExpression)
+	if !ok || member == nil {
+		return nil, "", "", false
+	}
+	memberIdent, ok := member.Member.(*ast.Identifier)
+	if !ok || memberIdent == nil {
+		return nil, "", "", false
+	}
+	methodName := memberIdent.Name
+	switch methodName {
+	case "get", "read_slot", "first", "last", "pop":
+	default:
+		return nil, "", "", false
+	}
+	objLines, objExpr, objType, ok := g.compileExprLines(ctx, member.Object, "")
+	if !ok || !g.isStaticArrayType(objType) {
+		return nil, "", "", false
+	}
+	resultType, ok := g.staticArrayPropagationResultType(ctx, member.Object, objType)
+	if !ok || resultType == "" || resultType == "runtime.Value" {
+		return nil, "", "", false
+	}
+	objTemp := ctx.newTemp()
+	lengthTemp := ctx.newTemp()
+	resultTemp := ctx.newTemp()
+	lines := append([]string{}, objLines...)
+	lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
+	nilTransferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", "runtime.NilValue{}"))
+	if !ok {
+		return nil, "", "", false
+	}
+	switch methodName {
+	case "get", "read_slot":
+		if len(call.Arguments) != 1 {
+			return nil, "", "", false
+		}
+		idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, call.Arguments[0], "")
+		if !ok {
+			return nil, "", "", false
+		}
+		idxTemp := ctx.newTemp()
+		indexTemp := ctx.newTemp()
+		lines = append(lines, idxLines...)
+		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		elemLines, elemExpr, _, ok := g.staticArrayResultExprLines(ctx, objType, fmt.Sprintf("%s.Elements[%s]", objTemp, indexTemp), resultType)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines,
+			fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)),
+			fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp),
+		)
+		lines = append(lines, indentLines(nilTransferLines, 1)...)
+		lines = append(lines, "}")
+		lines = append(lines, elemLines...)
+		lines = append(lines, fmt.Sprintf("var %s %s = %s", resultTemp, resultType, elemExpr))
+		return lines, resultTemp, resultType, true
+	case "first", "last":
+		if len(call.Arguments) != 0 {
+			return nil, "", "", false
+		}
+		indexExpr := "0"
+		lines = append(lines, fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)))
+		lines = append(lines, fmt.Sprintf("if %s <= 0 {", lengthTemp))
+		lines = append(lines, indentLines(nilTransferLines, 1)...)
+		lines = append(lines, "}")
+		if methodName == "last" {
+			indexExpr = fmt.Sprintf("%s-1", lengthTemp)
+		}
+		elemLines, elemExpr, _, ok := g.staticArrayResultExprLines(ctx, objType, fmt.Sprintf("%s.Elements[%s]", objTemp, indexExpr), resultType)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, elemLines...)
+		lines = append(lines, fmt.Sprintf("var %s %s = %s", resultTemp, resultType, elemExpr))
+		return lines, resultTemp, resultType, true
+	case "pop":
+		if len(call.Arguments) != 0 {
+			return nil, "", "", false
+		}
+		indexTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)))
+		lines = append(lines, fmt.Sprintf("if %s <= 0 {", lengthTemp))
+		lines = append(lines, indentLines(nilTransferLines, 1)...)
+		lines = append(lines, "}")
+		lines = append(lines, fmt.Sprintf("%s := %s - 1", indexTemp, lengthTemp))
+		elemLines, elemExpr, _, ok := g.staticArrayResultExprLines(ctx, objType, fmt.Sprintf("%s.Elements[%s]", objTemp, indexTemp), resultType)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, elemLines...)
+		lines = append(lines, fmt.Sprintf("var %s %s = %s", resultTemp, resultType, elemExpr))
+		lines = append(lines,
+			fmt.Sprintf("%s.Elements = %s.Elements[:%s]", objTemp, objTemp, indexTemp),
+			g.staticArraySyncCall(objType, objTemp),
+		)
+		return lines, resultTemp, resultType, true
+	}
+	return nil, "", "", false
 }
 
 func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrElseExpression, expected string) ([]string, string, string, bool) {

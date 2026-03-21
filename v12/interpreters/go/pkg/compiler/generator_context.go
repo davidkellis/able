@@ -66,6 +66,7 @@ func (c *compileContext) child() *compileContext {
 	}
 	return &compileContext{
 		locals:                make(map[string]paramInfo),
+		integerFacts:          cloneIntegerFacts(c.integerFacts),
 		functions:             c.functions,
 		overloads:             c.overloads,
 		packageName:           c.packageName,

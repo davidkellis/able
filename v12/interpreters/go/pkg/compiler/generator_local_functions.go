@@ -47,7 +47,7 @@ func (g *generator) compileLocalFunctionDefinitionStatement(ctx *compileContext,
 		binding.GoName = ctx.newTemp()
 	}
 	// Bind first so the function body can recursively reference itself.
-	ctx.locals[name] = binding
+	ctx.setLocalBinding(name, binding)
 
 	lambda := ast.NewLambdaExpression(def.Params, def.Body, def.ReturnType, def.GenericParams, def.WhereClause, true)
 	valueExpr, valueType, ok := g.compileLambdaExpression(ctx, lambda, callableInfo.GoType)

@@ -62,6 +62,11 @@ snapshots for these reduced fixtures are checked in at:
 - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-scalar-propagation-compiled.md`
 - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-float-int-casts-compiled.md`
 - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-frame-elision-compiled.md`
+- `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-propagation-pointer-elision-compiled.md`
+- `v12/docs/perf-baselines/2026-03-20-matrixmultiply-counted-loop-fast-path-compiled.md`
+- `v12/docs/perf-baselines/2026-03-21-matrixmultiply-inline-affine-int-checks-compiled.md`
+- `v12/docs/perf-baselines/2026-03-21-matrixmultiply-nonnegative-sub-range-proof-compiled.md`
+- `v12/docs/perf-baselines/2026-03-21-matrixmultiply-bounded-add-range-proof-compiled.md`
 - `v12/docs/perf-baselines/2026-03-19-mono-array-zigzag-char-small-compiled.md`
 - `v12/docs/perf-baselines/2026-03-19-mono-array-u32-sum-small-compiled.md`
 - `v12/docs/perf-baselines/2026-03-19-hashmap-i32-small-compiled.md`
@@ -81,14 +86,33 @@ rather than any earlier ad hoc mono-off timings.
 
 The current best matrix snapshots are now:
 - reduced target:
-  `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-frame-elision-compiled.md`,
-  which records `0.1933s` / `7.00` GC on the compiled
+  `v12/docs/perf-baselines/2026-03-20-matrixmultiply-counted-loop-fast-path-compiled.md`,
+  which records `0.1133s` / `7.00` GC on the compiled
   `matrixmultiply_f64_small` target after removing the synthetic static-array
-  call-frame churn from shared built-in `Array` lowering
+  loop-induction checked-arithmetic scaffolding through shared primitive
+  counted-loop lowering
 - full canonical benchmark:
-  `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-frame-elision-compiled.md`,
-  which records `4.2267s` / `13.00` GC on the compiled
+  `v12/docs/perf-baselines/2026-03-20-matrixmultiply-counted-loop-fast-path-compiled.md`,
+  which records `1.0833s` / `13.00` GC on the compiled
   `v12/examples/benchmarks/matrixmultiply.able` path
+
+The follow-up affine integer snapshot
+`v12/docs/perf-baselines/2026-03-21-matrixmultiply-inline-affine-int-checks-compiled.md`
+proves the remaining `build_matrix` `i - j` / `i + j` helper calls are gone,
+but it is effectively performance-neutral relative to the counted-loop
+snapshot on this benchmark family.
+
+The follow-up subtraction range-proof snapshot
+`v12/docs/perf-baselines/2026-03-21-matrixmultiply-nonnegative-sub-range-proof-compiled.md`
+proves the widened inline overflow branch is now gone for `build_matrix`
+`i - j`, but `i + j` still carries the widened checked-add path and the
+benchmark remains in the same band as the counted-loop baseline.
+
+The follow-up upper-bound range-proof snapshot
+`v12/docs/perf-baselines/2026-03-21-matrixmultiply-bounded-add-range-proof-compiled.md`
+proves the remaining widened inline overflow branch is now gone for
+`build_matrix` `i + j` too. The inner-loop affine add/sub gap is closed, but
+the benchmark still remains in the same band as the counted-loop baseline.
 
 The iterator-pipeline family is now split intentionally:
 - `linked_list_iterator_pipeline_i64_small` isolates the already-closed native

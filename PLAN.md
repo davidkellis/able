@@ -464,7 +464,48 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
       - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-frame-elision-compiled.md`.
       - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1933s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
       - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `4.2267s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
-      - Conclusion: the current macro-scale matrix built-in `Array` tranche is closed; the next category is the next benchmark-worthy shared built-in `Array` or primitive residual that still crosses runtime carriers.
+      - Conclusion: synthetic static-array frame churn was removed; the next category is the next benchmark-worthy shared built-in `Array` or primitive residual that still crosses runtime carriers.
+    - [x] Remove pointer-backed nullable-carrier construction from propagated static built-in `Array` accessors on the matrix path, and remeasure both the reduced and full matrix benchmarks.
+      - Propagated static built-in `Array` accessors (`get`, `first`, `last`, `read_slot`, `pop`) now lower as direct bounds-check + element-load paths with nil control transfer instead of manufacturing pointer-backed nullable carriers on the success path.
+      - The generated `build_matrix`, `matmul`, and `main` bodies for the matrix benchmark family are now free of `__able_ptr(...)` in those propagated static array access paths.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-propagation-pointer-elision-compiled.md`.
+      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1967s` / `7.33` GC, with direct compiled output parity at `-28.500833332098754`.
+      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `3.4367s` / `13.67` GC, with direct compiled output parity at `-95.58358333329998`.
+      - Conclusion: the propagated static-array accessor pointer-carrier gap is now closed; the next category is the next benchmark-worthy shared built-in `Array` or primitive residual that still crosses runtime carriers.
+    - [x] Lower canonical counted primitive loops to direct Go counted loops on the matrix path, and remeasure both the reduced and full matrix benchmarks.
+      - Shared counted-loop recognition now lowers canonical `loop { if i >= n { break } ... i = i + 1 }` shapes to direct Go `for i < n { ... i++ }` when the induction variable and bound stay on primitive integer carriers and the body does not mutate the counter outside the trailing increment.
+      - The matcher is conservative by construction: it rejects nested function/lambda/iterator/ensure bodies that can still assign the counter, so this remains a shared primitive/control-flow lowering rule rather than a benchmark-specific special case.
+      - The compile-shape audit now proves `build_matrix` and `matmul` use direct counted loops, and `matmul` no longer carries `__able_checked_add_signed(...)` for loop induction.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-counted-loop-fast-path-compiled.md`.
+      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1133s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
+      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `1.0833s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
+      - Conclusion: the canonical loop-induction checked-arithmetic gap is now closed on the matrix family; the next primitive residual is affine checked integer arithmetic such as `i - j` / `i + j` inside `build_matrix`, not loop-control scaffolding.
+    - [x] Inline fixed-width primitive checked `+` / `-` on static compiled paths, and remeasure the matrix family.
+      - Shared primitive checked addition/subtraction for fixed-width integers under 64 bits now lowers inline on static compiled paths instead of calling `__able_checked_add_signed(...)`, `__able_checked_sub_signed(...)`, and their unsigned equivalents.
+      - This is intentionally narrow: `int`, `uint`, `i64`, and `u64` stay on the existing helper path because their overflow checks still need the wider-width/runtime-width machinery.
+      - The compile-shape audit now proves `build_matrix` no longer carries `__able_checked_add_signed(...)` / `__able_checked_sub_signed(...)`; those affine integer ops now lower as inline `int64(...) +/- int64(...)` plus explicit range checks.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-21-matrixmultiply-inline-affine-int-checks-compiled.md`.
+      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1133s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
+      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `1.0867s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
+      - Conclusion: the affine helper-call gap is now closed through a shared primitive rule, but this workload is effectively perf-neutral after the earlier counted-loop win; the next primitive residual is eliminating provably-safe inline overflow branches where static range proofs are available.
+    - [x] Use shared non-negative range proofs to remove provably-safe signed subtraction overflow branches, and remeasure the matrix family.
+      - The compile context now tracks simple primitive integer sign facts per Go binding, carries them into child scopes, and clears them on rebinding/shadowing.
+      - Static assignments from non-negative integer expressions now preserve that fact for later primitive lowering.
+      - Inline checked signed subtraction now lowers directly when both operands are proven non-negative, so it no longer emits widened `int64(...)` subtraction plus overflow-branch scaffolding.
+      - The compile-shape audit now proves `build_matrix` lowers `i - j` as a direct signed subtraction; the widened checked `i + j` path remains as the next primitive residual.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-21-matrixmultiply-nonnegative-sub-range-proof-compiled.md`.
+      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1167s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
+      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `1.1000s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
+      - Conclusion: the subtraction-side inline overflow-branch gap is now closed through one shared primitive range-proof rule; the next primitive residual is stronger upper-bound proofs for affine addition like `i + j`, not subtraction.
+    - [x] Use shared upper-bound range proofs to remove provably-safe signed addition overflow branches, and remeasure the matrix family.
+      - The compiler now carries simple primitive upper-bound facts across statically resolved function calls and seeds them back into callee param contexts before render.
+      - Counted-loop induction variables now inherit a conservative upper bound from their loop guard when the bound is statically known.
+      - Inline checked signed addition now lowers directly when both operands are proven non-negative and their combined upper bound fits the target width.
+      - The compile-shape audit now proves `build_matrix` lowers both `i - j` and `i + j` as direct signed arithmetic with no widened `int64(...)` affine branch scaffolding left in the inner loop.
+      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-21-matrixmultiply-bounded-add-range-proof-compiled.md`.
+      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1267s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
+      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `1.1367s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
+      - Conclusion: the matrix inner-loop affine add/sub branch gap is now closed through one shared primitive/function range-proof rule, and the next worthwhile category is no longer affine loop arithmetic on the matrix path.
 - Definition of done for this workstream:
   - [x] Static typed-array hot paths (`push/get/set/len` + index ops) compile without dynamic member dispatch in generated function bodies.
   - [x] Static local-variable fallback semantics (`=` declares when unbound) stay local-scope and do not route through global environment helpers.

@@ -449,7 +449,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			return nil, true
 		}
 		goName := sanitizeIdent(p.Name)
-		ctx.locals[p.Name] = paramInfo{Name: p.Name, GoName: goName, GoType: subjectType}
+		ctx.setLocalBinding(p.Name, paramInfo{Name: p.Name, GoName: goName, GoType: subjectType})
 		return []string{
 			fmt.Sprintf("var %s %s = %s", goName, subjectType, subjectTemp),
 			fmt.Sprintf("_ = %s", goName),
@@ -606,7 +606,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 				lines = append(lines, fieldLines...)
 				if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 					bindName := sanitizeIdent(field.Binding.Name)
-					ctx.locals[field.Binding.Name] = paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: fieldInfo.GoType}
+					ctx.setLocalBinding(field.Binding.Name, paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: fieldInfo.GoType})
 					lines = append(lines,
 						fmt.Sprintf("var %s %s = %s", bindName, fieldInfo.GoType, fieldExpr),
 						fmt.Sprintf("_ = %s", bindName),
@@ -642,7 +642,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			lines = append(lines, fieldLines...)
 			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 				bindName := sanitizeIdent(field.Binding.Name)
-				ctx.locals[field.Binding.Name] = paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: fieldInfo.GoType}
+				ctx.setLocalBinding(field.Binding.Name, paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: fieldInfo.GoType})
 				lines = append(lines,
 					fmt.Sprintf("var %s %s = %s", bindName, fieldInfo.GoType, fieldExpr),
 					fmt.Sprintf("_ = %s", bindName),
@@ -805,7 +805,7 @@ func (g *generator) compileRuntimeStructPatternBindings(ctx *compileContext, pat
 		lines = append(lines, fieldLines...)
 		if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 			bindName := sanitizeIdent(field.Binding.Name)
-			ctx.locals[field.Binding.Name] = paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: "runtime.Value"}
+			ctx.setLocalBinding(field.Binding.Name, paramInfo{Name: field.Binding.Name, GoName: bindName, GoType: "runtime.Value"})
 			lines = append(lines,
 				fmt.Sprintf("var %s runtime.Value = %s", bindName, fieldExpr),
 				fmt.Sprintf("_ = %s", bindName),

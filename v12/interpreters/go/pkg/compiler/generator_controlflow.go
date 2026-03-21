@@ -821,6 +821,9 @@ func (g *generator) compileLoopExpression(ctx *compileContext, loop *ast.LoopExp
 		ctx.setReason("missing loop expression")
 		return nil, "", "", false
 	}
+	if lines, expr, goType, ok := g.compileCountedLoopExpression(ctx, loop, expected); ok {
+		return lines, expr, goType, true
+	}
 	resultType := expected
 	if resultType == "" {
 		resultType = "runtime.Value"

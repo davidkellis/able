@@ -421,6 +421,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		lines = append(lines, opLines...)
 		lines = append(lines, fmt.Sprintf("%s := %s", computedTemp, opExpr))
 		lines = append(lines, fmt.Sprintf("%s = %s", existing.GoName, computedTemp))
+		ctx.clearIntegerFact(existing.GoName)
 		return lines, computedTemp, goType, true
 	}
 	name, typeAnnotation, ok := g.assignmentTargetName(assign.Left)
@@ -518,9 +519,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	}
 	originStructType := ""
 	goName := existing.GoName
+	binding := existing
 	if declaring {
 		goName = sanitizeIdent(name)
-		ctx.locals[name] = paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: assignmentTypeExpr, OriginGoType: originStructType}
+		binding = paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: assignmentTypeExpr, OriginGoType: originStructType}
+		ctx.setLocalBinding(name, binding)
 	} else {
 		// Invalidate CSE extraction cache on reassignment.
 		if ctx.originExtractions != nil {
@@ -530,10 +533,8 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	if !declaring && typeAnnotation != nil {
 		updated := existing
 		updated.TypeExpr = typeAnnotation
-		if ctx.locals == nil {
-			ctx.locals = make(map[string]paramInfo)
-		}
-		ctx.locals[name] = updated
+		ctx.setLocalBinding(name, updated)
+		binding = updated
 	}
 	line := ""
 	if declaring {
@@ -542,6 +543,10 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		line = fmt.Sprintf("%s = %s", goName, expr)
 	}
 	lines := append(exprLines, line)
+	binding.GoName = goName
+	binding.GoType = goType
+	binding.TypeExpr = assignmentTypeExpr
+	g.refreshIntegerFactForBinding(ctx, binding, assign.Right)
 	if typeAnnotation != nil && (goType == "runtime.Value" || goType == "any") {
 		typeExpr, ok := g.renderTypeExpression(typeAnnotation)
 		if ok {

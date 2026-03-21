@@ -3,14 +3,14 @@ package compiler
 import "able/interpreter-go/pkg/ast"
 
 type structInfo struct {
-	Name      string
-	Package   string
-	GoName    string
-	TypeExpr  ast.TypeExpression
-	Kind      ast.StructKind
-	Fields    []fieldInfo
-	Node      *ast.StructDefinition
-	Supported bool
+	Name        string
+	Package     string
+	GoName      string
+	TypeExpr    ast.TypeExpression
+	Kind        ast.StructKind
+	Fields      []fieldInfo
+	Node        *ast.StructDefinition
+	Supported   bool
 	Specialized bool
 }
 
@@ -37,6 +37,7 @@ type functionInfo struct {
 	QualifiedName  string
 	GoName         string
 	Params         []paramInfo
+	ParamFacts     map[string]integerFact
 	ReturnType     string
 	TypeBindings   map[string]ast.TypeExpression
 	SupportedTypes bool
