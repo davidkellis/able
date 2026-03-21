@@ -38,22 +38,27 @@ func newCompileContext(gen *generator, info *functionInfo, functions map[string]
 }
 
 func (g *generator) compileContextTypeBindings(info *functionInfo) map[string]ast.TypeExpression {
-	if g == nil || info == nil || g.implMethodByInfo == nil {
+	if g == nil || info == nil {
 		return nil
 	}
-	impl := g.implMethodByInfo[info]
-	if impl == nil || len(impl.InterfaceGenerics) == 0 || len(impl.InterfaceArgs) == 0 {
-		return nil
-	}
-	bindings := make(map[string]ast.TypeExpression, len(impl.InterfaceArgs))
-	for idx, gp := range impl.InterfaceGenerics {
-		if gp == nil || gp.Name == nil || gp.Name.Name == "" || idx >= len(impl.InterfaceArgs) || impl.InterfaceArgs[idx] == nil {
-			continue
+	merged := make(map[string]ast.TypeExpression)
+	if g.implMethodByInfo != nil {
+		if impl := g.implMethodByInfo[info]; impl != nil {
+			bindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, impl.TargetType)
+			for name, expr := range bindings {
+				if expr != nil {
+					merged[name] = normalizeTypeExprForPackage(g, info.Package, expr)
+				}
+			}
 		}
-		bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, info.Package, impl.InterfaceArgs[idx])
 	}
-	if len(bindings) == 0 {
+	for name, expr := range info.TypeBindings {
+		if expr != nil {
+			merged[name] = normalizeTypeExprForPackage(g, info.Package, expr)
+		}
+	}
+	if len(merged) == 0 {
 		return nil
 	}
-	return bindings
+	return merged
 }

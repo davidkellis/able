@@ -35,6 +35,7 @@ func (g *generator) compileContextGenericNames(info *functionInfo) map[string]st
 	if g == nil || info == nil {
 		return names
 	}
+	names = g.pruneBoundGenericNames(names, g.compileContextTypeBindings(info))
 	for _, method := range g.methodList {
 		if method == nil || method.Info != info {
 			continue
@@ -42,6 +43,39 @@ func (g *generator) compileContextGenericNames(info *functionInfo) map[string]st
 		return mergeGenericNameSets(names, g.methodGenericNames(method))
 	}
 	return names
+}
+
+func (g *generator) pruneBoundGenericNames(names map[string]struct{}, bindings map[string]ast.TypeExpression) map[string]struct{} {
+	if g == nil || len(names) == 0 || len(bindings) == 0 {
+		return names
+	}
+	var out map[string]struct{}
+	for name := range names {
+		expr, ok := bindings[name]
+		if !ok || expr == nil {
+			continue
+		}
+		if simple, ok := expr.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == name {
+			continue
+		}
+		if g.typeExprHasGeneric(expr, names) {
+			continue
+		}
+		if out == nil {
+			out = make(map[string]struct{}, len(names))
+			for existing := range names {
+				out[existing] = struct{}{}
+			}
+		}
+		delete(out, name)
+	}
+	if out == nil {
+		return names
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (g *generator) methodGenericNames(method *methodInfo) map[string]struct{} {
@@ -227,13 +261,8 @@ func (g *generator) typeCategory(goType string) string {
 			return "union"
 		}
 	}
-	for _, info := range g.structs {
-		if info.GoName == goType {
-			return "struct"
-		}
-		if strings.HasPrefix(goType, "*") && info.GoName == strings.TrimPrefix(goType, "*") {
-			return "struct"
-		}
+	if g != nil && g.structInfoByGoName(goType) != nil {
+		return "struct"
 	}
 	return "unknown"
 }

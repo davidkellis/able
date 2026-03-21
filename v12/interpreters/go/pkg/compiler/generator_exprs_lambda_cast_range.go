@@ -21,19 +21,21 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 		targetGoType = mapped
 	}
 	if targetGoType != "" && valueType != "runtime.Value" {
-		if nativeCastExpr, castOK := g.nativeIntegerWidenExpr(valueExpr, valueType, targetGoType); castOK {
+		nodeName := g.diagNodeName(expr, "*ast.TypeCastExpression", "cast")
+		if nativeCastLines, nativeCastExpr, nativeCastType, castOK := g.nativePrimitiveCastLines(ctx, nodeName, valueExpr, valueType, targetGoType); castOK {
+			lines := append([]string{}, valueLines...)
+			lines = append(lines, nativeCastLines...)
 			if expected == "runtime.Value" {
-				convLines, runtimeExpr, ok := g.runtimeValueLines(ctx, nativeCastExpr, targetGoType)
+				convLines, runtimeExpr, ok := g.runtimeValueLines(ctx, nativeCastExpr, nativeCastType)
 				if !ok {
 					ctx.setReason("cast type mismatch")
 					return nil, "", "", false
 				}
-				lines := append([]string{}, valueLines...)
 				lines = append(lines, convLines...)
 				return lines, runtimeExpr, "runtime.Value", true
 			}
-			if expected == "" || expected == targetGoType {
-				return valueLines, nativeCastExpr, targetGoType, true
+			if expected == "" || expected == nativeCastType {
+				return lines, nativeCastExpr, nativeCastType, true
 			}
 		}
 	}

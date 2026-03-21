@@ -16,6 +16,7 @@ type nativeInterfaceGenericMethod struct {
 	WhereClause      []*ast.WhereClauseConstraint
 	ParamTypeExprs   []ast.TypeExpression
 	ReturnTypeExpr   ast.TypeExpression
+	DefaultDefinition *ast.FunctionDefinition
 }
 
 func (g *generator) nativeInterfaceGenericMethodForGoType(goType string, methodName string) (*nativeInterfaceGenericMethod, bool) {
@@ -77,6 +78,10 @@ func (g *generator) collectNativeInterfaceGenericMethods(pkgName string, expr as
 			paramTypes = append(paramTypes, normalizeTypeExprForPackage(g, ifacePkg, substituted))
 		}
 		returnExpr := normalizeTypeExprForPackage(g, ifacePkg, substituteTypeParams(sig.ReturnType, bindings))
+		var defaultDef *ast.FunctionDefinition
+		if sig.DefaultImpl != nil {
+			defaultDef = ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
+		}
 		method := &nativeInterfaceGenericMethod{
 			Name:             sig.Name.Name,
 			GoName:           sanitizeIdent(sig.Name.Name),
@@ -87,6 +92,7 @@ func (g *generator) collectNativeInterfaceGenericMethods(pkgName string, expr as
 			WhereClause:      sig.WhereClause,
 			ParamTypeExprs:   paramTypes,
 			ReturnTypeExpr:   returnExpr,
+			DefaultDefinition: defaultDef,
 		}
 		if existing, ok := methods[method.Name]; ok {
 			if typeExpressionListKey(existing.ParamTypeExprs) != typeExpressionListKey(method.ParamTypeExprs) ||
@@ -173,39 +179,42 @@ func (g *generator) typeExprForGoType(goType string) (ast.TypeExpression, bool) 
 		return ast.NewNullableTypeExpression(innerExpr), true
 	}
 	if g.typeCategory(goType) == "struct" {
+		if info := g.structInfoByGoName(goType); info != nil && info.Name != "" {
+			if info.TypeExpr != nil {
+				return info.TypeExpr, true
+			}
+			return ast.Ty(info.Name), true
+		}
 		baseName, ok := g.structBaseName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
-		}
-		if info := g.structInfoByGoName(goType); info != nil && info.Name != "" {
-			return ast.Ty(info.Name), true
 		}
 		return ast.Ty(baseName), true
 	}
 	return nil, false
 }
 
-func (g *generator) inferNativeInterfaceGenericMethodShape(ctx *compileContext, call *ast.FunctionCall, method *nativeInterfaceGenericMethod, expected string) ([]ast.TypeExpression, []string, ast.TypeExpression, string, bool) {
+func (g *generator) inferNativeInterfaceGenericMethodShape(ctx *compileContext, call *ast.FunctionCall, method *nativeInterfaceGenericMethod, expected string) ([]ast.TypeExpression, []string, ast.TypeExpression, string, map[string]ast.TypeExpression, bool) {
 	if g == nil || ctx == nil || call == nil || method == nil {
-		return nil, nil, nil, "", false
+		return nil, nil, nil, "", nil, false
 	}
 	bindings := make(map[string]ast.TypeExpression, len(method.GenericParams))
 	if len(call.TypeArguments) > 0 {
 		if len(call.TypeArguments) != len(method.GenericParams) {
 			ctx.setReason("generic call arity mismatch")
-			return nil, nil, nil, "", false
+			return nil, nil, nil, "", nil, false
 		}
 		for idx, arg := range call.TypeArguments {
 			if method.GenericParams[idx] == nil || method.GenericParams[idx].Name == nil || method.GenericParams[idx].Name.Name == "" || arg == nil {
 				ctx.setReason("generic call type mismatch")
-				return nil, nil, nil, "", false
+				return nil, nil, nil, "", nil, false
 			}
 			bindings[method.GenericParams[idx].Name.Name] = arg
 		}
 	}
 	if len(call.Arguments) != len(method.ParamTypeExprs) {
 		ctx.setReason("call arity mismatch")
-		return nil, nil, nil, "", false
+		return nil, nil, nil, "", nil, false
 	}
 	genericNames := nativeInterfaceGenericNameSet(method.GenericParams)
 	for idx, arg := range call.Arguments {
@@ -232,7 +241,7 @@ func (g *generator) inferNativeInterfaceGenericMethodShape(ctx *compileContext, 
 		inst := normalizeTypeExprForPackage(g, method.InterfacePackage, substituteTypeParams(paramExpr, bindings))
 		goType, ok := mapper.Map(inst)
 		if !ok || goType == "" {
-			return nil, nil, nil, "", false
+			return nil, nil, nil, "", nil, false
 		}
 		paramExprs = append(paramExprs, inst)
 		paramGoTypes = append(paramGoTypes, goType)
@@ -240,9 +249,9 @@ func (g *generator) inferNativeInterfaceGenericMethodShape(ctx *compileContext, 
 	returnExpr := normalizeTypeExprForPackage(g, method.InterfacePackage, substituteTypeParams(method.ReturnTypeExpr, bindings))
 	returnGoType, ok := mapper.Map(returnExpr)
 	if !ok || returnGoType == "" {
-		return nil, nil, nil, "", false
+		return nil, nil, nil, "", nil, false
 	}
-	return paramExprs, paramGoTypes, returnExpr, returnGoType, true
+	return paramExprs, paramGoTypes, returnExpr, returnGoType, cloneTypeBindings(bindings), true
 }
 
 func (g *generator) nativeInterfaceGenericImplBindings(impl *implMethodInfo, method *nativeInterfaceGenericMethod) (map[string]ast.TypeExpression, bool) {
@@ -253,35 +262,72 @@ func (g *generator) nativeInterfaceGenericImplBindings(impl *implMethodInfo, met
 	if actualPkg == "" {
 		actualPkg = method.InterfacePackage
 	}
-	if len(impl.InterfaceArgs) != len(method.InterfaceArgs) {
-		return nil, false
-	}
 	genericNames := nativeInterfaceGenericNameSet(impl.InterfaceGenerics)
-	bindings := implInterfaceTypeBindings(impl.InterfaceGenerics, impl.InterfaceArgs)
-	if bindings == nil {
-		bindings = make(map[string]ast.TypeExpression, len(method.InterfaceArgs))
-	}
-	for idx, template := range impl.InterfaceArgs {
-		if !g.nativeInterfaceTypeTemplateMatches(actualPkg, template, method.InterfaceArgs[idx], genericNames, bindings) {
-			return nil, false
-		}
-	}
-	return bindings, true
+	actualExpr := nativeInterfaceInstantiationExpr(impl.InterfaceName, impl.InterfaceArgs)
+	return g.nativeInterfaceImplBindingsForTarget(
+		actualPkg,
+		actualExpr,
+		genericNames,
+		method.InterfacePackage,
+		method.InterfaceName,
+		method.InterfaceArgs,
+		make(map[string]struct{}),
+	)
 }
 
 func (g *generator) nativeInterfaceGenericMethodImplExists(goType string, method *nativeInterfaceGenericMethod) bool {
 	if g == nil || method == nil || goType == "" {
 		return false
 	}
+	if g.nativeInterfaceGenericMethodImplExistsExact(goType, method) {
+		return true
+	}
 	found := false
-	for _, impl := range g.implMethodList {
-		if impl == nil || impl.Info == nil || !impl.Info.Compileable || impl.ImplName != "" {
+	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
+		impl := candidateInfo.impl
+		info := candidateInfo.info
+		if impl == nil || info == nil || !info.Compileable || impl.ImplName != "" {
 			continue
 		}
-		if impl.InterfaceName != method.InterfaceName || impl.MethodName != method.Name {
+		if impl.MethodName != method.Name {
 			continue
 		}
-		if len(impl.Info.Params) == 0 || impl.Info.Params[0].GoType != goType {
+		if len(info.Params) == 0 {
+			continue
+		}
+		bindings, ok := g.nativeInterfaceGenericImplBindings(impl, method)
+		if !ok {
+			continue
+		}
+		if info.Params[0].GoType != goType {
+			info, _, ok = g.nativeInterfaceConcreteImplInfo(goType, impl, bindings)
+			if !ok || info == nil || len(info.Params) == 0 || info.Params[0].GoType != goType {
+				continue
+			}
+		}
+		if found {
+			return false
+		}
+		found = true
+	}
+	return found
+}
+
+func (g *generator) nativeInterfaceGenericMethodImplExistsExact(goType string, method *nativeInterfaceGenericMethod) bool {
+	if g == nil || method == nil || goType == "" {
+		return false
+	}
+	found := false
+	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
+		impl := candidateInfo.impl
+		info := candidateInfo.info
+		if impl == nil || info == nil || !info.Compileable || impl.ImplName != "" {
+			continue
+		}
+		if impl.MethodName != method.Name {
+			continue
+		}
+		if len(info.Params) == 0 || info.Params[0].GoType != goType {
 			continue
 		}
 		if _, ok := g.nativeInterfaceGenericImplBindings(impl, method); !ok {

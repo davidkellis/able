@@ -6,16 +6,19 @@ type structInfo struct {
 	Name      string
 	Package   string
 	GoName    string
+	TypeExpr  ast.TypeExpression
 	Kind      ast.StructKind
 	Fields    []fieldInfo
 	Node      *ast.StructDefinition
 	Supported bool
+	Specialized bool
 }
 
 type fieldInfo struct {
 	Name      string
 	GoName    string
 	GoType    string
+	TypeExpr  ast.TypeExpression
 	Supported bool
 }
 
@@ -35,12 +38,14 @@ type functionInfo struct {
 	GoName         string
 	Params         []paramInfo
 	ReturnType     string
+	TypeBindings   map[string]ast.TypeExpression
 	SupportedTypes bool
 	Arity          int
 	Definition     *ast.FunctionDefinition
 	Compileable    bool
 	Reason         string
 	HasOriginal    bool
+	InternalOnly   bool
 }
 
 type FallbackInfo struct {

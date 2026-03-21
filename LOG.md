@@ -1,5 +1,810 @@
 # Able Project Log
 
+# 2026-03-20 — Shared static built-in `Array` frame-elision tranche on the matrix path (v12)
+- Closed the remaining macro-scale shared built-in `Array` lowering gap on the
+  matrix benchmark family by removing synthetic call-frame scaffolding from
+  static array factories and intrinsics, without adding any named
+  non-primitive lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_intrinsics.go`
+  - `v12/interpreters/go/pkg/compiler/generator_static_array_factories.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections_static_array_access.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-frame-elision-compiled.md`
+- Tranche details:
+  - shared static built-in `Array` factories and intrinsics no longer emit
+    synthetic `__able_push_call_frame(...)` / `__able_pop_call_frame()` pairs
+    on compiled static paths
+  - the generated `build_matrix` and `matmul` bodies are now free of that
+    frame scaffolding while staying on the same shared `Array` lowering rules
+  - this remains within the compiler contract documented in `PLAN.md`: only
+    built-in `Array` semantics and primitive types receive special lowering;
+    non-primitive nominal types still rely on shared
+    struct/union/interface/generic rules
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-frame-elision-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: `0.1933s`, `7.00` GC
+  - `examples/benchmarks/matrixmultiply`: `4.2267s`, `13.00` GC
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`:
+    `-28.500833332098754`
+  - direct compiled `ablec` output for
+    `v12/examples/benchmarks/matrixmultiply.able`:
+    `-95.58358333329998`
+- Conclusion:
+  - synthetic static-array frame churn was the dominant remaining macro-scale
+    built-in `Array` cost on the matrix family
+  - the current matrix built-in `Array` tranche is now closed
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ExperimentalMonoArrays(MatrixMultiplyScalarLoopStaysNative|MatrixMultiplyMainStaysNative|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes)|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative)$' -count=1` (pass, `2.910s`)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, output `-28.500833332098754`, `0.2000s`, `7.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, `0.1933s`, `7.00` GC)
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/examples/benchmarks/matrixmultiply.able` (pass, output `-95.58358333329998`, `4.0400s`, `13.00` GC)
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (pass, `4.2267s`, `13.00` GC)
+  - `git diff --check` (pass)
+
+# 2026-03-20 — Shared native float-to-int cast tranche on the matrix entry path (v12)
+- Closed the next shared primitive-lowering gap on the matrix benchmark family
+  by removing the remaining `float -> int` runtime-cast crossings from the
+  compiled benchmark entry path, without adding any named non-primitive
+  lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-float-int-casts-compiled.md`
+- Tranche details:
+  - shared primitive `float -> int` casts now lower through native
+    `math.Trunc(...)` plus explicit `NaN` / `Inf` / range overflow checks on
+    static compiled paths instead of round-tripping through `__able_cast(...)`
+    and `bridge.AsInt(...)`
+  - the full `matrixmultiply` compile-shape audit now proves the compiled
+    `main` body avoids those runtime cast helpers while `build_matrix` and
+    `matmul` stay free of the known scalar runtime carrier helpers
+  - this remains within the compiler contract documented in `PLAN.md`: only
+    built-in `Array` semantics and primitive types receive special lowering;
+    non-primitive nominal types still rely on shared
+    struct/union/interface/generic rules
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-float-int-casts-compiled.md`
+- Compiled-only 3-run average (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: `1.7567s`, `7.00` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`:
+    `-28.500833332098754`.
+- Macro smoke:
+  - the full compiled `v12/examples/benchmarks/matrixmultiply.able` path still
+    times out under the current `60s` harness budget.
+- Conclusion:
+  - the primitive entry-cast gap on the matrix family is now closed through
+    shared primitive lowering rules
+  - the next category is the remaining macro-scale built-in `Array` lowering
+    work on the full matrix path beyond the entry casts
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ExperimentalMonoArrays(MatrixMultiplyScalarLoopStaysNative|MatrixMultiplyMainStaysNative|NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes)|NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative)$' -count=1` (pass, `2.782s`).
+  - `git diff --check` (pass).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, output `-28.500833332098754`, `1.9700s`, `7.00` GC).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, `1.7567s`, `7.00` GC).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (timeout).
+
+# 2026-03-20 — Shared native scalar array-propagation tranche on the reduced matrix path (v12)
+- Closed the next shared AOT lowering gap on the reduced matrix benchmark by
+  removing residual built-in `Array` scalar propagation/runtime-cast crossings,
+  without introducing any named-structure lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_static_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/generator_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_widening_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-scalar-propagation-compiled.md`
+- Tranche details:
+  - static built-in `Array` propagation now returns concrete success element
+    types on the compiled path, so nested `get(...)!` / index propagation on
+    staged scalar arrays no longer routes success values through
+    `__able_nullable_*_to_value(...)`
+  - the reduced matrix hot loop now stays on direct Go `float64` multiply/add
+    instead of falling back through `bridge.AsFloat(...)` and
+    `__able_binary_op(...)`
+  - explicit primitive numeric casts such as `i32 -> f64` and float widening
+    now lower directly to Go casts on static compiled paths instead of
+    round-tripping through `__able_cast(...)`
+  - this remains within the compiler contract documented in `PLAN.md`:
+    primitive types may use primitive-specific lowering, while non-primitive
+    nominal types still rely on shared struct/union/interface/generic rules
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-scalar-propagation-compiled.md`
+- Compiled-only 3-run average (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/matrixmultiply_f64_small`: `1.9733s`, `7.00` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/matrixmultiply_f64_small/main.able`:
+    `-28.500833332098754`.
+- Macro smoke:
+  - the full compiled `v12/examples/benchmarks/matrixmultiply.able` path still
+    times out under the current `60s` harness budget.
+- Conclusion:
+  - the reduced matrix scalar-loop carrier gap is now closed through shared
+    built-in `Array` and primitive lowering rules
+  - the next category is the remaining macro-scale built-in `Array` lowering
+    work on the full matrix path
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(NullableI32ParamAndMatchStayNative|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|NullableF64ReturnStayNative|NullableCharParamAndMatchStayNative|ExperimentalMonoArrays(NestedF64RowsStaySpecialized|NestedF64RowsExecute|NestedF64GetPushStaysSpecialized|NestedF64GetPushExecutes|MatrixMultiplyScalarLoopStaysNative))$' -count=1` (pass, `1.487s`).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, output `-28.500833332098754`, `1.6700s`, `7.00` GC).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able` (pass, `1.9733s`, `7.00` GC).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able` (timeout).
+
+# 2026-03-20 — Shared static nominal receiver/struct-literal closure tranche (v12)
+- Closed the remaining shared generic nominal default/static-method lowering
+  gap on the reduced `LinkedList -> Enumerable -> LazySeq` path without adding
+  any named-structure rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_type_substitute.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_nominal_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-shared-static-nominal-closure-compiled.md`
+- Tranche details:
+  - recursive type substitution now resolves chained bindings transitively,
+    which prevents specialized nominal/default method bodies from stalling on
+    placeholder bindings that still point at other placeholders
+  - static nominal target refinement now upgrades bare targets and struct
+    literals to the concrete expected carrier when the specialization context
+    already knows the nominal target (for example `LazySeq<T>` -> `LazySeq<i32>`)
+  - native interface concrete-impl matching now compares against the
+    specialized target template, so specialized receivers like `*LinkedList_i32`
+    satisfy compiled `Iterable<i32>` adapters through the shared path
+  - the surfaced residual fallback gap is closed for:
+    `ConcreteEnumerableGenericMethods...`,
+    `LinkedListIterableAdapter...`, and
+    `LazySeqIteratorCarrier...`
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-shared-static-nominal-closure-compiled.md`
+- Compiled-only 3-run average (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/linked_list_enumerable_i32_small`: `0.1633s`, `8.33` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`:
+    `382455000`.
+- Conclusion:
+  - the shared generic nominal default/static receiver and struct-literal path
+    is now closed on the reduced `LinkedList -> Enumerable -> LazySeq` family
+  - the next category is the next benchmark-worthy generic
+    container/runtime edge that still crosses residual runtime carriers
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerLinkedListIterableAdapterStaysNative$' -count=1` (pass, `12.668s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerLazySeqIteratorCarrierStaysNative$' -count=1` (pass, `31.403s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerConcreteEnumerableGenericMethodsStayNative$' -count=1` (pass, `30.409s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerConcreteEnumerableGenericMethodsExecute$' -count=1` (pass, `14.742s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerConcreteIteratorCollectGenericNominalAccumulatorExecutes$' -count=1` (pass, `12.071s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run '^TestCompilerConcreteIteratorMapFilterFunctionExecutes$' -count=1` (pass, `12.050s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures/06_12_14_stdlib_collections_linked_list_lazy_seq$' -count=1` (pass, `37.308s`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` (pass, `0.1633s`, `8.33` GC).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` (pass, output `382455000`).
+  - `git diff --check` (pass).
+
+# 2026-03-20 — Bound generic field/member carrier refinement tranche (v12)
+- Closed the next shared AOT lowering gap by keeping fully bound generic
+  struct fields/members on their concrete native carriers inside already-
+  specialized nominal method bodies, without adding a named-structure rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_generic_nominal_inference.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections_static_array_access.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_nominal_methods.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_nominal_method_specialization_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_array_family_native_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-heap-i32-bound-generic-field-carrier-refinement-compiled.md`
+- Tranche details:
+  - Added a user-defined proof case (`Bucket T { items: Array T }`) that runs
+    under `ExperimentalMonoArrays` and proves a fully bound generic field now
+    lowers to its concrete native carrier (`Items *__able_array_i32`) inside
+    specialized nominal method bodies.
+  - Static array index lowering now returns concrete element types directly
+    when an expected type is known, with explicit control transfer on bounds
+    failures, instead of materializing a temporary `runtime.Value` and
+    converting back.
+  - Receiver-derived specialization bindings now upgrade placeholder self-
+    bindings like `T -> T` to concrete bindings like `T -> i64`; that closes
+    the remaining mono-array `Iterable.iterator` / `Iterable.each` execute gap
+    inside specialized default/nominal method bodies.
+  - The same shared fix closes the surfaced `PersistentSortedQueue`
+    specialization regression: compiled main bodies now stay on
+    `PersistentSortedSet_i32` / `PersistentQueue_i32` plus specialized impl
+    siblings instead of falling back through unspecialized zero-arg helpers.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-heap-i32-bound-generic-field-carrier-refinement-compiled.md`
+- Compiled-only 3-run average (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/heap_i32_small`: `0.7667s`, `91.33` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/heap_i32_small/main.able`: `-211812354`.
+- Conclusion:
+  - the bound generic field/member carrier refinement tranche is now closed
+  - the next category is the next benchmark-worthy generic
+    container/runtime edge that still crosses residual runtime carriers
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(BoundGenericFieldCarrierSpecialization(StaysNative|Executes)|GenericNominalMethodSpecialization(StaysNative|Executes)|HeapGenericMethodSpecializationStaysNative)$' -count=1` (pass, `6.175s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerPersistentSortedQueueMethodsStayNative$' -count=1` (pass, `8.404s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerConcreteIteratorGenericMethods(StayNativeWithExperimentalMonoArrays|ExecuteWithExperimentalMonoArrays)$' -count=1` (pass, `27.013s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerConcreteIteratorCollectGenericNominalAccumulator(StaysNative|Executes)$' -count=1` (pass, `21.305s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerConcreteIteratorMapFilterFunction(StaysNative|Executes)$' -count=1` (pass, `24.609s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures/06_12_14_stdlib_collections_linked_list_lazy_seq$' -count=1` (pass, `33.052s`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/heap_i32_small/main.able` (pass, `0.7667s`, `91.33` GC).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/heap_i32_small/main.able` (pass, output `-211812354`).
+  - `git diff --check` (pass).
+
+# 2026-03-20 — Shared generic nominal `methods` specialization tranche (v12)
+- Closed the next shared AOT lowering gap by specializing generic nominal
+  `methods` blocks when the concrete target type is statically known,
+  without adding another named-structure rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_nominal_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_calls.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_nominal_method_specialization_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-heap-i32-generic-nominal-method-specialization-compiled.md`
+- Tranche details:
+  - Method param/return mapping now honors bound type bindings during nominal
+    method specialization, so a generic `methods Box T` or `methods Heap T`
+    body can render concrete compiled signatures once the target is known
+    statically (`T -> i32`, etc.).
+  - Added shared nominal-method specialization parallel to the existing impl
+    specialization path; callsites now pick specialized compiled method bodies
+    for concrete nominal targets instead of reusing the unspecialized
+    `runtime.Value` signatures.
+  - Added a user-defined proof case (`Box T`) to pin that this is a general
+    nominal-lowering rule, not a container-specific hack.
+  - Re-measured the reduced `Heap i32` benchmark because it is the first hot
+    constrained generic nominal-method path that materially exercises this
+    lowering.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-heap-i32-generic-nominal-method-specialization-compiled.md`
+- Compiled-only 3-run average (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/heap_i32_small`: `4.2000s`, `1811.67` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/heap_i32_small/main.able`: `-211812354`.
+- Conclusion:
+  - the shared generic nominal-method specialization layer is now closed
+  - the next category is bound generic field/member carrier refinement inside
+    already-specialized nominal method bodies, not another per-structure rule
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(GenericNominalMethodSpecialization(StaysNative|Executes)|HeapGenericMethodSpecializationStaysNative)$' -count=1` (pass, `2.286s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(GenericNominalMethodSpecialization(StaysNative|Executes)|HeapGenericMethodSpecializationStaysNative|BitSetHeapMethodsStayNative|DequeQueueMethodsStayNative|PersistentSortedQueueMethodsStayNative|ConcreteIteratorCollectGenericNominalAccumulator(StaysNative|Executes)|ConcreteIteratorGenericMethods(StayNative|Execute|StayNativeWithExperimentalMonoArrays|ExecuteWithExperimentalMonoArrays)|ConcreteIteratorMapFilterFunction(StaysNative|Executes))$|TestCompilerExecFixtures/06_12_14_stdlib_collections_linked_list_lazy_seq$' -count=1` (pass, `20.995s`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/heap_i32_small/main.able` (pass, `4.2000s`, `1811.67` GC).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/heap_i32_small/main.able` (pass, output `-211812354`).
+  - `git diff --check` (pass).
+
+# 2026-03-20 — Generic nominal `Iterator.collect<C>()` proof tranche (v12)
+- Closed the next generic nominal lowering guardrail on the compiler path
+  without adding a new named-structure rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_collect_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+- Tranche details:
+  - Added a user-defined `SumCount` accumulator implementing only
+    `Default + Extend i64` and pinned `Iterator.collect<SumCount>()` against
+    `__able_method_call_node(...)`, `__able_call_value(...)`, and iterator
+    runtime-value conversion on the compiled path.
+  - This proves the shared generic default-method lowering now carries
+    statically known user nominal accumulators through the compiled
+    `Iterator.collect<C>()` helper without another nominal-type-specific
+    lowering branch.
+  - The dedicated `Array` collect helper remains, but only as a fallback
+    behind the shared generic path and only for the built-in `Array`
+    language/kernel exception.
+- Conclusion:
+  - the compiler now has an explicit proof that `collect<C>()` is shared
+    generic nominal lowering first, not a pattern for adding more
+    per-structure fast paths
+  - the next category remains broader performance widening on the next hot
+    generic-container/runtime edges, not more nominal special casing
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ConcreteIteratorCollectGenericNominalAccumulator(StaysNative|Executes)|ConcreteIteratorGenericMethods(StayNative|Execute|StayNativeWithExperimentalMonoArrays|ExecuteWithExperimentalMonoArrays)|ConcreteIteratorMapFilterFunction(StaysNative|Executes))$' -count=1` (pass, `13.585s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ConcreteIteratorCollectGenericNominalAccumulator(StaysNative|Executes)|ConcreteIteratorGenericMethods(StayNativeWithExperimentalMonoArrays|ExecuteWithExperimentalMonoArrays)|ConcreteIteratorMapFilterFunction(StaysNative|Executes))$|TestCompilerExecFixtures/06_12_14_stdlib_collections_linked_list_lazy_seq$' -count=1` (pass, `13.425s`).
+  - `git diff --check` (pass).
+
+# 2026-03-20 — Native iterator `filter_map` / iterator-controller tranche (v12)
+- Closed the remaining iterator-literal controller/runtime-value edge inside
+  the generic iterator default-method family.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_iterators.go`
+  - `v12/interpreters/go/pkg/compiler/generator_iterator_controller_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime.go`
+  - `v12/interpreters/go/pkg/compiler/ir_codegen_iterators.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_iterator_filter_map_native_test.go`
+  - `v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/main.able`
+  - `v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/manifest.json`
+  - `v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/package.yml`
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-filter-map-i64-small-compiled.md`
+- Tranche details:
+  - Compiled iterator literals now bind `gen` as a compiler-owned
+    `*__able_generator` controller instead of an opaque runtime object.
+  - `gen.yield(...)`, `gen.stop()`, and bound `gen.yield` callable captures
+    now lower directly through that compiler-owned controller path instead of
+    `__able_method_call_node(...)`.
+  - Native nilable/static-carrier conditions now lower to direct nil checks
+    (`expr != nil`) instead of broad `__able_truthy(...)` conversion, which
+    keeps `Iterator.filter_map` on the static path.
+  - The widened validation slice confirmed this also closes the fallback that
+    had reopened in `LazySeq.iterator` via `self.each(gen.yield)`.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-filter-map-i64-small-compiled.md`
+- Compiled-only 3-run average (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/linked_list_iterator_filter_map_i64_small`: `0.1267s`, `10.00` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/main.able`:
+    `191952000`.
+- Conclusion:
+  - the iterator default-method family is now closed through `filter_map`
+  - the next category is the next benchmark-worthy generic-container/runtime
+    edge beyond iterator-literal controller cleanup
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerConcreteIteratorFilterMap(StayNative|Executes)(WithExperimentalMonoArrays)?$' -count=1` (pass, `6.875s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ConcreteIterator(GenericMethodsStayNative|GenericMethodsExecute|GenericMethodsStayNativeWithExperimentalMonoArrays|GenericMethodsExecuteWithExperimentalMonoArrays|MapFilterFunctionStaysNative|MapFilterFunctionExecutes)|ConcreteIteratorFilterMap(StayNative|Executes)(WithExperimentalMonoArrays)?|LazySeqIteratorCarrierStaysNative)$|TestCompilerExecFixtures/(06_12_14_stdlib_collections_linked_list_lazy_seq|06_12_18_stdlib_collections_array_range)$|TestIREmitFunctionIteratorLiteral$' -count=1` (pass, `24.641s`).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/main.able` (pass, output `191952000`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/main.able` (pass, `0.1267s`, `10.00` GC).
+
+# 2026-03-20 — Mono-array-enabled `Iterator.collect<Array T>()` tranche (v12)
+- Closed the follow-up iterator/default-method slice that remained open after
+  the earlier `map/filter -> next()` tranche.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_collect_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+  - `v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able`
+  - `v12/fixtures/bench/linked_list_iterator_collect_i64_small/manifest.json`
+  - `v12/fixtures/bench/linked_list_iterator_collect_i64_small/package.yml`
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-collect-i64-small-compiled.md`
+- Tranche details:
+  - Fixed the sibling impl specialization binding bug so default-impl sibling
+    specialization no longer reuses the caller's generic-name map blindly.
+  - Fixed the specialization matcher recursion bug by normalizing once at the
+    top-level instead of renormalizing on every recursive descent.
+  - Closed the actual mono-array collect issue by lowering
+    `Iterator.collect<Array i64>()` through a generated compiled helper with a
+    specialized `*__able_array_i64` accumulator instead of the residual
+    `__able_method_call_node(...)` + `__able_array_i64_from(...)` bridge.
+  - This helper is intentionally compiler-owned and array-specific because
+    `Array` is a language/kernel special form; it is not a precedent for
+    adding bespoke lowering rules for arbitrary user-defined nominal types.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-collect-i64-small-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/linked_list_iterator_collect_i64_small`: mono on `0.1833s`,
+    `14.00` GC; mono off `0.1833s`, `13.33` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able`:
+    `382455000`.
+- Conclusion:
+  - the mono-array-enabled `Iterator.collect<Array T>()` correctness bug is
+    closed on the reduced iterator-pipeline family
+  - the result is performance-neutral on this reduced benchmark, so this is a
+    correctness/native-carrier closure rather than a new speed step
+  - the next category is broader performance widening on the next hot generic
+    container/runtime edges
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ConcreteIteratorGenericMethodsStayNative|ConcreteIteratorGenericMethodsExecute|ConcreteIteratorGenericMethodsStayNativeWithExperimentalMonoArrays|ConcreteIteratorGenericMethodsExecuteWithExperimentalMonoArrays)$' -count=1` (pass, `6.948s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ConcreteEnumerableGenericMethodsStayNative|LinkedListIterableAdapterStaysNative|LazySeqIteratorCarrierStaysNative|ConcreteIteratorGenericMethodsStayNative|ConcreteIteratorGenericMethodsExecute|ConcreteIteratorGenericMethodsStayNativeWithExperimentalMonoArrays|ConcreteIteratorGenericMethodsExecuteWithExperimentalMonoArrays|ConcreteIteratorMapFilterFunctionStaysNative|ConcreteIteratorMapFilterFunctionExecutes)$|TestCompilerExecFixtures/06_12_14_stdlib_collections_linked_list_lazy_seq$' -count=1` (pass, `16.994s`).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output /home/david/sync/projects/able/v12/tmp/iter-collect.SAtVIg/main.able` (pass, output `15`).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able` (pass, output `382455000`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able` (pass, `0.1833s`, `14.00` GC).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled --compiled-build-arg=--no-experimental-mono-arrays v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able` (pass, `0.1833s`, `13.33` GC).
+
+# 2026-03-20 — Native iterator default-method hot-path tranche (`LinkedList.lazy().map/filter -> next()`) (v12)
+- Closed the next benchmark-worthy generic-container/runtime edge on the
+  shared native carrier path.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_calls.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+  - `v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able`
+  - `v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/manifest.json`
+  - `v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/package.yml`
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-pipeline-i64-small-compiled.md`
+- Tranche details:
+  - Ordinary default native-interface methods now lower through the same
+    direct compiled-helper path already used for default generic methods when
+    the receiver stays on a native interface carrier.
+  - On the representative iterator pipeline shape, compiled `Iterator.filter`
+    no longer routes through the runtime adapter method layer after
+    `LinkedList.lazy().map<i64>(...)`; it now resolves to the compiled default
+    helper directly on the native iterator carrier.
+  - New regressions pin both the direct callsite shape and a function-shaped
+    `LinkedList.lazy().map/filter -> next()` loop body so the path fails if it
+    reintroduces `__able_iface_Iterator_*_to_runtime_value(...)`,
+    `__able_method_call_node(...)`, or `__able_call_value(...)`.
+  - The first attempted reduced benchmark used
+    `...collect<Array i64>().reduce(...)`, but that exposed a separate open
+    issue on the mono-array-enabled CLI/default path: `Iterator.collect<Array
+    T>()` still falls back through a residual dynamic/specialized-array bridge.
+    This tranche intentionally closed the already-corrected `map/filter/next`
+    edge without folding that distinct bug into the same benchmark.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-pipeline-i64-small-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/linked_list_iterator_pipeline_i64_small`: `0.1800s`, `13.33` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able`:
+    `382455000`.
+- Conclusion:
+  - the `LinkedList.lazy().map/filter -> next()` hot path is now closed on the
+    shared native iterator carrier design
+  - the next category is narrower than “another generic container pass”: it is
+    the mono-array-enabled `Iterator.collect<Array T>()` / specialized-array
+    accumulator interaction surfaced by the first benchmark attempt
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes|ConcreteIteratorGenericMethodsStayNative|ConcreteIteratorGenericMethodsExecute|ConcreteIteratorMapFilterFunctionStaysNative|ConcreteIteratorMapFilterFunctionExecutes|ConcreteEnumerableGenericMethodsStayNative|LazySeqIteratorCarrierStaysNative|LinkedListIterableAdapterStaysNative)$|TestCompilerExecFixtures/(06_12_14_stdlib_collections_linked_list_lazy_seq|06_12_16_stdlib_collections_deque_queue|06_12_17_stdlib_collections_bit_set_heap)$' -count=1` (pass, `20.237s`).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able` (pass, output `382455000`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able` (pass, `0.1800s`, `13.33` GC).
+  - `git diff --check` (pass).
+
+# 2026-03-20 — Callback/runtime carrier cleanup inside generic default impls (v12)
+- Closed the remaining callback/runtime-value carrier slice on the concrete
+  `LinkedList` `Enumerable` default-impl hot path.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/model.go`
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_compile_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_overloads.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_static_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_calls.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-specialized-default-impls-compiled.md`
+- Tranche details:
+  - Specialized impl functions now retain bound generic type bindings through
+    compileability checks and render, and the renderer now iterates to a fixed
+    point so specialized siblings discovered during body compilation are
+    emitted in the same pass.
+  - Specialized sibling impls are cached early enough to break mutually
+    recursive specialization loops during codegen.
+  - Default-impl call selection now prefers specialized sibling impls before
+    the ordinary concrete-receiver method path, which fixes the remaining
+    `Enumerable.lazy()` regression: the specialized `LinkedList` helper now
+    calls `__able_compiled_impl_Enumerable_iterator_1_spec(...)` directly
+    instead of bridging `Iterator_A -> runtime.Value -> Iterator_i32`.
+  - The linked-list benchmark no longer stack-overflows by recursively
+    converting `LinkedListIterator -> ListNode` cycles through
+    `__able_any_to_value(...)`.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-specialized-default-impls-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/linked_list_enumerable_i32_small`: `0.1667s`, `15.33` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`:
+    `382455000`.
+- Conclusion:
+  - the callback/runtime-value carrier regression on this hot path is closed
+  - wall-clock is back in line with the previous linked-list baseline; this
+    tranche is a correctness/native-carrier cleanup, not a new speed step
+  - the next category is the next benchmark-worthy callback/generic-container
+    runtime edge beyond this `LinkedList` default-impl path
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ConcreteEnumerableGenericMethodsStayNative|LinkedListIterableAdapterStaysNative|LazySeqIteratorCarrierStaysNative)$|TestCompilerExecFixtures/(06_12_14_stdlib_collections_linked_list_lazy_seq|06_12_16_stdlib_collections_deque_queue|06_12_17_stdlib_collections_bit_set_heap)$' -count=1` (pass, `11.957s`).
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` (pass, output `382455000`, no stack overflow).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` (pass, `0.1667s`, `15.33` GC).
+  - `git diff --check` (pass).
+
+# 2026-03-20 — Concrete `Enumerable` default-method hot-path tranche (`LinkedList.map/filter/reduce`) (v12)
+- Closed the next concrete generic/default container-method hot-path tranche
+  on the shared native carrier path.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_impls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_compile_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_static_iterables.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_methods.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+  - `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`
+  - `v12/fixtures/bench/linked_list_enumerable_i32_small/manifest.json`
+  - `v12/fixtures/bench/linked_list_enumerable_i32_small/package.yml`
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-compiled.md`
+- Tranche details:
+  - The compiler now binds higher-kinded interface self patterns like
+    `Enumerable A for C _` to the concrete target type on compiled impl paths,
+    so concrete `LinkedList.map/filter/reduce` calls resolve to compiled impl
+    functions instead of the narrow runtime generic-method boundary.
+  - Bound type-constructor calls inside those compiled default impl bodies,
+    such as `C.default()`, now resolve through static compiled impl lookup
+    rather than `__able_env_get("C")`.
+  - Native `Iterator<T>` carriers now satisfy compiled iterable lowering
+    directly, which removes the `to_runtime_value -> from_value -> iterator()`
+    round-trip that previously overflowed on larger `LinkedList` graphs inside
+    default `Enumerable` loops.
+  - New focused regressions now pin both the concrete `Enumerable`
+    callsite shape and the compiled `Enumerable.map` loop body so those
+    runtime iterator round-trips do not return.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/linked_list_enumerable_i32_small`: `0.1667s`, `12.00` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`:
+    `382455000`.
+- Conclusion:
+  - the next remaining hot edge on this family is callback/runtime-value
+    carrier overhead inside generic default impl bodies, not container target
+    resolution or iterator-fallback correctness
+  - the next category is the next benchmark-worthy callback/generic-container
+    runtime edge rather than another nominal container-correctness pass
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerConcreteEnumerableGenericMethodsStayNative$|TestCompilerConcreteIterableForLoopStaysNative$|TestCompilerInterfaceIterableForLoopStaysNative$' -count=1` (pass, `0.733s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ConcreteEnumerableGenericMethodsStayNative|LinkedListIterableAdapterStaysNative|LazySeqIteratorCarrierStaysNative|ConcreteIterableArgToInterfaceParamStaysNative|ConcreteIterableForLoopStaysNative|InterfaceIterableForLoopStaysNative|DequeQueueMethodsStayNative|BitSetHeapMethodsStayNative|PersistentSortedQueueMethodsStayNative|StaticSliceBuiltinsIgnoreLenShadowing|TreeMapStaticCarrierStaysNative|PersistentMapStaticCarrierStaysNative|HashMapStaticCarrierStaysNative)$|TestCompilerExecFixtures/(06_12_11_stdlib_collections_tree_map_set|06_12_12_stdlib_collections_persistent_map_set|06_12_13_stdlib_collections_persistent_sorted_queue|06_12_14_stdlib_collections_linked_list_lazy_seq|06_12_16_stdlib_collections_deque_queue|06_12_17_stdlib_collections_bit_set_heap|14_01_language_interfaces_index_apply_iterable)$' -count=1` (pass, `27.048s`).
+  - direct compiled parity check for `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` (pass, output `382455000`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` (pass).
+
+# 2026-03-20 — Benchmark-worthy generic container hot-path tranche (`LinkedList -> Iterable -> Iterator`) (v12)
+- Closed the next generic-container hot-path tranche on the shared native
+  carrier path.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_static_iterables.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_ident.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_inheritance.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_iterable_loop_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+  - `v12/fixtures/bench/linked_list_for_i32_small/main.able`
+  - `v12/fixtures/bench/linked_list_for_i32_small/manifest.json`
+  - `v12/fixtures/bench/linked_list_for_i32_small/package.yml`
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-for-i32-small-compiled.md`
+- Tranche details:
+  - Static `for value in iterable` lowering now uses native concrete/interface
+    receiver calls (`iterator`, `next`) instead of the old
+    `__able_resolve_iterator(...)` runtime path when the iterable carrier is
+    already statically representable.
+  - Identifier coercion now prefers static expected-type coercion before
+    broad runtime conversion, which keeps more native interface/callable
+    argument paths on compiler-owned carriers.
+  - Native interface adapter synthesis now honors interface inheritance, so
+    containers that implement a derived interface (for example
+    `Enumerable A for LinkedList`) now synthesize the corresponding native
+    base-interface adapter (`Iterable A`) instead of falling back to
+    `runtime.Value`.
+  - Native interface concrete adapters now directly coerce compatible native
+    interface return carriers instead of round-tripping through runtime values.
+    That removes the recursive conversion bug on cyclic native container
+    graphs like `LinkedListIterator -> ListNode`.
+  - New focused regressions now pin both the static iterable loop lowering and
+    the `LinkedList` native `Iterable` adapter path.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-20-linked-list-for-i32-small-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/linked_list_for_i32_small`: `0.2000s`, `15.00` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/linked_list_for_i32_small/main.able`: `1199940000`.
+- Conclusion:
+  - the first benchmark-worthy generic-container hot path is now closed on the
+    shared native interface/container carrier design;
+  - the next category is broader performance widening for the remaining
+    generic container/runtime carrier edges that are still hot enough to
+    matter.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(LinkedListIterableAdapterStaysNative|LazySeqIteratorCarrierStaysNative|ConcreteIterableArgToInterfaceParamStaysNative|ConcreteIterableForLoopStaysNative|InterfaceIterableForLoopStaysNative)$|TestCompilerExecFixtures/(14_01_language_interfaces_index_apply_iterable|06_12_14_stdlib_collections_linked_list_lazy_seq)$' -count=1` (pass, `6.253s`).
+  - direct compiled parity check for `v12/fixtures/bench/linked_list_for_i32_small/main.able` (pass, output `1199940000`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/linked_list_for_i32_small/main.able` (pass).
+
+# 2026-03-20 — Deeper generic container native-carrier fix (`LazySeq` / typed `nil`) (v12)
+- Closed the next deeper generic-container correctness tranche without adding
+  a new container-specific lowering rule.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+- Tranche details:
+  - The real remaining issue on this slice was shared native-carrier hygiene,
+    not another stdlib container exception.
+  - `mapNullableType(...)` now preserves native nilable carriers when the
+    inner Go type already has a nil zero value, which keeps generic container
+    fields like `LazySeq.Source: ?(Iterator T)` on the generated native
+    interface carrier instead of collapsing to `any`.
+  - `nil` expression lowering now emits typed Go nils for native nilable
+    carriers (`(*ListNode)(nil)`, `__able_iface_Iterator_T(nil)`, etc.) rather
+    than invalid untyped `nil` short declarations in compiled bodies.
+  - This closes the compiled stdlib fixture regression in
+    `06_12_14_stdlib_collections_linked_list_lazy_seq` and keeps the
+    linked-list/lazy-seq path on the shared native container/interface ABI.
+- Conclusion:
+  - the next container/native-carrier category is no longer “fix deeper
+    generic container correctness”; it is benchmark-worthy generic container
+    hot paths and any remaining residual container/runtime fallback surfaces.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerLazySeqIteratorCarrierStaysNative$|TestCompilerExecFixtures/06_12_14_stdlib_collections_linked_list_lazy_seq$' -count=1` (pass, `3.064s`).
+  - `git diff --check` (pass).
+
+# 2026-03-19 — Broader stdlib container audit + `Heap i32` benchmark tranche (v12)
+- Closed the next broader container tranche without adding new type-specific
+  lowering rules.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/compiler_container_array_family_native_test.go`
+  - `v12/fixtures/bench/heap_i32_small/main.able`
+  - `v12/fixtures/bench/heap_i32_small/manifest.json`
+  - `v12/fixtures/bench/heap_i32_small/package.yml`
+  - `v12/docs/perf-baselines/2026-03-19-heap-i32-small-compiled.md`
+- Tranche details:
+  - The remaining stdlib container families in this slice already lower
+    through the shared nominal/container path; the missing work was mechanical
+    audit coverage, not more compiler exceptions.
+  - New no-fallback compiler regressions now pin representative static method
+    bodies for:
+    - `Deque` / `Queue`
+    - `BitSet` / `Heap`
+    - `PersistentSortedSet` / `PersistentQueue`
+  - Those tests assert native locals stay on compiler-native carriers and that
+    representative compiled methods avoid `__able_call_value(...)`,
+    `__able_member_get_method(...)`, `__able_method_call_node(...)`,
+    `bridge.MatchType(...)`, and `__able_try_cast(...)`.
+  - Shared compiled fixture gates are green for the same family:
+    `06_12_13_stdlib_collections_persistent_sorted_queue`,
+    `06_12_16_stdlib_collections_deque_queue`, and
+    `06_12_17_stdlib_collections_bit_set_heap`.
+  - Added a checked-in reduced benchmark target for `Heap i32`:
+    `v12/fixtures/bench/heap_i32_small/main.able`.
+  - The first version of that target was too large for a “small” checked-in
+    fixture (`53.0167s` average compiled run), so it was trimmed before being
+    recorded.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-19-heap-i32-small-compiled.md`
+- Final compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build
+  path):
+  - `bench/heap_i32_small`: `7.7533s`, `1105.00` GC.
+- Direct parity:
+  - direct compiled `ablec` output for
+    `v12/fixtures/bench/heap_i32_small/main.able`: `-211812354`.
+- Conclusion:
+  - this broader array-backed/persistent container family is now mechanically
+    covered by the shared native-lowering contract;
+  - the next category is no longer “make these families native”, it is deeper
+    generic container paths and any remaining container/runtime surfaces that
+    still force generic carrier fallbacks.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(DequeQueueMethodsStayNative|BitSetHeapMethodsStayNative|PersistentSortedQueueMethodsStayNative|StaticSliceBuiltinsIgnoreLenShadowing|TreeMapStaticCarrierStaysNative|PersistentMapStaticCarrierStaysNative)$|TestCompilerExecFixtures/(06_12_13_stdlib_collections_persistent_sorted_queue|06_12_16_stdlib_collections_deque_queue|06_12_17_stdlib_collections_bit_set_heap|06_12_11_stdlib_collections_tree_map_set|06_12_12_stdlib_collections_persistent_map_set)$' -count=1` (pass, `19.583s`).
+  - direct compiled parity check for `v12/fixtures/bench/heap_i32_small/main.able` (pass, output `-211812354`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/heap_i32_small/main.able` (pass).
+  - `git diff --check` (pass).
+
+# 2026-03-19 — Nominal tree/persistent container follow-through (v12)
+- Closed the next nominal container tranche without adding new type-specific
+  lowering rules for tree/persistent map/set families.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_static_builtin_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_builtins.go`
+  - `v12/interpreters/go/pkg/compiler/generator_static_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections_static_array_access.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_intrinsics.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_static_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_value_conversions.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_nominal_native_test.go`
+- Tranche details:
+  - The real blocker on `TreeMap` / `TreeSet` and `PersistentMap` /
+    `PersistentSet` was generic codegen hygiene, not missing per-container
+    lowering. Static compiled bodies were still emitting raw Go `len(...)` and
+    `cap(...)`, which broke when Able code bound locals named `len`.
+  - Static slice/string builtin use now routes through generated helpers
+    (`__able_slice_len`, `__able_slice_cap`, `__able_string_len_bytes`) in
+    compiled bodies, so nominal container code no longer depends on unshadowed
+    Go predeclared identifiers.
+  - Focused regressions now pin the builtin-shadowing case directly and assert
+    that `TreeMap` / `PersistentMap` params and returns stay on native
+    `*TreeMap` / `*PersistentMap` carriers rather than regressing to
+    `runtime.Value`.
+  - This closes the broader tree/persistent map/set follow-through via the
+    shared nominal struct/interface pipeline instead of adding new container
+    exceptions.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(StaticSliceBuiltinsIgnoreLenShadowing|TreeMapStaticCarrierStaysNative|PersistentMapStaticCarrierStaysNative|HashMapStaticCarrierStaysNative)$|TestCompilerCompiledHashSetUnionStdlib$|TestCompilerExecFixtures/(06_12_11_stdlib_collections_tree_map_set|06_12_12_stdlib_collections_persistent_map_set)$' -count=1` (pass, `12.323s`).
+  - `cd v12/interpreters/go && git diff --check` (pass).
+
+# 2026-03-19 — Generic nominal container carrier follow-through (v12)
+- Closed the remaining integration gaps exposed by the shared nominal-carrier
+  refactor instead of backing out the generic path.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_control.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_control_bridge_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_type_alias_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_hashmap_native_test.go`
+- Tranche details:
+  - `TypeMapper` now expands simple type aliases before host-type mapping, so
+    alias-backed nominal struct fields lower through the same generic carrier
+    path as any other struct field.
+  - That fixes the kernel/container case cleanly: `HashMap.handle` now lowers
+    as `int64` via `HashMapHandle = i64` instead of silently becoming
+    `runtime.Value`.
+  - The explicit map-literal lowering edge now converts the runtime hash-map
+    handle value back into the native `int64` carrier before constructing the
+    compiled `HashMap` struct.
+  - The compiled control bridge now preserves exit signals via
+    `interpreter.ExitCodeFromError(control.Err)` before wrapping raised values,
+    which fixes the false `runtime: runtime error` failure in the compiled
+    stdlib `HashSet.union` integration path.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(ControlToErrorPreservesExitSignals|TypeAliasStructFieldStaysNative|HashMapStaticCarrierStaysNative|HashMapLiteralStaysNative|HashMapCarrierArrayStaysSpecialized|GenericMapInterfaceSignatureStaysNative|HashMapNativeCarrierExecutes|HashSetStaticCarrierStaysNative|HashSetCarrierArrayStaysSpecialized|HashSetIteratorWrapsConcreteNativeIterator|HashSetIteratorNativeCarrierExecutes)$|TestCompilerDynamicBoundaryCallbackHashMapConversion(Success|Failure)Markers$|TestCompilerCompiledHashSetUnionStdlib$' -count=1` (pass, `18.066s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures/(06_01_compiler_map_literal|06_01_compiler_map_literal_typed|06_01_compiler_map_literal_spread|06_12_15_stdlib_collections_hash_map_set)$|TestCompilerExecHarness$' -count=1` (pass).
+  - `git diff --check` (pass).
+
+# 2026-03-19 — Native HashMap container carrier tranche (v12)
+- Closed the next broader non-scalar/container lowering slice by keeping
+  `HashMap K V` on native compiler carriers and fixing the residual
+  generic-interface return matching exposed by stdlib `HashSet.iterator()`.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_coercions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_hashmap_native_test.go`
+  - `v12/fixtures/bench/hashmap_i32_small/main.able`
+  - `v12/docs/perf-baselines/2026-03-19-hashmap-i32-small-compiled.md`
+- Tranche details:
+  - `HashMap K V` now maps to native `*HashMap` carriers on static compiled
+    paths instead of collapsing to `any`;
+  - typed and inferred map literals now build native `*HashMap` values in the
+    compiled body, and `Array (HashMap K V)` outer carriers stay native too;
+  - `Map K V` interface params stay on the generated native interface carrier;
+  - generic interface return matching no longer pre-binds interface generics
+    to themselves, which closes the old `HashSet.iterator()` /
+    `Enumerable.iterator` fallback on shapes like `Iterator T` vs
+    `Iterator A`;
+  - the residual native-interface coercion path is now an explicit runtime
+    roundtrip at the ABI edge instead of compiler fallback;
+  - `generator_native_interfaces.go` is back under the file-size limit after
+    splitting coercion/matching helpers into
+    `generator_native_interface_coercions.go`.
+- Snapshot recorded in:
+  - `v12/docs/perf-baselines/2026-03-19-hashmap-i32-small-compiled.md`
+- Compiled-only 3-run averages (`v12/bench_perf`, direct `ablec` build path):
+  - `bench/hashmap_i32_small`: `1.7633s`, `175.33` GC.
+- Conclusion:
+  - the first broader native container slice beyond arrays is now landed;
+  - this closes the remaining correctness/native-lowering gaps around static
+    `HashMap` carriers and generic `Iterator` interface returns, and it gives
+    us a checked-in reduced benchmark target for future map/set performance
+    work.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(HashMapStaticCarrierStaysNative|HashMapLiteralStaysNative|HashMapCarrierArrayStaysSpecialized|GenericMapInterfaceSignatureStaysNative|HashMapNativeCarrierExecutes|HashSetIteratorWrapsConcreteNativeIterator|HashSetIteratorNativeCarrierExecutes)$|TestCompilerDynamicBoundaryCallbackHashMapConversion(Success|Failure)Markers$' -count=1` (pass, `14.694s`).
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures/(06_01_compiler_map_literal|06_01_compiler_map_literal_typed|06_01_compiler_map_literal_spread|06_12_15_stdlib_collections_hash_map_set)$' -count=1` (pass, `12.991s`).
+  - direct `ablec` parity check for `v12/fixtures/bench/hashmap_i32_small/main.able` (pass, output `4498503`).
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/hashmap_i32_small/main.able` (pass).
+  - `git diff --check` (pass).
+
 # 2026-03-19 — Remaining primitive numeric mono-array tranche (v12)
 - Closed the next widening slice by covering the remaining primitive numeric
   scalar family with staged compiler-owned array wrappers.

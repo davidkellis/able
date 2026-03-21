@@ -12,7 +12,7 @@ func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper 
 	if def == nil || def.TargetType == nil || mapper == nil {
 		return
 	}
-	targetType := g.expandTypeAliasForPackage(pkgName, def.TargetType)
+	targetType := g.methodsTargetTypeExpr(pkgName, def)
 	targetName, ok := g.methodTargetName(targetType)
 	if !ok || targetName == "" {
 		return
@@ -53,6 +53,31 @@ func (g *generator) collectMethodsDefinition(def *ast.MethodsDefinition, mapper 
 		g.methods[targetName][methodName] = append(g.methods[targetName][methodName], method)
 		g.methodList = append(g.methodList, method)
 	}
+}
+
+func (g *generator) methodsTargetTypeExpr(pkgName string, def *ast.MethodsDefinition) ast.TypeExpression {
+	if g == nil || def == nil || def.TargetType == nil {
+		return nil
+	}
+	targetType := g.expandTypeAliasForPackage(pkgName, def.TargetType)
+	if len(def.GenericParams) == 0 {
+		return targetType
+	}
+	if _, ok := targetType.(*ast.GenericTypeExpression); ok {
+		return targetType
+	}
+	base, ok := targetType.(*ast.SimpleTypeExpression)
+	if !ok || base == nil || base.Name == nil || base.Name.Name == "" {
+		return targetType
+	}
+	args := make([]ast.TypeExpression, 0, len(def.GenericParams))
+	for _, gp := range def.GenericParams {
+		if gp == nil || gp.Name == nil || gp.Name.Name == "" {
+			return targetType
+		}
+		args = append(args, ast.Ty(gp.Name.Name))
+	}
+	return ast.NewGenericTypeExpression(ast.Ty(base.Name.Name), args)
 }
 
 func (g *generator) expandTypeAliasForPackage(pkgName string, expr ast.TypeExpression) ast.TypeExpression {
@@ -161,11 +186,16 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 		return
 	}
 	def := info.Definition
+	bindings := cloneTypeBindings(info.TypeBindings)
+	concreteTarget := target
+	if len(bindings) > 0 {
+		concreteTarget = substituteTypeParams(concreteTarget, bindings)
+	}
 	params := make([]paramInfo, 0, len(def.Params)+1)
 	supported := true
 	paramIndex := 0
 	if expectsSelf && def.IsMethodShorthand {
-		selfGo, ok := g.mapMethodType(mapper, target, target)
+		selfGo, ok := g.mapMethodType(mapper, concreteTarget, concreteTarget)
 		if !ok {
 			supported = false
 		}
@@ -173,7 +203,7 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 			Name:      "self",
 			GoName:    safeParamName("self", paramIndex),
 			GoType:    selfGo,
-			TypeExpr:  target,
+			TypeExpr:  concreteTarget,
 			Supported: ok,
 		})
 		paramIndex++
@@ -191,10 +221,13 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 		}
 		paramType := param.ParamType
 		if paramType == nil && strings.EqualFold(name, "self") {
-			paramType = target
+			paramType = concreteTarget
 		}
-		paramType = resolveSelfTypeExpr(paramType, target)
-		goType, ok := g.mapMethodType(mapper, paramType, target)
+		paramType = resolveSelfTypeExpr(paramType, concreteTarget)
+		if len(bindings) > 0 {
+			paramType = substituteTypeParams(paramType, bindings)
+		}
+		goType, ok := g.mapMethodType(mapper, paramType, concreteTarget)
 		if !ok {
 			supported = false
 		}
@@ -207,15 +240,18 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 		})
 		paramIndex++
 	}
-	retExpr := resolveSelfTypeExpr(def.ReturnType, target)
+	retExpr := resolveSelfTypeExpr(def.ReturnType, concreteTarget)
+	if len(bindings) > 0 {
+		retExpr = substituteTypeParams(retExpr, bindings)
+	}
 	retType := ""
 	ok := false
-	if forcedType, forced := g.staticMethodNominalStructReturnType(info.Package, target, expectsSelf, retExpr); forced {
+	if forcedType, forced := g.staticMethodNominalStructReturnType(info.Package, concreteTarget, expectsSelf, retExpr); forced {
 		retType = forcedType
 		ok = true
 	}
 	if !ok {
-		retType, ok = g.mapMethodType(mapper, retExpr, target)
+		retType, ok = g.mapMethodType(mapper, retExpr, concreteTarget)
 	}
 	if !ok || retType == "" {
 		supported = false
@@ -452,7 +488,7 @@ func (g *generator) methodForReceiver(goType string, methodName string) *methodI
 				if !method.ExpectsSelf {
 					continue
 				}
-				if method.ReceiverType != "" && method.ReceiverType != goType {
+				if method.ReceiverType != "" && !g.receiverGoTypeCompatible(method.ReceiverType, goType) {
 					continue
 				}
 				if found != nil && found != method {

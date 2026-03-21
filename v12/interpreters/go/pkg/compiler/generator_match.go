@@ -699,7 +699,7 @@ func (g *generator) compileRuntimeStructPatternCondition(ctx *compileContext, pa
 	positionalTemp := ctx.newTemp()
 	inner = append(inner, fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp))
 	inner = append(inner, fmt.Sprintf("if %s != nil {", positionalTemp))
-	inner = append(inner, fmt.Sprintf("\tif len(%s) != %d { break %s }", positionalTemp, len(pattern.Fields), condLabel))
+	inner = append(inner, fmt.Sprintf("\tif %s != %d { break %s }", g.staticSliceLenExpr(positionalTemp), len(pattern.Fields), condLabel))
 	for idx, field := range pattern.Fields {
 		fieldPattern, ok := positionalStructFieldPattern(field)
 		if !ok {

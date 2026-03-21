@@ -1,0 +1,44 @@
+package bench_hashmap_i32_small
+
+import able.collections.hash_map.*
+import able.collections.map.*
+
+fn build(size: i32) -> HashMap i32 i32 {
+  values: HashMap i32 i32 = HashMap.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.raw_set(i, (i * 3) + 1)
+    i = i + 1
+  }
+  values
+}
+
+fn checksum(values: Map i32 i32, size: i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= size { break }
+    maybe_value := values.get(i)
+    value: i32 := maybe_value or { 0 }
+    total = total + (value as i64)
+    i = i + 1
+  }
+  total
+}
+
+fn main() -> void {
+  size := 1_000
+  values := build(size)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 3 { break }
+    total = total + checksum(values, size)
+    maybe_current := values.raw_get(rounds)
+    current: i32 := maybe_current or { 0 }
+    values.raw_set(rounds, current + 1)
+    rounds = rounds + 1
+  }
+  print(total)
+}

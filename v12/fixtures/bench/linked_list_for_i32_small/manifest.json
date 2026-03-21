@@ -1,0 +1,4 @@
+{
+  "description": "compiled LinkedList for-loop benchmark over concrete and Iterable-typed paths",
+  "entry": "main.able"
+}

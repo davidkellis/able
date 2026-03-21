@@ -19,6 +19,11 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 	if expr == nil {
 		return "any", true
 	}
+	if m != nil && m.gen != nil {
+		if expanded := m.gen.expandTypeAliasForPackage(m.packageName, expr); expanded != nil {
+			expr = expanded
+		}
+	}
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name == nil {
@@ -33,20 +38,17 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 			switch base.Name.Name {
 			case "Array":
 				return m.mapArrayType(t)
-			case "HashMap", "Map", "DivMod":
+			case "DivMod":
 				return "any", true
+			}
+			if goType, ok := m.gen.nativeStructCarrierTypeForExpr(m.packageName, t); ok {
+				return goType, true
 			}
 			if info, ok := m.gen.ensureNativeInterfaceInfo(m.packageName, t); ok && info != nil {
 				return info.GoType, true
 			}
 			if unionPkg, members, ok := m.gen.expandedUnionMembersInPackage(m.packageName, t); ok {
 				return m.mapExpandedUnionMembers(unionPkg, t, members)
-			}
-			if info, ok := m.gen.structInfoForTypeName(m.packageName, base.Name.Name); ok && info != nil {
-				return "*" + info.GoName, true
-			}
-			if info, ok := m.gen.structInfoByNameUnique(base.Name.Name); ok && info != nil {
-				return "*" + info.GoName, true
 			}
 		}
 		return "runtime.Value", true
@@ -87,11 +89,8 @@ func (m *TypeMapper) mapArrayType(t *ast.GenericTypeExpression) (string, bool) {
 		}
 	}
 	if m != nil && m.gen != nil {
-		if info, ok := m.gen.structInfoForTypeName(m.packageName, "Array"); ok && info != nil {
-			return "*" + info.GoName, true
-		}
-		if info, ok := m.gen.structInfoByNameUnique("Array"); ok && info != nil {
-			return "*" + info.GoName, true
+		if goType, ok := m.gen.nativeStructCarrierType(m.packageName, "Array"); ok {
+			return goType, true
 		}
 	}
 	return "any", true
@@ -113,6 +112,9 @@ func (m *TypeMapper) mapNullableType(t *ast.NullableTypeExpression) (string, boo
 	}
 	// Slices also have a nil zero value.
 	if strings.HasPrefix(innerType, "[]") {
+		return innerType, true
+	}
+	if m != nil && m.gen != nil && m.gen.goTypeHasNilZeroValue(innerType) {
 		return innerType, true
 	}
 	if spec, ok := nativeNullableSpecForInnerType(innerType); ok {
@@ -196,13 +198,8 @@ func (m *TypeMapper) mapSimple(name string) (string, bool) {
 		}
 	}
 	if m != nil && m.gen != nil {
-		if info, ok := m.gen.structInfoForTypeName(m.packageName, name); ok && info != nil {
-			return "*" + info.GoName, true
-		}
-	}
-	if m != nil && m.gen != nil {
-		if info, ok := m.gen.structInfoByNameUnique(name); ok && info != nil {
-			return "*" + info.GoName, true
+		if goType, ok := m.gen.nativeStructCarrierType(m.packageName, name); ok {
+			return goType, true
 		}
 	}
 	return "runtime.Value", true

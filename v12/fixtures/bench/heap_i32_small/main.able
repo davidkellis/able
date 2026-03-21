@@ -1,0 +1,38 @@
+package bench_heap_i32_small
+
+import able.collections.heap.{Heap}
+
+fn build(size: i32, seed: i32) -> Heap i32 {
+  heap: Heap i32 = Heap.new()
+  i := 0
+  loop {
+    if i >= size { break }
+    value := (((i * 17) + seed) % 100_003) - 50_000
+    heap.push(value)
+    i = i + 1
+  }
+  heap
+}
+
+fn drain(heap: Heap i32) -> i64 {
+  total: i64 = 0_i64
+  loop {
+    heap.pop() match {
+      case nil => { break },
+      case value: i32 => total = total + (value as i64)
+    }
+  }
+  total
+}
+
+fn main() -> void {
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 3 { break }
+    heap := build(20_000, rounds + 11)
+    total = total + drain(heap)
+    rounds = rounds + 1
+  }
+  print(total)
+}
