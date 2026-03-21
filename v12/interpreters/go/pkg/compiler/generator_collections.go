@@ -103,10 +103,16 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 		ctx.setReason("missing map literal")
 		return "", "", false
 	}
-	if expected != "" && expected != "runtime.Value" && expected != "any" {
+	hashMapType, ok := g.nativeStructCarrierType(ctx.packageName, "HashMap")
+	if !ok {
 		ctx.setReason("map literal type mismatch")
 		return "", "", false
 	}
+	if expected != "" && expected != "runtime.Value" && expected != "any" && !g.typeMatches(expected, hashMapType) && !g.canCoerceStaticExpr(expected, hashMapType) {
+		ctx.setReason("map literal type mismatch")
+		return "", "", false
+	}
+	hashMapBase := strings.TrimPrefix(hashMapType, "*")
 	type mapElement struct {
 		kind   string
 		key    string
@@ -161,7 +167,7 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 		}
 	}
 	var buf strings.Builder
-	buf.WriteString("func() runtime.Value {\n")
+	buf.WriteString(fmt.Sprintf("func() %s {\n", hashMapType))
 	buf.WriteString("\tif __able_runtime == nil {\n")
 	buf.WriteString("\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	buf.WriteString("\t}\n")
@@ -358,15 +364,10 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 	buf.WriteString("\t\t\treturn ast.NewWildcardTypeExpression()\n")
 	buf.WriteString("\t\t}\n")
 	buf.WriteString("\t}\n")
-	buf.WriteString("\tdef, err := __able_runtime.StructDefinition(\"HashMap\")\n")
-	buf.WriteString("\tif err != nil {\n")
-	buf.WriteString("\t\tpanic(err)\n")
-	buf.WriteString("\t}\n")
 	buf.WriteString("\thandleVal, err := __able_hash_map_new_impl(nil)\n")
 	buf.WriteString("\tif err != nil {\n")
 	buf.WriteString("\t\tpanic(err)\n")
 	buf.WriteString("\t}\n")
-	buf.WriteString("\tinst := &runtime.StructInstanceValue{Definition: def, Fields: map[string]runtime.Value{\"handle\": handleVal}}\n")
 	for idx, element := range elements {
 		switch element.kind {
 		case "entry":
@@ -441,10 +442,15 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 	buf.WriteString("\tif valueType == nil {\n")
 	buf.WriteString("\t\tvalueType = ast.NewWildcardTypeExpression()\n")
 	buf.WriteString("\t}\n")
-	buf.WriteString("\tinst.TypeArguments = []ast.TypeExpression{keyType, valueType}\n")
-	buf.WriteString("\treturn inst\n")
+	buf.WriteString("\t_ = keyType\n")
+	buf.WriteString("\t_ = valueType\n")
+	buf.WriteString("\thandleRaw, err := __able_hash_map_handle_from_value(handleVal)\n")
+	buf.WriteString("\tif err != nil {\n")
+	buf.WriteString("\t\tpanic(err)\n")
+	buf.WriteString("\t}\n")
+	buf.WriteString(fmt.Sprintf("\treturn &%s{Handle: handleRaw}\n", hashMapBase))
 	buf.WriteString("}()")
-	return buf.String(), "runtime.Value", true
+	return buf.String(), hashMapType, true
 }
 
 func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAccessExpression, expected string) ([]string, string, string, bool) {
@@ -533,6 +539,14 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 			}
 		}
 	}
+	memberName := g.memberName(expr.Member)
+	if !expr.Safe && memberName != "" {
+		if lines, callableExpr, callableType, ok := g.compileStaticIteratorControllerBoundMethodValue(ctx, objectExpr, objectType, memberName, expected); ok {
+			allLines := append([]string{}, objLines...)
+			allLines = append(allLines, lines...)
+			return allLines, callableExpr, callableType, true
+		}
+	}
 	info := g.structInfoByGoName(objectType)
 	if info == nil {
 		ctx.setReason("unsupported member access")
@@ -543,7 +557,6 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("unsupported member access")
 		return nil, "", "", false
 	}
-	memberName := g.memberName(expr.Member)
 	if field != nil {
 		fieldExpr := fmt.Sprintf("%s.%s", objectExpr, field.GoName)
 		fieldType := field.GoType

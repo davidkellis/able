@@ -35,6 +35,9 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 		if g.nativeNullableWraps(expected, param.GoType) {
 			return nil, fmt.Sprintf("__able_ptr(%s)", param.GoName), expected, true
 		}
+		if expected != "" && expected != "runtime.Value" && expected != "any" && param.GoType != "runtime.Value" && g.canCoerceStaticExpr(expected, param.GoType) {
+			return g.coerceExpectedStaticExpr(ctx, nil, param.GoName, param.GoType, expected)
+		}
 		if expected == "runtime.Value" && param.GoType != "runtime.Value" {
 			convLines, converted, ok := g.runtimeValueLines(ctx, param.GoName, param.GoType)
 			if !ok {

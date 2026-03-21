@@ -94,8 +94,6 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderRuntimeHelpers(&body)
 	}
 
-	g.renderMonoArrayTypes(&body)
-	g.renderStructs(&body)
 	if g.hasFunctions() {
 		g.renderCompiledMethods(&body)
 		g.renderCompiledFunctions(&body)
@@ -108,13 +106,22 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		// while compiling bodies above, so emit them after codegen has settled.
 		g.renderNativeCallables(&body)
 		g.renderNativeInterfaces(&body)
+		g.renderIteratorCollectMonoArrayHelpers(&body)
 		g.renderNativeUnions(&body)
+		// Generic nominal specializations and carrier arrays are discovered while
+		// compiling function bodies above, so emit their concrete type
+		// declarations only after codegen has settled.
+		g.renderMonoArrayTypes(&body)
+		g.renderStructs(&body)
 		g.renderStructConverters(&body)
 		g.renderMonoArrayConverters(&body)
 		g.renderDiagnosticGlobals(&body)
 	} else {
+		g.renderMonoArrayTypes(&body)
+		g.renderStructs(&body)
 		g.renderNativeCallables(&body)
 		g.renderNativeInterfaces(&body)
+		g.renderIteratorCollectMonoArrayHelpers(&body)
 		g.renderNativeUnions(&body)
 	}
 
@@ -228,7 +235,10 @@ func (g *generator) importsForCompiledRegister() []string {
 }
 
 func (g *generator) structUsesRuntimeValue() bool {
-	for _, info := range g.structs {
+	for _, info := range g.allStructInfos() {
+		if info == nil {
+			continue
+		}
 		for _, field := range info.Fields {
 			if field.GoType == "runtime.Value" {
 				return true

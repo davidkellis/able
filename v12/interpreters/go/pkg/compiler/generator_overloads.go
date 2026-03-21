@@ -36,6 +36,7 @@ func (g *generator) allFunctionInfos() []*functionInfo {
 			total++
 		}
 	}
+	total += len(g.specializedFunctions)
 	all := make([]*functionInfo, 0, total)
 	for _, pkgFuncs := range g.functions {
 		for _, info := range pkgFuncs {
@@ -61,6 +62,7 @@ func (g *generator) allFunctionInfos() []*functionInfo {
 			all = append(all, impl.Info)
 		}
 	}
+	all = append(all, g.specializedFunctions...)
 	return all
 }
 

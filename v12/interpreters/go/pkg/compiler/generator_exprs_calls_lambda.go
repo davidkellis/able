@@ -27,6 +27,26 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 			if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
 				objLines, objExpr, objType, ok := g.compileExprLines(ctx, callee.Object, "")
 				if ok {
+					if siblingLines, expr, retType, ok := g.compileDirectImplSiblingMethodCall(ctx, call, callee, expected, objExpr, objType, callNode); ok {
+						lines := append(objLines, siblingLines...)
+						return lines, expr, retType, true
+					}
+					if method := g.methodForReceiver(objType, ident.Name); method != nil {
+						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
+						methodLines, expr, retType, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+						if ok {
+							lines := append(objLines, methodLines...)
+							return lines, expr, retType, true
+						}
+					}
+					if method := g.compileableInterfaceMethodForConcreteReceiver(objType, ident.Name); method != nil {
+						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
+						methodLines, expr, retType, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+						if ok {
+							lines := append(objLines, methodLines...)
+							return lines, expr, retType, true
+						}
+					}
 					if ifaceLines, expr, retType, ok := g.compileNativeInterfaceGenericMethodCall(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines := append(objLines, ifaceLines...)
 						return lines, expr, retType, true
@@ -54,6 +74,7 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 	if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
 		if info, overload, ok := g.resolveStaticCallable(ctx, callee.Name); ok {
 			if info != nil && info.Compileable {
+				info = g.concreteFunctionCallInfo(ctx, call, info, expected)
 				needsRuntimeValue := expected == "runtime.Value" && info.ReturnType != "runtime.Value"
 				needsExpect := expected != "" && expected != "runtime.Value" && info.ReturnType == "runtime.Value"
 				needsAnyConv := expected != "" && expected != "any" && info.ReturnType == "any"
@@ -325,6 +346,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
 					if method, ok := g.resolveStaticMethodCall(ctx, callee.Object, ident.Name); ok {
+						method = g.concreteStaticMethodCallInfo(ctx, call, method, callee.Object, expected)
 						return g.compileResolvedMethodCall(ctx, call, expected, method, "", "", callNode)
 					}
 				}
@@ -336,6 +358,10 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			lines = append(lines, objLines...)
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+					if controllerLines, expr, retType, ok := g.compileStaticIteratorControllerCall(ctx, call, expected, objExpr, objType, ident.Name); ok {
+						lines = append(lines, controllerLines...)
+						return lines, expr, retType, true
+					}
 					if intrLines, expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, callee.Object, objExpr, objType, ident.Name, call.Arguments, expected, callNode); ok {
 						lines = append(lines, intrLines...)
 						return lines, expr, retType, true
@@ -348,19 +374,25 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 						lines = append(lines, ifaceLines...)
 						return lines, expr, retType, true
 					}
-					if ifaceLines, expr, retType, ok := g.compileNativeInterfaceGenericMethodCall(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
-						lines = append(lines, ifaceLines...)
+					if siblingLines, expr, retType, ok := g.compileDirectImplSiblingMethodCall(ctx, call, callee, expected, objExpr, objType, callNode); ok {
+						lines = append(lines, siblingLines...)
 						return lines, expr, retType, true
 					}
 					if method := g.methodForReceiver(objType, ident.Name); method != nil {
+						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
 						methodLines, v, t, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
 						lines = append(lines, methodLines...)
 						return lines, v, t, ok
 					}
 					if method := g.compileableInterfaceMethodForConcreteReceiver(objType, ident.Name); method != nil {
+						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
 						methodLines, v, t, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
 						lines = append(lines, methodLines...)
 						return lines, v, t, ok
+					}
+					if ifaceLines, expr, retType, ok := g.compileNativeInterfaceGenericMethodCall(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
+						lines = append(lines, ifaceLines...)
+						return lines, expr, retType, true
 					}
 					// When receiver is runtime.Value with known origin struct type,
 					// extract the struct, call the compiled method directly, and writeback.
@@ -396,6 +428,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 									ExpectsSelf: true,
 									Info:        sibling.Info,
 								}
+								method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
 								methodLines, v, t, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
 								if ok {
 									lines = append(lines, methodLines...)
@@ -596,6 +629,31 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	return lines, resultExpr, resultType, true
 }
 
+func (g *generator) compileDirectImplSiblingMethodCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string, callNode string) ([]string, string, string, bool) {
+	if g == nil || ctx == nil || call == nil || callee == nil || callee.Safe || !ctx.hasImplicitReceiver || len(ctx.implSiblings) == 0 {
+		return nil, "", "", false
+	}
+	ident, ok := callee.Member.(*ast.Identifier)
+	if !ok || ident == nil || ident.Name == "" {
+		return nil, "", "", false
+	}
+	objIdent, ok := callee.Object.(*ast.Identifier)
+	if !ok || objIdent == nil || objIdent.Name != ctx.implicitReceiver.Name {
+		return nil, "", "", false
+	}
+	sibling, ok := ctx.implSiblings[ident.Name]
+	if !ok || sibling.Info == nil || !sibling.Info.Compileable || len(sibling.Info.Params) == 0 {
+		return nil, "", "", false
+	}
+	method := &methodInfo{
+		MethodName:  ident.Name,
+		ExpectsSelf: true,
+		Info:        sibling.Info,
+	}
+	method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
+	return g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+}
+
 func (g *generator) externCallWrapper(name string) (string, bool) {
 	switch name {
 	case "__able_array_new":
@@ -681,223 +739,6 @@ func (g *generator) externCallWrapper(name string) (string, bool) {
 	default:
 		return "", false
 	}
-}
-
-func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expression, memberName string) (*methodInfo, bool) {
-	if g == nil || object == nil || memberName == "" {
-		return nil, false
-	}
-	ident, ok := object.(*ast.Identifier)
-	if !ok || ident == nil || ident.Name == "" {
-		return nil, false
-	}
-	if ctx != nil {
-		if _, ok := ctx.lookup(ident.Name); ok {
-			return nil, false
-		}
-	}
-	info, ok := g.structInfoForTypeName(ctx.packageName, ident.Name)
-	if (!ok || info == nil) && g != nil {
-		info, _ = g.structInfoByNameUnique(ident.Name)
-	}
-	if info == nil {
-		return nil, false
-	}
-	method := g.methodForTypeName(ident.Name, memberName, false)
-	if method == nil {
-		if typeBucket := g.methods[ident.Name]; len(typeBucket) > 0 {
-			entries := typeBucket[memberName]
-			var found *methodInfo
-			for _, candidate := range entries {
-				if candidate == nil || candidate.Info == nil || !candidate.Info.Compileable || candidate.ExpectsSelf {
-					continue
-				}
-				if found != nil && found.Info != candidate.Info {
-					found = nil
-					break
-				}
-				found = candidate
-			}
-			method = found
-		}
-	}
-	if method == nil {
-		method = g.methodForStruct(info, memberName, false)
-	}
-	if method == nil {
-		var found *methodInfo
-		for _, candidate := range g.methodList {
-			if candidate == nil || candidate.Info == nil || !candidate.Info.Compileable || candidate.ExpectsSelf {
-				continue
-			}
-			if candidate.TargetName != ident.Name || candidate.MethodName != memberName {
-				continue
-			}
-			if found != nil && found.Info != candidate.Info {
-				found = nil
-				break
-			}
-			found = candidate
-		}
-		method = found
-	}
-	if method == nil {
-		return nil, false
-	}
-	return method, true
-}
-
-func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, method *methodInfo, receiverExpr string, receiverType string, callNode string) ([]string, string, string, bool) {
-	if call == nil || method == nil || method.Info == nil {
-		ctx.setReason("missing method call")
-		return nil, "", "", false
-	}
-	info := method.Info
-	if !info.Compileable {
-		ctx.setReason("unsupported method call")
-		return nil, "", "", false
-	}
-	needsIntCast := false
-	needsRuntimeConv := expected != "" && expected != "runtime.Value" && info.ReturnType == "runtime.Value"
-	needsAnyConv := expected != "" && expected != "any" && info.ReturnType == "any"
-	needsStaticCoerce := expected != "" && expected != "runtime.Value" && expected != "any" && expected != info.ReturnType && g.canCoerceStaticExpr(expected, info.ReturnType)
-	if !g.typeMatches(expected, info.ReturnType) && !needsRuntimeConv && !needsAnyConv && !needsStaticCoerce {
-		if g.isIntegerType(expected) && g.isIntegerType(info.ReturnType) {
-			needsIntCast = true
-		} else {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-	}
-	paramOffset := 0
-	args := make([]string, 0, len(call.Arguments)+1)
-	var argPreLines []string
-	if method.ExpectsSelf {
-		if receiverExpr == "" {
-			ctx.setReason("method receiver missing")
-			return nil, "", "", false
-		}
-		selfType := ""
-		if len(info.Params) > 0 {
-			selfType = info.Params[0].GoType
-		}
-		receiverLines, coercedReceiver, _, ok := g.prepareStaticCallArg(ctx, receiverExpr, receiverType, selfType)
-		if !ok {
-			ctx.setReason("method receiver type mismatch")
-			return nil, "", "", false
-		}
-		argPreLines = append(argPreLines, receiverLines...)
-		receiverExpr = coercedReceiver
-		args = append(args, receiverExpr)
-		paramOffset = 1
-	}
-	params := info.Params
-	if paramOffset > len(params) {
-		ctx.setReason("method params missing")
-		return nil, "", "", false
-	}
-	callArgCount := len(call.Arguments)
-	paramCount := len(params) - paramOffset
-	optionalLast := g.hasOptionalLastParam(info)
-	if callArgCount != paramCount {
-		if !(optionalLast && callArgCount == paramCount-1) {
-			ctx.setReason("call arity mismatch")
-			return nil, "", "", false
-		}
-	}
-	missingOptional := optionalLast && callArgCount == paramCount-1
-	if missingOptional && paramCount > 0 {
-		lastType := params[len(params)-1].GoType
-		if lastType != "runtime.Value" && lastType != "any" {
-			ctx.setReason("call arity mismatch")
-			return nil, "", "", false
-		}
-	}
-	for idx, arg := range call.Arguments {
-		param := params[paramOffset+idx]
-		argLines, expr, exprType, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, param.GoType, param.TypeExpr)
-		if !ok {
-			return nil, "", "", false
-		}
-		argPreLines = append(argPreLines, argLines...)
-		argExpr := expr
-		argType := exprType
-		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && param.GoType == "runtime.Value" {
-			if argType != "runtime.Value" {
-				convLines, valueExpr, ok := g.runtimeValueLines(ctx, argExpr, argType)
-				if !ok {
-					ctx.setReason("interface argument unsupported")
-					return nil, "", "", false
-				}
-				argPreLines = append(argPreLines, convLines...)
-				argExpr = valueExpr
-				argType = "runtime.Value"
-			}
-			ifaceLines, coerced, ok := g.interfaceArgExprLines(ctx, argExpr, ifaceType, info.Name, ctx.genericNames)
-			if !ok {
-				ctx.setReason("interface argument unsupported")
-				return nil, "", "", false
-			}
-			argPreLines = append(argPreLines, ifaceLines...)
-			argExpr = coerced
-		}
-		args = append(args, argExpr)
-	}
-	if missingOptional {
-		lastType := params[len(params)-1].GoType
-		if lastType == "any" {
-			args = append(args, "nil")
-		} else {
-			args = append(args, "runtime.NilValue{}")
-		}
-	}
-	callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
-	resultTemp := ctx.newTemp()
-	controlTemp := ctx.newTemp()
-	lines := append(argPreLines, []string{
-		fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-		fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr),
-		"__able_pop_call_frame()",
-	}...)
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
-	if !ok {
-		return nil, "", "", false
-	}
-	lines = append(lines, controlLines...)
-	if needsIntCast {
-		castTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := %s(%s)", castTemp, expected, resultTemp))
-		return lines, castTemp, expected, true
-	}
-	if needsRuntimeConv {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-		if !ok {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	}
-	if needsAnyConv {
-		if expected == "runtime.Value" {
-			convTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, resultTemp))
-			return lines, convTemp, "runtime.Value", true
-		}
-		anyTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, resultTemp))
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, expected)
-		if !ok {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	}
-	if needsStaticCoerce {
-		return g.coerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnType, expected)
-	}
-	return lines, resultTemp, info.ReturnType, true
 }
 
 func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string, callNode string) ([]string, string, string, bool) {

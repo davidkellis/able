@@ -9,9 +9,9 @@ import (
 // arrayObjLines generates the common preamble for array intrinsics:
 // capture the array object pointer.
 func (g *generator) arrayObjLines(ctx *compileContext, objExpr string, callNode string) (lines []string, objTemp string) {
+	_ = callNode
 	objTemp = ctx.newTemp()
 	lines = []string{
-		fmt.Sprintf("__able_push_call_frame(%s)", callNode),
 		fmt.Sprintf("%s := %s", objTemp, objExpr),
 	}
 	return lines, objTemp
@@ -55,8 +55,7 @@ func (g *generator) compileArrayMethodLenIntrinsic(
 	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
 	lines = append(lines,
-		fmt.Sprintf("%s := int32(len(%s.Elements))", resultTemp, objTemp),
-		"__able_pop_call_frame()",
+		fmt.Sprintf("%s := int32(%s)", resultTemp, g.staticArrayLengthExpr(objTemp)),
 	)
 	if expected == "runtime.Value" {
 		valueExpr, ok := g.runtimeValueExpr(resultTemp, "int32")
@@ -102,7 +101,6 @@ func (g *generator) compileArrayMethodPushIntrinsic(
 		fmt.Sprintf("%s := %s", valueTemp, valueExpr),
 		fmt.Sprintf("%s.Elements = append(%s.Elements, %s)", objTemp, objTemp, valueTemp),
 		g.staticArraySyncCall(objType, objTemp),
-		"__able_pop_call_frame()",
 	}...)...)
 	if expected == "runtime.Value" {
 		return lines, "runtime.VoidValue{}", "runtime.Value", true
@@ -136,7 +134,7 @@ func (g *generator) compileArrayMethodPopIntrinsic(
 	if !ok {
 		return nil, "", "", false
 	}
-	lines = append(lines, fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp))
+	lines = append(lines, fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)))
 	if resultType == "runtime.Value" {
 		lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
 	} else {
@@ -149,7 +147,6 @@ func (g *generator) compileArrayMethodPopIntrinsic(
 		fmt.Sprintf("\t%s.Elements = %s.Elements[:%s-1]", objTemp, objTemp, lengthTemp),
 		"}",
 		g.staticArraySyncCall(objType, objTemp),
-		"__able_pop_call_frame()",
 	)
 	return lines, resultTemp, resultType, true
 }
@@ -182,7 +179,7 @@ func (g *generator) compileArrayMethodFirstLastIntrinsic(
 	if !ok {
 		return nil, "", "", false
 	}
-	lines = append(lines, fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp))
+	lines = append(lines, fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)))
 	if resultType == "runtime.Value" {
 		lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
 	} else {
@@ -193,7 +190,6 @@ func (g *generator) compileArrayMethodFirstLastIntrinsic(
 	lines = append(lines,
 		fmt.Sprintf("\t%s = %s", resultTemp, elemExpr),
 		"}",
-		"__able_pop_call_frame()",
 	)
 	return lines, resultTemp, resultType, true
 }
@@ -213,8 +209,7 @@ func (g *generator) compileArrayMethodIsEmptyIntrinsic(
 	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
 	lines = append(lines,
-		fmt.Sprintf("%s := len(%s.Elements) == 0", resultTemp, objTemp),
-		"__able_pop_call_frame()",
+		fmt.Sprintf("%s := %s == 0", resultTemp, g.staticArrayLengthExpr(objTemp)),
 	)
 	if expected == "" || expected == "bool" {
 		return lines, resultTemp, "bool", true
@@ -245,7 +240,6 @@ func (g *generator) compileArrayMethodClearIntrinsic(
 	lines = append(lines,
 		fmt.Sprintf("%s.Elements = %s.Elements[:0]", objTemp, objTemp),
 		g.staticArraySyncCall(objType, objTemp),
-		"__able_pop_call_frame()",
 	)
 	if expected == "runtime.Value" {
 		return lines, "runtime.VoidValue{}", "runtime.Value", true
@@ -271,8 +265,7 @@ func (g *generator) compileArrayMethodCapacityIntrinsic(
 	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
 	resultTemp := ctx.newTemp()
 	lines = append(lines,
-		fmt.Sprintf("%s := int32(cap(%s.Elements))", resultTemp, objTemp),
-		"__able_pop_call_frame()",
+		fmt.Sprintf("%s := int32(%s)", resultTemp, g.staticArrayCapacityExpr(objTemp)),
 	)
 	if expected == "" || expected == "int32" {
 		return lines, resultTemp, "int32", true
@@ -322,13 +315,12 @@ func (g *generator) compileArrayMethodReserveIntrinsic(
 		return nil, "", "", false
 	}
 	lines = append(lines,
-		fmt.Sprintf("if %s > cap(%s.Elements) {", capacityTemp, objTemp),
-		fmt.Sprintf("\t__able_reserved := make([]%s, len(%s.Elements), %s)", elemType, objTemp, capacityTemp),
+		fmt.Sprintf("if %s > %s {", capacityTemp, g.staticArrayCapacityExpr(objTemp)),
+		fmt.Sprintf("\t__able_reserved := make([]%s, %s, %s)", elemType, g.staticArrayLengthExpr(objTemp), capacityTemp),
 		fmt.Sprintf("\tcopy(__able_reserved, %s.Elements)", objTemp),
 		fmt.Sprintf("\t%s.Elements = __able_reserved", objTemp),
 		"}",
 		g.staticArraySyncCall(objType, objTemp),
-		"__able_pop_call_frame()",
 	)
 	if expected == "runtime.Value" {
 		return lines, "runtime.VoidValue{}", "runtime.Value", true
@@ -351,12 +343,11 @@ func (g *generator) compileArrayMethodCloneShallowIntrinsic(
 		return nil, "", "", false
 	}
 	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
-	cloneLines, cloneExpr, ok := g.staticArrayCloneLines(ctx, objType, fmt.Sprintf("%s.Elements", objTemp), fmt.Sprintf("cap(%s.Elements)", objTemp))
+	cloneLines, cloneExpr, ok := g.staticArrayCloneLines(ctx, objType, fmt.Sprintf("%s.Elements", objTemp), g.staticArrayCapacityExpr(objTemp))
 	if !ok {
 		return nil, "", "", false
 	}
 	lines = append(lines, cloneLines...)
-	lines = append(lines, "__able_pop_call_frame()")
 	if expected == "" || g.typeMatches(expected, objType) {
 		return lines, cloneExpr, objType, true
 	}

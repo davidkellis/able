@@ -29,9 +29,9 @@ func (g *generator) compileRuntimeArrayPatternCondition(ctx *compileContext, pat
 		fmt.Sprintf("if !%s { break %s }", okTemp, condLabel),
 	}
 	if pattern.RestPattern == nil {
-		inner = append(inner, fmt.Sprintf("if len(%s) != %d { break %s }", valuesTemp, len(pattern.Elements), condLabel))
+		inner = append(inner, fmt.Sprintf("if %s != %d { break %s }", g.staticSliceLenExpr(valuesTemp), len(pattern.Elements), condLabel))
 	} else {
-		inner = append(inner, fmt.Sprintf("if len(%s) < %d { break %s }", valuesTemp, len(pattern.Elements), condLabel))
+		inner = append(inner, fmt.Sprintf("if %s < %d { break %s }", g.staticSliceLenExpr(valuesTemp), len(pattern.Elements), condLabel))
 	}
 	for idx, elem := range pattern.Elements {
 		if elem == nil {
@@ -91,9 +91,9 @@ func (g *generator) compileNativeArrayPatternCondition(ctx *compileContext, patt
 	}
 	inner = append(inner, fmt.Sprintf("%s := %s", valuesTemp, valuesExpr))
 	if pattern.RestPattern == nil {
-		inner = append(inner, fmt.Sprintf("if len(%s) != %d { break %s }", valuesTemp, len(pattern.Elements), condLabel))
+		inner = append(inner, fmt.Sprintf("if %s != %d { break %s }", g.staticSliceLenExpr(valuesTemp), len(pattern.Elements), condLabel))
 	} else {
-		inner = append(inner, fmt.Sprintf("if len(%s) < %d { break %s }", valuesTemp, len(pattern.Elements), condLabel))
+		inner = append(inner, fmt.Sprintf("if %s < %d { break %s }", g.staticSliceLenExpr(valuesTemp), len(pattern.Elements), condLabel))
 	}
 	for idx, elem := range pattern.Elements {
 		if elem == nil {

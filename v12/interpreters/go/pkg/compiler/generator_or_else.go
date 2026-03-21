@@ -79,31 +79,20 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 		return lines, resultExpr, resultType, true
 	}
 	if _, nullable := g.nativeNullableValueInnerType(valueType); nullable {
-		if resultType == valueType {
-			return valueLines, valueExpr, valueType, true
-		}
-		helper, ok := g.nativeNullableToRuntimeHelper(valueType)
-		if !ok {
-			ctx.setReason("propagation type mismatch")
-			return nil, "", "", false
-		}
+		innerType, _ := g.nativeNullableValueInnerType(valueType)
 		lines := append([]string{}, valueLines...)
 		valueTemp := ctx.newTemp()
-		runtimeTemp := ctx.newTemp()
-		lines = append(lines,
-			fmt.Sprintf("%s := %s", valueTemp, valueExpr),
-			fmt.Sprintf("%s := %s(%s)", runtimeTemp, helper, valueTemp),
-		)
-		if resultType == "runtime.Value" {
-			return lines, runtimeTemp, "runtime.Value", true
-		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, runtimeTemp, resultType)
+		transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", "runtime.NilValue{}"))
 		if !ok {
-			ctx.setReason("propagation type mismatch")
 			return nil, "", "", false
 		}
-		lines = append(lines, convLines...)
-		return lines, converted, resultType, true
+		lines = append(lines,
+			fmt.Sprintf("%s := %s", valueTemp, valueExpr),
+			fmt.Sprintf("if %s == nil {", valueTemp),
+		)
+		lines = append(lines, indentLines(transferLines, 1)...)
+		lines = append(lines, "}")
+		return lines, fmt.Sprintf("(*%s)", valueTemp), innerType, true
 	}
 	if valueType != "runtime.Value" {
 		if !g.typeMatches(resultType, valueType) {
@@ -152,11 +141,10 @@ func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *
 	indexTemp := ctx.newTemp()
 	lengthTemp := ctx.newTemp()
 	resultTemp := ctx.newTemp()
-	resultType := expected
-	if resultType == "" {
-		if inferred, ok := g.staticArrayDefaultNullableResultType(ctx, expr.Object, objType); ok {
-			resultType = inferred
-		} else {
+	resultType, ok := g.staticArrayPropagationResultType(ctx, expr.Object, objType)
+	if !ok {
+		resultType = expected
+		if resultType == "" {
 			resultType = "runtime.Value"
 		}
 	}
@@ -178,7 +166,7 @@ func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *
 		return nil, "", "", false
 	}
 	lines = append(lines,
-		fmt.Sprintf("%s := len(%s.Elements)", lengthTemp, objTemp),
+		fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)),
 		fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp),
 	)
 	lines = append(lines, indentLines(transferLines, 1)...)
@@ -191,23 +179,7 @@ func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *
 	} else {
 		lines = append(lines, fmt.Sprintf("var %s %s = %s", resultTemp, resultType, elemExpr))
 	}
-	if expected == "" || expected == resultType {
-		return lines, resultTemp, resultType, true
-	}
-	if resultType == "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-		if !ok {
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	}
-	convLines, converted, _, ok := g.coerceExpectedStaticExpr(ctx, nil, resultTemp, resultType, expected)
-	if !ok {
-		return nil, "", "", false
-	}
-	lines = append(lines, convLines...)
-	return lines, converted, expected, true
+	return lines, resultTemp, resultType, true
 }
 
 func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrElseExpression, expected string) ([]string, string, string, bool) {

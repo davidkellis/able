@@ -9,11 +9,11 @@ import (
 )
 
 func (g *generator) renderStructs(buf *bytes.Buffer) {
-	if len(g.structs) == 0 {
+	infos := g.sortedAllStructInfos()
+	if len(infos) == 0 {
 		return
 	}
-	for _, name := range g.sortedStructNames() {
-		info := g.structs[name]
+	for _, info := range infos {
 		if info == nil {
 			continue
 		}
@@ -29,11 +29,11 @@ func (g *generator) renderStructs(buf *bytes.Buffer) {
 }
 
 func (g *generator) renderStructConverters(buf *bytes.Buffer) {
-	if len(g.structs) == 0 {
+	infos := g.sortedAllStructInfos()
+	if len(infos) == 0 {
 		return
 	}
-	for _, name := range g.sortedStructNames() {
-		info := g.structs[name]
+	for _, info := range infos {
 		if info == nil {
 			continue
 		}

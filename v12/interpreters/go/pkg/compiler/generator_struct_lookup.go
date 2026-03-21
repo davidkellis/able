@@ -83,6 +83,17 @@ func (g *generator) structInfoForTypeName(pkgName string, typeName string) (*str
 	return g.structInfoByNameUnique(typeName)
 }
 
+func (g *generator) nativeStructCarrierType(pkgName string, typeName string) (string, bool) {
+	if g == nil {
+		return "", false
+	}
+	info, ok := g.structInfoForTypeName(pkgName, typeName)
+	if !ok || info == nil {
+		return "", false
+	}
+	return "*" + info.GoName, true
+}
+
 func (g *generator) sortedStructKeys() []string {
 	if g == nil || len(g.structs) == 0 {
 		return nil

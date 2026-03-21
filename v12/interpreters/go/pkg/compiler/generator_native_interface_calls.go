@@ -18,6 +18,34 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	if !ok || method == nil {
 		return nil, "", "", false
 	}
+	if method.DefaultDefinition != nil {
+		defaultMethod := &nativeInterfaceGenericMethod{
+			Name:              method.Name,
+			GoName:            method.GoName,
+			InterfaceName:     method.InterfaceName,
+			InterfacePackage:  method.InterfacePackage,
+			InterfaceArgs:     method.InterfaceArgs,
+			ParamTypeExprs:    method.ParamTypeExprs,
+			ReturnTypeExpr:    method.ReturnTypeExpr,
+			DefaultDefinition: method.DefaultDefinition,
+		}
+		if directLines, expr, retType, ok := g.compileStaticNativeInterfaceGenericDefaultMethodCall(
+			ctx,
+			call,
+			expected,
+			receiverExpr,
+			receiverType,
+			defaultMethod,
+			method.ParamTypeExprs,
+			method.ParamGoTypes,
+			method.ReturnTypeExpr,
+			method.ReturnGoType,
+			nil,
+			callNode,
+		); ok {
+			return directLines, expr, retType, true
+		}
+	}
 	callArgCount := len(call.Arguments)
 	paramCount := len(method.ParamGoTypes)
 	if callArgCount != paramCount {
