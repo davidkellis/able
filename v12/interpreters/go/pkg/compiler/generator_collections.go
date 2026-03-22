@@ -75,7 +75,7 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 			valueExprs = append(valueExprs, expr)
 			continue
 		}
-		elemConvLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
+		elemConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("array literal element unsupported")
 			return nil, "", "", false
@@ -462,6 +462,11 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 	if !ok {
 		return nil, "", "", false
 	}
+	if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, expr.Object, objectExpr, objectType); recovered {
+		objLines = append(objLines, recoverLines...)
+		objectExpr = recoveredExpr
+		objectType = recoveredType
+	}
 	objectCategory := g.typeCategory(objectType)
 	if objectCategory == "runtime" || objectCategory == "any" {
 		// When object is runtime.Value with known origin struct type, extract
@@ -478,7 +483,7 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 			ctx.setReason("unsupported member access")
 			return nil, "", "", false
 		}
-		objConvLines, objValue, ok := g.runtimeValueLines(ctx, objectExpr, objectType)
+		objConvLines, objValue, ok := g.lowerRuntimeValue(ctx, objectExpr, objectType)
 		if !ok {
 			ctx.setReason("unsupported member access")
 			return nil, "", "", false
@@ -498,7 +503,7 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 				fmt.Sprintf("var %s *__ableControl", controlTemp),
 				fmt.Sprintf("if __able_is_nil(%s) { %s = runtime.NilValue{} } else { %s, %s = __able_member_get(%s, %s) }", objTemp, resultTemp, resultTemp, controlTemp, objTemp, memberTemp),
 			)
-			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -514,7 +519,7 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		if expected == "" || expected == "runtime.Value" || expected == "any" {
 			return lines, baseExpr, "runtime.Value", true
 		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, baseExpr, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, baseExpr, expected)
 		if !ok {
 			ctx.setReason("member access type mismatch")
 			return nil, "", "", false
@@ -562,14 +567,14 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		fieldType := field.GoType
 		if fieldType == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
 			lines := append([]string{}, objLines...)
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, fieldExpr, expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, fieldExpr, expected)
 			if ok {
 				lines = append(lines, convLines...)
 				return lines, converted, expected, true
 			}
 		}
 		if !g.typeMatches(expected, field.GoType) {
-			coerceLines, coercedExpr, coercedType, ok := g.coerceExpectedStaticExpr(ctx, append([]string{}, objLines...), fieldExpr, fieldType, expected)
+			coerceLines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, append([]string{}, objLines...), fieldExpr, fieldType, expected)
 			if ok && (expected == "" || g.typeMatches(expected, coercedType)) {
 				return coerceLines, coercedExpr, coercedType, true
 			}
@@ -625,7 +630,7 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("unknown struct field")
 		return nil, "", "", false
 	}
-	objConvLines, objValue, ok := g.runtimeValueLines(ctx, objectExpr, objectType)
+	objConvLines, objValue, ok := g.lowerRuntimeValue(ctx, objectExpr, objectType)
 	if !ok {
 		ctx.setReason("unknown struct field")
 		return nil, "", "", false
@@ -640,7 +645,7 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 	if expected == "" || expected == "runtime.Value" {
 		return lines, baseExpr, "runtime.Value", true
 	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, baseExpr, expected)
+	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, baseExpr, expected)
 	if !ok {
 		ctx.setReason("member access type mismatch")
 		return nil, "", "", false
@@ -681,7 +686,7 @@ func (g *generator) compileOriginStructFieldAccess(ctx *compileContext, expr *as
 	// CSE: reuse existing extraction temp if available.
 	if cached, ok := ctx.originExtractions[objIdent.Name]; ok {
 		if field.GoType == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, fmt.Sprintf("%s.%s", cached, field.GoName), expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, fmt.Sprintf("%s.%s", cached, field.GoName), expected)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -701,7 +706,7 @@ func (g *generator) compileOriginStructFieldAccess(ctx *compileContext, expr *as
 	}
 	ctx.originExtractions[objIdent.Name] = extractTemp
 	if field.GoType == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, fmt.Sprintf("%s.%s", extractTemp, field.GoName), expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, fmt.Sprintf("%s.%s", extractTemp, field.GoName), expected)
 		if !ok {
 			return nil, "", "", false
 		}

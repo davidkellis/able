@@ -78,8 +78,8 @@ func (g *generator) joinCarrierTypeFromTypeExpr(ctx *compileContext, expr ast.Ty
 	if g == nil || expr == nil {
 		return "", false
 	}
-	expr = g.typeExprInContext(ctx, expr)
-	mapped, ok := g.mapTypeExpressionInContext(ctx, expr)
+	expr = g.lowerNormalizedTypeExpr(ctx, expr)
+	mapped, ok := g.lowerCarrierType(ctx, expr)
 	if ok && mapped != "" && mapped != "runtime.Value" && mapped != "any" && !g.isVoidType(mapped) {
 		return mapped, true
 	}
@@ -366,7 +366,7 @@ func (g *generator) coerceJoinBranch(ctx *compileContext, resultType string, exp
 		if exprType == "runtime.Value" {
 			return nil, expr, true
 		}
-		convLines, converted, ok := g.runtimeValueLines(ctx, expr, exprType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, expr, exprType)
 		if !ok {
 			return nil, "", false
 		}
@@ -376,7 +376,7 @@ func (g *generator) coerceJoinBranch(ctx *compileContext, resultType string, exp
 		return nil, expr, true
 	}
 	if exprType == "runtime.Value" {
-		return g.expectRuntimeValueExprLines(ctx, expr, resultType)
+		return g.lowerExpectRuntimeValue(ctx, expr, resultType)
 	}
 	if exprType == "any" {
 		if expr == "any(nil)" {
@@ -384,9 +384,9 @@ func (g *generator) coerceJoinBranch(ctx *compileContext, resultType string, exp
 				return nil, typedNil, true
 			}
 		}
-		return g.expectRuntimeValueExprLines(ctx, expr, resultType)
+		return g.lowerExpectRuntimeValue(ctx, expr, resultType)
 	}
-	lines, coercedExpr, coercedType, ok := g.coerceExpectedStaticExpr(ctx, nil, expr, exprType, resultType)
+	lines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, expr, exprType, resultType)
 	if !ok {
 		return nil, "", false
 	}

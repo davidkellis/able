@@ -29,3 +29,30 @@ func (g *generator) ensureBuiltinArrayStruct() {
 		Node:    arrayNode,
 	}
 }
+
+func (g *generator) ensureBuiltinDivModStruct() {
+	if g == nil {
+		return
+	}
+	if info, ok := g.structInfoByNameUnique("DivMod"); ok && info != nil {
+		return
+	}
+	divModNode := ast.NewStructDefinition(
+		ast.NewIdentifier("DivMod"),
+		[]*ast.StructFieldDefinition{
+			ast.NewStructFieldDefinition(ast.NewSimpleTypeExpression(ast.NewIdentifier("T")), ast.NewIdentifier("quotient")),
+			ast.NewStructFieldDefinition(ast.NewSimpleTypeExpression(ast.NewIdentifier("T")), ast.NewIdentifier("remainder")),
+		},
+		ast.StructKindNamed,
+		[]*ast.GenericParameter{ast.NewGenericParameter(ast.NewIdentifier("T"), nil)},
+		nil,
+		false,
+	)
+	g.structs["DivMod"] = &structInfo{
+		Name:    "DivMod",
+		Package: "",
+		GoName:  g.mangler.unique(exportIdent("DivMod")),
+		Kind:    ast.StructKindNamed,
+		Node:    divModNode,
+	}
+}

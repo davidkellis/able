@@ -239,12 +239,12 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			return nil, "", "", false
 		}
 		nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
-		opLines, opExpr, ok := g.compileDivModResultExpression(ctx, left, right, leftType, nodeName)
+		opLines, opExpr, opType, ok := g.compileDivModResultExpression(ctx, left, right, leftType, nodeName)
 		if !ok {
 			ctx.setReason("unsupported /% operands")
 			return nil, "", "", false
 		}
-		return append(operandLines, opLines...), opExpr, "runtime.Value", true
+		return append(operandLines, opLines...), opExpr, opType, true
 	default:
 		ctx.setReason("unsupported operator")
 		return nil, "", "", false
@@ -271,7 +271,7 @@ func (g *generator) compileLogicalBinaryExpression(ctx *compileContext, expr *as
 	}
 	leftVal := leftExpr
 	if leftType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, leftExpr, leftType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, leftExpr, leftType)
 		if !ok {
 			ctx.setReason("logical operand unsupported")
 			return nil, "", "", false
@@ -281,7 +281,7 @@ func (g *generator) compileLogicalBinaryExpression(ctx *compileContext, expr *as
 	}
 	rightVal := rightExpr
 	if rightType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, rightExpr, rightType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, rightExpr, rightType)
 		if !ok {
 			ctx.setReason("logical operand unsupported")
 			return nil, "", "", false
@@ -301,7 +301,7 @@ func (g *generator) compileLogicalBinaryExpression(ctx *compileContext, expr *as
 		lines = append(lines, fmt.Sprintf("if __able_truthy(%s) { %s = %s } else { %s = %s }", leftTemp, resultTemp, leftTemp, resultTemp, rightVal))
 	}
 	if expected != "" && expected != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("logical expression type mismatch")
 			return nil, "", "", false
@@ -321,7 +321,7 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 	if !ok {
 		return nil, "", "", false
 	}
-	subjectConvLines, subjectValue, ok := g.runtimeValueLines(ctx, leftExpr, leftType)
+	subjectConvLines, subjectValue, ok := g.lowerRuntimeValue(ctx, leftExpr, leftType)
 	if !ok {
 		ctx.setReason("pipe subject unsupported")
 		return nil, "", "", false
@@ -358,7 +358,7 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 			return nil, "", "", false
 		}
 		lines = append(lines, calleeLines...)
-		calleeConvLines, calleeValue, ok := g.runtimeValueLines(ctx, calleeExpr, calleeType)
+		calleeConvLines, calleeValue, ok := g.lowerRuntimeValue(ctx, calleeExpr, calleeType)
 		if !ok {
 			ctx.setReason("pipe call target unsupported")
 			return nil, "", "", false
@@ -373,7 +373,7 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 				return nil, "", "", false
 			}
 			lines = append(lines, argLines...)
-			argConvLines, argValue, ok := g.runtimeValueLines(ctx, argExpr, argType)
+			argConvLines, argValue, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
 			if !ok {
 				ctx.setReason("pipe call argument unsupported")
 				return nil, "", "", false
@@ -401,7 +401,7 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 		return nil, "", "", false
 	}
 	lines = append(lines, rhsLines...)
-	rhsConvLines, rhsValue, ok := g.runtimeValueLines(ctx, rhsExpr, rhsType)
+	rhsConvLines, rhsValue, ok := g.lowerRuntimeValue(ctx, rhsExpr, rhsType)
 	if !ok {
 		ctx.setReason("pipe rhs unsupported")
 		return nil, "", "", false
@@ -427,7 +427,7 @@ func (g *generator) pipeResultLines(ctx *compileContext, expected string, lines 
 		return lines, "struct{}{}", "struct{}", true
 	}
 	if expected != "" && expected != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("pipe result type mismatch")
 			return nil, "", "", false
@@ -454,12 +454,12 @@ func runtimeValueSliceWithSubject(subject string, args []string) string {
 }
 
 func (g *generator) compileRuntimeBinaryOperation(ctx *compileContext, op string, leftExpr string, leftType string, rightExpr string, rightType string, expected string) ([]string, string, string, bool) {
-	leftLines, leftVal, ok := g.runtimeValueLines(ctx, leftExpr, leftType)
+	leftLines, leftVal, ok := g.lowerRuntimeValue(ctx, leftExpr, leftType)
 	if !ok {
 		ctx.setReason("binary operand unsupported")
 		return nil, "", "", false
 	}
-	rightLines, rightVal, ok := g.runtimeValueLines(ctx, rightExpr, rightType)
+	rightLines, rightVal, ok := g.lowerRuntimeValue(ctx, rightExpr, rightType)
 	if !ok {
 		ctx.setReason("binary operand unsupported")
 		return nil, "", "", false
@@ -470,7 +470,7 @@ func (g *generator) compileRuntimeBinaryOperation(ctx *compileContext, op string
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s, %s := __able_binary_op(%q, %s, %s)", resultTemp, controlTemp, op, leftVal, rightVal))
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -482,7 +482,7 @@ func (g *generator) compileRuntimeBinaryOperation(ctx *compileContext, op string
 			ctx.setReason("comparison expression type mismatch")
 			return nil, "", "", false
 		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, "bool")
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, expr, "bool")
 		if !ok {
 			ctx.setReason("comparison expression type mismatch")
 			return nil, "", "", false
@@ -491,7 +491,7 @@ func (g *generator) compileRuntimeBinaryOperation(ctx *compileContext, op string
 		return lines, converted, "bool", true
 	}
 	if expected != "" && expected != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, expr, expected)
 		if !ok {
 			ctx.setReason("binary expression type mismatch")
 			return nil, "", "", false
@@ -572,7 +572,7 @@ func (g *generator) compileDivisionExpression(ctx *compileContext, left string, 
 		fmt.Sprintf("%s := %s", rightTemp, right),
 	}
 	if g.isIntegerType(operandType) {
-		transferLines, ok := g.controlTransferLines(ctx, fmt.Sprintf("control"))
+		transferLines, ok := g.lowerControlTransfer(ctx, fmt.Sprintf("control"))
 		if !ok {
 			return nil, ""
 		}
@@ -613,7 +613,7 @@ func (g *generator) compileDivModExpression(ctx *compileContext, left string, ri
 	} else {
 		lines = append(lines, fmt.Sprintf("_, %s, %s := %s(%s(%s), %s(%s), %s, %s)", resultTemp, controlTemp, helper, cast, leftTemp, cast, rightTemp, bitsExpr, nodeName))
 	}
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, ""
 	}
@@ -621,7 +621,7 @@ func (g *generator) compileDivModExpression(ctx *compileContext, left string, ri
 	return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 }
 
-func (g *generator) compileDivModResultExpression(ctx *compileContext, left string, right string, operandType string, nodeName string) ([]string, string, bool) {
+func (g *generator) compileDivModResultExpression(ctx *compileContext, left string, right string, operandType string, nodeName string) ([]string, string, string, bool) {
 	leftTemp := ctx.newTemp()
 	rightTemp := ctx.newTemp()
 	bitsExpr := g.bitSizeExpr(operandType)
@@ -633,17 +633,18 @@ func (g *generator) compileDivModResultExpression(ctx *compileContext, left stri
 	}
 	suffix, ok := g.integerTypeSuffix(operandType)
 	if !ok {
-		return nil, "", false
+		return nil, "", "", false
 	}
+	divModTypeExpr := ast.Gen(ast.Ty("DivMod"), ast.Ty(suffix))
 	quotTemp := ctx.newTemp()
 	remTemp := ctx.newTemp()
 	quotVal, ok := g.runtimeValueExpr(quotTemp, operandType)
 	if !ok {
-		return nil, "", false
+		return nil, "", "", false
 	}
 	remVal, ok := g.runtimeValueExpr(remTemp, operandType)
 	if !ok {
-		return nil, "", false
+		return nil, "", "", false
 	}
 	typeExpr := fmt.Sprintf("ast.Ty(%q)", suffix)
 	qTemp := ctx.newTemp()
@@ -656,12 +657,18 @@ func (g *generator) compileDivModResultExpression(ctx *compileContext, left stri
 		fmt.Sprintf("%s := %s(%s)", quotTemp, operandType, qTemp),
 		fmt.Sprintf("%s := %s(%s)", remTemp, operandType, rTemp),
 	}
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
-		return nil, "", false
+		return nil, "", "", false
 	}
 	lines = append(lines, controlLines...)
-	return lines, fmt.Sprintf("__able_divmod_result(%s, %s, %s)", quotVal, remVal, typeExpr), true
+	if resultType, ok := g.lowerCarrierType(ctx, divModTypeExpr); ok && resultType != "" && resultType != "runtime.Value" && resultType != "any" {
+		if info, ok := g.structInfoForTypeExpr(ctx.packageName, divModTypeExpr); ok && info != nil {
+			resultExpr := fmt.Sprintf("&%s{Quotient: %s, Remainder: %s}", info.GoName, quotTemp, remTemp)
+			return lines, resultExpr, resultType, true
+		}
+	}
+	return lines, fmt.Sprintf("__able_divmod_result(%s, %s, %s)", quotVal, remVal, typeExpr), "runtime.Value", true
 }
 
 func (g *generator) compileShiftExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) ([]string, string) {
@@ -680,7 +687,7 @@ func (g *generator) compileShiftExpression(ctx *compileContext, left string, rig
 		resultTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s, %s := %s(uint64(%s), uint64(%s), %s, %s)", resultTemp, controlTemp, helper, leftTemp, rightTemp, bitsExpr, nodeName))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, ""
 		}
@@ -694,7 +701,7 @@ func (g *generator) compileShiftExpression(ctx *compileContext, left string, rig
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s, %s := %s(int64(%s), int64(%s), %s, %s)", resultTemp, controlTemp, helper, leftTemp, rightTemp, bitsExpr, nodeName))
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, ""
 	}
@@ -724,7 +731,7 @@ func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, l
 		resultTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s, %s := %s(uint64(%s), uint64(%s), %s, %s)", resultTemp, controlTemp, helper, leftTemp, rightTemp, bitsExpr, nodeName))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, ""
 		}
@@ -741,7 +748,7 @@ func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, l
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s, %s := %s(int64(%s), int64(%s), %s, %s)", resultTemp, controlTemp, helper, leftTemp, rightTemp, bitsExpr, nodeName))
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, ""
 	}
@@ -761,7 +768,7 @@ func (g *generator) compilePowExpression(ctx *compileContext, left string, right
 		resultTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s, %s := __able_pow_unsigned(uint64(%s), uint64(%s), %s, %s)", resultTemp, controlTemp, leftTemp, rightTemp, bitsExpr, nodeName))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, ""
 		}
@@ -771,7 +778,7 @@ func (g *generator) compilePowExpression(ctx *compileContext, left string, right
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s, %s := __able_pow_signed(int64(%s), int64(%s), %s, %s)", resultTemp, controlTemp, leftTemp, rightTemp, bitsExpr, nodeName))
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, ""
 	}

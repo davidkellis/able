@@ -312,7 +312,7 @@ func (g *generator) monoArraySpecForArrayTypeExpr(pkgName string, expr ast.TypeE
 	if !ok || base == nil || base.Name == nil || base.Name.Name != "Array" || len(gen.Arguments) != 1 {
 		return nil, false
 	}
-	elemGoType, ok := g.mapTypeExpressionInPackage(pkgName, gen.Arguments[0])
+	elemGoType, ok := g.lowerCarrierTypeInPackage(pkgName, gen.Arguments[0])
 	if !ok {
 		return nil, false
 	}
@@ -423,9 +423,9 @@ func (g *generator) staticArrayCoerceValueExprLines(ctx *compileContext, arrayTy
 		return nil, "", false
 	}
 	if elemType == "runtime.Value" {
-		lines, converted, ok := g.runtimeValueLines(ctx, expr, actualType)
+		lines, converted, ok := g.lowerRuntimeValue(ctx, expr, actualType)
 		return lines, converted, ok
 	}
-	lines, converted, _, ok := g.coerceExpectedStaticExpr(ctx, nil, expr, actualType, elemType)
+	lines, converted, _, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, expr, actualType, elemType)
 	return lines, converted, ok
 }

@@ -232,7 +232,7 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", runtimeTemp, errTemp, actualInfo.ToRuntimeHelper, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -241,7 +241,7 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, convertErrTemp, info.FromRuntimeHelper, runtimeTemp),
 			fmt.Sprintf("%s = __able_control_from_error(%s)", controlTemp, convertErrTemp),
 		)
-		controlLines, ok = g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok = g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -258,7 +258,7 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 		if g.nativeUnionInfoForGoType(adapter.GoType) == nil {
 			continue
 		}
-		unionLines, unionExpr, ok := g.nativeUnionWrapLines(ctx, adapter.GoType, actual, expr)
+		unionLines, unionExpr, ok := g.lowerWrapUnion(ctx, adapter.GoType, actual, expr)
 		if !ok {
 			continue
 		}
@@ -284,14 +284,14 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, errTemp, info.FromRuntimeHelper, valueTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
 		lines = append(lines, controlLines...)
 		return lines, convertedTemp, true
 	}
-	if valueLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, actual); ok {
+	if valueLines, valueExpr, ok := g.lowerRuntimeValue(ctx, expr, actual); ok {
 		convertedTemp := ctx.newTemp()
 		errTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
@@ -300,7 +300,7 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, errTemp, info.FromRuntimeHelper, valueExpr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		)
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}

@@ -39,7 +39,7 @@ func (g *generator) compileTailExpression(ctx *compileContext, expected string, 
 			return nil, "", "", false
 		}
 		if runtimeExpected && valueType != "runtime.Value" {
-			convLines, converted, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+			convLines, converted, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 			if !ok {
 				ctx.setReason("assignment type mismatch")
 				return nil, "", "", false
@@ -48,7 +48,7 @@ func (g *generator) compileTailExpression(ctx *compileContext, expected string, 
 			return lines, converted, "runtime.Value", true
 		}
 		if expected != "" && valueType == "runtime.Value" && expected != "runtime.Value" {
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueExpr, expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, valueExpr, expected)
 			if !ok {
 				ctx.setReason("assignment type mismatch")
 				return nil, "", "", false
@@ -63,7 +63,7 @@ func (g *generator) compileTailExpression(ctx *compileContext, expected string, 
 			return nil, "", "", false
 		}
 		if runtimeExpected && valueType != "runtime.Value" {
-			convLines, converted, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+			convLines, converted, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 			if !ok {
 				ctx.setReason("if expression type mismatch")
 				return nil, "", "", false
@@ -78,7 +78,7 @@ func (g *generator) compileTailExpression(ctx *compileContext, expected string, 
 			return nil, "", "", false
 		}
 		if runtimeExpected && valueType != "runtime.Value" {
-			convLines, converted, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+			convLines, converted, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 			if !ok {
 				ctx.setReason("block expression type mismatch")
 				return nil, "", "", false
@@ -97,7 +97,7 @@ func (g *generator) compileTailExpression(ctx *compileContext, expected string, 
 			return nil, "", "", false
 		}
 		if runtimeExpected && valueType != "runtime.Value" {
-			convLines, converted, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+			convLines, converted, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 			if !ok {
 				ctx.setReason("expression type mismatch")
 				return nil, "", "", false
@@ -126,7 +126,7 @@ func (g *generator) compileCondition(ctx *compileContext, expr ast.Expression) (
 	}
 	condRuntime := condExpr
 	if condType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, condExpr, condType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, condExpr, condType)
 		if !ok {
 			ctx.setReason("condition unsupported")
 			return nil, "", false
@@ -238,7 +238,7 @@ func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpress
 				TypeExpr: elseTypeExpr,
 				SawNil:   g.joinBranchIsNilExpr(elseExpr, elseType),
 			})
-			if joinedType, ok := g.joinResultTypeFromBranches(ctx, joinBranches); ok {
+			if joinedType, ok := g.lowerJoinCarrierFromBranches(ctx, joinBranches); ok {
 				resultType = joinedType
 			} else {
 				resultType = "runtime.Value"
@@ -316,11 +316,8 @@ func (g *generator) compileBlockExpression(ctx *compileContext, block *ast.Block
 		if expected == "" || g.isVoidType(expected) {
 			return nil, "struct{}{}", "struct{}", true
 		}
-		if expected == "runtime.Value" {
-			return nil, "runtime.VoidValue{}", "runtime.Value", true
-		}
-		if expected == "any" {
-			return nil, "runtime.VoidValue{}", "any", true
+		if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, expected); ok {
+			return nil, successExpr, expected, true
 		}
 		ctx.setReason("empty block requires void return")
 		return nil, "", "", false
@@ -611,7 +608,7 @@ func (g *generator) compileForLoopInternal(ctx *compileContext, loop *ast.ForLoo
 	if lines, result, ok := g.compileStaticIterableForLoopInternal(ctx, loop, withResult, loop.Iterable, iterLines, iterExpr, iterType); ok {
 		return lines, result, true
 	}
-	iterConvLines, iterRuntime, ok := g.runtimeValueLines(ctx, iterExpr, iterType)
+	iterConvLines, iterRuntime, ok := g.lowerRuntimeValue(ctx, iterExpr, iterType)
 	if !ok {
 		ctx.setReason("for loop iterable unsupported")
 		return nil, "", false

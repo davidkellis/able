@@ -66,7 +66,7 @@ func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.Ensur
 	lines = append(lines, fmt.Sprintf("if false { goto %s }", ensureDoneLabel))
 	lines = append(lines, fmt.Sprintf("%s:", ensureDoneLabel))
 
-	ensureTransferLines, ok := g.controlTransferLines(ctx, ensureControlTemp)
+	ensureTransferLines, ok := g.lowerControlTransfer(ctx, ensureControlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -74,7 +74,7 @@ func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.Ensur
 	lines = append(lines, indentLines(ensureTransferLines, 1)...)
 	lines = append(lines, "}")
 
-	tryTransferLines, ok := g.controlTransferLines(ctx, tryControlTemp)
+	tryTransferLines, ok := g.lowerControlTransfer(ctx, tryControlTemp)
 	if !ok {
 		return nil, "", "", false
 	}

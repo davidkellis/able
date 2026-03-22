@@ -24,7 +24,7 @@ func (g *generator) compileStructUpdateFallback(ctx *compileContext, lit *ast.St
 				return nil, "", "", false, true
 			}
 			if expected != "" && expected != "runtime.Value" {
-				convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, expected)
+				convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, expr, expected)
 				if !ok {
 					ctx.setReason("struct literal type mismatch")
 					return nil, "", "", false, true

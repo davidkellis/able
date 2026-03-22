@@ -160,7 +160,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		argType := exprType
 		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && param.GoType == "runtime.Value" {
 			if argType != "runtime.Value" {
-				convLines, valueExpr, ok := g.runtimeValueLines(ctx, argExpr, argType)
+				convLines, valueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
 				if !ok {
 					ctx.setReason("interface argument unsupported")
 					return nil, "", "", false
@@ -195,7 +195,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr),
 		"__able_pop_call_frame()",
 	}...)
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -206,7 +206,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		return lines, castTemp, expected, true
 	}
 	if needsRuntimeConv {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -222,7 +222,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		}
 		anyTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, resultTemp))
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, anyTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -231,7 +231,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		return lines, converted, expected, true
 	}
 	if needsStaticCoerce {
-		return g.coerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnType, expected)
+		return g.lowerCoerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnType, expected)
 	}
 	return lines, resultTemp, info.ReturnType, true
 }
@@ -790,11 +790,11 @@ func (g *generator) inferExpressionTypeExpr(ctx *compileContext, expr ast.Expres
 		return nil, false
 	}
 	if inferred, ok := g.inferLocalTypeExpr(ctx, expr, goType); ok && inferred != nil {
-		return g.typeExprInContext(ctx, inferred), true
+		return g.lowerNormalizedTypeExpr(ctx, inferred), true
 	}
 	if goType != "" {
 		if inferred, ok := g.typeExprForGoType(goType); ok && inferred != nil {
-			return g.typeExprInContext(ctx, inferred), true
+			return g.lowerNormalizedTypeExpr(ctx, inferred), true
 		}
 	}
 	return nil, false
@@ -850,6 +850,11 @@ func (g *generator) normalizeConcreteTypeBindings(pkgName string, bindings map[s
 	}
 	out := make(map[string]ast.TypeExpression, len(bindings))
 	for name, expr := range bindings {
+		if len(genericNames) > 0 {
+			if _, ok := genericNames[name]; !ok {
+				continue
+			}
+		}
 		if expr == nil {
 			continue
 		}
@@ -1159,9 +1164,9 @@ func (g *generator) normalizeTypeExprForSpecialization(pkgName string, expr ast.
 			changed = true
 		}
 		if !changed {
-			return expr
+			return normalizeCallableSyntaxTypeExpr(expr)
 		}
-		return ast.NewFunctionTypeExpression(params, ret)
+		return normalizeCallableSyntaxTypeExpr(ast.NewFunctionTypeExpression(params, ret))
 	default:
 		return normalizeTypeExprForPackage(g, pkgName, expr)
 	}

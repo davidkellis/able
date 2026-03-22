@@ -71,7 +71,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 			fmt.Sprintf("%s, %s := %s(%s)", vTemp, errTemp, spec.FromRuntimeHelper, valTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -88,7 +88,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", vTemp, errTemp, iface.FromRuntimeHelper, valTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -105,7 +105,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", vTemp, errTemp, callable.FromRuntimeHelper, valTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -122,7 +122,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", vTemp, errTemp, union.FromRuntimeHelper, valTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -151,7 +151,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 			fmt.Sprintf("%s, %s := %s(%s)", vTemp, errTemp, helper, valTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -169,7 +169,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -182,7 +182,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -195,7 +195,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -208,7 +208,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -221,7 +221,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -234,7 +234,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -247,7 +247,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -261,7 +261,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -275,7 +275,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -292,7 +292,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 			fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", vTemp, errTemp, baseName, valTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -376,7 +376,7 @@ func (g *generator) appendIndexIntLines(ctx *compileContext, lines []string, idx
 	lines = append(lines, fmt.Sprintf("%s, %s := bridge.AsInt(%s, 64)", idxRawTemp, idxErrTemp, idxRuntimeTemp))
 	controlTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, idxErrTemp))
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, false
 	}
@@ -461,7 +461,7 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convTemp, errTemp, spec.ToRuntimeHelper, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -476,7 +476,7 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convTemp, errTemp, iface.ToRuntimeHelper, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -491,7 +491,7 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convTemp, errTemp, callable.ToRuntimeHelper, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -506,7 +506,7 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convTemp, errTemp, union.ToRuntimeHelper, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -546,7 +546,7 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 			fmt.Sprintf("%s, %s := __able_struct_%s_to(__able_runtime, %s)", convTemp, errTemp, baseName, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}

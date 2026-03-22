@@ -33,7 +33,7 @@ func (g *generator) inlineCheckedSignedIntegerBinaryExpression(ctx *compileConte
 	rightTemp := ctx.newTemp()
 	wideTemp := ctx.newTemp()
 	resultTemp := ctx.newTemp()
-	overflowTransfer, ok := g.controlTransferLines(ctx, fmt.Sprintf("__able_raise_overflow(%s)", nodeName))
+	overflowTransfer, ok := g.lowerControlTransfer(ctx, fmt.Sprintf("__able_raise_overflow(%s)", nodeName))
 	if !ok {
 		return nil, "", false
 	}
@@ -66,7 +66,7 @@ func (g *generator) inlineCheckedUnsignedIntegerBinaryExpression(ctx *compileCon
 	rightTemp := ctx.newTemp()
 	wideTemp := ctx.newTemp()
 	resultTemp := ctx.newTemp()
-	overflowTransfer, ok := g.controlTransferLines(ctx, fmt.Sprintf("__able_raise_overflow(%s)", nodeName))
+	overflowTransfer, ok := g.lowerControlTransfer(ctx, fmt.Sprintf("__able_raise_overflow(%s)", nodeName))
 	if !ok {
 		return nil, "", false
 	}

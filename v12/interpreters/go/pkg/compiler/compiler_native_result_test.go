@@ -111,6 +111,45 @@ fn main() {
 	compileAndRunSource(t, "ablec-native-result-", source)
 }
 
+func TestCompilerResultVoidReturnUsesNativeCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"impl Error for MyError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn touch(ok: bool) -> !void {",
+		"  if ok {",
+		"    return",
+		"  }",
+		"  MyError { message: \"bad\" }",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_touch(ok bool) (__able_union_") {
+		t.Fatalf("expected !void return to use a native union carrier:\n%s", compiledSrc)
+	}
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_touch")
+	if !ok {
+		t.Fatalf("could not find compiled touch function")
+	}
+	for _, fragment := range []string{
+		"runtime.VoidValue{}",
+		"__able_any_to_value(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected !void return path to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
 func TestCompilerDirectErrorReturnUsesNativeCarrier(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
