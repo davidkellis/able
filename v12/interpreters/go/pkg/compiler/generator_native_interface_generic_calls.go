@@ -26,6 +26,33 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 	if directLines, expr, retType, ok := g.compileStaticNativeInterfaceGenericDefaultMethodCall(ctx, call, expected, receiverExpr, receiverType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType, bindings, callNode); ok {
 		return directLines, expr, retType, true
 	}
+	if dispatchInfo, ok := g.ensureNativeInterfaceGenericDispatchInfo(ctx, call, expected, info, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType, bindings); ok && dispatchInfo != nil {
+		lines := make([]string, 0, len(call.Arguments)*4+8)
+		args := make([]string, 0, len(call.Arguments))
+		for idx, arg := range call.Arguments {
+			expectedType := paramGoTypes[idx]
+			expectedTypeExpr := paramTypeExprs[idx]
+			argLines, expr, exprType, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, expectedType, expectedTypeExpr)
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, argLines...)
+			argTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("var %s %s = %s", argTemp, exprType, expr))
+			args = append(args, argTemp)
+		}
+		resultTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		callArgs := append([]string{receiverExpr}, args...)
+		callArgs = append(callArgs, callNode)
+		lines = append(lines, fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", resultTemp, controlTemp, dispatchInfo.GoName, strings.Join(callArgs, ", ")))
+		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, controlLines...)
+		return g.finishNativeInterfaceGenericCallReturn(ctx, lines, resultTemp, returnGoType, expected)
+	}
 	// Built-in Array remains an explicit language/kernel container boundary.
 	// If the shared generic default-method path cannot materialize the bound
 	// accumulator statically, fall back to the dedicated Array collect helper

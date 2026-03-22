@@ -17,7 +17,7 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 	if def.TargetType == nil {
 		return
 	}
-	targetType := g.expandTypeAliasForPackage(pkgName, def.TargetType)
+	targetType := normalizeTypeExprForPackage(g, pkgName, def.TargetType)
 	if targetType == nil {
 		targetType = def.TargetType
 	}
@@ -110,7 +110,7 @@ func (g *generator) collectDefaultImplMethods() {
 			pkgName = entry.Package
 		}
 		mapper := NewTypeMapper(g, pkgName)
-		targetType := g.expandTypeAliasForPackage(entry.Package, def.TargetType)
+		targetType := normalizeTypeExprForPackage(g, entry.Package, def.TargetType)
 		if targetType == nil {
 			targetType = def.TargetType
 		}

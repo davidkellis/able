@@ -91,7 +91,9 @@ func (g *generator) compileStaticIterableForLoopInternal(
 	bodyCtx.loopLabel = loopLabelName
 	if withResult {
 		bodyCtx.loopBreakValueTemp = resultTemp
+		bodyCtx.loopBreakValueType = "runtime.Value"
 	}
+	bodyCtx.loopBreakProbe = nil
 
 	iteratorTemp := ctx.newTemp()
 	nextCall := ast.NewFunctionCall(ast.NewIdentifier("next"), nil, nil, false)

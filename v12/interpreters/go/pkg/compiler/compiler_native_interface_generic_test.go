@@ -38,15 +38,32 @@ func TestCompilerPureGenericInterfaceAssignmentUsesNativeCarrier(t *testing.T) {
 	if !strings.Contains(body, "var value __able_iface_Echo = __able_iface_Echo_wrap_ptr_Box(") {
 		t.Fatalf("expected the pure-generic interface local to stay on the native carrier:\n%s", body)
 	}
-	if !strings.Contains(body, "__able_iface_Echo_to_runtime_value(__able_runtime,") {
-		t.Fatalf("expected generic interface call to narrow the runtime boundary to receiver conversion:\n%s", body)
+	if !strings.Contains(body, "__able_compiled_iface_Echo_pass_dispatch(") {
+		t.Fatalf("expected generic interface call to dispatch through the compiled native helper:\n%s", body)
 	}
-	if !strings.Contains(body, "__able_method_call_node(") {
-		t.Fatalf("expected generic interface call to dispatch through the narrow generic-method boundary:\n%s", body)
-	}
-	for _, fragment := range []string{"__able_call_value(", "__able_member_get_method(", "bridge.MatchType("} {
+	for _, fragment := range []string{
+		"__able_iface_Echo_to_runtime_value(__able_runtime,",
+		"__able_method_call_node(",
+		"__able_call_value(",
+		"__able_member_get_method(",
+		"bridge.MatchType(",
+	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected pure-generic interface dispatch to avoid %q:\n%s", fragment, body)
+		}
+	}
+	helperBody, ok := findCompiledFunction(result, "__able_compiled_iface_Echo_pass_dispatch")
+	if !ok {
+		t.Fatalf("could not find compiled generic interface dispatch helper")
+	}
+	if !strings.Contains(helperBody, "__able_compiled_impl_Echo_pass_") || !strings.Contains(helperBody, "_spec(") {
+		t.Fatalf("expected generic interface dispatch helper to call the specialized compiled impl directly:\n%s", helperBody)
+	}
+	for _, fragment := range []string{
+		"__able_iface_Echo_to_runtime_value(__able_runtime,",
+	} {
+		if strings.Contains(helperBody, fragment) {
+			t.Fatalf("expected generic interface dispatch helper to avoid %q:\n%s", fragment, helperBody)
 		}
 	}
 }
@@ -165,6 +182,19 @@ func TestCompilerInterfaceLookupGenericMethodFixturesRegression(t *testing.T) {
 		t.Run(rel, func(t *testing.T) {
 			runCompilerInterfaceLookupAuditFixture(t, root, rel)
 		})
+	}
+}
+
+func TestCompilerImportedGenericInterfaceAdapterRendersConcreteHelper(t *testing.T) {
+	result := compileExecFixtureResult(t, "10_04_interface_dispatch_defaults_generics")
+	compiledSrc := string(result.Files["compiled.go"])
+	for _, fragment := range []string{
+		"type __able_iface_Tokenizer_adapter_ptr_Prefixer struct {",
+		"func __able_iface_Tokenizer_wrap_ptr_Prefixer(value *Prefixer) __able_iface_Tokenizer {",
+	} {
+		if !strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected imported Tokenizer<-Prefixer native adapter helper to be rendered; missing %q", fragment)
+		}
 	}
 }
 

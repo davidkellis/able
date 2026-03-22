@@ -63,6 +63,11 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 				}
 				return g.compileDynamicCall(ctx, call, expected, "", callNode)
 			}
+			if info, overload, ok := g.resolveStaticCallable(ctx, callee.Name); ok {
+				if lines, expr, retType, ok := g.compileStaticNamedFunctionCall(ctx, call, expected, callee.Name, info, overload, callNode); ok {
+					return lines, expr, retType, true
+				}
+			}
 			if !g.hasDynamicFeature && !g.mayResolveStaticNamedCall(ctx, callee.Name) && !g.mayResolveStaticUFCSCall(ctx, call, callee.Name) {
 				ctx.setReason(fmt.Sprintf("unresolved static call (%s)", callee.Name))
 				return nil, "", "", false
@@ -73,164 +78,8 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 	}
 	if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
 		if info, overload, ok := g.resolveStaticCallable(ctx, callee.Name); ok {
-			if info != nil && info.Compileable {
-				info = g.concreteFunctionCallInfo(ctx, call, info, expected)
-				needsRuntimeValue := expected == "runtime.Value" && info.ReturnType != "runtime.Value"
-				needsExpect := expected != "" && expected != "runtime.Value" && info.ReturnType == "runtime.Value"
-				needsAnyConv := expected != "" && expected != "any" && info.ReturnType == "any"
-				needsStaticCoerce := expected != "" && expected != "runtime.Value" && expected != "any" && g.canCoerceStaticExpr(expected, info.ReturnType)
-				if !g.typeMatches(expected, info.ReturnType) && !needsRuntimeValue && !needsExpect && !needsAnyConv && !needsStaticCoerce {
-					ctx.setReason("call return type mismatch")
-					return nil, "", "", false
-				}
-				optionalLast := g.hasOptionalLastParam(info)
-				if len(call.Arguments) != len(info.Params) {
-					if !(optionalLast && len(call.Arguments) == len(info.Params)-1) {
-						ctx.setReason("call arity mismatch")
-						return nil, "", "", false
-					}
-				}
-				missingOptional := optionalLast && len(call.Arguments) == len(info.Params)-1
-				if missingOptional && len(info.Params) > 0 {
-					lastType := info.Params[len(info.Params)-1].GoType
-					if lastType != "runtime.Value" && lastType != "any" {
-						ctx.setReason("call arity mismatch")
-						return nil, "", "", false
-					}
-				}
-				args := make([]string, 0, len(call.Arguments))
-				preLines := make([]string, 0, len(call.Arguments))
-				postLines := make([]string, 0, len(call.Arguments))
-				var writebackIdents []string // Able variable names that get struct writeback
-				for idx, arg := range call.Arguments {
-					param := info.Params[idx]
-					if g.typeCategory(param.GoType) == "struct" {
-						if ident, ok := arg.(*ast.Identifier); ok && ident != nil {
-							if binding, ok := ctx.lookup(ident.Name); ok && binding.GoType == "runtime.Value" {
-								runtimeTemp := ctx.newTemp()
-								preLines = append(preLines, fmt.Sprintf("%s := %s", runtimeTemp, binding.GoName))
-								convLines, structExpr, ok := g.expectRuntimeValueExprLines(ctx, runtimeTemp, param.GoType)
-								if !ok {
-									ctx.setReason("call argument unsupported")
-									return nil, "", "", false
-								}
-								preLines = append(preLines, convLines...)
-								structTemp := ctx.newTemp()
-								preLines = append(preLines, fmt.Sprintf("%s := %s", structTemp, structExpr))
-								args = append(args, structTemp)
-								baseName, ok := g.structBaseName(param.GoType)
-								if !ok {
-									baseName = strings.TrimPrefix(param.GoType, "*")
-								}
-								transferLines, ok := g.controlTransferLines(ctx, g.runtimeErrorControlExpr(callNode, "err"))
-								if !ok {
-									return nil, "", "", false
-								}
-								postLines = append(postLines, fmt.Sprintf("if err := __able_struct_%s_apply(__able_runtime, %s, %s); err != nil {", baseName, runtimeTemp, structTemp))
-								postLines = append(postLines, indentLines(transferLines, 1)...)
-								postLines = append(postLines, "}")
-								writebackIdents = append(writebackIdents, ident.Name)
-								continue
-							}
-						}
-					}
-					argLines, expr, exprType, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, param.GoType, param.TypeExpr)
-					if !ok {
-						return nil, "", "", false
-					}
-					preLines = append(preLines, argLines...)
-					argExpr := expr
-					argType := exprType
-					if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && param.GoType == "runtime.Value" {
-						if argType != "runtime.Value" {
-							argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, argExpr, argType)
-							if !ok {
-								ctx.setReason("interface argument unsupported")
-								return nil, "", "", false
-							}
-							preLines = append(preLines, argConvLines...)
-							argExpr = valueExpr
-							argType = "runtime.Value"
-						}
-						ifaceLines, coerced, ok := g.interfaceArgExprLines(ctx, argExpr, ifaceType, callee.Name, ctx.genericNames)
-						if !ok {
-							ctx.setReason("interface argument unsupported")
-							return nil, "", "", false
-						}
-						preLines = append(preLines, ifaceLines...)
-						argExpr = coerced
-					}
-					args = append(args, argExpr)
-				}
-				if missingOptional {
-					lastType := info.Params[len(info.Params)-1].GoType
-					if lastType == "any" {
-						args = append(args, "nil")
-					} else {
-						args = append(args, "runtime.NilValue{}")
-					}
-				}
-				callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
-				resultTemp := ctx.newTemp()
-				controlTemp := ctx.newTemp()
-				lines := make([]string, 0, len(preLines)+len(postLines)+4)
-				lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
-				lines = append(lines, preLines...)
-				lines = append(lines, fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr))
-				lines = append(lines, "__able_pop_call_frame()")
-				controlLines, ok := g.controlCheckLines(ctx, controlTemp)
-				if !ok {
-					return nil, "", "", false
-				}
-				lines = append(lines, controlLines...)
-				lines = append(lines, postLines...)
-				// Writeback invalidates cached struct extractions for written-back variables.
-				if len(writebackIdents) > 0 && ctx.originExtractions != nil {
-					for _, name := range writebackIdents {
-						delete(ctx.originExtractions, name)
-					}
-				}
-				if needsRuntimeValue {
-					convLines, converted, ok := g.runtimeValueLines(ctx, resultTemp, info.ReturnType)
-					if !ok {
-						ctx.setReason("call return type mismatch")
-						return nil, "", "", false
-					}
-					lines = append(lines, convLines...)
-					return lines, converted, "runtime.Value", true
-				}
-				if needsExpect {
-					convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
-					if !ok {
-						ctx.setReason("call return type mismatch")
-						return nil, "", "", false
-					}
-					lines = append(lines, convLines...)
-					return lines, converted, expected, true
-				}
-				if needsAnyConv {
-					if expected == "runtime.Value" {
-						convTemp := ctx.newTemp()
-						lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, resultTemp))
-						return lines, convTemp, "runtime.Value", true
-					}
-					anyTemp := ctx.newTemp()
-					lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, resultTemp))
-					convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, expected)
-					if !ok {
-						ctx.setReason("call return type mismatch")
-						return nil, "", "", false
-					}
-					lines = append(lines, convLines...)
-					return lines, converted, expected, true
-				}
-				if needsStaticCoerce {
-					return g.coerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnType, expected)
-				}
-				return lines, resultTemp, info.ReturnType, true
-			}
-			if overload != nil {
-				return g.compileResolvedOverloadCall(ctx, call, expected, overload.Package, overload.Name, callNode)
+			if lines, expr, retType, ok := g.compileStaticNamedFunctionCall(ctx, call, expected, callee.Name, info, overload, callNode); ok {
+				return lines, expr, retType, true
 			}
 		}
 		binding, found := ctx.lookup(callee.Name)

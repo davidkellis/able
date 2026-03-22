@@ -1720,7 +1720,7 @@ for x in arr { ... }
 
 Slicing (views; TBD if borrowed slices are first-class):
 ```able
-arr.slice(start: usize, end: usize) -> Array T   ## TBD copy vs view semantics
+arr.slice(start: u64, end: u64) -> Array T   ## TBD copy vs view semantics
 ```
 
 #### Semantics

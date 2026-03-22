@@ -59,7 +59,7 @@ func (g *generator) methodsTargetTypeExpr(pkgName string, def *ast.MethodsDefini
 	if g == nil || def == nil || def.TargetType == nil {
 		return nil
 	}
-	targetType := g.expandTypeAliasForPackage(pkgName, def.TargetType)
+	targetType := normalizeTypeExprForPackage(g, pkgName, def.TargetType)
 	if len(def.GenericParams) == 0 {
 		return targetType
 	}
@@ -87,42 +87,111 @@ func (g *generator) expandTypeAliasForPackage(pkgName string, expr ast.TypeExpre
 	current := expr
 	seen := make(map[string]struct{})
 	for {
-		simple, ok := current.(*ast.SimpleTypeExpression)
-		if !ok || simple == nil || simple.Name == nil {
+		next, nextPkg, key, changed := g.expandTypeAliasOnceForPackage(pkgName, current)
+		if !changed || next == nil {
 			return current
 		}
-		aliasName := strings.TrimSpace(simple.Name.Name)
-		if aliasName == "" {
+		if nextPkg == "" {
+			nextPkg = pkgName
+		}
+		if strings.TrimSpace(key) == "" {
 			return current
 		}
-		key := pkgName + "|" + aliasName
-		if _, exists := seen[key]; exists {
+		seenKey := nextPkg + "|" + strings.TrimSpace(key)
+		if _, exists := seen[seenKey]; exists {
 			return current
 		}
-		var target ast.TypeExpression
-		if g.typeAliases != nil {
-			if perPkg := g.typeAliases[pkgName]; perPkg != nil {
-				if mapped, ok := perPkg[aliasName]; ok && mapped != nil {
-					target = mapped
-				}
-			}
-		}
-		if target == nil {
-			if sourceName := g.importedSelectorSourceName(pkgName, aliasName); sourceName != "" {
-				target = ast.NewSimpleTypeExpression(ast.NewIdentifier(sourceName))
-			}
-		}
-		if target == nil {
-			return current
-		}
-		seen[key] = struct{}{}
-		current = target
+		seen[seenKey] = struct{}{}
+		pkgName = nextPkg
+		current = next
 	}
 }
 
-func (g *generator) importedSelectorSourceName(pkgName string, localName string) string {
+func (g *generator) expandTypeAliasOnceForPackage(pkgName string, expr ast.TypeExpression) (ast.TypeExpression, string, string, bool) {
+	if g == nil || expr == nil {
+		return expr, pkgName, "", false
+	}
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t == nil || t.Name == nil || strings.TrimSpace(t.Name.Name) == "" {
+			return expr, pkgName, "", false
+		}
+		aliasPkg, aliasName, target, _, ok := g.typeAliasTargetForPackage(pkgName, t.Name.Name)
+		if !ok || target == nil {
+			return expr, pkgName, "", false
+		}
+		return normalizeTypeExprForPackage(g, aliasPkg, target), aliasPkg, aliasName, true
+	case *ast.GenericTypeExpression:
+		if t == nil {
+			return expr, pkgName, "", false
+		}
+		base, ok := t.Base.(*ast.SimpleTypeExpression)
+		if !ok || base == nil || base.Name == nil || strings.TrimSpace(base.Name.Name) == "" {
+			return expr, pkgName, "", false
+		}
+		aliasPkg, aliasName, target, params, ok := g.typeAliasTargetForPackage(pkgName, base.Name.Name)
+		if !ok || target == nil || len(params) == 0 || len(params) != len(t.Arguments) {
+			return expr, pkgName, "", false
+		}
+		bindings := make(map[string]ast.TypeExpression, len(params))
+		for idx, gp := range params {
+			if gp == nil || gp.Name == nil || gp.Name.Name == "" || t.Arguments[idx] == nil {
+				return expr, pkgName, "", false
+			}
+			bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, aliasPkg, t.Arguments[idx])
+		}
+		expanded := substituteTypeParams(target, bindings)
+		return normalizeTypeExprForPackage(g, aliasPkg, expanded), aliasPkg, aliasName+"<"+normalizeTypeExprListKey(g, aliasPkg, t.Arguments)+">", true
+	default:
+		return expr, pkgName, "", false
+	}
+}
+
+func (g *generator) typeAliasTargetForPackage(pkgName string, aliasName string) (string, string, ast.TypeExpression, []*ast.GenericParameter, bool) {
+	if g == nil {
+		return "", "", nil, nil, false
+	}
+	aliasPkg := strings.TrimSpace(pkgName)
+	aliasName = strings.TrimSpace(aliasName)
+	if aliasName == "" {
+		return "", "", nil, nil, false
+	}
+	if target, params, ok := g.lookupTypeAlias(aliasPkg, aliasName); ok {
+		return aliasPkg, aliasName, target, params, true
+	}
+	sourcePkg, sourceName := g.importedSelectorSourceTypeAlias(aliasPkg, aliasName)
+	if sourcePkg == "" || sourceName == "" {
+		return "", "", nil, nil, false
+	}
+	target, params, ok := g.lookupTypeAlias(sourcePkg, sourceName)
+	if !ok {
+		return "", "", ast.NewSimpleTypeExpression(ast.NewIdentifier(sourceName)), nil, true
+	}
+	return sourcePkg, sourceName, target, params, true
+}
+
+func (g *generator) lookupTypeAlias(pkgName string, aliasName string) (ast.TypeExpression, []*ast.GenericParameter, bool) {
+	if g == nil || g.typeAliases == nil {
+		return nil, nil, false
+	}
+	perPkg := g.typeAliases[pkgName]
+	if perPkg == nil {
+		return nil, nil, false
+	}
+	target, ok := perPkg[aliasName]
+	if !ok || target == nil {
+		return nil, nil, false
+	}
+	var params []*ast.GenericParameter
+	if g.typeAliasGenericParams != nil && g.typeAliasGenericParams[pkgName] != nil {
+		params = g.typeAliasGenericParams[pkgName][aliasName]
+	}
+	return target, params, true
+}
+
+func (g *generator) importedSelectorSourceTypeAlias(pkgName string, localName string) (string, string) {
 	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(localName) == "" {
-		return ""
+		return "", ""
 	}
 	for _, binding := range g.staticImports[pkgName] {
 		if binding.Kind != staticImportBindingSelector {
@@ -135,9 +204,9 @@ func (g *generator) importedSelectorSourceName(pkgName string, localName string)
 		if source == "" {
 			continue
 		}
-		return source
+		return strings.TrimSpace(binding.SourcePackage), source
 	}
-	return ""
+	return "", ""
 }
 
 func (g *generator) methodTargetName(expr ast.TypeExpression) (string, bool) {

@@ -10,21 +10,115 @@ func (g *generator) renderNativeInterfaces(buf *bytes.Buffer) {
 	if g == nil || buf == nil || len(g.nativeInterfaces) == 0 {
 		return
 	}
+	renderedConcreteAdapters := make(map[string]struct{})
 	for _, key := range g.sortedNativeInterfaceKeys() {
 		info := g.nativeInterfaces[key]
 		if info == nil {
 			continue
 		}
 		g.renderNativeInterfaceType(buf, info)
+		g.renderNativeInterfaceRuntimeIteratorAdapter(buf, info)
 		g.renderNativeInterfaceRuntimeAdapter(buf, info)
-		for _, adapter := range info.Adapters {
-			if adapter == nil {
-				continue
-			}
-			g.renderNativeInterfaceConcreteAdapter(buf, info, adapter)
+	}
+	for g.renderPendingNativeInterfaceConcreteAdapters(buf, renderedConcreteAdapters) {
+	}
+	for _, key := range g.sortedNativeInterfaceKeys() {
+		info := g.nativeInterfaces[key]
+		if info == nil {
+			continue
 		}
 		g.renderNativeInterfaceBoundaryHelpers(buf, info)
 		g.renderNativeInterfaceApplyRuntimeHelper(buf, info)
+	}
+	g.renderNativeInterfaceGenericDispatchHelpers(buf)
+	for g.renderPendingNativeInterfaceConcreteAdapters(buf, renderedConcreteAdapters) {
+	}
+}
+
+func (g *generator) renderPendingNativeInterfaceConcreteAdapters(buf *bytes.Buffer, rendered map[string]struct{}) bool {
+	if g == nil || buf == nil {
+		return false
+	}
+	progress := false
+	for _, key := range g.sortedNativeInterfaceKeys() {
+		info := g.nativeInterfaces[key]
+		if info == nil {
+			continue
+		}
+		for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
+			if adapter == nil || adapter.GoType == "" {
+				continue
+			}
+			renderKey := info.Key + "::" + adapter.GoType
+			if _, ok := rendered[renderKey]; ok {
+				continue
+			}
+			g.renderNativeInterfaceConcreteAdapter(buf, info, adapter)
+			rendered[renderKey] = struct{}{}
+			progress = true
+		}
+	}
+	return progress
+}
+
+func (g *generator) renderNativeInterfaceRuntimeIteratorAdapter(buf *bytes.Buffer, info *nativeInterfaceInfo) {
+	if g == nil || buf == nil || info == nil || info.RuntimeIteratorAdapter == "" {
+		return
+	}
+	fmt.Fprintf(buf, "type %s struct {\n", info.RuntimeIteratorAdapter)
+	fmt.Fprintf(buf, "\tValue *runtime.IteratorValue\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func (%s) %s() {}\n\n", info.RuntimeIteratorAdapter, info.MarkerMethod)
+	fmt.Fprintf(buf, "func (w %s) %s(rt *bridge.Runtime) (runtime.Value, error) {\n", info.RuntimeIteratorAdapter, info.ToRuntimeMethod)
+	fmt.Fprintf(buf, "\t_ = rt\n")
+	fmt.Fprintf(buf, "\tif w.Value == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, nil\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn w.Value, nil\n")
+	fmt.Fprintf(buf, "}\n\n")
+	for _, method := range info.Methods {
+		if method == nil {
+			continue
+		}
+		if method.Name == "next" {
+			fmt.Fprintf(buf, "func (w %s) %s() (%s, *__ableControl) {\n", info.RuntimeIteratorAdapter, method.GoName, method.ReturnGoType)
+			zeroExpr, zeroOK := g.zeroValueExpr(method.ReturnGoType)
+			if !zeroOK {
+				fmt.Fprintf(buf, "\tvar zero %s\n", method.ReturnGoType)
+				zeroExpr = "zero"
+			}
+			fmt.Fprintf(buf, "\tif w.Value == nil {\n")
+			fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(fmt.Errorf(\"missing interface value\"))\n", zeroExpr)
+			fmt.Fprintf(buf, "\t}\n")
+			fmt.Fprintf(buf, "\tresult, done, err := w.Value.Next()\n")
+			fmt.Fprintf(buf, "\tif err != nil {\n")
+			fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+			fmt.Fprintf(buf, "\t}\n")
+			fmt.Fprintf(buf, "\tif done {\n")
+			fmt.Fprintf(buf, "\t\tresult = runtime.IteratorEnd\n")
+			fmt.Fprintf(buf, "\t} else if result == nil {\n")
+			fmt.Fprintf(buf, "\t\tresult = runtime.NilValue{}\n")
+			fmt.Fprintf(buf, "\t}\n")
+			if g.renderNativeInterfaceRuntimeToGoValueControl(buf, "converted", "result", method.ReturnGoType, method.ReturnGoType) {
+				fmt.Fprintf(buf, "\treturn converted, nil\n")
+			} else {
+				fmt.Fprintf(buf, "\treturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native iterator conversion to %s\"))\n", zeroExpr, method.ReturnGoType)
+			}
+			fmt.Fprintf(buf, "}\n\n")
+			continue
+		}
+		fmt.Fprintf(buf, "func (w %s) %s(", info.RuntimeIteratorAdapter, method.GoName)
+		args := make([]string, 0, len(method.ParamGoTypes))
+		for idx, paramType := range method.ParamGoTypes {
+			if idx > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			fmt.Fprintf(buf, "arg%d %s", idx, paramType)
+			args = append(args, fmt.Sprintf("arg%d", idx))
+		}
+		fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", method.ReturnGoType)
+		fmt.Fprintf(buf, "\treturn %s{Value: w.Value}.%s(%s)\n", info.RuntimeAdapter, method.GoName, strings.Join(args, ", "))
+		fmt.Fprintf(buf, "}\n\n")
 	}
 }
 
@@ -54,6 +148,11 @@ func (g *generator) renderNativeInterfaceRuntimeAdapter(buf *bytes.Buffer, info 
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func (%s) %s() {}\n\n", info.RuntimeAdapter, info.MarkerMethod)
 	fmt.Fprintf(buf, "func %s(value runtime.Value) %s {\n", info.RuntimeWrapHelper, info.GoType)
+	if info.RuntimeIteratorAdapter != "" {
+		fmt.Fprintf(buf, "\tif iter, ok, _ := __able_runtime_iterator_value(value); ok && iter != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s{Value: iter}\n", info.RuntimeIteratorAdapter)
+		fmt.Fprintf(buf, "\t}\n")
+	}
 	fmt.Fprintf(buf, "\treturn %s{Value: value}\n", info.RuntimeAdapter)
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func (w %s) %s(rt *bridge.Runtime) (runtime.Value, error) {\n", info.RuntimeAdapter, info.ToRuntimeMethod)
@@ -249,7 +348,7 @@ func (g *generator) renderNativeInterfaceDirectCoercionControl(buf *bytes.Buffer
 	}
 	fmt.Fprintf(buf, "\tvar %s %s\n", target, expectedGoType)
 	fmt.Fprintf(buf, "\tswitch typed := %s.(type) {\n", expr)
-	for _, actualAdapter := range actualInfo.Adapters {
+	for _, actualAdapter := range g.nativeInterfaceKnownAdapters(actualInfo) {
 		if actualAdapter == nil || actualAdapter.AdapterType == "" || actualAdapter.GoType == "" {
 			continue
 		}
@@ -288,7 +387,7 @@ func (g *generator) renderNativeInterfaceBoundaryHelpers(buf *bytes.Buffer, info
 		fmt.Fprintf(buf, "\t\treturn %s(iter), nil\n", info.RuntimeWrapHelper)
 		fmt.Fprintf(buf, "\t}\n")
 	}
-	for _, adapter := range info.Adapters {
+	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || adapter.TypeExpr == nil {
 			continue
 		}
@@ -348,7 +447,7 @@ func (g *generator) renderNativeInterfaceApplyRuntimeHelper(buf *bytes.Buffer, i
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tswitch typed := value.(type) {\n")
 	renderedCase := false
-	for _, adapter := range info.Adapters {
+	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || !strings.HasPrefix(adapter.GoType, "*") || g.typeCategory(adapter.GoType) != "struct" {
 			continue
 		}
