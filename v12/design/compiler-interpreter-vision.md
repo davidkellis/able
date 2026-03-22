@@ -1,6 +1,15 @@
 # Compiler + Interpreter Vision (v12)
 
-This document captures the long-term execution strategy: fast compiled programs with dynamic fallbacks, plus a faster interpreter. It should stay consistent with `spec/full_spec_v12.md` and the runtime semantics.
+This document captures the long-term execution strategy for the shared semantic
+core, bytecode direction, and interpreter/runtime relationship.
+
+Authority note:
+- active compiler lowering architecture is defined by
+  `compiler-go-lowering-spec.md`, `compiler-go-lowering-plan.md`,
+  `compiler-native-lowering.md`, and `compiler-aot.md`;
+- this document is background architecture for shared IR/runtime direction and
+  bytecode evolution, not the authority for allowing fallback-driven compiled
+  execution.
 
 ## Goals
 - Keep full Able expressiveness (dynamic interface values, metaprogramming, concurrency).
@@ -13,14 +22,19 @@ This document captures the long-term execution strategy: fast compiled programs 
 - Two backends:
   1) Bytecode VM interpreter (fast, portable).
   2) Host-language codegen (Go first), emitting calls into a shared runtime library.
-- Compiled artifacts bundle the runtime and (optionally) the VM for dynamic fallbacks.
-- Dynamic features route to runtime or VM entry points when static compilation is not possible.
+- Compiled artifacts bundle the runtime and, where needed, explicit dynamic
+  boundary machinery.
+- Dynamic features route to runtime or VM entry points only when the source
+  program crosses an explicit dynamic boundary.
 
 ## Interface dispatch in compiled + interpreted code
-- Interface values carry dictionaries (see `v12/design/interface-dispatch-dictionaries.md`).
-- Static code uses direct calls where the concrete type is known.
-- Dynamic interface calls use dictionary dispatch; default methods can be inlined or invoked through the dictionary entry.
-- Dictionaries are constructed at interface coercion time and can be cached by the runtime.
+- Dynamic/runtime interface values may carry dictionary-style metadata (see
+  `v12/design/interface-dispatch-dictionaries.md`).
+- Static compiled code should use direct calls or generated native interface
+  carriers/helpers, not interpreter-style dictionary dispatch, when the target
+  is statically representable.
+- Dictionaries can remain part of the interpreter/dynamic runtime model and may
+  still be useful at explicit dynamic boundaries.
 
 ## Interpreter modernization direction
 - Move from tree-walking to bytecode or SSA-based VM:

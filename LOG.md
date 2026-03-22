@@ -1,5 +1,56 @@
 # Able Project Log
 
+# 2026-03-21 — PLAN reset around compiler completion first (v12)
+- Rewrote `PLAN.md` so the working roadmap now reflects the actual priority
+  order:
+  1. finish the compiler
+  2. make the bytecode interpreter fast
+  3. backlog everything else
+- Replaced the old mixed queue with a production-oriented compiler completion
+  program with explicit milestones:
+  - centralize lowering knowledge
+  - native carrier completeness
+  - native pattern/control-flow completeness
+  - native dispatch completeness
+  - compiled runtime core independence
+  - boundary containment
+  - compiler performance completion
+  - compiler release validation
+- Added a separate second-priority bytecode performance program and pushed
+  integration/tooling/WASM/regex/other work into backlog.
+
+# 2026-03-21 — v12 design-doc reconciliation pass (v12)
+- Reconciled the active `v12/design` corpus around the current Go-first v12
+  architecture.
+- Updated:
+  - `v12/design/README.md`
+  - `v12/design/compiler-interpreter-vision.md`
+  - `v12/design/interface-dispatch-dictionaries.md`
+  - `v12/design/pattern-break-alignment.md`
+  - `v12/design/testing-plan.md`
+  - `v12/design/testing-cli-design.md`
+  - `v12/design/channels-mutexes.md`
+  - `v12/design/extern-host-execution.md`
+  - `v12/design/compiler-native-lowering.md`
+  - `v12/design/compiler-monomorphization.md`
+  - `v12/design/monomorphized-container-abi.md`
+  - `v12/design/compiler-union-abi.md`
+  - `v12/design/stdlib-v12.md`
+- Reconciliation results:
+  - added a design-doc authority map so compiler work is explicitly governed by
+    the new lowering spec/plan and by `compiler-aot.md`, not by older
+    background notes;
+  - downgraded stale TypeScript/Bun references in active Go-first docs to
+    historical/future-runtime status where appropriate;
+  - clarified that dictionary-dispatch notes govern interpreter/dynamic
+    interface values, not the compiled static interface-lowering model;
+  - clarified that named stdlib/container mentions in compiler docs are proof
+    cases for shared lowering machinery, not licenses for nominal special cases;
+  - removed stale `isize` / `usize` references from active compiler design docs
+    and aligned them with the actual v12 spec primitive surface;
+  - corrected the stale `Hash + PartialEq` wording in `stdlib-v12.md` to
+    `Hash + Eq`, matching both the spec and `kernel-interfaces-hash-eq.md`.
+
 # 2026-03-21 — Lowering docs/spec primitive-type reconciliation (v12)
 - Reconciled the new compiler lowering docs against the actual v12 primitive
   type surface in `spec/full_spec_v12.md`.

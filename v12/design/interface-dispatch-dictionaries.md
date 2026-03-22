@@ -1,6 +1,14 @@
 # Interface Dispatch via Dictionaries (v12)
 
-This document captures the decision to use dictionary dispatch for interface values, plus the resulting typechecker/runtime behavior and follow-ups.
+This document captures the dictionary-based model for interpreter and explicit
+dynamic-boundary interface values.
+
+Scope note:
+- this is not the canonical compiled static interface-lowering model;
+- active compiled lowering is defined by `compiler-go-lowering-spec.md` and
+  `compiler-native-lowering.md`;
+- dictionary dispatch remains relevant for interpreter execution and for values
+  that already originate from explicit dynamic runtime payloads.
 
 ## Goals
 - Allow method calls on interface values, including default interface methods and generic interface methods.
