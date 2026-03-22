@@ -6,6 +6,10 @@ Active design constraint for the v12 compiler. This document records the target
 architecture and supersedes ad hoc decisions that keep static compiled code too
 close to interpreter/runtime object-model carriers.
 
+The exhaustive lowering map now lives in `v12/design/compiler-go-lowering-spec.md`.
+The ordered execution plan now lives in `v12/design/compiler-go-lowering-plan.md`.
+This document remains the short-form contract and guardrail summary.
+
 ## Vision
 
 The compiler should lower Able programs to native Go constructs whenever the
@@ -15,6 +19,28 @@ The end state is not "compiled code that still manipulates interpreter values
 more efficiently." The end state is "compiled code that primarily manipulates
 Go-native values and uses dynamic carriers only at explicit dynamic
 boundaries."
+
+## Completion Milestones
+
+The compiler is not "done" when the current local fallback is smaller. It is
+"done" when these high-level conditions are true:
+
+1. Native carrier completeness:
+   every statically representable Able type expression lowers to a native Go
+   carrier instead of `runtime.Value` / `any`.
+2. Native pattern/control-flow completeness:
+   `if`, `match`, `rescue`, `or {}`, `loop`, and `breakpoint` keep native
+   carriers end-to-end whenever branch and pattern types are statically
+   representable.
+3. Native dispatch completeness:
+   statically resolved field/method/interface/index/call sites compile to
+   direct Go dispatch instead of runtime helper dispatch.
+4. Boundary containment completeness:
+   residual runtime carriers remain only at explicit dynamic language or ABI
+   boundaries, and audits fail if they leak back into static paths.
+5. Performance completeness:
+   the benchmarked compiled path no longer carries known avoidable runtime
+   scaffolding on hot static code.
 
 ## Non-Negotiable Constraints
 
@@ -207,13 +233,20 @@ not `panic` / `recover`.
   pure-generic interfaces keep generated native carriers instead of
   collapsing typed locals/params back to `runtime.Value`, and generic
   interface/default-interface methods now keep the receiver on that native
-  carrier while narrowing the runtime crossing to the explicit generic
-  dispatch edge.
-- That generic dispatch edge is intentionally narrow: compiled code converts
-  the native receiver to runtime only for `__able_method_call_node(...)`,
-  writes back pointer-backed native carriers after the runtime call, and then
-  converts the returned `runtime.Value` back into the best-known native Go
-  carrier before continuing on the compiled static path.
+  carrier through generated compiled dispatch helpers.
+- For statically-known generic call shapes, those helpers switch on the native
+  interface carrier and call specialized compiled impls directly instead of
+  converting the receiver to runtime for `__able_method_call_node(...)`.
+- Cross-package generic-only interface adapters now survive shared adapter
+  refresh and late helper generation too: the compiler tracks explicitly
+  required concrete adapters separately from the refresh cache and emits
+  concrete adapter types/helpers to a fixed point during render, which closes
+  the old `Tokenizer <- Prefixer` missing-helper build hole without adding
+  nominal-type-specific lowering rules.
+- The only remaining runtime crossing on that surface is the explicit
+  runtime-adapter case inside the generated helper, which is the expected
+  dynamic boundary for interface values that already originate from runtime
+  payloads.
 - The callable/function-type existential tranche is now landed too:
   `FunctionTypeExpression` lowers to generated native Go callable carriers,
   lambdas/local functions/placeholder lambdas/bound method values stay on
@@ -235,9 +268,9 @@ not `panic` / `recover`.
   `__able_try_cast(...)`, `__able_any_to_value(...)`, or panic/IIFE-style
   control scaffolding, and representative static fixtures now execute under
   the boundary-marker harness with both fallback and explicit boundary counts
-  at zero. The intentionally residual generic-interface edge is audited
-  separately to stay narrowed to `__able_iface_*_to_runtime_value(...)` plus
-  `__able_method_call_node(...)`.
+  at zero. Statically-known generic interface calls are now covered by that
+  same fully-native expectation rather than a narrowed residual-runtime audit
+  exception.
 - The broader compiler re-audit tranche is now closed too: the last surfaced
   native array mismatch under the zero-boundary harness was
   `runtime.ErrorValue` -> anonymous synthetic struct conversion dropping the
@@ -588,10 +621,76 @@ not `panic` / `recover`.
   - reduced benchmark fixture:
     `v12/fixtures/bench/heap_i32_small/main.able`
   - compiled 3-run average after the tranche: `0.7667s`, `91.33` GC
-- Remaining work on this family is now broader performance widening for the
-  next benchmark-worthy generic container/runtime carrier edges beyond the
-  now-closed `map/filter/filter_map/collect` iterator family and bound
-  generic field/member carrier tranche
+- Mixed-result control-flow join inference is now closed too:
+  - `if`, `match`, and `rescue` expressions now use one shared join-type
+    inference path, so when all branch result types are statically
+    representable the compiler synthesizes or reuses a native carrier instead
+    of defaulting the join local to `runtime.Value`
+  - branch coercion now reuses the shared native static-coercion path, so
+    native union/interface/callable/nullable carriers can serve directly as
+    join results
+  - static typed patterns now accept same-family nominal carriers through
+    shared receiver compatibility instead of requiring exact Go carrier
+    identity, which keeps specialized native carriers on the static match path
+- Mixed-result `or {}` lowering now uses that same shared join path too:
+  - representable mixed success/handler result shapes now stay on native
+    carriers instead of defaulting the `or {}` result local to `runtime.Value`
+  - nullable success paths now join on the unwrapped payload carrier rather
+    than the pointer carrier
+  - `err => ...` bindings now stay on the native failure carrier when the
+    failure branch type is statically known, which keeps compiled
+    option/result error handlers off the old runtime-value bridge
+- `loop` and labeled `breakpoint` expressions now use that same shared
+  control-flow join/coercion path too:
+  - statically representable `break` payloads now bind directly onto native
+    result carriers instead of forcing loop/breakpoint result temps through
+    `runtime.Value`
+  - labeled non-local `break` payloads now coerce directly onto the target
+    breakpoint's native result carrier, including cases where the payload uses
+    locals declared earlier in the breakpoint body
+  - bare `break` continues to mean `nil`; when a loop result temp exists the
+    compiler now writes that nil payload explicitly instead of accidentally
+    reusing the loop's normal-completion `void` sentinel
+- Shared existential join inference is now wider too:
+  - when mixed concrete join branches already share a native existential
+    carrier, the compiler now prefers that carrier before synthesizing a union
+  - concrete zero-arg interface implementers now join directly on the native
+    interface carrier instead of materializing a union local and then calling
+    `__able_method_call_node(...)`
+  - mixed native `Error` implementers now join directly on
+    `runtime.ErrorValue` instead of generating an intermediate union carrier
+  - pure-generic interface calls on those joined carriers still route through
+    the compiled generic dispatch helper even when multiple concrete adapters
+    exist for the interface
+  - fully bound parameterized interface joins now use that same shared carrier
+    preference too: candidate native interface carriers are materialized from
+    the actual branch impl metadata, and bound base interfaces are materialized
+    alongside child interfaces so inherited common carriers can be discovered
+    without adding any named non-primitive rule
+  - nil-capable joins now use that same shared inference too: `nil` branches
+    are tracked separately from concrete branch carriers, the concrete carriers
+    are joined first, and the result stays native when that joined carrier
+    already has a nil zero value or a native nullable wrapper exists
+  - type-expression-backed joins are now closed too: when a branch/local still
+    reports `runtime.Value` or `any` but retains a concrete normalized Able
+    `TypeExpr`, shared join inference now recovers the native carrier instead
+    of widening the whole join back to `runtime.Value`; typed-pattern bindings
+    preserve that `TypeExpr`, identifier lowering prefers the recovered native
+    carrier on use, and `if` / `match` / `rescue` / `or {}` / loop /
+    breakpoint joins all reuse that shared recovered-type path
+- Remaining ordered backlog on this family:
+  - close the native carrier synthesis gaps in `types.go` and
+    `generator_native_unions.go` that still map fully bound normalized
+    union/result/nullable `TypeExpr`s to `runtime.Value` / `any` before one
+    last shared native-carrier discovery pass;
+  - remove `generator_match.go` / `generator_match_runtime_types.go` /
+    `generator_rescue.go` typed-pattern fallback to `__able_try_cast(...)`
+    when the subject still retains recoverable native `TypeExpr` metadata;
+  - remove the remaining `generator_or_else.go` / `generator_rescue.go` /
+    `generator_join_types.go` fallback locals that still force representable
+    join/binding flows back to `runtime.Value`;
+  - tighten `generator_native_unions.go` residual runtime-member admission so
+    `runtime.Value` union members remain only for explicit dynamic payloads.
 
 ## Relationship To Other Design Notes
 

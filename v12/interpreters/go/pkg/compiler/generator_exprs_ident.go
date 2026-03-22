@@ -31,6 +31,14 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 		}
 		return convLines, converted, expected, true
 	}
+	if expected == "" && param.GoType == "runtime.Value" && param.TypeExpr != nil {
+		if inferredType, ok := g.joinCarrierTypeFromTypeExpr(ctx, param.TypeExpr); ok {
+			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, param.GoName, inferredType)
+			if ok {
+				return convLines, converted, inferredType, true
+			}
+		}
+	}
 	if !g.typeMatches(expected, param.GoType) {
 		if g.nativeNullableWraps(expected, param.GoType) {
 			return nil, fmt.Sprintf("__able_ptr(%s)", param.GoName), expected, true

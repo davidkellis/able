@@ -33,7 +33,7 @@ func (g *generator) compileCountedLoopExpression(ctx *compileContext, loop *ast.
 		return nil, "", "", false
 	}
 
-	resultType := expected
+	resultType := g.inferLoopExpressionResultType(ctx, loop, expected)
 	if resultType == "" {
 		resultType = "runtime.Value"
 	}
@@ -44,13 +44,20 @@ func (g *generator) compileCountedLoopExpression(ctx *compileContext, loop *ast.
 	bodyCtx.loopDepth++
 	bodyCtx.loopLabel = loopLabelName
 	bodyCtx.loopBreakValueTemp = valueTemp
+	bodyCtx.loopBreakValueType = resultType
+	bodyCtx.loopBreakProbe = nil
 	g.seedCountedLoopIntegerFact(bodyCtx, binding, boundExpr)
 	bodyLines, ok := g.compileBlockStatement(bodyCtx, coreBlock)
 	if !ok {
 		return nil, "", "", false
 	}
+	zeroExpr, ok := g.zeroValueExpr(resultType)
+	if !ok {
+		ctx.setReason("loop expression type mismatch")
+		return nil, "", "", false
+	}
 
-	lines := []string{fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", valueTemp)}
+	lines := []string{fmt.Sprintf("var %s %s = %s", valueTemp, resultType, zeroExpr)}
 	forLine := fmt.Sprintf("for %s < %s {", binding.GoName, boundGoExpr)
 	if linesReferenceLabel(bodyLines, loopLabelName) {
 		forLine = fmt.Sprintf("%s: for %s < %s {", loopLabelName, binding.GoName, boundGoExpr)
@@ -59,18 +66,7 @@ func (g *generator) compileCountedLoopExpression(ctx *compileContext, loop *ast.
 	lines = append(lines, indentLines(bodyLines, 1)...)
 	lines = append(lines, fmt.Sprintf("\t%s++", binding.GoName))
 	lines = append(lines, "}")
-
-	retExpr := valueTemp
-	if resultType != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueTemp, resultType)
-		if !ok {
-			ctx.setReason("loop expression type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		retExpr = converted
-	}
-	return lines, retExpr, resultType, true
+	return lines, valueTemp, resultType, true
 }
 
 func (g *generator) seedCountedLoopIntegerFact(ctx *compileContext, binding paramInfo, boundExpr ast.Expression) {

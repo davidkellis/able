@@ -1,5 +1,345 @@
 # Able Project Log
 
+# 2026-03-21 — Lowering docs/spec primitive-type reconciliation (v12)
+- Reconciled the new compiler lowering docs against the actual v12 primitive
+  type surface in `spec/full_spec_v12.md`.
+- Corrected:
+  - `v12/design/compiler-go-lowering-spec.md`
+  - `spec/full_spec_v12.md`
+- Changes:
+  - removed the incorrect `isize` / `usize` mention from the new lowering spec;
+  - added the actual spec primitives `i128` / `u128` to that table;
+  - corrected the stray illustrative array-slice snippet from
+    `start: usize, end: usize` to `start: u64, end: u64` so it matches the
+    documented array helper signatures.
+
+# 2026-03-21 — Compiler Go lowering spec + completion plan documented (v12)
+- Wrote the canonical exhaustive Able -> Go lowering specification in:
+  - `v12/design/compiler-go-lowering-spec.md`
+- Wrote the separate ordered compiler completion plan in:
+  - `v12/design/compiler-go-lowering-plan.md`
+- Updated:
+  - `PLAN.md`
+  - `v12/design/compiler-native-lowering.md`
+- Purpose of the reset:
+  - compiler work must now be driven by one general lowering architecture and
+    one ordered completion plan instead of a growing pile of emitter-local or
+    type-specific fixes;
+  - the compiler must compile Able semantics into direct Go implementations and
+    may use the interpreters only as the semantic oracle and at explicit
+    dynamic boundaries.
+
+# 2026-03-21 — Compiler completion ladder reset (v12)
+- Reframed the compiler roadmap around completion milestones instead of vague
+  residual categories.
+- The active native-lowering contract now tracks five high-level completion
+  goals:
+  - native carrier completeness
+  - native pattern/control-flow completeness
+  - native dispatch completeness
+  - explicit dynamic-boundary containment
+  - performance completeness
+- Documented in:
+  - `PLAN.md`
+  - `v12/design/compiler-native-lowering.md`
+- Also added a native compiler regression for named struct-pattern field
+  renames (`field::binding`) so this control-flow/pattern milestone stays tied
+  to concrete generated-code behavior rather than category labels.
+
+# 2026-03-21 — Type-expression-backed native join inference tranche (v12)
+- Closed the next shared `runtime.Value` / `any` proof gap on native compiled
+  joins: when a branch/local still reports a dynamic Go carrier but retains a
+  concrete normalized Able `TypeExpr`, the compiler now recovers the native
+  carrier instead of widening the whole join back to `runtime.Value`.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_ident.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_result_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_rescue.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_native_test.go`
+- Tranche details:
+  - shared join inference now accepts branch-local recovered `TypeExpr`
+    metadata, not just the already-lowered Go carrier string;
+  - typed-pattern bindings that currently have to travel through
+    `runtime.Value` now preserve their concrete `TypeExpr`, including native
+    union interface-branch bindings;
+  - identifier lowering now prefers the recovered native carrier when a local
+    is stored as `runtime.Value` but its bound `TypeExpr` is statically
+    representable;
+  - `if`, `match`, `rescue`, `or {}`, and loop/breakpoint result inference now
+    all reuse that shared recovered-type path instead of treating
+    `runtime.Value` / `any` as an immediate join failure.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(IfJoinRecoversTypeExprBackedInterfaceCarrier|IfJoinRecoversTypeExprBackedErrorCarrier|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|IfExpressionInterfaceAndNilInferNativeCarrier|MatchExpressionCallableAndNilInferNativeCarrier|RescueExpressionErrorAndNilInferNativeNullableError|NilCapableJoinExpressionsExecuteWithoutRuntimeCarrierFallback|JoinExpressionConcreteImplementersInferNativeInterface|JoinExpressionConcreteErrorsInferNativeErrorCarrier|JoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface|JoinExpressionParameterizedInheritedImplementersInferSharedParentInterface)$' -count=1 -timeout 60s` (pass, `1.073s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(IfJoinRecoversTypeExprBackedInterfaceCarrier|IfJoinRecoversTypeExprBackedErrorCarrier|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|IfExpressionInterfaceAndNilInferNativeCarrier|MatchExpressionCallableAndNilInferNativeCarrier|RescueExpressionErrorAndNilInferNativeNullableError|NilCapableJoinExpressionsExecuteWithoutRuntimeCarrierFallback|JoinExpressionConcreteImplementersInferNativeInterface|JoinExpressionConcreteErrorsInferNativeErrorCarrier|JoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface|JoinExpressionParameterizedInheritedImplementersInferSharedParentInterface|CommonExistentialJoinsExecuteWithoutDynamicFallback|ParameterizedInterfaceJoinsExecuteWithoutDynamicFallback|JoinExpressionsExecuteWithoutRuntimeCarrierFallback)$|TestCompilerExecFixtures/(06_01_compiler_rescue|06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|06_01_compiler_or_else_error_union|11_02_option_result_or_handlers)$' -count=1 -timeout 60s` (pass, `21.319s`)
+  - `git diff --check` (pass)
+- Follow-up backlog is now explicit instead of categorical:
+  - close `types.go` / `generator_native_unions.go` carrier-synthesis fallbacks
+    for fully bound normalized union/result/nullable `TypeExpr`s;
+  - remove recovered-subject typed-pattern fallback to `__able_try_cast(...)`
+    in `generator_match.go`, `generator_match_runtime_types.go`, and
+    `generator_rescue.go`;
+  - remove remaining representable join/binding fallback locals in
+    `generator_or_else.go`, `generator_rescue.go`, and
+    `generator_join_types.go`;
+  - tighten `generator_native_unions.go` residual runtime-member gates so
+    `runtime.Value` union members remain only for true dynamic payloads.
+
+# 2026-03-21 — Nil-capable native join inference tranche (v12)
+- Closed the next shared `runtime.Value` / `any` proof gap on native compiled
+  joins: `nil` branches in `if`, `match`, `rescue`, `or {}`, and loop/
+  breakpoint result inference no longer force the whole join back to
+  `runtime.Value` when the non-nil branches already share a native carrier.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_result_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_rescue.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_native_test.go`
+- Tranche details:
+  - shared join inference now recognizes nil-valued branch expressions
+    (`any(nil)`, `runtime.NilValue{}`, and typed nils) separately from the
+    concrete branch carriers;
+  - the compiler now joins the non-nil carriers first and then preserves that
+    native result when the joined carrier already has a nil zero value or a
+    native nullable wrapper exists;
+  - this closes nil-capable native joins for interface carriers, callable
+    carriers, native nullable/error carriers, and the existing loop/breakpoint
+    result probes through one shared rule rather than per-construct handling.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(IfExpressionInterfaceAndNilInferNativeCarrier|MatchExpressionCallableAndNilInferNativeCarrier|RescueExpressionErrorAndNilInferNativeNullableError|NilCapableJoinExpressionsExecuteWithoutRuntimeCarrierFallback)$' -count=1 -timeout 60s` (pass, `1.080s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes|ImportedGenericInterfaceAdapterRendersConcreteHelper|JoinExpressionConcreteImplementersInferNativeInterface|JoinExpressionConcreteGenericImplementersInferNativeInterface|JoinExpressionConcreteErrorsInferNativeErrorCarrier|JoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface|JoinExpressionParameterizedInheritedImplementersInferSharedParentInterface|IfExpressionInterfaceAndNilInferNativeCarrier|MatchExpressionCallableAndNilInferNativeCarrier|RescueExpressionErrorAndNilInferNativeNullableError|CommonExistentialJoinsExecuteWithoutDynamicFallback|ParameterizedInterfaceJoinsExecuteWithoutDynamicFallback|NilCapableJoinExpressionsExecuteWithoutRuntimeCarrierFallback|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback)$|TestCompilerGenericInterfaceTouchpointsStayNative$|TestCompilerInterfaceLookupGenericMethodFixturesRegression$|TestCompilerExecFixtures/(06_01_compiler_rescue|06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|06_01_compiler_or_else_error_union|11_02_option_result_or_handlers)$' -count=1 -timeout 60s` (pass, `26.868s`)
+  - `git diff --check` (pass)
+- Follow-up:
+  - this category is now closed; the next remaining category is broader
+    union/result/existential lowering beyond the native slices already landed.
+
+# 2026-03-21 — Parameterized existential join-carrier inference tranche (v12)
+- Closed the next shared residual existential/join gap on native compiled
+  paths: fully bound parameterized interface joins now infer the common native
+  interface carrier instead of degrading to a synthesized union or
+  `runtime.Value`.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_native_test.go`
+- Tranche details:
+  - shared join inference now materializes candidate native interface carriers
+    from the actual branch impl metadata instead of depending only on
+    already-loaded zero-arg interface infos;
+  - that materialization walks bound base interfaces too, so concrete
+    implementers of different parameterized child interfaces can still join on
+    the common bound parent carrier;
+  - direct bound joins like `Left | Right -> Reader i32` now stay on
+    `__able_iface_Reader_i32`, and inherited bound joins like
+    `LeftReader i32 | RightReader i32 -> Reader i32` do the same without
+    adding any nominal-type-specific lowering rule.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(JoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface|JoinExpressionParameterizedInheritedImplementersInferSharedParentInterface|ParameterizedInterfaceJoinsExecuteWithoutDynamicFallback)$' -count=1 -timeout 60s` (pass, `1.132s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes|JoinExpressionConcreteImplementersInferNativeInterface|JoinExpressionConcreteGenericImplementersInferNativeInterface|JoinExpressionConcreteErrorsInferNativeErrorCarrier|JoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface|JoinExpressionParameterizedInheritedImplementersInferSharedParentInterface|CommonExistentialJoinsExecuteWithoutDynamicFallback|ParameterizedInterfaceJoinsExecuteWithoutDynamicFallback|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback)$|TestCompilerInterfaceLookupGenericMethodFixturesRegression$|TestCompilerExecFixtures/(06_01_compiler_rescue|06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|06_01_compiler_or_else_error_union|11_02_option_result_or_handlers)$' -count=1 -timeout 60s` (pass, `24.953s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(GenericInterfaceTouchpointsStayNative|PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes|ImportedGenericInterfaceAdapterRendersConcreteHelper|JoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface|JoinExpressionParameterizedInheritedImplementersInferSharedParentInterface)$' -count=1 -timeout 60s` (pass, `1.347s`)
+  - `git diff --check` (pass)
+- Follow-up:
+  - the next residual existential-proof category is broader `runtime.Value` /
+    `any` elimination on unresolved generic/result/existential joins, then
+    the remaining union/result/existential lowering beyond the already-landed
+    native slices.
+
+# 2026-03-21 — Common existential join-carrier inference tranche (v12)
+- Closed the next shared residual join/existential gap on native compiled
+  paths: mixed concrete branches that share a native existential carrier no
+  longer have to degrade into a union-plus-dynamic-dispatch path first.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_native_test.go`
+- Tranche details:
+  - shared join inference now prefers a common native `runtime.ErrorValue`
+    carrier when all concrete branches are native `Error` implementers,
+    instead of synthesizing a native union and dispatching back through
+    dynamic member helpers;
+  - shared join inference now also prefers a common zero-arg native interface
+    carrier when all concrete branches implement the same interface, so mixed
+    concrete joins like `Cat | Dog -> Speak` stay on the interface carrier
+    directly instead of materializing `__able_union_*` locals and then calling
+    `__able_method_call_node(...)`;
+  - the generic-interface dispatch path now keeps working after that join
+    inference when multiple concrete adapters exist for the same generic-only
+    interface: adapter-case specialization now refines the concrete receiver
+    target before selecting the compiled impl, so joined `Echo` carriers still
+    call the compiled generic dispatch helper rather than falling back through
+    the runtime adapter layer.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes|InterfaceParamAndReturnStayNative|TypedInterfaceAssignmentStaysNative|JoinExpressionConcreteImplementersInferNativeInterface|JoinExpressionConcreteGenericImplementersInferNativeInterface|JoinExpressionConcreteErrorsInferNativeErrorCarrier|CommonExistentialJoinsExecuteWithoutDynamicFallback|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback)$' -count=1 -timeout 60s` (pass, `2.887s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerExecFixtures/(06_01_compiler_rescue|06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|06_01_compiler_or_else_error_union|11_02_option_result_or_handlers)$|TestCompilerInterfaceLookupGenericMethodFixturesRegression$' -count=1 -timeout 60s` (pass, `20.843s`)
+  - `git diff --check` (pass)
+- Follow-up:
+  - the next residual existential-proof category is broader common-carrier
+    discovery for fully bound parameterized interface joins plus the remaining
+    broader union/result/existential lowering beyond the already-landed native
+    slices.
+
+# 2026-03-21 — Cross-package generic-interface adapter retention tranche (v12)
+- Closed the remaining shared generic-interface adapter-emission gap exposed by
+  cross-package generic/default-method fixtures.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_coercions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_test.go`
+- Tranche details:
+  - generic-only native interface adapters that are proven during shared
+    refresh are now retained in an explicit adapter set for later render-time
+    use, instead of being dropped by a subsequent adapter refresh before code
+    emission;
+  - render-time native interface adapter emission now runs to a fixed point,
+    so concrete adapters discovered late through shared direct-coercion helper
+    generation are still emitted without adding new nominal-type rules;
+  - the new regression `TestCompilerImportedGenericInterfaceAdapterRendersConcreteHelper`
+    pins the cross-package `Tokenizer <- Prefixer` helper/type emission that
+    previously built broken source.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerImportedGenericInterfaceAdapterRendersConcreteHelper$|TestCompilerInterfaceLookupGenericMethodFixturesRegression$' -count=1 -timeout 60s` (pass, `5.070s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerConcreteIteratorCollectGenericNominalAccumulatorStaysNative$|TestCompilerConcreteIteratorCollectGenericNominalAccumulatorExecutes$' -count=1 -timeout 60s` (pass, `38.415s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerConcreteIteratorGenericMethodsStayNativeWithExperimentalMonoArrays$|TestCompilerConcreteIteratorGenericMethodsExecuteWithExperimentalMonoArrays$' -count=1 -timeout 60s` (pass, `48.512s`)
+  - `cd v12/interpreters/go && git diff --check` (pass)
+- Follow-up:
+  - the next genuinely different category remains broader residual
+    `runtime.Value` / `any` elimination for unresolved
+    generic/result/existential proof gaps beyond the now-closed generic
+    adapter-retention hole.
+
+# 2026-03-21 — Native loop/breakpoint join tranche (v12)
+- Closed the remaining shared loop/breakpoint join gap on native compiled
+  control-flow paths.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_compile_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_counted_loops.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_result_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_static_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_static_iterables.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_native_test.go`
+- Tranche details:
+  - `loop { ... }` result typing now probes break payloads through the real
+    compiled body context, so statically representable break-value shapes stay
+    on native carriers instead of defaulting the loop result temp to
+    `runtime.Value`;
+  - labeled `breakpoint` expressions now do the same for mixed normal exits
+    and labeled `break` payloads, including cases where the break payload
+    depends on earlier locals in the breakpoint body;
+  - labeled/non-local `break` with payloads now coerce directly onto the
+    native result carrier, and bare `break` now writes the correct nil payload
+    when a loop result temp is present instead of accidentally reusing the
+    normal-completion `void` sentinel.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion)$' -count=1` (pass, `1.134s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion)$|TestCompilerExecFixtures/(06_01_compiler_loops|08_03_breakpoint_nonlocal_jump|06_01_compiler_rescue|06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|06_01_compiler_or_else_error_union|11_02_option_result_or_handlers)$' -count=1` (pass)
+- Follow-up:
+  - the next genuinely different category remains broader residual
+    `runtime.Value` / `any` elimination for unresolved
+    generic/result/existential proof gaps beyond the now-closed control-flow
+    join family.
+
+# 2026-03-21 — Native `or {}` join and handler-binding tranche (v12)
+- Closed the residual shared `or {}` join/binding gap on native compiled
+  paths.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_native_test.go`
+- Tranche details:
+  - `or {}` now uses the same shared join-type inference as mixed-result
+    `if`/`match`/`rescue`, so representable mixed success/handler result shapes
+    stay on native carriers instead of defaulting to `runtime.Value`;
+  - nullable success paths now join on the unwrapped payload carrier rather
+    than the pointer carrier, which keeps mixed nullable success/handler joins
+    native;
+  - when `or { err => ... }` is handling a statically-known native failure
+    branch, the handler binding now stays on that native failure carrier
+    instead of being forced through `runtime.Value`, which fixes the compiled
+    option/result handler fixture path.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback|NullableI32ReturnAndOrElseStayNative|ResultReturnUsesNativeCarrier|OrElseOnErrorUnionUsesNativeCarrierDetection)$' -count=1` (pass, `1.070s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback|NullableI32ReturnAndOrElseStayNative|NullableI64ReturnAndOrElseStayNative|ResultReturnUsesNativeCarrier|OrElseOnErrorUnionUsesNativeCarrierDetection|InlineClosedUnionParamAndMatchStayNative)$|TestCompilerExecFixtures/(06_01_compiler_rescue|06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|06_01_compiler_or_else_error_union|11_02_option_result_or_handlers)$' -count=1` (pass, `15.725s`)
+- Follow-up:
+  - the next genuinely different category is broader residual `runtime.Value`
+    / `any` elimination for unresolved generic/result/existential proof gaps
+    beyond the now-closed join and `or {}` surfaces.
+
+# 2026-03-21 — Native join-result inference tranche (v12)
+- Closed the shared mixed-result join gap on native compiled control-flow
+  expressions.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_rescue.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_native_test.go`
+- Tranche details:
+  - mixed-result `if`, `match`, and `rescue` expressions now try to infer a
+    native compiled carrier when all branch result types are statically
+    representable, instead of immediately collapsing the join local to
+    `runtime.Value`;
+  - branch coercion now reuses the shared native static-coercion path, so
+    native unions/interfaces/callables/nullable carriers can serve as the join
+    result directly;
+  - static typed-pattern lowering now accepts same-family nominal carriers via
+    shared receiver compatibility rather than requiring exact Go carrier
+    identity, which keeps specialized native carriers on the static pattern
+    path.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback)$' -count=1` (pass, `1.025s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback|RescueStatementMixedResultTypesNoFallback|NullableI32ReturnAndOrElseStayNative|ResultReturnUsesNativeCarrier|InlineClosedUnionParamAndMatchStayNative)$|TestCompilerExecFixtures/(06_01_compiler_rescue|06_01_compiler_match_patterns|06_01_compiler_if_block_exprs)$' -count=1` (pass, `10.680s`)
+- Follow-up:
+  - the next genuinely different category is broader residual `runtime.Value`
+    / `any` elimination for unresolved generic/result/join proof gaps, not
+    more control-flow join cleanup.
+
+# 2026-03-21 — Static generic-interface dispatch helper tranche (v12)
+- Closed the residual static generic-interface runtime edge for the current
+  compiler-native lowering work.
+- Landed in:
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interface_generic_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_touchpoint_audit_test.go`
+- Tranche details:
+  - statically-known generic interface calls such as `Echo.pass<T>(...)` now
+    lower through generated compiled dispatch helpers on the native interface
+    carrier instead of converting the receiver through
+    `__able_iface_*_to_runtime_value(...)` plus `__able_method_call_node(...)`;
+  - those helpers use the existing shared impl-specialization machinery to
+    call specialized compiled impls directly for concrete adapter cases;
+  - the runtime-adapter case remains in the generated helper as the explicit
+    dynamic boundary for interface values that already originate from runtime
+    payloads;
+  - adapter refresh now preserves already-proven concrete adapters instead of
+    dropping them when refreshing generic-only interface carrier state.
+- Validation:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerPureGenericInterfaceAssignmentUsesNativeCarrier$' -count=1` (pass, `0.028s`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(GenericInterfaceTouchpointsStayNative|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceExistentialExecutes)$' -count=1` (pass, `0.756s`)
+  - `cd v12/interpreters/go && timeout 40s env GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompilerInterfaceLookupGenericMethodFixturesRegression$' -count=1` (pass, `4.655s`)
+  - `git diff --check` (pass)
+- Follow-up:
+  - the next genuinely different category is broader residual `runtime.Value`
+    / `any` elimination for unresolved generic/result/join surfaces, not
+    another generic-interface runtime-edge cleanup.
+
 # 2026-03-21 — Shared upper-bound addition range-proof tranche on the matrix path (v12)
 - Closed the next shared primitive-lowering gap on the matrix benchmark family
   by proving fixed-width signed addition safe when both operands are

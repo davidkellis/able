@@ -317,11 +317,13 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		effectiveValueType = unionSuccessMember.GoType
 	}
 
-	handlerCtx := ctx.child()
 	bindingName := ""
+	bindingType := "runtime.Value"
 	if expr.ErrorBinding != nil && expr.ErrorBinding.Name != "" {
 		bindingName = expr.ErrorBinding.Name
-		handlerCtx.locals[bindingName] = paramInfo{Name: bindingName, GoName: sanitizeIdent(bindingName), GoType: "runtime.Value"}
+		if valueErrorUnion && unionFailureMember != nil && unionFailureMember.GoType != "" {
+			bindingType = unionFailureMember.GoType
+		}
 	}
 
 	preferredType := expected
@@ -332,14 +334,31 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 			preferredType = effectiveValueType
 		}
 	}
+	newHandlerCtx := func() *compileContext {
+		handlerCtx := ctx.child()
+		if bindingName != "" {
+			handlerCtx.locals[bindingName] = paramInfo{Name: bindingName, GoName: sanitizeIdent(bindingName), GoType: bindingType}
+		}
+		return handlerCtx
+	}
+	handlerCtx := newHandlerCtx()
 	handlerLines, handlerExpr, handlerType, ok := g.compileBlockExpression(handlerCtx, expr.Handler, preferredType)
+	if !ok && expected == "" && preferredType != "" {
+		handlerCtx = newHandlerCtx()
+		handlerLines, handlerExpr, handlerType, ok = g.compileBlockExpression(handlerCtx, expr.Handler, "")
+	}
 	if !ok {
 		return nil, "", "", false
 	}
+	valueTypeExpr, _ := g.inferExpressionTypeExpr(valueCtx, expr.Expression, valueType)
+	handlerTypeExpr, _ := g.inferExpressionTypeExpr(handlerCtx, expr.Handler, handlerType)
 
 	resultType := expected
 	valueNullableInner, valueNullable := g.nativeNullableValueInnerType(effectiveValueType)
-	handlerNullableInner, handlerNullable := g.nativeNullableValueInnerType(handlerType)
+	valueJoinType := effectiveValueType
+	if valueNullable {
+		valueJoinType = valueNullableInner
+	}
 	if resultType == "" {
 		switch {
 		case valueType == "" && handlerType == "":
@@ -347,58 +366,35 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		case valueType == "":
 			resultType = handlerType
 		case handlerType == "":
-			resultType = effectiveValueType
-		case valueNullable && handlerType == valueNullableInner:
-			resultType = handlerType
-		case handlerNullable && effectiveValueType == handlerNullableInner:
-			resultType = effectiveValueType
-		case effectiveValueType == handlerType:
-			resultType = effectiveValueType
+			resultType = valueJoinType
 		default:
-			resultType = "runtime.Value"
+			joinBranches := []joinBranchInfo{
+				{
+					GoType:   valueJoinType,
+					Expr:     expr.Expression,
+					TypeExpr: valueTypeExpr,
+					SawNil:   g.joinBranchIsNilExpr(valueExpr, valueJoinType),
+				},
+				{
+					GoType:   handlerType,
+					Expr:     expr.Handler,
+					TypeExpr: handlerTypeExpr,
+					SawNil:   g.joinBranchIsNilExpr(handlerExpr, handlerType),
+				},
+			}
+			if joinedType, ok := g.joinResultTypeFromBranches(ctx, joinBranches); ok {
+				resultType = joinedType
+			} else {
+				resultType = "runtime.Value"
+			}
 		}
 	}
 	if resultType == "" {
 		resultType = "runtime.Value"
 	}
 
-	handlerResultExpr := handlerExpr
-	var handlerCoerceLines []string
-	switch {
-	case handlerType == resultType:
-	case handlerType == "runtime.Value" && resultType != "runtime.Value":
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, handlerExpr, resultType)
-		if !ok {
-			ctx.setReason("or-else type mismatch")
-			return nil, "", "", false
-		}
-		handlerCoerceLines = convLines
-		handlerResultExpr = converted
-	case handlerType == "any" && resultType == "runtime.Value":
-		anyTemp := ctx.newTemp()
-		handlerCoerceLines = []string{fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, handlerExpr)}
-		handlerResultExpr = anyTemp
-	case handlerType == "any" && resultType != "any" && resultType != "runtime.Value":
-		anyTemp := ctx.newTemp()
-		handlerCoerceLines = append(handlerCoerceLines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, handlerExpr))
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, resultType)
-		if !ok {
-			ctx.setReason("or-else type mismatch")
-			return nil, "", "", false
-		}
-		handlerCoerceLines = append(handlerCoerceLines, convLines...)
-		handlerResultExpr = converted
-	case resultType == "runtime.Value" && handlerType != "runtime.Value":
-		convLines, converted, ok := g.runtimeValueLines(ctx, handlerExpr, handlerType)
-		if !ok {
-			ctx.setReason("or-else type mismatch")
-			return nil, "", "", false
-		}
-		handlerCoerceLines = convLines
-		handlerResultExpr = converted
-	case resultType == "any" && handlerType != "any":
-		handlerResultExpr = handlerExpr
-	default:
+	handlerCoerceLines, handlerResultExpr, ok := g.coerceJoinBranch(ctx, resultType, handlerExpr, handlerType)
+	if !ok {
 		ctx.setReason("or-else type mismatch")
 		return nil, "", "", false
 	}
@@ -408,11 +404,15 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	valueTemp := ctx.newTemp()
 	failureTemp := ""
 	errorTemp := ""
+	controlValueTemp := ""
 	successTemp := ""
 	successOkTemp := ""
 	if bindingName != "" {
 		failureTemp = ctx.newTemp()
 		errorTemp = ctx.newTemp()
+		if bindingType != "runtime.Value" {
+			controlValueTemp = ctx.newTemp()
+		}
 	}
 	if valueErrorUnion {
 		successTemp = ctx.newTemp()
@@ -426,7 +426,7 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		fmt.Sprintf("var %s *__ableControl", controlTemp),
 	}
 	if bindingName != "" {
-		lines = append(lines, fmt.Sprintf("var %s runtime.Value", failureTemp))
+		lines = append(lines, fmt.Sprintf("var %s %s", failureTemp, bindingType))
 		lines = append(lines, fmt.Sprintf("var %s bool", errorTemp))
 	}
 	if successTemp != "" {
@@ -441,7 +441,22 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	lines = append(lines, fmt.Sprintf("%s:", valueDoneLabel))
 
 	if bindingName != "" {
-		lines = append(lines, fmt.Sprintf("if %s != nil { %s = __able_control_value(%s); %s = true; %s = true }", controlTemp, failureTemp, controlTemp, failedTemp, errorTemp))
+		if bindingType == "runtime.Value" {
+			lines = append(lines, fmt.Sprintf("if %s != nil { %s = __able_control_value(%s); %s = true; %s = true }", controlTemp, failureTemp, controlTemp, failedTemp, errorTemp))
+		} else {
+			controlFailureLines, convertedFailure, ok := g.expectRuntimeValueExprLines(ctx, controlValueTemp, bindingType)
+			if !ok {
+				ctx.setReason("or-else binding type mismatch")
+				return nil, "", "", false
+			}
+			lines = append(lines, fmt.Sprintf("if %s != nil {", controlTemp))
+			lines = append(lines, fmt.Sprintf("\t%s := __able_control_value(%s)", controlValueTemp, controlTemp))
+			lines = append(lines, indentLines(controlFailureLines, 1)...)
+			lines = append(lines, fmt.Sprintf("\t%s = %s", failureTemp, convertedFailure))
+			lines = append(lines, fmt.Sprintf("\t%s = true", failedTemp))
+			lines = append(lines, fmt.Sprintf("\t%s = true", errorTemp))
+			lines = append(lines, "}")
+		}
 	} else {
 		lines = append(lines, fmt.Sprintf("if %s != nil { %s = true }", controlTemp, failedTemp))
 	}
@@ -458,14 +473,18 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		lines = append(lines, fmt.Sprintf("if %s == nil {", controlTemp))
 		lines = append(lines, fmt.Sprintf("\t%s, %s := %s(%s)", failureNativeTemp, failureOkTemp, unionFailureMember.UnwrapHelper, valueTemp))
 		if bindingName != "" {
-			failureRuntimeLines, failureRuntimeExpr, ok := g.runtimeValueLines(ctx, failureNativeTemp, unionFailureMember.GoType)
-			if !ok {
-				ctx.setReason("or-else union error conversion mismatch")
-				return nil, "", "", false
-			}
 			lines = append(lines, fmt.Sprintf("\tif %s {", failureOkTemp))
-			lines = append(lines, indentLines(failureRuntimeLines, 2)...)
-			lines = append(lines, fmt.Sprintf("\t\t%s = %s", failureTemp, failureRuntimeExpr))
+			if bindingType == "runtime.Value" {
+				failureRuntimeLines, failureRuntimeExpr, ok := g.runtimeValueLines(ctx, failureNativeTemp, unionFailureMember.GoType)
+				if !ok {
+					ctx.setReason("or-else union error conversion mismatch")
+					return nil, "", "", false
+				}
+				lines = append(lines, indentLines(failureRuntimeLines, 2)...)
+				lines = append(lines, fmt.Sprintf("\t\t%s = %s", failureTemp, failureRuntimeExpr))
+			} else {
+				lines = append(lines, fmt.Sprintf("\t\t%s = %s", failureTemp, failureNativeTemp))
+			}
 			lines = append(lines, fmt.Sprintf("\t\t%s = true", failedTemp))
 			lines = append(lines, fmt.Sprintf("\t\t%s = true", errorTemp))
 			lines = append(lines, "\t}")
@@ -488,48 +507,17 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		nullableCheckExpr = successTemp
 	}
 
-	var successConvLines []string
-	switch {
-	case successType == resultType:
-	case valueNullable && valueNullableInner == resultType:
+	if valueNullable {
 		successExpr = fmt.Sprintf("(*%s)", successExpr)
-	case successType == "runtime.Value" && resultType != "runtime.Value":
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, successExpr, resultType)
-		if !ok {
-			ctx.setReason("or-else type mismatch")
-			return nil, "", "", false
-		}
-		successConvLines = convLines
-		successExpr = converted
-	case successType == "any" && resultType == "runtime.Value":
-		anyTemp := ctx.newTemp()
-		successConvLines = []string{fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, successExpr)}
-		successExpr = anyTemp
-	case successType == "any" && resultType != "any" && resultType != "runtime.Value":
-		anyTemp := ctx.newTemp()
-		successConvLines = append(successConvLines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, successExpr))
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, resultType)
-		if !ok {
-			ctx.setReason("or-else type mismatch")
-			return nil, "", "", false
-		}
-		successConvLines = append(successConvLines, convLines...)
-		successExpr = converted
-	case resultType == "runtime.Value" && successType != "runtime.Value":
-		convLines, converted, ok := g.runtimeValueLines(ctx, successExpr, successType)
-		if !ok {
-			ctx.setReason("or-else type mismatch")
-			return nil, "", "", false
-		}
-		successConvLines = convLines
-		successExpr = converted
-	case resultType == "any" && successType != "any":
-	default:
+		successType = valueNullableInner
+	}
+	successConvLines, successExpr, ok := g.coerceJoinBranch(ctx, resultType, successExpr, successType)
+	if !ok {
 		ctx.setReason("or-else type mismatch")
 		return nil, "", "", false
 	}
 
-	if valueNullable && valueNullableInner == resultType {
+	if valueNullable {
 		if bindingName != "" {
 			lines = append(lines, fmt.Sprintf("if %s == nil && %s == nil { %s = runtime.NilValue{}; %s = true }", nullableCheckExpr, controlTemp, failureTemp, failedTemp))
 		} else {
@@ -558,8 +546,8 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	lines = append(lines, fmt.Sprintf("if %s {", failedTemp))
 	if bindingName != "" {
 		goName := sanitizeIdent(bindingName)
-		lines = append(lines, fmt.Sprintf("\tvar %s runtime.Value", goName))
-		lines = append(lines, fmt.Sprintf("\tif %s { %s = %s } else { %s = runtime.NilValue{} }", errorTemp, goName, failureTemp, goName))
+		lines = append(lines, fmt.Sprintf("\tvar %s %s", goName, bindingType))
+		lines = append(lines, fmt.Sprintf("\tif %s { %s = %s }", errorTemp, goName, failureTemp))
 		lines = append(lines, fmt.Sprintf("\t_ = %s", goName))
 	}
 	lines = append(lines, indentLines(handlerLines, 1)...)

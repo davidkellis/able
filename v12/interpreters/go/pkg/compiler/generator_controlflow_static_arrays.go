@@ -31,7 +31,9 @@ func (g *generator) compileStaticArrayForLoopInternal(
 	bodyCtx.loopLabel = loopLabelName
 	if withResult {
 		bodyCtx.loopBreakValueTemp = resultTemp
+		bodyCtx.loopBreakValueType = "runtime.Value"
 	}
+	bodyCtx.loopBreakProbe = nil
 	newNames := map[string]struct{}{}
 	collectPatternBindingNames(loop.Pattern, newNames)
 	mode := patternBindingMode{declare: true, newNames: newNames}

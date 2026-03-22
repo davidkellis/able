@@ -181,7 +181,7 @@ func (g *generator) nativeInterfaceAcceptsActual(info *nativeInterfaceInfo, actu
 	if _, ok := g.nativeInterfaceAdapterForActual(info, actual); ok {
 		return true
 	}
-	for _, adapter := range info.Adapters {
+	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || adapter.GoType == "" {
 			continue
 		}
@@ -251,7 +251,7 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 	if adapter, ok := g.nativeInterfaceAdapterForActual(info, actual); ok {
 		return nil, fmt.Sprintf("%s(%s)", adapter.WrapHelper, expr), true
 	}
-	for _, adapter := range info.Adapters {
+	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || adapter.GoType == "" {
 			continue
 		}

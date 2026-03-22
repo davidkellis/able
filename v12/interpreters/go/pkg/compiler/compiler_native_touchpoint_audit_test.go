@@ -108,7 +108,7 @@ func TestCompilerBroadStaticNativeTouchpointsStayNative(t *testing.T) {
 	}
 }
 
-func TestCompilerGenericResidualTouchpointsStayNarrow(t *testing.T) {
+func TestCompilerGenericInterfaceTouchpointsStayNative(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
 		"",
@@ -139,13 +139,12 @@ func TestCompilerGenericResidualTouchpointsStayNarrow(t *testing.T) {
 	if !strings.Contains(mainBody, "var labeler __able_iface_Tagger = __able_iface_Tagger_wrap_ptr_Labeler(") {
 		t.Fatalf("expected interface-typed local to stay on the native carrier:\n%s", mainBody)
 	}
-	if !strings.Contains(mainBody, "__able_iface_Tagger_to_runtime_value(__able_runtime,") {
-		t.Fatalf("expected generic interface dispatch to narrow the residual runtime edge to receiver conversion:\n%s", mainBody)
-	}
-	if !strings.Contains(mainBody, "__able_method_call_node(") {
-		t.Fatalf("expected generic interface dispatch to use the narrow method-call boundary:\n%s", mainBody)
+	if !strings.Contains(mainBody, "__able_compiled_iface_Tagger_tagged_default(") {
+		t.Fatalf("expected generic interface default-method dispatch to stay on the compiled native helper path:\n%s", mainBody)
 	}
 	assertBodyAvoidsFragments(t, "__able_compiled_fn_main", mainBody, []string{
+		"__able_iface_Tagger_to_runtime_value(__able_runtime,",
+		"__able_method_call_node(",
 		"__able_call_value(",
 		"__able_call_value_fast(",
 		"__able_member_get(",

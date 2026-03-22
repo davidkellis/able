@@ -36,11 +36,8 @@ func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expr
 	if (!ok || info == nil) && g != nil {
 		info, _ = g.structInfoByNameUnique(targetName)
 	}
-	if info == nil {
-		return nil, false
-	}
 	method := g.methodForTypeName(targetName, memberName, false)
-	if method == nil {
+	if method == nil && info != nil {
 		if typeBucket := g.methods[targetName]; len(typeBucket) > 0 {
 			entries := typeBucket[memberName]
 			var found *methodInfo
@@ -57,7 +54,7 @@ func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expr
 			method = found
 		}
 	}
-	if method == nil {
+	if method == nil && info != nil {
 		method = g.methodForStruct(info, memberName, false)
 	}
 	if method == nil {
@@ -275,7 +272,8 @@ func (g *generator) specializeConcreteStaticImplMethod(ctx *compileContext, call
 	if !ok || len(bindings) == 0 {
 		return nil, false
 	}
-	return g.ensureSpecializedImplMethod(method, impl, bindings)
+	specialized, ok := g.ensureSpecializedImplMethod(method, impl, bindings)
+	return specialized, ok
 }
 
 func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMethodInfo, bindings map[string]ast.TypeExpression) (*methodInfo, bool) {
@@ -704,6 +702,11 @@ func (g *generator) specializedStaticImplMethodBindings(ctx *compileContext, cal
 	if bindings == nil {
 		bindings = make(map[string]ast.TypeExpression)
 	}
+	if genericTarget, ok := targetTypeExpr.(*ast.GenericTypeExpression); ok && genericTarget != nil {
+		if targetParams := g.nominalTargetGenericParams(method); len(targetParams) > 0 {
+			_ = g.bindGenericTypeArguments(method.Info.Package, bindings, targetParams, genericTarget.Arguments)
+		}
+	}
 	targetTemplate := g.specializedImplTargetTemplate(impl, bindings)
 	if targetTemplate == nil {
 		targetTemplate = impl.TargetType
@@ -983,6 +986,9 @@ func (g *generator) specializedBindTemplateArg(pkgName string, template ast.Type
 func (g *generator) specializedTypeTemplateMatchesNormalized(pkgName string, template ast.TypeExpression, actual ast.TypeExpression, genericNames map[string]struct{}, bindings map[string]ast.TypeExpression, seen map[string]struct{}) bool {
 	if g == nil || template == nil || actual == nil {
 		return false
+	}
+	if !g.typeExprHasGeneric(template, genericNames) && !g.typeExprHasGeneric(actual, genericNames) {
+		return normalizeTypeExprString(g, pkgName, template) == normalizeTypeExprString(g, pkgName, actual)
 	}
 	if seen == nil {
 		seen = make(map[string]struct{})
