@@ -853,8 +853,9 @@ func Spawn(rt *Runtime, task func(*runtime.Environment) (runtime.Value, error)) 
 	}
 	env := rt.currentEnv()
 	future := rt.interp.RunCompiledFuture(env, func(taskEnv *runtime.Environment) (runtime.Value, error) {
-		prev := rt.SwapEnv(taskEnv)
-		defer rt.SwapEnv(prev)
+		if prev, swapped := SwapEnvIfNeeded(rt, taskEnv); swapped {
+			defer RestoreEnvIfNeeded(rt, prev, swapped)
+		}
 		return task(taskEnv)
 	})
 	if future == nil {

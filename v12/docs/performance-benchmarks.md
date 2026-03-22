@@ -79,6 +79,18 @@ snapshots for these reduced fixtures are checked in at:
 - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-pipeline-i64-small-compiled.md`
 - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-collect-i64-small-compiled.md`
 - `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-filter-map-i64-small-compiled.md`
+- `v12/docs/perf-baselines/2026-03-22-compiler-performance-milestone-7-compiled.md`
+
+The reduced recursion/call-overhead benchmark is now:
+- `v12/fixtures/bench/fib_i32_small/main.able`
+
+The current representative compiled Milestone 7 snapshot is:
+- `v12/docs/perf-baselines/2026-03-22-compiler-performance-milestone-7-compiled.md`
+  - `bench/fib_i32_small`: `2.7567s`, `0.00` GC
+  - `bench/heap_i32_small`: `0.2900s`, `5.00` GC
+  - `bench/linked_list_iterator_pipeline_i64_small`: `0.1433s`, `9.67` GC
+  - `bench/matrixmultiply_f64_small`: `0.1167s`, `7.33` GC
+  - `examples/benchmarks/matrixmultiply`: `1.0633s`, `13.33` GC
 
 The `zigzag_char_small` snapshot was corrected after fixing mono-off nested
 carrier identity for `Array (Array char)`, so use the checked-in snapshot
@@ -164,6 +176,8 @@ The iterator-pipeline family is now split intentionally:
   v12/fixtures/bench/linked_list_enumerable_i32_small/main.able
 ./v12/bench_perf --runs 3 --timeout 60 --modes compiled \
   v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able
+./v12/bench_perf --runs 3 --timeout 60 --modes compiled \
+  v12/fixtures/bench/fib_i32_small/main.able
 ./v12/bench_perf --runs 3 --timeout 60 --modes compiled \
   v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able
 ./v12/bench_perf --runs 3 --timeout 60 --modes compiled \

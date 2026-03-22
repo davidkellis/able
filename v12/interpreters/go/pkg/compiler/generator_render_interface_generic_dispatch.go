@@ -37,10 +37,7 @@ func (g *generator) renderNativeInterfaceGenericDispatchHelper(buf *bytes.Buffer
 	}
 	fmt.Fprintf(buf, ", call *ast.FunctionCall) (%s, *__ableControl) {\n", dispatch.ReturnGoType)
 	if envVar, ok := g.packageEnvVar(dispatch.Package); ok {
-		fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
-		fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
-		fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
-		fmt.Fprintf(buf, "\t}\n")
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	}
 	fmt.Fprintf(buf, "\tif receiver == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(fmt.Errorf(\"missing interface value\"))\n", zeroExpr)

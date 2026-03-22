@@ -1,0 +1,6 @@
+{
+  "description": "recursive compiled benchmark for shared call and control overhead",
+  "expect": {
+    "exit": 0
+  }
+}
