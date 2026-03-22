@@ -7,6 +7,9 @@ Active compiler-native-lowering workstream with multiple landed slices.
 This note defines the target ABI for compiled Able unions and records the
 current staged limitations so implementation can proceed in ordered steps.
 
+The primitive-type lists in this document follow `spec/full_spec_v12.md`.
+`isize` and `usize` are not part of the v12 spec surface.
+
 ## Current State
 
 The compiler is not yet lowering general unions natively.
@@ -44,8 +47,6 @@ Current lowering facts:
   - `?char -> *rune`
   - `?f32 -> *float32`
   - `?f64 -> *float64`
-  - `?isize -> *int`
-  - `?usize -> *uint`
   - `?i8 -> *int8`
   - `?i16 -> *int16`
   - `?i32 -> *int32`

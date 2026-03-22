@@ -1,5 +1,10 @@
 # Unified Testing and Spec Tooling Plan (Draft)
 
+> Status note: this plan predates the Go-first consolidation. The active v12
+> toolchain is Go-first; TypeScript/Bun references in this document are
+> historical unless explicitly revived. The separation of concerns and user-
+> facing testing model remain useful.
+
 ## Scope
 
 This document reconciles the current testing assets (fixtures, parity harnesses,
@@ -10,8 +15,8 @@ stdlib testing modules, CLI skeleton) into a single plan. It defines:
 - the `able test` CLI responsibilities,
 - and the spec/doc updates required to make the model explicit.
 
-This plan intentionally keeps the Go interpreter canonical and ensures the
-TypeScript runtime mirrors behavior.
+This plan intentionally keeps the Go runtimes canonical. Any future non-Go
+runtime must mirror that behavior.
 
 ## Current Assets (Source of Truth)
 

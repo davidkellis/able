@@ -10,6 +10,9 @@ The exhaustive lowering map now lives in `v12/design/compiler-go-lowering-spec.m
 The ordered execution plan now lives in `v12/design/compiler-go-lowering-plan.md`.
 This document remains the short-form contract and guardrail summary.
 
+Named stdlib/container examples in this document are proof cases for shared
+lowering machinery, not architecture exceptions.
+
 ## Vision
 
 The compiler should lower Able programs to native Go constructs whenever the
@@ -447,9 +450,9 @@ not `panic` / `recover`.
     next worthwhile category is no longer loop-affine primitive arithmetic on
     this benchmark family.
 - The remaining primitive numeric scalar family is now staged too:
-  - `Array i8`, `Array i16`, `Array u16`, `Array u32`, `Array u64`,
-    `Array isize`, `Array usize`, and `Array f32` now lower to compiler-owned
-    wrappers on the staged specialized path
+  - `Array i8`, `Array i16`, `Array u16`, `Array u32`, `Array u64`, and
+    `Array f32` now lower to compiler-owned wrappers on the staged specialized
+    path
   - reduced unsigned benchmark:
     `v12/fixtures/bench/sum_u32_small/main.able`
   - compiled 3-run averages: mono on `1.0933s`, `185.33` GC; mono off

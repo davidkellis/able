@@ -13,6 +13,9 @@ as the target architecture. Existing flag plumbing and historical experiments
 may remain in-tree temporarily, but new implementation work must converge on
 compiler-owned native Go storage on static compiled paths.
 
+Named stdlib/container examples in this document are proof cases for shared
+lowering machinery, not architecture exceptions.
+
 This design supports:
 
 - the v12 AOT no-fallback contract,
@@ -392,8 +395,6 @@ Performance:
   - `Array u16` -> `*__able_array_u16` over `[]uint16`
   - `Array u32` -> `*__able_array_u32` over `[]uint32`
   - `Array u64` -> `*__able_array_u64` over `[]uint64`
-  - `Array isize` -> `*__able_array_isize` over `[]int`
-  - `Array usize` -> `*__able_array_usize` over `[]uint`
   - `Array f32` -> `*__able_array_f32` over `[]float32`
 - a reduced checked-in unsigned benchmark now measures that slice directly:
   - `v12/fixtures/bench/sum_u32_small/main.able`

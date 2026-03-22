@@ -21,13 +21,14 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - `v10/` + `v11/`: frozen workspaces (read-only unless hotfix required).
 - `v12/`: active development surface for Able v12 (`interpreters/go/`, `parser/`, `fixtures/`, `stdlib-deprecated-do-not-use/`, `design/`, `docs/`). Canonical stdlib source is being moved to the external `able-stdlib` repo and cached via `able setup`.
 
-## Ongoing Workstreams
-- **Spec maintenance**: stage and land all wording in `spec/full_spec_v12.md`; log discrepancies in `spec/TODO_v12.md`.
-- **Go runtimes**: maintain tree-walker + bytecode interpreter parity; keep diagnostics and fixtures aligned.
-- **Tooling**: build a Go-based fixture exporter; update harnesses to remove TS dependencies.
-- **Performance**: expand bytecode VM coverage; add perf harnesses for tree-walker vs bytecode.
-- **WASM**: run the Go runtime in WASM with JS tree-sitter parsing and a defined host ABI.
-- **Stdlib externalization**: keep canonical stdlib in external git repo, auto-install into cache, and keep loader/resolver semantics aligned with spec.
+## Active Priorities
+- **Compiler completion**: finish the Go AOT compiler first. This is the top
+  priority and the main body of this plan is organized around it.
+- **Bytecode performance**: once the compiler is in release shape, focus on
+  making the Go bytecode interpreter fast.
+- **Everything else**: parser/tooling/WASM/stdlib/testing-framework work stays
+  in backlog unless it is directly required to unblock compiler completion or
+  bytecode performance work.
 
 ## Tracking & Reporting
 - Update this plan as milestones progress; log design and architectural decisions in `v12/design/`.
@@ -44,537 +45,350 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Compiler/AOT optimization work must not introduce new bespoke lowering rules for specific non-primitive structures or containers. The correct fix direction is to improve the general lowering machinery so user-defined and stdlib nominal types fall out of the same rules.
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
-### Staged Integration Audit & Stabilization (active priority)
-- Goal: land the currently staged runtime/compiler/CLI changes safely while keeping clean-checkout reproducibility and test guardrails intact.
-- Immediate unit of work (execute in order):
-  - [x] Remove accidental staged binaries (`v12/interpreters/go/able`, `v12/interpreters/go/able.test`) and ignore them.
-  - [x] Make embedded kernel packaging reproducible from a clean checkout (track the `go:embed` payload files under `cmd/able/embedded/kernel`).
-  - [x] Fix `v12/run_all_tests.sh` default mode so it remains green without hitting the default Go 10-minute timeout.
-  - [x] Update `spec/full_spec_v12.md` and `spec/TODO_v12.md` for stdlib externalization (`able setup`, cache lookup order, global overrides).
-  - [x] Update `AGENTS.md` + v12 README onboarding to reflect the new canonical stdlib flow and remove stale `v12/stdlib` assumptions.
-  - [x] Fix compiler typed `=` assignment parity so `name: Type = value` reuses package/module bindings (when present) instead of always creating a local binding.
-  - [x] Add a clean-environment smoke test that verifies `able setup` installs stdlib+kernel and both treewalker/bytecode can run a stdlib import fixture.
-  - [x] Decide and document stdlib pinning policy (toolchain-pinned tag vs branch) and enforce it in dependency resolution + lockfile behavior.
 
-### Runtime Performance Program (active priority: 10x targets)
-- Goal: reach at least 10x speedup for bytecode and 10x for compiler relative to current benchmark baselines under `/home/david/sync/projects/benchmarks`.
-- Execution order:
-  - [x] Freeze a reproducible baseline snapshot (date, commit, machine profile, benchmark inputs) and check in structured results.
-  - [x] Add a benchmark harness that emits machine-readable results for treewalker, bytecode, and compiled modes on the shared benchmark suite.
-  - [x] Resolve baseline correctness blockers so benchmark statuses reflect performance limits rather than semantic/build failures (`matrixmultiply` stdlib helper import; `sudoku.solve` static-compileable body shape).
-  - [x] Land first Bytecode Phase 1 call-dispatch fast path: inline `call`/`callname` now consume args directly from VM stack (no transient args slice on successful inline path).
-  - [x] Add optional bytecode execution counters (`ABLE_BYTECODE_STATS`) with snapshot/reset APIs to guide hotspot work (opcode mix, name lookups, inline-call hit/miss).
-  - [x] Add safe global-scope lookup cache for bytecode `LoadName`/`CallName`, keyed per VM instruction site with environment revision invalidation.
-  - [x] Add inline slot-frame pooling for bytecode function calls to avoid per-call slot-slice allocation churn in recursive/hot-call workloads.
-  - [x] Add regression coverage for lookup-cache invalidation on global rebinding plus runtime environment revision mutation semantics.
-  - [x] Remove method-resolution miss-error allocations in hot paths (`Environment.Lookup` + resolver switch from `Get` to `Lookup` when probing scope callables).
-  - [x] Reduce `resolveMethodFromPool` per-call allocation churn (drop map/closure candidate bookkeeping in favor of compact linear dedupe accumulator).
-  - [x] Add conservative bytecode member-call inline cache (call-position member access only) with strict invalidation on global env revision + interpreter method-cache version.
-  - [x] Add bytecode regression coverage proving member-call cache invalidates when unnamed `impl` definitions change dispatch without touching global bindings.
-  - [x] Extend `ABLE_BYTECODE_STATS` with member-call cache hit/miss counters and wire instrumentation to cache lookup outcomes.
-  - [x] Add bytecode regression coverage proving member-call cache counters snapshot/reset correctly (`BytecodeStats` / `ResetBytecodeStats`).
-  - [x] Extend bytecode inline-call setup to support `BoundMethodValue` callees (inject receiver directly into slot frame) so call-position member dispatch can hit the no-args-slice inline fast path.
-  - [x] Add bytecode regression coverage proving bound-method call sites record inline-call hits under `ABLE_BYTECODE_STATS`.
-  - [x] Reduce call-dispatch fallback argument-slice churn in `callCallableValue` by avoiding unconditional `append(injected, args...)` allocation when no receiver injection is required.
-  - [x] Update `invokeFunction` argument binding to use lazy writable copies (only when optional-arg fill/coercion needs mutation) and add regression coverage that host-provided arg slices are not mutated by coercion.
-  - [x] Add conservative non-global current-scope lookup cache for bytecode `LoadName`/`CallName` (cache current-scope hits only, keyed per instruction site, invalidated by environment pointer + scope revision).
-  - [x] Add regression coverage proving scoped lookup cache invalidates on local `=` rebinding (`CallName`) and local value reassignment (`LoadName`) within the same function activation.
-  - [x] Extend dotted `CallName` fallback (`name.member`) to resolve the head receiver through the same cached-name path, reusing safe invalidation semantics for non-global/current-scope and global lookup sites.
-  - [x] Add regression coverage proving dotted `CallName` receiver-head cache invalidates on local receiver rebinding at the same call site.
-  - [x] Reduce partial-function dispatch merge churn by replacing two-step append concatenation with a single-pass merge buffer per partial call transition.
-  - [x] Add single-overload runtime dispatch fast path (arity/type compatibility check + direct invoke) to skip full overload candidate scoring when only one callable overload exists.
-  - [x] Remove unconditional generic-name-set map allocation in call dispatch (`functionGenericNameSet`) for non-generic functions/method sets.
-  - [x] Share environment thread mode across lexical scope chains so child scopes stay lock-free in single-thread runs until first `spawn` flips the shared mode to multi-thread.
-  - [x] Remove dotted `CallName` miss-error allocation churn by using non-error lookup probing before dotted fallback/head-member resolution.
-  - [x] Expand slot coverage for recursive named calls by lowering stable self-recursive call sites to reserved slot loads (`LoadSlot+Call`) and bypassing `CallName` lookups in recursion hot paths.
-  - [x] Skip `EnterScope`/`ExitScope` opcode emission for slot-enabled frames that do not require runtime environment scopes (`needsEnvScopes=false`).
-  - [x] Add `bytecodeOpCallSelf` and lower stable self-recursive call sites to direct slot-indexed self calls (remove recursive callee `LoadSlot` stack churn while preserving inline-call fast paths).
-  - [x] Memoize bytecode integer-literal range validation per instruction site (first execution only) so hot loops avoid repeated `ensureFitsInteger` checks while preserving lazy path semantics.
-  - [x] Add `execBinary` numeric/operator fast path (`+`, `-`, `<`, `<=`, `>`, `>=`, `==`, `!=`) via `ApplyBinaryOperatorFast` with fallback to full operator dispatch for non-fast-path semantics.
-  - [x] Add dedicated bytecode opcodes for hot integer binary operators (`+`, `-`, `<=`) and lower to them directly, with integer-specialized execution and fallback to full semantics for non-integer operands.
-  - [x] Tighten `bytecodeOpCallSelf` inline setup with a dedicated self-call fast path (skip bound-method/general inline checks) and remove duplicate slot-frame clearing in frame-pool acquire/release cycle.
-  - [x] Add slot+immediate integer opcodes for hot recursion forms (`slot - const`, `slot <= const`) and lower eligible slot-identifier/literal expressions directly to reduce repeated `LoadSlot`+`Const` dispatch.
-  - [x] Add a single-parameter self-recursive inline shortcut in `tryInlineSelfCallFromStack` (skip generic param-loop setup when coercion is trivially unnecessary) for common `fib`-style recursion.
-  - [x] Fuse self-recursive call lowering/execution for `f(slot - const)` into `bytecodeOpCallSelfIntSubSlotConst` to bypass arg stack traffic on the hot recursion shape.
-  - [x] Harden interpreter method-cache synchronization for concurrent future execution (lock-guarded method cache map + version reads for bytecode member cache invalidation).
-  - [x] Fast-path same-suffix integer arithmetic in bytecode hot ops (`+`/`-`) to skip repeated promotion/type-info lookups on recursive integer paths.
-  - [x] Add hot-size slot-frame pool path to avoid per-call map lookup/insert churn in recursive bytecode call-frame reuse.
-  - [x] Cache one-arg self-call inline metadata on frame layout (first-param type/simple-name) so fused self-recursive inline calls avoid repeated declaration/type-expression introspection.
-  - [x] Add direct integer extraction fast path in bytecode specialized arithmetic (`bytecodeIntegerValue`) to avoid unnecessary unwrap work on common scalar cases.
-  - [x] Bypass generic specialized-binary helper for slot+immediate recursion ops (`slot - const`, `slot <= const`) by executing direct integer paths before generic fallback.
-  - [x] Execute hot specialized bytecode binary opcodes (`BinaryIntAdd/Sub/<=`) via direct `execBinary` opcode-specific paths with direct fallback operator dispatch, reducing helper/switch overhead in recursion loops.
-  - [x] Restrict fused `CallSelfIntSubSlotConst` lowering to one-arg, no-type-arg, integer-coercion-safe layouts so runtime recursion can skip repeated generic/type-arg eligibility checks.
-  - [x] Refactor bytecode call-frame push/pop into dedicated helpers and inline fused self-recursive `slot-const` frame setup against current layout to reduce per-call dispatch overhead.
-  - [x] Add per-program sparse cache for decoded slot-const integer immediates and thread it through run-loop program switching; skip redundant same-program cache refreshes on inline self-recursive program switches.
-  - [x] Reuse pre-boxed small integer runtime values in fused slot-const recursion paths (`CallSelfIntSubSlotConst`/`BinaryIntSubSlotConst`) to reduce repeated integer-interface boxing (`runtime.convT`) overhead.
-  - [x] Extend boxed same-suffix int64 fast path to specialized integer `BinaryIntAdd`/`BinaryIntSub` opcodes and add direct slot-const immediate IP lookups (skip generic helper/switch on hot opcodes).
-  - [x] Switch bytecode run-loop instruction fetch to pointer-based dispatch and keep hot handlers pointer-based (`execBinary`, fused self-call) to remove per-op `bytecodeInstruction` struct copies (`runtime.duffcopy`) in recursion loops.
-  - [x] Inline binary stack pops in `execBinary` and remove call-frame tail clearing on pop; add direct-integer fast extraction for specialized binary opcodes to reduce hot loop dispatch overhead.
-  - [x] Add `selfFast` inline-call frame flag for same-program/same-env recursion and skip redundant run-loop program switching on inline returns when the caller frame is known to remain in the current program/env.
-  - [x] Reorder slot-const immediate decode in hot bytecode paths (`execBinary`, `execCallSelfIntSubSlotConst`) to read `instr.value` first and fall back to per-program immediate cache only when needed, removing hot-loop hash-map lookup pressure.
-  - [x] Align bytecode serial scheduling with tree-walker synchronous-section semantics for non-async runs (`runResumable`), and add regression coverage proving `spawn` tasks do not run ahead of the main flow before explicit `future_flush`.
-  - [x] Add `SerialExecutor.beginSynchronousSectionIfNeeded` and use it in bytecode run-loop entry so nested bytecode `vm.run` calls reuse the same sync section instead of repeatedly lock/unlock thrashing.
-  - [x] Reduce call-frame hot-path overhead by preallocating bytecode VM call-frame capacity in `newBytecodeVM` and appending populated frame literals directly in `pushCallFrame`.
-  - [x] Split `execBinary` dispatch by opcode class (slot-const specialized, specialized int opcodes, generic binary) so hot specialized integer opcodes bypass generic branch paths.
-  - [x] Inline the `bytecodeOpReturn` stack pop in the VM run loop to remove `vm.pop()` call overhead on recursion return paths.
-  - [x] Add conservative bytecode `Index.get` callsite cache for array receivers (keyed by instruction site + first-element type token, invalidated by global revision and interpreter method-cache version) to bypass repeated `findIndexMethod` churn without bypassing `Index` semantics.
-  - [x] Extend conservative bytecode index-method caching to `IndexMut.set` + compound index assignment paths (`+=`, etc.), reusing strict invalidation semantics and preserving fallback array behavior when no index methods exist.
-  - [x] Make bytecode call-frame backing storage lazy: allocate call-frame capacity on first push instead of eager `newBytecodeVM` preallocation to cut per-call VM allocation churn.
-  - [x] Preserve bytecode per-program const caches (`validatedIntegerConstSlots`, slot-const immediate decode tables) across pooled VM resets so repeated calls avoid re-allocating instruction-sized cache state.
-  - [x] Memoize function generic-name sets per `runtime.FunctionValue` so hot call dispatch avoids repeated generic-map allocation in `functionGenericNameSet`.
-  - [x] Add cast identity fast paths for same-suffix primitive casts (`as i32`, `as f64`, etc.) and skip non-aliased primitive alias-expansion work in `castValueToType`.
-  - [x] Return existing runtime values from same-type cast fast paths (`castValueToType`) to avoid repeated integer/float re-boxing allocations on hot `as` sites.
-  - [x] Add allocation-light type-info/type-expression fast paths for primitive runtime values (cached simple AST nodes + direct `typeInfo` construction in `getTypeInfoForValue`) to reduce `ast.Ty`/parse churn in dispatch and type matching.
-  - [x] Make runtime `Environment` map storage lazy (`values`/`structs` allocated on first write) to reduce per-call scope allocation pressure in bytecode function invocation.
-  - [x] Refactor `expandTypeAliases` to preserve original type-expression nodes when alias expansion is a no-op (avoid unconditional generic/union/function node reconstruction in hot type-matching paths).
-  - [x] Replace UFCS scope-membership map construction (`functionScopeSet`) with an allocation-light scope filter over existing function/overload pointers.
-  - [x] Remove native call-dispatch boxing churn in `callCallableValue` (value-native fast path without pointer-escape temporaries; stack `NativeCallContext`; bound-native partial target normalization).
-  - [x] Reuse cached boxed small integers for hot array scalar members (`storage_handle`, `length`, `capacity`) to remove repeated `runtime.NewSmallInt` allocation churn during member dispatch.
-  - [x] Cache canonical alias-base expansion results for `canonicalTypeNames(...)` and invalidate on alias registration/import rebinding so hot method-resolution paths avoid repeated alias-chain reconstruction.
-  - [x] Cache hot inferred generic type expressions for `Array<T>` and `Iterator<_>` in runtime type inference to eliminate repeated `ast.NewGenericTypeExpression` churn in dispatch/type matching.
-  - [x] Reuse bytecode member-method callsite cache for dotted `CallName` fallback (`head.tail`) so repeated calls at the same instruction site avoid repeated bound-method reconstruction and resolver traversal.
-  - [x] Replace hot type/call-path miss lookups (`Environment.Get`) with allocation-light probing (`Lookup`) in canonical type-name resolution and direct identifier call dispatch fallback, removing miss-error churn in bytecode-heavy runs.
-  - [x] Reduce `runtime.NewEnvironment` churn by eliminating child-scope thread-mode throwaway allocations and reusing closure env for slot-enabled, non-generic bytecode calls that do not require runtime env scopes.
-  - [x] Remove `typeExpressionToString`/`typeInfoToString` formatting churn (`fmt.Sprintf` + join slices) by switching to builder-based rendering for hot method/type paths.
-  - [x] Remove generic type-argument slice copy churn in `parseTypeExpression` by treating AST argument slices as immutable in runtime resolution paths.
-  - [x] Reduce bound-method allocation churn by returning value-form `runtime.BoundMethodValue`/`runtime.NativeBoundMethodValue` in hot method-resolution/member-cache paths.
-  - [x] Add native-call arg borrowing metadata (`runtime.NativeFunctionValue.BorrowArgs`) and skip bytecode fallback arg-slice cloning for borrow-safe native call targets.
-  - [x] Expand bytecode pre-boxed small-int cache upper bound (`4096` -> `16384`) to reduce hot integer boxing allocations in arithmetic recursion/loop paths.
-  - [x] Add bounded dynamic boxed-int caching for out-of-range `i32`/`i64`/`isize` values and route specialized bytecode integer add/sub fast paths through it.
-  - [x] Replace bytecode index-cache array element type key strings with compact numeric tokens to reduce hot cache-key hashing overhead while preserving element-type invalidation semantics.
-  - [x] Return bytecode slot frames to the pool on all non-yield run exits (success + error unwind) and use pooled slot-frame acquire for top-level `invokeFunction` bytecode entry frames.
-  - [x] Reuse bytecode string-interpolation part buffers across op executions and split literal/stack-op handlers out of `bytecode_vm_run.go` (keeps run loop under 1000 lines while reducing interpolation scratch allocations).
-  - [x] Add direct `*runtime.FunctionValue` call-dispatch fast path in `callCallableValue(...)` (including bound-method function targets) to bypass overload flattening/scoring on common single-function calls while preserving mismatch diagnostics.
-  - [x] Refactor method-resolution candidate accumulation to single-candidate-first storage (promote to slices only on ambiguity) to reduce `resolveMethodFromPool`/`callCallableValue` allocation churn in hot dispatch paths.
-  - [x] Isolate quicksort hotloop memprofiles from one-time setup churn by suspending memory sampling during fixture/load/typecheck bootstrap and restoring before the timed call loop.
-  - [x] Add an untimed quicksort hotloop warmup call before benchmark sampling/timer reset so one-time first-call cache/bootstrap work is excluded from steady-state perf and memprofile signals.
-  - [x] Reduce call-dispatch allocation churn with zero-copy partial-arg merge shortcuts and overload-slice view reuse for `*runtime.FunctionOverloadValue` targets.
-  - [x] Cache `typeInfo` generic signature strings used for method-cache keys so `findMethodCached(...)` avoids repeated `typeInfoToString(...)` allocations on hot generic receiver paths.
-  - [x] Add capped pointer-receiver bound-method cache in `resolveMethodFromPool(...)` (keyed by receiver identity + method + interface filter + inherent gate) and clear it alongside method-cache invalidation.
-  - [x] Add mutability-aware internal call dispatch (`callCallableValueMutable`) for bytecode-originated arg slices so `invokeFunction(...)` can skip defensive arg-slice cloning during coercion while preserving external/partial-call arg immutability guarantees.
-  - [x] Add int64-first `div/mod` fast return path with boxed small-integer reuse in `evaluateDivMod(...)`/`evaluateDivModFast(...)` to reduce `%`/`//` result boxing churn in hot numeric loops.
-  - [x] Reuse receiver-injection arg backing storage when bytecode passes mutable arg slices and pool `NativeCallContext` objects in call dispatch to reduce per-call allocation churn on hot native/member call paths.
-  - [x] Extend bytecode slot fast paths to typed identifier declarations (`name: T := expr`) by lowering simple typed declarations to slot stores with typed-pattern coercion semantics preserved at runtime.
-  - [x] Keep typed `=`/compound typed-pattern assignment semantics on `AssignPattern` paths (interface coercion + fallback binding behavior) while still enabling slot eligibility for typed `:=` declarations.
-  - [x] Defer `getIntegerInfo(...)` map lookups off int64 arithmetic/div-mod fast paths and use `ensureFitsInt64Type(...)` directly until big-int fallback is needed.
-  - [x] Cache boxed `u64` results for hot array metadata externs (`__able_array_size`, `__able_array_capacity`) and add an early primitive-receiver bound-method cache probe in `resolveMethodFromPool(...)` to reduce hot-loop allocation churn.
-  - [x] Add specialized bytecode lowering/opcode for `(<int> / <int>) as <int>` with guarded fast execution + semantic fallback, and optimize dynamic `ArrayStoreWrite` append writes (`index == len`) to avoid nil-fill+overwrite churn.
-  - [x] Pre-grow empty dynamic array append path to capacity 4 before first write so hot push loops avoid extra `cap=1`/`cap=2` realloc steps.
-  - [ ] Bytecode Phase 1: remove remaining high-frequency environment/path lookups in hot loops (slot coverage expansion + call dispatch fast paths).
-  - [ ] Bytecode Phase 2: cut allocation pressure (integer/array/hash map hot-path allocations, iterator churn, closure scaffolding in loops).
-  - [ ] Compiler Phase 1: eliminate avoidable `runtime.Value` carriers in statically-typed locals, struct fields, and loop temporaries.
-  - [ ] Compiler Phase 2: reduce bridge overhead at static call/member/index sites; prefer native typed paths and avoid dynamic helper round-trips.
-  - [ ] Add perf guardrails (non-blocking CI report first, then optional thresholds once noise is characterized).
-  - [ ] Publish per-phase progress in `LOG.md` with before/after timings for `fib`, `binarytrees`, `matrixmultiply`, `quicksort`, `sudoku`, and `i_before_e`.
+## Top Priorities
 
-### File-Size Maintainability (active)
-- Goal: keep v12 implementation files under 1000 lines by splitting by cohesive responsibilities without semantic changes.
-- Progress:
-  - [x] Split compiler generator helpers out of `pkg/compiler/generator.go` (extern/diag and module-binding constant evaluation).
-  - [x] Split compiler expression codegen out of `pkg/compiler/generator_exprs.go` (core dispatch vs call helpers vs cast/range/lambda helpers).
-  - [x] Split IR lowering code out of `pkg/compiler/lowerer.go` (core lowering vs spawn/literal/loop lowering vs scope+emit helpers).
-  - [x] Split interface runtime rendering out of `pkg/compiler/generator_render_runtime_interface.go` (main dispatch render path vs compiled-resolver emission block).
-  - [x] Split concurrency runtime rendering out of `pkg/compiler/generator_render_runtime_concurrency.go` (core helper emission vs extern-wrapper emission block).
-  - [x] Split IR Go emission out of `pkg/compiler/ir_codegen.go` (core instruction/literal emitters vs interpolation/destructure/terminator tail emitters).
-  - [x] Split bytecode VM runtime loop out of `pkg/interpreter/bytecode_vm.go` (opcode definitions/entrypoint vs resumable loop + unwind/finalize helpers).
-  - [x] Split runtime call rendering out of `pkg/compiler/generator_render_runtime_calls.go` (front half vs compiled-call/boundary/env/runtime-tail emission block).
-  - [x] Split compiler exec fixture tests out of `pkg/compiler/exec_fixtures_compiler_test.go` (main fixture harness vs no-bootstrap fixture harness).
-  - [x] Split bytecode VM tests out of `pkg/interpreter/bytecode_vm_test.go` (core VM tests vs async/member/collection tail tests and shared helpers).
-  - [x] Split call-overload resolution helpers out of `pkg/interpreter/eval_expressions_calls.go`.
-  - [x] Split dynamic/interface/package member resolution out of `pkg/interpreter/interpreter_members.go`.
-  - [x] Split bytecode lowering support helpers out of `pkg/interpreter/bytecode_lowering.go` and run-loop program-switch helper out of `pkg/interpreter/bytecode_vm_run.go`.
-  - [x] No remaining >1000-line `.go/.ts/.able` files under `v12/` (including tests), verified via `fd -e go -e ts -e able . v12 -x wc -l {} | grep -E '^[0-9]{4}'`.
+Priority order is fixed until changed explicitly:
+1. Finish the compiler.
+2. Make the bytecode interpreter fast.
+3. Everything else is backlog.
 
-### Compiler AOT
-- Status: **COMPLETE**. All definition-of-done criteria met. History in `LOG.md`.
-- No-bootstrap execution: non-dynamic programs run fully compiled (`interpreter.New()` instantiated for runtime services, `EvaluateProgram()` never called). Validated via `TestCompilerNoBootstrapExecFixtures`: 222 pass, 13 fail (12 inherently dynamic/IO + 1 pre-existing), 5 skip out of 240 total.
-- Bootstrap skip detection: `TestCompilerMainSkips` (7 tests) verifies generated `main.go` omits `EvaluateProgram()` for static programs.
-- Fallback audit: clean (`TestCompilerExecFixtureFallbacks` runs by default).
-- Full matrix: `v12/run_compiler_full_matrix.sh --typecheck-fixtures=strict` green.
-- Spec: compiler AOT contract fully documented in `spec/full_spec_v12.md`.
-### Compiler AOT Boundary Hardening (active priority)
-- Goal: enforce v12 AOT contract that compiled static code does not use interpreter execution paths; interpreter usage is allowed only for explicit dynamic features (`dynimport`, `dyn.def_package`, `dyn.eval`, etc.).
-- Immediate unit of work (execute in order):
-  - [x] Make static fallback rejection the default for `able build` (require-no-fallbacks on by default for non-dynamic builds; keep explicit override for migration/debug).
-  - [x] Wire compile-time policy: when dynamic features are not present, any collected fallback is a hard compile error (not warning/runtime boundary).
-  - [x] Add/strengthen tests so static fixtures assert zero boundary fallback calls by default (remove env-gated audit behavior for core static checks).
-  - [x] Keep dynamic fixtures explicit: dynamic-boundary tests must prove boundary calls only occur for explicit dynamic operations.
-  - [x] Remove static fallback sites that currently route through interpreter evaluation (starting with local `methods` / `impl` statement evaluation paths).
-  - [x] Remove static named/value call fallback to bridge interpreter dispatch; unresolved static calls must fail compile.
-  - [x] Eliminate unconditional interpreter bootstrap in static generated `main.go`; static path must not require interpreter initialization.
-  - [x] Update `spec/full_spec_v12.md` and `spec/TODO_v12.md` to reflect enforcement status and any temporary implementation limits.
-- Definition of done for this workstream:
-  - [x] Non-dynamic compiled programs execute without interpreter evaluation fallback calls (`__ABLE_BOUNDARY_FALLBACK_CALLS=0` in static audit runs).
-  - [x] Non-dynamic compiled `main.go` omits interpreter bootstrap/eval paths and does not require interpreter-backed bridge operations for static semantics.
-  - [x] Dynamic programs still function with explicit boundary transitions and retain parity with tree-walker/bytecode behavior.
-  - [x] `./run_all_tests.sh` and compiler fixture audits stay green with the new strict policy.
-### Compiler Native Lowering Contract (active priority)
-- Goal: lower Able source to native Go encodings wherever semantics are statically representable; interpreter/runtime carriers are allowed only at explicit dynamic boundaries and ABI edges.
-- Canonical architecture docs for this work:
-  - exhaustive lowering spec: `v12/design/compiler-go-lowering-spec.md`
-  - detailed completion plan: `v12/design/compiler-go-lowering-plan.md`
-- Compiler work must follow those documents. The compiler is not allowed to implement static Able semantics by routing normal compiled execution back through interpreter evaluation or interpreter-style dispatch helpers.
-- Current status: the recent compiler-side `Array -> Elements []runtime.Value` rewrite is under audit. Treat it as an experimental intermediate state, not as an accepted final architecture.
-- Completion milestones for a "done" compiler (execute in order, keep this list concrete):
-  - [ ] Native carrier completeness: every statically representable Able type expression maps to a native Go carrier.
-    - Scope: arrays, structs, unions, nullable values, results, interfaces, callables, and fully bound generic nominal types.
-    - Failing condition: `types.go` or generated helper synthesis still defaults representable static types to `runtime.Value` or `any`.
-  - [ ] Native pattern/control-flow completeness: `if`, `match`, `rescue`, `or {}`, `loop`, and `breakpoint` stay on native carriers when branch/result/pattern types are statically representable.
-    - Failing condition: generated static paths still use `__able_try_cast(...)`, `bridge.MatchType(...)`, `runtime.Value` join locals, or env lookups for native pattern bindings.
-  - [ ] Native dispatch completeness: statically resolved field access, method calls, interface/default-method calls, callables, index ops, and assignment paths lower to compiled Go dispatch instead of runtime helper dispatch.
-    - Failing condition: representative static bodies still emit `__able_call_value(...)`, `__able_method_call_node(...)`, `__able_member_get*`, `__able_index*`, or equivalent dynamic helper routes outside explicit dynamic boundaries.
-  - [ ] Boundary containment completeness: residual runtime/interpreter carriers exist only at explicit dynamic language/ABI boundaries and are mechanically audited.
-    - Scope: `dyn`, `eval`, extern/native ABI conversion, interpreted package objects, and explicit compiled/interpreter callback boundaries.
-    - Failing condition: static fixtures can cross fallback or explicit dynamic boundaries without the source itself using an explicit dynamic feature.
-  - [ ] Performance completeness: the compiled path is fast on the checked-in benchmark family and no longer needs obvious runtime scaffolding on hot static paths.
-    - Failing condition: benchmark-critical static code still carries avoidable frame scaffolding, dynamic dispatch, generic boxing, or other already-identified runtime helper overhead.
-- Vision / non-negotiable constraints:
-  - [x] Record the target architecture in design docs and the plan (`v12/design/compiler-native-lowering.md`, `v12/design/compiler-monomorphization.md`, `v12/design/compiler-no-panic-flow-control.md`, `v12/design/compiler-union-abi.md`, `spec/TODO_v12.md`).
-  - [ ] Arrays: compiled representation must be native Go array-backed storage (slice or compiler-owned wrapper), not `runtime.ArrayValue`, `ArrayStore*`, or kernel `storage_handle` plumbing on static paths.
-  - [ ] Structs: compiled locals, fields, params, and returns must remain native Go structs/pointers; do not auto-box them into `runtime.Value` to preserve identity or dispatch.
-  - [ ] Unions: compile to generated Go interfaces plus native variant carriers, not `any` or `runtime.Value`, except at explicit dynamic boundaries.
-  - [ ] Flow control: compiled control flow must use ordinary Go conditionals and returns; do not use `panic`/`recover` or IIFEs for regular returns, breaks, continues, breakpoints, raises, or rescues.
-  - [ ] Boundary discipline: when compiled code must cross into explicit dynamic behavior, perform a narrow adapter conversion at that edge and return to native Go carriers immediately after the boundary.
-- Immediate unit of work (execute in order):
-  - [ ] Audit and back out the staged array lowering that overrides kernel `Array` to `Elements []runtime.Value` while still depending on `runtime.ArrayValue` / `ArrayStore*`.
-  - [ ] Define the compiler-native array ABI for static code (`literal`, `len`, `push`, `pop`, `get`, `set`, indexing, iteration, cloning, bounds/error semantics) without interpreter structural helpers.
-  - [ ] Restore and strengthen compiler array-lowering regression coverage; static-path audits should fail if generated code reintroduces `runtime.ArrayValue`, `ArrayStore*`, IIFEs, or `panic`/`recover` flow control outside explicit dynamic boundaries.
-  - [x] Remove struct-local auto-boxing to `runtime.Value` and preserve native identity through static field/method dispatch.
-  - [ ] Design the native union ABI (generated Go interfaces, variant wrappers, type switches, pattern-match lowering, nullable/result interaction).
-    - Audit status (2026-03-10/2026-03-11): the first native result slice is now landed for `ResultTypeExpression` shapes that normalize to the current two-member `runtime.ErrorValue | T` carrier form, plain `Error` type positions now also use that native carrier instead of `runtime.Value`, and `?Error` now lowers to `*runtime.ErrorValue`. The broader remaining typed union/result pattern and wrapper surface still relies on `bridge.MatchType(...)` / `__able_try_cast(...)`. Nullable pointer/slice forms are native, the compiler-native scalar nullable family lowers natively (`?bool`, `?String`, `?char`, `?f32`, `?f64`, `?isize`, `?usize`, `?i8`, `?i16`, `?i32`, `?i64`, `?u8`, `?u16`, `?u32`, `?u64`), and the first closed two-branch union slice is now native for direct `UnionTypeExpression` shapes plus named union definitions that normalize to the same two-member native carrier form.
-    - Initial implementation order is now captured in `v12/design/compiler-union-abi.md`: start with nullable value carriers and closed two-branch native unions before widening to more generic shapes.
-    - [x] Complete the broader native-union carrier widening tranche for this phase: multi-member nominal unions, generic alias unions that normalize to native nullable/result carriers, and interface/open unions that can keep non-native payloads in explicit `runtime.Value` residual union members now stay on generated native union carriers instead of collapsing the whole union to `any`.
-    - Progress update (2026-03-10/2026-03-18): the native nullable-value slice now covers the compiler-native scalar family (`?bool`, `?String`, `?char`, `?f32`, `?f64`, `?isize`, `?usize`, `?i8`, `?i16`, `?i32`, `?i64`, `?u8`, `?u16`, `?u32`, `?u64`) plus `?Error -> *runtime.ErrorValue`. These shapes now use native Go pointer carriers on compiled static paths, explicit generated boundary helpers for wrapper/lambda conversion, native typed-`match` nil/payload lowering, and native `or {}` nil-branching instead of `any`. The first closed union pass is now also landed for two-member native unions: the compiler synthesizes generated Go interfaces plus wrapper carrier structs, static params/returns stay native on those shapes, wrappers/lambdas use explicit generated boundary helpers, typed union `match` lowering on static paths no longer falls back to `__able_try_cast(...)` for those carrier shapes, `or {}` now recognizes native `Error`-implementer failure branches on those carriers without routing the whole expression back through runtime-value probing, `case err: Error => ...` branches on those same carriers now discriminate natively too, converting the matched value to `runtime.Value` only at the branch binding edge when the whole error value is bound, and the first native `!T` slice now maps `ResultTypeExpression` to that same carrier family when the result shape normalizes to `runtime.ErrorValue | T`. Plain `Error` positions now also use `runtime.ErrorValue` on compiled static paths, and `?Error` uses `*runtime.ErrorValue`, so explicit `Error` returns, explicit `String | Error` unions, and nullable error paths no longer fall back to `runtime.Value`. Direct compiled `Error.message()` / `Error.cause()` calls now also stay native on the `runtime.ErrorValue` carrier, native concrete-error normalization preserves both compiled message and cause payloads, and struct field conversion now supports `Error` / `?Error` carriers without falling back to unsupported-field codegen. The broader carrier-widening tranche is now also landed for this phase: multi-member nominal unions, generic alias unions like `Option T = nil | T` / `Result T = Error | T`, and interface/open unions like `String | Tag` now use generated native union carriers; non-native residual members stay explicit as `runtime.Value` branches inside those carriers instead of forcing the whole union back to `any`, and singleton struct boundary converters now accept runtime `StructDefinitionValue` payloads so interpreted callers can pass bare singleton values into compiled native struct/union params. Fully bound object-safe interfaces now also stay on generated native Go interface carriers across static params/returns, typed local assignment, struct fields, direct method dispatch, concrete receiver `Index` / `IndexMut`, default-interface method calls, `Apply`, wrapper/lambda ABI conversion, and dynamic callback boundaries; the strict no-fallback interface fixture audit is green again end-to-end, `06_12_26_stdlib_test_harness_reporters` now has a dedicated regression harness, native interface runtime adapters now round-trip `void` as `struct{}` and write back mutated pointer-backed interface args after runtime dispatch, and `generator_match.go` has been split back under the file-size cap. The non-object-safe/generic interface existential tranche is now closed too: pure-generic interfaces now keep generated native carriers instead of collapsing to `runtime.Value`, generic interface/default-interface methods now keep the receiver on that native carrier and cross into runtime only at the explicit generic dispatch edge, inferred runtime results convert back to the best-known native carrier, and the strict interface lookup audit is green with total interface/global lookup counts forced to zero. The next category is now callable/function-type existentials plus further runtime-boundary tightening around callable-driven generic inference surfaces.
-  - [x] Design and stage the explicit control-result envelope for non-local jumps and exceptions so callers can branch on normal return vs jump vs raise without `panic`/`recover`.
-  - [x] Remove the residual panic-based dynamic helper internals (`__able_member_get_method`, `__able_member_get`, `__able_member_set`, and similar bridge-era helpers) so explicit dynamic boundaries no longer need narrow recover containment shims.
-  - [x] Complete native lowering for non-object-safe/generic interface existentials without regressing the completed object-safe carrier slice back to `runtime.Value`.
-  - [x] Design and stage a native callable/function-type existential ABI so interface method values and other callable-typed existential surfaces stop defaulting to dynamic carrier paths.
-  - [x] Tighten the remaining runtime-boundary interface/callable surfaces so residual `runtime.Value` usage is explicit, minimal, and mechanically audited.
-  - [x] Re-audit Claude's recent compiler work against this contract before merging staged compiler changes.
-    - The final surfaced static-path mismatch was native array bounds handling under the zero-boundary harness: `runtime.ErrorValue`-backed `IndexError` results were losing their concrete struct identity inside `__able_error_to_struct(...)`, which broke `case _: IndexError => ...` matches.
-    - `__able_error_to_struct(...)` now preserves wrapped struct payloads before falling back to an anonymous synthetic error struct view.
-    - `TestCompilerStaticNativeFixturesExecuteWithoutExplicitBoundaries` now includes `06_08_array_ops_mutability`, so the zero-boundary execution audit covers native array mutation/bounds semantics in addition to the lambda/interface fixtures.
-  - Progress note (2026-03-10/2026-03-19): static compiled array locals now synthesize/use a built-in compiler `Array` carrier with spec-visible `length` / `capacity` / `storage_handle` fields plus hidden native `Elements []runtime.Value` storage; array literals, `push`, `write_slot`, direct index assignment, `clear`, and static array destructuring/rest bindings now lower to native slice mutation/binding plus metadata sync. Match expressions no longer blanket-convert struct subjects to `runtime.Value` before pattern dispatch, so static `Array` pattern conditions and rest tails stay native on direct compiled paths. The generated `Array` boundary helpers are also narrower now: compiled `Array -> runtime.ArrayValue` conversion keeps plain runtime array boundaries handle-free unless an existing handle is already present or a `StructInstanceValue` target explicitly requires one, while `Array <- runtime.ArrayValue` now reads existing handle state without re-ensuring the store. Residual dynamic array helpers (`__able_index`, `__able_index_set`, `__able_member_get`, `__able_member_set`) are now normalized around the shared runtime-array unwrapping shim, and current static compiler slices continue to bypass them for native `*Array` paths. Reachability coverage now explicitly proves the opposite side too: representative static native programs avoid the residual helper layer, while explicit dynamic package/member/index programs still reach it. Unannotated local struct declarations also now stay native instead of being declaration-time boxed into `runtime.Value`, targeted regression coverage confirms direct compiled struct params, returns, mutation-through-call sites, static array rest-pattern lowering, narrowed array boundary helpers stay native on static paths, and wrapper returns for native struct/array values now use explicit `__able_struct_*_to` boundary conversion instead of routing through `__able_any_to_value`. The native union/nullable slice now covers the compiler-native scalar nullable family (`?bool`, `?String`, `?char`, `?f32`, `?f64`, `?isize`, `?usize`, `?i8`, `?i16`, `?i32`, `?i64`, `?u8`, `?u16`, `?u32`, `?u64`) plus the native `Error` carrier family (`Error -> runtime.ErrorValue`, `?Error -> *runtime.ErrorValue`), the first native `!T` slice for `runtime.ErrorValue | T` result shapes, the broader carrier-widening tranche for multi-member nominal unions, generic alias unions, and interface/open unions with explicit residual `runtime.Value` members, the fully bound object-safe native interface tranche, the non-object-safe/generic interface existential tranche for pure-generic interfaces plus generic/default-interface methods, and now the callable/function-type existential tranche too. Function types now map to generated native callable carriers instead of `any`; direct lambdas, local function definitions, placeholder lambdas, bound method values, function-typed params, struct fields, wrapper arg/return boundaries, and native interface conversions all stay on those carriers on static compiled paths. Callable-heavy generic surfaces exercised by `Iterator<T>` / iterable fixtures and the stdlib reporters fixture now stay on the narrowed carrier/boundary design without falling back to broad dynamic helper paths. Singleton struct boundary shims now also accept runtime `StructDefinitionValue` payloads for bare singleton arguments. Explicit control-result propagation is now also landed for compiled static flow and explicit dynamic call boundaries: compiled functions plus generated `call_value` / `call_named` sites branch on `*__ableControl` instead of raw panic, callback-bearing runtime helpers convert that control back into ordinary Go `error` results, and dynamic boundary failure markers now survive callback failures instead of being lost to raw panics. The residual dynamic helper cleanup tranche is now complete too: generated `__able_member_get`, `__able_member_set`, `__able_member_get_method`, and `__able_method_call*` helpers now use explicit error/control returns instead of raw panic, the temporary `recover`-based bridge wrappers are gone, lambda callback arg conversion now preserves native interface carriers and nullable pointer-struct carriers while still rejecting nil for non-nullable struct params, and the full dynamic-boundary suite is green again. The strict interface/global lookup audit has also now been split across four deterministic default batch tests so each stays below the repo's one-minute target, while the unsuffixed selector test remains available for explicit fixture subsets via `ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES`. The broader touchpoint-enforcement tranche is now landed too: combined-source audits now fail if representative static native paths regress to `__able_call_value(...)`, `__able_member_get*`, `__able_index*`, `__able_method_call_node(...)`, `bridge.MatchType(...)`, `__able_try_cast(...)`, `__able_any_to_value(...)`, or panic/IIFE-style control scaffolding, the intentionally residual generic interface edge is audited to stay narrowed to `__able_iface_*_to_runtime_value(...)` plus `__able_method_call_node(...)`, and representative static fixtures now execute under the boundary-marker harness with both fallback and explicit boundary counts at zero, including `06_08_array_ops_mutability`. Remaining work is now a different category: broader performance-oriented specialization/monomorphization.
-### Compiler AOT Performance and `runtime.Value` Reduction (active priority)
-- Goal: minimize `runtime.Value` usage in static compiled code; keep it only where semantically required (explicit dynamic boundary crossing, interface/runtime-polymorphic dispatch, and ABI conversion points).
-- Native-lowering requirement: static Able semantics should lower to host-native Go constructs (concrete structs/scalars/collections) rather than interpreter object-model execution paths; generic dynamic carriers are reserved for explicit boundary/ABI/polymorphic residual cases.
-- Kickoff changes landed:
-  - [x] Map statically-typed `Array ...` locals to compiled `*Array` instead of defaulting to `runtime.Value`.
-  - [x] Fix local `=` declaration fallback so unbound local assignments do not compile to `__able_global_set/__able_global_get`.
-  - [x] Lower typed `Array` index read/write (`arr[idx]`, `arr[idx] = v`) through direct `runtime.ArrayStore*` paths for compiled `*Array` receivers.
-  - [x] Keep static no-fallback enforcement active while applying these optimizations.
-- Immediate unit of work (execute in order):
-  - [x] Add a static native-lowering audit for user-defined nominal types (struct/union/interface views) and primitive locals to identify/remove avoidable `runtime.Value` carriers in compiled function bodies.
-    - Origin-type tracking (`OriginGoType` in `paramInfo`) enables static method/field resolution on `runtime.Value` struct locals.
-    - `compileOriginStructMethodCall`: extracts struct, calls compiled method directly, writes back.
-    - `compileOriginStructFieldAccess`: extracts struct, accesses Go field directly.
-    - Default impl sibling dispatch: direct compiled calls via `compileResolvedMethodCall` instead of `__able_impl_self_method` + `__able_call_value`.
-    - Struct literal → runtime.Value IIFE eliminated (inline lines in assignments).
-  - [x] Add regression fixtures that assert struct-heavy static programs emit concrete Go typed locals/field access paths and avoid dynamic dispatch helpers (`__able_member_get_method`, `__able_call_value`, `__able_call_named`) outside explicit dynamic-boundary wrappers.
-    - `TestCompilerStructMethodStaticDispatch`: struct method calls → direct compiled dispatch.
-    - `TestCompilerStructFieldStaticAccess`: struct field access → direct Go field access.
-    - `TestCompilerDefaultImplSiblingDirectCall`: default impl sibling → direct compiled call.
-  - [x] Encode/enforce allowed dynamic-carrier touchpoints in codegen (explicit dynamic boundary adapters, residual runtime-polymorphic dispatch, extern ABI conversion).
-  - [x] Prefer common native existential join carriers before synthesizing unions when the join branches already share one.
-    - Shared join inference now prefers `runtime.ErrorValue` for mixed native `Error` implementers and prefers a common zero-arg native interface carrier when all concrete branches implement the same interface, instead of falling back to a generated union local plus `__able_method_call_node(...)`.
-    - Pure-generic interface joins stay on that same shared carrier too: once the join infers the interface carrier, generic method calls on the joined value continue through the compiled generic-interface dispatch helper even when multiple concrete adapters exist for the interface.
-    - This stays within the compiler contract: no named non-primitive type received a bespoke lowering rule; the change is shared join/existential inference plus shared native interface dispatch refinement.
-  - [x] Extend common native existential join-carrier discovery to fully bound parameterized interfaces.
-    - Shared join inference now materializes candidate native interface carriers from the actual branch impl metadata instead of depending only on already-loaded zero-arg interface infos.
-    - That candidate discovery walks bound base interfaces too, so concrete implementers of different parameterized child interfaces can still join on the common bound parent carrier.
-    - Direct bound joins like `Left | Right -> Reader i32` now stay on `__able_iface_Reader_i32`, and inherited bound joins like `LeftReader i32 | RightReader i32 -> Reader i32` do the same without adding any named non-primitive lowering rule.
-    - `TestCompilerJoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface`, `TestCompilerJoinExpressionParameterizedInheritedImplementersInferSharedParentInterface`, and `TestCompilerParameterizedInterfaceJoinsExecuteWithoutDynamicFallback` pin the shared behavior.
-  - [x] Keep nil-capable joins on native carriers when the non-nil branches already share one.
-    - Shared join inference now recognizes nil-valued branch expressions (`any(nil)`, `runtime.NilValue{}`, and typed nils) separately from the concrete branch carriers.
-    - The compiler now joins the non-nil carriers first and then preserves that native result when the joined carrier already has a nil zero value or a native nullable wrapper exists.
-    - This closes nil-capable native joins for interface carriers, callable carriers, native nullable/error carriers, and the existing loop/breakpoint result probes through one shared rule rather than per-construct handling.
-    - `TestCompilerIfExpressionInterfaceAndNilInferNativeCarrier`, `TestCompilerMatchExpressionCallableAndNilInferNativeCarrier`, `TestCompilerRescueExpressionErrorAndNilInferNativeNullableError`, and `TestCompilerNilCapableJoinExpressionsExecuteWithoutRuntimeCarrierFallback` pin the shared behavior.
-    - `TestCompilerBroadStaticNativeTouchpointsStayNative` now enforces the static native-path contract across arrays, structs, named unions, object-safe interfaces, and native callables in one combined source.
-    - `TestCompilerGenericInterfaceTouchpointsStayNative` now enforces that statically-known generic interface calls stay on compiled native helpers instead of routing the interface carrier through `__able_iface_*_to_runtime_value(...)` plus `__able_method_call_node(...)`.
-    - Pure-generic interface calls such as `Echo.pass<T>(...)` now lower through generated compiled dispatch helpers that switch on the native interface carrier and call specialized compiled impls directly; only the runtime-adapter case inside those helpers remains as the explicit dynamic boundary.
-    - Mixed-result `if`, `match`, and `rescue` expressions now use shared join-type inference plus shared branch coercion, so representable mixed branch results synthesize native carriers instead of defaulting the join local to `runtime.Value`.
-    - Mixed-result `or {}` expressions now use that same shared join-type inference too; nullable success paths join on the unwrapped payload carrier, and `err => ...` bindings stay on the native failure carrier when the failure branch type is statically known.
-    - `loop { ... break value }` and labeled `breakpoint 'label { ... break 'label value }` expressions now use that same shared native join/coercion path too when their result shapes are statically representable; break payloads bind directly onto the native result carrier instead of being forced through a `runtime.Value` temp, and the existing loop/breakpoint compiler fixtures stay green with bare-`break` nil behavior preserved.
-    - Static typed-pattern lowering now uses shared nominal receiver compatibility rather than exact Go carrier identity, which keeps same-family specialized native carriers on the static pattern path.
-    - Type-expression-backed join inference is now closed too: when a branch/local still reports `runtime.Value` or `any` but retains a concrete normalized Able `TypeExpr`, shared join inference now recovers the native carrier instead of widening the whole join back to `runtime.Value`; typed-pattern bindings preserve that `TypeExpr`, identifier lowering prefers the recovered native carrier on use, and `if` / `match` / `rescue` / `or {}` / loop / breakpoint joins all reuse that shared recovered-type path.
-    - Ordered next TODOs for this category:
-      - [ ] Close native carrier synthesis gaps in `types.go` and `generator_native_unions.go`.
-        - `TypeMapper.Map(...)`, `mapResultType(...)`, `mapExpandedUnionMembers(...)`, and `mapNullableType(...)` still fall back to `runtime.Value` or `any` when a fully bound normalized `TypeExpr` misses the currently landed carrier cases on first pass.
-        - `ensureNativeUnionInfo(...)` and `ensureNativeResultUnionInfo(...)` still canonicalize those unresolved members into residual `runtime.Value` union members instead of forcing one more shared native-carrier discovery pass first.
-        - Required proof: add compile-shape regressions for named alias / parameterized union-result locals that currently degrade, and make them stay on generated native carriers with no `var x runtime.Value` / `var x any`.
-      - [ ] Remove runtime typed-pattern fallback for recoverable static subjects.
-        - `generator_match.go`, `generator_match_runtime_types.go`, and `generator_rescue.go` still emit `__able_try_cast(...)` / runtime-subject pattern flows whenever the current Go carrier string is `runtime.Value` or `any`, even when the subject retains a recoverable native `TypeExpr`.
-        - Required proof: add regressions for `match` / `rescue` typed-patterns on recovered interface, error, and parameterized-union locals that avoid both `__able_try_cast(...)` and `bridge.MatchType(...)`.
-      - [ ] Eliminate representable join fallback locals in handler/binding flows.
-        - `generator_or_else.go`, `generator_rescue.go`, and `generator_join_types.go` still have fallback sites that set `resultType = "runtime.Value"` or `bindingType = "runtime.Value"` when branch recovery fails mid-pipeline.
-        - Audit each remaining fallback and either recover a shared native carrier from the normalized `TypeExpr` or explicitly document the case as a true dynamic boundary.
-        - Required proof: extend `compiler_join_native_test.go` so mixed success/handler joins and typed `err => ...` bindings stay off `runtime.Value` locals whenever all branch types are statically representable.
-      - [ ] Narrow residual `runtime.Value` union members to explicit dynamic-only cases.
-        - `nativeUnionRuntimeMemberAcceptsActual(...)` and `nativeUnionRuntimeMemberRequiresMatch(...)` still bucket generic/open/result members into residual runtime branches broadly.
-        - Tighten those gates so statically representable members get real native union/interface/callable carriers first, leaving `runtime.Value` members only for explicit dynamic payloads.
-        - Required proof: extend `compiler_native_touchpoint_audit_test.go` with representative static union/interface/callable programs that fail if residual `runtime.Value` union members reappear outside explicit dynamic boundaries.
-    - Cross-package generic-only interface adapters now survive shared adapter refresh and late helper generation through one explicit adapter-retention path, so fixtures such as `10_04_interface_dispatch_defaults_generics` emit the required native concrete helper/type definitions instead of building broken source.
-    - `TestCompilerStaticNativeFixturesExecuteWithoutExplicitBoundaries` now proves representative static fixtures execute under the boundary-marker harness with both fallback and explicit boundary counts at zero.
-  - [x] Add call-site intrinsics for typed `Array` methods in hot paths (`push`, `len`, `get`, `set`) to bypass dynamic member lookup / `__able_call_value`.
-  - [x] Add compiler regression fixtures proving typed-array locals in static code emit no `__able_global_get/__able_global_set` in compiled function bodies.
-  - [x] Add compiler regression fixtures proving typed-array loops emit no `__able_member_get_method`/`__able_call_value` for `push/get/set/len`.
-  - [x] Add fast-path loop lowering for `while` loops without explicit `break`/`continue`/`rescue` needs (avoid per-iteration closure + `defer` scaffolding).
-  - [x] Extend array literal lowering so typed contexts keep native compiled `*Array` paths and avoid unnecessary struct<->runtime boxing.
-  - [x] Audit `Array` stdlib compiled methods (`push`, `len`, `get`, `set`, `refresh_metadata`) for redundant runtime round-trips; remove avoidable metadata refresh churn.
-  - [x] Add benchmark fixtures (`noop`, `sieve_count`, `sieve_full`) and track real/user/sys + GC count in CI-adjacent perf script (non-blocking, report-only).
-  - [x] Document required/allowed `runtime.Value` usage categories in `spec/full_spec_v12.md` and note staged limits in `spec/TODO_v12.md`.
-  - [x] Design and stage monomorphized container ABI proposal (`Array<T>` native element typing) with compatibility constraints before implementation.
-  - [x] Add stage-0 mono-array flag scaffolding (`--experimental-mono-arrays`, `ABLE_EXPERIMENTAL_MONO_ARRAYS`) through compiler options and generated feature marker.
-  - [x] Revise the staged mono-array plan so the final static-path representation is compiler-native Go storage, not a `runtime.ArrayValue` / `ArrayStore*` hybrid.
-    - Revised design is now captured in `v12/design/monomorphized-container-abi.md` and `v12/design/compiler-monomorphization.md`.
-    - Accepted direction: compiler-generated specialized array wrappers over native Go slices, with `runtime.ArrayValue` / `ArrayStore*` reserved for explicit boundary adapters and residual compatibility machinery only.
-    - Guardrail landed: `TestCompilerExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrier` proves that turning on `ExperimentalMonoArrays` still keeps representative static array bodies on the compiler-owned array carrier instead of regressing to runtime-array helpers.
-  - [ ] Implement staged monomorphized array lowering behind a compiler flag once design/spec update is approved.
-    - Historical in-tree experiment: runtime typed stores (`i32`, `i64`, `bool`, `u8`) plus flag plumbing and dynamic-boundary tests still exist, but they are now compatibility scaffolding and measurement reference, not the accepted final architecture.
-    - Existing mono-array boundary regression coverage for explicit dynamic calls and nullable/union/interface callback conversion remains valuable and should continue to pass as the implementation migrates toward specialized compiler-owned wrappers.
-    - Historical compiled-only perf snapshots from the runtime-backed experiment remain reference data only; they do not satisfy the final mono-array definition of done.
-    - Current CLI/env flag plumbing is still default-on with explicit opt-out (`--no-experimental-mono-arrays` / `ABLE_EXPERIMENTAL_MONO_ARRAYS=off`), but that does not imply the runtime-backed hybrid is the accepted end state.
-    - [x] First specialized-wrapper slice is now landed for the staged element set (`i32`, `i64`, `bool`, `u8`) on explicit typed `Array<T>` positions.
-      - `TypeMapper` now maps explicit typed `Array i32` / `Array i64` / `Array bool` / `Array u8` to compiler-owned wrappers (`*__able_array_i32`, etc.) when `ExperimentalMonoArrays` is enabled.
-      - Typed literals, `push`, `get`, `set`, `read_slot`, `write_slot`, direct index read/write, and wrapper/lambda/runtime boundary conversion now operate on those typed wrappers.
-      - Existing dynamic mono-array boundary tests remain green on the specialized carriers.
-    - [x] Widen specialization beyond explicit typed positions to constructors/stdlib factories, unannotated local inference, clone/iteration/pattern paths, and remaining residual generic carrier surfaces.
-      - Non-empty unannotated local array literals now infer staged specialized carriers when `ExperimentalMonoArrays` is enabled and the element family is staged.
-      - `Array.new()` / `Array.with_capacity()` now lower directly to compiler-owned static carriers on typed static paths.
-      - `reserve()` / `clone_shallow()`, static `for` iteration, and array-pattern rest tails now preserve specialized carriers instead of dropping back to generic `*Array`.
-    - [x] Re-measure compiled benchmark deltas after the widened specialized slice lands.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-mono-array-widened-compiled.md` using `v12/bench_perf` with compiled mode built through `cmd/ablec`.
-      - Current 5-run compiled-only averages are flat on wall-clock for `bench/noop`, `bench/sieve_count`, and `bench/sieve_full`; the only visible movement in this slice is lower timed GC on `bench/sieve_full` (`1.00` vs `3.00` with mono off).
-      - Conclusion: the widened specialized slice is directionally correct for allocation pressure, but the next material win now depends on shrinking residual generic `*Array` / `runtime.Value` paths rather than adding more measurement.
-    - [x] Narrow residual generic `*Array` / `runtime.Value` paths on static compiled array surfaces where the element type is still recoverable.
-      - Inferred local `Array T` bindings now retain recoverable element-type metadata on static paths, so generic static helper results such as `get`, `pop`, `first`, `last`, and `read_slot` can stay on native nullable carriers instead of falling back to `runtime.Value`.
-      - Static and residual runtime-backed array `set` / index-assignment success now return `nil` again, restoring the spec-visible `nil | IndexError` contract and fixing the `06_08_array_ops_mutability` / `06_12_02_stdlib_array_helpers` compiled regressions.
-      - Runtime-backed iterator interface boundaries now accept raw `*runtime.IteratorValue` carriers directly, and `__able_control_from_error_with_node(...)` preserves `__able_generator_stop` as iterator completion rather than surfacing it as a raised runtime error. That closes the `06_12_18_stdlib_collections_array_range` compiler/runtime mismatch.
-      - Regression coverage now inspects the real compiled `06_12_02_stdlib_array_helpers` fixture to prove native nullable helper lowering on the generic static path and covers the raw-runtime-iterator boundary path used by `Iterator<T>`.
-      - With this tranche closed, the next mono-array category is no longer “fix the residual generic array mismatches”; it is broader carrier reduction work beyond the currently representable static array cases, followed by another benchmark pass.
-    - [x] Extend the staged specialized array set to `f64` and close the nested `Array (Array f64)` static get/push path.
-      - `Array f64` now lowers to the compiler-owned `*__able_array_f64` wrapper on the staged specialized path.
-      - Native nullable propagation now handles concrete expected-type coercion for pointer-backed scalar carriers like `*float64`, which keeps nested expressions such as `rows.get(j)!.get(i)!` on the static compiled path instead of forcing the surrounding `push(...)` back through `__able_method_call_node(...)`.
-      - Regression coverage now pins both the generated nested `transpose` hot loop and the `Array f64` dynamic-boundary callback conversion path.
-      - The full `v12/examples/benchmarks/matrixmultiply.able` compiled path with mono arrays enabled no longer exits early with `runtime: runtime error`; under the checked `60s` harness timeout it now matches mono-off and the historical compiled baseline by timing out instead of failing.
-    - [x] Add a reproducible reduced `f64` matrix multiply benchmark target and re-measure the staged `f64` mono-array slice.
-      - New target: `v12/fixtures/bench/matrixmultiply_f64_small/main.able` (`300x300`, same algorithm and nested `Array (Array f64)` structure as the full benchmark).
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-mono-array-f64-matrixmultiply-small-compiled.md`.
-      - Current compiled 3-run averages on that fixture: mono on `5.4833s` / `280.00` GC; mono off `45.3133s` / `3568.67` GC.
-      - Conclusion: staged `f64` specialization plus the nested get/push propagation fix produce a material wall-clock and GC win on a benchmark that directly exercises the newly lowered path.
-    - [x] Reduce the remaining generic outer row shell for nested staged mono-array carriers.
-      - Nested typed arrays such as `Array (Array f64)` now lower to dedicated outer wrappers like `*__able_array_array_f64` instead of generic `*Array` with `[]runtime.Value` row storage.
-      - Rendered mono-array converters and native `Array` core helpers now handle pointer-backed specialized element carriers directly, including nilable `read_slot` / `pop` results and explicit nested runtime boundary conversion.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-mono-array-nested-wrapper-compiled.md`.
-      - Current compiled 3-run averages on `v12/fixtures/bench/matrixmultiply_f64_small/main.able`: mono on `5.7233s` / `252.00` GC; mono off `44.5167s` / `3550.67` GC.
-      - Conclusion: the outer nested carrier is now native and compiler-owned, but this structural cleanup does not add a second visible wall-clock step beyond the earlier `f64` slice; the next material perf category is broader carrier reduction beyond nested mono-array wrappers.
-    - [x] Widen compiler-owned array wrapper synthesis to other native carrier element families beyond nested mono arrays.
-      - Arrays of generic inner arrays, native interfaces, native callables, and other representable pointer-backed carrier types now synthesize dedicated outer wrappers instead of falling back to generic `*Array` / `runtime.Value` row storage.
-      - Explicit dynamic-boundary callback coverage now includes interface-carrier arrays and callable-carrier arrays.
-      - This tranche is architectural rather than benchmark-driven; no new shared benchmark snapshot was added because the current benchmark set does not materially exercise these carrier families.
-    - [x] Extend the staged specialized scalar set to the text family (`char`, `String`) and re-measure it on a char-heavy compiled benchmark.
-      - `Array char` now lowers to `*__able_array_char` over `[]rune`, and `Array String` now lowers to `*__able_array_String` over `[]string`.
-      - Nested `Array (Array char)` now lowers to `*__able_array_array_char`, so the representative text row shape no longer falls back to the generic `*Array` shell.
-      - `compilePropagationExpression(...)` now re-wraps native result success branches through the static coercion path, fixing the emitted `!Array char` bug where the compiler tried to call `_from_value(__able_runtime, specializedCarrier)` on an already-native success value.
-      - New benchmark fixture: `v12/fixtures/bench/zigzag_char_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-mono-array-zigzag-char-small-compiled.md`.
-      - The initial mono-off benchmark recorded for that fixture was later found to be invalid because the mono-off compiled path was producing the wrong result on nested text rows.
-    - [x] Keep compiler-owned carrier-array wrappers available even when staged scalar mono arrays are disabled, and correct the text benchmark baseline.
-      - Carrier-array wrappers for already-native compiler carriers now synthesize regardless of `ExperimentalMonoArrays`, while staged scalar specializations remain flag-gated.
-      - This fixes the mono-off `Array (Array char)` identity bug where the outer generic `*Array` boxed rows through `runtime.Value` and lost row mutation on `rows[idx]!.push(...)`.
-      - New regressions prove both the generated mono-off carrier wrapper shape and runtime row-identity preservation for nested `Array (Array char)` paths.
-      - Corrected compiled 3-run averages on `v12/fixtures/bench/zigzag_char_small/main.able`: mono on `0.9567s` / `88.00` GC; mono off `1.0500s` / `384.00` GC.
-      - Conclusion: with a valid mono-off baseline, the text-scalar widening slice is directionally correct and no longer shows a regression on the checked-in reduced benchmark.
-    - [x] Extend the staged specialized scalar set to the remaining primitive numeric family and benchmark a representative unsigned path.
-      - Staged mono-array wrappers now also cover `Array i8`, `Array i16`, `Array u16`, `Array u32`, `Array u64`, `Array isize`, `Array usize`, and `Array f32`.
-      - Focused compile/runtime regressions now pin generated wrappers for those families and exercise them in both compiled static code and dynamic-boundary callback conversion.
-      - New benchmark fixture: `v12/fixtures/bench/sum_u32_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-mono-array-u32-sum-small-compiled.md`.
-      - Current compiled 3-run averages on that fixture: mono on `1.0933s` / `185.33` GC; mono off `1.6800s` / `21.33` GC.
-      - Conclusion: the remaining primitive numeric scalar family is now materially more complete, and the specialized `u32` path shows a real wall-clock win on the checked-in reduced benchmark even though raw GC count is not lower on that workload.
-    - [x] Land the first broader non-array native container carrier slice for `HashMap`.
-      - `HashMap K V` now maps to native `*HashMap` carriers on static compiled paths instead of `any`.
-      - Typed/untyped map literals, `Array (HashMap K V)` outer carriers, and `Map K V` interface params now stay native in generated code.
-      - Generic interface return matching now binds instantiated interface generics correctly, which closes the old no-fallback breakage in stdlib `HashSet.iterator()` / `Enumerable.iterator`.
-      - Shared nominal struct lowering now expands simple type aliases before host-type mapping, so alias-backed fields like `HashMapHandle = i64` lower to concrete Go fields (`int64`) instead of regressing to `runtime.Value`.
-      - The remaining explicit map-literal boundary now normalizes runtime handle values back into the native `HashMap.handle` carrier before constructing the compiled struct.
-      - The compiled control-to-error bridge now preserves exit signals before wrapping raised values, so successful compiled stdlib flows that end in `__able_os_exit(0)` do not degrade into generic `runtime error` failures.
-      - `TestCompilerCompiledHashSetUnionStdlib` is green again on the shared native carrier path, which closes the last surfaced integration regression from the generic nominal-carrier refactor.
-      - Residual interface coercion on this path is now an explicit runtime roundtrip at the ABI edge rather than a compiler fallback.
-      - New reduced benchmark fixture: `v12/fixtures/bench/hashmap_i32_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-hashmap-i32-small-compiled.md`.
-      - Current compiled 3-run average on that fixture: `1.7633s` / `175.33` GC.
-    - [x] Follow through on broader nominal map/set container lowering via the shared struct/interface pipeline rather than new per-type compiler rules.
-      - `TreeMap` / `TreeSet` and `PersistentMap` / `PersistentSet` are now compiling on the same generic nominal carrier path as `HashMap`; no new container-specific host-type mapping was added for those families.
-      - Static compiled bodies now route slice/string builtin calls through generated helpers (`__able_slice_len`, `__able_slice_cap`, `__able_string_len_bytes`) so Able locals like `len` no longer shadow raw Go builtins and break container-heavy compiled code.
-      - The previously failing stdlib fixture gates are green again: `06_12_11_stdlib_collections_tree_map_set` and `06_12_12_stdlib_collections_persistent_map_set`.
-      - Focused regression coverage now pins builtin-shadowing hygiene plus native `TreeMap` / `PersistentMap` params and returns.
-    - [x] Audit the next broader stdlib container families on the shared native carrier path and add the first reduced benchmark for that slice.
-      - `Deque` / `Queue`, `BitSet` / `Heap`, and `PersistentSortedSet` / `PersistentQueue` now have explicit no-fallback compiler regressions proving representative static method bodies stay on native locals and avoid dynamic helper regressions.
-      - Shared compiled fixture gates are green for the same families: `06_12_13_stdlib_collections_persistent_sorted_queue`, `06_12_16_stdlib_collections_deque_queue`, and `06_12_17_stdlib_collections_bit_set_heap`.
-      - New reduced benchmark fixture: `v12/fixtures/bench/heap_i32_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-19-heap-i32-small-compiled.md`.
-      - Current compiled 3-run average on that fixture: `7.7533s` / `1105.00` GC, with direct compiled output parity at `-211812354`.
-    - [x] Close the next deeper generic-container correctness slice on the shared native carrier path.
-      - Generic nullable/interface carriers now stay native on deeper container paths like `LazySeq T` instead of collapsing back to `any`.
-      - Nil lowering now emits typed Go nils for native nilable carriers (`*ListNode`, native interface carriers, other pointer-backed carriers) instead of invalid raw `nil` short declarations.
-      - The compiled stdlib fixture gate `06_12_14_stdlib_collections_linked_list_lazy_seq` is green again, and `TestCompilerLazySeqIteratorCarrierStaysNative` now pins the generated `LazySeq.Source` carrier plus the typed-`nil` reset path.
-      - This tranche did not add a new reduced benchmark because it closes a native-carrier correctness gap rather than a newly identified hot loop.
-    - [x] Close the first benchmark-worthy generic-container hot-path slice on the shared native carrier path.
-      - Static `for value in iterable` lowering now uses native receiver calls (`iterator`, `next`) for concrete and native-interface iterable carriers instead of `__able_resolve_iterator(...)`.
-      - Identifier coercion now prefers static expected-type coercion before broad runtime conversion, which keeps native interface arguments on compiler-owned carriers more reliably.
-      - Native interface adapter synthesis now honors interface inheritance, so derived-interface impls such as `Enumerable A for LinkedList` synthesize the matching native base-interface carrier adapter (`Iterable A`) instead of falling back to `runtime.Value`.
-      - Native interface concrete adapters now directly coerce compatible native interface return carriers rather than round-tripping through runtime values, which removes the recursive `LinkedListIterator` / `ListNode` conversion bug on the compiled path.
-      - New regressions pin the `LinkedList -> Iterable -> Iterator` adapter path and the direct compiled callsite shape.
-      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_for_i32_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-for-i32-small-compiled.md`.
-      - Current compiled 3-run average on that fixture: `0.2000s` / `15.00` GC, with direct compiled output parity at `1199940000`.
-    - [x] Close the next concrete generic/default container-method hot-path slice on the shared native carrier path.
-      - Higher-kinded interface self patterns such as `Enumerable A for C _` now bind `C` to the concrete target type on compiled impl paths, so concrete `Enumerable.map/filter/reduce` calls can resolve to compiled impl functions instead of `__able_method_call_node(...)`.
-      - Bound type-constructor calls inside compiled default impl bodies, such as `C.default()`, now resolve through static compiled impl lookup instead of falling back to `__able_env_get("C")`.
-      - Native `Iterator<T>` carriers now satisfy compiled iterable lowering directly, so default `Enumerable` loops avoid iterator runtime-value round-trips (`to_runtime_value -> from_value -> iterator()`) that previously overflowed on large `LinkedList` graphs.
-      - New regression coverage pins both the concrete `Enumerable.map/filter/reduce` callsite shape and the native iterator loop inside the compiled default impl body.
-      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-compiled.md`.
-      - Current compiled 3-run average on that fixture: `0.1667s` / `12.00` GC, with direct compiled output parity at `382455000`.
-    - [x] Close the callback/runtime-value carrier reduction slice that remained inside the generic default-impl hot path.
-      - Specialized compiled impl methods now carry bound generic type bindings through compileability and render, with fixed-point rendering plus cached in-progress reuse so mutually recursive specialized siblings do not recurse forever during codegen.
-      - Direct sibling selection inside default impl bodies now prefers specialized sibling impls before the general concrete receiver path, so specialized `Enumerable.lazy()` helpers call `iterator_*_spec(...)` directly instead of round-tripping `Iterator_A -> runtime.Value -> Iterator_i32`.
-      - New regression coverage pins the specialized `Enumerable.lazy()` body itself, so the `LinkedList.map/filter/reduce` hot path fails if that iterator bridge reappears.
-      - Follow-up snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-specialized-default-impls-compiled.md`.
-      - Current compiled 3-run average on that fixture after the fix: `0.1667s` / `15.33` GC, with direct compiled output parity at `382455000`.
-    - [x] Close the next iterator default-method hot-path slice on the shared native carrier path.
-      - Ordinary default native-interface methods on native iterator carriers now lower through the direct compiled-helper path instead of routing through the runtime adapter method layer.
-      - On the representative `LinkedList.lazy().map<i64>(...).filter(...).next()` shape, compiled `Iterator.filter` now stays on native iterator helpers all the way into the `next()` loop body.
-      - New regressions pin both the direct iterator-method callsite shape and a function-shaped `map/filter -> next()` loop body, rejecting `__able_iface_Iterator_*_to_runtime_value(...)`, `__able_method_call_node(...)`, and `__able_call_value(...)` on this path.
-      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-pipeline-i64-small-compiled.md`.
-      - Current compiled 3-run average on that fixture: `0.1800s` / `13.33` GC, with direct compiled output parity at `382455000`.
-    - [x] Close the mono-array-enabled `Iterator.collect<Array T>()` / specialized-array accumulator interaction and remeasure that iterator family.
-      - `Iterator.collect<Array i64>()` on native iterator carriers now lowers through a dedicated compiled helper with a specialized `*__able_array_i64` accumulator instead of falling back to `__able_method_call_node(...)` plus `__able_array_i64_from(...)`.
-      - The helper is emitted as a compiler-owned built-in array fast path, which is acceptable because `Array` is a language-level special form rather than an arbitrary user nominal type.
-      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-collect-i64-small-compiled.md`.
-      - Current compiled 3-run averages on that fixture: mono on `0.1833s` / `14.00` GC; mono off `0.1833s` / `13.33` GC, with direct compiled output parity at `382455000`.
-      - Conclusion: this tranche is a correctness/native-carrier closure, not a new speed step; the next category is broader performance widening on the next hot generic-container/runtime edges.
-    - [x] Prove `Iterator.collect<C>()` lowers through the shared generic nominal path for user-defined accumulators, with Array-specific code kept only as the built-in fallback.
-      - Added a user-defined `SumCount` accumulator (`Default + Extend i64`) and locked `Iterator.collect<SumCount>()` against `__able_method_call_node(...)`, `__able_call_value(...)`, and iterator runtime-value conversion on the compiled path.
-      - The shared compiled `Iterator.collect<C>()` default helper now stays native for statically known user nominal accumulators; it resolves `Default.default()` and `Extend.extend(...)` through the ordinary compiled impl path.
-      - The built-in `Array` collect helper remains only as a fallback behind that shared path, which keeps the language/kernel `Array` exception narrow instead of treating arbitrary named structures specially.
-      - No new benchmark was added for this tranche because it is an architectural guardrail on the generic lowering contract, not a newly identified hot loop.
-    - [x] Specialize shared generic nominal `methods` when the concrete target type is statically known, and remeasure the first hot constrained-container path on top of that rule.
-      - Added shared nominal-method specialization for generic `methods` blocks, parallel to the existing impl specialization path, so statically known targets like `Box i32` and `Heap i32` now render specialized compiled method bodies instead of staying on unspecialized `runtime.Value` parameter signatures.
-      - Method param/return mapping now honors bound target/type-parameter bindings during specialization, which keeps this tranche on the shared struct/interface/generic lowering path instead of introducing another named-structure rule.
-      - Added a user-defined nominal proof case (`Box T`) to pin that ordinary generic nominal methods specialize without container-specific logic.
-      - Re-measured the existing reduced benchmark fixture `v12/fixtures/bench/heap_i32_small/main.able` because it is the first hot path that materially exercises generic nominal `methods` with interface-constrained element operations.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-heap-i32-generic-nominal-method-specialization-compiled.md`.
-      - Current compiled 3-run average on that fixture after the shared nominal-method specialization tranche: `4.2000s` / `1811.67` GC, with direct compiled output parity at `-211812354`.
-    - [x] Refine bound generic field/member carriers inside already-specialized nominal method bodies, and remeasure the first hot constrained-container path after that lands.
-      - Added a user-defined proof case (`Bucket T { items: Array T }`) and pinned it under `ExperimentalMonoArrays`, which proves fully bound generic struct fields now stay on their concrete native carrier (`Items *__able_array_i32`) inside specialized nominal method bodies instead of re-entering the residual generic `runtime.Value` index path.
-      - Static array index lowering now returns concrete element types directly when the expected type is known, with explicit control transfer on bounds failures, instead of materializing a temporary `runtime.Value` and converting back. This keeps bound generic field/member accesses on the native path once the field carrier is concrete.
-      - Sibling/default impl specialization now preserves concrete receiver-derived bindings instead of leaving placeholder self-bindings like `T -> T`; that closes the remaining mono-array `Iterable.iterator` / `Iterable.each` execute gap and keeps nested zero-arg helper calls inside specialized nominal bodies on their concrete target.
-      - The shared fix also closes the surfaced `PersistentSortedQueue` specialization regression without adding a new nominal-type rule; compiled main bodies now stay on `PersistentSortedSet_i32` / `PersistentQueue_i32` plus specialized impl siblings.
-      - Re-measured `v12/fixtures/bench/heap_i32_small/main.able` after the bound carrier refinement tranche.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-heap-i32-bound-generic-field-carrier-refinement-compiled.md`.
-      - Current compiled 3-run average on that fixture after the tranche: `0.7667s` / `91.33` GC, with direct compiled output parity at `-211812354`.
-      - Conclusion: the bound generic field/member carrier tranche is now closed; the next category is the next benchmark-worthy generic container/runtime edge that still crosses residual runtime carriers.
-    - [x] Close the remaining shared generic nominal default/static receiver and struct-literal refinement gap on the `Iterable -> LazySeq` path, and remeasure the reduced `LinkedList` `Enumerable` benchmark.
-      - Recursive type substitution now resolves chained bindings transitively during specialization, expected-type refinement now upgrades static nominal targets/struct literals like `LazySeq { ... }` to concrete specialized carriers such as `LazySeq<i32>`, and specialized nominal method info now fills against the concrete target instead of the generic template.
-      - Native interface concrete-impl matching now compares specialized receiver targets through the shared target-template path, which lets concrete receivers like `*LinkedList_i32` satisfy native `Iterable<i32>` adapters without re-entering fallback dispatch.
-      - This closes the surfaced residual `ConcreteEnumerableGenericMethods...`, `LinkedListIterableAdapter...`, and `LazySeqIteratorCarrier...` fallback gap without adding any `LinkedList`-specific or `LazySeq`-specific lowering rule.
-      - Re-measured `v12/fixtures/bench/linked_list_enumerable_i32_small/main.able` after the shared receiver/struct-literal refinement tranche.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-enumerable-i32-small-shared-static-nominal-closure-compiled.md`.
-      - Current compiled 3-run average on that fixture after the tranche: `0.1633s` / `8.33` GC, with direct compiled output parity at `382455000`.
-      - Conclusion: the shared generic nominal default/static path is now closed on this reduced `LinkedList -> Enumerable -> LazySeq` family; the next category is the next benchmark-worthy generic container/runtime edge that still crosses residual runtime carriers.
-    - [x] Close the iterator-literal controller/runtime-value edge that remained inside the generic iterator default-method family.
-      - Compiled iterator literals now bind `gen` as a compiler-owned `*__able_generator` controller instead of an opaque runtime object.
-      - `gen.yield(...)`, `gen.stop()`, and bound `gen.yield` callable captures now lower directly through the compiler-owned controller path instead of `__able_method_call_node(...)`.
-      - Native nilable/static-carrier conditions now lower as direct nil checks (`expr != nil`) instead of routing through `__able_truthy(...)`, which keeps `Iterator.filter_map` on the static path.
-      - New reduced benchmark fixture: `v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/main.able`.
-      - Snapshot recorded in `v12/docs/perf-baselines/2026-03-20-linked-list-iterator-filter-map-i64-small-compiled.md`.
-      - Current compiled 3-run average on that fixture: `0.1267s` / `10.00` GC, with direct compiled output parity at `191952000`.
-      - Conclusion: the iterator default-method family is now closed through `filter_map`; the next category is the next hot generic-container/runtime edge beyond iterator-literal controller cleanup.
-    - [x] Remove the remaining shared built-in `Array` scalar propagation/runtime-cast crossings on the reduced matrix path, and remeasure `matrixmultiply_f64_small`.
-      - Static built-in `Array` propagation now returns concrete success element types on the compiled path, so nested staged-scalar `get(...)!` / index propagation no longer routes success values through `__able_nullable_*_to_value(...)`.
-      - The reduced matrix hot loop now stays on direct Go `float64` multiply/add instead of falling back through `bridge.AsFloat(...)` and `__able_binary_op(...)`.
-      - Primitive numeric casts such as `i32 -> f64` and float widening now lower directly to Go casts on static compiled paths instead of `__able_cast(...)`.
-      - This tranche stays within the compiler contract: only built-in `Array` semantics and primitive types received special lowering; no new named non-primitive structure rule was added.
-      - New regression coverage pins the generated shape for the nested `Array (Array f64)` transpose path and for a direct scalar dot-loop helper.
-      - Re-measured `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the shared scalar propagation/cast tranche.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-scalar-propagation-compiled.md`.
-      - Current compiled 3-run average on that fixture after the tranche: `1.9733s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
-      - At this point in the sequence, before the later static-array frame-elision tranche, the full compiled `v12/examples/benchmarks/matrixmultiply.able` macro benchmark still timed out at the current `60s` harness limit.
-      - Conclusion: the reduced matrix scalar-loop carrier gap is now closed; the next category is the remaining macro-scale built-in `Array` lowering work on the full matrix path.
-    - [x] Remove the remaining shared primitive `float -> int` runtime-cast crossings on the matrix entry path, and remeasure `matrixmultiply_f64_small`.
-      - Shared primitive `float -> int` casts now lower through native `math.Trunc(...)` plus explicit `NaN` / `Inf` / range overflow checks on static compiled paths instead of `__able_cast(...)` and `bridge.AsInt(...)`.
-      - The full `matrixmultiply` compile-shape audit now proves the compiled `main` body avoids those runtime cast helpers while `build_matrix` and `matmul` remain free of the known scalar runtime carrier helpers.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-f64-small-native-float-int-casts-compiled.md`.
-      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `1.7567s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
-      - At this point in the sequence, before the later static-array frame-elision tranche, the full compiled `v12/examples/benchmarks/matrixmultiply.able` macro benchmark still timed out at the current `60s` harness limit.
-      - Conclusion: the primitive entry-cast gap on the matrix family is now closed; the next category is the remaining macro-scale built-in `Array` lowering work on the full matrix path beyond those entry casts.
-    - [x] Remove synthetic call-frame scaffolding from shared static built-in `Array` factories/intrinsics on the matrix path, and remeasure both the reduced and full matrix benchmarks.
-      - Shared static built-in `Array` factories and intrinsics no longer emit synthetic `__able_push_call_frame(...)` / `__able_pop_call_frame()` pairs on compiled static paths.
-      - The generated `build_matrix` and `matmul` bodies are now free of that frame scaffolding while staying on the same shared built-in `Array` lowering rules.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-frame-elision-compiled.md`.
-      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1933s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
-      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `4.2267s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
-      - Conclusion: synthetic static-array frame churn was removed; the next category is the next benchmark-worthy shared built-in `Array` or primitive residual that still crosses runtime carriers.
-    - [x] Remove pointer-backed nullable-carrier construction from propagated static built-in `Array` accessors on the matrix path, and remeasure both the reduced and full matrix benchmarks.
-      - Propagated static built-in `Array` accessors (`get`, `first`, `last`, `read_slot`, `pop`) now lower as direct bounds-check + element-load paths with nil control transfer instead of manufacturing pointer-backed nullable carriers on the success path.
-      - The generated `build_matrix`, `matmul`, and `main` bodies for the matrix benchmark family are now free of `__able_ptr(...)` in those propagated static array access paths.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-static-array-propagation-pointer-elision-compiled.md`.
-      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1967s` / `7.33` GC, with direct compiled output parity at `-28.500833332098754`.
-      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `3.4367s` / `13.67` GC, with direct compiled output parity at `-95.58358333329998`.
-      - Conclusion: the propagated static-array accessor pointer-carrier gap is now closed; the next category is the next benchmark-worthy shared built-in `Array` or primitive residual that still crosses runtime carriers.
-    - [x] Lower canonical counted primitive loops to direct Go counted loops on the matrix path, and remeasure both the reduced and full matrix benchmarks.
-      - Shared counted-loop recognition now lowers canonical `loop { if i >= n { break } ... i = i + 1 }` shapes to direct Go `for i < n { ... i++ }` when the induction variable and bound stay on primitive integer carriers and the body does not mutate the counter outside the trailing increment.
-      - The matcher is conservative by construction: it rejects nested function/lambda/iterator/ensure bodies that can still assign the counter, so this remains a shared primitive/control-flow lowering rule rather than a benchmark-specific special case.
-      - The compile-shape audit now proves `build_matrix` and `matmul` use direct counted loops, and `matmul` no longer carries `__able_checked_add_signed(...)` for loop induction.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-20-matrixmultiply-counted-loop-fast-path-compiled.md`.
-      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1133s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
-      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `1.0833s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
-      - Conclusion: the canonical loop-induction checked-arithmetic gap is now closed on the matrix family; the next primitive residual is affine checked integer arithmetic such as `i - j` / `i + j` inside `build_matrix`, not loop-control scaffolding.
-    - [x] Inline fixed-width primitive checked `+` / `-` on static compiled paths, and remeasure the matrix family.
-      - Shared primitive checked addition/subtraction for fixed-width integers under 64 bits now lowers inline on static compiled paths instead of calling `__able_checked_add_signed(...)`, `__able_checked_sub_signed(...)`, and their unsigned equivalents.
-      - This is intentionally narrow: `int`, `uint`, `i64`, and `u64` stay on the existing helper path because their overflow checks still need the wider-width/runtime-width machinery.
-      - The compile-shape audit now proves `build_matrix` no longer carries `__able_checked_add_signed(...)` / `__able_checked_sub_signed(...)`; those affine integer ops now lower as inline `int64(...) +/- int64(...)` plus explicit range checks.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-21-matrixmultiply-inline-affine-int-checks-compiled.md`.
-      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1133s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
-      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `1.0867s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
-      - Conclusion: the affine helper-call gap is now closed through a shared primitive rule, but this workload is effectively perf-neutral after the earlier counted-loop win; the next primitive residual is eliminating provably-safe inline overflow branches where static range proofs are available.
-    - [x] Use shared non-negative range proofs to remove provably-safe signed subtraction overflow branches, and remeasure the matrix family.
-      - The compile context now tracks simple primitive integer sign facts per Go binding, carries them into child scopes, and clears them on rebinding/shadowing.
-      - Static assignments from non-negative integer expressions now preserve that fact for later primitive lowering.
-      - Inline checked signed subtraction now lowers directly when both operands are proven non-negative, so it no longer emits widened `int64(...)` subtraction plus overflow-branch scaffolding.
-      - The compile-shape audit now proves `build_matrix` lowers `i - j` as a direct signed subtraction; the widened checked `i + j` path remains as the next primitive residual.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-21-matrixmultiply-nonnegative-sub-range-proof-compiled.md`.
-      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1167s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
-      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `1.1000s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
-      - Conclusion: the subtraction-side inline overflow-branch gap is now closed through one shared primitive range-proof rule; the next primitive residual is stronger upper-bound proofs for affine addition like `i + j`, not subtraction.
-    - [x] Use shared upper-bound range proofs to remove provably-safe signed addition overflow branches, and remeasure the matrix family.
-      - The compiler now carries simple primitive upper-bound facts across statically resolved function calls and seeds them back into callee param contexts before render.
-      - Counted-loop induction variables now inherit a conservative upper bound from their loop guard when the bound is statically known.
-      - Inline checked signed addition now lowers directly when both operands are proven non-negative and their combined upper bound fits the target width.
-      - The compile-shape audit now proves `build_matrix` lowers both `i - j` and `i + j` as direct signed arithmetic with no widened `int64(...)` affine branch scaffolding left in the inner loop.
-      - New snapshot recorded in `v12/docs/perf-baselines/2026-03-21-matrixmultiply-bounded-add-range-proof-compiled.md`.
-      - Current compiled 3-run average on `v12/fixtures/bench/matrixmultiply_f64_small/main.able` after the tranche: `0.1267s` / `7.00` GC, with direct compiled output parity at `-28.500833332098754`.
-      - Current compiled 3-run average on `v12/examples/benchmarks/matrixmultiply.able` after the tranche: `1.1367s` / `13.00` GC, with direct compiled output parity at `-95.58358333329998`.
-      - Conclusion: the matrix inner-loop affine add/sub branch gap is now closed through one shared primitive/function range-proof rule, and the next worthwhile category is no longer affine loop arithmetic on the matrix path.
-- Definition of done for this workstream:
-  - [x] Static typed-array hot paths (`push/get/set/len` + index ops) compile without dynamic member dispatch in generated function bodies.
-  - [x] Static local-variable fallback semantics (`=` declares when unbound) stay local-scope and do not route through global environment helpers.
-  - [x] Sieve-style benchmark shows measurable runtime and GC reduction versus pre-work baseline, with unchanged program output.
-  - [x] No regressions in compiler strict static checks, fixture parity, and dynamic-boundary behavior.
-### WASM
-- WASM: prototype JS tree-sitter parsing that feeds AST into the Go/WASM runtime (**in progress**).
-  - Landed staging scaffold: `cmd/ablewasm` (`GOOS=js GOARCH=wasm`) + `pkg/wasmhost` JSON bridge and `v12/wasm/` Node prototype (`web-tree-sitter` subset adapter + runner).
-  - Next: broaden AST adapter coverage beyond the initial expression/import subset and wire it to the host ABI path in `v12/docs/wasm-host-abi.md`.
-- WASM: build a minimal `ablewasm` runner (Node + browser harness) once the Go runtime builds to WASM.
-- WASM: document the WASM deployment contract in `v12/docs/`.
-### Regex syntax
-- Regex syntax: add regex AST nodes and grammar in tree-sitter (quantifiers, groups, classes, alternation).
-- Regex syntax: wire AST mapping for regex nodes in Go parser.
-- Regex syntax: add fixtures/tests for regex AST output and exec behavior; keep stdlib engine parity.
-- Regex syntax: add parser corpus cases that cover nested groups, alternation, and escaped quantifiers.
-- Regex syntax: update `spec/TODO_v12.md` with remaining regex syntax/semantics gaps.
-- Regex syntax: align stdlib regex implementation with parser outputs as grammar coverage expands.
+The active plan below is intentionally organized around getting from the current
+codebase to a production-grade compiler that correctly and efficiently compiles
+Able to Go. Historical completed slices belong in `LOG.md`, not here.
+
+### Compiler Completion Program (highest priority)
+
+Goal:
+- ship a production-grade Go AOT compiler that compiles non-dynamic Able code to
+  direct Go implementations with no interpreter execution on static paths, keeps
+  dynamic behavior behind explicit boundaries, and performs well on the checked-
+  in benchmark family.
+
+Canonical architecture docs:
+- `v12/design/compiler-go-lowering-spec.md`
+- `v12/design/compiler-go-lowering-plan.md`
+- `v12/design/compiler-native-lowering.md`
+- `v12/design/compiler-aot.md`
+
+#### Current state snapshot
+
+The compiler already has major native-lowering work landed:
+- large static slices of arrays, structs, interfaces, callables, joins, and
+  control-flow now stay native;
+- explicit dynamic-boundary audits exist;
+- reduced benchmark fixtures exist for matrix, iterator, heap, and array-heavy
+  paths;
+- no-bootstrap / no-fallback enforcement exists for large parts of the static
+  fixture set.
+
+The compiler is still not done because these conditions are not yet all true:
+- every statically representable type still does not map cleanly to one native
+  carrier in all contexts;
+- all static patterns/control-flow joins still do not stay native in all cases;
+- all static dispatch still does not lower directly in all cases;
+- compiled runtime helpers are still too interpreter-shaped in some areas;
+- the full compiler validation/perf gate is not yet at release quality.
+
+#### Production definition of done
+
+The compiler is production-ready when all of these are true together:
+- every statically representable Able type expression lowers to a native Go
+  carrier;
+- static control flow and pattern binding stay on native carriers;
+- static field/method/interface/index/call dispatch lowers to direct compiled Go
+  dispatch;
+- dynamic/runtime carriers remain only at explicit dynamic or ABI boundaries;
+- compiled runtime helpers implement language semantics directly in Go instead
+  of modeling normal static execution in terms of interpreter behavior;
+- compiler fixture parity is green under no-bootstrap/no-fallback enforcement;
+- the compiled benchmark family is materially faster and free of already-known
+  avoidable scaffolding on hot paths.
+
+#### Milestone 1: Centralize Compiler Lowering Knowledge
+
+Goal:
+- make every carrier, dispatch, control, pattern, and boundary decision come
+  from one shared synthesis point instead of emitter-local rules.
+
+Why this is first:
+- without this, the compiler keeps accumulating one-off fixes and nominal-type
+  drift.
+
+Required work:
+- [ ] establish one canonical type-normalization path used by all codegen
+      stages;
+- [ ] establish one canonical carrier-synthesis path used by all emitters;
+- [ ] establish one canonical join/pattern-synthesis path;
+- [ ] establish one canonical dispatch-synthesis path;
+- [ ] establish one canonical control-envelope synthesis path;
+- [ ] establish one canonical boundary-adapter synthesis path;
+- [ ] audit emitters and remove local fallback decisions that bypass those
+      shared paths.
+
+Proof required:
+- generated-source audits that fail on new ad hoc carrier or dispatch fallback
+  patterns.
+
+#### Milestone 2: Native Carrier Completeness
+
+Goal:
+- every statically representable Able type expression maps to a native Go
+  carrier everywhere it appears.
+
+Required work:
+- [ ] remove remaining representable `runtime.Value` / `any` fallbacks from
+      type mapping and carrier synthesis;
+- [ ] finish carrier synthesis for nullable, result, union, interface,
+      callable, and fully bound generic nominal types;
+- [ ] ensure alias-expanded and recovered type expressions use the same carrier
+      path as directly written types;
+- [ ] ensure representable branch/join locals do not regress to dynamic
+      carriers just because a value was temporarily recovered from a broader
+      path;
+- [ ] ensure residual `runtime.Value` union members exist only for true dynamic
+      payloads.
+
+Current concrete queue under this milestone:
+- [ ] close remaining carrier-synthesis gaps in `types.go` and
+      `generator_native_unions.go`;
+- [ ] remove representable `runtime.Value` / `any` locals from generated static
+      code for union/result/nullable/interface/callable joins;
+- [ ] add compile-shape regressions for named alias and parameterized union/
+      result locals that still degrade.
+
+Proof required:
+- representative carrier audits over arrays, structs, unions, interfaces,
+  callables, results, and generics;
+- generated-source scans for representable `runtime.Value` / `any` locals.
+
+#### Milestone 3: Native Pattern And Control-Flow Completeness
+
+Goal:
+- all static pattern matching, branch joins, loop results, rescue/or-propagation,
+  and non-local control stay native when the types are statically representable.
+
+Required work:
+- [ ] remove runtime typed-pattern fallback for recoverable static subjects;
+- [ ] keep `if`, `match`, `rescue`, `or {}`, `loop`, and `breakpoint` joins on
+      native carriers in all representable cases;
+- [ ] keep typed bindings and recovered branch bindings on native carriers;
+- [ ] finish explicit control-envelope propagation for helper boundaries and
+      remove any remaining panic/recover/IIFE-style static control scaffolding;
+- [ ] ensure `raise`, `rethrow`, `ensure`, `!`, and `or {}` are implemented as
+      proper compiled control/data semantics instead of interpreter-shaped
+      escape hatches.
+
+Current concrete queue under this milestone:
+- [ ] remove recovered-subject typed-pattern fallback in `generator_match.go`,
+      `generator_match_runtime_types.go`, and `generator_rescue.go`;
+- [ ] eliminate representable join/binding fallback locals in
+      `generator_or_else.go`, `generator_rescue.go`, and
+      `generator_join_types.go`;
+- [ ] add generated-source audits for `__able_try_cast(...)`,
+      `bridge.MatchType(...)`, panic/recover, and IIFE-style static control
+      lowering.
+
+Proof required:
+- fixture slices for `match`, `rescue`, `or {}`, loops, breakpoints, typed
+  patterns, and propagation paths;
+- generated-source audits that fail when static paths regress to runtime-type
+  helpers.
+
+#### Milestone 4: Native Dispatch Completeness
+
+Goal:
+- all statically resolved operations compile to direct Go dispatch.
+
+Required work:
+- [ ] finish static field access/assignment lowering;
+- [ ] finish static method and default-method lowering;
+- [ ] finish static interface/default-method dispatch lowering for all
+      representable generic cases;
+- [ ] finish static callable/bound-method/partial application lowering;
+- [ ] finish static index/get/set/apply lowering without dynamic helper
+      dispatch;
+- [ ] remove residual dynamic helper dispatch from static call/member/index
+      paths.
+
+Current concrete queue under this milestone:
+- [ ] audit representative static bodies for `__able_call_value(...)`,
+      `__able_method_call_node(...)`, `__able_member_get*`, and `__able_index*`
+      outside explicit dynamic boundaries;
+- [ ] close remaining generic interface/default-method dispatch cases that
+      still re-enter runtime dispatch on statically representable paths;
+- [ ] close remaining static callable/index assignment gaps on recovered native
+      carriers.
+
+Proof required:
+- combined-source dispatch audits;
+- fixture slices covering structs, interfaces, callables, indexable types, and
+  generic/default-method paths.
+
+#### Milestone 5: Compiled Runtime Core Independence
+
+Goal:
+- compiled runtime helpers used on static paths must implement Able semantics as
+  normal Go logic, not as thin wrappers around interpreter-style machinery.
+
+Required work:
+- [ ] audit every compiled runtime helper family used on static paths;
+- [ ] replace helpers whose normal static behavior is still modeled too closely
+      after interpreter operations;
+- [ ] keep only true dynamic-boundary helpers dependent on runtime/interpreter
+      object-model values;
+- [ ] ensure array/map/range/string/concurrency runtime services used by
+      compiled code are direct Go implementations;
+- [ ] keep helper control propagation aligned with the explicit control-envelope
+      model.
+
+Proof required:
+- source audit over emitted helper families;
+- static fixture slices that exercise helper families without dynamic features.
+
+#### Milestone 6: Boundary Containment And Static Cleanliness
+
+Goal:
+- make the dynamic boundary explicit, narrow, and mechanically enforced.
+
+Allowed boundary categories only:
+- `dynimport`
+- dynamic package mutation / definition
+- dynamic evaluation / metaprogramming
+- extern / host ABI conversion
+- explicit compiled <-> dynamic callback boundaries
+- values already originating from dynamic runtime payloads
+
+Required work:
+- [ ] enumerate and document the final allowed boundary helper set;
+- [ ] tighten adapters so conversion happens exactly at the edge and returns to
+      native carriers immediately after;
+- [ ] remove residual dynamic leakage from static fixtures;
+- [ ] keep strict no-bootstrap/no-fallback/no-boundary audits green for static
+      fixture families.
+
+Proof required:
+- boundary-marker harnesses;
+- strict static fixture audits;
+- generated-source audits around boundary helper usage.
+
+#### Milestone 7: Compiler Performance Completion
+
+Goal:
+- make the compiler-generated code fast on the checked-in benchmark family
+  without violating the lowering rules.
+
+Required work:
+- [ ] keep using reduced checked-in benchmarks to isolate hot shared lowering
+      gaps;
+- [ ] remove only shared primitive/control/array/callable/dispatch scaffolding,
+      never by adding named non-primitive fast paths;
+- [ ] remeasure after each material compiler workstream;
+- [ ] keep benchmark proofs paired with generated-source shape audits.
+
+Primary benchmark families:
+- matrix / array hot paths
+- iterator / generic container pipelines
+- nominal generic method/container paths
+- recursion/call overhead microbenchmarks
+
+Definition of done for this milestone:
+- [ ] hot compiled benchmark paths no longer carry already-identified avoidable
+      scaffolding;
+- [ ] checked-in benchmark baselines and current numbers are up to date.
+
+#### Milestone 8: Compiler Release Validation
+
+Goal:
+- turn the above architecture into a hard release gate.
+
+Required work:
+- [ ] keep one authoritative lowering spec and one authoritative completion plan
+      in sync with implementation;
+- [ ] keep compiler fixture parity green under no-bootstrap/no-fallback rules;
+- [ ] run the full compiler matrix and stdlib suite in compiled mode as a
+      release gate;
+- [ ] ensure diagnostics and failure behavior are stable enough for production
+      use;
+- [ ] confirm reproducible build trees and clean-checkout behavior for the
+      compiler toolchain.
+
+Release gate checklist:
+- [ ] `./run_all_tests.sh` green
+- [ ] `./run_stdlib_tests.sh` green
+- [ ] full compiled fixture matrix green
+- [ ] strict static no-fallback/no-boundary audits green
+- [ ] benchmark baselines updated
+- [ ] no known representable static-path regressions remaining in PLAN
+
+#### Immediate compiler queue (start here)
+
+1. [ ] Centralize remaining carrier-synthesis decisions so representable static
+       types stop falling back to `runtime.Value` / `any`.
+2. [ ] Remove remaining static typed-pattern fallback to runtime type-match
+       helpers.
+3. [ ] Tighten remaining static dispatch paths that still route through dynamic
+       helper dispatch.
+4. [ ] Audit compiled runtime helper families that still model static semantics
+       too closely after interpreter-oriented helpers.
+5. [ ] Re-run boundary and benchmark gates after each completed milestone.
+
+### Bytecode Performance Program (second priority; start after compiler release work is closed or paused explicitly)
+
+Goal:
+- make the Go bytecode interpreter fast enough to be a practical execution mode
+  after the compiler is finished.
+
+Current state snapshot:
+- a large amount of call-dispatch, lookup-cache, frame-pool, integer-op, and
+  hotspot work is already landed;
+- benchmark harnesses and counters already exist;
+- the remaining work is no longer “find obvious first wins”, but a disciplined
+  second phase focused on the remaining hot-path costs.
+
+Milestones:
+
+#### Bytecode Milestone 1: Hot Dispatch And Lookup Closure
+- [ ] remove remaining high-frequency environment/path lookups in hot loops;
+- [ ] extend slot coverage and direct-call lowering where it still materially
+      affects benchmarked workloads;
+- [ ] keep inline caches precise and cheap under mutation/concurrency.
+
+#### Bytecode Milestone 2: Allocation Pressure Reduction
+- [ ] cut remaining boxed integer churn, collection allocation churn, iterator
+      churn, and closure scaffolding in hot paths;
+- [ ] reduce transient arg-slice and method-resolution allocations that still
+      survive the first optimization wave.
+
+#### Bytecode Milestone 3: Collections / Containers / Async Hot Paths
+- [ ] optimize remaining array/hash-map/iterator hot paths that still dominate
+      benchmark traces;
+- [ ] audit async/future execution overhead under realistic workloads.
+
+#### Bytecode Milestone 4: Benchmark Gates
+- [ ] keep benchmark baselines current for treewalker vs bytecode vs compiled;
+- [ ] add report-first perf guardrails, then optional thresholds once noise is
+      characterized.
+
+### Backlog (not active until compiler + bytecode priorities permit)
+
+These items remain important, but they are not active priorities right now.
+
+#### Integration / Tooling backlog
+- staged integration cleanup and clean-checkout reproducibility follow-ups
+- stdlib externalization follow-ups
+- fixture exporter and other tooling cleanup
+- testing CLI / user-facing testing framework work
+
+#### Language / Runtime backlog
+- WASM runtime work
+- regex syntax and engine work
+- broader parser/tree-sitter coverage work not required for compiler completion
+- additional stdlib redesign/migration work not required for compiler release
+- concurrency feature expansion beyond current spec/runtime requirements
+
+#### Documentation backlog
+- continue reconciling older design notes against the active Go-first toolchain
+  and the compiler lowering spec as work resumes in those areas
+- keep `spec/TODO_v12.md` and relevant design notes current when compiler or
+  bytecode work resolves remaining language/implementation gaps

@@ -2,6 +2,11 @@
 
 Status: Draft
 
+Scope note:
+- the active v12 toolchain is Go-first;
+- TypeScript/Bun target notes in this document are historical or future-target
+  design notes, not active implementation authority.
+
 ## Goal
 Make extern host function bodies (§16.1.2) execute as host code, per spec, with
 no per-function interpreter wiring. Preserve the existing kernel bridges for
@@ -40,8 +45,8 @@ arguments, invokes the host function, and marshals the result back.
 ### Host Execution Engines
 - Go target: generate a Go module and compile it with
   `go build -buildmode=plugin`, then load it via `plugin.Open`.
-- TypeScript target: generate a `.ts` module and `import()` it in Bun (which
-  supports TS natively).
+- Historical/future target: TypeScript could generate a `.ts` module and load
+  it in Bun, but that is not part of the active v12 toolchain.
 
 ### Generated Host Helpers (No Registry)
 The interpreter does not maintain a handle registry. `IoHandle`/`ProcHandle`
