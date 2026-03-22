@@ -84,7 +84,7 @@ Everything else in this document is layered on top of that baseline and must nev
 
 - `Option T` and `Result T` unions ship with helper methods (`unwrap`, `map`, `ok_or`, etc.) that follow the semantics in Section 11.2, raising `OptionUnwrapError` / `ResultUnwrapError` which implement `Error`.
 - `Array T` must provide runtime backing for `size() -> u64`, `capacity()`, `is_empty()`, `push`, `pop -> ?T`, `get -> ?T`, `set -> !nil`, `slice -> Array T`. `arr[i]` / `arr[i] = value` raise `IndexError` on out-of-bounds.
-- `Map K V` exists as an interface; `HashMap K V` is the first concrete implementation. Minimal surface: `new`, `get`, `set`, `remove`, `contains`, `size`, `is_empty`, obeying `Hash` + `PartialEq`.
+- `Map K V` exists as an interface; `HashMap K V` is the first concrete implementation. Minimal surface: `new`, `get`, `set`, `remove`, `contains`, `size`, `is_empty`, obeying `Hash` + `Eq`.
 - `Range` helpers at least cover integer stepping for inclusive/exclusive operators; future work generalises via numeric interfaces.
 - Spec-mandated error types (`DivisionByZeroError`, `OverflowError`, `ShiftOutOfRangeError`, `IndexError`) and channel errors (`ClosedChannelError`, `SendOnClosedChannelError`, `NilChannelError`) must be present.
 - All user-defined errors conform to the `Error` interface; no parallel hierarchy is introduced.
@@ -465,7 +465,7 @@ Everything else—probe logic, load-factor bookkeeping, iterators, tombstone man
 | Aspect | Decision |
 | --- | --- |
 | Storage | Single `Array Entry` with entries `{ state: u8, key: K, value: V, hash: u64 }` (`state` encodes Empty, Filled, Tombstone). |
-| Hashing | `hash = Hasher::fnv1a(key)` followed by `hash & (capacity - 1)` using power-of-two tables. Keys require `Hash` + `PartialEq`. |
+| Hashing | `hash = Hasher::fnv1a(key)` followed by `hash & (capacity - 1)` using power-of-two tables. Keys require `Hash` + `Eq`. |
 | Probing | Quadratic probing (`i = i + step`, `step += 1`) keeps clusters short with power-of-two capacities. |
 | Load factor | Resize when `len >= capacity * 0.7`; allocate next power of two and reinsert live entries. |
 | Inserts | Probe until Empty or Tombstone; reuse tombstones but continue to ensure uniqueness. |

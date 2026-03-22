@@ -3,6 +3,9 @@
 This note refines [compiler-native-lowering.md](./compiler-native-lowering.md)
 for generic/container-heavy code generation.
 
+Named stdlib/container examples in this document are proof cases for shared
+lowering machinery, not architecture exceptions.
+
 ## Goal
 
 Use monomorphization and static specialization to keep compiled code on native
@@ -332,7 +335,7 @@ The following are not acceptable as final monomorphization outcomes:
 12. [x] Extend the staged specialized scalar set to the remaining primitive
     numeric family and benchmark a representative unsigned path.
    - Staged wrappers now also cover `Array i8`, `Array i16`, `Array u16`,
-     `Array u32`, `Array u64`, `Array isize`, `Array usize`, and `Array f32`.
+     `Array u32`, `Array u64`, and `Array f32`.
    - Focused regressions pin the generated wrappers for those types and cover
      dynamic-boundary callback conversion for `Array u32` / `Array f32`.
    - New reduced benchmark fixture:

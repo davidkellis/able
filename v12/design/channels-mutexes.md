@@ -1,12 +1,13 @@
 # Channels & Mutexes – Host-Backed Concurrency Primitives
 
-Status: Draft – interpreter implementation pending  
+Status: Historical rollout note; active semantics live in the v12 spec and Go runtime code.
 Owners: Able v12 interpreter team
 
 ## Overview
 - Provide first-class `Channel<T>` and `Mutex` types with Crystal-style APIs.
 - Keep Able surface syntax unchanged; expose functionality through standard library structs.
-- Implement the semantics natively inside each interpreter (TypeScript + Go) via extern/prelude hooks.
+- Implement the semantics natively inside each active runtime via extern/prelude
+  hooks. TypeScript references below are archival.
 
 ## Design Shape
 1. **Stdlib API**

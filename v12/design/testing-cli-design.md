@@ -1,5 +1,9 @@
 # `able test` CLI Design (Draft)
 
+> Status note: this draft predates the Go-first consolidation. The active v12
+> toolchain is Go-first; Bun/TypeScript references in this document are
+> historical or future-runtime notes unless explicitly revived.
+
 ## Goals
 
 - Provide a low-ceremony command that discovers tests, applies filters, runs frameworks via the shared protocol, and reports results with consistent exit codes.
