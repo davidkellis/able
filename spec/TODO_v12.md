@@ -105,6 +105,34 @@ This list tracks the remaining v12 items after audit; completed work should be r
   The remaining struct work is to extend this native lowering across residual
   dynamic-boundary adapters and any remaining ABI surfaces that still box
   unnecessarily.
+- Current progress note: shared join inference now also prefers a common
+  native existential carrier before synthesizing a union when the branch
+  values already share one. Mixed concrete branches of zero-arg interfaces now
+  stay on the corresponding native interface carrier, mixed native `Error`
+  implementers now join directly on `runtime.ErrorValue`, and pure-generic
+  interface methods on those joined carriers continue through the compiled
+  generic-interface dispatch helper even when multiple concrete adapters exist.
+  Fully bound parameterized interface joins now use that same shared native
+  carrier preference too, including inherited parameterized parents reached
+  through child-interface impl metadata. Nil-capable joins now use that same
+  shared rule too: `nil` branches no longer force `if`, `match`, `rescue`,
+  `or {}`, or loop/breakpoint result inference back to `runtime.Value` when
+  the non-nil branches already share a native carrier. Type-expression-backed
+  joins are now closed too: when a branch/local still reports `runtime.Value`
+  or `any` but retains a concrete normalized Able `TypeExpr`, the compiler now
+  recovers the native carrier instead of widening the whole join back to
+  `runtime.Value`. Remaining ordered backlog in this category:
+  - close `types.go` / `generator_native_unions.go` carrier-synthesis fallbacks
+    that still map fully bound normalized union/result/nullable `TypeExpr`s to
+    `runtime.Value` / `any`;
+  - remove `generator_match.go` / `generator_match_runtime_types.go` /
+    `generator_rescue.go` typed-pattern fallback to `__able_try_cast(...)` for
+    subjects that still retain recoverable native `TypeExpr` metadata;
+  - remove remaining `generator_or_else.go` / `generator_rescue.go` /
+    `generator_join_types.go` join/binding locals that still default to
+    `runtime.Value` when the branch set is statically representable;
+  - tighten `generator_native_unions.go` residual runtime-member gates so
+    `runtime.Value` union members remain only for true dynamic payloads.
 - Current staged compiler limit: the whole-union fallback to `any` is no
   longer true for the first native nullable/error/result family, multi-member
   nominal unions, generic alias unions that normalize to those carrier
@@ -149,12 +177,33 @@ This list tracks the remaining v12 items after audit; completed work should be r
   adapter path.
 - Current progress note: the non-object-safe/generic interface existential
   tranche is now landed too. Pure-generic interfaces keep generated native
-  carriers instead of collapsing typed locals/params back to `runtime.Value`,
-  generic interface/default-interface methods now keep the receiver on that
-  native carrier and cross into runtime only at the explicit generic dispatch
-  edge, runtime dispatch results convert back into the best-known native Go
-  carrier before re-entering compiled code, and the strict interface lookup
-  audit is green with total interface/global lookup counts forced to zero.
+  carriers instead of collapsing typed locals/params back to `runtime.Value`.
+  Statically-known generic interface calls now lower through generated
+  compiled dispatch helpers on those carriers instead of routing the receiver
+  through `__able_iface_*_to_runtime_value(...)` plus
+  `__able_method_call_node(...)`; only the runtime-adapter case inside those
+  helpers remains as the explicit dynamic boundary, and the strict interface
+  lookup audit is green with total interface/global lookup counts forced to
+  zero. Cross-package generic-only interface adapters are now also retained
+  through later shared adapter refresh/render passes, so imported fixtures
+  emit the required concrete native adapter helpers instead of referencing
+  missing `__able_iface_*_adapter_*` types.
+- Current progress note: mixed-result control-flow joins now stay native more
+  often too. `if`, `match`, and `rescue` expressions now infer a native join
+  carrier when all branch result types are statically representable instead of
+  immediately collapsing the join local to `runtime.Value`, and static typed
+  patterns now use shared nominal receiver compatibility rather than exact Go
+  carrier identity.
+- Current progress note: `or {}` now uses that same shared join machinery too.
+  Mixed success/handler result shapes stay on native carriers when
+  representable, nullable success paths join on the unwrapped payload carrier,
+  and `err => ...` bindings now stay on the native failure carrier when that
+  failure type is statically known.
+- Current progress note: `loop` and labeled `breakpoint` expressions now use
+  that same shared native join/coercion machinery too. Statically
+  representable break payloads stay on native carriers instead of defaulting
+  loop/breakpoint result temps to `runtime.Value`, and non-local labeled break
+  payloads now coerce directly onto those native carriers.
 - Current progress note: the callable/function-type existential tranche is now
   landed too. `FunctionTypeExpression` lowers to generated native callable
   carriers, and direct lambdas, local functions, placeholder lambdas, bound
@@ -172,12 +221,11 @@ This list tracks the remaining v12 items after audit; completed work should be r
   fail tests if they regress to `__able_call_value(...)`,
   `__able_member_get*`, `__able_index*`, `__able_method_call_node(...)`,
   `bridge.MatchType(...)`, `__able_try_cast(...)`, `__able_any_to_value(...)`,
-  or panic/IIFE-style control scaffolding, while the residual generic
-  interface edge is explicitly audited to stay narrowed to
-  `__able_iface_*_to_runtime_value(...)` plus `__able_method_call_node(...)`.
-  The zero-explicit-boundary fixture audit now also includes
-  `06_08_array_ops_mutability`, so native array mutation/bounds/error handling
-  is covered there too.
+  or panic/IIFE-style control scaffolding, and statically-known generic
+  interface calls are now covered by that same native expectation instead of a
+  narrowed residual-runtime exception. The zero-explicit-boundary fixture
+  audit now also includes `06_08_array_ops_mutability`, so native array
+  mutation/bounds/error handling is covered there too.
 - Current staged compiler limit: remaining compiler-native work is now a
   different category: broader performance-oriented
   specialization/monomorphization rather than missing callable existentials

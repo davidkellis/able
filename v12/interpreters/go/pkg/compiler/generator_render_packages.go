@@ -261,7 +261,7 @@ func (g *generator) ufcsTargetName(info *functionInfo) string {
 	if info.Definition.IsMethodShorthand {
 		return ""
 	}
-	targetExpr := g.expandTypeAliasForPackage(info.Package, info.Params[0].TypeExpr)
+	targetExpr := normalizeTypeExprForPackage(g, info.Package, info.Params[0].TypeExpr)
 	targetName, ok := g.methodTargetName(targetExpr)
 	if !ok {
 		return ""

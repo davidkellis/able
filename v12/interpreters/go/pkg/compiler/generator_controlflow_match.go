@@ -82,15 +82,18 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 	}
 	inferredType := ""
 	mismatch := false
+	clauseTypes := make([]string, 0, len(match.Clauses))
 	type matchClause struct {
-		condLines  []string
-		cond       string
-		bindLines  []string
-		guardLines []string
-		guardExpr  string
-		bodyLines  []string
-		bodyExpr   string
-		bodyType   string
+		condLines    []string
+		cond         string
+		bindLines    []string
+		guardLines   []string
+		guardExpr    string
+		bodyLines    []string
+		bodyExpr     string
+		bodyType     string
+		bodyNode     ast.Expression
+		bodyTypeExpr ast.TypeExpression
 	}
 	clauses := make([]matchClause, 0, len(match.Clauses))
 	clauseSubjectType := subjectType
@@ -121,6 +124,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		if !ok {
 			return nil, "", "", false
 		}
+		bodyTypeExpr, _ := g.inferExpressionTypeExpr(clauseCtx, clause.Body, bodyType)
 		if explicitExpected {
 			if !g.typeMatches(resultType, bodyType) {
 				ctx.setReason(fmt.Sprintf("match clause type mismatch (%s != %s, subject=%s, pattern=%T)", bodyType, resultType, clauseSubjectType, clause.Pattern))
@@ -133,23 +137,37 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 				mismatch = true
 			}
 		}
+		clauseTypes = append(clauseTypes, bodyType)
 		clauses = append(clauses, matchClause{
-			condLines:  append(clauseSubjectLines, condLines...),
-			cond:       cond,
-			bindLines:  bindLines,
-			guardLines: guardLines,
-			guardExpr:  guardExpr,
-			bodyLines:  bodyLines,
-			bodyExpr:   bodyExpr,
-			bodyType:   bodyType,
+			condLines:    append(clauseSubjectLines, condLines...),
+			cond:         cond,
+			bindLines:    bindLines,
+			guardLines:   guardLines,
+			guardExpr:    guardExpr,
+			bodyLines:    bodyLines,
+			bodyExpr:     bodyExpr,
+			bodyType:     bodyType,
+			bodyNode:     clause.Body,
+			bodyTypeExpr: bodyTypeExpr,
 		})
 		clauseSubjectType = g.narrowedNativeUnionSubjectType(clauseCtx, clauseSubjectType, clause.Pattern)
 	}
 	if !explicitExpected {
-		if inferredType == "" || mismatch {
-			resultType = "runtime.Value"
-		} else {
+		joinBranches := make([]joinBranchInfo, 0, len(clauses))
+		for _, clause := range clauses {
+			joinBranches = append(joinBranches, joinBranchInfo{
+				GoType:   clause.bodyType,
+				Expr:     clause.bodyNode,
+				TypeExpr: clause.bodyTypeExpr,
+				SawNil:   g.joinBranchIsNilExpr(clause.bodyExpr, clause.bodyType),
+			})
+		}
+		if joinedType, ok := g.joinResultTypeFromBranches(ctx, joinBranches); ok {
+			resultType = joinedType
+		} else if inferredType != "" && !mismatch {
 			resultType = inferredType
+		} else {
+			resultType = "runtime.Value"
 		}
 	}
 	if resultType == "" {
@@ -173,40 +191,14 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 			}
 			continue
 		}
-		switch {
-		case resultType == "runtime.Value" && clause.bodyType != "runtime.Value":
-			convLines, converted, ok := g.runtimeValueLines(ctx, clause.bodyExpr, clause.bodyType)
-			if !ok {
-				ctx.setReason(fmt.Sprintf("match clause type mismatch (%s -> %s)", clause.bodyType, resultType))
-				return nil, "", "", false
-			}
-			clause.bodyLines = append(clause.bodyLines, convLines...)
-			clause.bodyExpr = converted
-			clause.bodyType = resultType
-		case resultType == "any":
-			clause.bodyType = resultType
-		case clause.bodyType == "runtime.Value" && resultType != "runtime.Value":
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, clause.bodyExpr, resultType)
-			if !ok {
-				ctx.setReason(fmt.Sprintf("match clause type mismatch (%s -> %s)", clause.bodyType, resultType))
-				return nil, "", "", false
-			}
-			clause.bodyLines = append(clause.bodyLines, convLines...)
-			clause.bodyExpr = converted
-			clause.bodyType = resultType
-		case clause.bodyType == "any":
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, clause.bodyExpr, resultType)
-			if !ok {
-				ctx.setReason(fmt.Sprintf("match clause type mismatch (%s -> %s)", clause.bodyType, resultType))
-				return nil, "", "", false
-			}
-			clause.bodyLines = append(clause.bodyLines, convLines...)
-			clause.bodyExpr = converted
-			clause.bodyType = resultType
-		default:
+		coerceLines, converted, ok := g.coerceJoinBranch(ctx, resultType, clause.bodyExpr, clause.bodyType)
+		if !ok {
 			ctx.setReason(fmt.Sprintf("match clause type mismatch (%s != %s)", clause.bodyType, resultType))
 			return nil, "", "", false
 		}
+		clause.bodyLines = append(clause.bodyLines, coerceLines...)
+		clause.bodyExpr = converted
+		clause.bodyType = resultType
 	}
 	matchedTemp := ctx.newTemp()
 	resultTemp := ctx.newTemp()

@@ -20,9 +20,7 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 		return "any", true
 	}
 	if m != nil && m.gen != nil {
-		if expanded := m.gen.expandTypeAliasForPackage(m.packageName, expr); expanded != nil {
-			expr = expanded
-		}
+		expr = normalizeTypeExprForPackage(m.gen, m.packageName, expr)
 	}
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:

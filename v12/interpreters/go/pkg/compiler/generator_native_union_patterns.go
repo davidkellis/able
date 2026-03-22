@@ -26,7 +26,7 @@ func (g *generator) nativeCarrierImplementsInterface(goType string, interfaceNam
 		if impl.Definition.InterfaceName.Name != interfaceName || impl.Definition.TargetType == nil {
 			continue
 		}
-		targetType := g.expandTypeAliasForPackage(impl.Package, impl.Definition.TargetType)
+		targetType := normalizeTypeExprForPackage(g, impl.Package, impl.Definition.TargetType)
 		if targetType == nil {
 			targetType = impl.Definition.TargetType
 		}
@@ -154,6 +154,7 @@ func (g *generator) compileNativeUnionTypedPatternBindings(ctx *compileContext, 
 	lines := []string{fmt.Sprintf("%s, _ := %s(%s)", convertedTemp, target.Member.UnwrapHelper, subjectTemp)}
 	bindSubject := convertedTemp
 	bindType := target.GoType
+	expectedTypeExpr := ast.TypeExpression(nil)
 	if target.InterfaceBranch && nativeUnionWholeValueBinding(pattern.Pattern) {
 		runtimeLines, runtimeExpr, ok := g.runtimeValueLines(ctx, convertedTemp, target.GoType)
 		if !ok {
@@ -163,8 +164,14 @@ func (g *generator) compileNativeUnionTypedPatternBindings(ctx *compileContext, 
 		lines = append(lines, runtimeLines...)
 		bindSubject = runtimeExpr
 		bindType = "runtime.Value"
+		expectedTypeExpr = pattern.TypeAnnotation
+	}
+	previousExpected := ctx.expectedTypeExpr
+	if expectedTypeExpr != nil {
+		ctx.expectedTypeExpr = expectedTypeExpr
 	}
 	bindLines, ok := g.compileMatchPatternBindings(ctx, pattern.Pattern, bindSubject, bindType)
+	ctx.expectedTypeExpr = previousExpected
 	if !ok {
 		return nil, false
 	}
@@ -192,6 +199,7 @@ func (g *generator) compileNativeUnionTypedAssignmentPatternBindings(ctx *compil
 	lines := []string{fmt.Sprintf("%s, _ := %s(%s)", convertedTemp, target.Member.UnwrapHelper, subjectTemp)}
 	bindSubject := convertedTemp
 	bindType := target.GoType
+	expectedTypeExpr := ast.TypeExpression(nil)
 	if target.InterfaceBranch && nativeUnionWholeValueBinding(pattern.Pattern) {
 		runtimeLines, runtimeExpr, ok := g.runtimeValueLines(ctx, convertedTemp, target.GoType)
 		if !ok {
@@ -201,8 +209,14 @@ func (g *generator) compileNativeUnionTypedAssignmentPatternBindings(ctx *compil
 		lines = append(lines, runtimeLines...)
 		bindSubject = runtimeExpr
 		bindType = "runtime.Value"
+		expectedTypeExpr = pattern.TypeAnnotation
+	}
+	previousExpected := ctx.expectedTypeExpr
+	if expectedTypeExpr != nil {
+		ctx.expectedTypeExpr = expectedTypeExpr
 	}
 	bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern.Pattern, bindSubject, bindType, mode)
+	ctx.expectedTypeExpr = previousExpected
 	if !ok {
 		return nil, false
 	}

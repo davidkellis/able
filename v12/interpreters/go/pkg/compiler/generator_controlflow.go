@@ -142,42 +142,12 @@ func (g *generator) coerceIfBranch(ctx *compileContext, resultType string, expr 
 		ctx.setReason("if branch type mismatch")
 		return nil, "", false
 	}
-	if g.typeMatches(resultType, exprType) {
-		if wrapLines, wrapped, ok := g.nativeUnionWrapLines(ctx, resultType, exprType, expr); ok {
-			return wrapLines, wrapped, true
-		}
-		return nil, expr, true
+	lines, converted, ok := g.coerceJoinBranch(ctx, resultType, expr, exprType)
+	if !ok {
+		ctx.setReason("if branch type mismatch")
+		return nil, "", false
 	}
-	if resultType == "runtime.Value" && exprType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, expr, exprType)
-		if !ok {
-			ctx.setReason("if branch type mismatch")
-			return nil, "", false
-		}
-		return convLines, converted, true
-	}
-	if resultType == "any" {
-		// any accepts all types without conversion
-		return nil, expr, true
-	}
-	if resultType != "runtime.Value" && exprType == "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, resultType)
-		if !ok {
-			ctx.setReason("if branch type mismatch")
-			return nil, "", false
-		}
-		return convLines, converted, true
-	}
-	if exprType == "any" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, resultType)
-		if !ok {
-			ctx.setReason("if branch type mismatch")
-			return nil, "", false
-		}
-		return convLines, converted, true
-	}
-	ctx.setReason("if branch type mismatch")
-	return nil, "", false
+	return lines, converted, true
 }
 
 func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpression, expected string) ([]string, string, string, bool) {
@@ -210,8 +180,11 @@ func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpress
 		lines     []string
 		expr      string
 		exprType  string
+		source    ast.Expression
+		typeExpr  ast.TypeExpression
 	}
-	branches := []ifBranch{{condLines: condLines, cond: condExpr, lines: bodyLines, expr: bodyExpr, exprType: bodyType}}
+	bodyTypeExpr, _ := g.inferExpressionTypeExpr(ctx.child(), expr.IfBody, bodyType)
+	branches := []ifBranch{{condLines: condLines, cond: condExpr, lines: bodyLines, expr: bodyExpr, exprType: bodyType, source: expr.IfBody, typeExpr: bodyTypeExpr}}
 	for _, clause := range expr.ElseIfClauses {
 		if clause == nil {
 			continue
@@ -224,20 +197,25 @@ func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpress
 		if !ok {
 			return nil, "", "", false
 		}
-		clauseLines, clauseExpr, clauseType, ok := g.compileTailExpression(ctx.child(), compileExpected, clause.Body)
+		clauseCtx := ctx.child()
+		clauseLines, clauseExpr, clauseType, ok := g.compileTailExpression(clauseCtx, compileExpected, clause.Body)
 		if !ok {
 			return nil, "", "", false
 		}
-		branches = append(branches, ifBranch{condLines: clauseCondLines, cond: clauseCondExpr, lines: clauseLines, expr: clauseExpr, exprType: clauseType})
+		clauseTypeExpr, _ := g.inferExpressionTypeExpr(clauseCtx, clause.Body, clauseType)
+		branches = append(branches, ifBranch{condLines: clauseCondLines, cond: clauseCondExpr, lines: clauseLines, expr: clauseExpr, exprType: clauseType, source: clause.Body, typeExpr: clauseTypeExpr})
 	}
 	var elseLines []string
 	elseExpr := ""
 	elseType := ""
+	var elseTypeExpr ast.TypeExpression
 	if expr.ElseBody != nil {
-		elseLines, elseExpr, elseType, ok = g.compileTailExpression(ctx.child(), compileExpected, expr.ElseBody)
+		elseCtx := ctx.child()
+		elseLines, elseExpr, elseType, ok = g.compileTailExpression(elseCtx, compileExpected, expr.ElseBody)
 		if !ok {
 			return nil, "", "", false
 		}
+		elseTypeExpr, _ = g.inferExpressionTypeExpr(elseCtx, expr.ElseBody, elseType)
 	}
 	// Determine result type
 	resultType := expected
@@ -245,22 +223,25 @@ func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpress
 		if expr.ElseBody == nil {
 			resultType = "runtime.Value"
 		} else {
-			// Infer from branch type agreement (like match expressions)
-			inferredType := bodyType
-			mismatch := false
-			for _, b := range branches[1:] {
-				if b.exprType != inferredType {
-					mismatch = true
-					break
-				}
+			joinBranches := make([]joinBranchInfo, 0, len(branches)+1)
+			for _, branch := range branches {
+				joinBranches = append(joinBranches, joinBranchInfo{
+					GoType:   branch.exprType,
+					Expr:     branch.source,
+					TypeExpr: branch.typeExpr,
+					SawNil:   g.joinBranchIsNilExpr(branch.expr, branch.exprType),
+				})
 			}
-			if !mismatch && elseType != inferredType {
-				mismatch = true
-			}
-			if inferredType == "" || mismatch {
-				resultType = "runtime.Value"
+			joinBranches = append(joinBranches, joinBranchInfo{
+				GoType:   elseType,
+				Expr:     expr.ElseBody,
+				TypeExpr: elseTypeExpr,
+				SawNil:   g.joinBranchIsNilExpr(elseExpr, elseType),
+			})
+			if joinedType, ok := g.joinResultTypeFromBranches(ctx, joinBranches); ok {
+				resultType = joinedType
 			} else {
-				resultType = inferredType
+				resultType = "runtime.Value"
 			}
 		}
 	}
@@ -593,6 +574,7 @@ func (g *generator) compileWhileLoop(ctx *compileContext, loop *ast.WhileLoop) (
 	bodyCtx := ctx.child()
 	bodyCtx.loopDepth++
 	bodyCtx.loopLabel = loopLabelName
+	bodyCtx.loopBreakProbe = nil
 	bodyLines, ok := g.compileBlockStatement(bodyCtx, loop.Body)
 	if !ok {
 		return nil, false
@@ -645,7 +627,9 @@ func (g *generator) compileForLoopInternal(ctx *compileContext, loop *ast.ForLoo
 	bodyCtx.loopLabel = loopLabelName
 	if withResult {
 		bodyCtx.loopBreakValueTemp = resultTemp
+		bodyCtx.loopBreakValueType = "runtime.Value"
 	}
+	bodyCtx.loopBreakProbe = nil
 	newNames := map[string]struct{}{}
 	collectPatternBindingNames(loop.Pattern, newNames)
 	mode := patternBindingMode{declare: true, newNames: newNames}
@@ -744,18 +728,34 @@ func (g *generator) compileBreakStatement(ctx *compileContext, stmt *ast.BreakSt
 			ctx.setReason("break label not mapped to Go label")
 			return nil, false
 		}
-		valueExpr := "runtime.NilValue{}"
+		resultType := "runtime.Value"
+		if ctx.breakpointResultTypes != nil && ctx.breakpointResultTypes[label] != "" {
+			resultType = ctx.breakpointResultTypes[label]
+		}
+		if ctx.breakpointResultProbes != nil {
+			if probe := ctx.breakpointResultProbes[label]; probe != nil && stmt.Value == nil {
+				probe.sawNil = true
+			}
+		}
+		valueExpr := ""
 		if stmt.Value != nil {
 			valLines, expr, goType, ok := g.compileExprLines(ctx, stmt.Value, "")
 			if !ok {
 				return nil, false
 			}
-			convLines, valueRuntime, ok := g.runtimeValueLines(ctx, expr, goType)
+			if ctx.breakpointResultProbes != nil {
+				if probe := ctx.breakpointResultProbes[label]; probe != nil {
+					probe.branchTypes = append(probe.branchTypes, goType)
+					inferred, _ := g.inferExpressionTypeExpr(ctx, stmt.Value, goType)
+					probe.branchTypeExprs = append(probe.branchTypeExprs, inferred)
+				}
+			}
+			convLines, coercedExpr, ok := g.controlFlowResultExpr(ctx, resultType, expr, goType)
 			if !ok {
-				ctx.setReason("break value unsupported")
+				ctx.setReason(fmt.Sprintf("break value unsupported (%s -> %s, label=%s)", goType, resultType, label))
 				return nil, false
 			}
-			valueExpr = valueRuntime
+			valueExpr = coercedExpr
 			if len(valLines) > 0 || len(convLines) > 0 {
 				result := append([]string{}, valLines...)
 				result = append(result, convLines...)
@@ -765,6 +765,13 @@ func (g *generator) compileBreakStatement(ctx *compileContext, stmt *ast.BreakSt
 				)
 				return result, true
 			}
+		} else {
+			nilExpr, ok := g.controlFlowNilResultExpr(resultType)
+			if !ok {
+				ctx.setReason("break value unsupported")
+				return nil, false
+			}
+			valueExpr = nilExpr
 		}
 		return []string{
 			fmt.Sprintf("%s = %s", resultTemp, valueExpr),
@@ -773,21 +780,40 @@ func (g *generator) compileBreakStatement(ctx *compileContext, stmt *ast.BreakSt
 	}
 	// Loop break — use Go's native break with label
 	var lines []string
+	resultType := ctx.loopBreakValueType
+	if resultType == "" {
+		resultType = "runtime.Value"
+	}
 	if stmt.Value != nil {
 		valLines, expr, goType, ok := g.compileExprLines(ctx, stmt.Value, "")
 		if !ok {
 			return nil, false
 		}
 		lines = append(lines, valLines...)
-		convLines, valueRuntime, ok := g.runtimeValueLines(ctx, expr, goType)
+		if ctx.loopBreakProbe != nil {
+			ctx.loopBreakProbe.branchTypes = append(ctx.loopBreakProbe.branchTypes, goType)
+			inferred, _ := g.inferExpressionTypeExpr(ctx, stmt.Value, goType)
+			ctx.loopBreakProbe.branchTypeExprs = append(ctx.loopBreakProbe.branchTypeExprs, inferred)
+		}
+		convLines, coercedExpr, ok := g.controlFlowResultExpr(ctx, resultType, expr, goType)
 		if !ok {
-			ctx.setReason("break value unsupported")
+			ctx.setReason(fmt.Sprintf("break value unsupported (%s -> %s)", goType, resultType))
 			return nil, false
 		}
 		lines = append(lines, convLines...)
 		if ctx.loopBreakValueTemp != "" {
-			lines = append(lines, fmt.Sprintf("%s = %s", ctx.loopBreakValueTemp, valueRuntime))
+			lines = append(lines, fmt.Sprintf("%s = %s", ctx.loopBreakValueTemp, coercedExpr))
 		}
+	} else if ctx.loopBreakValueTemp != "" {
+		nilExpr, ok := g.controlFlowNilResultExpr(resultType)
+		if !ok {
+			ctx.setReason("break value unsupported")
+			return nil, false
+		}
+		if ctx.loopBreakProbe != nil {
+			ctx.loopBreakProbe.sawNil = true
+		}
+		lines = append(lines, fmt.Sprintf("%s = %s", ctx.loopBreakValueTemp, nilExpr))
 	}
 	if ctx.loopLabel != "" {
 		lines = append(lines, fmt.Sprintf("break %s", ctx.loopLabel))
@@ -824,7 +850,7 @@ func (g *generator) compileLoopExpression(ctx *compileContext, loop *ast.LoopExp
 	if lines, expr, goType, ok := g.compileCountedLoopExpression(ctx, loop, expected); ok {
 		return lines, expr, goType, true
 	}
-	resultType := expected
+	resultType := g.inferLoopExpressionResultType(ctx, loop, expected)
 	if resultType == "" {
 		resultType = "runtime.Value"
 	}
@@ -834,12 +860,19 @@ func (g *generator) compileLoopExpression(ctx *compileContext, loop *ast.LoopExp
 	bodyCtx.loopDepth++
 	bodyCtx.loopLabel = loopLabelName
 	bodyCtx.loopBreakValueTemp = valueTemp
+	bodyCtx.loopBreakValueType = resultType
+	bodyCtx.loopBreakProbe = nil
 	bodyLines, ok := g.compileBlockStatement(bodyCtx, loop.Body)
 	if !ok {
 		return nil, "", "", false
 	}
+	zeroExpr, ok := g.zeroValueExpr(resultType)
+	if !ok {
+		ctx.setReason("loop expression type mismatch")
+		return nil, "", "", false
+	}
 	lines := []string{
-		fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", valueTemp),
+		fmt.Sprintf("var %s %s = %s", valueTemp, resultType, zeroExpr),
 	}
 	forLine := "for {"
 	if linesReferenceLabel(bodyLines, loopLabelName) {
@@ -848,17 +881,7 @@ func (g *generator) compileLoopExpression(ctx *compileContext, loop *ast.LoopExp
 	lines = append(lines, forLine)
 	lines = append(lines, indentLines(bodyLines, 1)...)
 	lines = append(lines, "}")
-	retExpr := valueTemp
-	if resultType != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueTemp, resultType)
-		if !ok {
-			ctx.setReason("loop expression type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		retExpr = converted
-	}
-	return lines, retExpr, resultType, true
+	return lines, valueTemp, resultType, true
 }
 
 func (g *generator) compileBreakpointExpression(ctx *compileContext, expr *ast.BreakpointExpression, expected string) ([]string, string, string, bool) {
@@ -871,7 +894,7 @@ func (g *generator) compileBreakpointExpression(ctx *compileContext, expr *ast.B
 		return nil, "", "", false
 	}
 	label := expr.Label.Name
-	resultType := expected
+	resultType := g.inferBreakpointExpressionResultType(ctx, expr, expected)
 	if resultType == "" {
 		resultType = "runtime.Value"
 	}
@@ -887,11 +910,14 @@ func (g *generator) compileBreakpointExpression(ctx *compileContext, expr *ast.B
 	if bodyCtx.breakpointResultTemps == nil {
 		bodyCtx.breakpointResultTemps = make(map[string]string)
 	}
+	if bodyCtx.breakpointResultTypes == nil {
+		bodyCtx.breakpointResultTypes = make(map[string]string)
+	}
 	bodyCtx.breakpointGoLabels[label] = goLabel
 	bodyCtx.breakpointResultTemps[label] = resultTemp
+	bodyCtx.breakpointResultTypes[label] = resultType
 
 	// Compile the body block as statements + tail expression.
-	// The result temp is always runtime.Value since break values are runtime.Value.
 	stmts := expr.Body.Body
 	var bodyLines []string
 	for idx, stmt := range stmts {
@@ -899,20 +925,16 @@ func (g *generator) compileBreakpointExpression(ctx *compileContext, expr *ast.B
 		if isLast {
 			// Try to compile last statement as a value expression
 			if tailExpr, ok := stmt.(ast.Expression); ok {
-				tailLines, tailValue, tailType, ok := g.compileExprLines(bodyCtx, tailExpr, "")
+				tailLines, tailValue, tailType, ok := g.compileTailExpression(bodyCtx, resultType, tailExpr)
 				if ok {
 					bodyLines = append(bodyLines, tailLines...)
-					runtimeValue := tailValue
-					if tailType != "runtime.Value" {
-						convLines, converted, ok := g.runtimeValueLines(ctx, tailValue, tailType)
-						if !ok {
-							ctx.setReason("breakpoint type mismatch")
-							return nil, "", "", false
-						}
-						bodyLines = append(bodyLines, convLines...)
-						runtimeValue = converted
+					coerceLines, coercedExpr, ok := g.controlFlowResultExpr(ctx, resultType, tailValue, tailType)
+					if !ok {
+						ctx.setReason("breakpoint type mismatch")
+						return nil, "", "", false
 					}
-					bodyLines = append(bodyLines, fmt.Sprintf("%s = %s", resultTemp, runtimeValue))
+					bodyLines = append(bodyLines, coerceLines...)
+					bodyLines = append(bodyLines, fmt.Sprintf("%s = %s", resultTemp, coercedExpr))
 					break
 				}
 			}
@@ -926,22 +948,12 @@ func (g *generator) compileBreakpointExpression(ctx *compileContext, expr *ast.B
 	bodyCtx.popBreakpoint(label)
 
 	// Build labeled switch
-	lines := []string{
-		fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
+	zeroExpr, ok := g.zeroValueExpr(resultType)
+	if !ok {
+		ctx.setReason("breakpoint type mismatch")
+		return nil, "", "", false
 	}
+	lines := []string{fmt.Sprintf("var %s %s = %s", resultTemp, resultType, zeroExpr)}
 	lines = append(lines, fmt.Sprintf("%s: switch { default: %s }", goLabel, strings.Join(bodyLines, "; ")))
-
-	// Convert to expected type
-	retExpr := resultTemp
-	if resultType != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, resultType)
-		if !ok {
-			ctx.setReason("breakpoint type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		retExpr = converted
-	}
-
-	return lines, retExpr, resultType, true
+	return lines, resultTemp, resultType, true
 }

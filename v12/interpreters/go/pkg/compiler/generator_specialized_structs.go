@@ -210,6 +210,9 @@ func (g *generator) typeExprIsConcreteInPackage(pkgName string, expr ast.TypeExp
 		return false
 	}
 	expr = normalizeTypeExprForPackage(g, pkgName, expr)
+	if expanded := g.expandTypeAliasForPackage(pkgName, expr); expanded != nil {
+		expr = expanded
+	}
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t == nil || t.Name == nil || t.Name.Name == "" {

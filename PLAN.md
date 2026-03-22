@@ -210,7 +210,24 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   - [x] `./run_all_tests.sh` and compiler fixture audits stay green with the new strict policy.
 ### Compiler Native Lowering Contract (active priority)
 - Goal: lower Able source to native Go encodings wherever semantics are statically representable; interpreter/runtime carriers are allowed only at explicit dynamic boundaries and ABI edges.
+- Canonical architecture docs for this work:
+  - exhaustive lowering spec: `v12/design/compiler-go-lowering-spec.md`
+  - detailed completion plan: `v12/design/compiler-go-lowering-plan.md`
+- Compiler work must follow those documents. The compiler is not allowed to implement static Able semantics by routing normal compiled execution back through interpreter evaluation or interpreter-style dispatch helpers.
 - Current status: the recent compiler-side `Array -> Elements []runtime.Value` rewrite is under audit. Treat it as an experimental intermediate state, not as an accepted final architecture.
+- Completion milestones for a "done" compiler (execute in order, keep this list concrete):
+  - [ ] Native carrier completeness: every statically representable Able type expression maps to a native Go carrier.
+    - Scope: arrays, structs, unions, nullable values, results, interfaces, callables, and fully bound generic nominal types.
+    - Failing condition: `types.go` or generated helper synthesis still defaults representable static types to `runtime.Value` or `any`.
+  - [ ] Native pattern/control-flow completeness: `if`, `match`, `rescue`, `or {}`, `loop`, and `breakpoint` stay on native carriers when branch/result/pattern types are statically representable.
+    - Failing condition: generated static paths still use `__able_try_cast(...)`, `bridge.MatchType(...)`, `runtime.Value` join locals, or env lookups for native pattern bindings.
+  - [ ] Native dispatch completeness: statically resolved field access, method calls, interface/default-method calls, callables, index ops, and assignment paths lower to compiled Go dispatch instead of runtime helper dispatch.
+    - Failing condition: representative static bodies still emit `__able_call_value(...)`, `__able_method_call_node(...)`, `__able_member_get*`, `__able_index*`, or equivalent dynamic helper routes outside explicit dynamic boundaries.
+  - [ ] Boundary containment completeness: residual runtime/interpreter carriers exist only at explicit dynamic language/ABI boundaries and are mechanically audited.
+    - Scope: `dyn`, `eval`, extern/native ABI conversion, interpreted package objects, and explicit compiled/interpreter callback boundaries.
+    - Failing condition: static fixtures can cross fallback or explicit dynamic boundaries without the source itself using an explicit dynamic feature.
+  - [ ] Performance completeness: the compiled path is fast on the checked-in benchmark family and no longer needs obvious runtime scaffolding on hot static paths.
+    - Failing condition: benchmark-critical static code still carries avoidable frame scaffolding, dynamic dispatch, generic boxing, or other already-identified runtime helper overhead.
 - Vision / non-negotiable constraints:
   - [x] Record the target architecture in design docs and the plan (`v12/design/compiler-native-lowering.md`, `v12/design/compiler-monomorphization.md`, `v12/design/compiler-no-panic-flow-control.md`, `v12/design/compiler-union-abi.md`, `spec/TODO_v12.md`).
   - [ ] Arrays: compiled representation must be native Go array-backed storage (slice or compiler-owned wrapper), not `runtime.ArrayValue`, `ArrayStore*`, or kernel `storage_handle` plumbing on static paths.
@@ -258,8 +275,45 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
     - `TestCompilerStructFieldStaticAccess`: struct field access → direct Go field access.
     - `TestCompilerDefaultImplSiblingDirectCall`: default impl sibling → direct compiled call.
   - [x] Encode/enforce allowed dynamic-carrier touchpoints in codegen (explicit dynamic boundary adapters, residual runtime-polymorphic dispatch, extern ABI conversion).
+  - [x] Prefer common native existential join carriers before synthesizing unions when the join branches already share one.
+    - Shared join inference now prefers `runtime.ErrorValue` for mixed native `Error` implementers and prefers a common zero-arg native interface carrier when all concrete branches implement the same interface, instead of falling back to a generated union local plus `__able_method_call_node(...)`.
+    - Pure-generic interface joins stay on that same shared carrier too: once the join infers the interface carrier, generic method calls on the joined value continue through the compiled generic-interface dispatch helper even when multiple concrete adapters exist for the interface.
+    - This stays within the compiler contract: no named non-primitive type received a bespoke lowering rule; the change is shared join/existential inference plus shared native interface dispatch refinement.
+  - [x] Extend common native existential join-carrier discovery to fully bound parameterized interfaces.
+    - Shared join inference now materializes candidate native interface carriers from the actual branch impl metadata instead of depending only on already-loaded zero-arg interface infos.
+    - That candidate discovery walks bound base interfaces too, so concrete implementers of different parameterized child interfaces can still join on the common bound parent carrier.
+    - Direct bound joins like `Left | Right -> Reader i32` now stay on `__able_iface_Reader_i32`, and inherited bound joins like `LeftReader i32 | RightReader i32 -> Reader i32` do the same without adding any named non-primitive lowering rule.
+    - `TestCompilerJoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface`, `TestCompilerJoinExpressionParameterizedInheritedImplementersInferSharedParentInterface`, and `TestCompilerParameterizedInterfaceJoinsExecuteWithoutDynamicFallback` pin the shared behavior.
+  - [x] Keep nil-capable joins on native carriers when the non-nil branches already share one.
+    - Shared join inference now recognizes nil-valued branch expressions (`any(nil)`, `runtime.NilValue{}`, and typed nils) separately from the concrete branch carriers.
+    - The compiler now joins the non-nil carriers first and then preserves that native result when the joined carrier already has a nil zero value or a native nullable wrapper exists.
+    - This closes nil-capable native joins for interface carriers, callable carriers, native nullable/error carriers, and the existing loop/breakpoint result probes through one shared rule rather than per-construct handling.
+    - `TestCompilerIfExpressionInterfaceAndNilInferNativeCarrier`, `TestCompilerMatchExpressionCallableAndNilInferNativeCarrier`, `TestCompilerRescueExpressionErrorAndNilInferNativeNullableError`, and `TestCompilerNilCapableJoinExpressionsExecuteWithoutRuntimeCarrierFallback` pin the shared behavior.
     - `TestCompilerBroadStaticNativeTouchpointsStayNative` now enforces the static native-path contract across arrays, structs, named unions, object-safe interfaces, and native callables in one combined source.
-    - `TestCompilerGenericResidualTouchpointsStayNarrow` now enforces that the remaining generic-interface runtime edge stays narrowed to `__able_iface_*_to_runtime_value(...)` plus `__able_method_call_node(...)`, without regressing to broader dynamic helpers.
+    - `TestCompilerGenericInterfaceTouchpointsStayNative` now enforces that statically-known generic interface calls stay on compiled native helpers instead of routing the interface carrier through `__able_iface_*_to_runtime_value(...)` plus `__able_method_call_node(...)`.
+    - Pure-generic interface calls such as `Echo.pass<T>(...)` now lower through generated compiled dispatch helpers that switch on the native interface carrier and call specialized compiled impls directly; only the runtime-adapter case inside those helpers remains as the explicit dynamic boundary.
+    - Mixed-result `if`, `match`, and `rescue` expressions now use shared join-type inference plus shared branch coercion, so representable mixed branch results synthesize native carriers instead of defaulting the join local to `runtime.Value`.
+    - Mixed-result `or {}` expressions now use that same shared join-type inference too; nullable success paths join on the unwrapped payload carrier, and `err => ...` bindings stay on the native failure carrier when the failure branch type is statically known.
+    - `loop { ... break value }` and labeled `breakpoint 'label { ... break 'label value }` expressions now use that same shared native join/coercion path too when their result shapes are statically representable; break payloads bind directly onto the native result carrier instead of being forced through a `runtime.Value` temp, and the existing loop/breakpoint compiler fixtures stay green with bare-`break` nil behavior preserved.
+    - Static typed-pattern lowering now uses shared nominal receiver compatibility rather than exact Go carrier identity, which keeps same-family specialized native carriers on the static pattern path.
+    - Type-expression-backed join inference is now closed too: when a branch/local still reports `runtime.Value` or `any` but retains a concrete normalized Able `TypeExpr`, shared join inference now recovers the native carrier instead of widening the whole join back to `runtime.Value`; typed-pattern bindings preserve that `TypeExpr`, identifier lowering prefers the recovered native carrier on use, and `if` / `match` / `rescue` / `or {}` / loop / breakpoint joins all reuse that shared recovered-type path.
+    - Ordered next TODOs for this category:
+      - [ ] Close native carrier synthesis gaps in `types.go` and `generator_native_unions.go`.
+        - `TypeMapper.Map(...)`, `mapResultType(...)`, `mapExpandedUnionMembers(...)`, and `mapNullableType(...)` still fall back to `runtime.Value` or `any` when a fully bound normalized `TypeExpr` misses the currently landed carrier cases on first pass.
+        - `ensureNativeUnionInfo(...)` and `ensureNativeResultUnionInfo(...)` still canonicalize those unresolved members into residual `runtime.Value` union members instead of forcing one more shared native-carrier discovery pass first.
+        - Required proof: add compile-shape regressions for named alias / parameterized union-result locals that currently degrade, and make them stay on generated native carriers with no `var x runtime.Value` / `var x any`.
+      - [ ] Remove runtime typed-pattern fallback for recoverable static subjects.
+        - `generator_match.go`, `generator_match_runtime_types.go`, and `generator_rescue.go` still emit `__able_try_cast(...)` / runtime-subject pattern flows whenever the current Go carrier string is `runtime.Value` or `any`, even when the subject retains a recoverable native `TypeExpr`.
+        - Required proof: add regressions for `match` / `rescue` typed-patterns on recovered interface, error, and parameterized-union locals that avoid both `__able_try_cast(...)` and `bridge.MatchType(...)`.
+      - [ ] Eliminate representable join fallback locals in handler/binding flows.
+        - `generator_or_else.go`, `generator_rescue.go`, and `generator_join_types.go` still have fallback sites that set `resultType = "runtime.Value"` or `bindingType = "runtime.Value"` when branch recovery fails mid-pipeline.
+        - Audit each remaining fallback and either recover a shared native carrier from the normalized `TypeExpr` or explicitly document the case as a true dynamic boundary.
+        - Required proof: extend `compiler_join_native_test.go` so mixed success/handler joins and typed `err => ...` bindings stay off `runtime.Value` locals whenever all branch types are statically representable.
+      - [ ] Narrow residual `runtime.Value` union members to explicit dynamic-only cases.
+        - `nativeUnionRuntimeMemberAcceptsActual(...)` and `nativeUnionRuntimeMemberRequiresMatch(...)` still bucket generic/open/result members into residual runtime branches broadly.
+        - Tighten those gates so statically representable members get real native union/interface/callable carriers first, leaving `runtime.Value` members only for explicit dynamic payloads.
+        - Required proof: extend `compiler_native_touchpoint_audit_test.go` with representative static union/interface/callable programs that fail if residual `runtime.Value` union members reappear outside explicit dynamic boundaries.
+    - Cross-package generic-only interface adapters now survive shared adapter refresh and late helper generation through one explicit adapter-retention path, so fixtures such as `10_04_interface_dispatch_defaults_generics` emit the required native concrete helper/type definitions instead of building broken source.
     - `TestCompilerStaticNativeFixturesExecuteWithoutExplicitBoundaries` now proves representative static fixtures execute under the boundary-marker harness with both fallback and explicit boundary counts at zero.
   - [x] Add call-site intrinsics for typed `Array` methods in hot paths (`push`, `len`, `get`, `set`) to bypass dynamic member lookup / `__able_call_value`.
   - [x] Add compiler regression fixtures proving typed-array locals in static code emit no `__able_global_get/__able_global_set` in compiled function bodies.

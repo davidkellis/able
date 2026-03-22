@@ -10,135 +10,88 @@ import (
 )
 
 type generator struct {
-	opts                      Options
-	structs                   map[string]*structInfo
-	specializedStructs        map[string]*structInfo
-	typeAliases               map[string]map[string]ast.TypeExpression
-	typeAliasGenericParams    map[string]map[string][]*ast.GenericParameter
-	unions                    map[string]*ast.UnionDefinition
-	unionPackages             map[string]string
-	nativeUnions              map[string]*nativeUnionInfo
-	nativeCallables           map[string]*nativeCallableInfo
-	nativeInterfaces          map[string]*nativeInterfaceInfo
-	iteratorCollectMonoArrays map[string]*iteratorCollectMonoArrayInfo
-	monoArraySpecs            map[string]*monoArraySpec
-	nativeInterfaceBuilding   map[string]struct{}
-	nativeInterfaceRefreshing map[string]struct{}
-	interfaces                map[string]*ast.InterfaceDefinition
-	interfacePackages         map[string]string
-	staticImports             map[string][]staticImportBinding
-	functions                 map[string]map[string]*functionInfo
-	overloads                 map[string]map[string]*overloadInfo
-	packages                  []string
-	entryPackage              string
-	methods                   map[string]map[string][]*methodInfo
-	methodList                []*methodInfo
-	implMethodList            []*implMethodInfo
-	implDefinitions           []*implDefinitionInfo
-	implMethodByInfo          map[*functionInfo]*implMethodInfo
-	specializedFunctions      []*functionInfo
-	specializedFunctionIndex  map[string]*functionInfo
-	warnings                  []string
-	fallbacks                 []FallbackInfo
-	mangler                   *nameMangler
-	needsAst                  bool
-	needsIterator             bool
-	needsStrconv              bool
-	needsStringFromByteArray  bool
-	awaitExprs                []string
-	awaitNames                map[*ast.AwaitExpression]string
-	diagNodes                 []diagNodeInfo
-	diagNames                 map[ast.Node]string
-	nodeOrigins               map[ast.Node]string
-	packageEnvVars            map[string]string
-	packageEnvOrder           []string
-	hasDynamicFeature         bool
-	moduleBindings            map[string][]moduleBinding // package -> bindings
-	moduleBindingNames        map[string]map[string]struct{}
-	evaluatedConstants        map[string]*evaluatedConst // "pkg::name" -> value
-	staticCallableNames       map[string]map[string]struct{}
-	externCallables           map[string]map[string]struct{}
-}
-
-type diagNodeInfo struct {
-	Name       string
-	GoType     string
-	Span       ast.Span
-	Origin     string
-	CallName   string
-	CallMember string
-}
-
-type implSiblingInfo struct {
-	GoName string
-	Arity  int
-	Info   *functionInfo
-}
-
-type compileContext struct {
-	params                map[string]paramInfo
-	locals                map[string]paramInfo
-	integerFacts          map[string]integerFact
-	functions             map[string]*functionInfo
-	overloads             map[string]*overloadInfo
-	packageName           string
-	parent                *compileContext
-	temps                 *int
-	reason                string
-	loopDepth             int
-	loopLabel             string
-	loopBreakValueTemp    string
-	rethrowVar            string
-	rethrowErrVar         string
-	breakpoints           map[string]int
-	breakpointGoLabels    map[string]string
-	breakpointResultTemps map[string]string
-	implicitReceiver      paramInfo
-	hasImplicitReceiver   bool
-	placeholderParams     map[int]paramInfo
-	inPlaceholder         bool
-	returnType            string
-	returnTypeExpr        ast.TypeExpression
-	expectedTypeExpr      ast.TypeExpression
-	controlMode           string
-	controlCaptureVar     string
-	controlCaptureLabel   string
-	controlCaptureBreak   bool
-	rethrowControlVar     string
-	genericNames          map[string]struct{}
-	typeBindings          map[string]ast.TypeExpression
-	implSiblings          map[string]implSiblingInfo
-	originExtractions     map[string]string // CSE cache: Able variable name → Go extraction temp
+	opts                             Options
+	structs                          map[string]*structInfo
+	specializedStructs               map[string]*structInfo
+	typeAliases                      map[string]map[string]ast.TypeExpression
+	typeAliasGenericParams           map[string]map[string][]*ast.GenericParameter
+	unions                           map[string]*ast.UnionDefinition
+	unionPackages                    map[string]string
+	nativeUnions                     map[string]*nativeUnionInfo
+	nativeCallables                  map[string]*nativeCallableInfo
+	nativeInterfaces                 map[string]*nativeInterfaceInfo
+	nativeInterfaceExplicitAdapters  map[string]map[string]*nativeInterfaceAdapter
+	nativeInterfaceGenericDispatches map[string]*nativeInterfaceGenericDispatchInfo
+	iteratorCollectMonoArrays        map[string]*iteratorCollectMonoArrayInfo
+	monoArraySpecs                   map[string]*monoArraySpec
+	nativeInterfaceBuilding          map[string]struct{}
+	nativeInterfaceRefreshing        map[string]struct{}
+	interfaces                       map[string]*ast.InterfaceDefinition
+	interfacePackages                map[string]string
+	staticImports                    map[string][]staticImportBinding
+	functions                        map[string]map[string]*functionInfo
+	overloads                        map[string]map[string]*overloadInfo
+	packages                         []string
+	entryPackage                     string
+	methods                          map[string]map[string][]*methodInfo
+	methodList                       []*methodInfo
+	implMethodList                   []*implMethodInfo
+	implDefinitions                  []*implDefinitionInfo
+	implMethodByInfo                 map[*functionInfo]*implMethodInfo
+	specializedFunctions             []*functionInfo
+	specializedFunctionIndex         map[string]*functionInfo
+	warnings                         []string
+	fallbacks                        []FallbackInfo
+	mangler                          *nameMangler
+	needsAst                         bool
+	needsIterator                    bool
+	needsStrconv                     bool
+	needsStringFromByteArray         bool
+	awaitExprs                       []string
+	awaitNames                       map[*ast.AwaitExpression]string
+	diagNodes                        []diagNodeInfo
+	diagNames                        map[ast.Node]string
+	nodeOrigins                      map[ast.Node]string
+	packageEnvVars                   map[string]string
+	packageEnvOrder                  []string
+	hasDynamicFeature                bool
+	moduleBindings                   map[string][]moduleBinding // package -> bindings
+	moduleBindingNames               map[string]map[string]struct{}
+	evaluatedConstants               map[string]*evaluatedConst // "pkg::name" -> value
+	staticCallableNames              map[string]map[string]struct{}
+	externCallables                  map[string]map[string]struct{}
 }
 
 func newGenerator(opts Options) *generator {
 	return &generator{
-		opts:                      opts,
-		structs:                   make(map[string]*structInfo),
-		specializedStructs:        make(map[string]*structInfo),
-		typeAliases:               make(map[string]map[string]ast.TypeExpression),
-		typeAliasGenericParams:    make(map[string]map[string][]*ast.GenericParameter),
-		unions:                    make(map[string]*ast.UnionDefinition),
-		unionPackages:             make(map[string]string),
-		nativeUnions:              make(map[string]*nativeUnionInfo),
-		nativeCallables:           make(map[string]*nativeCallableInfo),
-		nativeInterfaces:          make(map[string]*nativeInterfaceInfo),
-		iteratorCollectMonoArrays: make(map[string]*iteratorCollectMonoArrayInfo),
-		monoArraySpecs:            make(map[string]*monoArraySpec),
-		nativeInterfaceBuilding:   make(map[string]struct{}),
-		nativeInterfaceRefreshing: make(map[string]struct{}),
-		interfaces:                make(map[string]*ast.InterfaceDefinition),
-		interfacePackages:         make(map[string]string),
-		staticImports:             make(map[string][]staticImportBinding),
-		functions:                 make(map[string]map[string]*functionInfo),
-		overloads:                 make(map[string]map[string]*overloadInfo),
-		methods:                   make(map[string]map[string][]*methodInfo),
-		mangler:                   newNameMangler(),
-		awaitNames:                make(map[*ast.AwaitExpression]string),
-		implMethodByInfo:          make(map[*functionInfo]*implMethodInfo),
-		specializedFunctionIndex:  make(map[string]*functionInfo),
-		moduleBindingNames:        make(map[string]map[string]struct{}),
-		externCallables:           make(map[string]map[string]struct{}),
+		opts:                             opts,
+		structs:                          make(map[string]*structInfo),
+		specializedStructs:               make(map[string]*structInfo),
+		typeAliases:                      make(map[string]map[string]ast.TypeExpression),
+		typeAliasGenericParams:           make(map[string]map[string][]*ast.GenericParameter),
+		unions:                           make(map[string]*ast.UnionDefinition),
+		unionPackages:                    make(map[string]string),
+		nativeUnions:                     make(map[string]*nativeUnionInfo),
+		nativeCallables:                  make(map[string]*nativeCallableInfo),
+		nativeInterfaces:                 make(map[string]*nativeInterfaceInfo),
+		nativeInterfaceExplicitAdapters:  make(map[string]map[string]*nativeInterfaceAdapter),
+		nativeInterfaceGenericDispatches: make(map[string]*nativeInterfaceGenericDispatchInfo),
+		iteratorCollectMonoArrays:        make(map[string]*iteratorCollectMonoArrayInfo),
+		monoArraySpecs:                   make(map[string]*monoArraySpec),
+		nativeInterfaceBuilding:          make(map[string]struct{}),
+		nativeInterfaceRefreshing:        make(map[string]struct{}),
+		interfaces:                       make(map[string]*ast.InterfaceDefinition),
+		interfacePackages:                make(map[string]string),
+		staticImports:                    make(map[string][]staticImportBinding),
+		functions:                        make(map[string]map[string]*functionInfo),
+		overloads:                        make(map[string]map[string]*overloadInfo),
+		methods:                          make(map[string]map[string][]*methodInfo),
+		mangler:                          newNameMangler(),
+		awaitNames:                       make(map[*ast.AwaitExpression]string),
+		implMethodByInfo:                 make(map[*functionInfo]*implMethodInfo),
+		specializedFunctionIndex:         make(map[string]*functionInfo),
+		moduleBindingNames:               make(map[string]map[string]struct{}),
+		externCallables:                  make(map[string]map[string]struct{}),
 	}
 }
 
@@ -214,6 +167,8 @@ func (g *generator) collect(program *driver.Program) error {
 	g.nativeUnions = make(map[string]*nativeUnionInfo)
 	g.nativeCallables = make(map[string]*nativeCallableInfo)
 	g.nativeInterfaces = make(map[string]*nativeInterfaceInfo)
+	g.nativeInterfaceExplicitAdapters = make(map[string]map[string]*nativeInterfaceAdapter)
+	g.nativeInterfaceGenericDispatches = make(map[string]*nativeInterfaceGenericDispatchInfo)
 	g.iteratorCollectMonoArrays = make(map[string]*iteratorCollectMonoArrayInfo)
 	g.monoArraySpecs = make(map[string]*monoArraySpec)
 	g.nativeInterfaceBuilding = make(map[string]struct{})

@@ -65,37 +65,54 @@ func (c *compileContext) child() *compileContext {
 		return nil
 	}
 	return &compileContext{
-		locals:                make(map[string]paramInfo),
-		integerFacts:          cloneIntegerFacts(c.integerFacts),
-		functions:             c.functions,
-		overloads:             c.overloads,
-		packageName:           c.packageName,
-		parent:                c,
-		temps:                 c.temps,
-		loopDepth:             c.loopDepth,
-		loopLabel:             c.loopLabel,
-		loopBreakValueTemp:    c.loopBreakValueTemp,
-		rethrowVar:            c.rethrowVar,
-		rethrowErrVar:         c.rethrowErrVar,
-		breakpoints:           c.breakpoints,
-		breakpointGoLabels:    c.breakpointGoLabels,
-		breakpointResultTemps: c.breakpointResultTemps,
-		implicitReceiver:      c.implicitReceiver,
-		hasImplicitReceiver:   c.hasImplicitReceiver,
-		placeholderParams:     c.placeholderParams,
-		inPlaceholder:         c.inPlaceholder,
-		returnType:            c.returnType,
-		returnTypeExpr:        c.returnTypeExpr,
-		expectedTypeExpr:      c.expectedTypeExpr,
-		controlMode:           c.controlMode,
-		controlCaptureVar:     c.controlCaptureVar,
-		controlCaptureLabel:   c.controlCaptureLabel,
-		controlCaptureBreak:   c.controlCaptureBreak,
-		rethrowControlVar:     c.rethrowControlVar,
-		genericNames:          c.genericNames,
-		typeBindings:          c.typeBindings,
-		implSiblings:          c.implSiblings,
+		locals:                 make(map[string]paramInfo),
+		integerFacts:           cloneIntegerFacts(c.integerFacts),
+		functions:              c.functions,
+		overloads:              c.overloads,
+		packageName:            c.packageName,
+		parent:                 c,
+		temps:                  c.temps,
+		loopDepth:              c.loopDepth,
+		loopLabel:              c.loopLabel,
+		loopBreakValueTemp:     c.loopBreakValueTemp,
+		loopBreakValueType:     c.loopBreakValueType,
+		loopBreakProbe:         c.loopBreakProbe,
+		rethrowVar:             c.rethrowVar,
+		rethrowErrVar:          c.rethrowErrVar,
+		breakpoints:            c.breakpoints,
+		breakpointGoLabels:     c.breakpointGoLabels,
+		breakpointResultTemps:  c.breakpointResultTemps,
+		breakpointResultTypes:  c.breakpointResultTypes,
+		breakpointResultProbes: c.breakpointResultProbes,
+		implicitReceiver:       c.implicitReceiver,
+		hasImplicitReceiver:    c.hasImplicitReceiver,
+		placeholderParams:      c.placeholderParams,
+		inPlaceholder:          c.inPlaceholder,
+		returnType:             c.returnType,
+		returnTypeExpr:         c.returnTypeExpr,
+		expectedTypeExpr:       c.expectedTypeExpr,
+		controlMode:            c.controlMode,
+		controlCaptureVar:      c.controlCaptureVar,
+		controlCaptureLabel:    c.controlCaptureLabel,
+		controlCaptureBreak:    c.controlCaptureBreak,
+		rethrowControlVar:      c.rethrowControlVar,
+		genericNames:           c.genericNames,
+		typeBindings:           c.typeBindings,
+		implSiblings:           c.implSiblings,
 	}
+}
+
+func (c *compileContext) probeChild() *compileContext {
+	if c == nil {
+		return nil
+	}
+	child := c.child()
+	if child == nil || child.temps == nil {
+		return child
+	}
+	temps := *child.temps
+	child.temps = &temps
+	return child
 }
 
 func (c *compileContext) substituteTypeBindings(expr ast.TypeExpression) ast.TypeExpression {

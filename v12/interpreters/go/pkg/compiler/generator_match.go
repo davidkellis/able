@@ -7,6 +7,16 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+func (g *generator) staticTypedPatternCompatible(subjectType string, patternType string) bool {
+	if g == nil || subjectType == "" || patternType == "" {
+		return false
+	}
+	if subjectType == patternType {
+		return true
+	}
+	return g.receiverGoTypeCompatible(patternType, subjectType) || g.receiverGoTypeCompatible(subjectType, patternType)
+}
+
 func (g *generator) compileMatchPattern(ctx *compileContext, pattern ast.Pattern, subjectTemp string, subjectType string) ([]string, string, []string, bool) {
 	if pattern == nil {
 		ctx.setReason("missing match pattern")
@@ -137,7 +147,7 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 				}
 				return g.guardMatchConditionWithPredicate(ctx, fmt.Sprintf("%s != nil", subjectTemp), innerCondLines, innerCond)
 			}
-			if mapped != subjectType {
+			if !g.staticTypedPatternCompatible(subjectType, mapped) {
 				ctx.setReason("typed pattern type mismatch")
 				return nil, "", false
 			}
@@ -449,7 +459,15 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			return nil, true
 		}
 		goName := sanitizeIdent(p.Name)
-		ctx.setLocalBinding(p.Name, paramInfo{Name: p.Name, GoName: goName, GoType: subjectType})
+		typeExpr := ast.TypeExpression(nil)
+		switch {
+		case (subjectType == "runtime.Value" || subjectType == "any") && ctx != nil && ctx.expectedTypeExpr != nil:
+			typeExpr = g.typeExprInContext(ctx, ctx.expectedTypeExpr)
+		case subjectType != "" && subjectType != "runtime.Value" && subjectType != "any":
+			typeExpr, _ = g.typeExprForGoType(subjectType)
+			typeExpr = g.typeExprInContext(ctx, typeExpr)
+		}
+		ctx.setLocalBinding(p.Name, paramInfo{Name: p.Name, GoName: goName, GoType: subjectType, TypeExpr: typeExpr})
 		return []string{
 			fmt.Sprintf("var %s %s = %s", goName, subjectType, subjectTemp),
 			fmt.Sprintf("_ = %s", goName),
@@ -477,7 +495,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 				}
 				return g.compileMatchPatternBindings(ctx, p.Pattern, fmt.Sprintf("(*%s)", subjectTemp), innerType)
 			}
-			if mapped != subjectType {
+			if !g.staticTypedPatternCompatible(subjectType, mapped) {
 				ctx.setReason("typed pattern type mismatch")
 				return nil, false
 			}
@@ -512,13 +530,16 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			lines = append(lines, bindLines...)
 			return lines, true
 		}
-		typeExpr, ok := g.renderTypeExpression(p.TypeAnnotation)
+		typeExpr, ok := g.renderTypeExpression(g.typeExprInContext(ctx, p.TypeAnnotation))
 		if !ok {
 			ctx.setReason("unsupported typed pattern")
 			return nil, false
 		}
 		g.needsAst = true
+		previousExpected := ctx.expectedTypeExpr
+		ctx.expectedTypeExpr = p.TypeAnnotation
 		bindLines, ok := g.compileMatchPatternBindings(ctx, p.Pattern, convertedTemp, "runtime.Value")
+		ctx.expectedTypeExpr = previousExpected
 		if !ok {
 			return nil, false
 		}
@@ -821,6 +842,9 @@ func positionalStructFieldPattern(field *ast.StructPatternField) (ast.Pattern, b
 	}
 	if field.Pattern != nil {
 		return field.Pattern, true
+	}
+	if field.Binding != nil {
+		return field.Binding, true
 	}
 	if field.FieldName != nil {
 		return field.FieldName, true

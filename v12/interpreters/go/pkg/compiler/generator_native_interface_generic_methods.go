@@ -279,38 +279,7 @@ func (g *generator) nativeInterfaceGenericMethodImplExists(goType string, method
 	if g == nil || method == nil || goType == "" {
 		return false
 	}
-	if g.nativeInterfaceGenericMethodImplExistsExact(goType, method) {
-		return true
-	}
-	found := false
-	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
-		impl := candidateInfo.impl
-		info := candidateInfo.info
-		if impl == nil || info == nil || !info.Compileable || impl.ImplName != "" {
-			continue
-		}
-		if impl.MethodName != method.Name {
-			continue
-		}
-		if len(info.Params) == 0 {
-			continue
-		}
-		bindings, ok := g.nativeInterfaceGenericImplBindings(impl, method)
-		if !ok {
-			continue
-		}
-		if info.Params[0].GoType != goType {
-			info, _, ok = g.nativeInterfaceConcreteImplInfo(goType, impl, bindings)
-			if !ok || info == nil || len(info.Params) == 0 || info.Params[0].GoType != goType {
-				continue
-			}
-		}
-		if found {
-			return false
-		}
-		found = true
-	}
-	return found
+	return g.nativeInterfaceGenericMethodImpl(goType, method, method.ParamTypeExprs, nil, method.ReturnTypeExpr, "") != nil
 }
 
 func (g *generator) nativeInterfaceGenericMethodImplExistsExact(goType string, method *nativeInterfaceGenericMethod) bool {
@@ -337,6 +306,106 @@ func (g *generator) nativeInterfaceGenericMethodImplExistsExact(goType string, m
 			return false
 		}
 		found = true
+	}
+	return found
+}
+
+func (g *generator) nativeInterfaceGenericMethodImpl(goType string, method *nativeInterfaceGenericMethod, paramTypeExprs []ast.TypeExpression, paramGoTypes []string, returnTypeExpr ast.TypeExpression, returnGoType string) *nativeInterfaceAdapterMethod {
+	if g == nil || method == nil || goType == "" {
+		return nil
+	}
+	var found *nativeInterfaceAdapterMethod
+	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
+		impl := candidateInfo.impl
+		info := candidateInfo.info
+		if impl == nil || info == nil || !info.Compileable || impl.ImplName != "" {
+			continue
+		}
+		if impl.MethodName != method.Name {
+			continue
+		}
+		if len(info.Params) == 0 {
+			continue
+		}
+		bindings, ok := g.nativeInterfaceGenericImplBindings(impl, method)
+		if !ok {
+			continue
+		}
+		if info.Params[0].GoType != goType {
+			info, bindings, ok = g.nativeInterfaceConcreteImplInfo(goType, impl, bindings)
+			if !ok || info == nil || len(info.Params) == 0 || info.Params[0].GoType != goType {
+				continue
+			}
+		}
+		implParamTypeExprs, implParamGoTypes, implReturnTypeExpr, implReturnGoType, optionalLast, ok := g.nativeInterfaceMethodImplSignature(impl, bindings)
+		if !ok || optionalLast {
+			continue
+		}
+		expectedParamTypeExprs := paramTypeExprs
+		if len(expectedParamTypeExprs) == 0 {
+			expectedParamTypeExprs = method.ParamTypeExprs
+		}
+		expectedReturnTypeExpr := returnTypeExpr
+		if expectedReturnTypeExpr == nil {
+			expectedReturnTypeExpr = method.ReturnTypeExpr
+		}
+		expectedParamGoTypes := paramGoTypes
+		if len(expectedParamGoTypes) == 0 && len(expectedParamTypeExprs) > 0 {
+			mapper := NewTypeMapper(g, method.InterfacePackage)
+			expectedParamGoTypes = make([]string, 0, len(expectedParamTypeExprs))
+			for _, expr := range expectedParamTypeExprs {
+				inst := normalizeTypeExprForPackage(g, method.InterfacePackage, substituteTypeParams(expr, bindings))
+				goType, ok := mapper.Map(inst)
+				if !ok || goType == "" {
+					expectedParamGoTypes = nil
+					break
+				}
+				expectedParamGoTypes = append(expectedParamGoTypes, goType)
+			}
+		}
+		expectedReturnGoType := returnGoType
+		if expectedReturnGoType == "" && expectedReturnTypeExpr != nil {
+			mapper := NewTypeMapper(g, method.InterfacePackage)
+			expectedReturnGoType, _ = mapper.Map(expectedReturnTypeExpr)
+		}
+		if len(implParamGoTypes) != len(expectedParamTypeExprs) || (len(expectedParamGoTypes) > 0 && len(expectedParamGoTypes) != len(implParamGoTypes)) {
+			continue
+		}
+		matches := true
+		leftVars := make(map[string]string)
+		rightVars := make(map[string]string)
+		for idx := range implParamGoTypes {
+			if len(expectedParamGoTypes) > 0 && g.canCoerceStaticExpr(expectedParamGoTypes[idx], implParamGoTypes[idx]) {
+				continue
+			}
+			if !g.typeExprEquivalentModuloGenerics(expectedParamTypeExprs[idx], implParamTypeExprs[idx], leftVars, rightVars) {
+				matches = false
+				break
+			}
+		}
+		if !matches {
+			continue
+		}
+		if expectedReturnGoType != "" && !g.canCoerceStaticExpr(expectedReturnGoType, implReturnGoType) &&
+			!g.typeExprEquivalentModuloGenerics(expectedReturnTypeExpr, implReturnTypeExpr, leftVars, rightVars) {
+			continue
+		}
+		candidate := &nativeInterfaceAdapterMethod{
+			Info:                 info,
+			CompiledReturnGoType: info.ReturnType,
+			ParamGoTypes:         implParamGoTypes,
+			ReturnGoType:         implReturnGoType,
+		}
+		if len(info.Params) > 1 {
+			candidate.CompiledParamGoTypes = make([]string, 0, len(info.Params)-1)
+			for idx := 1; idx < len(info.Params); idx++ {
+				candidate.CompiledParamGoTypes = append(candidate.CompiledParamGoTypes, info.Params[idx].GoType)
+			}
+		}
+		if found != nil && found.Info != candidate.Info {
+			return nil
+		}
+		found = candidate
 	}
 	return found
 }
