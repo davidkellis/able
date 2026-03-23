@@ -136,7 +136,7 @@ func (g *generator) resolveControlFlowResultType(ctx *compileContext, normalType
 	if probe != nil && probe.sawNil {
 		branches = append(branches, joinBranchInfo{SawNil: true})
 	}
-	return g.joinResultTypeFromBranches(ctx, branches)
+	return g.lowerJoinCarrierFromBranches(ctx, branches)
 }
 
 func (g *generator) controlFlowResultExpr(ctx *compileContext, resultType string, expr string, exprType string) ([]string, string, bool) {

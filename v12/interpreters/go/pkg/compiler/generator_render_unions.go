@@ -100,6 +100,9 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 		case g.isMonoArrayType(member.GoType):
 			spec, _ := g.monoArraySpecForGoType(member.GoType)
 			fmt.Fprintf(buf, "\t\t\tconverted, err := %s(coerced)\n", spec.FromRuntimeHelper)
+		case member.GoType == "struct{}":
+			fmt.Fprintf(buf, "\t\t\tconverted := struct{}{}\n")
+			fmt.Fprintf(buf, "\t\t\t_ = coerced\n")
 		case g.typeCategory(member.GoType) == "struct":
 			baseName, _ := g.structBaseName(member.GoType)
 			if baseName == "" {
@@ -174,6 +177,8 @@ func (g *generator) renderNativeUnionToRuntimeHelper(buf *bytes.Buffer, info *na
 		switch {
 		case member.GoType == "runtime.Value":
 			fmt.Fprintf(buf, "\t\treturn raw.Value, nil\n")
+		case member.GoType == "struct{}":
+			fmt.Fprintf(buf, "\t\treturn runtime.VoidValue{}, nil\n")
 		case g.nativeInterfaceInfoForGoType(member.GoType) != nil:
 			iface := g.nativeInterfaceInfoForGoType(member.GoType)
 			fmt.Fprintf(buf, "\t\treturn %s(rt, raw.Value)\n", iface.ToRuntimeHelper)

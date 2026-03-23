@@ -56,7 +56,7 @@ func (g *generator) compileNativeCallableCall(ctx *compileContext, call *ast.Fun
 	lines = append(lines, fmt.Sprintf("\t%s, %s = %s(%s)", resultTemp, controlTemp, callableTemp, strings.Join(args, ", ")))
 	lines = append(lines, "}")
 	lines = append(lines, "__able_pop_call_frame()")
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -68,7 +68,7 @@ func (g *generator) compileNativeCallableCall(ctx *compileContext, call *ast.Fun
 		return lines, "struct{}{}", "struct{}", true
 	}
 	if expected == "runtime.Value" && info.ReturnGoType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, resultTemp, info.ReturnGoType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, resultTemp, info.ReturnGoType)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -80,7 +80,7 @@ func (g *generator) compileNativeCallableCall(ctx *compileContext, call *ast.Fun
 		return lines, resultTemp, info.ReturnGoType, true
 	}
 	if expected != "" && expected != "runtime.Value" && expected != "any" && g.canCoerceStaticExpr(expected, info.ReturnGoType) {
-		return g.coerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnGoType, expected)
+		return g.lowerCoerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnGoType, expected)
 	}
 	ctx.setReason("call return type mismatch")
 	return nil, "", "", false

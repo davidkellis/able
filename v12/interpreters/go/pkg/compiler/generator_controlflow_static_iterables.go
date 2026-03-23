@@ -28,19 +28,19 @@ func (g *generator) compileStaticReceiverMethodCall(
 	}
 	synthetic := ast.NewFunctionCall(ast.NewIdentifier(methodName), args, nil, false)
 	if _, ok := g.nativeInterfaceMethodForGoType(receiverType, methodName); ok {
-		return g.compileNativeInterfaceMethodCall(ctx, synthetic, expected, receiverExpr, receiverType, methodName, callNode)
+		return g.lowerNativeInterfaceMethodDispatch(ctx, synthetic, expected, receiverExpr, receiverType, methodName, callNode)
 	}
 	if method := g.methodForReceiver(receiverType, methodName); method != nil {
 		if receiver != nil {
 			method = g.concreteMethodCallInfo(ctx, synthetic, method, receiver, receiverType, expected)
 		}
-		return g.compileResolvedMethodCall(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
+		return g.lowerResolvedMethodDispatch(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
 	}
 	if method := g.compileableInterfaceMethodForConcreteReceiver(receiverType, methodName); method != nil {
 		if receiver != nil {
 			method = g.concreteMethodCallInfo(ctx, synthetic, method, receiver, receiverType, expected)
 		}
-		return g.compileResolvedMethodCall(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
+		return g.lowerResolvedMethodDispatch(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
 	}
 	return nil, "", "", false
 }

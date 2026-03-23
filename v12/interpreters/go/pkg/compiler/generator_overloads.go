@@ -425,7 +425,7 @@ func (g *generator) compileResolvedOverloadCall(ctx *compileContext, call *ast.F
 			return nil, "", "", false
 		}
 		lines = append(lines, argLines...)
-		argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
+		argConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("call argument unsupported")
 			return nil, "", "", false
@@ -449,7 +449,7 @@ func (g *generator) compileResolvedOverloadCall(ctx *compileContext, call *ast.F
 	resultTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s := %s", resultTemp, callExpr))
 	if expected != "" && expected != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false

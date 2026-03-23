@@ -528,7 +528,7 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 		goType := "runtime.Value"
 		if expectedFnType != nil && i-1 < len(expectedFnType.ParamTypes) {
 			paramTypeExpr = expectedFnType.ParamTypes[i-1]
-			mapped, ok := g.mapTypeExpressionInContext(ctx, paramTypeExpr)
+			mapped, ok := g.lowerCarrierType(ctx, paramTypeExpr)
 			if !ok {
 				ctx.setReason("placeholder parameter type unsupported")
 				return "", "", false
@@ -553,7 +553,7 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 	if expectedFnType != nil {
 		returnTypeExpr = expectedFnType.ReturnType
 		if returnTypeExpr != nil {
-			mapped, ok := g.mapTypeExpressionInContext(ctx, returnTypeExpr)
+			mapped, ok := g.lowerCarrierType(ctx, returnTypeExpr)
 			if !ok {
 				ctx.setReason("placeholder return type unsupported")
 				return "", "", false

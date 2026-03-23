@@ -124,7 +124,7 @@ func (g *generator) nativeCallableWrapLines(ctx *compileContext, expected string
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, errTemp, info.FromRuntimeHelper, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -141,7 +141,7 @@ func (g *generator) nativeCallableWrapLines(ctx *compileContext, expected string
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", runtimeTemp, errTemp, actualInfo.ToRuntimeHelper, expr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -150,14 +150,14 @@ func (g *generator) nativeCallableWrapLines(ctx *compileContext, expected string
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, convertErrTemp, info.FromRuntimeHelper, runtimeTemp),
 			fmt.Sprintf("%s = __able_control_from_error(%s)", controlTemp, convertErrTemp),
 		)
-		controlLines, ok = g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok = g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
 		lines = append(lines, controlLines...)
 		return lines, convertedTemp, true
 	}
-	if valueLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, actual); ok {
+	if valueLines, valueExpr, ok := g.lowerRuntimeValue(ctx, expr, actual); ok {
 		convertedTemp := ctx.newTemp()
 		errTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
@@ -166,7 +166,7 @@ func (g *generator) nativeCallableWrapLines(ctx *compileContext, expected string
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, errTemp, info.FromRuntimeHelper, valueExpr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		)
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -221,7 +221,7 @@ func (g *generator) nativeUnionWrapLines(ctx *compileContext, expected, actual, 
 				continue
 			}
 			if iface := g.nativeInterfaceInfoForGoType(member.GoType); iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
-				ifaceLines, ifaceExpr, ok := g.nativeInterfaceWrapLines(ctx, member.GoType, actual, expr)
+				ifaceLines, ifaceExpr, ok := g.lowerWrapInterface(ctx, member.GoType, actual, expr)
 				if !ok {
 					return nil, "", false
 				}
@@ -239,7 +239,7 @@ func (g *generator) nativeUnionWrapLines(ctx *compileContext, expected, actual, 
 			if actual == "runtime.Value" {
 				return nil, fmt.Sprintf("%s(%s)", runtimeMember.WrapHelper, expr), true
 			}
-			runtimeLines, runtimeExpr, ok := g.runtimeValueLines(ctx, expr, actual)
+			runtimeLines, runtimeExpr, ok := g.lowerRuntimeValue(ctx, expr, actual)
 			if !ok {
 				return nil, "", false
 			}
@@ -384,7 +384,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 		}
 		controlTemp := ctx.newTemp()
 		runtimeLines = append(runtimeLines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -392,7 +392,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 		runtimeExpr = runtimeTemp
 	} else {
 		var ok bool
-		runtimeLines, runtimeExpr, ok = g.runtimeValueLines(ctx, expr, actual)
+		runtimeLines, runtimeExpr, ok = g.lowerRuntimeValue(ctx, expr, actual)
 		if !ok {
 			return nil, "", false
 		}
@@ -423,7 +423,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 			fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", messageTemp, messageControlTemp, messageInfo.GoName, expr),
 			fmt.Sprintf("%s := map[string]runtime.Value{\"value\": %s}", payloadTemp, runtimeExpr),
 		)
-		controlLines, ok := g.controlCheckLines(ctx, messageControlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, messageControlTemp)
 		if !ok {
 			return nil, "", false
 		}
@@ -435,7 +435,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 				fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", causeTemp, causeControlTemp, causeInfo.GoName, expr),
 				fmt.Sprintf("if %s != nil { %s[\"cause\"] = __able_nullable_error_to_value(%s) }", causeTemp, payloadTemp, causeTemp),
 			)
-			controlLines, ok = g.controlCheckLines(ctx, causeControlTemp)
+			controlLines, ok = g.lowerControlCheck(ctx, causeControlTemp)
 			if !ok {
 				return nil, "", false
 			}

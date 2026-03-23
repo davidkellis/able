@@ -172,7 +172,7 @@ func (g *generator) nativePrimitiveCastLines(ctx *compileContext, nodeExpr strin
 	if srcType != "float64" {
 		floatExpr = fmt.Sprintf("float64(%s)", expr)
 	}
-	overflowTransfer, ok := g.controlTransferLines(ctx, fmt.Sprintf("__able_raise_overflow(%s)", nodeExpr))
+	overflowTransfer, ok := g.lowerControlTransfer(ctx, fmt.Sprintf("__able_raise_overflow(%s)", nodeExpr))
 	if !ok {
 		return nil, "", "", false
 	}

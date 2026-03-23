@@ -27,13 +27,18 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 			if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
 				objLines, objExpr, objType, ok := g.compileExprLines(ctx, callee.Object, "")
 				if ok {
+					if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, callee.Object, objExpr, objType); recovered {
+						objLines = append(objLines, recoverLines...)
+						objExpr = recoveredExpr
+						objType = recoveredType
+					}
 					if siblingLines, expr, retType, ok := g.compileDirectImplSiblingMethodCall(ctx, call, callee, expected, objExpr, objType, callNode); ok {
 						lines := append(objLines, siblingLines...)
 						return lines, expr, retType, true
 					}
 					if method := g.methodForReceiver(objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
-						methodLines, expr, retType, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+						methodLines, expr, retType, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 						if ok {
 							lines := append(objLines, methodLines...)
 							return lines, expr, retType, true
@@ -41,13 +46,13 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 					}
 					if method := g.compileableInterfaceMethodForConcreteReceiver(objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
-						methodLines, expr, retType, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+						methodLines, expr, retType, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 						if ok {
 							lines := append(objLines, methodLines...)
 							return lines, expr, retType, true
 						}
 					}
-					if ifaceLines, expr, retType, ok := g.compileNativeInterfaceGenericMethodCall(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
+					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceGenericMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines := append(objLines, ifaceLines...)
 						return lines, expr, retType, true
 					}
@@ -58,10 +63,17 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 			// Generic calls on local values (e.g. generic lambdas) must call the
 			// bound value, not global name lookup.
 			if binding, ok := ctx.lookup(callee.Name); ok {
+				binding = g.recoverDispatchBinding(ctx, binding)
 				if isFunctionTypeExpr(binding.TypeExpr) {
 					return g.compileFnParamCall(ctx, call, expected, binding, callNode)
 				}
+				if lines, expr, retType, ok := g.compileStaticApplyCall(ctx, call, expected, binding.GoName, binding.GoType, callNode); ok {
+					return lines, expr, retType, true
+				}
 				return g.compileDynamicCall(ctx, call, expected, "", callNode)
+			}
+			if _, ok := g.runtimeHelperImpl(callee.Name); ok {
+				return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 			}
 			if info, overload, ok := g.resolveStaticCallable(ctx, callee.Name); ok {
 				if lines, expr, retType, ok := g.compileStaticNamedFunctionCall(ctx, call, expected, callee.Name, info, overload, callNode); ok {
@@ -77,6 +89,18 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 		return g.compileDynamicCall(ctx, call, expected, "", callNode)
 	}
 	if callee, ok := call.Callee.(*ast.Identifier); ok && callee != nil {
+		if _, ok := g.runtimeHelperImpl(callee.Name); ok {
+			if binding, found := ctx.lookup(callee.Name); found {
+				binding = g.recoverDispatchBinding(ctx, binding)
+				if isFunctionTypeExpr(binding.TypeExpr) || g.nativeCallableInfoForGoType(binding.GoType) != nil {
+					return g.compileFnParamCall(ctx, call, expected, binding, callNode)
+				}
+				if lines, expr, retType, ok := g.compileStaticApplyCall(ctx, call, expected, binding.GoName, binding.GoType, callNode); ok {
+					return lines, expr, retType, true
+				}
+			}
+			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
+		}
 		if info, overload, ok := g.resolveStaticCallable(ctx, callee.Name); ok {
 			if lines, expr, retType, ok := g.compileStaticNamedFunctionCall(ctx, call, expected, callee.Name, info, overload, callNode); ok {
 				return lines, expr, retType, true
@@ -90,12 +114,16 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 			}
 			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 		}
+		binding = g.recoverDispatchBinding(ctx, binding)
 		// When calling a local binding whose type is a function (e.g. a lambda
 		// parameter like `predicate: T -> bool`), use the fast call path which
 		// avoids interface unwrapping, partial application checks, and overload
 		// resolution overhead.
 		if isFunctionTypeExpr(binding.TypeExpr) || g.nativeCallableInfoForGoType(binding.GoType) != nil {
 			return g.compileFnParamCall(ctx, call, expected, binding, callNode)
+		}
+		if lines, expr, retType, ok := g.compileStaticApplyCall(ctx, call, expected, binding.GoName, binding.GoType, callNode); ok {
+			return lines, expr, retType, true
 		}
 	}
 	return g.compileDynamicCall(ctx, call, expected, "", callNode)
@@ -106,6 +134,7 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 // call path that type-switches directly on NativeFunctionValue, skipping
 // interface unwrapping, partial application, thunk, and overload resolution.
 func (g *generator) compileFnParamCall(ctx *compileContext, call *ast.FunctionCall, expected string, binding paramInfo, callNode string) ([]string, string, string, bool) {
+	binding = g.recoverDispatchBinding(ctx, binding)
 	if info := g.nativeCallableInfoForGoType(binding.GoType); info != nil {
 		var fnTypeExpr *ast.FunctionTypeExpression
 		if typed, ok := binding.TypeExpr.(*ast.FunctionTypeExpression); ok {
@@ -121,7 +150,7 @@ func (g *generator) compileFnParamCall(ctx *compileContext, call *ast.FunctionCa
 			return nil, "", "", false
 		}
 		lines = append(lines, argLines...)
-		argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
+		argConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("call argument unsupported")
 			return nil, "", "", false
@@ -148,7 +177,7 @@ func (g *generator) compileFnParamCall(ctx *compileContext, call *ast.FunctionCa
 		fmt.Sprintf("%s, %s := __able_call_value_fast(%s, %s)", resultTemp, errTemp, callableExpr, argList),
 		fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 	)
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -160,7 +189,7 @@ func (g *generator) compileFnParamCall(ctx *compileContext, call *ast.FunctionCa
 		return lines, "struct{}{}", "struct{}", true
 	}
 	if expected != "" && expected != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -194,9 +223,9 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		case *ast.MemberAccessExpression:
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
-					if method, ok := g.resolveStaticMethodCall(ctx, callee.Object, ident.Name); ok {
+					if method, ok := g.lowerResolveStaticMethod(ctx, callee.Object, ident.Name); ok {
 						method = g.concreteStaticMethodCallInfo(ctx, call, method, callee.Object, expected)
-						return g.compileResolvedMethodCall(ctx, call, expected, method, "", "", callNode)
+						return g.lowerResolvedMethodDispatch(ctx, call, expected, method, "", "", callNode)
 					}
 				}
 			}
@@ -205,6 +234,11 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 				return nil, "", "", false
 			}
 			lines = append(lines, objLines...)
+			if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, callee.Object, objExpr, objType); recovered {
+				lines = append(lines, recoverLines...)
+				objExpr = recoveredExpr
+				objType = recoveredType
+			}
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
 					if controllerLines, expr, retType, ok := g.compileStaticIteratorControllerCall(ctx, call, expected, objExpr, objType, ident.Name); ok {
@@ -219,7 +253,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 						lines = append(lines, errorLines...)
 						return lines, expr, retType, true
 					}
-					if ifaceLines, expr, retType, ok := g.compileNativeInterfaceMethodCall(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
+					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines = append(lines, ifaceLines...)
 						return lines, expr, retType, true
 					}
@@ -229,17 +263,17 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 					}
 					if method := g.methodForReceiver(objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
-						methodLines, v, t, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+						methodLines, v, t, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 						lines = append(lines, methodLines...)
 						return lines, v, t, ok
 					}
 					if method := g.compileableInterfaceMethodForConcreteReceiver(objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
-						methodLines, v, t, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+						methodLines, v, t, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 						lines = append(lines, methodLines...)
 						return lines, v, t, ok
 					}
-					if ifaceLines, expr, retType, ok := g.compileNativeInterfaceGenericMethodCall(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
+					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceGenericMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines = append(lines, ifaceLines...)
 						return lines, expr, retType, true
 					}
@@ -278,14 +312,14 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 									Info:        sibling.Info,
 								}
 								method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
-								methodLines, v, t, ok := g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+								methodLines, v, t, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 								if ok {
 									lines = append(lines, methodLines...)
 									return lines, v, t, true
 								}
 							}
 							// Fall back to dynamic dispatch
-							objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
+							objConvLines, objValue, ok := g.lowerRuntimeValue(ctx, objExpr, objType)
 							if ok {
 								objTemp := ctx.newTemp()
 								calleeTemp = ctx.newTemp()
@@ -305,7 +339,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 				}
 			}
 			if !siblingHandled {
-				objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
+				objConvLines, objValue, ok := g.lowerRuntimeValue(ctx, objExpr, objType)
 				if !ok {
 					ctx.setReason("method call receiver unsupported")
 					return nil, "", "", false
@@ -345,11 +379,16 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 				return nil, "", "", false
 			}
 			lines = append(lines, calleeLines...)
+			if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, call.Callee, calleeExpr, calleeType); recovered {
+				lines = append(lines, recoverLines...)
+				calleeExpr = recoveredExpr
+				calleeType = recoveredType
+			}
 			if applyLines, expr, retType, ok := g.compileStaticApplyCall(ctx, call, expected, calleeExpr, calleeType, callNode); ok {
 				lines = append(lines, applyLines...)
 				return lines, expr, retType, true
 			}
-			calleeConvLines, calleeValue, ok := g.runtimeValueLines(ctx, calleeExpr, calleeType)
+			calleeConvLines, calleeValue, ok := g.lowerRuntimeValue(ctx, calleeExpr, calleeType)
 			if !ok {
 				ctx.setReason("call target unsupported")
 				return nil, "", "", false
@@ -366,7 +405,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			return nil, "", "", false
 		}
 		lines = append(lines, argLines...)
-		argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
+		argConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("call argument unsupported")
 			return nil, "", "", false
@@ -386,8 +425,12 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 
 	callExpr := ""
 	if calleeName != "" {
-		if wrapper, ok := g.externCallWrapper(calleeName); ok {
-			callExpr = fmt.Sprintf("%s(%s, %s)", wrapper, argList, callNode)
+		if helper, ok := g.runtimeHelperImpl(calleeName); ok {
+			var ok bool
+			lines, callExpr, ok = g.appendRuntimeHelperErrorLines(ctx, lines, fmt.Sprintf("%s(%s)", helper, argList), callNode)
+			if !ok {
+				return nil, "", "", false
+			}
 		} else {
 			var ok bool
 			lines, callExpr, ok = g.appendRuntimeCallControlLines(ctx, lines, fmt.Sprintf("__able_call_named(%q, %s, %s)", calleeName, argList, callNode))
@@ -402,7 +445,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		lines = append(lines,
 			fmt.Sprintf("%s, %s := __able_method_call_node(%s, %q, %s, %s)", resultTemp, controlTemp, calleeTemp, fastMethodName, argList, callNode),
 		)
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -430,7 +473,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		)
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -446,7 +489,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		resultExpr := resultTemp
 		resultType := "runtime.Value"
 		if expected != "" && expected != "runtime.Value" {
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 			if !ok {
 				ctx.setReason("call return type mismatch")
 				return nil, "", "", false
@@ -466,7 +509,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	resultExpr := callExpr
 	resultType := "runtime.Value"
 	if expected != "" && expected != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, callExpr, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, callExpr, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -500,91 +543,91 @@ func (g *generator) compileDirectImplSiblingMethodCall(ctx *compileContext, call
 		Info:        sibling.Info,
 	}
 	method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
-	return g.compileResolvedMethodCall(ctx, call, expected, method, objExpr, objType, callNode)
+	return g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 }
 
-func (g *generator) externCallWrapper(name string) (string, bool) {
+func (g *generator) runtimeHelperImpl(name string) (string, bool) {
 	switch name {
 	case "__able_array_new":
-		return "__able_extern_array_new", true
+		return "__able_array_new_impl", true
 	case "__able_array_with_capacity":
-		return "__able_extern_array_with_capacity", true
+		return "__able_array_with_capacity_impl", true
 	case "__able_array_size":
-		return "__able_extern_array_size", true
+		return "__able_array_size_impl", true
 	case "__able_array_capacity":
-		return "__able_extern_array_capacity", true
+		return "__able_array_capacity_impl", true
 	case "__able_array_set_len":
-		return "__able_extern_array_set_len", true
+		return "__able_array_set_len_impl", true
 	case "__able_array_read":
-		return "__able_extern_array_read", true
+		return "__able_array_read_impl", true
 	case "__able_array_write":
-		return "__able_extern_array_write", true
+		return "__able_array_write_impl", true
 	case "__able_array_reserve":
-		return "__able_extern_array_reserve", true
+		return "__able_array_reserve_impl", true
 	case "__able_array_clone":
-		return "__able_extern_array_clone", true
+		return "__able_array_clone_impl", true
 	case "__able_hash_map_new":
-		return "__able_extern_hash_map_new", true
+		return "__able_hash_map_new_impl", true
 	case "__able_hash_map_with_capacity":
-		return "__able_extern_hash_map_with_capacity", true
+		return "__able_hash_map_with_capacity_impl", true
 	case "__able_hash_map_get":
-		return "__able_extern_hash_map_get", true
+		return "__able_hash_map_get_impl", true
 	case "__able_hash_map_set":
-		return "__able_extern_hash_map_set", true
+		return "__able_hash_map_set_impl", true
 	case "__able_hash_map_remove":
-		return "__able_extern_hash_map_remove", true
+		return "__able_hash_map_remove_impl", true
 	case "__able_hash_map_contains":
-		return "__able_extern_hash_map_contains", true
+		return "__able_hash_map_contains_impl", true
 	case "__able_hash_map_size":
-		return "__able_extern_hash_map_size", true
+		return "__able_hash_map_size_impl", true
 	case "__able_hash_map_clear":
-		return "__able_extern_hash_map_clear", true
+		return "__able_hash_map_clear_impl", true
 	case "__able_hash_map_for_each":
-		return "__able_extern_hash_map_for_each", true
+		return "__able_hash_map_for_each_impl", true
 	case "__able_hash_map_clone":
-		return "__able_extern_hash_map_clone", true
+		return "__able_hash_map_clone_impl", true
 	case "__able_String_from_builtin":
-		return "__able_extern_string_from_builtin", true
+		return "__able_string_from_builtin_impl", true
 	case "__able_String_to_builtin":
-		return "__able_extern_string_to_builtin", true
+		return "__able_string_to_builtin_impl", true
 	case "__able_char_from_codepoint":
-		return "__able_extern_char_from_codepoint", true
+		return "__able_char_from_codepoint_impl", true
 	case "__able_char_to_codepoint":
-		return "__able_extern_char_to_codepoint", true
+		return "__able_char_to_codepoint_impl", true
 	case "__able_ratio_from_float":
-		return "__able_extern_ratio_from_float", true
+		return "__able_ratio_from_float_impl", true
 	case "__able_f32_bits":
-		return "__able_extern_f32_bits", true
+		return "__able_f32_bits_impl", true
 	case "__able_f64_bits":
-		return "__able_extern_f64_bits", true
+		return "__able_f64_bits_impl", true
 	case "__able_u64_mul":
-		return "__able_extern_u64_mul", true
+		return "__able_u64_mul_impl", true
 	case "__able_channel_new":
-		return "__able_extern_channel_new", true
+		return "__able_channel_new_impl", true
 	case "__able_channel_send":
-		return "__able_extern_channel_send", true
+		return "__able_channel_send_impl", true
 	case "__able_channel_receive":
-		return "__able_extern_channel_receive", true
+		return "__able_channel_receive_impl", true
 	case "__able_channel_try_send":
-		return "__able_extern_channel_try_send", true
+		return "__able_channel_try_send_impl", true
 	case "__able_channel_try_receive":
-		return "__able_extern_channel_try_receive", true
+		return "__able_channel_try_receive_impl", true
 	case "__able_channel_await_try_recv":
-		return "__able_extern_channel_await_try_recv", true
+		return "__able_channel_await_try_recv_impl", true
 	case "__able_channel_await_try_send":
-		return "__able_extern_channel_await_try_send", true
+		return "__able_channel_await_try_send_impl", true
 	case "__able_channel_close":
-		return "__able_extern_channel_close", true
+		return "__able_channel_close_impl", true
 	case "__able_channel_is_closed":
-		return "__able_extern_channel_is_closed", true
+		return "__able_channel_is_closed_impl", true
 	case "__able_mutex_new":
-		return "__able_extern_mutex_new", true
+		return "__able_mutex_new_impl", true
 	case "__able_mutex_lock":
-		return "__able_extern_mutex_lock", true
+		return "__able_mutex_lock_impl", true
 	case "__able_mutex_unlock":
-		return "__able_extern_mutex_unlock", true
+		return "__able_mutex_unlock_impl", true
 	case "__able_mutex_await_lock":
-		return "__able_extern_mutex_await_lock", true
+		return "__able_mutex_await_lock_impl", true
 	default:
 		return "", false
 	}
@@ -595,7 +638,7 @@ func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.Functio
 		ctx.setReason("missing safe member call")
 		return nil, "", "", false
 	}
-	objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
+	objConvLines, objValue, ok := g.lowerRuntimeValue(ctx, objExpr, objType)
 	if !ok {
 		ctx.setReason("method call receiver unsupported")
 		return nil, "", "", false
@@ -615,7 +658,7 @@ func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.Functio
 			return nil, "", "", false
 		}
 		argPreLines = append(argPreLines, argLines...)
-		convLines, valueExpr, ok := g.runtimeValueLines(ctx, expr, goType)
+		convLines, valueExpr, ok := g.lowerRuntimeValue(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("call argument unsupported")
 			return nil, "", "", false
@@ -669,7 +712,7 @@ func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.Functio
 	}
 	lines = append(lines, "}")
 	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false

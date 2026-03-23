@@ -36,6 +36,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		if !ok {
 			return nil, "", "", false
 		}
+		if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, indexTarget.Object, objExpr, objType); recovered {
+			objLines = append(objLines, recoverLines...)
+			objExpr = recoveredExpr
+			objType = recoveredType
+		}
 		if assign.Operator == ast.AssignmentAssign && g.isStaticArrayType(objType) {
 			idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, indexTarget.Index, "")
 			if !ok {
@@ -73,7 +78,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			lines = append(lines, g.staticArraySyncCall(objType, objTemp))
 			return lines, resultTemp, "runtime.Value", true
 		}
-		valueConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		valueConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 		if !ok {
 			ctx.setReason("index assignment value unsupported")
 			return nil, "", "", false
@@ -86,7 +91,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				return lines, resultExpr, resultType, true
 			}
 		}
-		objConvLines, objRuntime, ok := g.runtimeValueLines(ctx, objExpr, objType)
+		objConvLines, objRuntime, ok := g.lowerRuntimeValue(ctx, objExpr, objType)
 		if !ok {
 			ctx.setReason("index assignment target unsupported")
 			return nil, "", "", false
@@ -95,7 +100,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		if !ok {
 			return nil, "", "", false
 		}
-		idxConvLines, idxRuntime, ok := g.runtimeValueLines(ctx, idxExpr, idxType)
+		idxConvLines, idxRuntime, ok := g.lowerRuntimeValue(ctx, idxExpr, idxType)
 		if !ok {
 			ctx.setReason("index assignment index unsupported")
 			return nil, "", "", false
@@ -116,7 +121,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			resultTemp := ctx.newTemp()
 			controlTemp := ctx.newTemp()
 			lines = append(lines, fmt.Sprintf("%s, %s := __able_index_set(%s, %s, %s)", resultTemp, controlTemp, objTemp, idxTemp, valueTemp))
-			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -135,19 +140,19 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		computedControlTemp := ctx.newTemp()
 		resultControlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s, %s := __able_index(%s, %s)", currentTemp, currentControlTemp, objTemp, idxTemp))
-		controlLines, ok := g.controlCheckLines(ctx, currentControlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, currentControlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
 		lines = append(lines, controlLines...)
 		lines = append(lines, fmt.Sprintf("%s, %s := __able_binary_op(%q, %s, %s)", computedTemp, computedControlTemp, op, currentTemp, valueTemp))
-		controlLines, ok = g.controlCheckLines(ctx, computedControlTemp)
+		controlLines, ok = g.lowerControlCheck(ctx, computedControlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
 		lines = append(lines, controlLines...)
 		lines = append(lines, fmt.Sprintf("%s, %s := __able_index_set(%s, %s, %s)", resultTemp, resultControlTemp, objTemp, idxTemp, computedTemp))
-		controlLines, ok = g.controlCheckLines(ctx, resultControlTemp)
+		controlLines, ok = g.lowerControlCheck(ctx, resultControlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -172,6 +177,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		objLines, objExpr, objType, ok := g.compileExprLines(ctx, memberTarget.Object, "")
 		if !ok {
 			return nil, "", "", false
+		}
+		if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, memberTarget.Object, objExpr, objType); recovered {
+			objLines = append(objLines, recoverLines...)
+			objExpr = recoveredExpr
+			objType = recoveredType
 		}
 		if info := g.structInfoByGoName(objType); info != nil {
 			if assign.Operator != ast.AssignmentAssign {
@@ -287,7 +297,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		if !ok {
 			return nil, "", "", false
 		}
-		valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		valConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 		if !ok {
 			ctx.setReason("member assignment value unsupported")
 			return nil, "", "", false
@@ -297,7 +307,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			ctx.setReason("unsupported member assignment target")
 			return nil, "", "", false
 		}
-		objConvLines, objRuntime, ok := g.runtimeValueLines(ctx, objExpr, objType)
+		objConvLines, objRuntime, ok := g.lowerRuntimeValue(ctx, objExpr, objType)
 		if !ok {
 			ctx.setReason("member assignment target unsupported")
 			return nil, "", "", false
@@ -343,7 +353,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			return nil, "", "", false
 		}
 		lines = append(lines, fmt.Sprintf("%s, %s := __able_binary_op(%q, %s, %s)", computedTemp, computedControlTemp, op, currentTemp, valueTemp))
-		controlLines, ok := g.controlCheckLines(ctx, computedControlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, computedControlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -378,7 +388,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		}
 		goType := existing.GoType
 		if typeAnnotation != nil {
-			mapped, ok := g.mapTypeExpressionInContext(ctx, typeAnnotation)
+			mapped, ok := g.lowerCarrierType(ctx, typeAnnotation)
 			if !ok {
 				ctx.setReason("unsupported type annotation")
 				return nil, "", "", false
@@ -443,7 +453,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	useEnvSet := assign.Operator == ast.AssignmentAssign && !exists && (typeAnnotation == nil || g.hasModuleBindingName(ctx.packageName, name))
 	var goType string
 	if typeAnnotation != nil {
-		mapped, ok := g.mapTypeExpressionInContext(ctx, typeAnnotation)
+		mapped, ok := g.lowerCarrierType(ctx, typeAnnotation)
 		if !ok {
 			ctx.setReason("unsupported type annotation")
 			return nil, "", "", false
@@ -505,7 +515,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		expr = coerced
 	}
 	if useEnvSet {
-		valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, expr, goType)
+		valConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("env assignment value unsupported")
 			return nil, "", "", false
@@ -561,7 +571,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			}
 			controlTemp := ctx.newTemp()
 			lines = append(lines, fmt.Sprintf("_, %s, %s := __able_try_cast(%s, %s)", checkOk, controlTemp, castSubject, typeExpr))
-			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -609,7 +619,7 @@ func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.As
 	}
 
 	if valueType == "runtime.Value" || valueType == "any" {
-		valConvLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		valConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 		if !ok {
 			ctx.setReason("pattern assignment value unsupported")
 			return nil, "", "", false
@@ -659,7 +669,7 @@ func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.As
 	lines = append(lines, condLines...)
 	resultTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("var %s runtime.Value", resultTemp))
-	resultLines, resultExpr, ok := g.runtimeValueLines(ctx, valueTemp, valueType)
+	resultLines, resultExpr, ok := g.lowerRuntimeValue(ctx, valueTemp, valueType)
 	if !ok {
 		ctx.setReason("pattern assignment value unsupported")
 		return nil, "", "", false

@@ -15,7 +15,7 @@ func (g *generator) narrowedNativeUnionSubjectType(ctx *compileContext, subjectT
 	switch p := pattern.(type) {
 	case *ast.StructPattern:
 		if p != nil && p.StructType != nil && p.StructType.Name != "" {
-			if mapped, ok := g.mapTypeExpressionInContext(ctx, ast.Ty(p.StructType.Name)); ok {
+			if mapped, ok := g.lowerCarrierType(ctx, ast.Ty(p.StructType.Name)); ok {
 				removeType = mapped
 			}
 		}
@@ -27,7 +27,7 @@ func (g *generator) narrowedNativeUnionSubjectType(ctx *compileContext, subjectT
 		}
 	case *ast.Identifier:
 		if p != nil && p.Name != "" && g.isSingletonPattern(ctx, p.Name) {
-			if mapped, ok := g.mapTypeExpressionInContext(ctx, ast.Ty(p.Name)); ok {
+			if mapped, ok := g.lowerCarrierType(ctx, ast.Ty(p.Name)); ok {
 				removeType = mapped
 			}
 		}
@@ -162,7 +162,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 				SawNil:   g.joinBranchIsNilExpr(clause.bodyExpr, clause.bodyType),
 			})
 		}
-		if joinedType, ok := g.joinResultTypeFromBranches(ctx, joinBranches); ok {
+		if joinedType, ok := g.lowerJoinCarrierFromBranches(ctx, joinBranches); ok {
 			resultType = joinedType
 		} else if inferredType != "" && !mismatch {
 			resultType = inferredType
@@ -176,7 +176,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 	for idx := range clauses {
 		clause := &clauses[idx]
 		if clause.bodyType == resultType {
-			if wrapLines, wrapped, ok := g.nativeUnionWrapLines(ctx, resultType, clause.bodyType, clause.bodyExpr); ok {
+			if wrapLines, wrapped, ok := g.lowerWrapUnion(ctx, resultType, clause.bodyType, clause.bodyExpr); ok {
 				clause.bodyLines = append(clause.bodyLines, wrapLines...)
 				clause.bodyExpr = wrapped
 				clause.bodyType = resultType
@@ -184,7 +184,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 			continue
 		}
 		if g.typeMatches(resultType, clause.bodyType) {
-			if wrapLines, wrapped, ok := g.nativeUnionWrapLines(ctx, resultType, clause.bodyType, clause.bodyExpr); ok {
+			if wrapLines, wrapped, ok := g.lowerWrapUnion(ctx, resultType, clause.bodyType, clause.bodyExpr); ok {
 				clause.bodyLines = append(clause.bodyLines, wrapLines...)
 				clause.bodyExpr = wrapped
 				clause.bodyType = resultType

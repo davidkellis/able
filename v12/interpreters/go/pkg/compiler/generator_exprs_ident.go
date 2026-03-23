@@ -24,7 +24,7 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 		if expected == "" || expected == "runtime.Value" {
 			return nil, valueExpr, "runtime.Value", true
 		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueExpr, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, valueExpr, expected)
 		if !ok {
 			ctx.setReason("identifier type mismatch")
 			return nil, "", "", false
@@ -33,7 +33,7 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 	}
 	if expected == "" && param.GoType == "runtime.Value" && param.TypeExpr != nil {
 		if inferredType, ok := g.joinCarrierTypeFromTypeExpr(ctx, param.TypeExpr); ok {
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, param.GoName, inferredType)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, param.GoName, inferredType)
 			if ok {
 				return convLines, converted, inferredType, true
 			}
@@ -44,10 +44,10 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 			return nil, fmt.Sprintf("__able_ptr(%s)", param.GoName), expected, true
 		}
 		if expected != "" && expected != "runtime.Value" && expected != "any" && param.GoType != "runtime.Value" && g.canCoerceStaticExpr(expected, param.GoType) {
-			return g.coerceExpectedStaticExpr(ctx, nil, param.GoName, param.GoType, expected)
+			return g.lowerCoerceExpectedStaticExpr(ctx, nil, param.GoName, param.GoType, expected)
 		}
 		if expected == "runtime.Value" && param.GoType != "runtime.Value" {
-			convLines, converted, ok := g.runtimeValueLines(ctx, param.GoName, param.GoType)
+			convLines, converted, ok := g.lowerRuntimeValue(ctx, param.GoName, param.GoType)
 			if !ok {
 				ctx.setReason("identifier type mismatch")
 				return nil, "", "", false
@@ -55,7 +55,7 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 			return convLines, converted, "runtime.Value", true
 		}
 		if param.GoType == "runtime.Value" && expected != "" {
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, param.GoName, expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, param.GoName, expected)
 			if !ok {
 				ctx.setReason("identifier type mismatch")
 				return nil, "", "", false
@@ -65,9 +65,9 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 		if expected != "" && expected != "runtime.Value" && param.GoType != "runtime.Value" {
 			// Preserve runtime coercion semantics for typed locals, including
 			// integer-width adjustments used by stdlib error structs.
-			valConvLines, valueExpr, ok := g.runtimeValueLines(ctx, param.GoName, param.GoType)
+			valConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, param.GoName, param.GoType)
 			if ok {
-				convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueExpr, expected)
+				convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, valueExpr, expected)
 				if ok {
 					allLines := append([]string{}, valConvLines...)
 					allLines = append(allLines, convLines...)
@@ -92,5 +92,5 @@ func (g *generator) compileImplicitMemberExpression(ctx *compileContext, expr *a
 	}
 	receiver := ast.NewIdentifier(ctx.implicitReceiver.Name)
 	memberExpr := ast.NewMemberAccessExpression(receiver, expr.Member)
-	return g.compileMemberAccess(ctx, memberExpr, expected)
+	return g.lowerDispatchMember(ctx, memberExpr, expected)
 }

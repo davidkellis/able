@@ -142,7 +142,7 @@ func (g *generator) compileLiteralMatch(ctx *compileContext, lit ast.Literal, su
 		if !ok {
 			return nil, "", false
 		}
-		litConvLines, litRuntime, ok := g.runtimeValueLines(ctx, expr, goType)
+		litConvLines, litRuntime, ok := g.lowerRuntimeValue(ctx, expr, goType)
 		if !ok {
 			ctx.setReason("unsupported literal pattern")
 			return nil, "", false
@@ -157,13 +157,13 @@ func (g *generator) compileLiteralMatch(ctx *compileContext, lit ast.Literal, su
 		condTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s, %s := __able_binary_op(%q, %s, %s)", condTemp, controlTemp, "==", effectiveSubject, litRuntime))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			ctx.setReason("unsupported literal comparison")
 			return nil, "", false
 		}
 		lines = append(lines, controlLines...)
-		expectLines, converted, ok := g.expectRuntimeValueExprLines(ctx, condTemp, "bool")
+		expectLines, converted, ok := g.lowerExpectRuntimeValue(ctx, condTemp, "bool")
 		if !ok {
 			ctx.setReason("unsupported literal comparison")
 			return nil, "", false

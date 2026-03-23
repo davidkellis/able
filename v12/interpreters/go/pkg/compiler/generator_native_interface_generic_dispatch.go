@@ -30,6 +30,22 @@ type nativeInterfaceGenericDispatchCase struct {
 	Impl        *nativeInterfaceAdapterMethod
 }
 
+func (g *generator) nativeInterfaceAdapterMethodSpecificity(method *nativeInterfaceAdapterMethod) int {
+	if g == nil || method == nil {
+		return 0
+	}
+	score := 0
+	for _, goType := range method.CompiledParamGoTypes {
+		if goType != "" && goType != "runtime.Value" && goType != "any" {
+			score += 2
+		}
+	}
+	if method.CompiledReturnGoType != "" && method.CompiledReturnGoType != "runtime.Value" && method.CompiledReturnGoType != "any" {
+		score += 3
+	}
+	return score
+}
+
 func (g *generator) ensureNativeInterfaceGenericDispatchInfo(ctx *compileContext, call *ast.FunctionCall, expected string, info *nativeInterfaceInfo, method *nativeInterfaceGenericMethod, paramTypeExprs []ast.TypeExpression, paramGoTypes []string, returnTypeExpr ast.TypeExpression, returnGoType string, bindings map[string]ast.TypeExpression) (*nativeInterfaceGenericDispatchInfo, bool) {
 	if g == nil || ctx == nil || call == nil || info == nil || method == nil || returnGoType == "" {
 		return nil, false
@@ -101,12 +117,18 @@ func (g *generator) nativeInterfaceGenericDispatchCases(ctx *compileContext, cal
 	if g == nil || ctx == nil || call == nil || info == nil || method == nil {
 		return nil
 	}
+	specializationExpected := expected
+	if specializationExpected == "" || specializationExpected == "runtime.Value" || specializationExpected == "any" {
+		if returnGoType != "" && returnGoType != "runtime.Value" && returnGoType != "any" {
+			specializationExpected = returnGoType
+		}
+	}
 	var cases []nativeInterfaceGenericDispatchCase
 	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || adapter.GoType == "" {
 			continue
 		}
-		impl := g.nativeInterfaceSpecializedGenericMethodImpl(ctx, call, expected, adapter.GoType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType)
+		impl := g.nativeInterfaceSpecializedGenericMethodImpl(ctx, call, specializationExpected, adapter.GoType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType)
 		if impl == nil {
 			continue
 		}
@@ -209,7 +231,17 @@ func (g *generator) nativeInterfaceSpecializedGenericMethodImpl(ctx *compileCont
 			candidate.CompiledParamGoTypes = append(candidate.CompiledParamGoTypes, specialized.Info.Params[idx].GoType)
 		}
 		if found != nil && found.Info != candidate.Info {
-			return nil
+			foundScore := g.nativeInterfaceAdapterMethodSpecificity(found)
+			candidateScore := g.nativeInterfaceAdapterMethodSpecificity(candidate)
+			switch {
+			case candidateScore > foundScore:
+				found = candidate
+				continue
+			case candidateScore < foundScore:
+				continue
+			default:
+				return nil
+			}
 		}
 		found = candidate
 	}

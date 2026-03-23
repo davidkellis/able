@@ -16,7 +16,7 @@ func (g *generator) compileStaticNativeInterfaceGenericDefaultMethodCall(ctx *co
 	if !ok || info == nil || !info.Compileable {
 		return nil, "", "", false
 	}
-	return g.compileResolvedMethodCall(ctx, call, expected, &methodInfo{MethodName: method.Name, ExpectsSelf: true, Info: info}, receiverExpr, receiverType, callNode)
+	return g.lowerResolvedMethodDispatch(ctx, call, expected, &methodInfo{MethodName: method.Name, ExpectsSelf: true, Info: info}, receiverExpr, receiverType, callNode)
 }
 
 func (g *generator) ensureSpecializedNativeInterfaceGenericDefaultMethod(method *nativeInterfaceGenericMethod, receiverType string, paramTypeExprs []ast.TypeExpression, paramGoTypes []string, returnTypeExpr ast.TypeExpression, returnGoType string, bindings map[string]ast.TypeExpression) (*functionInfo, bool) {

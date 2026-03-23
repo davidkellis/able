@@ -20,7 +20,7 @@ func (g *generator) compileExprLines(ctx *compileContext, expr ast.Expression, e
 		if exprType == "runtime.Value" {
 			return lines, exprValue, "runtime.Value", true
 		}
-		convLines, converted, ok := g.runtimeValueLines(ctx, exprValue, exprType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, exprValue, exprType)
 		if !ok {
 			ctx.setReason("expression type mismatch")
 			return nil, "", "", false
@@ -40,7 +40,7 @@ func (g *generator) compileExprLines(ctx *compileContext, expr ast.Expression, e
 			return nil, "", "", false
 		}
 		lines = nil
-		return g.coerceExpectedStaticExpr(ctx, lines, value, goType, expected)
+		return g.lowerCoerceExpectedStaticExpr(ctx, lines, value, goType, expected)
 	}
 	switch e := expr.(type) {
 	case *ast.AssignmentExpression, *ast.BlockExpression, *ast.IfExpression:
@@ -54,7 +54,7 @@ func (g *generator) compileExprLines(ctx *compileContext, expr ast.Expression, e
 	case *ast.MatchExpression:
 		lines, value, goType, ok = g.compileMatchExpression(ctx, e, expected)
 	case *ast.IndexExpression:
-		lines, value, goType, ok = g.compileIndexExpression(ctx, e, expected)
+		lines, value, goType, ok = g.lowerDispatchIndex(ctx, e, expected)
 	case *ast.LoopExpression:
 		lines, value, goType, ok = g.compileLoopExpression(ctx, e, expected)
 	case *ast.PropagationExpression:
@@ -68,11 +68,11 @@ func (g *generator) compileExprLines(ctx *compileContext, expr ast.Expression, e
 	case *ast.UnaryExpression:
 		lines, value, goType, ok = g.compileUnaryExpression(ctx, e, expected)
 	case *ast.MemberAccessExpression:
-		lines, value, goType, ok = g.compileMemberAccess(ctx, e, expected)
+		lines, value, goType, ok = g.lowerDispatchMember(ctx, e, expected)
 	case *ast.ImplicitMemberExpression:
 		lines, value, goType, ok = g.compileImplicitMemberExpression(ctx, e, expected)
 	case *ast.FunctionCall:
-		lines, value, goType, ok = g.compileFunctionCall(ctx, e, expected)
+		lines, value, goType, ok = g.lowerDispatchCall(ctx, e, expected)
 	case *ast.RangeExpression:
 		lines, value, goType, ok = g.compileRangeExpression(ctx, e, expected)
 	case *ast.TypeCastExpression:
@@ -94,7 +94,7 @@ func (g *generator) compileExprLines(ctx *compileContext, expr ast.Expression, e
 	if !ok {
 		return nil, "", "", false
 	}
-	return g.coerceExpectedStaticExpr(ctx, lines, value, goType, expected)
+	return g.lowerCoerceExpectedStaticExpr(ctx, lines, value, goType, expected)
 }
 
 func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string, expr string, actual string, expected string) ([]string, string, string, bool) {
@@ -107,7 +107,7 @@ func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string
 		return lines, ptrTemp, expected, true
 	}
 	if actual == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, expr, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, expr, expected)
 		if ok {
 			lines = append(lines, convLines...)
 			return lines, converted, expected, true
@@ -127,15 +127,15 @@ func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string
 			return lines, errorExpr, expected, true
 		}
 	}
-	if wrapLines, wrapped, ok := g.nativeUnionWrapLines(ctx, expected, actual, expr); ok {
+	if wrapLines, wrapped, ok := g.lowerWrapUnion(ctx, expected, actual, expr); ok {
 		lines = append(lines, wrapLines...)
 		return lines, wrapped, expected, true
 	}
-	if wrapLines, wrapped, ok := g.nativeInterfaceWrapLines(ctx, expected, actual, expr); ok {
+	if wrapLines, wrapped, ok := g.lowerWrapInterface(ctx, expected, actual, expr); ok {
 		lines = append(lines, wrapLines...)
 		return lines, wrapped, expected, true
 	}
-	if wrapLines, wrapped, ok := g.nativeCallableWrapLines(ctx, expected, actual, expr); ok {
+	if wrapLines, wrapped, ok := g.lowerWrapCallable(ctx, expected, actual, expr); ok {
 		lines = append(lines, wrapLines...)
 		return lines, wrapped, expected, true
 	}
@@ -265,7 +265,7 @@ func (g *generator) compileStringInterpolation(ctx *compileContext, expr *ast.St
 			parts = append(parts, temp)
 			continue
 		}
-		interpConvLines, runtimeValue, ok := g.runtimeValueLines(ctx, exprValue, exprType)
+		interpConvLines, runtimeValue, ok := g.lowerRuntimeValue(ctx, exprValue, exprType)
 		if !ok {
 			ctx.setReason("string interpolation part unsupported")
 			return nil, "", "", false
@@ -410,7 +410,7 @@ func (g *generator) compileStringStructLiteral(ctx *compileContext, lit *ast.Str
 	// Convert to any if needed for the helper function.
 	callArg := bytesExpr
 	if bytesType != "any" && bytesType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, bytesExpr, bytesType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, bytesExpr, bytesType)
 		if !ok {
 			ctx.setReason("String literal bytes conversion failed")
 			return nil, "", "", false
@@ -827,7 +827,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 				resultTemp := ctx.newTemp()
 				controlTemp := ctx.newTemp()
 				lines = append(lines, fmt.Sprintf("%s, %s := __able_checked_sub_unsigned(uint64(0), uint64(%s), %s, %s)", resultTemp, controlTemp, temp, bitsExpr, nodeName))
-				controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+				controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 				if !ok {
 					return nil, "", "", false
 				}
@@ -837,7 +837,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			resultTemp := ctx.newTemp()
 			controlTemp := ctx.newTemp()
 			lines = append(lines, fmt.Sprintf("%s, %s := __able_checked_sub_signed(int64(0), int64(%s), %s, %s)", resultTemp, controlTemp, temp, bitsExpr, nodeName))
-			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -845,7 +845,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp), operandType, true
 		}
 		if !g.isNumericType(operandType) {
-			opConvLines, operandRuntime, ok := g.runtimeValueLines(ctx, operand, operandType)
+			opConvLines, operandRuntime, ok := g.lowerRuntimeValue(ctx, operand, operandType)
 			if !ok {
 				ctx.setReason("unsupported unary operand type")
 				return nil, "", "", false
@@ -854,7 +854,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			resultTemp := ctx.newTemp()
 			controlTemp := ctx.newTemp()
 			operandLines = append(operandLines, fmt.Sprintf("%s, %s := __able_unary_op(%q, %s)", resultTemp, controlTemp, string(expr.Operator), operandRuntime))
-			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -863,7 +863,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			if expected == "" || expected == "runtime.Value" {
 				return operandLines, unaryExpr, "runtime.Value", true
 			}
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, unaryExpr, expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, unaryExpr, expected)
 			if !ok {
 				ctx.setReason("unary expression type mismatch")
 				return nil, "", "", false
@@ -891,7 +891,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 		}
 		operandRuntime := operand
 		if operandType != "runtime.Value" {
-			convLines, converted, ok := g.runtimeValueLines(ctx, operand, operandType)
+			convLines, converted, ok := g.lowerRuntimeValue(ctx, operand, operandType)
 			if !ok {
 				ctx.setReason("unsupported unary operand type")
 				return nil, "", "", false
@@ -906,7 +906,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			return nil, "", "", false
 		}
 		if !g.isIntegerType(operandType) {
-			opConvLines, operandRuntime, ok := g.runtimeValueLines(ctx, operand, operandType)
+			opConvLines, operandRuntime, ok := g.lowerRuntimeValue(ctx, operand, operandType)
 			if !ok {
 				ctx.setReason("unsupported bitwise operand type")
 				return nil, "", "", false
@@ -915,7 +915,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			resultTemp := ctx.newTemp()
 			controlTemp := ctx.newTemp()
 			operandLines = append(operandLines, fmt.Sprintf("%s, %s := __able_unary_op(%q, %s)", resultTemp, controlTemp, string(expr.Operator), operandRuntime))
-			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -924,7 +924,7 @@ func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryE
 			if expected == "" || expected == "runtime.Value" {
 				return operandLines, unaryExpr, "runtime.Value", true
 			}
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, unaryExpr, expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, unaryExpr, expected)
 			if !ok {
 				ctx.setReason("unary expression type mismatch")
 				return nil, "", "", false
