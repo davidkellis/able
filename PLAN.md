@@ -288,6 +288,27 @@ Proof required:
 
 #### Milestone 6: Boundary Containment And Static Cleanliness
 
+Status:
+- complete on 2026-03-22.
+- the final explicit boundary helper set is now mechanically locked to:
+  - `call_value` via `__able_call_value(...)`
+  - `call_named` via `__able_call_named(...)`
+  - `call_original` via generated original-wrapper calls
+- representative static no-bootstrap fixture execution is now audited for:
+  - zero fallback boundary calls
+  - zero explicit dynamic boundary calls
+  - zero interface/member lookup fallback calls
+  - zero global lookup fallback calls
+- representative static fixture batches now remain green under:
+  - no-fallback boundary-marker harnesses
+  - no-bootstrap boundary/lookup-marker harnesses
+  - static generated-source boundary audits
+- representative boundary-containment coverage now lives in:
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_containment_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_touchpoint_audit_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`
+
 Goal:
 - make the dynamic boundary explicit, narrow, and mechanically enforced.
 
@@ -300,11 +321,11 @@ Allowed boundary categories only:
 - values already originating from dynamic runtime payloads
 
 Required work:
-- [ ] enumerate and document the final allowed boundary helper set;
-- [ ] tighten adapters so conversion happens exactly at the edge and returns to
+- [x] enumerate and document the final allowed boundary helper set;
+- [x] tighten adapters so conversion happens exactly at the edge and returns to
       native carriers immediately after;
-- [ ] remove residual dynamic leakage from static fixtures;
-- [ ] keep strict no-bootstrap/no-fallback/no-boundary audits green for static
+- [x] remove residual dynamic leakage from static fixtures;
+- [x] keep strict no-bootstrap/no-fallback/no-boundary audits green for static
       fixture families.
 
 Proof required:
@@ -314,17 +335,35 @@ Proof required:
 
 #### Milestone 7: Compiler Performance Completion
 
+Status:
+- complete on 2026-03-22.
+- added the reduced checked-in recursion benchmark family:
+  - `v12/fixtures/bench/fib_i32_small/main.able`
+- shared compiled callable/runtime env scaffolding now swaps package envs only
+  when the target env differs from the current env, via:
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_env_swap.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_env_helpers.go`
+- representative generated code now uses the conditional env-swap path across:
+  - compiled functions/methods
+  - native callable wrappers
+  - native array core methods
+  - native interface generic dispatch helpers
+  - iterator collect mono-array helpers
+  - compiled future task entry
+- representative performance proof and current numbers are now recorded in:
+  - `v12/docs/perf-baselines/2026-03-22-compiler-performance-milestone-7-compiled.md`
+
 Goal:
 - make the compiler-generated code fast on the checked-in benchmark family
   without violating the lowering rules.
 
 Required work:
-- [ ] keep using reduced checked-in benchmarks to isolate hot shared lowering
+- [x] keep using reduced checked-in benchmarks to isolate hot shared lowering
       gaps;
-- [ ] remove only shared primitive/control/array/callable/dispatch scaffolding,
+- [x] remove only shared primitive/control/array/callable/dispatch scaffolding,
       never by adding named non-primitive fast paths;
-- [ ] remeasure after each material compiler workstream;
-- [ ] keep benchmark proofs paired with generated-source shape audits.
+- [x] remeasure after each material compiler workstream;
+- [x] keep benchmark proofs paired with generated-source shape audits.
 
 Primary benchmark families:
 - matrix / array hot paths
@@ -333,9 +372,9 @@ Primary benchmark families:
 - recursion/call overhead microbenchmarks
 
 Definition of done for this milestone:
-- [ ] hot compiled benchmark paths no longer carry already-identified avoidable
+- [x] hot compiled benchmark paths no longer carry already-identified avoidable
       scaffolding;
-- [ ] checked-in benchmark baselines and current numbers are up to date.
+- [x] checked-in benchmark baselines and current numbers are up to date.
 
 #### Milestone 8: Compiler Release Validation
 
@@ -363,10 +402,15 @@ Release gate checklist:
 
 #### Immediate compiler queue (start here)
 
-1. [ ] Enumerate the final allowed compiled dynamic-boundary helper set and
-       document each category precisely.
-2. [ ] Tighten boundary adapters so conversion happens exactly at the explicit
-       edge and native carriers are restored immediately after that edge.
+1. [ ] Run the compiler release validation matrix in compiled mode and close any
+       remaining fixture regressions under the no-bootstrap/no-fallback gates.
+2. [ ] Run `./run_all_tests.sh` and close any remaining compiler-side failures.
+3. [ ] Run `./run_stdlib_tests.sh` and close any remaining compiled-mode stdlib
+       failures.
+4. [ ] Audit compiled diagnostics/failure behavior for release stability and
+       fix any remaining production blockers.
+5. [ ] Confirm reproducible clean-checkout compiler builds and release-gate
+       documentation.
 3. [ ] Remove residual dynamic-boundary leakage from static fixtures and static
        helper paths.
 4. [ ] Keep strict no-bootstrap/no-fallback/no-boundary audits green for static

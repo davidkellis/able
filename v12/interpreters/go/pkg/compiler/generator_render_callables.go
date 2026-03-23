@@ -85,7 +85,7 @@ func (g *generator) renderNativeCallableBoundaryHelpers(buf *bytes.Buffer, info 
 	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n", info.TypeString, len(info.ParamGoTypes))
-	fmt.Fprintf(buf, "\t\tif __able_runtime != nil && callCtx != nil && callCtx.Env != nil { prevEnv := __able_runtime.SwapEnv(callCtx.Env); defer __able_runtime.SwapEnv(prevEnv) }\n")
+	writeRuntimeEnvSwapIfNeeded(buf, "\t\t", "__able_runtime", "callCtx.Env", "callCtx != nil")
 	fmt.Fprintf(buf, "\t\tif len(args) != %d {\n", len(info.ParamGoTypes))
 	fmt.Fprintf(buf, "\t\t\treturn nil, fmt.Errorf(\"callable expects %d arguments, got %%d\", len(args))\n", len(info.ParamGoTypes))
 	fmt.Fprintf(buf, "\t\t}\n")
