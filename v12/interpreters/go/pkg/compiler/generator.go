@@ -22,10 +22,14 @@ type generator struct {
 	nativeInterfaces                 map[string]*nativeInterfaceInfo
 	nativeInterfaceExplicitAdapters  map[string]map[string]*nativeInterfaceAdapter
 	nativeInterfaceGenericDispatches map[string]*nativeInterfaceGenericDispatchInfo
+	nativeInterfaceRenderedAdapters  map[string]struct{}
 	iteratorCollectMonoArrays        map[string]*iteratorCollectMonoArrayInfo
 	monoArraySpecs                   map[string]*monoArraySpec
 	nativeInterfaceBuilding          map[string]struct{}
 	nativeInterfaceRefreshing        map[string]struct{}
+	nativeInterfaceSpecializing      map[string]struct{}
+	nativeInterfaceAdapterVersion    int
+	bodyCompilationDepth             int
 	interfaces                       map[string]*ast.InterfaceDefinition
 	interfacePackages                map[string]string
 	staticImports                    map[string][]staticImportBinding
@@ -40,6 +44,7 @@ type generator struct {
 	implMethodByInfo                 map[*functionInfo]*implMethodInfo
 	specializedFunctions             []*functionInfo
 	specializedFunctionIndex         map[string]*functionInfo
+	nominalCoercions                 map[string]*nominalCoercionInfo
 	warnings                         []string
 	fallbacks                        []FallbackInfo
 	mangler                          *nameMangler
@@ -76,10 +81,13 @@ func newGenerator(opts Options) *generator {
 		nativeInterfaces:                 make(map[string]*nativeInterfaceInfo),
 		nativeInterfaceExplicitAdapters:  make(map[string]map[string]*nativeInterfaceAdapter),
 		nativeInterfaceGenericDispatches: make(map[string]*nativeInterfaceGenericDispatchInfo),
+		nativeInterfaceRenderedAdapters:  make(map[string]struct{}),
 		iteratorCollectMonoArrays:        make(map[string]*iteratorCollectMonoArrayInfo),
 		monoArraySpecs:                   make(map[string]*monoArraySpec),
 		nativeInterfaceBuilding:          make(map[string]struct{}),
 		nativeInterfaceRefreshing:        make(map[string]struct{}),
+		nativeInterfaceSpecializing:      make(map[string]struct{}),
+		nativeInterfaceAdapterVersion:    1,
 		interfaces:                       make(map[string]*ast.InterfaceDefinition),
 		interfacePackages:                make(map[string]string),
 		staticImports:                    make(map[string][]staticImportBinding),
@@ -90,6 +98,7 @@ func newGenerator(opts Options) *generator {
 		awaitNames:                       make(map[*ast.AwaitExpression]string),
 		implMethodByInfo:                 make(map[*functionInfo]*implMethodInfo),
 		specializedFunctionIndex:         make(map[string]*functionInfo),
+		nominalCoercions:                 make(map[string]*nominalCoercionInfo),
 		moduleBindingNames:               make(map[string]map[string]struct{}),
 		externCallables:                  make(map[string]map[string]struct{}),
 	}
@@ -169,16 +178,20 @@ func (g *generator) collect(program *driver.Program) error {
 	g.nativeInterfaces = make(map[string]*nativeInterfaceInfo)
 	g.nativeInterfaceExplicitAdapters = make(map[string]map[string]*nativeInterfaceAdapter)
 	g.nativeInterfaceGenericDispatches = make(map[string]*nativeInterfaceGenericDispatchInfo)
+	g.nativeInterfaceRenderedAdapters = make(map[string]struct{})
 	g.iteratorCollectMonoArrays = make(map[string]*iteratorCollectMonoArrayInfo)
 	g.monoArraySpecs = make(map[string]*monoArraySpec)
 	g.nativeInterfaceBuilding = make(map[string]struct{})
 	g.nativeInterfaceRefreshing = make(map[string]struct{})
+	g.nativeInterfaceSpecializing = make(map[string]struct{})
+	g.nativeInterfaceAdapterVersion = 1
 	g.interfaces = make(map[string]*ast.InterfaceDefinition)
 	g.interfacePackages = make(map[string]string)
 	g.staticCallableNames = nil
 	g.externCallables = make(map[string]map[string]struct{})
 	g.specializedFunctions = nil
 	g.specializedFunctionIndex = make(map[string]*functionInfo)
+	g.nominalCoercions = make(map[string]*nominalCoercionInfo)
 	if g.nodeOrigins == nil {
 		g.nodeOrigins = make(map[ast.Node]string)
 	}
@@ -492,6 +505,7 @@ func (g *generator) fillFunctionInfo(info *functionInfo, mapper *TypeMapper) {
 		}
 		goName := safeParamName(name, idx)
 		goType, ok := mapper.Map(param.ParamType)
+		goType, ok = g.recoverRepresentableCarrierType(info.Package, param.ParamType, goType)
 		if !ok {
 			supported = false
 		}
@@ -504,6 +518,7 @@ func (g *generator) fillFunctionInfo(info *functionInfo, mapper *TypeMapper) {
 		})
 	}
 	retType, ok := mapper.Map(def.ReturnType)
+	retType, ok = g.recoverRepresentableCarrierType(info.Package, def.ReturnType, retType)
 	if !ok || retType == "" {
 		supported = false
 	}
@@ -528,7 +543,7 @@ func (g *generator) bodyCompileable(info *functionInfo, retType string) bool {
 		info.Reason = "missing function body"
 		return false
 	}
-	ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+	ctx := newCompileContext(g, info, g.functionsForCompileContext(info), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
 	if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
 		ctx.implSiblings = g.implSiblingsForFunction(info)
 	}
@@ -581,6 +596,7 @@ func (g *generator) resolveCompileableFunctions() {
 		}
 		info.Compileable = false
 	}
+	g.touchNativeInterfaceAdapters()
 }
 
 func (g *generator) collectFallbacks() []FallbackInfo {
@@ -610,6 +626,12 @@ func (g *generator) collectFallbacks() []FallbackInfo {
 }
 
 func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]string, string, bool) {
+	if g != nil {
+		g.bodyCompilationDepth++
+		defer func() {
+			g.bodyCompilationDepth--
+		}()
+	}
 	if info == nil || info.Definition == nil || info.Definition.Body == nil {
 		ctx.setReason("missing function body")
 		return nil, "", false

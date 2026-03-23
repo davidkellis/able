@@ -43,6 +43,7 @@ type nativeInterfaceInfo struct {
 	GoType                 string
 	TypeExpr               ast.TypeExpression
 	TypeString             string
+	AdapterVersion         int
 	MarkerMethod           string
 	ToRuntimeMethod        string
 	FromRuntimeHelper      string
@@ -87,7 +88,9 @@ func (g *generator) nativeInterfaceInfoForGoType(goType string) *nativeInterface
 			if _, refreshing := g.nativeInterfaceRefreshing[info.Key]; refreshing {
 				return info
 			}
-			g.refreshNativeInterfaceAdapters(info)
+			if g.nativeInterfaceRefreshAllowed() && info.AdapterVersion != g.nativeInterfaceAdapterVersion {
+				g.refreshNativeInterfaceAdapters(info)
+			}
 			return info
 		}
 	}
@@ -113,6 +116,7 @@ func (g *generator) nativeInterfaceAdapterForActual(info *nativeInterfaceInfo, a
 	}
 	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter != nil && adapter.GoType == actual {
+			g.recordNativeInterfaceExplicitAdapter(info, adapter)
 			return adapter, true
 		}
 	}
@@ -163,6 +167,12 @@ func (g *generator) recordNativeInterfaceExplicitAdapter(info *nativeInterfaceIn
 		g.nativeInterfaceExplicitAdapters[info.Key] = adapters
 	}
 	adapters[adapter.GoType] = adapter
+	for _, existing := range info.Adapters {
+		if existing != nil && existing.GoType == adapter.GoType {
+			return
+		}
+	}
+	info.Adapters = append(info.Adapters, adapter)
 }
 
 func (g *generator) nativeInterfaceKnownAdapters(info *nativeInterfaceInfo) []*nativeInterfaceAdapter {
@@ -619,6 +629,7 @@ func (g *generator) nativeInterfaceMethodImpl(goType string, method *nativeInter
 		if impl == nil || info == nil || !info.Compileable || impl.ImplName != "" {
 			continue
 		}
+		g.refreshRepresentableFunctionInfo(info)
 		if impl.MethodName != method.Name {
 			continue
 		}
@@ -671,6 +682,9 @@ func (g *generator) nativeInterfaceMethodImpl(goType string, method *nativeInter
 			}
 		}
 		if found != nil && found.Info != candidate.Info {
+			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+				continue
+			}
 			return nil
 		}
 		found = candidate
@@ -678,7 +692,7 @@ func (g *generator) nativeInterfaceMethodImpl(goType string, method *nativeInter
 	return found
 }
 
-func (g *generator) nativeInterfaceMethodImplExact(goType string, method *nativeInterfaceMethod) *nativeInterfaceAdapterMethod {
+func (g *generator) nativeInterfaceMethodImplExactOnly(goType string, method *nativeInterfaceMethod) *nativeInterfaceAdapterMethod {
 	if g == nil || method == nil || goType == "" {
 		return nil
 	}
@@ -689,6 +703,7 @@ func (g *generator) nativeInterfaceMethodImplExact(goType string, method *native
 		if impl == nil || info == nil || !info.Compileable || impl.ImplName != "" {
 			continue
 		}
+		g.refreshRepresentableFunctionInfo(info)
 		if impl.MethodName != method.Name {
 			continue
 		}
@@ -735,9 +750,23 @@ func (g *generator) nativeInterfaceMethodImplExact(goType string, method *native
 			}
 		}
 		if found != nil && found.Info != candidate.Info {
+			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+				continue
+			}
 			return nil
 		}
 		found = candidate
+	}
+	return found
+}
+
+func (g *generator) nativeInterfaceMethodImplExact(goType string, method *nativeInterfaceMethod) *nativeInterfaceAdapterMethod {
+	if g == nil || method == nil || goType == "" {
+		return nil
+	}
+	found := g.nativeInterfaceMethodImplExactOnly(goType, method)
+	if found == nil {
+		return g.nativeInterfaceDefaultAdapterMethod(goType, method)
 	}
 	return found
 }
@@ -769,11 +798,15 @@ func (g *generator) nativeInterfaceConcreteImplInfo(goType string, impl *implMet
 		return nil, nil, false
 	}
 	targetName, _ := typeExprBaseName(impl.TargetType)
+	receiverType := ""
+	if len(impl.Info.Params) > 0 {
+		receiverType = impl.Info.Params[0].GoType
+	}
 	method := &methodInfo{
 		TargetName:   targetName,
 		TargetType:   impl.TargetType,
 		MethodName:   impl.MethodName,
-		ReceiverType: impl.Info.Params[0].GoType,
+		ReceiverType: receiverType,
 		ExpectsSelf:  len(impl.Info.Params) > 0,
 		Info:         impl.Info,
 	}
@@ -781,6 +814,7 @@ func (g *generator) nativeInterfaceConcreteImplInfo(goType string, impl *implMet
 	if !ok || specialized == nil || specialized.Info == nil || len(specialized.Info.Params) == 0 || specialized.Info.Params[0].GoType != goType {
 		return nil, nil, false
 	}
+	g.refreshRepresentableFunctionInfo(specialized.Info)
 	return specialized.Info, bindings, true
 }
 
@@ -839,7 +873,9 @@ func (g *generator) ensureNativeInterfaceInfo(pkgName string, expr ast.TypeExpre
 		if _, refreshing := g.nativeInterfaceRefreshing[key]; refreshing {
 			return info, true
 		}
-		g.refreshNativeInterfaceAdapters(info)
+		if g.nativeInterfaceRefreshAllowed() && info.AdapterVersion != g.nativeInterfaceAdapterVersion {
+			g.refreshNativeInterfaceAdapters(info)
+		}
 		return info, true
 	}
 	baseToken := sanitizeIdent("__able_iface_" + ifaceName)
@@ -920,6 +956,7 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 		if impl == nil || fn == nil || !fn.Compileable || impl.ImplName != "" {
 			continue
 		}
+		g.refreshRepresentableFunctionInfo(fn)
 		goType := ""
 		if len(fn.Params) > 0 {
 			goType = fn.Params[0].GoType
@@ -953,7 +990,7 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 			complete := true
 			methodImpls := make(map[string]*nativeInterfaceAdapterMethod, len(info.Methods))
 			for _, method := range info.Methods {
-				found := g.nativeInterfaceMethodImplExact(carrier.goType, method)
+				found := g.nativeInterfaceMethodImplExactOnly(carrier.goType, method)
 				if found == nil {
 					complete = false
 					break
@@ -997,6 +1034,7 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 		return adapters[i].GoType < adapters[j].GoType
 	})
 	info.Adapters = adapters
+	info.AdapterVersion = g.nativeInterfaceAdapterVersion
 }
 
 func (g *generator) refreshNativeInterfaceAdapterConcreteTarget(info *nativeInterfaceInfo, impl *implMethodInfo, fn *functionInfo, goType string, adapterTypeExpr ast.TypeExpression) (string, ast.TypeExpression, bool) {

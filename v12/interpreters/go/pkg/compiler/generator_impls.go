@@ -71,6 +71,7 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 			ImplDefinition:    def,
 		}
 		g.implMethodList = append(g.implMethodList, implInfo)
+		g.touchNativeInterfaceAdapters()
 		if g.implMethodByInfo != nil {
 			g.implMethodByInfo[info] = implInfo
 		}
@@ -148,6 +149,7 @@ func (g *generator) collectDefaultImplMethods() {
 				ImplDefinition:    def,
 			}
 			g.implMethodList = append(g.implMethodList, implInfo)
+			g.touchNativeInterfaceAdapters()
 			if g.implMethodByInfo != nil {
 				g.implMethodByInfo[info] = implInfo
 			}
@@ -276,6 +278,7 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 		paramType = resolveSelfTypeExpr(paramType, selfTarget)
 		paramType = substituteTypeParams(paramType, interfaceBindings)
 		goType, ok := mapper.Map(paramType)
+		goType, ok = g.recoverRepresentableCarrierType(info.Package, paramType, goType)
 		if !ok {
 			supported = false
 		}
@@ -298,6 +301,7 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 	}
 	if !ok {
 		retType, ok = mapper.Map(retExpr)
+		retType, ok = g.recoverRepresentableCarrierType(info.Package, retExpr, retType)
 	}
 	if !ok || retType == "" {
 		supported = false

@@ -347,11 +347,11 @@ func (g *generator) staticMethodNominalStructReturnType(pkgName string, target a
 	if !ok || targetName == "" {
 		return "", false
 	}
-	simple, ok := retExpr.(*ast.SimpleTypeExpression)
-	if !ok || simple == nil || simple.Name == nil || simple.Name.Name == "" {
+	returnBase, ok := typeExprBaseName(retExpr)
+	if !ok || returnBase == "" {
 		return "", false
 	}
-	if simple.Name.Name != targetName {
+	if returnBase != targetName {
 		return "", false
 	}
 	// Skip for types that have builtin Go mappings (String→string, Bool→bool, etc.)
@@ -359,11 +359,16 @@ func (g *generator) staticMethodNominalStructReturnType(pkgName string, target a
 	if isBuiltinMappedType(targetName) {
 		return "", false
 	}
-	info, ok := g.structInfoForTypeName(pkgName, targetName)
-	if !ok || info == nil {
-		return "", false
+	if recovered, ok := g.recoverRepresentableCarrierType(pkgName, retExpr, ""); ok && recovered != "" && recovered != "runtime.Value" && recovered != "any" {
+		return recovered, true
 	}
-	return "*" + info.GoName, true
+	if carrierType, ok := g.nativeStructCarrierTypeForExpr(pkgName, retExpr); ok && carrierType != "" {
+		return carrierType, true
+	}
+	if carrierType, ok := g.nativeStructCarrierTypeForExpr(pkgName, target); ok && carrierType != "" {
+		return carrierType, true
+	}
+	return "", false
 }
 
 func isBuiltinMappedType(name string) bool {
@@ -393,7 +398,11 @@ func (g *generator) mapMethodType(mapper *TypeMapper, expr ast.TypeExpression, t
 		return "", false
 	}
 	mappedExpr := resolveSelfTypeExpr(expr, target)
-	return mapper.Map(mappedExpr)
+	mapped, ok := mapper.Map(mappedExpr)
+	if g == nil {
+		return mapped, ok
+	}
+	return g.recoverRepresentableCarrierType(mapper.packageName, mappedExpr, mapped)
 }
 
 func (g *generator) resolveCompileableMethods() {
@@ -439,6 +448,7 @@ func (g *generator) resolveCompileableMethods() {
 		}
 		method.Info.Compileable = false
 	}
+	g.touchNativeInterfaceAdapters()
 }
 
 func (g *generator) sortedMethodInfos() []*methodInfo {
@@ -553,6 +563,7 @@ func (g *generator) methodForReceiver(goType string, methodName string) *methodI
 		if len(typeBucket) > 0 {
 			entries := typeBucket[methodName]
 			var found *methodInfo
+			bestScore := 0
 			for _, method := range entries {
 				if method == nil || method.Info == nil || !method.Info.Compileable {
 					continue
@@ -560,7 +571,16 @@ func (g *generator) methodForReceiver(goType string, methodName string) *methodI
 				if !method.ExpectsSelf {
 					continue
 				}
-				if method.ReceiverType != "" && !g.receiverGoTypeCompatible(method.ReceiverType, goType) {
+				score := g.receiverMethodMatchScore(method.ReceiverType, goType)
+				if method.ReceiverType != "" && score == 0 {
+					continue
+				}
+				if score > bestScore {
+					found = method
+					bestScore = score
+					continue
+				}
+				if score < bestScore {
 					continue
 				}
 				if found != nil && found != method {
@@ -576,6 +596,30 @@ func (g *generator) methodForReceiver(goType string, methodName string) *methodI
 	}
 	// For primitive types (bool, int32, string, etc.) search by receiver Go type.
 	return g.methodForReceiverGoType(goType, methodName)
+}
+
+func (g *generator) receiverMethodMatchScore(expectedReceiverType string, actualGoType string) int {
+	if g == nil || expectedReceiverType == "" || actualGoType == "" {
+		return 0
+	}
+	if expectedReceiverType == actualGoType {
+		return 3
+	}
+	if g.typeMatches(expectedReceiverType, actualGoType) {
+		return 2
+	}
+	if expectedInfo := g.structInfoByGoName(expectedReceiverType); expectedInfo != nil {
+		if actualInfo := g.structInfoByGoName(actualGoType); actualInfo != nil &&
+			expectedInfo.Package == actualInfo.Package &&
+			expectedInfo.Name != "" &&
+			expectedInfo.Name == actualInfo.Name {
+			return 1
+		}
+	}
+	if g.isArrayStructType(expectedReceiverType) && g.isStaticArrayType(actualGoType) {
+		return 1
+	}
+	return 0
 }
 
 func (g *generator) methodForReceiverGoType(goType string, methodName string) *methodInfo {

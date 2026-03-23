@@ -46,6 +46,15 @@ func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnE
 	resultExpr := ""
 	var convLines []string
 	if g.isVoidType(bodyType) {
+		voidChild := ctx.child()
+		voidChild.loopDepth = 0
+		voidChild.breakpoints = make(map[string]int)
+		voidChild.rethrowVar = ""
+		voidChild.controlMode = compileControlModeRuntimeValueError
+		voidLines, stmtOK := g.compileStatement(voidChild, expr.Expression)
+		if stmtOK {
+			bodyLines = voidLines
+		}
 		resultExpr = "runtime.VoidValue{}"
 	} else {
 		cl, runtimeExpr, ok := g.lowerRuntimeValue(child, bodyExpr, bodyType)

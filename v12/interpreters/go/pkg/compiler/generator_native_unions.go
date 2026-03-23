@@ -203,6 +203,14 @@ func (g *generator) nativeUnionPatternMemberType(subjectType string, patternType
 	if _, ok := g.nativeUnionMember(info, mapped); ok {
 		return mapped, true
 	}
+	for _, member := range info.Members {
+		if member == nil || member.GoType == "" {
+			continue
+		}
+		if g.receiverGoTypeCompatible(mapped, member.GoType) {
+			return member.GoType, true
+		}
+	}
 	return "", false
 }
 
@@ -262,6 +270,26 @@ func (g *generator) nativeUnionExpectedTypeForExpr(ctx *compileContext, expected
 	case *ast.StructLiteral:
 		if e == nil || e.StructType == nil || e.StructType.Name == "" {
 			return expected
+		}
+		if info != nil {
+			var matched string
+			for _, member := range info.Members {
+				if member == nil {
+					continue
+				}
+				memberInfo := g.structInfoByGoName(member.GoType)
+				if memberInfo == nil || memberInfo.Name != e.StructType.Name {
+					continue
+				}
+				if matched != "" && matched != member.GoType {
+					matched = ""
+					break
+				}
+				matched = member.GoType
+			}
+			if matched != "" {
+				return matched
+			}
 		}
 		structTypeExpr := g.staticStructLiteralTypeExpr(ctx, e, "")
 		if structTypeExpr == nil {

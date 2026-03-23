@@ -96,8 +96,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	}
 
 	if g.hasFunctions() {
-		g.renderCompiledMethods(&body)
-		g.renderCompiledFunctions(&body)
+		renderedMethods, renderedFunctions := g.renderCompiledBodies(&body)
 		g.renderMethodWrappers(&body)
 		g.renderWrappers(&body)
 		g.renderFunctionThunks(&body)
@@ -116,6 +115,12 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderStructs(&body)
 		g.renderStructConverters(&body)
 		g.renderMonoArrayConverters(&body)
+		for g.renderPendingNativeInterfaceConcreteAdapters(&body) {
+		}
+		g.renderAdditionalCompiledBodies(&body, renderedMethods, renderedFunctions)
+		g.renderPendingCompiledMethodFallbacks(&body, renderedMethods)
+		g.renderPendingCompiledFunctionFallbacks(&body, renderedFunctions)
+		g.renderNominalCoercions(&body)
 		g.renderDiagnosticGlobals(&body)
 	} else {
 		g.renderMonoArrayTypes(&body)
@@ -124,6 +129,8 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderNativeInterfaces(&body)
 		g.renderIteratorCollectMonoArrayHelpers(&body)
 		g.renderNativeUnions(&body)
+		for g.renderPendingNativeInterfaceConcreteAdapters(&body) {
+		}
 	}
 
 	// Now render the header with imports (flags are set by body rendering).

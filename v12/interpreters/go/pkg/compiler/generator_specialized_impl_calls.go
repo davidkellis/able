@@ -46,6 +46,9 @@ func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expr
 					continue
 				}
 				if found != nil && found.Info != candidate.Info {
+					if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+						continue
+					}
 					found = nil
 					break
 				}
@@ -67,6 +70,9 @@ func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expr
 				continue
 			}
 			if found != nil && found.Info != candidate.Info {
+				if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+					continue
+				}
 				found = nil
 				break
 			}
@@ -151,24 +157,35 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 	}
 	for idx, arg := range call.Arguments {
 		param := params[paramOffset+idx]
-		argLines, expr, exprType, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, param.GoType, param.TypeExpr)
+		paramGoType := param.GoType
+		expectedArgType := g.staticParamCarrierType(ctx, param)
+		compileExpectedArgType := expectedArgType
+		if g.nativeUnionInfoForGoType(expectedArgType) != nil {
+			compileExpectedArgType = ""
+		}
+		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && (expectedArgType == "" || expectedArgType == "runtime.Value" || expectedArgType == "any") {
+			if ifaceInfo, ok := g.ensureNativeInterfaceInfo(ctx.packageName, ifaceType); ok && ifaceInfo != nil && ifaceInfo.GoType != "" {
+				expectedArgType = ifaceInfo.GoType
+			}
+		}
+		argLines, expr, exprType, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, compileExpectedArgType, param.TypeExpr)
 		if !ok {
 			return nil, "", "", false
 		}
 		argPreLines = append(argPreLines, argLines...)
 		argExpr := expr
 		argType := exprType
-		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && param.GoType == "runtime.Value" {
-			if argType != "runtime.Value" {
-				convLines, valueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
-				if !ok {
-					ctx.setReason("interface argument unsupported")
-					return nil, "", "", false
-				}
-				argPreLines = append(argPreLines, convLines...)
-				argExpr = valueExpr
-				argType = "runtime.Value"
+		if paramGoType == "runtime.Value" && argType != "runtime.Value" {
+			convLines, valueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
+			if !ok {
+				ctx.setReason("call argument unsupported")
+				return nil, "", "", false
 			}
+			argPreLines = append(argPreLines, convLines...)
+			argExpr = valueExpr
+			argType = "runtime.Value"
+		}
+		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && paramGoType == "runtime.Value" {
 			ifaceLines, coerced, ok := g.interfaceArgExprLines(ctx, argExpr, ifaceType, info.Name, ctx.genericNames)
 			if !ok {
 				ctx.setReason("interface argument unsupported")
@@ -176,6 +193,15 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 			}
 			argPreLines = append(argPreLines, ifaceLines...)
 			argExpr = coerced
+		} else if paramGoType != "" && paramGoType != "any" && argType != paramGoType {
+			coerceLines, coercedExpr, coercedType, ok := g.prepareStaticCallArg(ctx, argExpr, argType, paramGoType)
+			if !ok {
+				ctx.setReason("call argument type mismatch")
+				return nil, "", "", false
+			}
+			argPreLines = append(argPreLines, coerceLines...)
+			argExpr = coercedExpr
+			argType = coercedType
 		}
 		args = append(args, argExpr)
 	}
@@ -281,7 +307,7 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 		return nil, false
 	}
 	key := g.specializedImplFunctionKey(method.Info, bindings)
-	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil && existing.Compileable {
+	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil && (existing.Compileable || existing == method.Info) {
 		receiverType := method.ReceiverType
 		if method.ExpectsSelf && len(existing.Params) > 0 {
 			receiverType = existing.Params[0].GoType
@@ -318,6 +344,7 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 		}
 		fillBindings[name] = normalizeTypeExprForPackage(g, specialized.Package, expr)
 	}
+	specialized.TypeBindings = cloneTypeBindings(fillBindings)
 	g.fillImplMethodInfo(specialized, mapper, concreteTarget, fillBindings)
 	if !specialized.SupportedTypes {
 		return nil, false
@@ -325,15 +352,12 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 	specialized.Compileable = true
 	g.implMethodByInfo[specialized] = impl
 	g.specializedFunctions = append(g.specializedFunctions, specialized)
+	g.touchNativeInterfaceAdapters()
 	g.specializedFunctionIndex[key] = specialized
-	if !g.bodyCompileable(specialized, specialized.ReturnType) {
-		delete(g.specializedFunctionIndex, key)
-		delete(g.implMethodByInfo, specialized)
-		g.specializedFunctions = removeSpecializedFunction(g.specializedFunctions, specialized)
-		return nil, false
+	if g.bodyCompileable(specialized, specialized.ReturnType) {
+		specialized.Compileable = true
+		specialized.Reason = ""
 	}
-	specialized.Compileable = true
-	specialized.Reason = ""
 	receiverType := method.ReceiverType
 	if method.ExpectsSelf && len(specialized.Params) > 0 {
 		receiverType = specialized.Params[0].GoType
@@ -888,6 +912,10 @@ func (g *generator) specializedTypeTemplateMatches(pkgName string, template ast.
 	if g == nil || template == nil || actual == nil {
 		return false
 	}
+	if len(bindings) > 0 {
+		template = substituteTypeParams(template, bindings)
+		actual = substituteTypeParams(actual, bindings)
+	}
 	template = g.normalizeTypeExprForSpecialization(pkgName, template, nil)
 	actual = g.normalizeTypeExprForSpecialization(pkgName, actual, nil)
 	return g.specializedTypeTemplateMatchesNormalized(pkgName, template, actual, genericNames, bindings, seen)
@@ -1097,6 +1125,20 @@ func (g *generator) normalizeTypeExprForSpecialization(pkgName string, expr ast.
 		if t == nil {
 			return expr
 		}
+		if baseName, ok := typeExprBaseName(t.Base); ok && baseName != "" {
+			key := pkgName + "|" + baseName + "<" + normalizeTypeExprListKey(g, pkgName, t.Arguments) + ">"
+			if _, ok := seen[key]; ok {
+				return expr
+			}
+			nextSeen := make(map[string]struct{}, len(seen)+1)
+			for existing := range seen {
+				nextSeen[existing] = struct{}{}
+			}
+			nextSeen[key] = struct{}{}
+			if expanded := g.expandTypeAliasForPackage(pkgName, expr); expanded != nil && expanded != expr {
+				return g.normalizeTypeExprForSpecialization(pkgName, expanded, nextSeen)
+			}
+		}
 		base := g.normalizeTypeExprForSpecialization(pkgName, t.Base, seen)
 		changed := base != t.Base
 		args := make([]ast.TypeExpression, 0, len(t.Arguments))
@@ -1191,8 +1233,18 @@ func (g *generator) specializedImplFunctionKey(info *functionInfo, bindings map[
 	if info == nil {
 		return ""
 	}
+	base := strings.TrimSpace(info.Name)
+	if info.QualifiedName != "" {
+		base = strings.TrimSpace(info.QualifiedName)
+	}
+	if base == "" {
+		base = strings.TrimSpace(info.GoName)
+	}
+	if pkg := strings.TrimSpace(info.Package); pkg != "" {
+		base = pkg + "::" + base
+	}
 	if len(bindings) == 0 {
-		return info.GoName
+		return base
 	}
 	names := make([]string, 0, len(bindings))
 	for name := range bindings {
@@ -1200,7 +1252,7 @@ func (g *generator) specializedImplFunctionKey(info *functionInfo, bindings map[
 	}
 	sort.Strings(names)
 	parts := make([]string, 0, len(names)+1)
-	parts = append(parts, info.GoName)
+	parts = append(parts, base)
 	for _, name := range names {
 		parts = append(parts, name+"="+normalizeTypeExprString(g, info.Package, bindings[name]))
 	}

@@ -185,3 +185,27 @@ func TestCompilerDispatchTouchpointsStayNative(t *testing.T) {
 		}
 	}
 }
+
+func TestCompilerSpawnCapturedReceiverDispatchStaysNative(t *testing.T) {
+	result := compileExecFixtureResult(t, "12_05_concurrency_channel_ping_pong")
+
+	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
+	for _, fragment := range []string{
+		"__able_method_call_node(",
+		"__able_member_get_method(",
+		"__able_struct_Channel_to(__able_runtime, channel)",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected spawned captured receiver dispatch to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_compiled_method_Channel_send(",
+		"__able_compiled_method_Channel_receive(",
+		"__able_compiled_method_Channel_close(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected spawned captured receiver dispatch to stay on compiled methods %q:\n%s", fragment, mainBody)
+		}
+	}
+}

@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -12,6 +13,12 @@ func safeNilReturnExpr(expected string) string {
 	}
 	if expected == "any" {
 		return "nil"
+	}
+	if strings.HasPrefix(expected, "*") || strings.HasPrefix(expected, "[]") {
+		return fmt.Sprintf("(%s)(nil)", expected)
+	}
+	if strings.HasPrefix(expected, "__able_iface_") || strings.HasPrefix(expected, "__able_fn_") || strings.HasPrefix(expected, "__able_union_") {
+		return fmt.Sprintf("%s(nil)", expected)
 	}
 	return "runtime.NilValue{}"
 }

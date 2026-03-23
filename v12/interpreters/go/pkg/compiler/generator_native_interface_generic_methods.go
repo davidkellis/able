@@ -403,6 +403,9 @@ func (g *generator) nativeInterfaceGenericMethodImpl(goType string, method *nati
 			}
 		}
 		if found != nil && found.Info != candidate.Info {
+			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+				continue
+			}
 			return nil
 		}
 		found = candidate

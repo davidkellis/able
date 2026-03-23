@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -304,12 +305,19 @@ func TestCompilerArrayMutationsSyncMetadata(t *testing.T) {
 		"var arr *Array =",
 		"append(__able_tmp_1.Elements",
 		"__able_tmp_3.Elements[__able_tmp_5] = __able_tmp_6",
-		"__able_tmp_8.Elements[__able_tmp_10] = __able_tmp_7",
 		".Elements = ",
 		".Elements[:0]",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected static array lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, pattern := range []*regexp.Regexp{
+		regexp.MustCompile(`__able_index_error\(__able_tmp_\d+, __able_tmp_\d+\)`),
+		regexp.MustCompile(`__able_tmp_\d+\.Elements\[__able_tmp_\d+\] = __able_tmp_\d+`),
+	} {
+		if !pattern.MatchString(mainBody) {
+			t.Fatalf("expected static array lowering to match %q:\n%s", pattern.String(), mainBody)
 		}
 	}
 	if strings.Contains(mainBody, "__able_method_call_node(") || strings.Contains(mainBody, "__able_index_set(") {

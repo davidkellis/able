@@ -446,6 +446,9 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
 		}
+		if g.goTypeHasNilZeroValue(goType) {
+			return fmt.Sprintf("func() runtime.Value { if (%s) == nil { return runtime.NilValue{} }; if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; v, err := __able_struct_%s_to(__able_runtime, %s); if err != nil { panic(err) }; return v }()", expr, baseName, expr), true
+		}
 		return fmt.Sprintf("func() runtime.Value { if __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }; v, err := __able_struct_%s_to(__able_runtime, %s); if err != nil { panic(err) }; return v }()", baseName, expr), true
 	default:
 		return "", false
@@ -531,12 +534,29 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
 		}
-		if strings.HasPrefix(goType, "*") {
+		if g.goTypeHasNilZeroValue(goType) {
+			runtimeTemp := ctx.newTemp()
 			convTemp := ctx.newTemp()
+			errTemp := ctx.newTemp()
+			controlTemp := ctx.newTemp()
 			lines := []string{
-				fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, expr),
+				fmt.Sprintf("var %s runtime.Value", runtimeTemp),
+				fmt.Sprintf("var %s *__ableControl", controlTemp),
+				fmt.Sprintf("if (%s) == nil {", expr),
+				fmt.Sprintf("\t%s = runtime.NilValue{}", runtimeTemp),
+				"} else {",
+				"\tif __able_runtime == nil { panic(fmt.Errorf(\"compiler: missing runtime\")) }",
+				fmt.Sprintf("\t%s, %s := __able_struct_%s_to(__able_runtime, %s)", convTemp, errTemp, baseName, expr),
+				fmt.Sprintf("\t%s = __able_control_from_error(%s)", controlTemp, errTemp),
+				fmt.Sprintf("\t%s = %s", runtimeTemp, convTemp),
+				"}",
 			}
-			return lines, convTemp, true
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+			if !ok {
+				return nil, "", false
+			}
+			lines = append(lines, controlLines...)
+			return lines, runtimeTemp, true
 		}
 		convTemp := ctx.newTemp()
 		errTemp := ctx.newTemp()

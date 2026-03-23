@@ -93,7 +93,7 @@ func (g *generator) renderRuntimeArrayHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\treturn __able_index_error(index, len(arr.Elements)), nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tarr.Elements[index] = value\n")
-	fmt.Fprintf(buf, "\treturn nil, nil\n")
+	fmt.Fprintf(buf, "\treturn value, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_array_values(iterable runtime.Value) ([]runtime.Value, bool) {\n")
 	fmt.Fprintf(buf, "\tbase := __able_unwrap_interface(iterable)\n")
