@@ -41,27 +41,23 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			objExpr = recoveredExpr
 			objType = recoveredType
 		}
-		if assign.Operator == ast.AssignmentAssign && g.isStaticArrayType(objType) {
+		if g.isStaticArrayType(objType) {
 			idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, indexTarget.Index, "")
 			if !ok {
 				return nil, "", "", false
 			}
-			valueArgLines, valueAssignedExpr, ok := g.staticArrayCoerceValueExprLines(ctx, objType, valueExpr, valueType)
-			if !ok {
-				ctx.setReason("index assignment value unsupported")
-				return nil, "", "", false
+			elemType := g.staticArrayElementGoTypeForExpr(ctx, indexTarget.Object, objType)
+			if elemType == "" || elemType == "runtime.Value" || elemType == "any" {
+				goto runtimeIndexAssignment
 			}
-			valueTemp := ctx.newTemp()
 			objTemp := ctx.newTemp()
 			idxTemp := ctx.newTemp()
 			indexTemp := ctx.newTemp()
 			lengthTemp := ctx.newTemp()
 			resultTemp := ctx.newTemp()
 			lines := append([]string{}, valueLines...)
-			lines = append(lines, valueArgLines...)
 			lines = append(lines, objLines...)
 			lines = append(lines, idxLines...)
-			lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueAssignedExpr))
 			lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
 			lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
 			if !ok {
@@ -73,11 +69,60 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp))
 			lines = append(lines, fmt.Sprintf("\t%s = __able_index_error(%s, %s)", resultTemp, indexTemp, lengthTemp))
 			lines = append(lines, "} else {")
-			lines = append(lines, fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp))
+			if assign.Operator == ast.AssignmentAssign {
+				valueArgLines, valueAssignedExpr, ok := g.staticArrayCoerceValueExprLines(ctx, objType, valueExpr, valueType)
+				if !ok {
+					ctx.setReason("index assignment value unsupported")
+					return nil, "", "", false
+				}
+				valueTemp := ctx.newTemp()
+				lines = append(lines, indentLines(valueArgLines, 1)...)
+				lines = append(lines, fmt.Sprintf("\t%s := %s", valueTemp, valueAssignedExpr))
+				lines = append(lines, fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp))
+				lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, g.staticArrayResultValueExpr(objType, valueTemp)))
+			} else {
+				valueArgLines, valueAssignedExpr, _, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, valueExpr, valueType, elemType)
+				if !ok {
+					ctx.setReason("index assignment value unsupported")
+					return nil, "", "", false
+				}
+				valueTemp := ctx.newTemp()
+				currentTemp := ctx.newTemp()
+				storedTemp := ctx.newTemp()
+				currentLines, currentExpr, currentType, ok := g.staticArrayResultExprLines(ctx, objType, fmt.Sprintf("%s.Elements[%s]", objTemp, indexTemp), elemType)
+				if !ok || currentType != elemType {
+					ctx.setReason("index assignment value unsupported")
+					return nil, "", "", false
+				}
+				nodeName := g.diagNodeName(assign, "*ast.AssignmentExpression", "assign")
+				lines = append(lines, indentLines(valueArgLines, 1)...)
+				lines = append(lines, fmt.Sprintf("\t%s := %s", valueTemp, valueAssignedExpr))
+				lines = append(lines, indentLines(currentLines, 1)...)
+				lines = append(lines, fmt.Sprintf("\t%s := %s", currentTemp, currentExpr))
+				opLines, opExpr, resultType, ok := g.compileBinaryOperation(ctx, op, currentTemp, elemType, valueTemp, elemType, elemType, nodeName)
+				if !ok {
+					return nil, "", "", false
+				}
+				if resultType != elemType {
+					ctx.setReason("index assignment value unsupported")
+					return nil, "", "", false
+				}
+				lines = append(lines, indentLines(opLines, 1)...)
+				storeLines, storedExpr, ok := g.staticArrayCoerceValueExprLines(ctx, objType, opExpr, elemType)
+				if !ok {
+					ctx.setReason("index assignment value unsupported")
+					return nil, "", "", false
+				}
+				lines = append(lines, indentLines(storeLines, 1)...)
+				lines = append(lines, fmt.Sprintf("\t%s := %s", storedTemp, storedExpr))
+				lines = append(lines, fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, storedTemp))
+				lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, g.staticArrayResultValueExpr(objType, storedTemp)))
+			}
 			lines = append(lines, "}")
 			lines = append(lines, g.staticArraySyncCall(objType, objTemp))
 			return lines, resultTemp, "runtime.Value", true
 		}
+	runtimeIndexAssignment:
 		valueConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 		if !ok {
 			ctx.setReason("index assignment value unsupported")
@@ -465,7 +510,9 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		}
 	}
 	if !declaring && goType == "" && exists {
-		goType = existing.GoType
+		if !currentExists {
+			goType = existing.GoType
+		}
 	}
 	var expr string
 	var exprLines []string
@@ -530,10 +577,19 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	originStructType := ""
 	goName := existing.GoName
 	binding := existing
+	rebindCurrent := !declaring && exists && currentExists && typeAnnotation == nil && existing.GoType != "" && existing.GoType != goType
 	if declaring {
 		goName = sanitizeIdent(name)
 		binding = paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: assignmentTypeExpr, OriginGoType: originStructType}
 		ctx.setLocalBinding(name, binding)
+	} else if rebindCurrent {
+		goName = ctx.newTemp()
+		updated := existing
+		updated.GoName = goName
+		updated.GoType = goType
+		updated.TypeExpr = assignmentTypeExpr
+		ctx.setLocalBinding(name, updated)
+		binding = updated
 	} else {
 		// Invalidate CSE extraction cache on reassignment.
 		if ctx.originExtractions != nil {
@@ -547,7 +603,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		binding = updated
 	}
 	line := ""
-	if declaring {
+	if declaring || rebindCurrent {
 		line = fmt.Sprintf("var %s %s = %s", goName, goType, expr)
 	} else {
 		line = fmt.Sprintf("%s = %s", goName, expr)

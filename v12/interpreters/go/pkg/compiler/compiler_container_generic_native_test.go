@@ -413,15 +413,33 @@ func TestCompilerConcreteIteratorGenericMethodsStayNativeWithExperimentalMonoArr
 	if !strings.Contains(compiledSrc, "func __able_compiled_iface_Iterator_collect_") || !strings.Contains(compiledSrc, "(*__able_array_i64, *__ableControl)") {
 		t.Fatalf("expected compiled mono-array collect helper to return the specialized array carrier:\n%s", compiledSrc)
 	}
-	dispatchBody, ok := findCompiledFunction(result, "__able_compiled_iface_Iterator_collect_dispatch")
+	helperName := "__able_compiled_iface_Iterator_collect_dispatch"
+	helperBody, ok := findCompiledFunction(result, helperName)
 	if !ok {
-		t.Fatalf("could not find compiled mono-array collect dispatch helper")
+		helperName = "__able_compiled_iface_Iterator_collect_default"
+		helperBody, ok = findCompiledFunction(result, helperName)
+		if !ok {
+			t.Fatalf("could not find compiled mono-array collect helper")
+		}
 	}
-	if strings.Contains(dispatchBody, "__able_method_call_node(") {
-		t.Fatalf("expected mono-array collect dispatch helper to keep runtime-adapter receivers on the compiled default-helper path:\n%s", dispatchBody)
+	if strings.Contains(helperBody, "__able_method_call_node(") {
+		t.Fatalf("expected %s to keep mono-array collect on the compiled helper path:\n%s", helperName, helperBody)
 	}
-	if !strings.Contains(dispatchBody, "__able_compiled_impl_Iterator_collect_default_") {
-		t.Fatalf("expected mono-array collect dispatch helper to call the compiled default helper for every receiver case:\n%s", dispatchBody)
+	if strings.Contains(helperBody, "__able_call_named(") {
+		t.Fatalf("expected %s to avoid runtime fallback dispatch:\n%s", helperName, helperBody)
+	}
+	if helperName == "__able_compiled_iface_Iterator_collect_dispatch" && !strings.Contains(helperBody, "__able_compiled_impl_Iterator_collect_default_") {
+		t.Fatalf("expected mono-array collect dispatch helper to call the compiled default helper for every receiver case:\n%s", helperBody)
+	}
+	if helperName == "__able_compiled_iface_Iterator_collect_default" {
+		for _, fragment := range []string{
+			"__able_compiled_impl_Default__default_0_spec",
+			"__able_compiled_impl_Extend_extend_0_spec",
+		} {
+			if !strings.Contains(helperBody, fragment) {
+				t.Fatalf("expected direct mono-array collect helper to contain %q:\n%s", fragment, helperBody)
+			}
+		}
 	}
 	if strings.Contains(compiledSrc, "func __able_compiled_iface_Iterator_collect_dispatch_runtime_adapter") {
 		t.Fatalf("expected mono-array collect dispatch to avoid generating a runtime-adapter collect fallback helper:\n%s", compiledSrc)

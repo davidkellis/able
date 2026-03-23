@@ -123,3 +123,42 @@ func TestCompilerNativeCallableExecutes(t *testing.T) {
 
 	compileAndRunSource(t, "ablec-native-callable-", source)
 }
+
+func TestCompilerPipePlaceholderLambdaStaysNative(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  value := 10 |> (@ + 7)",
+		"  value",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(body, "__able_fn_runtime_Value_to_runtime_Value(") {
+		t.Fatalf("expected pipe placeholder lambda to stay on a native callable carrier:\n%s", body)
+	}
+	if strings.Contains(body, "__able_call_value(") || strings.Contains(body, "__able_call_value_fast(") {
+		t.Fatalf("expected pipe placeholder lambda call to avoid runtime call helpers:\n%s", body)
+	}
+}
+
+func TestCompilerPipePlaceholderLambdaExecutes(t *testing.T) {
+	source := strings.Join([]string{
+		"extern go fn __able_os_exit(code: i32) -> void {}",
+		"",
+		"fn main() {",
+		"  if (10 |> (@ + 7)) == 17 {",
+		"    __able_os_exit(0)",
+		"  }",
+		"  __able_os_exit(1)",
+		"}",
+		"",
+	}, "\n")
+
+	compileAndRunSource(t, "ablec-pipe-placeholder-native-", source)
+}

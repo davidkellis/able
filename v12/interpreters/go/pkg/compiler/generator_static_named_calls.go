@@ -42,12 +42,23 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 		var writebackIdents []string
 		for idx, arg := range call.Arguments {
 			param := info.Params[idx]
-			if g.typeCategory(param.GoType) == "struct" {
+			paramGoType := param.GoType
+			expectedArgType := g.staticParamCarrierType(ctx, param)
+			compileExpectedArgType := expectedArgType
+			if g.nativeUnionInfoForGoType(expectedArgType) != nil {
+				compileExpectedArgType = ""
+			}
+			if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && (expectedArgType == "" || expectedArgType == "runtime.Value" || expectedArgType == "any") {
+				if ifaceInfo, ok := g.ensureNativeInterfaceInfo(ctx.packageName, ifaceType); ok && ifaceInfo != nil && ifaceInfo.GoType != "" {
+					expectedArgType = ifaceInfo.GoType
+				}
+			}
+			if g.typeCategory(paramGoType) == "struct" {
 				if ident, ok := arg.(*ast.Identifier); ok && ident != nil {
 					if binding, ok := ctx.lookup(ident.Name); ok && binding.GoType == "runtime.Value" {
 						runtimeTemp := ctx.newTemp()
 						preLines = append(preLines, fmt.Sprintf("%s := %s", runtimeTemp, binding.GoName))
-						convLines, structExpr, ok := g.lowerExpectRuntimeValue(ctx, runtimeTemp, param.GoType)
+						convLines, structExpr, ok := g.lowerExpectRuntimeValue(ctx, runtimeTemp, paramGoType)
 						if !ok {
 							ctx.setReason("call argument unsupported")
 							return nil, "", "", false
@@ -56,9 +67,9 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 						structTemp := ctx.newTemp()
 						preLines = append(preLines, fmt.Sprintf("%s := %s", structTemp, structExpr))
 						args = append(args, structTemp)
-						baseName, ok := g.structBaseName(param.GoType)
+						baseName, ok := g.structBaseName(paramGoType)
 						if !ok {
-							baseName = strings.TrimPrefix(param.GoType, "*")
+							baseName = strings.TrimPrefix(paramGoType, "*")
 						}
 						transferLines, ok := g.lowerControlTransfer(ctx, g.runtimeErrorControlExpr(callNode, "err"))
 						if !ok {
@@ -72,24 +83,24 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 					}
 				}
 			}
-			argLines, expr, exprType, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, param.GoType, param.TypeExpr)
+			argLines, expr, exprType, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, compileExpectedArgType, param.TypeExpr)
 			if !ok {
 				return nil, "", "", false
 			}
 			preLines = append(preLines, argLines...)
 			argExpr := expr
 			argType := exprType
-			if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && param.GoType == "runtime.Value" {
-				if argType != "runtime.Value" {
-					argConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
-					if !ok {
-						ctx.setReason("interface argument unsupported")
-						return nil, "", "", false
-					}
-					preLines = append(preLines, argConvLines...)
-					argExpr = valueExpr
-					argType = "runtime.Value"
+			if paramGoType == "runtime.Value" && argType != "runtime.Value" {
+				argConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
+				if !ok {
+					ctx.setReason("call argument unsupported")
+					return nil, "", "", false
 				}
+				preLines = append(preLines, argConvLines...)
+				argExpr = valueExpr
+				argType = "runtime.Value"
+			}
+			if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && paramGoType == "runtime.Value" {
 				ifaceLines, coerced, ok := g.interfaceArgExprLines(ctx, argExpr, ifaceType, calleeName, ctx.genericNames)
 				if !ok {
 					ctx.setReason("interface argument unsupported")
@@ -97,6 +108,15 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 				}
 				preLines = append(preLines, ifaceLines...)
 				argExpr = coerced
+			} else if paramGoType != "" && paramGoType != "any" && argType != paramGoType {
+				coerceLines, coercedExpr, coercedType, ok := g.prepareStaticCallArg(ctx, argExpr, argType, paramGoType)
+				if !ok {
+					ctx.setReason("call argument type mismatch")
+					return nil, "", "", false
+				}
+				preLines = append(preLines, coerceLines...)
+				argExpr = coercedExpr
+				argType = coercedType
 			}
 			args = append(args, argExpr)
 		}

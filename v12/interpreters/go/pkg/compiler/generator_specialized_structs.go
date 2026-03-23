@@ -206,6 +206,10 @@ func specializedStructSuffix(g *generator, pkgName string, args []ast.TypeExpres
 }
 
 func (g *generator) typeExprIsConcreteInPackage(pkgName string, expr ast.TypeExpression) bool {
+	return g.typeExprIsConcreteInPackageSeen(pkgName, expr, nil, nil)
+}
+
+func (g *generator) typeExprIsConcreteInPackageSeen(pkgName string, expr ast.TypeExpression, visiting map[string]struct{}, cache map[string]bool) bool {
 	if g == nil || expr == nil {
 		return false
 	}
@@ -213,59 +217,84 @@ func (g *generator) typeExprIsConcreteInPackage(pkgName string, expr ast.TypeExp
 	if expanded := g.expandTypeAliasForPackage(pkgName, expr); expanded != nil {
 		expr = expanded
 	}
+	key := strings.TrimSpace(pkgName) + "::" + typeExpressionToString(expr)
+	if cache != nil {
+		if result, ok := cache[key]; ok {
+			return result
+		}
+	}
+	if visiting != nil {
+		if _, ok := visiting[key]; ok {
+			return true
+		}
+	} else {
+		visiting = make(map[string]struct{})
+	}
+	if cache == nil {
+		cache = make(map[string]bool)
+	}
+	visiting[key] = struct{}{}
+	defer delete(visiting, key)
+	result := false
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t == nil || t.Name == nil || t.Name.Name == "" {
-			return false
+			break
 		}
 		name := t.Name.Name
 		if name == "any" || name == "Error" || isBuiltinMappedType(name) {
-			return true
+			result = true
+			break
 		}
 		if _, ok := g.structInfoForTypeName(pkgName, name); ok {
-			return true
+			result = true
+			break
 		}
 		if _, _, _, _, ok := interfaceExprInfo(g, pkgName, expr); ok {
-			return true
+			result = true
+			break
 		}
 		if _, _, ok := g.expandedUnionMembersInPackage(pkgName, expr); ok {
-			return true
+			result = true
+			break
 		}
-		return false
 	case *ast.GenericTypeExpression:
-		if t == nil || !g.typeExprIsConcreteInPackage(pkgName, t.Base) {
-			return false
+		if t == nil || !g.typeExprIsConcreteInPackageSeen(pkgName, t.Base, visiting, cache) {
+			break
 		}
+		result = true
 		for _, arg := range t.Arguments {
-			if !g.typeExprIsConcreteInPackage(pkgName, arg) {
-				return false
+			if !g.typeExprIsConcreteInPackageSeen(pkgName, arg, visiting, cache) {
+				result = false
+				break
 			}
 		}
-		return true
 	case *ast.NullableTypeExpression:
-		return g.typeExprIsConcreteInPackage(pkgName, t.InnerType)
+		result = g.typeExprIsConcreteInPackageSeen(pkgName, t.InnerType, visiting, cache)
 	case *ast.ResultTypeExpression:
-		return g.typeExprIsConcreteInPackage(pkgName, t.InnerType)
+		result = g.typeExprIsConcreteInPackageSeen(pkgName, t.InnerType, visiting, cache)
 	case *ast.UnionTypeExpression:
+		result = true
 		for _, member := range t.Members {
-			if !g.typeExprIsConcreteInPackage(pkgName, member) {
-				return false
+			if !g.typeExprIsConcreteInPackageSeen(pkgName, member, visiting, cache) {
+				result = false
+				break
 			}
 		}
-		return true
 	case *ast.FunctionTypeExpression:
-		if !g.typeExprIsConcreteInPackage(pkgName, t.ReturnType) {
-			return false
+		if !g.typeExprIsConcreteInPackageSeen(pkgName, t.ReturnType, visiting, cache) {
+			break
 		}
+		result = true
 		for _, param := range t.ParamTypes {
-			if !g.typeExprIsConcreteInPackage(pkgName, param) {
-				return false
+			if !g.typeExprIsConcreteInPackageSeen(pkgName, param, visiting, cache) {
+				result = false
+				break
 			}
 		}
-		return true
 	case *ast.WildcardTypeExpression:
-		return false
 	default:
-		return false
 	}
+	cache[key] = result
+	return result
 }

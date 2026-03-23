@@ -224,6 +224,131 @@ func TestCompilerNullableCharParamAndMatchStayNative(t *testing.T) {
 	}
 }
 
+func TestCompilerNullableArrayNilComparisonStaysNative(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Box {",
+		"  value: i32",
+		"}",
+		"",
+		"fn maybe(flag: bool) -> ?Box {",
+		"  if flag { Box { value: 1 } } else { nil }",
+		"}",
+		"",
+		"fn left() -> bool {",
+		"  maybe(false) == nil",
+		"}",
+		"",
+		"fn right() -> bool {",
+		"  nil == maybe(false)",
+		"}",
+		"",
+	}, "\n"))
+
+	for _, name := range []string{"__able_compiled_fn_left", "__able_compiled_fn_right"} {
+		body, ok := findCompiledFunction(result, name)
+		if !ok {
+			t.Fatalf("could not find compiled function %s", name)
+		}
+		if !strings.Contains(body, "== nil") && !strings.Contains(body, "nil ==") && !strings.Contains(body, "== (*Box)(nil)") && !strings.Contains(body, "(*Box)(nil) ==") {
+			t.Fatalf("expected native nil comparison in %s:\n%s", name, body)
+		}
+		for _, fragment := range []string{
+			"__able_struct_Array_to(",
+			"__able_binary_op(",
+		} {
+			if strings.Contains(body, fragment) {
+				t.Fatalf("expected native nil comparison in %s to avoid %q:\n%s", name, fragment, body)
+			}
+		}
+	}
+}
+
+func TestCompilerSafeNavigationMethodAndFieldStayNativeNullable(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Box { value: i32 }",
+		"",
+		"methods Box {",
+		"  fn add(self: Self, delta: i32) -> i32 { self.value + delta }",
+		"}",
+		"",
+		"fn maybe_box(make_nil: bool) -> ?Box {",
+		"  if make_nil { nil } else { Box { value: 10 } }",
+		"}",
+		"",
+		"fn main() -> String {",
+		"  b := maybe_box(true)?.add(1)",
+		"  c := maybe_box(true)?.value",
+		"  `b ${b} c ${c}`",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main")
+	}
+	for _, fragment := range []string{
+		"var b *int32",
+		"var c *int32",
+		"__able_ptr(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected safe navigation to keep native nullable carriers and contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_member_get_method(",
+		"__able_call_value(",
+		"bridge.AsInt(__able_tmp_",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected safe navigation to avoid %q in compiled main:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerSafeNavigationMethodAndFieldExecute(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"struct Box { value: i32 }",
+		"",
+		"methods Box {",
+		"  fn add(self: Self, delta: i32) -> i32 { self.value + delta }",
+		"}",
+		"",
+		"ticks := 0",
+		"",
+		"fn tick() -> i32 {",
+		"  ticks = ticks + 1",
+		"  ticks",
+		"}",
+		"",
+		"fn maybe_box(make_nil: bool) -> ?Box {",
+		"  if make_nil { nil } else { Box { value: 10 } }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  _ = maybe_box(false)?.add(tick())",
+		"  if ticks != 1 { raise \"bad-a\" }",
+		"  _ = maybe_box(true)?.add(tick())",
+		"  if ticks != 1 { raise \"bad-b\" }",
+		"  _ = maybe_box(true)?.value",
+		"  if ticks != 1 { raise \"bad-c\" }",
+		"}",
+		"",
+	}, "\n")
+
+	_ = compileAndRunSourceWithOptions(t, "ablec-safe-navigation-", source, Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+}
+
 func TestCompilerNullableErrorReturnAndMatchStayNative(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

@@ -253,25 +253,25 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 						lines = append(lines, errorLines...)
 						return lines, expr, retType, true
 					}
-					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
-						lines = append(lines, ifaceLines...)
-						return lines, expr, retType, true
-					}
-					if siblingLines, expr, retType, ok := g.compileDirectImplSiblingMethodCall(ctx, call, callee, expected, objExpr, objType, callNode); ok {
-						lines = append(lines, siblingLines...)
-						return lines, expr, retType, true
-					}
 					if method := g.methodForReceiver(objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
 						methodLines, v, t, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 						lines = append(lines, methodLines...)
 						return lines, v, t, ok
 					}
+					if siblingLines, expr, retType, ok := g.compileDirectImplSiblingMethodCall(ctx, call, callee, expected, objExpr, objType, callNode); ok {
+						lines = append(lines, siblingLines...)
+						return lines, expr, retType, true
+					}
 					if method := g.compileableInterfaceMethodForConcreteReceiver(objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
 						methodLines, v, t, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 						lines = append(lines, methodLines...)
 						return lines, v, t, ok
+					}
+					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
+						lines = append(lines, ifaceLines...)
+						return lines, expr, retType, true
 					}
 					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceGenericMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines = append(lines, ifaceLines...)
@@ -289,7 +289,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			}
 			if callee.Safe {
 				cat := g.typeCategory(objType)
-				if cat == "runtime" || cat == "any" || (cat == "struct" && strings.HasPrefix(objType, "*")) {
+				if cat == "runtime" || cat == "any" || g.goTypeHasNilZeroValue(objType) {
 					safeLines, v, t, ok := g.compileSafeMemberCall(ctx, call, callee, expected, objExpr, objType, callNode)
 					lines = append(lines, safeLines...)
 					return lines, v, t, ok
@@ -638,6 +638,11 @@ func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.Functio
 		ctx.setReason("missing safe member call")
 		return nil, "", "", false
 	}
+	if objType != "runtime.Value" && objType != "any" {
+		if lines, expr, resultType, ok := g.compileStaticSafeMemberCall(ctx, call, callee, expected, objExpr, objType, callNode); ok {
+			return lines, expr, resultType, true
+		}
+	}
 	objConvLines, objValue, ok := g.lowerRuntimeValue(ctx, objExpr, objType)
 	if !ok {
 		ctx.setReason("method call receiver unsupported")
@@ -669,15 +674,21 @@ func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.Functio
 	resultType := "runtime.Value"
 	if g.isVoidType(expected) {
 		resultType = "struct{}"
+	} else if expected != "" {
+		resultType = expected
 	}
 	resultTemp := ctx.newTemp()
 	objTemp := ctx.newTemp()
+	nilExpr := safeNilReturnExpr(resultType)
+	if wrapped, ok := g.nativeUnionNilExpr(resultType); ok {
+		nilExpr = wrapped
+	}
 	lines := make([]string, 0, len(argPreLines)+len(call.Arguments)*2+8+len(objConvLines))
 	lines = append(lines, objConvLines...)
 	lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objValue))
 	lines = append(lines, fmt.Sprintf("var %s %s", resultTemp, resultType))
-	lines = append(lines, fmt.Sprintf("if __able_is_nil(%s) {", objTemp))
-	lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, safeNilReturnExpr(expected)))
+	lines = append(lines, fmt.Sprintf("if %s {", g.safeNavigationNilCheckExpr(objTemp, objType)))
+	lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, nilExpr))
 	lines = append(lines, "} else {")
 	lines = append(lines, indentLines(argPreLines, 1)...)
 	memberTemp := ctx.newTemp()
@@ -708,10 +719,20 @@ func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.Functio
 	if g.isVoidType(expected) {
 		lines = append(lines, fmt.Sprintf("_ = %s", callExpr))
 	} else {
-		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, callExpr))
+		if resultType == "runtime.Value" {
+			lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, callExpr))
+		} else {
+			convLines, converted, ok := g.safeNavigationCoerceSuccessExpr(ctx, callExpr, "runtime.Value", resultType)
+			if !ok {
+				ctx.setReason("call return type mismatch")
+				return nil, "", "", false
+			}
+			lines = append(lines, convLines...)
+			lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, converted))
+		}
 	}
 	lines = append(lines, "}")
-	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) {
+	if expected != "" && expected != "runtime.Value" && !g.isVoidType(expected) && resultType == "runtime.Value" {
 		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")

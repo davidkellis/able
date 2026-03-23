@@ -153,6 +153,9 @@ func (g *generator) controlFlowNilResultExpr(resultType string) (string, bool) {
 	if resultType == "" {
 		return "", false
 	}
+	if wrapped, ok := g.nativeUnionNilExpr(resultType); ok {
+		return wrapped, true
+	}
 	if resultType == "runtime.Value" {
 		return "runtime.NilValue{}", true
 	}

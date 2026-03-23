@@ -185,6 +185,9 @@ func (g *generator) nativeInterfaceAcceptsActual(info *nativeInterfaceInfo, actu
 		if adapter == nil || adapter.GoType == "" {
 			continue
 		}
+		if g.sameNominalStructFamily(adapter.GoType, actual) {
+			return true
+		}
 		union := g.nativeUnionInfoForGoType(adapter.GoType)
 		if union == nil {
 			continue
@@ -208,6 +211,56 @@ func (g *generator) nativeInterfaceAcceptsActual(info *nativeInterfaceInfo, actu
 		}
 	}
 	return false
+}
+
+func (g *generator) nativeInterfaceAcceptsActualShallow(info *nativeInterfaceInfo, actual string) bool {
+	if g == nil || info == nil || actual == "" {
+		return false
+	}
+	if actual == info.GoType || actual == "runtime.Value" || actual == "any" {
+		return true
+	}
+	if g.nativeInterfaceAssignable(actual, info.GoType) {
+		return true
+	}
+	for _, method := range info.Methods {
+		if method == nil {
+			continue
+		}
+		if g.nativeInterfaceMethodImplExactOnly(actual, method) != nil {
+			continue
+		}
+		if method.DefaultDefinition != nil {
+			continue
+		}
+		return false
+	}
+	for _, method := range info.GenericMethods {
+		if method == nil {
+			continue
+		}
+		if g.nativeInterfaceGenericMethodImplExistsExact(actual, method) {
+			continue
+		}
+		if method.DefaultDefinition != nil {
+			continue
+		}
+		return false
+	}
+	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
+		if adapter == nil || adapter.GoType == "" {
+			continue
+		}
+		if adapter.GoType == actual || g.sameNominalStructFamily(adapter.GoType, actual) {
+			return true
+		}
+		if union := g.nativeUnionInfoForGoType(adapter.GoType); union != nil {
+			if _, ok := g.nativeUnionMember(union, actual); ok {
+				return true
+			}
+		}
+	}
+	return len(info.Methods)+len(info.GenericMethods) > 0
 }
 
 func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected string, actual string, expr string) ([]string, string, bool) {
@@ -254,6 +307,12 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || adapter.GoType == "" {
 			continue
+		}
+		if g.sameNominalStructFamily(adapter.GoType, actual) {
+			coerceLines, coercedExpr, ok := g.coerceNominalStructFamilyLines(ctx, expr, actual, adapter.GoType)
+			if ok {
+				return coerceLines, fmt.Sprintf("%s(%s)", adapter.WrapHelper, coercedExpr), true
+			}
 		}
 		if g.nativeUnionInfoForGoType(adapter.GoType) == nil {
 			continue

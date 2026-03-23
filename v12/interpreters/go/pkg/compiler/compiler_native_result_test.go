@@ -276,6 +276,73 @@ func TestCompilerDirectErrorMessageAndCauseStayNative(t *testing.T) {
 	}
 }
 
+func TestCompilerImplWrapperPrefersConcreteResultMethod(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"interface NumericConversions {",
+		"  fn to_i64(self: Self) -> Result i64",
+		"}",
+		"",
+		"struct BigBox {}",
+		"",
+		"methods BigBox {",
+		"  fn to_i64(self: Self) -> Result i64 { 0 }",
+		"}",
+		"",
+		"impl NumericConversions for BigBox {",
+		"  fn to_i64(self: Self) -> Result i64 { self.to_i64() }",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "func __able_compiled_method_BigBox_to_i64(") {
+		t.Fatalf("expected concrete BigBox.to_i64 method to compile:\n%s", compiledSrc)
+	}
+
+	body, ok := findCompiledFunction(result, "__able_compiled_impl_NumericConversions_to_i64_0")
+	if !ok {
+		t.Fatalf("could not find compiled impl wrapper")
+	}
+	if strings.Contains(body, ":= __able_compiled_impl_NumericConversions_to_i64_0(") {
+		t.Fatalf("expected impl wrapper to avoid self-recursion:\n%s", body)
+	}
+	if !strings.Contains(body, "__able_compiled_method_BigBox_to_i64(self)") {
+		t.Fatalf("expected impl wrapper to forward to the concrete method:\n%s", body)
+	}
+}
+
+func TestCompilerRaiseErrorImplementerUsesNativeErrorValue(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct RootError { code: i32 }",
+		"",
+		"impl Error for RootError {",
+		"  fn message(self: Self) -> String { `root ${self.code}` }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn boom() -> String {",
+		"  raise RootError { code: 7 }",
+		"  \"ok\"",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_boom")
+	if !ok {
+		t.Fatalf("could not find compiled boom function")
+	}
+	if strings.Contains(body, "__able_any_to_value(&RootError") {
+		t.Fatalf("expected raise to normalize Error implementers to runtime.ErrorValue:\n%s", body)
+	}
+	if !strings.Contains(body, "runtime.ErrorValue{Message:") {
+		t.Fatalf("expected raise to materialize a native runtime.ErrorValue:\n%s", body)
+	}
+}
+
 func TestCompilerDirectErrorCauseExecutes(t *testing.T) {
 	source := `extern go fn __able_os_exit(code: i32) -> void {}
 

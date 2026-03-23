@@ -252,3 +252,88 @@ func TestCompilerBroadNativeUnionExecutes(t *testing.T) {
 	}, "\n")
 	compileAndRunSource(t, "ablec-broad-native-union-", source)
 }
+
+func TestCompilerSingletonMismatchClausesStayStatic(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Ready {}",
+		"struct Waiting {}",
+		"",
+		"fn describe(status: Ready) -> String {",
+		"  status match {",
+		"    case Ready => \"ready\",",
+		"    case Waiting => \"waiting\"",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_describe")
+	if !ok {
+		t.Fatalf("could not find compiled describe function")
+	}
+	if !strings.Contains(body, "\"ready\"") || !strings.Contains(body, "\"waiting\"") {
+		t.Fatalf("expected singleton match clauses to compile without fallback:\n%s", body)
+	}
+	if strings.Contains(body, "__able_call_original") || strings.Contains(body, "__able_call_named(") {
+		t.Fatalf("expected singleton mismatch clauses to avoid fallback dispatch:\n%s", body)
+	}
+}
+
+func TestCompilerGenericUnionPayloadLiteralUsesSpecializedWrap(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct None {}",
+		"struct Some T { value: T }",
+		"union Option T = None | Some T",
+		"",
+		"fn main() -> i32 {",
+		"  present: Option i32 = Some { value: 9 }",
+		"  present match {",
+		"    case Some { value } => value,",
+		"    case None => 0",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(body, "__able_union__None_or__Some_i32_wrap_ptr_Some_i32(") {
+		t.Fatalf("expected generic union payload construction to wrap the specialized member carrier:\n%s", body)
+	}
+	if strings.Contains(body, "var present __able_union__None_or__Some_i32 = &Some{") {
+		t.Fatalf("expected generic union payload construction to avoid unspecialized direct assignment:\n%s", body)
+	}
+}
+
+func TestCompilerConcreteErrorTypedPatternResultStaysStatic(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"union Result T = Error | T",
+		"",
+		"struct DivisionByZeroError {}",
+		"",
+		"impl Error for DivisionByZeroError {",
+		"  fn message(self: Self) -> String { \"division by zero\" }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn describe_result(value: Result i32) -> String {",
+		"  value match {",
+		"    case _: DivisionByZeroError => \"err\",",
+		"    case n: i32 => `ok ${n}`",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	if _, ok := findCompiledFunction(result, "__able_compiled_fn_describe_result"); !ok {
+		t.Fatalf("expected concrete error typed-pattern result function to compile without fallback")
+	}
+}

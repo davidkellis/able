@@ -57,3 +57,41 @@ func TestCompilerStructPatternNamedFieldBindingExecutes(t *testing.T) {
 
 	compileAndRunSource(t, "ablec-struct-pattern-native-", source)
 }
+
+func TestCompilerStructPatternFieldBindingPreservesGenericTypeExpr(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Node T { value: T }",
+		"struct Box T { items: Array (Node T) }",
+		"",
+		"fn head(box: Box i32) -> i32 {",
+		"  box match {",
+		"    case Box { items::items } => {",
+		"      item := items.read_slot(0) or { Node { value: 0 } }",
+		"      item.value",
+		"    },",
+		"    case _ => 0,",
+		"  }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  head(Box { items: [Node { value: 7 }] })",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_head")
+	if !ok {
+		t.Fatalf("could not find compiled head function")
+	}
+	if !strings.Contains(body, "var items *__able_array_Node_i32 =") {
+		t.Fatalf("expected generic struct-pattern field binding to preserve the specialized array carrier:\n%s", body)
+	}
+	if !strings.Contains(body, "var item *Node_i32 =") {
+		t.Fatalf("expected nested read_slot result to preserve the specialized node carrier:\n%s", body)
+	}
+	if strings.Contains(body, "var item runtime.Value") {
+		t.Fatalf("expected nested read_slot result to avoid runtime.Value fallback:\n%s", body)
+	}
+}

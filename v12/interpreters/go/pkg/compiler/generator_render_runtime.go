@@ -276,7 +276,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\tif err := runtime.ArrayStoreWrite(arr.Handle, index, value); err != nil {\n")
 	fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, __able_control_from_error(err)\n")
 	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, nil\n")
+	fmt.Fprintf(buf, "\t\treturn value, nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tif inst := __able_struct_instance(base); inst != nil {\n")
 	fmt.Fprintf(buf, "\t\tif inst.Definition != nil && inst.Definition.Node != nil && inst.Definition.Node.ID != nil && inst.Definition.Node.ID.Name == \"Array\" {\n")

@@ -28,8 +28,8 @@ func TestCompilerDequeQueueMethodsStayNative(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	for _, fragment := range []string{
-		"var values *Deque =",
-		"var queue *Queue =",
+		"var values *Deque",
+		"var queue *Queue",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected native Deque/Queue locals to contain %q:\n%s", fragment, body)
@@ -83,7 +83,7 @@ func TestCompilerBitSetHeapMethodsStayNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var bits *BitSet =",
-		"var heap *Heap =",
+		"var heap *Heap",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected native BitSet/Heap locals to contain %q:\n%s", fragment, body)

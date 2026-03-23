@@ -76,5 +76,22 @@ func (m *nameMangler) unique(base string) string {
 	if count == 0 {
 		return base
 	}
-	return base + "_" + string('a'+rune(count-1))
+	return base + "_" + alphaSuffix(count-1)
+}
+
+func alphaSuffix(index int) string {
+	if index < 0 {
+		return "a"
+	}
+	index++
+	buf := make([]byte, 0, 4)
+	for index > 0 {
+		index--
+		buf = append(buf, byte('a'+(index%26)))
+		index /= 26
+	}
+	for left, right := 0, len(buf)-1; left < right; left, right = left+1, right-1 {
+		buf[left], buf[right] = buf[right], buf[left]
+	}
+	return string(buf)
 }

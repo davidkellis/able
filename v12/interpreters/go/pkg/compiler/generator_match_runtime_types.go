@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"fmt"
-	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -125,6 +124,55 @@ func (g *generator) runtimeIntegerSuffix(goType string) (string, bool) {
 	}
 }
 
+func (g *generator) compileNativeUnionLiteralMatch(ctx *compileContext, lit ast.Literal, subjectTemp string, subjectType string) ([]string, string, bool) {
+	if g == nil || ctx == nil || lit == nil {
+		return nil, "", false
+	}
+	union := g.nativeUnionInfoForGoType(subjectType)
+	if union == nil {
+		return nil, "", false
+	}
+	if _, isNil := lit.(*ast.NilLiteral); isNil {
+		return nil, "false", true
+	}
+	litExpr, ok := lit.(ast.Expression)
+	if !ok || litExpr == nil {
+		return nil, "", false
+	}
+	tryMember := func(member *nativeUnionMember, expr string, exprType string, lines []string) ([]string, string, bool) {
+		if member == nil || member.GoType == "" || member.GoType != exprType || !g.isEqualityComparable(member.GoType) {
+			return nil, "", false
+		}
+		memberTemp := ctx.newTemp()
+		okTemp := ctx.newTemp()
+		out := append([]string{}, lines...)
+		out = append(out, fmt.Sprintf("%s, %s := %s(%s)", memberTemp, okTemp, member.UnwrapHelper, subjectTemp))
+		return out, fmt.Sprintf("(%s && %s == %s)", okTemp, memberTemp, expr), true
+	}
+	litLines, litValue, litType, ok := g.compileExprLines(ctx.probeChild(), litExpr, "")
+	if ok {
+		if member, memberOK := g.nativeUnionMember(union, litType); memberOK {
+			if lines, cond, ok := tryMember(member, litValue, litType, litLines); ok {
+				return lines, cond, true
+			}
+		}
+	}
+	for _, member := range union.Members {
+		if member == nil || member.GoType == "" || member.GoType == "runtime.Value" || !g.isEqualityComparable(member.GoType) {
+			continue
+		}
+		memberCtx := ctx.probeChild()
+		memberLines, memberValue, memberType, ok := g.compileExprLines(memberCtx, litExpr, member.GoType)
+		if !ok {
+			continue
+		}
+		if lines, cond, ok := tryMember(member, memberValue, memberType, memberLines); ok {
+			return lines, cond, true
+		}
+	}
+	return nil, "false", true
+}
+
 func (g *generator) compileLiteralMatch(ctx *compileContext, lit ast.Literal, subjectTemp string, subjectType string) ([]string, string, bool) {
 	if lit == nil {
 		ctx.setReason("missing literal pattern")
@@ -181,7 +229,10 @@ func (g *generator) compileLiteralMatch(ctx *compileContext, lit ast.Literal, su
 		}
 		return litLines, fmt.Sprintf("(%s != nil && (*%s == %s))", subjectTemp, subjectTemp, expr), true
 	}
-	if _, ok := lit.(*ast.NilLiteral); ok && strings.HasPrefix(subjectType, "*") {
+	if lines, cond, ok := g.compileNativeUnionLiteralMatch(ctx, lit, subjectTemp, subjectType); ok {
+		return lines, cond, true
+	}
+	if _, ok := lit.(*ast.NilLiteral); ok && g.goTypeHasNilZeroValue(subjectType) {
 		return nil, fmt.Sprintf("(%s == nil)", subjectTemp), true
 	}
 	litLines, expr, _, ok := g.compileExprLines(ctx, lit.(ast.Expression), subjectType)

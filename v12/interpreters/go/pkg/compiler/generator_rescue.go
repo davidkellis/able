@@ -15,10 +15,17 @@ func (g *generator) compileRaiseStatement(ctx *compileContext, stmt *ast.RaiseSt
 	if !ok {
 		return nil, false
 	}
-	convLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, expr, goType)
-	if !ok {
-		ctx.setReason("raise value unsupported")
-		return nil, false
+	var convLines []string
+	valueRuntime := ""
+	if errorLines, errorExpr, ok := g.nativeErrorValueLines(ctx, goType, expr); ok {
+		convLines = errorLines
+		valueRuntime = errorExpr
+	} else {
+		convLines, valueRuntime, ok = g.lowerRuntimeValue(ctx, expr, goType)
+		if !ok {
+			ctx.setReason("raise value unsupported")
+			return nil, false
+		}
 	}
 	raiseNode := g.diagNodeName(stmt, "*ast.RaiseStatement", "raise")
 	lines := append([]string{}, exprLines...)

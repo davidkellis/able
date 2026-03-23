@@ -96,7 +96,10 @@ func (g *generator) inferStaticCallResultTypeExpr(ctx *compileContext, call *ast
 	switch callee := call.Callee.(type) {
 	case *ast.Identifier:
 		if info, _, ok := g.resolveStaticCallable(ctx, callee.Name); ok && info != nil && info.Definition != nil && info.Definition.ReturnType != nil {
-			return g.lowerNormalizedTypeExpr(ctx, info.Definition.ReturnType), true
+			info = g.concreteFunctionCallInfo(ctx, call, info, "")
+			if returnExpr := g.functionReturnTypeExpr(info); returnExpr != nil {
+				return returnExpr, true
+			}
 		}
 		if binding, ok := ctx.lookup(callee.Name); ok && binding.TypeExpr != nil {
 			if fnType, ok := binding.TypeExpr.(*ast.FunctionTypeExpression); ok && fnType != nil && fnType.ReturnType != nil {

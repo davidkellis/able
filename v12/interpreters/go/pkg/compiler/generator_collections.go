@@ -7,6 +7,10 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+func memberAccessMismatchReason(objectExpr string, objectType string, memberName string, fieldType string, expected string) string {
+	return fmt.Sprintf("member access type mismatch: expr=%s object=%s member=%s field=%s expected=%s", objectExpr, objectType, memberName, fieldType, expected)
+}
+
 func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiteral, expected string) ([]string, string, string, bool) {
 	if lit == nil {
 		ctx.setReason("missing array literal")
@@ -108,11 +112,15 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 		ctx.setReason("map literal type mismatch")
 		return "", "", false
 	}
-	if expected != "" && expected != "runtime.Value" && expected != "any" && !g.typeMatches(expected, hashMapType) && !g.canCoerceStaticExpr(expected, hashMapType) {
-		ctx.setReason("map literal type mismatch")
-		return "", "", false
+	returnType := hashMapType
+	if expected != "" && expected != "runtime.Value" && expected != "any" {
+		if expectedInfo := g.structInfoByGoName(expected); expectedInfo != nil && expectedInfo.Name == "HashMap" {
+			returnType = expected
+		} else if baseName, ok := g.structBaseName(expected); ok && baseName == "HashMap" {
+			returnType = expected
+		}
 	}
-	hashMapBase := strings.TrimPrefix(hashMapType, "*")
+	hashMapBase := strings.TrimPrefix(returnType, "*")
 	type mapElement struct {
 		kind   string
 		key    string
@@ -167,7 +175,7 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 		}
 	}
 	var buf strings.Builder
-	buf.WriteString(fmt.Sprintf("func() %s {\n", hashMapType))
+	buf.WriteString(fmt.Sprintf("func() %s {\n", returnType))
 	buf.WriteString("\tif __able_runtime == nil {\n")
 	buf.WriteString("\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	buf.WriteString("\t}\n")
@@ -450,7 +458,7 @@ func (g *generator) compileMapLiteral(ctx *compileContext, lit *ast.MapLiteral, 
 	buf.WriteString("\t}\n")
 	buf.WriteString(fmt.Sprintf("\treturn &%s{Handle: handleRaw}\n", hashMapBase))
 	buf.WriteString("}()")
-	return buf.String(), hashMapType, true
+	return buf.String(), returnType, true
 }
 
 func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAccessExpression, expected string) ([]string, string, string, bool) {
@@ -521,7 +529,7 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		}
 		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, baseExpr, expected)
 		if !ok {
-			ctx.setReason("member access type mismatch")
+			ctx.setReason(memberAccessMismatchReason(objectExpr, objectType, g.memberName(expr.Member), "runtime.Value", expected))
 			return nil, "", "", false
 		}
 		lines = append(lines, convLines...)
@@ -539,13 +547,28 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 					castExpr := fmt.Sprintf("%s(%s)", expected, fieldExpr)
 					return objLines, castExpr, expected, true
 				}
-				ctx.setReason("member access type mismatch")
+				ctx.setReason(memberAccessMismatchReason(objectExpr, objectType, memberName, fieldType, expected))
 				return nil, "", "", false
 			}
 		}
 	}
 	memberName := g.memberName(expr.Member)
+	if objectType == "runtime.ErrorValue" && memberName != "" {
+		if lines, fieldExpr, fieldType, ok := g.compileNativeErrorMemberAccess(ctx, objectExpr, memberName, expected); ok {
+			allLines := append([]string{}, objLines...)
+			allLines = append(allLines, lines...)
+			return allLines, fieldExpr, fieldType, true
+		}
+	}
 	if !expr.Safe && memberName != "" {
+		if ifaceMethod, ok := g.nativeInterfaceMethodForGoType(objectType, memberName); ok {
+			lines, callableExpr, callableType, ok := g.compileNativeInterfaceBoundMethodValue(ctx, objectExpr, objectType, ifaceMethod)
+			if ok {
+				allLines := append([]string{}, objLines...)
+				allLines = append(allLines, lines...)
+				return allLines, callableExpr, callableType, true
+			}
+		}
 		if lines, callableExpr, callableType, ok := g.compileStaticIteratorControllerBoundMethodValue(ctx, objectExpr, objectType, memberName, expected); ok {
 			allLines := append([]string{}, objLines...)
 			allLines = append(allLines, lines...)
@@ -578,36 +601,45 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 			if ok && (expected == "" || g.typeMatches(expected, coercedType)) {
 				return coerceLines, coercedExpr, coercedType, true
 			}
-			ctx.setReason("member access type mismatch")
+			ctx.setReason(memberAccessMismatchReason(objectExpr, objectType, memberName, fieldType, expected))
 			return nil, "", "", false
 		}
 		if expr.Safe && strings.HasPrefix(objectType, "*") {
 			objTemp := ctx.newTemp()
 			resultType := expected
 			if resultType == "" {
-				resultType = "any"
+				if inferredType, ok := g.safeNavigationCarrierType(fieldType); ok {
+					resultType = inferredType
+				} else {
+					resultType = "any"
+				}
 			}
 			resultTemp := ctx.newTemp()
 			nilExpr := safeNilReturnExpr(resultType)
+			if wrapped, ok := g.nativeUnionNilExpr(resultType); ok {
+				nilExpr = wrapped
+			}
 			lines := append([]string{}, objLines...)
 			lines = append(lines,
 				fmt.Sprintf("%s := %s", objTemp, objectExpr),
 				fmt.Sprintf("var %s %s", resultTemp, resultType),
-				fmt.Sprintf("if %s == nil { %s = %s } else { %s = %s.%s }", objTemp, resultTemp, nilExpr, resultTemp, objTemp, field.GoName),
 			)
+			lines = append(lines, fmt.Sprintf("if %s == nil {", objTemp))
+			lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, nilExpr))
+			lines = append(lines, "} else {")
+			coerceLines, coercedExpr, ok := g.safeNavigationCoerceSuccessExpr(ctx, fmt.Sprintf("%s.%s", objTemp, field.GoName), fieldType, resultType)
+			if !ok {
+				ctx.setReason(memberAccessMismatchReason(objectExpr, objectType, memberName, fieldType, resultType))
+				return nil, "", "", false
+			}
+			lines = append(lines, indentLines(coerceLines, 1)...)
+			lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, coercedExpr))
+			lines = append(lines, "}")
 			return lines, resultTemp, resultType, true
 		}
 		return objLines, fieldExpr, fieldType, true
 	}
 	if !expr.Safe && memberName != "" {
-		if ifaceMethod, ok := g.nativeInterfaceMethodForGoType(objectType, memberName); ok {
-			lines, callableExpr, callableType, ok := g.compileNativeInterfaceBoundMethodValue(ctx, objectExpr, objectType, ifaceMethod)
-			if ok {
-				allLines := append([]string{}, objLines...)
-				allLines = append(allLines, lines...)
-				return allLines, callableExpr, callableType, true
-			}
-		}
 		if method := g.methodForReceiver(objectType, memberName); method != nil {
 			lines, callableExpr, callableType, ok := g.compileNativeBoundMethodValue(ctx, objectExpr, objectType, method)
 			if ok {
@@ -647,7 +679,7 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 	}
 	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, baseExpr, expected)
 	if !ok {
-		ctx.setReason("member access type mismatch")
+		ctx.setReason(memberAccessMismatchReason(objectExpr, objectType, memberName, "runtime.Value", expected))
 		return nil, "", "", false
 	}
 	lines = append(lines, convLines...)

@@ -33,6 +33,11 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 	}
 	switch expr.Operator {
 	case "==", "!=", "<", "<=", ">", ">=":
+		if expr.Operator == "==" || expr.Operator == "!=" {
+			if cmpExpr, cmpType, ok := g.compileStaticNilComparison(expr, left, leftType, right, rightType, expected); ok {
+				return operandLines, cmpExpr, cmpType, true
+			}
+		}
 		if leftType != rightType {
 			ctx.setReason("comparison operand type mismatch")
 			return nil, "", "", false
@@ -239,7 +244,7 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			return nil, "", "", false
 		}
 		nodeName := g.diagNodeName(expr, "*ast.BinaryExpression", "binary")
-		opLines, opExpr, opType, ok := g.compileDivModResultExpression(ctx, left, right, leftType, nodeName)
+		opLines, opExpr, opType, ok := g.compileDivModResultExpression(ctx, left, right, leftType, expected, nodeName)
 		if !ok {
 			ctx.setReason("unsupported /% operands")
 			return nil, "", "", false
@@ -337,9 +342,20 @@ func (g *generator) compilePipeExpression(ctx *compileContext, expr *ast.BinaryE
 	pipeCtx.implicitReceiver = subjectParam
 	pipeCtx.hasImplicitReceiver = true
 
-	if placeholderExpr, _, ok := g.compilePlaceholderLambda(pipeCtx, expr.Right, ""); ok {
+	if placeholderExpr, placeholderType, ok := g.compilePlaceholderLambda(pipeCtx, expr.Right, ""); ok {
 		rhsTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := %s", rhsTemp, placeholderExpr))
+		if info := g.nativeCallableInfoForGoType(placeholderType); info != nil && len(info.ParamGoTypes) == 1 {
+			return g.finishNativeCallableCall(ctx, lines, rhsTemp, info, []string{subjectTemp}, "", expected)
+		}
+		rhsConvLines, rhsValue, ok := g.lowerRuntimeValue(ctx, rhsTemp, placeholderType)
+		if !ok {
+			ctx.setReason("pipe placeholder callable unsupported")
+			return nil, "", "", false
+		}
+		lines = append(lines, rhsConvLines...)
+		rhsTemp = ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := %s", rhsTemp, rhsValue))
 		callTemp := ctx.newTemp()
 		argsTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("var %s []runtime.Value", argsTemp))
@@ -532,6 +548,19 @@ func (g *generator) compileBinaryOperands(ctx *compileContext, leftExpr ast.Expr
 		lines = append(lines, leftLines...)
 		return lines, left, leftType, right, rightType, true
 	}
+	if isNilLiteralExpression(leftExpr) && !isNilLiteralExpression(rightExpr) {
+		rightLines, right, rightType, ok := g.compileExprLines(ctx, rightExpr, "")
+		if !ok {
+			return nil, "", "", "", "", false
+		}
+		leftLines, left, leftType, ok := g.compileExprLines(ctx, leftExpr, rightType)
+		if !ok {
+			return nil, "", "", "", "", false
+		}
+		lines := append([]string{}, rightLines...)
+		lines = append(lines, leftLines...)
+		return lines, left, leftType, right, rightType, true
+	}
 	leftLines, left, leftType, ok := g.compileExprLines(ctx, leftExpr, "")
 	if !ok {
 		return nil, "", "", "", "", false
@@ -621,7 +650,7 @@ func (g *generator) compileDivModExpression(ctx *compileContext, left string, ri
 	return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
 }
 
-func (g *generator) compileDivModResultExpression(ctx *compileContext, left string, right string, operandType string, nodeName string) ([]string, string, string, bool) {
+func (g *generator) compileDivModResultExpression(ctx *compileContext, left string, right string, operandType string, expected string, nodeName string) ([]string, string, string, bool) {
 	leftTemp := ctx.newTemp()
 	rightTemp := ctx.newTemp()
 	bitsExpr := g.bitSizeExpr(operandType)
@@ -662,6 +691,15 @@ func (g *generator) compileDivModResultExpression(ctx *compileContext, left stri
 		return nil, "", "", false
 	}
 	lines = append(lines, controlLines...)
+	if expected != "" && expected != "runtime.Value" && expected != "any" {
+		if info := g.structInfoByGoName(expected); info != nil {
+			quotientField := g.fieldInfo(info, "quotient")
+			remainderField := g.fieldInfo(info, "remainder")
+			if quotientField != nil && remainderField != nil && quotientField.GoType == operandType && remainderField.GoType == operandType {
+				return lines, fmt.Sprintf("&%s{%s: %s, %s: %s}", info.GoName, quotientField.GoName, quotTemp, remainderField.GoName, remTemp), expected, true
+			}
+		}
+	}
 	if resultType, ok := g.lowerCarrierType(ctx, divModTypeExpr); ok && resultType != "" && resultType != "runtime.Value" && resultType != "any" {
 		if info, ok := g.structInfoForTypeExpr(ctx.packageName, divModTypeExpr); ok && info != nil {
 			resultExpr := fmt.Sprintf("&%s{Quotient: %s, Remainder: %s}", info.GoName, quotTemp, remTemp)

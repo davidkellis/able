@@ -114,6 +114,31 @@ func (g *generator) compileCondition(ctx *compileContext, expr ast.Expression) (
 		ctx.setReason("missing condition")
 		return nil, "", false
 	}
+	if assign, ok := expr.(*ast.AssignmentExpression); ok {
+		if pattern, ok := assign.Left.(*ast.TypedPattern); ok {
+			condLines, condExpr, condType, ok := g.compilePatternAssignment(ctx, assign, pattern)
+			if !ok {
+				return nil, "", false
+			}
+			if condType == "bool" {
+				return condLines, condExpr, true
+			}
+			if g.isNilableStaticCarrierType(condType) {
+				return condLines, fmt.Sprintf("%s != nil", condExpr), true
+			}
+			condRuntime := condExpr
+			if condType != "runtime.Value" {
+				convLines, converted, ok := g.lowerRuntimeValue(ctx, condExpr, condType)
+				if !ok {
+					ctx.setReason("condition unsupported")
+					return nil, "", false
+				}
+				condLines = append(condLines, convLines...)
+				condRuntime = converted
+			}
+			return condLines, fmt.Sprintf("__able_truthy(%s)", condRuntime), true
+		}
+	}
 	condLines, condExpr, condType, ok := g.compileExprLines(ctx, expr, "")
 	if !ok {
 		return nil, "", false
@@ -268,6 +293,9 @@ func (g *generator) compileIfExpression(ctx *compileContext, expr *ast.IfExpress
 			return nil, "", "", false
 		}
 		elseExpr = safeNilReturnExpr(resultType)
+		if wrapped, ok := g.nativeUnionNilExpr(resultType); ok {
+			elseExpr = wrapped
+		}
 	}
 	temp := ctx.newTemp()
 	lines := []string{fmt.Sprintf("var %s %s", temp, resultType)}

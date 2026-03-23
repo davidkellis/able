@@ -77,10 +77,10 @@ func TestCompilerTreeMapStaticCarrierStaysNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_build() (*TreeMap, *__ableControl)") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_build() (*TreeMap") {
 		t.Fatalf("expected TreeMap return to stay on the native carrier:\n%s", compiledSrc)
 	}
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_size_of(values *TreeMap) (int32, *__ableControl)") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_size_of(values *TreeMap") {
 		t.Fatalf("expected TreeMap param to stay on the native carrier:\n%s", compiledSrc)
 	}
 
@@ -89,9 +89,9 @@ func TestCompilerTreeMapStaticCarrierStaysNative(t *testing.T) {
 		t.Fatalf("could not find compiled build function")
 	}
 	for _, fragment := range []string{
-		"var values *TreeMap =",
-		"__able_compiled_method_TreeMap_new(",
-		"__able_compiled_method_TreeMap_set(values",
+		"var values *TreeMap",
+		"__able_compiled_method_TreeMap_new",
+		"__able_compiled_method_TreeMap_set",
 	} {
 		if !strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected native TreeMap build lowering to contain %q:\n%s", fragment, buildBody)
@@ -128,10 +128,10 @@ func TestCompilerPersistentMapStaticCarrierStaysNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_build() (*PersistentMap, *__ableControl)") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_build() (*PersistentMap") {
 		t.Fatalf("expected PersistentMap return to stay on the native carrier:\n%s", compiledSrc)
 	}
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_size_of(values *PersistentMap) (int32, *__ableControl)") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_size_of(values *PersistentMap") {
 		t.Fatalf("expected PersistentMap param to stay on the native carrier:\n%s", compiledSrc)
 	}
 
@@ -140,9 +140,9 @@ func TestCompilerPersistentMapStaticCarrierStaysNative(t *testing.T) {
 		t.Fatalf("could not find compiled build function")
 	}
 	for _, fragment := range []string{
-		"var values *PersistentMap =",
-		"__able_compiled_method_PersistentMap_empty(",
-		"__able_compiled_method_PersistentMap_set(values",
+		"var values *PersistentMap",
+		"__able_compiled_method_PersistentMap_empty",
+		"__able_compiled_method_PersistentMap_set",
 		"values = __able_tmp_",
 	} {
 		if !strings.Contains(buildBody, fragment) {

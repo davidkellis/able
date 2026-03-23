@@ -231,6 +231,9 @@ func (g *generator) nativeInterfaceSpecializedGenericMethodImpl(ctx *compileCont
 			candidate.CompiledParamGoTypes = append(candidate.CompiledParamGoTypes, specialized.Info.Params[idx].GoType)
 		}
 		if found != nil && found.Info != candidate.Info {
+			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+				continue
+			}
 			foundScore := g.nativeInterfaceAdapterMethodSpecificity(found)
 			candidateScore := g.nativeInterfaceAdapterMethodSpecificity(candidate)
 			switch {

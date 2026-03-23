@@ -62,6 +62,123 @@ func (g *generator) structBaseName(goType string) (string, bool) {
 	return "", false
 }
 
+func (g *generator) sameNominalStructFamily(left string, right string) bool {
+	if g == nil || left == "" || right == "" {
+		return false
+	}
+	if strings.HasPrefix(left, "*") != strings.HasPrefix(right, "*") {
+		return false
+	}
+	leftInfo := g.structInfoByGoName(left)
+	rightInfo := g.structInfoByGoName(right)
+	if leftInfo == nil || rightInfo == nil {
+		return false
+	}
+	return leftInfo.Package == rightInfo.Package && leftInfo.Name == rightInfo.Name
+}
+
+func (g *generator) recoverRepresentableCarrierType(pkgName string, expr ast.TypeExpression, mapped string) (string, bool) {
+	if g == nil || expr == nil {
+		return mapped, mapped != ""
+	}
+	if mapped != "" && mapped != "runtime.Value" && mapped != "any" {
+		return mapped, true
+	}
+	expr = normalizeTypeExprForPackage(g, pkgName, expr)
+	if ifaceExpr, ok := g.interfaceTypeExpr(expr); ok {
+		if ifacePkg, _, _, _, ok := interfaceExprInfo(g, pkgName, ifaceExpr); ok {
+			if info, ok := g.ensureNativeInterfaceInfo(ifacePkg, ifaceExpr); ok && info != nil && info.GoType != "" {
+				return info.GoType, true
+			}
+		}
+		if info, ok := g.ensureNativeInterfaceInfo(pkgName, ifaceExpr); ok && info != nil && info.GoType != "" {
+			return info.GoType, true
+		}
+	}
+	if fnExpr, ok := expr.(*ast.FunctionTypeExpression); ok {
+		if info, ok := g.ensureNativeCallableInfo(pkgName, fnExpr); ok && info != nil && info.GoType != "" {
+			return info.GoType, true
+		}
+	}
+	if _, members, ok := g.expandedUnionMembersInPackage(pkgName, expr); ok {
+		if info, ok := g.ensureNativeUnionInfo(pkgName, members); ok && info != nil && info.GoType != "" {
+			return info.GoType, true
+		}
+	}
+	if resultExpr, ok := expr.(*ast.ResultTypeExpression); ok {
+		if info, ok := g.ensureNativeResultUnionInfo(pkgName, resultExpr); ok && info != nil && info.GoType != "" {
+			return info.GoType, true
+		}
+	}
+	if nullableExpr, ok := expr.(*ast.NullableTypeExpression); ok {
+		mapper := NewTypeMapper(g, pkgName)
+		if nullableType, ok := mapper.mapNullableType(nullableExpr); ok && nullableType != "" && nullableType != "runtime.Value" && nullableType != "any" {
+			return nullableType, true
+		}
+	}
+	ctx := &compileContext{packageName: pkgName}
+	recovered, ok := g.joinCarrierTypeFromTypeExpr(ctx, expr)
+	if !ok || recovered == "" {
+		return mapped, mapped != ""
+	}
+	return recovered, true
+}
+
+func (g *generator) refreshRepresentableFunctionInfo(info *functionInfo) {
+	if g == nil || info == nil {
+		return
+	}
+	for idx := range info.Params {
+		param := &info.Params[idx]
+		if param == nil {
+			continue
+		}
+		if derived := g.functionParamTypeExpr(info, idx); derived != nil {
+			param.TypeExpr = derived
+		}
+		if param.TypeExpr == nil {
+			continue
+		}
+		if param.GoType != "" && param.GoType != "runtime.Value" && param.GoType != "any" {
+			continue
+		}
+		recovered, ok := g.recoverRepresentableCarrierType(info.Package, param.TypeExpr, param.GoType)
+		if ok && recovered != "" {
+			param.GoType = recovered
+			param.Supported = true
+		}
+	}
+	if info.ReturnType == "" || info.ReturnType == "runtime.Value" || info.ReturnType == "any" {
+		retExpr := g.functionReturnTypeExpr(info)
+		if recovered, ok := g.recoverRepresentableCarrierType(info.Package, retExpr, info.ReturnType); ok && recovered != "" {
+			info.ReturnType = recovered
+		}
+	}
+}
+
+func (g *generator) functionParamTypeExpr(info *functionInfo, idx int) ast.TypeExpression {
+	if g == nil || info == nil || info.Definition == nil || idx < 0 || idx >= len(info.Definition.Params) {
+		return nil
+	}
+	param := info.Definition.Params[idx]
+	if param == nil {
+		return nil
+	}
+	paramType := param.ParamType
+	if impl := g.implMethodByInfo[info]; impl != nil {
+		interfaceBindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, impl.TargetType)
+		selfTarget := g.implSelfTargetType(impl.TargetType, interfaceBindings)
+		if paramType == nil {
+			if ident, ok := param.Name.(*ast.Identifier); ok && ident != nil && (ident.Name == "self" || ident.Name == "Self") {
+				paramType = selfTarget
+			}
+		}
+		paramType = resolveSelfTypeExpr(paramType, selfTarget)
+	}
+	paramType = substituteTypeParams(paramType, g.compileContextTypeBindings(info))
+	return normalizeTypeExprForPackage(g, info.Package, paramType)
+}
+
 func (g *generator) isNativeStructPointerType(goType string) bool {
 	return strings.HasPrefix(goType, "*") && g.structInfoByGoName(goType) != nil
 }

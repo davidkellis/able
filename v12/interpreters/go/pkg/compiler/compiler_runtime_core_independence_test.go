@@ -176,3 +176,44 @@ func TestCompilerAwaitDefaultZeroArgCallbackSpecializationStaysNative(t *testing
 		}
 	}
 }
+
+func TestCompilerNilableStructExternArgUsesRuntimeNilValue(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Box {",
+		"  value: i32",
+		"}",
+		"",
+		"extern go fn sink(value: ?Box) -> void {",
+		"  return nil",
+		"}",
+		"",
+		"fn maybe(flag: bool) -> ?Box {",
+		"  if flag { Box { value: 1 } } else { nil }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  value := maybe(false)",
+		"  sink(value)",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("main body not found")
+	}
+	if !strings.Contains(body, "runtime.NilValue{}") {
+		t.Fatalf("expected nilable struct extern arg lowering to emit runtime.NilValue{}:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"__able_struct_Box_to(__able_runtime, (*Box)(nil))",
+		"__able_any_to_value(any(nil))",
+		"missing Box value",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected nilable struct extern arg lowering to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
