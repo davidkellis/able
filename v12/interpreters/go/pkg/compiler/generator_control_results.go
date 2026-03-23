@@ -4,6 +4,7 @@ import "fmt"
 
 const compileControlModeNativeCall = "nativecall"
 const compileControlModeErrorOnly = "erroronly"
+const compileControlModeRuntimeValueError = "runtimevalueerror"
 
 func (g *generator) controlTransferLines(ctx *compileContext, controlExpr string) ([]string, bool) {
 	if g == nil || ctx == nil || controlExpr == "" {
@@ -27,6 +28,11 @@ func (g *generator) controlTransferLines(ctx *compileContext, controlExpr string
 	if ctx.controlMode == compileControlModeErrorOnly {
 		return []string{
 			fmt.Sprintf("return __able_control_to_error(__able_runtime, nil, %s)", controlExpr),
+		}, true
+	}
+	if ctx.controlMode == compileControlModeRuntimeValueError {
+		return []string{
+			fmt.Sprintf("return nil, __able_control_to_error(__able_runtime, nil, %s)", controlExpr),
 		}, true
 	}
 	if ctx.returnType == "" {

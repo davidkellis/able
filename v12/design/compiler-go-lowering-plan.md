@@ -54,6 +54,17 @@ Work through this list in order.
 
 ### 1. Centralize Lowering Knowledge
 
+Status:
+- complete on 2026-03-21.
+- the canonical lowering facade now lives in:
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_control.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_boundaries.go`
+- enforcement now lives in:
+  - `v12/interpreters/go/pkg/compiler/compiler_lowering_facade_audit_test.go`
+
 #### Goal
 
 Make lowering decisions come from one reusable source per concern.
@@ -95,6 +106,19 @@ structure-specific branches.
 - representative generated-source audits
 
 ### 2. Finish Native Carrier Completeness
+
+Status:
+- complete on 2026-03-22.
+- `types.go` and `generator_native_unions.go` no longer silently widen fully
+  bound representable carriers to `runtime.Value` / `any`.
+- built-in `DivMod T` now lowers through the shared nominal struct path rather
+  than a dedicated `any` fallback.
+- shared native `Error | void` carrier support is now present, so native
+  `!void` signatures no longer force runtime result carriers.
+- compile-shape regressions now pin:
+  - concrete `DivMod i32`
+  - parameterized union/result alias locals containing `DivMod i32`
+  - direct native `!void` returns
 
 #### Goal
 
@@ -138,6 +162,17 @@ Every statically representable Able type expression maps to a native Go carrier.
 
 ### 3. Finish Native Pattern And Control-Flow Completeness
 
+Status:
+- complete on 2026-03-22.
+- shared join/native recovery now covers `if`, `match`, `rescue`, `or {}`,
+  `loop`, and `breakpoint`, including nil-capable and common-existential join
+  cases.
+- typed pattern bindings now reuse recovered native carriers instead of
+  defaulting the bound local to `runtime.Value`, including rescue bindings and
+  native-union whole-value interface bindings.
+- representative static pattern/control bodies are source-audited against
+  runtime type-match helpers and panic/recover/IIFE control scaffolding.
+
 #### Goal
 
 All static control and pattern constructs stay native when their subject/result
@@ -178,6 +213,19 @@ shapes are statically representable.
 
 ### 4. Finish Native Dispatch Completeness
 
+Status:
+- complete on 2026-03-22.
+- shared dispatch recovery now rehydrates recoverable `runtime.Value` / `any`
+  call/member/index targets onto their native carriers before dispatch.
+- local concrete/interface `Apply` bindings now use the shared static apply
+  path instead of dynamic call helpers.
+- mixed-source pure-generic interface dispatch now prefers the more concrete
+  compiled specialization, which keeps representative generic interface calls
+  off runtime method dispatch.
+- proof now includes:
+  - `v12/interpreters/go/pkg/compiler/compiler_dispatch_completeness_test.go`
+  - the shared dispatch fixture slice in `PLAN.md`
+
 #### Goal
 
 All statically resolved operations compile to direct Go dispatch.
@@ -216,6 +264,15 @@ All statically resolved operations compile to direct Go dispatch.
   generic/default-method surfaces
 
 ### 5. Finish Compiled Runtime Core Independence
+
+Status:
+- complete on 2026-03-22.
+- static compiled helper families now lower directly to Go `_impl` runtime-core
+  helpers on static paths instead of `__able_extern_*` or helper-to-helper
+  `__able_extern_call(...)` chains.
+- zero-arg callable syntax and `Await.default` zero-arg callback
+  specialization now stay on native callable carriers across compiled static
+  and spawned-task paths.
 
 #### Goal
 
@@ -376,4 +433,3 @@ A proposed compiler change is correct when the answer to all of these is yes:
    one stdlib structure?
 
 If the answer to any of those is no, it is probably the wrong fix.
-

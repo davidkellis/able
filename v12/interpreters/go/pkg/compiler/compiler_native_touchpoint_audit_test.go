@@ -159,6 +159,56 @@ func TestCompilerGenericInterfaceTouchpointsStayNative(t *testing.T) {
 	})
 }
 
+func TestCompilerPatternControlTouchpointsStayNative(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"impl Error for MyError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn value(ok: bool) -> !i32 {",
+		"  if ok { 1 } else { MyError { message: \"bad\" } }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  mixed := if true { 1 } else { \"bad\" }",
+		"  from_match := mixed match {",
+		"    case n: i32 => n,",
+		"    case _ => 0",
+		"  }",
+		"  from_or := value(false) or { 7 }",
+		"  from_rescue := do {",
+		"    raise(\"boom\")",
+		"    0",
+		"  } rescue {",
+		"    case _ => 9",
+		"  }",
+		"  from_loop := loop {",
+		"    if true { break from_match + from_or + from_rescue }",
+		"    break 0",
+		"  }",
+		"  breakpoint 'done {",
+		"    if false { break 'done 0 }",
+		"    from_loop",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	body := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
+	assertBodyAvoidsFragments(t, "__able_compiled_fn_main", body, []string{
+		"bridge.MatchType(",
+		"__able_try_cast(",
+		"panic(",
+		"recover(",
+		"func() ",
+	})
+}
+
 func TestCompilerStaticNativeFixturesExecuteWithoutExplicitBoundaries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping compiler native touchpoint fixture audit in short mode")

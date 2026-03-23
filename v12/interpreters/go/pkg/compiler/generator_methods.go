@@ -141,7 +141,7 @@ func (g *generator) expandTypeAliasOnceForPackage(pkgName string, expr ast.TypeE
 			bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, aliasPkg, t.Arguments[idx])
 		}
 		expanded := substituteTypeParams(target, bindings)
-		return normalizeTypeExprForPackage(g, aliasPkg, expanded), aliasPkg, aliasName+"<"+normalizeTypeExprListKey(g, aliasPkg, t.Arguments)+">", true
+		return normalizeTypeExprForPackage(g, aliasPkg, expanded), aliasPkg, aliasName + "<" + normalizeTypeExprListKey(g, aliasPkg, t.Arguments) + ">", true
 	default:
 		return expr, pkgName, "", false
 	}
@@ -260,6 +260,7 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 	if len(bindings) > 0 {
 		concreteTarget = substituteTypeParams(concreteTarget, bindings)
 	}
+	concreteTarget = normalizeTypeExprForPackage(g, info.Package, concreteTarget)
 	params := make([]paramInfo, 0, len(def.Params)+1)
 	supported := true
 	paramIndex := 0
@@ -296,6 +297,7 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 		if len(bindings) > 0 {
 			paramType = substituteTypeParams(paramType, bindings)
 		}
+		paramType = normalizeTypeExprForPackage(g, info.Package, paramType)
 		goType, ok := g.mapMethodType(mapper, paramType, concreteTarget)
 		if !ok {
 			supported = false
@@ -313,6 +315,7 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 	if len(bindings) > 0 {
 		retExpr = substituteTypeParams(retExpr, bindings)
 	}
+	retExpr = normalizeTypeExprForPackage(g, info.Package, retExpr)
 	retType := ""
 	ok := false
 	if forcedType, forced := g.staticMethodNominalStructReturnType(info.Package, concreteTarget, expectsSelf, retExpr); forced {

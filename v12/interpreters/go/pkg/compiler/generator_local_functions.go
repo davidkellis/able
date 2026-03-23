@@ -23,10 +23,10 @@ func (g *generator) compileLocalFunctionDefinitionStatement(ctx *compileContext,
 			ctx.setReason("unsupported local function definition")
 			return nil, false
 		}
-		paramTypeExprs = append(paramTypeExprs, g.typeExprInContext(ctx, param.ParamType))
+		paramTypeExprs = append(paramTypeExprs, g.lowerNormalizedTypeExpr(ctx, param.ParamType))
 	}
-	returnTypeExpr := g.typeExprInContext(ctx, def.ReturnType)
-	fnTypeExpr, _ := g.typeExprInContext(ctx, ast.NewFunctionTypeExpression(paramTypeExprs, returnTypeExpr)).(*ast.FunctionTypeExpression)
+	returnTypeExpr := g.lowerNormalizedTypeExpr(ctx, def.ReturnType)
+	fnTypeExpr, _ := g.lowerNormalizedTypeExpr(ctx, ast.NewFunctionTypeExpression(paramTypeExprs, returnTypeExpr)).(*ast.FunctionTypeExpression)
 	callableInfo, ok := g.ensureNativeCallableInfo(ctx.packageName, fnTypeExpr)
 	if !ok || callableInfo == nil {
 		ctx.setReason("unsupported local function definition")

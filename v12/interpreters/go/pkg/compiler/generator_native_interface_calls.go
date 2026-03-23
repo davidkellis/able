@@ -84,7 +84,7 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
 	lines = append(lines, fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr))
 	lines = append(lines, "__able_pop_call_frame()")
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -93,7 +93,7 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 		return lines, resultTemp, method.ReturnGoType, true
 	}
 	if expected != "runtime.Value" && method.ReturnGoType == "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -102,7 +102,7 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 		return lines, converted, expected, true
 	}
 	if expected == "runtime.Value" && method.ReturnGoType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, resultTemp, method.ReturnGoType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, resultTemp, method.ReturnGoType)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -113,7 +113,7 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	if expected != "" && expected != "any" && method.ReturnGoType == "any" {
 		anyTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, resultTemp))
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, anyTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -122,7 +122,7 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 		return lines, converted, expected, true
 	}
 	if expected != "" && expected != "runtime.Value" && expected != "any" && g.canCoerceStaticExpr(expected, method.ReturnGoType) {
-		return g.coerceExpectedStaticExpr(ctx, lines, resultTemp, method.ReturnGoType, expected)
+		return g.lowerCoerceExpectedStaticExpr(ctx, lines, resultTemp, method.ReturnGoType, expected)
 	}
 	ctx.setReason("call return type mismatch")
 	return nil, "", "", false

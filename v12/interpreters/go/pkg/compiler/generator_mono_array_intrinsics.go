@@ -31,7 +31,7 @@ func (g *generator) compileStaticArrayValueArg(
 		return nil, "", false
 	}
 	if elemType == "runtime.Value" {
-		valLines, valueExpr, ok := g.runtimeValueLines(ctx, argExpr, argGoType)
+		valLines, valueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argGoType)
 		if !ok {
 			return nil, "", false
 		}
@@ -71,7 +71,7 @@ func (g *generator) compileArrayMethodLenIntrinsic(
 	if !ok {
 		return nil, "", "", false
 	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueExpr, expected)
+	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, valueExpr, expected)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -277,7 +277,7 @@ func (g *generator) compileArrayMethodCapacityIntrinsic(
 		}
 		return lines, valueExpr, "runtime.Value", true
 	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -351,7 +351,7 @@ func (g *generator) compileArrayMethodCloneShallowIntrinsic(
 	if expected == "" || g.typeMatches(expected, objType) {
 		return lines, cloneExpr, objType, true
 	}
-	valueLines, valueExpr, ok := g.runtimeValueLines(ctx, cloneExpr, objType)
+	valueLines, valueExpr, ok := g.lowerRuntimeValue(ctx, cloneExpr, objType)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -359,7 +359,7 @@ func (g *generator) compileArrayMethodCloneShallowIntrinsic(
 	if expected == "runtime.Value" {
 		return lines, valueExpr, "runtime.Value", true
 	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueExpr, expected)
+	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, valueExpr, expected)
 	if !ok {
 		return nil, "", "", false
 	}

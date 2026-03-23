@@ -302,6 +302,7 @@ func (g *generator) collect(program *driver.Program) error {
 		}
 	}
 	g.ensureBuiltinArrayStruct()
+	g.ensureBuiltinDivModStruct()
 
 	for _, info := range g.structs {
 		mapper := NewTypeMapper(g, info.Package)
@@ -618,6 +619,9 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 		if g.isVoidType(info.ReturnType) {
 			return nil, "struct{}{}", true
 		}
+		if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, info.ReturnType); ok {
+			return nil, successExpr, true
+		}
 		ctx.setReason("empty body requires void return")
 		return nil, "", false
 	}
@@ -665,6 +669,14 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 				lines = append(lines, stmtLines...)
 				return lines, "struct{}{}", true
 			}
+			if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, info.ReturnType); ok {
+				stmtLines, ok := g.compileStatement(ctx, stmt)
+				if !ok {
+					return nil, "", false
+				}
+				lines = append(lines, stmtLines...)
+				return lines, successExpr, true
+			}
 			ctx.setReason("missing return expression")
 			return nil, "", false
 		}
@@ -673,6 +685,9 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 			return nil, "", false
 		}
 		lines = append(lines, stmtLines...)
+	}
+	if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, info.ReturnType); ok {
+		return lines, successExpr, true
 	}
 	ctx.setReason("missing return expression")
 	return nil, "", false
@@ -687,8 +702,8 @@ func (g *generator) compileReturnStatement(ctx *compileContext, returnType strin
 		if g.isVoidType(returnType) {
 			return lines, "struct{}{}", true
 		}
-		if (returnType == "runtime.Value" || returnType == "any") && g.isResultVoidTypeExpr(ctx.returnTypeExpr) {
-			return lines, "runtime.VoidValue{}", true
+		if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, returnType); ok {
+			return lines, successExpr, true
 		}
 		ctx.setReason("missing return expression")
 		return nil, "", false
@@ -711,7 +726,7 @@ func (g *generator) compileReturnStatement(ctx *compileContext, returnType strin
 	if returnType == "runtime.Value" {
 		if ifaceType, ok := g.interfaceTypeExpr(ctx.returnTypeExpr); ok {
 			if exprType != "runtime.Value" {
-				convLines, converted, ok := g.runtimeValueLines(ctx, expr, exprType)
+				convLines, converted, ok := g.lowerRuntimeValue(ctx, expr, exprType)
 				if !ok {
 					ctx.setReason("return type mismatch")
 					return nil, "", false
@@ -749,7 +764,7 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 		return nil, "", false
 	}
 	if returnType == "runtime.Value" && valueType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 		if !ok {
 			ctx.setReason("return type mismatch")
 			return nil, "", false
@@ -758,7 +773,7 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 		valueExpr = converted
 		valueType = "runtime.Value"
 	} else if returnType != "" && returnType != "runtime.Value" && returnType != "any" && returnType != valueType && g.canCoerceStaticExpr(returnType, valueType) {
-		coercedLines, coercedExpr, coercedType, ok := g.coerceExpectedStaticExpr(ctx, stmtLines, valueExpr, valueType, returnType)
+		coercedLines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, stmtLines, valueExpr, valueType, returnType)
 		if !ok {
 			ctx.setReason("assignment return type mismatch")
 			return nil, "", false
@@ -768,7 +783,7 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 		valueType = coercedType
 	} else if !g.typeMatches(returnType, valueType) {
 		if returnType != "" && returnType != "runtime.Value" && returnType != "any" && g.canCoerceStaticExpr(returnType, valueType) {
-			coercedLines, coercedExpr, coercedType, ok := g.coerceExpectedStaticExpr(ctx, stmtLines, valueExpr, valueType, returnType)
+			coercedLines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, stmtLines, valueExpr, valueType, returnType)
 			if !ok {
 				ctx.setReason("assignment return type mismatch")
 				return nil, "", false
@@ -881,8 +896,8 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		}
 		if s.Argument == nil {
 			if !g.isVoidType(ctx.returnType) {
-				if ctx.returnType == "runtime.Value" && g.isResultVoidTypeExpr(ctx.returnTypeExpr) {
-					return []string{"return runtime.VoidValue{}, nil"}, true
+				if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, ctx.returnType); ok {
+					return []string{fmt.Sprintf("return %s, nil", successExpr)}, true
 				}
 				expected := typeExpressionToString(ctx.returnTypeExpr)
 				if expected == "" || expected == "<?>" {
@@ -890,7 +905,7 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 				}
 				nodeName := g.diagNodeName(s, "*ast.ReturnStatement", "return")
 				ctrlExpr := fmt.Sprintf("__able_raise_return_type_mismatch(%s, %q, %q)", nodeName, expected, "void")
-				lines, ok := g.controlTransferLines(ctx, ctrlExpr)
+				lines, ok := g.lowerControlTransfer(ctx, ctrlExpr)
 				if !ok {
 					return nil, false
 				}

@@ -111,19 +111,30 @@ Goal:
 - make every carrier, dispatch, control, pattern, and boundary decision come
   from one shared synthesis point instead of emitter-local rules.
 
+Status:
+- complete on 2026-03-21.
+- canonical lowering facade landed in:
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_control.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_boundaries.go`
+- source-audit enforcement landed in:
+  - `v12/interpreters/go/pkg/compiler/compiler_lowering_facade_audit_test.go`
+
 Why this is first:
 - without this, the compiler keeps accumulating one-off fixes and nominal-type
   drift.
 
 Required work:
-- [ ] establish one canonical type-normalization path used by all codegen
+- [x] establish one canonical type-normalization path used by all codegen
       stages;
-- [ ] establish one canonical carrier-synthesis path used by all emitters;
-- [ ] establish one canonical join/pattern-synthesis path;
-- [ ] establish one canonical dispatch-synthesis path;
-- [ ] establish one canonical control-envelope synthesis path;
-- [ ] establish one canonical boundary-adapter synthesis path;
-- [ ] audit emitters and remove local fallback decisions that bypass those
+- [x] establish one canonical carrier-synthesis path used by all emitters;
+- [x] establish one canonical join/pattern-synthesis path;
+- [x] establish one canonical dispatch-synthesis path;
+- [x] establish one canonical control-envelope synthesis path;
+- [x] establish one canonical boundary-adapter synthesis path;
+- [x] audit emitters and remove local fallback decisions that bypass those
       shared paths.
 
 Proof required:
@@ -137,25 +148,40 @@ Goal:
   carrier everywhere it appears.
 
 Required work:
-- [ ] remove remaining representable `runtime.Value` / `any` fallbacks from
+- [x] remove remaining representable `runtime.Value` / `any` fallbacks from
       type mapping and carrier synthesis;
-- [ ] finish carrier synthesis for nullable, result, union, interface,
+- [x] finish carrier synthesis for nullable, result, union, interface,
       callable, and fully bound generic nominal types;
-- [ ] ensure alias-expanded and recovered type expressions use the same carrier
+- [x] ensure alias-expanded and recovered type expressions use the same carrier
       path as directly written types;
-- [ ] ensure representable branch/join locals do not regress to dynamic
+- [x] ensure representable branch/join locals do not regress to dynamic
       carriers just because a value was temporarily recovered from a broader
       path;
-- [ ] ensure residual `runtime.Value` union members exist only for true dynamic
+- [x] ensure residual `runtime.Value` union members exist only for true dynamic
       payloads.
 
-Current concrete queue under this milestone:
-- [ ] close remaining carrier-synthesis gaps in `types.go` and
-      `generator_native_unions.go`;
-- [ ] remove representable `runtime.Value` / `any` locals from generated static
-      code for union/result/nullable/interface/callable joins;
-- [ ] add compile-shape regressions for named alias and parameterized union/
-      result locals that still degrade.
+Status:
+- complete on 2026-03-22.
+- landed the remaining shared carrier-synthesis closure in:
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_binary.go`
+  - `v12/interpreters/go/pkg/compiler/generator_builtin_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_result_void.go`
+- moved built-in `DivMod T` onto the shared nominal struct path instead of the
+  old `any` fallback;
+- tightened concrete union/result carrier synthesis so fully bound
+  representable members fail fast instead of silently widening to
+  `runtime.Value` / `any`;
+- added shared native `Error | void` carrier support so `!void` signatures no
+  longer regress to runtime carriers;
+- added focused regressions for:
+  - concrete `DivMod i32` carrier lowering
+  - parameterized union/result alias locals containing `DivMod i32`
+  - native `!void` return lowering
+  - existing no-fallback fixture coverage including `06_01_compiler_divmod`
+    and `06_01_compiler_match_patterns`
 
 Proof required:
 - representative carrier audits over arrays, structs, unions, interfaces,
@@ -168,26 +194,29 @@ Goal:
 - all static pattern matching, branch joins, loop results, rescue/or-propagation,
   and non-local control stay native when the types are statically representable.
 
+Status:
+- complete on 2026-03-22.
+- shared join inference now keeps `if`, `match`, `rescue`, `or {}`, `loop`,
+  and `breakpoint` results on native carriers across representable mixed
+  branches, nil-capable joins, common existential joins, and recovered
+  `TypeExpr`-backed locals.
+- typed pattern bindings now stay native when the narrowed carrier is
+  recoverable, including rescue bindings and native-union whole-value
+  interface bindings.
+- representative static pattern/control bodies are now mechanically audited
+  against `__able_try_cast(...)`, `bridge.MatchType(...)`, `panic`, `recover`,
+  and IIFE-style scaffolding.
+
 Required work:
-- [ ] remove runtime typed-pattern fallback for recoverable static subjects;
-- [ ] keep `if`, `match`, `rescue`, `or {}`, `loop`, and `breakpoint` joins on
+- [x] remove runtime typed-pattern fallback for recoverable static subjects;
+- [x] keep `if`, `match`, `rescue`, `or {}`, `loop`, and `breakpoint` joins on
       native carriers in all representable cases;
-- [ ] keep typed bindings and recovered branch bindings on native carriers;
-- [ ] finish explicit control-envelope propagation for helper boundaries and
+- [x] keep typed bindings and recovered branch bindings on native carriers;
+- [x] finish explicit control-envelope propagation for helper boundaries and
       remove any remaining panic/recover/IIFE-style static control scaffolding;
-- [ ] ensure `raise`, `rethrow`, `ensure`, `!`, and `or {}` are implemented as
+- [x] ensure `raise`, `rethrow`, `ensure`, `!`, and `or {}` are implemented as
       proper compiled control/data semantics instead of interpreter-shaped
       escape hatches.
-
-Current concrete queue under this milestone:
-- [ ] remove recovered-subject typed-pattern fallback in `generator_match.go`,
-      `generator_match_runtime_types.go`, and `generator_rescue.go`;
-- [ ] eliminate representable join/binding fallback locals in
-      `generator_or_else.go`, `generator_rescue.go`, and
-      `generator_join_types.go`;
-- [ ] add generated-source audits for `__able_try_cast(...)`,
-      `bridge.MatchType(...)`, panic/recover, and IIFE-style static control
-      lowering.
 
 Proof required:
 - fixture slices for `match`, `rescue`, `or {}`, loops, breakpoints, typed
@@ -197,28 +226,31 @@ Proof required:
 
 #### Milestone 4: Native Dispatch Completeness
 
+Status:
+- complete on 2026-03-22.
+- shared dispatch recovery now converts recoverable `runtime.Value` / `any`
+  call/member/index targets back onto native carriers before dispatch.
+- local concrete and interface `Apply` bindings now route through the shared
+  static apply path instead of `__able_call_value(...)`.
+- mixed-source pure-generic interface dispatch now prefers the more concrete
+  compiled specialization instead of falling back to runtime method dispatch.
+- representative dispatch coverage now lives in:
+  - `v12/interpreters/go/pkg/compiler/generator_dispatch_recovery.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_dispatch_completeness_test.go`
+
 Goal:
 - all statically resolved operations compile to direct Go dispatch.
 
 Required work:
-- [ ] finish static field access/assignment lowering;
-- [ ] finish static method and default-method lowering;
-- [ ] finish static interface/default-method dispatch lowering for all
+- [x] finish static field access/assignment lowering;
+- [x] finish static method and default-method lowering;
+- [x] finish static interface/default-method dispatch lowering for all
       representable generic cases;
-- [ ] finish static callable/bound-method/partial application lowering;
-- [ ] finish static index/get/set/apply lowering without dynamic helper
+- [x] finish static callable/bound-method/partial application lowering;
+- [x] finish static index/get/set/apply lowering without dynamic helper
       dispatch;
-- [ ] remove residual dynamic helper dispatch from static call/member/index
+- [x] remove residual dynamic helper dispatch from static call/member/index
       paths.
-
-Current concrete queue under this milestone:
-- [ ] audit representative static bodies for `__able_call_value(...)`,
-      `__able_method_call_node(...)`, `__able_member_get*`, and `__able_index*`
-      outside explicit dynamic boundaries;
-- [ ] close remaining generic interface/default-method dispatch cases that
-      still re-enter runtime dispatch on statically representable paths;
-- [ ] close remaining static callable/index assignment gaps on recovered native
-      carriers.
 
 Proof required:
 - combined-source dispatch audits;
@@ -227,19 +259,27 @@ Proof required:
 
 #### Milestone 5: Compiled Runtime Core Independence
 
+Status:
+- complete on 2026-03-22.
+- static compiled kernel/runtime helper families now call direct Go `_impl`
+  helpers on static paths instead of routing through `__able_extern_*` or
+  helper-to-helper `__able_extern_call(...)` chains.
+- zero-arg callable syntax and `Await.default` zero-arg callback
+  specialization now stay on native callable carriers in compiled static code.
+
 Goal:
 - compiled runtime helpers used on static paths must implement Able semantics as
   normal Go logic, not as thin wrappers around interpreter-style machinery.
 
 Required work:
-- [ ] audit every compiled runtime helper family used on static paths;
-- [ ] replace helpers whose normal static behavior is still modeled too closely
+- [x] audit every compiled runtime helper family used on static paths;
+- [x] replace helpers whose normal static behavior is still modeled too closely
       after interpreter operations;
-- [ ] keep only true dynamic-boundary helpers dependent on runtime/interpreter
+- [x] keep only true dynamic-boundary helpers dependent on runtime/interpreter
       object-model values;
-- [ ] ensure array/map/range/string/concurrency runtime services used by
+- [x] ensure array/map/range/string/concurrency runtime services used by
       compiled code are direct Go implementations;
-- [ ] keep helper control propagation aligned with the explicit control-envelope
+- [x] keep helper control propagation aligned with the explicit control-envelope
       model.
 
 Proof required:
@@ -323,15 +363,15 @@ Release gate checklist:
 
 #### Immediate compiler queue (start here)
 
-1. [ ] Centralize remaining carrier-synthesis decisions so representable static
-       types stop falling back to `runtime.Value` / `any`.
-2. [ ] Remove remaining static typed-pattern fallback to runtime type-match
-       helpers.
-3. [ ] Tighten remaining static dispatch paths that still route through dynamic
-       helper dispatch.
-4. [ ] Audit compiled runtime helper families that still model static semantics
-       too closely after interpreter-oriented helpers.
-5. [ ] Re-run boundary and benchmark gates after each completed milestone.
+1. [ ] Enumerate the final allowed compiled dynamic-boundary helper set and
+       document each category precisely.
+2. [ ] Tighten boundary adapters so conversion happens exactly at the explicit
+       edge and native carriers are restored immediately after that edge.
+3. [ ] Remove residual dynamic-boundary leakage from static fixtures and static
+       helper paths.
+4. [ ] Keep strict no-bootstrap/no-fallback/no-boundary audits green for static
+       fixture families.
+5. [ ] Re-run benchmark gates after each completed compiler milestone.
 
 ### Bytecode Performance Program (second priority; start after compiler release work is closed or paused explicitly)
 

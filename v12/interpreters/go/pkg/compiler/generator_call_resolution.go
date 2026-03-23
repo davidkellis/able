@@ -27,7 +27,7 @@ func (g *generator) mayResolveStaticNamedCall(ctx *compileContext, name string) 
 	if _, ok := alwaysAvailableNamedCallables[trimmed]; ok {
 		return true
 	}
-	if _, ok := g.externCallWrapper(trimmed); ok {
+	if _, ok := g.runtimeHelperImpl(trimmed); ok {
 		return true
 	}
 	if strings.HasPrefix(trimmed, "__able_") {
@@ -108,7 +108,7 @@ func (g *generator) ufcsReceiverGoType(ctx *compileContext, receiver ast.Express
 	if binding.TypeExpr == nil {
 		return ""
 	}
-	mapped, ok := g.mapTypeExpressionInContext(ctx, binding.TypeExpr)
+	mapped, ok := g.lowerCarrierType(ctx, binding.TypeExpr)
 	if !ok {
 		return ""
 	}

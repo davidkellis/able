@@ -1,5 +1,153 @@
 # Able Project Log
 
+# 2026-03-22 — Compiler Milestone 5 complete: compiled runtime core independence (v12)
+- Closed `PLAN.md` Milestone 5 by moving remaining static compiled helper
+  families onto direct Go runtime-core helpers instead of interpreter-oriented
+  wrapper chains.
+- Landed the Milestone 5 closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_call_resolution.go`
+  - `v12/interpreters/go/pkg/compiler/generator_runtime_call_control.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_concurrency.go`
+  - `v12/interpreters/go/pkg/compiler/generator_concurrency.go`
+  - `v12/interpreters/go/pkg/compiler/generator_control_results.go`
+  - `v12/interpreters/go/pkg/compiler/generator_function_type_normalize.go`
+  - `v12/interpreters/go/pkg/compiler/generator_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_runtime_core_independence_test.go`
+- Static kernel/runtime helper calls now lower directly to `_impl` helpers on
+  static paths for:
+  - array helpers
+  - hash-map helpers
+  - string/char helpers
+  - channel helpers
+  - mutex helpers
+- Helper-to-helper runtime-core bodies now avoid `__able_extern_call(...)`
+  chaining in representative static families such as:
+  - `__able_array_values`
+  - `(__able_channel_awaitable).commit`
+  - `(__able_mutex_awaitable).commit`
+- Zero-arg callable syntax is now normalized consistently across:
+  - direct callable lowering
+  - static method specialization
+  - spawned-task / await helper paths
+- `Await.default({ => ... })` specialization now keeps the native zero-arg
+  callback carrier instead of regressing to `runtime.Value -> T`.
+- Spawned-task compiled control flow now returns through the runtime callback
+  ABI using the explicit `runtime.Value, error` control envelope rather than
+  compiled-function `(value, *__ableControl)` semantics.
+- Added Milestone 5 regressions for:
+  - direct static `_impl` helper usage
+  - helper-body extern-chain elimination
+  - zero-arg callable syntax normalization
+  - `Await.default` zero-arg callback specialization
+- Validation:
+  - `go test ./pkg/compiler -run 'TestCompiler(StaticKernelHelpersUseDirectImplCalls|RuntimeHelperBodiesAvoidExternCallChaining|ZeroArgCallableTypeSyntaxStaysNative|AwaitDefaultZeroArgCallbackSpecializationStaysNative)$|TestCompilerExecFixtures/(06_01_compiler_spawn_await|06_12_02_stdlib_array_helpers|06_12_19_stdlib_concurrency_channel_mutex_queue)$' -count=1 -timeout 60s`
+  - `git diff --check`
+
+# 2026-03-22 — Compiler Milestone 4 complete: native dispatch completeness (v12)
+- Closed `PLAN.md` Milestone 4 by removing the remaining shared static
+  call/member/index/apply dispatch fallbacks instead of adding new
+  nominal-type-specific lowering rules.
+- Landed the Milestone 4 closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_dispatch_recovery.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_calls_lambda.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections_static_array_access.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_dispatch_completeness_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_test.go`
+- Shared dispatch recovery now converts recoverable `runtime.Value` / `any`
+  targets back onto native carriers before:
+  - member access / assignment
+  - method calls
+  - index get / set
+  - apply/call dispatch
+- Local concrete and interface `Apply` bindings now stay on the shared static
+  apply path instead of `__able_call_value(...)`.
+- Mixed-source pure-generic interface dispatch now prefers the more concrete
+  compiled specialization, which keeps representative generic interface calls
+  off `__able_method_call_node(...)`.
+- Validation:
+  - `go test ./pkg/compiler -run 'TestCompiler(LocalConcreteApplyBindingStaysNative|LocalInterfaceApplyBindingStaysNative|DispatchTouchpointsStayNative|StaticNativePathsAvoidDynamicHelperReachability|BroadStaticNativeTouchpointsStayNative|GenericInterfaceTouchpointsStayNative|StaticIndexInterfacesStayNative|ConcreteReceiverInterfaceMethodStaysNative|ConcreteReceiverApplyStaysNative|InterfaceMethodWithLambdaArgStaysNative|PureGenericInterfaceAssignmentUsesNativeCarrier|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|ImportedGenericInterfaceAdapterRendersConcreteHelper|PlaceholderLambdaStaysNative|BoundMethodValueStaysNative|FunctionTypedParamStaysNative)$|TestCompilerExecFixtures/(07_04_apply_callable_interface|10_04_interface_dispatch_defaults_generics|10_15_interface_default_generic_method|14_01_language_interfaces_index_apply_iterable)$' -count=1 -timeout 60s`
+  - `git diff --check`
+
+# 2026-03-22 — Compiler Milestone 3 complete: native pattern/control-flow completeness (v12)
+- Closed `PLAN.md` Milestone 3 by finishing the remaining shared native
+  pattern/control-flow gaps instead of adding new nominal-type-specific rules.
+- Landed the final Milestone 3 closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_pattern_binding_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_touchpoint_audit_test.go`
+- Recoverable typed pattern bindings now stay native, including:
+  - rescue bindings onto `runtime.ErrorValue`
+  - rescue bindings onto generated native interface carriers
+  - native-union whole-value typed interface bindings
+- Representative static pattern/control bodies are now source-audited against:
+  - `__able_try_cast(...)`
+  - `bridge.MatchType(...)`
+  - `panic`
+  - `recover`
+  - IIFE-style scaffolding
+- Validation:
+  - `go test ./pkg/compiler -run 'TestCompiler(RescueTypedPatternBindingStaysNativeInterface|RescueTypedPatternBindingStaysNativeError|NativeUnionTypedPatternWholeValueBindingUsesNativeInterfaceCarrier|PatternControlTouchpointsStayNative|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|IfJoinRecoversTypeExprBackedInterfaceCarrier|IfJoinRecoversTypeExprBackedErrorCarrier|JoinExpressionsExecuteWithoutRuntimeCarrierFallback|JoinExpressionConcreteImplementersInferNativeInterface|JoinExpressionConcreteErrorsInferNativeErrorCarrier|JoinExpressionConcreteGenericImplementersInferNativeInterface|JoinExpressionConcreteParameterizedImplementersInferBoundNativeInterface|JoinExpressionParameterizedInheritedImplementersInferSharedParentInterface|IfExpressionInterfaceAndNilInferNativeCarrier|MatchExpressionCallableAndNilInferNativeCarrier|RescueExpressionErrorAndNilInferNativeNullableError|NilCapableJoinExpressionsExecuteWithoutRuntimeCarrierFallback|CommonExistentialJoinsExecuteWithoutDynamicFallback|ParameterizedInterfaceJoinsExecuteWithoutDynamicFallback|BroadStaticNativeTouchpointsStayNative|GenericInterfaceTouchpointsStayNative|StructPatternNamedFieldBinding(StaysNative|Executes))$|TestCompilerExecFixtures/(06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|06_01_compiler_rescue|06_01_compiler_or_else_error_union|06_01_compiler_loops|08_03_breakpoint_nonlocal_jump|11_02_option_result_or_handlers)$' -count=1 -timeout 60s`
+  - `git diff --check`
+
+# 2026-03-22 — Compiler Milestone 2 complete: native carrier completeness (v12)
+- Closed `PLAN.md` Milestone 2 by removing the remaining shared
+  representable-carrier widenings in the compiler type mapper and native union
+  synthesis.
+- Landed the carrier-completeness closure in:
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_binary.go`
+  - `v12/interpreters/go/pkg/compiler/generator_builtin_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_result_void.go`
+- Moved built-in `DivMod T` onto the shared nominal struct path and removed the
+  old `any` fallback for concrete `DivMod` carriers.
+- Tightened native union/result synthesis so fully bound representable members
+  fail fast instead of silently collapsing to `runtime.Value` / `any`.
+- Added shared native `Error | void` carrier support so `!void` signatures no
+  longer regress to runtime result carriers.
+- Added focused Milestone 2 regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_result_test.go`
+- Validation:
+  - `go test ./pkg/compiler -run 'TestCompiler(DivModConcreteCarrierStaysNative|ParameterizedUnionAliasLocalStaysNative|ParameterizedResultAliasLocalStaysNative|ResultVoidReturnUsesNativeCarrier|StaticIndexInterfacesStayNative|GenericUnionAliasesStayNative|BroadNativeUnionExecutes|ResultReturnUsesNativeCarrier|ResultPropagationUsesNativeCarrier|DirectErrorReturnUsesNativeCarrier|DirectErrorMessageAndCauseStayNative|IfExpressionMixedBranchesInferNativeUnion|MatchExpressionMixedClausesInferNativeUnion|RescueExpressionMixedBranchesInferNativeUnion|OrElseOnNullableMixedBranchesInferNativeUnion|OrElseOnErrorUnionMixedBranchesInferNativeUnion|LoopExpressionBreakValuesInferNativeUnion|BreakpointExpressionMixedExitsInferNativeUnion|JoinExpressionsExecuteWithoutRuntimeCarrierFallback)$' -count=1 -timeout 60s`
+  - `go test ./pkg/compiler -run 'TestCompilerExecFixtures/(06_01_compiler_divmod|06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|11_02_option_result_or_handlers)$' -count=1 -timeout 60s`
+  - `git diff --check`
+
+# 2026-03-21 — Compiler Milestone 1 complete: lowering facade centralized (v12)
+- Closed compiler `PLAN.md` Milestone 1 by making lowering entrypoints explicit
+  and shared instead of emitter-local.
+- Landed canonical lowering facade files in:
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_control.go`
+  - `v12/interpreters/go/pkg/compiler/generator_lowering_boundaries.go`
+- Refactored compiler emitters onto those entrypoints for:
+  - type normalization and carrier synthesis
+  - join/pattern synthesis
+  - top-level dispatch synthesis
+  - control-envelope checks
+  - boundary/runtime conversion and wrapping
+- Added `v12/interpreters/go/pkg/compiler/compiler_lowering_facade_audit_test.go`
+  so future compiler changes fail if they bypass the lowering facade and call
+  the lower-level synthesis helpers directly.
+- Validation:
+  - `go test ./pkg/compiler -run '^$'`
+  - `go test ./pkg/compiler -run 'TestCompiler(LoweringFacadeSourceAudit|BroadStaticNativeTouchpointsStayNative|GenericInterfaceTouchpointsStayNative|JoinExpressionsExecuteWithoutRuntimeCarrierFallback|StructPatternNamedFieldBinding(StaysNative|Executes))$|TestCompilerExecFixtures/(06_01_compiler_match_patterns|06_01_compiler_if_block_exprs|11_02_option_result_or_handlers)$' -count=1 -timeout 60s`
+  - `git diff --check`
+
 # 2026-03-21 — PLAN reset around compiler completion first (v12)
 - Rewrote `PLAN.md` so the working roadmap now reflects the actual priority
   order:

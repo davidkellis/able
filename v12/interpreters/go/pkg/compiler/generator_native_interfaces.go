@@ -287,7 +287,7 @@ func normalizeTypeExprForPackage(g *generator, pkgName string, expr ast.TypeExpr
 	if expanded := g.expandTypeAliasForPackage(pkgName, expr); expanded != nil {
 		normalized = expanded
 	}
-	return normalizeKernelBuiltinTypeExpr(normalized)
+	return normalizeCallableSyntaxTypeExpr(normalizeKernelBuiltinTypeExpr(normalized))
 }
 
 func normalizeTypeExprString(g *generator, pkgName string, expr ast.TypeExpression) string {

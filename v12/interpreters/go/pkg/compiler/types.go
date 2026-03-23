@@ -36,8 +36,6 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 			switch base.Name.Name {
 			case "Array":
 				return m.mapArrayType(t)
-			case "DivMod":
-				return "any", true
 			}
 			if goType, ok := m.gen.nativeStructCarrierTypeForExpr(m.packageName, t); ok {
 				return goType, true
@@ -49,10 +47,16 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 				return m.mapExpandedUnionMembers(unionPkg, t, members)
 			}
 		}
+		if m != nil && m.gen != nil && m.gen.typeExprIsConcreteInPackage(m.packageName, t) {
+			return "", false
+		}
 		return "runtime.Value", true
 	case *ast.FunctionTypeExpression:
 		if info, ok := m.gen.ensureNativeCallableInfo(m.packageName, t); ok && info != nil {
 			return info.GoType, true
+		}
+		if m != nil && m.gen != nil && m.gen.typeExprIsConcreteInPackage(m.packageName, t) {
+			return "", false
 		}
 		return "any", true
 	case *ast.NullableTypeExpression:
@@ -70,10 +74,13 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 
 func (m *TypeMapper) mapResultType(t *ast.ResultTypeExpression) (string, bool) {
 	if t == nil || m == nil || m.gen == nil {
-		return "any", true
+		return "", false
 	}
 	if info, ok := m.gen.ensureNativeResultUnionInfo(m.packageName, t); ok && info != nil {
 		return info.GoType, true
+	}
+	if m.gen.typeExprIsConcreteInPackage(m.packageName, t) {
+		return "", false
 	}
 	return "any", true
 }
@@ -91,6 +98,9 @@ func (m *TypeMapper) mapArrayType(t *ast.GenericTypeExpression) (string, bool) {
 			return goType, true
 		}
 	}
+	if m != nil && m.gen != nil && m.gen.typeExprIsConcreteInPackage(m.packageName, t) {
+		return "", false
+	}
 	return "any", true
 }
 
@@ -98,11 +108,11 @@ func (m *TypeMapper) mapArrayType(t *ast.GenericTypeExpression) (string, bool) {
 // Native scalar nullable values use typed Go pointers instead of any.
 func (m *TypeMapper) mapNullableType(t *ast.NullableTypeExpression) (string, bool) {
 	if t == nil || t.InnerType == nil {
-		return "any", true
+		return "", false
 	}
 	innerType, ok := m.Map(t.InnerType)
 	if !ok {
-		return "any", true
+		return "", false
 	}
 	// Struct pointers already have a nil zero value.
 	if strings.HasPrefix(innerType, "*") {
@@ -118,25 +128,31 @@ func (m *TypeMapper) mapNullableType(t *ast.NullableTypeExpression) (string, boo
 	if spec, ok := nativeNullableSpecForInnerType(innerType); ok {
 		return spec.PtrType, true
 	}
+	if m != nil && m.gen != nil && m.gen.typeExprIsConcreteInPackage(m.packageName, t) {
+		return "", false
+	}
 	return "any", true
 }
 
 func (m *TypeMapper) mapUnionType(t *ast.UnionTypeExpression) (string, bool) {
 	if t == nil || m == nil || m.gen == nil {
-		return "any", true
+		return "", false
 	}
 	return m.mapExpandedUnionMembers(m.packageName, t, t.Members)
 }
 
 func (m *TypeMapper) mapExpandedUnionMembers(pkgName string, expr ast.TypeExpression, members []ast.TypeExpression) (string, bool) {
 	if m == nil || m.gen == nil || expr == nil {
-		return "any", true
+		return "", false
 	}
 	if inner, ok := nativeUnionNullableInnerTypeExpr(members); ok {
 		return (&TypeMapper{gen: m.gen, packageName: pkgName}).mapNullableType(ast.NewNullableTypeExpression(inner))
 	}
 	if info, ok := m.gen.nativeUnionTypeExprInPackage(pkgName, expr); ok && info != nil {
 		return info.GoType, true
+	}
+	if m.gen.typeExprIsConcreteInPackage(pkgName, expr) {
+		return "", false
 	}
 	return "any", true
 }

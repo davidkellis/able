@@ -126,9 +126,21 @@ func genericParamNameSet(params []*ast.GenericParameter) map[string]struct{} {
 		if gp == nil || gp.Name == nil || gp.Name.Name == "" {
 			continue
 		}
+		if isPseudoCallableGenericName(gp.Name.Name) {
+			continue
+		}
 		names[gp.Name.Name] = struct{}{}
 	}
 	return names
+}
+
+func isPseudoCallableGenericName(name string) bool {
+	switch name {
+	case "fn", "()":
+		return true
+	default:
+		return false
+	}
 }
 
 func addGenericParams(names map[string]struct{}, params []*ast.GenericParameter) map[string]struct{} {

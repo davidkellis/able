@@ -61,7 +61,7 @@ func (g *generator) compileStaticArrayFactoryCall(
 			return nil, "", "", false
 		}
 		lines = append(lines, fmt.Sprintf("if %s < 0 {", capacityTemp))
-		transferLines, ok := g.controlTransferLines(ctx, g.runtimeErrorControlExpr(callNode, "fmt.Errorf(\"capacity must be a non-negative integer\")"))
+		transferLines, ok := g.lowerControlTransfer(ctx, g.runtimeErrorControlExpr(callNode, "fmt.Errorf(\"capacity must be a non-negative integer\")"))
 		if !ok {
 			return nil, "", "", false
 		}
@@ -89,7 +89,7 @@ func (g *generator) coerceStaticArrayFactoryResult(
 	arrayType string,
 	expected string,
 ) ([]string, string, string, bool) {
-	valueLines, valueExpr, ok := g.runtimeValueLines(ctx, arrayExpr, arrayType)
+	valueLines, valueExpr, ok := g.lowerRuntimeValue(ctx, arrayExpr, arrayType)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -97,7 +97,7 @@ func (g *generator) coerceStaticArrayFactoryResult(
 	if expected == "runtime.Value" {
 		return lines, valueExpr, "runtime.Value", true
 	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueExpr, expected)
+	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, valueExpr, expected)
 	if !ok {
 		return nil, "", "", false
 	}

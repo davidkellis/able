@@ -15,6 +15,11 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 	if !ok {
 		return nil, "", "", false
 	}
+	if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, expr.Object, objExpr, objType); recovered {
+		objLines = append(objLines, recoverLines...)
+		objExpr = recoveredExpr
+		objType = recoveredType
+	}
 	if g.isStaticArrayType(objType) {
 		idxLines, idxExpr, idxType, ok := g.compileExprLines(ctx, expr.Index, "")
 		if !ok {
@@ -55,7 +60,7 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 			)
 			return lines, resultTemp, "runtime.Value", true
 		}
-		transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(__able_index_error(%s, %s))", indexTemp, lengthTemp)))
+		transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(__able_index_error(%s, %s))", indexTemp, lengthTemp)))
 		if !ok {
 			return nil, "", "", false
 		}
@@ -78,7 +83,7 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 		lines = append(lines, staticLines...)
 		return lines, staticExpr, staticType, true
 	}
-	objConvLines, objValue, ok := g.runtimeValueLines(ctx, objExpr, objType)
+	objConvLines, objValue, ok := g.lowerRuntimeValue(ctx, objExpr, objType)
 	if !ok {
 		ctx.setReason("index object unsupported")
 		return nil, "", "", false
@@ -87,7 +92,7 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 	if !ok {
 		return nil, "", "", false
 	}
-	idxConvLines, idxValue, ok := g.runtimeValueLines(ctx, idxExpr, idxType)
+	idxConvLines, idxValue, ok := g.lowerRuntimeValue(ctx, idxExpr, idxType)
 	if !ok {
 		ctx.setReason("index expression unsupported")
 		return nil, "", "", false
@@ -99,7 +104,7 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 	baseTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s, %s := __able_index(%s, %s)", baseTemp, controlTemp, objValue, idxValue))
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -108,7 +113,7 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 	if expected == "" || expected == "runtime.Value" {
 		return lines, baseExpr, "runtime.Value", true
 	}
-	convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, baseExpr, expected)
+	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, baseExpr, expected)
 	if !ok {
 		ctx.setReason("index expression type mismatch")
 		return nil, "", "", false
@@ -239,7 +244,7 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		if effectiveExpected == "" || effectiveExpected == "runtime.Value" {
 			return lines, resultTemp, "runtime.Value", true
 		}
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, effectiveExpected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, effectiveExpected)
 		if !ok {
 			return nil, "", "", false
 		}

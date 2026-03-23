@@ -370,8 +370,11 @@ func TestCompilerInterfaceMethodWithLambdaArgStaysNative(t *testing.T) {
 		}
 	}
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "bridge.AsInt(__able_lambda_arg_0_value, 32)") {
-		t.Fatalf("expected lambda argument to use the native callback parameter type instead of runtime.Value:\n%s", compiledSrc)
+	if !strings.Contains(compiledSrc, "__able_fn_int32_to_struct__(func(n int32)") {
+		t.Fatalf("expected lambda argument to lower directly onto the native callback carrier:\n%s", compiledSrc)
+	}
+	if strings.Contains(compiledSrc, "__able_lambda_arg_0_value") {
+		t.Fatalf("expected native callback lowering to avoid runtime.Value lambda arg shims:\n%s", compiledSrc)
 	}
 }
 

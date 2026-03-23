@@ -45,14 +45,14 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 			fmt.Sprintf("%s := %s", valueTemp, valueExpr),
 			fmt.Sprintf("%s, %s := %s(%s)", failureTemp, failureOkTemp, unionFailureMember.UnwrapHelper, valueTemp),
 		)
-		failureRuntimeLines, failureRuntimeExpr, ok := g.runtimeValueLines(ctx, failureTemp, unionFailureMember.GoType)
+		failureRuntimeLines, failureRuntimeExpr, ok := g.lowerRuntimeValue(ctx, failureTemp, unionFailureMember.GoType)
 		if !ok {
 			ctx.setReason("propagation type mismatch")
 			return nil, "", "", false
 		}
 		lines = append(lines, indentLines(failureRuntimeLines, 0)...)
 		lines = append(lines, fmt.Sprintf("%s := %s", failureRuntimeTemp, failureRuntimeExpr))
-		transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", failureRuntimeTemp))
+		transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", failureRuntimeTemp))
 		if !ok {
 			return nil, "", "", false
 		}
@@ -62,7 +62,7 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 		lines = append(lines,
 			fmt.Sprintf("%s, %s := %s(%s)", successTemp, successOkTemp, unionSuccessMember.UnwrapHelper, valueTemp),
 		)
-		invariantLines, ok := g.controlTransferLines(ctx, g.runtimeErrorControlExpr("nil", `fmt.Errorf("compiler: native union propagation success branch missing")`))
+		invariantLines, ok := g.lowerControlTransfer(ctx, g.runtimeErrorControlExpr("nil", `fmt.Errorf("compiler: native union propagation success branch missing")`))
 		if !ok {
 			return nil, "", "", false
 		}
@@ -72,7 +72,7 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 		resultExpr := successTemp
 		resultType = unionSuccessMember.GoType
 		if expected != "" && expected != resultType {
-			convLines, converted, _, ok := g.coerceExpectedStaticExpr(ctx, nil, successTemp, resultType, expected)
+			convLines, converted, _, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, successTemp, resultType, expected)
 			if !ok {
 				ctx.setReason("propagation type mismatch")
 				return nil, "", "", false
@@ -87,7 +87,7 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 		innerType, _ := g.nativeNullableValueInnerType(valueType)
 		lines := append([]string{}, valueLines...)
 		valueTemp := ctx.newTemp()
-		transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", "runtime.NilValue{}"))
+		transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", "runtime.NilValue{}"))
 		if !ok {
 			return nil, "", "", false
 		}
@@ -109,7 +109,7 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 	valueTemp := ctx.newTemp()
 	lines := append([]string{}, valueLines...)
 	lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
-	transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(%s)", valueTemp)))
+	transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(%s)", valueTemp)))
 	if !ok {
 		return nil, "", "", false
 	}
@@ -118,7 +118,7 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 	lines = append(lines, "}")
 	resultExpr := valueTemp
 	if resultType != "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, valueTemp, resultType)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, valueTemp, resultType)
 		if !ok {
 			ctx.setReason("propagation type mismatch")
 			return nil, "", "", false
@@ -166,7 +166,7 @@ func (g *generator) compilePropagationMonoArrayIndex(ctx *compileContext, expr *
 	if !ok {
 		return nil, "", "", false
 	}
-	transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(__able_index_error(%s, %s))", indexTemp, lengthTemp)))
+	transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(__able_index_error(%s, %s))", indexTemp, lengthTemp)))
 	if !ok {
 		return nil, "", "", false
 	}
@@ -218,7 +218,7 @@ func (g *generator) compilePropagationStaticArrayAccessCall(ctx *compileContext,
 	resultTemp := ctx.newTemp()
 	lines := append([]string{}, objLines...)
 	lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
-	nilTransferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", "runtime.NilValue{}"))
+	nilTransferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", "runtime.NilValue{}"))
 	if !ok {
 		return nil, "", "", false
 	}
@@ -382,7 +382,7 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 					SawNil:   g.joinBranchIsNilExpr(handlerExpr, handlerType),
 				},
 			}
-			if joinedType, ok := g.joinResultTypeFromBranches(ctx, joinBranches); ok {
+			if joinedType, ok := g.lowerJoinCarrierFromBranches(ctx, joinBranches); ok {
 				resultType = joinedType
 			} else {
 				resultType = "runtime.Value"
@@ -444,7 +444,7 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		if bindingType == "runtime.Value" {
 			lines = append(lines, fmt.Sprintf("if %s != nil { %s = __able_control_value(%s); %s = true; %s = true }", controlTemp, failureTemp, controlTemp, failedTemp, errorTemp))
 		} else {
-			controlFailureLines, convertedFailure, ok := g.expectRuntimeValueExprLines(ctx, controlValueTemp, bindingType)
+			controlFailureLines, convertedFailure, ok := g.lowerExpectRuntimeValue(ctx, controlValueTemp, bindingType)
 			if !ok {
 				ctx.setReason("or-else binding type mismatch")
 				return nil, "", "", false
@@ -475,7 +475,7 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		if bindingName != "" {
 			lines = append(lines, fmt.Sprintf("\tif %s {", failureOkTemp))
 			if bindingType == "runtime.Value" {
-				failureRuntimeLines, failureRuntimeExpr, ok := g.runtimeValueLines(ctx, failureNativeTemp, unionFailureMember.GoType)
+				failureRuntimeLines, failureRuntimeExpr, ok := g.lowerRuntimeValue(ctx, failureNativeTemp, unionFailureMember.GoType)
 				if !ok {
 					ctx.setReason("or-else union error conversion mismatch")
 					return nil, "", "", false
@@ -491,7 +491,7 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		} else {
 			lines = append(lines, fmt.Sprintf("\tif %s { %s = true }", failureOkTemp, failedTemp))
 		}
-		invariantLines, ok := g.controlTransferLines(ctx, g.runtimeErrorControlExpr("nil", `fmt.Errorf("compiler: native union or-else success branch missing")`))
+		invariantLines, ok := g.lowerControlTransfer(ctx, g.runtimeErrorControlExpr("nil", `fmt.Errorf("compiler: native union or-else success branch missing")`))
 		if !ok {
 			return nil, "", "", false
 		}

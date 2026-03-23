@@ -38,7 +38,7 @@ func (g *generator) compileStaticIteratorCollectMonoArrayCall(ctx *compileContex
 			Compileable: true,
 		},
 	}
-	return g.compileResolvedMethodCall(ctx, call, expected, methodInfo, receiverExpr, receiverType, callNode)
+	return g.lowerResolvedMethodDispatch(ctx, call, expected, methodInfo, receiverExpr, receiverType, callNode)
 }
 
 func (g *generator) ensureIteratorCollectMonoArrayInfo(method *nativeInterfaceGenericMethod, receiverType string, returnGoType string) (*iteratorCollectMonoArrayInfo, bool) {
@@ -57,7 +57,7 @@ func (g *generator) ensureIteratorCollectMonoArrayInfo(method *nativeInterfaceGe
 	if nextUnion == nil {
 		return nil, false
 	}
-	iterEndGoType, ok := g.mapTypeExpressionInPackage(method.InterfacePackage, ast.Ty("IteratorEnd"))
+	iterEndGoType, ok := g.lowerCarrierTypeInPackage(method.InterfacePackage, ast.Ty("IteratorEnd"))
 	if !ok || iterEndGoType == "" {
 		return nil, false
 	}
@@ -163,7 +163,7 @@ func (g *generator) finishNativeInterfaceGenericCallReturn(ctx *compileContext, 
 		return lines, resultExpr, resultType, true
 	}
 	if expected != "runtime.Value" && resultType == "runtime.Value" {
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultExpr, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultExpr, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -172,7 +172,7 @@ func (g *generator) finishNativeInterfaceGenericCallReturn(ctx *compileContext, 
 		return lines, converted, expected, true
 	}
 	if expected == "runtime.Value" && resultType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, resultExpr, resultType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, resultExpr, resultType)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -183,7 +183,7 @@ func (g *generator) finishNativeInterfaceGenericCallReturn(ctx *compileContext, 
 	if expected != "" && expected != "any" && resultType == "any" {
 		anyTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, resultExpr))
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, expected)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, anyTemp, expected)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false
@@ -192,7 +192,7 @@ func (g *generator) finishNativeInterfaceGenericCallReturn(ctx *compileContext, 
 		return lines, converted, expected, true
 	}
 	if expected != "" && expected != "runtime.Value" && expected != "any" && g.canCoerceStaticExpr(expected, resultType) {
-		return g.coerceExpectedStaticExpr(ctx, lines, resultExpr, resultType, expected)
+		return g.lowerCoerceExpectedStaticExpr(ctx, lines, resultExpr, resultType, expected)
 	}
 	ctx.setReason("call return type mismatch")
 	return nil, "", "", false

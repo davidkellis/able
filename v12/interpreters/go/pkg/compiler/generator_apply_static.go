@@ -11,10 +11,10 @@ func (g *generator) compileStaticApplyCall(ctx *compileContext, call *ast.Functi
 	}
 	synthetic := ast.NewFunctionCall(ast.NewIdentifier("apply"), call.Arguments, call.TypeArguments, call.IsTrailingLambda)
 	if _, ok := g.nativeInterfaceMethodForGoType(receiverType, "apply"); ok {
-		return g.compileNativeInterfaceMethodCall(ctx, synthetic, expected, receiverExpr, receiverType, "apply", callNode)
+		return g.lowerNativeInterfaceMethodDispatch(ctx, synthetic, expected, receiverExpr, receiverType, "apply", callNode)
 	}
 	if method := g.compileableInterfaceMethodForConcreteReceiver(receiverType, "apply"); method != nil {
-		return g.compileResolvedMethodCall(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
+		return g.lowerResolvedMethodDispatch(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
 	}
 	return nil, "", "", false
 }

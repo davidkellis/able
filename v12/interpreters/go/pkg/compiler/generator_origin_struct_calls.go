@@ -54,7 +54,7 @@ func (g *generator) compileOriginStructMethodCall(ctx *compileContext, call *ast
 		}
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, extractErrTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -76,7 +76,7 @@ func (g *generator) compileOriginStructMethodCall(ctx *compileContext, call *ast
 			)
 			controlTemp := ctx.newTemp()
 			lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, wbErrTemp))
-			controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -86,7 +86,7 @@ func (g *generator) compileOriginStructMethodCall(ctx *compileContext, call *ast
 		}
 		return lines, expr, retType, true
 	}
-	methodLines, resultExpr, resultType, ok := g.compileResolvedMethodCall(ctx, call, expected, method, extractTemp, originType, callNode)
+	methodLines, resultExpr, resultType, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, extractTemp, originType, callNode)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -105,7 +105,7 @@ func (g *generator) compileOriginStructMethodCall(ctx *compileContext, call *ast
 		)
 		controlTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, wbErrTemp))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}

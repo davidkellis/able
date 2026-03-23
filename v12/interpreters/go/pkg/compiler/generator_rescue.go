@@ -15,7 +15,7 @@ func (g *generator) compileRaiseStatement(ctx *compileContext, stmt *ast.RaiseSt
 	if !ok {
 		return nil, false
 	}
-	convLines, valueRuntime, ok := g.runtimeValueLines(ctx, expr, goType)
+	convLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, expr, goType)
 	if !ok {
 		ctx.setReason("raise value unsupported")
 		return nil, false
@@ -23,7 +23,7 @@ func (g *generator) compileRaiseStatement(ctx *compileContext, stmt *ast.RaiseSt
 	raiseNode := g.diagNodeName(stmt, "*ast.RaiseStatement", "raise")
 	lines := append([]string{}, exprLines...)
 	lines = append(lines, convLines...)
-	transferLines, ok := g.controlTransferLines(ctx, g.raiseControlExpr(raiseNode, valueRuntime))
+	transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr(raiseNode, valueRuntime))
 	if !ok {
 		return nil, false
 	}
@@ -141,7 +141,7 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 					SawNil:   g.joinBranchIsNilExpr(clause.bodyExpr, clause.bodyType),
 				})
 			}
-			if joinedType, ok := g.joinResultTypeFromBranches(ctx, joinBranches); ok {
+			if joinedType, ok := g.lowerJoinCarrierFromBranches(ctx, joinBranches); ok {
 				resultType = joinedType
 			} else {
 				resultType = "runtime.Value"
@@ -207,7 +207,7 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			lines = append(lines, "\t}")
 		}
 	}
-	propagateLines, ok := g.controlTransferLines(ctx, controlTemp)
+	propagateLines, ok := g.lowerControlTransfer(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -237,20 +237,20 @@ func (g *generator) compileRethrowStatement(ctx *compileContext, stmt *ast.Rethr
 		return nil, false
 	}
 	if ctx != nil && ctx.rethrowControlVar != "" {
-		lines, ok := g.controlTransferLines(ctx, ctx.rethrowControlVar)
+		lines, ok := g.lowerControlTransfer(ctx, ctx.rethrowControlVar)
 		if !ok {
 			return nil, false
 		}
 		return lines, true
 	}
 	if ctx != nil && ctx.rethrowVar != "" {
-		lines, ok := g.controlTransferLines(ctx, g.raiseControlExpr("nil", ctx.rethrowVar))
+		lines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", ctx.rethrowVar))
 		if !ok {
 			return nil, false
 		}
 		return lines, true
 	}
-	lines, ok := g.controlTransferLines(ctx, `__able_raise_control(nil, runtime.ErrorValue{Message: "Unknown rethrow"})`)
+	lines, ok := g.lowerControlTransfer(ctx, `__able_raise_control(nil, runtime.ErrorValue{Message: "Unknown rethrow"})`)
 	if !ok {
 		return nil, false
 	}

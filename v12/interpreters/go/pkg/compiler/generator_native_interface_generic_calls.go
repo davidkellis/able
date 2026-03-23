@@ -46,7 +46,7 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 		callArgs := append([]string{receiverExpr}, args...)
 		callArgs = append(callArgs, callNode)
 		lines = append(lines, fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", resultTemp, controlTemp, dispatchInfo.GoName, strings.Join(callArgs, ", ")))
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -70,7 +70,7 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 		fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", receiverValueTemp, receiverErrTemp, info.ToRuntimeHelper, receiverTemp),
 		fmt.Sprintf("%s := __able_control_from_error(%s)", receiverControlTemp, receiverErrTemp),
 	)
-	controlLines, ok := g.controlCheckLines(ctx, receiverControlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, receiverControlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -90,7 +90,7 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 		lines = append(lines, argLines...)
 		argTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("var %s %s = %s", argTemp, exprType, expr))
-		argValueLines, argValueExpr, ok := g.runtimeValueLines(ctx, argTemp, exprType)
+		argValueLines, argValueExpr, ok := g.lowerRuntimeValue(ctx, argTemp, exprType)
 		if !ok {
 			ctx.setReason("call argument unsupported")
 			return nil, "", "", false
@@ -117,7 +117,7 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 			fmt.Sprintf("%s := %s(%s, %s)", writebackErr, info.ApplyRuntimeHelper, receiverTemp, receiverValueTemp),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", writebackControl, writebackErr),
 		)
-		writebackLines, ok := g.controlCheckLines(ctx, writebackControl)
+		writebackLines, ok := g.lowerControlCheck(ctx, writebackControl)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -134,13 +134,13 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 			fmt.Sprintf("%s := %s(%s, %s)", writebackErr, iface.ApplyRuntimeHelper, argTemps[idx], argValueTemps[idx]),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", writebackControl, writebackErr),
 		)
-		writebackLines, ok := g.controlCheckLines(ctx, writebackControl)
+		writebackLines, ok := g.lowerControlCheck(ctx, writebackControl)
 		if !ok {
 			return nil, "", "", false
 		}
 		lines = append(lines, writebackLines...)
 	}
-	controlLines, ok = g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok = g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -160,7 +160,7 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 		resultExpr = resultTemp
 		resultType = "any"
 	default:
-		convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, returnGoType)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, returnGoType)
 		if !ok {
 			ctx.setReason("call return type mismatch")
 			return nil, "", "", false

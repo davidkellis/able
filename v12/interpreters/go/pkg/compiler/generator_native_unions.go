@@ -193,7 +193,7 @@ func (g *generator) nativeUnionPatternMemberType(subjectType string, patternType
 	if info == nil || patternType == nil {
 		return "", false
 	}
-	mapped, ok := g.mapTypeExpressionInPackage(pkgName, patternType)
+	mapped, ok := g.lowerCarrierTypeInPackage(pkgName, patternType)
 	if !ok || mapped == "" {
 		return "", false
 	}
@@ -267,7 +267,7 @@ func (g *generator) nativeUnionExpectedTypeForExpr(ctx *compileContext, expected
 		if structTypeExpr == nil {
 			structTypeExpr = ast.Ty(e.StructType.Name)
 		}
-		mapped, ok := g.mapTypeExpressionInContext(ctx, structTypeExpr)
+		mapped, ok := g.lowerCarrierType(ctx, structTypeExpr)
 		if !ok {
 			return expected
 		}
@@ -378,10 +378,13 @@ func (g *generator) ensureNativeUnionInfo(pkgName string, members []ast.TypeExpr
 			return nil, false
 		}
 		memberType, ok := mapper.Map(memberExpr)
-		if !ok || memberType == "" || memberType == "struct{}" {
+		if !ok || memberType == "" {
 			return nil, false
 		}
 		if memberType == "any" || memberType == "runtime.Value" {
+			if g.typeExprIsConcreteInPackage(pkgName, memberExpr) {
+				return nil, false
+			}
 			memberType = "runtime.Value"
 		}
 		if _, exists := seen[memberType]; exists {
@@ -435,10 +438,13 @@ func (g *generator) ensureNativeResultUnionInfo(pkgName string, result *ast.Resu
 	}
 	mapper := NewTypeMapper(g, pkgName)
 	innerType, ok := mapper.Map(result.InnerType)
-	if !ok || innerType == "" || innerType == "struct{}" {
+	if !ok || innerType == "" {
 		return nil, false
 	}
 	if innerType == "any" || innerType == "runtime.Value" {
+		if g.typeExprIsConcreteInPackage(pkgName, result.InnerType) {
+			return nil, false
+		}
 		innerType = "runtime.Value"
 	}
 	keyParts := []string{"runtime.ErrorValue", innerType}

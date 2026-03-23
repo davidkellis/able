@@ -10,6 +10,17 @@ The exhaustive lowering map now lives in `v12/design/compiler-go-lowering-spec.m
 The ordered execution plan now lives in `v12/design/compiler-go-lowering-plan.md`.
 This document remains the short-form contract and guardrail summary.
 
+Milestone status:
+- compiler `PLAN.md` Milestone 1 is complete.
+- the compiler now has explicit shared lowering entrypoints for:
+  - type normalization and carrier synthesis
+  - join/pattern synthesis
+  - dispatch synthesis
+  - control-envelope synthesis
+  - boundary-adapter synthesis
+- source-audit enforcement for those entrypoints lives in
+  `v12/interpreters/go/pkg/compiler/compiler_lowering_facade_audit_test.go`.
+
 Named stdlib/container examples in this document are proof cases for shared
 lowering machinery, not architecture exceptions.
 
@@ -681,19 +692,42 @@ not `panic` / `recover`.
     preserve that `TypeExpr`, identifier lowering prefers the recovered native
     carrier on use, and `if` / `match` / `rescue` / `or {}` / loop /
     breakpoint joins all reuse that shared recovered-type path
-- Remaining ordered backlog on this family:
-  - close the native carrier synthesis gaps in `types.go` and
-    `generator_native_unions.go` that still map fully bound normalized
-    union/result/nullable `TypeExpr`s to `runtime.Value` / `any` before one
-    last shared native-carrier discovery pass;
-  - remove `generator_match.go` / `generator_match_runtime_types.go` /
-    `generator_rescue.go` typed-pattern fallback to `__able_try_cast(...)`
-    when the subject still retains recoverable native `TypeExpr` metadata;
-  - remove the remaining `generator_or_else.go` / `generator_rescue.go` /
-    `generator_join_types.go` fallback locals that still force representable
-    join/binding flows back to `runtime.Value`;
-  - tighten `generator_native_unions.go` residual runtime-member admission so
-    `runtime.Value` union members remain only for explicit dynamic payloads.
+- The remaining typed-pattern/control-flow closure on this family is now
+  landed too:
+  - recoverable typed pattern bindings now lower through one shared dynamic
+    typed-pattern cast path, so the bound local stays on its native carrier
+    instead of defaulting to `runtime.Value`
+  - rescue typed bindings now stay native on recoverable carriers such as
+    `runtime.ErrorValue` and generated native interface carriers
+  - native-union whole-value typed bindings now coerce directly onto the
+    shared interface carrier instead of reboxing through `runtime.Value`
+  - representative static pattern/control bodies are audited against
+    `__able_try_cast(...)`, `bridge.MatchType(...)`, panic/recover, and
+    IIFE-style scaffolding
+- Milestone 4 is now closed:
+  - shared dispatch recovery rehydrates recoverable `runtime.Value` / `any`
+    call/member/index targets onto their native carriers before dispatch
+  - local concrete/interface `Apply` bindings now lower through the shared
+    static apply path
+  - mixed-source pure-generic interface dispatch now prefers the more concrete
+    compiled specialization instead of falling back to runtime method dispatch
+  - representative dispatch coverage is now pinned by
+    `compiler_dispatch_completeness_test.go`
+- Milestone 5 is now closed:
+  - static compiled helper families now use direct Go `_impl` runtime-core
+    helpers on static paths instead of `__able_extern_*` or helper-to-helper
+    `__able_extern_call(...)` chains
+  - representative helper-body coverage now pins direct array/channel/mutex
+    runtime-core helper usage
+  - zero-arg callable syntax and `Await.default` zero-arg callback
+    specialization now stay on native callable carriers across compiled static
+    and spawned-task paths
+  - representative static fixture coverage now includes:
+    - `06_01_compiler_spawn_await`
+    - `06_12_02_stdlib_array_helpers`
+    - `06_12_19_stdlib_concurrency_channel_mutex_queue`
+- Milestone 6 is now the next active compiler milestone: boundary containment
+  and static cleanliness.
 
 ## Relationship To Other Design Notes
 

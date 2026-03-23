@@ -7,7 +7,7 @@ func (g *generator) specializationExpectedTypeExpr(ctx *compileContext, expected
 		return nil
 	}
 	if ctx != nil && ctx.expectedTypeExpr != nil {
-		return g.typeExprInContext(ctx, ctx.expectedTypeExpr)
+		return g.lowerNormalizedTypeExpr(ctx, ctx.expectedTypeExpr)
 	}
 	if expected == "" || expected == "runtime.Value" || expected == "any" {
 		return nil
@@ -16,7 +16,7 @@ func (g *generator) specializationExpectedTypeExpr(ctx *compileContext, expected
 	if !ok || expectedExpr == nil {
 		return nil
 	}
-	return g.typeExprInContext(ctx, expectedExpr)
+	return g.lowerNormalizedTypeExpr(ctx, expectedExpr)
 }
 
 func (g *generator) concreteFunctionCallInfo(ctx *compileContext, call *ast.FunctionCall, info *functionInfo, expected string) *functionInfo {

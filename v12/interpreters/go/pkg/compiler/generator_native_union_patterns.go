@@ -30,7 +30,7 @@ func (g *generator) nativeCarrierImplementsInterface(goType string, interfaceNam
 		if targetType == nil {
 			targetType = impl.Definition.TargetType
 		}
-		mapped, ok := g.mapTypeExpressionInPackage(impl.Package, targetType)
+		mapped, ok := g.lowerCarrierTypeInPackage(impl.Package, targetType)
 		if ok && mapped == goType {
 			return true
 		}
@@ -43,8 +43,36 @@ func (g *generator) nativeUnionInterfacePatternMember(subjectType string, patter
 	if info == nil {
 		return nil, false
 	}
-	_ = pkgName
-	simple, ok := patternType.(*ast.SimpleTypeExpression)
+	normalized := normalizeTypeExprForPackage(g, pkgName, patternType)
+	if expectedGoType, ok := g.lowerCarrierTypeInPackage(pkgName, normalized); ok && expectedGoType != "" {
+		if expectedGoType == "runtime.ErrorValue" {
+			var matched *nativeUnionMember
+			for _, member := range info.Members {
+				if member == nil || !g.isNativeErrorCarrierType(member.GoType) {
+					continue
+				}
+				if matched != nil {
+					return nil, false
+				}
+				matched = member
+			}
+			return matched, matched != nil
+		}
+		if iface := g.nativeInterfaceInfoForGoType(expectedGoType); iface != nil {
+			var matched *nativeUnionMember
+			for _, member := range info.Members {
+				if member == nil || !g.nativeInterfaceAcceptsActual(iface, member.GoType) {
+					continue
+				}
+				if matched != nil {
+					return nil, false
+				}
+				matched = member
+			}
+			return matched, matched != nil
+		}
+	}
+	simple, ok := normalized.(*ast.SimpleTypeExpression)
 	if !ok || simple == nil || simple.Name == nil || simple.Name.Name == "" {
 		return nil, false
 	}
@@ -66,7 +94,7 @@ func (g *generator) nativeUnionInterfacePatternMember(subjectType string, patter
 }
 
 func (g *generator) resolveNativeUnionTypedPattern(subjectType string, patternType ast.TypeExpression, pkgName string) (nativeUnionPatternTarget, bool) {
-	if mapped, ok := g.nativeUnionPatternMemberType(subjectType, patternType, pkgName); ok {
+	if mapped, ok := g.lowerNativeUnionPatternMemberTypeInPackage(pkgName, subjectType, patternType); ok {
 		if mapped == subjectType {
 			return nativeUnionPatternTarget{GoType: mapped}, true
 		}
@@ -95,7 +123,7 @@ func (g *generator) resolveNativeUnionTypedPatternInContext(ctx *compileContext,
 	if ctx == nil {
 		return g.resolveNativeUnionTypedPattern(subjectType, patternType, "")
 	}
-	return g.resolveNativeUnionTypedPattern(subjectType, g.typeExprInContext(ctx, patternType), ctx.packageName)
+	return g.resolveNativeUnionTypedPattern(subjectType, g.lowerNormalizedTypeExpr(ctx, patternType), ctx.packageName)
 }
 
 func nativeUnionWholeValueBinding(pattern ast.Pattern) bool {
@@ -156,14 +184,19 @@ func (g *generator) compileNativeUnionTypedPatternBindings(ctx *compileContext, 
 	bindType := target.GoType
 	expectedTypeExpr := ast.TypeExpression(nil)
 	if target.InterfaceBranch && nativeUnionWholeValueBinding(pattern.Pattern) {
-		runtimeLines, runtimeExpr, ok := g.runtimeValueLines(ctx, convertedTemp, target.GoType)
+		expectedGoType, ok := g.recoverTypedPatternCarrier(ctx, pattern.TypeAnnotation)
 		if !ok {
 			ctx.setReason("typed pattern type mismatch")
 			return nil, false
 		}
-		lines = append(lines, runtimeLines...)
-		bindSubject = runtimeExpr
-		bindType = "runtime.Value"
+		coerceLines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, convertedTemp, target.GoType, expectedGoType)
+		if !ok {
+			ctx.setReason("typed pattern type mismatch")
+			return nil, false
+		}
+		lines = append(lines, coerceLines...)
+		bindSubject = coercedExpr
+		bindType = coercedType
 		expectedTypeExpr = pattern.TypeAnnotation
 	}
 	previousExpected := ctx.expectedTypeExpr
@@ -201,14 +234,19 @@ func (g *generator) compileNativeUnionTypedAssignmentPatternBindings(ctx *compil
 	bindType := target.GoType
 	expectedTypeExpr := ast.TypeExpression(nil)
 	if target.InterfaceBranch && nativeUnionWholeValueBinding(pattern.Pattern) {
-		runtimeLines, runtimeExpr, ok := g.runtimeValueLines(ctx, convertedTemp, target.GoType)
+		expectedGoType, ok := g.recoverTypedPatternCarrier(ctx, pattern.TypeAnnotation)
 		if !ok {
 			ctx.setReason("typed pattern type mismatch")
 			return nil, false
 		}
-		lines = append(lines, runtimeLines...)
-		bindSubject = runtimeExpr
-		bindType = "runtime.Value"
+		coerceLines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, convertedTemp, target.GoType, expectedGoType)
+		if !ok {
+			ctx.setReason("typed pattern type mismatch")
+			return nil, false
+		}
+		lines = append(lines, coerceLines...)
+		bindSubject = coercedExpr
+		bindType = coercedType
 		expectedTypeExpr = pattern.TypeAnnotation
 	}
 	previousExpected := ctx.expectedTypeExpr

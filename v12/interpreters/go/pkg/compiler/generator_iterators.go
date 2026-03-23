@@ -67,7 +67,7 @@ func (g *generator) compileYieldStatement(ctx *compileContext, stmt *ast.YieldSt
 				return nil, false
 			}
 			if exprType != "runtime.Value" {
-				convLines, converted, ok := g.runtimeValueLines(ctx, expr, exprType)
+				convLines, converted, ok := g.lowerRuntimeValue(ctx, expr, exprType)
 				if !ok {
 					ctx.setReason("yield argument unsupported")
 					return nil, false
@@ -84,7 +84,7 @@ func (g *generator) compileYieldStatement(ctx *compileContext, stmt *ast.YieldSt
 			fmt.Sprintf("%s := %s.emit(%s)", errTemp, genExpr, valueExpr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		)
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, false
 		}
@@ -92,7 +92,7 @@ func (g *generator) compileYieldStatement(ctx *compileContext, stmt *ast.YieldSt
 		return lines, true
 	}
 	if genParam.GoType != "runtime.Value" {
-		convLines, converted, ok := g.runtimeValueLines(ctx, genExpr, genParam.GoType)
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, genExpr, genParam.GoType)
 		if !ok {
 			ctx.setReason("yield generator unsupported")
 			return nil, false

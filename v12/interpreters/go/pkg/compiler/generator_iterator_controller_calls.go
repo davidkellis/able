@@ -24,7 +24,7 @@ func (g *generator) compileStaticIteratorControllerCall(ctx *compileContext, cal
 				return nil, "", "", false
 			}
 			lines = append(lines, argLines...)
-			argConvLines, argValueExpr, ok := g.runtimeValueLines(ctx, argExpr, argType)
+			argConvLines, argValueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
 			if !ok {
 				ctx.setReason("call argument unsupported")
 				return nil, "", "", false
@@ -38,7 +38,7 @@ func (g *generator) compileStaticIteratorControllerCall(ctx *compileContext, cal
 			fmt.Sprintf("%s := %s.emit(%s)", errTemp, receiverExpr, valueExpr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		)
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -55,7 +55,7 @@ func (g *generator) compileStaticIteratorControllerCall(ctx *compileContext, cal
 			fmt.Sprintf("%s := %s.stop()", errTemp, receiverExpr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 		}
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}

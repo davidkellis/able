@@ -38,6 +38,7 @@ func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnE
 	child.loopDepth = 0
 	child.breakpoints = make(map[string]int)
 	child.rethrowVar = ""
+	child.controlMode = compileControlModeRuntimeValueError
 	bodyLines, bodyExpr, bodyType, ok := g.compileTailExpression(child, "", expr.Expression)
 	if !ok {
 		return nil, "", "", false
@@ -47,7 +48,7 @@ func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnE
 	if g.isVoidType(bodyType) {
 		resultExpr = "runtime.VoidValue{}"
 	} else {
-		cl, runtimeExpr, ok := g.runtimeValueLines(ctx, bodyExpr, bodyType)
+		cl, runtimeExpr, ok := g.lowerRuntimeValue(child, bodyExpr, bodyType)
 		if !ok {
 			ctx.setReason("spawn body unsupported")
 			return nil, "", "", false
@@ -76,7 +77,7 @@ func (g *generator) compileAwaitExpression(ctx *compileContext, expr *ast.AwaitE
 	if !ok {
 		return nil, "", "", false
 	}
-	iterConvLines, iterRuntime, ok := g.runtimeValueLines(ctx, iterExpr, iterType)
+	iterConvLines, iterRuntime, ok := g.lowerRuntimeValue(ctx, iterExpr, iterType)
 	if !ok {
 		ctx.setReason("await iterable unsupported")
 		return nil, "", "", false
@@ -87,7 +88,7 @@ func (g *generator) compileAwaitExpression(ctx *compileContext, expr *ast.AwaitE
 	awaitName := g.awaitExprName(expr)
 	awaitExpr := fmt.Sprintf("__able_await(%s, %s)", awaitName, iterRuntime)
 	if expected != "" && expected != "runtime.Value" {
-		expectLines, converted, ok := g.expectRuntimeValueExprLines(ctx, awaitExpr, expected)
+		expectLines, converted, ok := g.lowerExpectRuntimeValue(ctx, awaitExpr, expected)
 		if !ok {
 			ctx.setReason("await return type mismatch")
 			return nil, "", "", false

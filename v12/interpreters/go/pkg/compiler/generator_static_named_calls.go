@@ -47,7 +47,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 					if binding, ok := ctx.lookup(ident.Name); ok && binding.GoType == "runtime.Value" {
 						runtimeTemp := ctx.newTemp()
 						preLines = append(preLines, fmt.Sprintf("%s := %s", runtimeTemp, binding.GoName))
-						convLines, structExpr, ok := g.expectRuntimeValueExprLines(ctx, runtimeTemp, param.GoType)
+						convLines, structExpr, ok := g.lowerExpectRuntimeValue(ctx, runtimeTemp, param.GoType)
 						if !ok {
 							ctx.setReason("call argument unsupported")
 							return nil, "", "", false
@@ -60,7 +60,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 						if !ok {
 							baseName = strings.TrimPrefix(param.GoType, "*")
 						}
-						transferLines, ok := g.controlTransferLines(ctx, g.runtimeErrorControlExpr(callNode, "err"))
+						transferLines, ok := g.lowerControlTransfer(ctx, g.runtimeErrorControlExpr(callNode, "err"))
 						if !ok {
 							return nil, "", "", false
 						}
@@ -81,7 +81,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 			argType := exprType
 			if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && param.GoType == "runtime.Value" {
 				if argType != "runtime.Value" {
-					argConvLines, valueExpr, ok := g.runtimeValueLines(ctx, argExpr, argType)
+					argConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
 					if !ok {
 						ctx.setReason("interface argument unsupported")
 						return nil, "", "", false
@@ -116,7 +116,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 		lines = append(lines, preLines...)
 		lines = append(lines, fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr))
 		lines = append(lines, "__able_pop_call_frame()")
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -128,7 +128,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 			}
 		}
 		if needsRuntimeValue {
-			convLines, converted, ok := g.runtimeValueLines(ctx, resultTemp, info.ReturnType)
+			convLines, converted, ok := g.lowerRuntimeValue(ctx, resultTemp, info.ReturnType)
 			if !ok {
 				ctx.setReason("call return type mismatch")
 				return nil, "", "", false
@@ -137,7 +137,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 			return lines, converted, "runtime.Value", true
 		}
 		if needsExpect {
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, resultTemp, expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
 			if !ok {
 				ctx.setReason("call return type mismatch")
 				return nil, "", "", false
@@ -153,7 +153,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 			}
 			anyTemp := ctx.newTemp()
 			lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, resultTemp))
-			convLines, converted, ok := g.expectRuntimeValueExprLines(ctx, anyTemp, expected)
+			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, anyTemp, expected)
 			if !ok {
 				ctx.setReason("call return type mismatch")
 				return nil, "", "", false
@@ -162,7 +162,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 			return lines, converted, expected, true
 		}
 		if needsStaticCoerce {
-			return g.coerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnType, expected)
+			return g.lowerCoerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnType, expected)
 		}
 		return lines, resultTemp, info.ReturnType, true
 	}

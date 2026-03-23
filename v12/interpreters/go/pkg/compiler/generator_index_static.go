@@ -38,13 +38,13 @@ func (g *generator) prepareStaticCallArg(ctx *compileContext, expr string, actua
 		return nil, expr, actual, true
 	}
 	if expected == "runtime.Value" {
-		lines, converted, ok := g.runtimeValueLines(ctx, expr, actual)
+		lines, converted, ok := g.lowerRuntimeValue(ctx, expr, actual)
 		if !ok {
 			return nil, "", "", false
 		}
 		return lines, converted, "runtime.Value", true
 	}
-	return g.coerceExpectedStaticExpr(ctx, nil, expr, actual, expected)
+	return g.lowerCoerceExpectedStaticExpr(ctx, nil, expr, actual, expected)
 }
 
 func (g *generator) compileStaticIndexGet(ctx *compileContext, expr *ast.IndexExpression, expected string, receiverExpr string, receiverType string) ([]string, string, string, bool) {
@@ -54,17 +54,17 @@ func (g *generator) compileStaticIndexGet(ctx *compileContext, expr *ast.IndexEx
 	synthetic := ast.NewFunctionCall(ast.NewIdentifier("get"), []ast.Expression{expr.Index}, nil, false)
 	callNode := g.diagNodeName(synthetic, "*ast.FunctionCall", "call")
 	if _, ok := g.nativeInterfaceMethodForGoType(receiverType, "get"); ok {
-		return g.compileNativeInterfaceMethodCall(ctx, synthetic, expected, receiverExpr, receiverType, "get", callNode)
+		return g.lowerNativeInterfaceMethodDispatch(ctx, synthetic, expected, receiverExpr, receiverType, "get", callNode)
 	}
 	if info := g.compileableInterfaceMethodForReceiverArity(receiverType, "Index", "get", 1); info != nil {
 		method := &methodInfo{MethodName: "get", ExpectsSelf: true, Info: info}
-		return g.compileResolvedMethodCall(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
+		return g.lowerResolvedMethodDispatch(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
 	}
 	return nil, "", "", false
 }
 
 func (g *generator) finalizeStaticIndexSetResult(ctx *compileContext, lines []string, setExpr string, setType string, assignedExpr string, assignedType string) ([]string, string, string, bool) {
-	assignedLines, assignedValue, ok := g.runtimeValueLines(ctx, assignedExpr, assignedType)
+	assignedLines, assignedValue, ok := g.lowerRuntimeValue(ctx, assignedExpr, assignedType)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -90,7 +90,7 @@ func (g *generator) finalizeStaticIndexSetResult(ctx *compileContext, lines []st
 		)
 		return lines, resultTemp, "runtime.Value", true
 	case setType == "runtime.ErrorValue":
-		errorLines, errorValue, ok := g.runtimeValueLines(ctx, setExpr, setType)
+		errorLines, errorValue, ok := g.lowerRuntimeValue(ctx, setExpr, setType)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -105,7 +105,7 @@ func (g *generator) finalizeStaticIndexSetResult(ctx *compileContext, lines []st
 		failureOKTemp := ctx.newTemp()
 		resultTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s, %s := %s(%s)", failureTemp, failureOKTemp, failureMember.UnwrapHelper, setExpr))
-		failureLines, failureValue, ok := g.runtimeValueLines(ctx, failureTemp, failureMember.GoType)
+		failureLines, failureValue, ok := g.lowerRuntimeValue(ctx, failureTemp, failureMember.GoType)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -143,7 +143,7 @@ func (g *generator) compileStaticIndexSet(ctx *compileContext, target *ast.Index
 			fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr),
 			"__able_pop_call_frame()",
 		)
-		controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -173,7 +173,7 @@ func (g *generator) compileStaticIndexSet(ctx *compileContext, target *ast.Index
 		fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr),
 		"__able_pop_call_frame()",
 	)
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}

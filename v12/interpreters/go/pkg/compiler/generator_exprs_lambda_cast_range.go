@@ -17,7 +17,7 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 		return nil, "", "", false
 	}
 	targetGoType := ""
-	if mapped, mappedOK := g.mapTypeExpressionInContext(ctx, expr.TargetType); mappedOK && mapped != "" {
+	if mapped, mappedOK := g.lowerCarrierType(ctx, expr.TargetType); mappedOK && mapped != "" {
 		targetGoType = mapped
 	}
 	if targetGoType != "" && valueType != "runtime.Value" {
@@ -26,7 +26,7 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 			lines := append([]string{}, valueLines...)
 			lines = append(lines, nativeCastLines...)
 			if expected == "runtime.Value" {
-				convLines, runtimeExpr, ok := g.runtimeValueLines(ctx, nativeCastExpr, nativeCastType)
+				convLines, runtimeExpr, ok := g.lowerRuntimeValue(ctx, nativeCastExpr, nativeCastType)
 				if !ok {
 					ctx.setReason("cast type mismatch")
 					return nil, "", "", false
@@ -39,7 +39,7 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 			}
 		}
 	}
-	convLines, valueRuntime, ok := g.runtimeValueLines(ctx, valueExpr, valueType)
+	convLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 	if !ok {
 		ctx.setReason("cast operand unsupported")
 		return nil, "", "", false
@@ -54,7 +54,7 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 	castTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s, %s := __able_cast(%s, %s)", castTemp, controlTemp, valueRuntime, targetExpr))
-	controlLines, ok := g.controlCheckLines(ctx, controlTemp)
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -76,7 +76,7 @@ func (g *generator) compileTypeCast(ctx *compileContext, expr *ast.TypeCastExpre
 	if desiredType == "runtime.Value" {
 		return lines, castExpr, "runtime.Value", true
 	}
-	expectLines, converted, ok := g.expectRuntimeValueExprLines(ctx, castExpr, desiredType)
+	expectLines, converted, ok := g.lowerExpectRuntimeValue(ctx, castExpr, desiredType)
 	if !ok {
 		ctx.setReason("cast type mismatch")
 		return nil, "", "", false
@@ -98,12 +98,12 @@ func (g *generator) compileRangeExpression(ctx *compileContext, expr *ast.RangeE
 	if !ok {
 		return nil, "", "", false
 	}
-	startConvLines, startRuntime, ok := g.runtimeValueLines(ctx, startExpr, startType)
+	startConvLines, startRuntime, ok := g.lowerRuntimeValue(ctx, startExpr, startType)
 	if !ok {
 		ctx.setReason("range start unsupported")
 		return nil, "", "", false
 	}
-	endConvLines, endRuntime, ok := g.runtimeValueLines(ctx, endExpr, endType)
+	endConvLines, endRuntime, ok := g.lowerRuntimeValue(ctx, endExpr, endType)
 	if !ok {
 		ctx.setReason("range end unsupported")
 		return nil, "", "", false
@@ -119,7 +119,7 @@ func (g *generator) compileRangeExpression(ctx *compileContext, expr *ast.RangeE
 	lines = append(lines, fmt.Sprintf("%s := %s", endTemp, endRuntime))
 	rangeExpr := fmt.Sprintf("__able_range(%s, %s, %t)", startTemp, endTemp, expr.Inclusive)
 	if expected != "" && expected != "runtime.Value" {
-		expectLines, converted, ok := g.expectRuntimeValueExprLines(ctx, rangeExpr, expected)
+		expectLines, converted, ok := g.lowerExpectRuntimeValue(ctx, rangeExpr, expected)
 		if !ok {
 			ctx.setReason("range expression type mismatch")
 			return nil, "", "", false
@@ -181,7 +181,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 			paramTypeExpr = expectedFnType.ParamTypes[idx]
 		}
 		if paramTypeExpr != nil {
-			mapped, ok := g.mapTypeExpressionInContext(ctx, paramTypeExpr)
+			mapped, ok := g.lowerCarrierType(ctx, paramTypeExpr)
 			if !ok {
 				ctx.setReason("unsupported lambda parameter type")
 				return "", "", false
@@ -217,7 +217,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		lambdaReturnTypeExpr = expectedFnType.ReturnType
 	}
 	if lambdaReturnTypeExpr != nil {
-		mapped, ok := g.mapTypeExpressionInContext(ctx, lambdaReturnTypeExpr)
+		mapped, ok := g.lowerCarrierType(ctx, lambdaReturnTypeExpr)
 		if !ok {
 			ctx.setReason("unsupported lambda return type")
 			return "", "", false
@@ -352,7 +352,7 @@ func (g *generator) expectedLambdaFunctionType(ctx *compileContext) *ast.Functio
 	if g == nil || ctx == nil || ctx.expectedTypeExpr == nil {
 		return nil
 	}
-	expectedExpr := g.typeExprInContext(ctx, ctx.expectedTypeExpr)
+	expectedExpr := g.lowerNormalizedTypeExpr(ctx, ctx.expectedTypeExpr)
 	fnType, ok := expectedExpr.(*ast.FunctionTypeExpression)
 	if !ok || fnType == nil {
 		return nil

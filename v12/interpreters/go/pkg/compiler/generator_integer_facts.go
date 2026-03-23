@@ -152,7 +152,7 @@ func (g *generator) exprIntegerFactForCast(ctx *compileContext, expr *ast.TypeCa
 	if g == nil || expr == nil || expr.TargetType == nil {
 		return integerFact{}, false
 	}
-	targetType, ok := g.mapTypeExpressionInContext(ctx, expr.TargetType)
+	targetType, ok := g.lowerCarrierType(ctx, expr.TargetType)
 	if !ok || !g.isIntegerType(targetType) {
 		return integerFact{}, false
 	}

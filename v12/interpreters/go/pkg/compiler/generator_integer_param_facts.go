@@ -165,7 +165,7 @@ func (g *generator) collectIntegerFactsFromAssignment(ctx *compileContext, assig
 	existing, exists := ctx.lookup(name)
 	goType := ""
 	if typeAnnotation != nil {
-		if mapped, ok := g.mapTypeExpressionInContext(ctx, typeAnnotation); ok {
+		if mapped, ok := g.lowerCarrierType(ctx, typeAnnotation); ok {
 			goType = mapped
 		}
 	} else if exists {
@@ -202,7 +202,7 @@ func (g *generator) inferAssignmentIntegerGoType(ctx *compileContext, expr ast.E
 		if e == nil || e.TargetType == nil {
 			return "", false
 		}
-		return g.mapTypeExpressionInContext(ctx, e.TargetType)
+		return g.lowerCarrierType(ctx, e.TargetType)
 	default:
 		return "", false
 	}

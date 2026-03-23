@@ -77,7 +77,7 @@ func (g *generator) inferStaticArrayTypeExpr(ctx *compileContext, expr ast.Expre
 			return nil, false
 		}
 		if binding, ok := ctx.lookup(e.Name); ok && binding.TypeExpr != nil {
-			return g.typeExprInContext(ctx, binding.TypeExpr), true
+			return g.lowerNormalizedTypeExpr(ctx, binding.TypeExpr), true
 		}
 	case *ast.FunctionCall:
 		if inferred, ok := g.inferStaticCallResultTypeExpr(ctx, e); ok && inferred != nil {
@@ -96,11 +96,11 @@ func (g *generator) inferStaticCallResultTypeExpr(ctx *compileContext, call *ast
 	switch callee := call.Callee.(type) {
 	case *ast.Identifier:
 		if info, _, ok := g.resolveStaticCallable(ctx, callee.Name); ok && info != nil && info.Definition != nil && info.Definition.ReturnType != nil {
-			return g.typeExprInContext(ctx, info.Definition.ReturnType), true
+			return g.lowerNormalizedTypeExpr(ctx, info.Definition.ReturnType), true
 		}
 		if binding, ok := ctx.lookup(callee.Name); ok && binding.TypeExpr != nil {
 			if fnType, ok := binding.TypeExpr.(*ast.FunctionTypeExpression); ok && fnType != nil && fnType.ReturnType != nil {
-				return g.typeExprInContext(ctx, fnType.ReturnType), true
+				return g.lowerNormalizedTypeExpr(ctx, fnType.ReturnType), true
 			}
 		}
 	case *ast.MemberAccessExpression:
@@ -109,7 +109,7 @@ func (g *generator) inferStaticCallResultTypeExpr(ctx *compileContext, call *ast
 			return nil, false
 		}
 		if receiverTypeExpr, ok := g.inferExpressionTypeExpr(ctx, callee.Object, ""); ok && receiverTypeExpr != nil {
-			if receiverGoType, ok := g.mapTypeExpressionInContext(ctx, receiverTypeExpr); ok && receiverGoType != "" {
+			if receiverGoType, ok := g.lowerCarrierType(ctx, receiverTypeExpr); ok && receiverGoType != "" {
 				if method := g.methodForReceiver(receiverGoType, memberIdent.Name); method != nil && method.Info != nil {
 					method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, receiverGoType, "")
 					if returnExpr := g.functionReturnTypeExpr(method.Info); returnExpr != nil {
@@ -124,7 +124,7 @@ func (g *generator) inferStaticCallResultTypeExpr(ctx *compileContext, call *ast
 				}
 			}
 		}
-		if method, ok := g.resolveStaticMethodCall(ctx, callee.Object, memberIdent.Name); ok && method != nil && method.Info != nil {
+		if method, ok := g.lowerResolveStaticMethod(ctx, callee.Object, memberIdent.Name); ok && method != nil && method.Info != nil {
 			if returnExpr := g.functionReturnTypeExpr(method.Info); returnExpr != nil {
 				return returnExpr, true
 			}
@@ -170,7 +170,7 @@ func (g *generator) inferStaticElementTypeExpr(ctx *compileContext, expr ast.Exp
 			return nil, false
 		}
 		if binding, ok := ctx.lookup(e.Name); ok && binding.TypeExpr != nil {
-			return g.typeExprInContext(ctx, binding.TypeExpr), true
+			return g.lowerNormalizedTypeExpr(ctx, binding.TypeExpr), true
 		}
 	case *ast.IntegerLiteral:
 		return g.typeExprForGoType(g.inferIntegerLiteralType(e))
@@ -202,7 +202,7 @@ func (g *generator) staticArrayElementGoTypeForExpr(ctx *compileContext, expr as
 	if !ok || gen == nil || len(gen.Arguments) != 1 {
 		return g.staticArrayElemGoType(goType)
 	}
-	elemGoType, ok := g.mapTypeExpressionInContext(ctx, gen.Arguments[0])
+	elemGoType, ok := g.lowerCarrierType(ctx, gen.Arguments[0])
 	if !ok || elemGoType == "" {
 		return g.staticArrayElemGoType(goType)
 	}
@@ -242,7 +242,7 @@ func (g *generator) inferLocalTypeExpr(ctx *compileContext, expr ast.Expression,
 	}
 	if ident, ok := expr.(*ast.Identifier); ok && ident != nil && ctx != nil {
 		if binding, found := ctx.lookup(ident.Name); found && binding.TypeExpr != nil {
-			return g.typeExprInContext(ctx, binding.TypeExpr), true
+			return g.lowerNormalizedTypeExpr(ctx, binding.TypeExpr), true
 		}
 	}
 	if member, ok := expr.(*ast.MemberAccessExpression); ok && member != nil {
@@ -252,7 +252,7 @@ func (g *generator) inferLocalTypeExpr(ctx *compileContext, expr ast.Expression,
 	}
 	if goType != "" {
 		if inferred, ok := g.typeExprForGoType(goType); ok && inferred != nil {
-			return g.typeExprInContext(ctx, inferred), true
+			return g.lowerNormalizedTypeExpr(ctx, inferred), true
 		}
 	}
 	return nil, false
@@ -278,7 +278,7 @@ func (g *generator) staticArrayResultExprLines(ctx *compileContext, arrayType st
 			}
 			return lines, temp, "runtime.Value", true
 		}
-		return g.coerceExpectedStaticExpr(ctx, nil, elemExpr, "runtime.Value", expected)
+		return g.lowerCoerceExpectedStaticExpr(ctx, nil, elemExpr, "runtime.Value", expected)
 	}
 	if expected == "runtime.Value" {
 		runtimeExpr, ok := g.staticArrayElementRuntimeExpr(arrayType, elemExpr)
@@ -290,5 +290,5 @@ func (g *generator) staticArrayResultExprLines(ctx *compileContext, arrayType st
 	if expected == actual {
 		return nil, elemExpr, actual, true
 	}
-	return g.coerceExpectedStaticExpr(ctx, nil, elemExpr, actual, expected)
+	return g.lowerCoerceExpectedStaticExpr(ctx, nil, elemExpr, actual, expected)
 }
