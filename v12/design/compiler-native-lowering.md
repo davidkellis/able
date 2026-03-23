@@ -107,6 +107,15 @@ The compiler is not "done" when the current local fallback is smaller. It is
   - native compiled value -> boundary adapter
   - dynamic work
   - boundary adapter -> native compiled value
+- The final explicit dynamic-boundary entry helper set for the current Go AOT
+  compiler is:
+  - `__able_call_value(...)`
+  - `__able_call_named(...)`
+  - generated `call_original` wrappers
+- Generated carrier adapters such as `*_runtime_value`, `*_from`, and `*_to`
+  are allowed only immediately adjacent to one of those explicit entries or an
+  extern/host ABI edge; they are not permitted as a general static lowering
+  substrate.
 
 ## Target Representation Map
 
@@ -726,8 +735,25 @@ not `panic` / `recover`.
     - `06_01_compiler_spawn_await`
     - `06_12_02_stdlib_array_helpers`
     - `06_12_19_stdlib_concurrency_channel_mutex_queue`
-- Milestone 6 is now the next active compiler milestone: boundary containment
-  and static cleanliness.
+- Milestone 6 is complete:
+  - the final explicit boundary helper set is now mechanically locked to
+    `call_value`, `call_named`, and `call_original`
+  - representative static no-bootstrap fixture execution is audited for zero:
+    - fallback boundary calls
+    - explicit dynamic boundary calls
+    - interface/member lookup fallback calls
+    - global lookup fallback calls
+  - representative no-fallback static fixture batches remain green under the
+    boundary-marker harness
+- Milestone 7 is complete:
+  - added the reduced recursion benchmark
+    `v12/fixtures/bench/fib_i32_small/main.able`
+  - shared compiled callable/runtime env scaffolding now swaps package envs
+    only when the target env differs from the current env
+  - representative current compiled numbers are recorded in
+    `v12/docs/perf-baselines/2026-03-22-compiler-performance-milestone-7-compiled.md`
+- Milestone 8 is now the next active compiler milestone: compiler release
+  validation.
 
 ## Relationship To Other Design Notes
 

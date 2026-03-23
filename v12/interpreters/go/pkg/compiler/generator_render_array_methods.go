@@ -27,10 +27,7 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
 	if envVar, ok := g.packageEnvVar(info.Package); ok {
-		fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
-		fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
-		fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
-		fmt.Fprintf(buf, "\t}\n")
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	}
 	arrayType := info.ReturnType
 	if method.ExpectsSelf && len(info.Params) > 0 {

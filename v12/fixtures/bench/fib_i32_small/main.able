@@ -1,0 +1,10 @@
+package bench_fib_i32_small
+
+fn fib(n: i32) -> i32 {
+  if n <= 2 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+
+fn main() -> void {
+  print(fib(40))
+}

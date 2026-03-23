@@ -1,5 +1,70 @@
 # Able Project Log
 
+# 2026-03-22 — Compiler Milestone 7 complete: performance completion (v12)
+- Closed `PLAN.md` Milestone 7 with a shared callable/runtime performance
+  change instead of a new nominal-type-specific fast path.
+- Added the reduced checked-in recursion benchmark family:
+  - `v12/fixtures/bench/fib_i32_small/main.able`
+  - `v12/fixtures/bench/fib_i32_small/manifest.json`
+  - `v12/fixtures/bench/fib_i32_small/package.yml`
+- Landed the shared conditional env-swap fast path in:
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_env_swap.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_env_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_callables.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interface_generic_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_collect_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_array_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_future.go`
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge.go`
+- Added benchmark-shape/runtime regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_performance_recursion_test.go`
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_test.go`
+- Representative compiled benchmark results after the shared env-swap change:
+  - `bench/fib_i32_small`: `2.7567s`, `0.00` GC
+  - `bench/heap_i32_small`: `0.2900s`, `5.00` GC
+  - `bench/linked_list_iterator_pipeline_i64_small`: `0.1433s`, `9.67` GC
+  - `bench/matrixmultiply_f64_small`: `0.1167s`, `7.33` GC
+  - `examples/benchmarks/matrixmultiply`: `1.0633s`, `13.33` GC
+- Recorded the milestone snapshot in:
+  - `v12/docs/perf-baselines/2026-03-22-compiler-performance-milestone-7-compiled.md`
+- Validation:
+  - `go test ./pkg/compiler/bridge -run 'Test(RuntimeEnvFallsBackAfterSwapNil|SwapEnvIfNeededSkipsSameEnvironment|SwapEnvIfNeededSwapsDifferentEnvironment)$' -count=1 -timeout 60s`
+  - `go test ./pkg/compiler -run 'TestCompiler(RecursiveFunctionUsesConditionalEnvSwap|RecursiveFunctionExecutes|StaticKernelHelpersUseDirectImplCalls|RuntimeHelperBodiesAvoidExternCallChaining|ZeroArgCallableTypeSyntaxStaysNative|AwaitDefaultZeroArgCallbackSpecializationStaysNative|WhileLoopFastPath|CountedLoopFastPath|ExperimentalMonoArrays(MatrixMultiplyMainStaysNative|MatrixMultiplyScalarLoopStaysNative))$|TestCompilerExecFixtures/(06_01_compiler_spawn_await|06_12_02_stdlib_array_helpers)$' -count=1 -timeout 60s`
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --keep --show-output v12/fixtures/bench/fib_i32_small/main.able`
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/fib_i32_small/main.able`
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/heap_i32_small/main.able`
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/linked_list_iterator_pipeline_i64_small/main.able`
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/fixtures/bench/matrixmultiply_f64_small/main.able`
+  - `./v12/bench_perf --runs 3 --timeout 60 --modes compiled v12/examples/benchmarks/matrixmultiply.able`
+  - `git diff --check`
+
+# 2026-03-22 — Compiler Milestone 6 complete: boundary containment and static cleanliness (v12)
+- Closed `PLAN.md` Milestone 6 by turning the dynamic boundary into a
+  mechanically enforced compiler contract instead of a loosely distributed set
+  of expectations.
+- Landed the Milestone 6 closure in:
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_containment_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_touchpoint_audit_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`
+- The final explicit dynamic-boundary helper set is now locked to:
+  - `call_value` via `__able_call_value(...)`
+  - `call_named` via `__able_call_named(...)`
+  - `call_original` via generated original-wrapper calls
+- Representative static no-bootstrap fixture execution is now audited for zero:
+  - fallback boundary calls
+  - explicit dynamic boundary calls
+  - interface/member lookup fallback calls
+  - global lookup fallback calls
+- Representative static no-fallback fixture batches remain green under the
+  boundary-marker harness, with explicit boundary counts pinned to zero for
+  fully native static fixtures.
+- Validation:
+  - `go test ./pkg/compiler -run 'TestCompiler(BoundaryExplicitHelperSetSourceAudit|NoBootstrapStaticFixturesStayBoundaryClean|StaticNativeFixturesExecuteWithoutExplicitBoundaries|StaticNativePathsAvoidDynamicHelperReachability)$|TestCompilerMainSkipsProgramEvaluationWhenStatic(AndFallbackFree|UsesHelpers|UsesStructMethodsAndImpls|UsesMultiPackageImports|UsesWildcardImport|UsesNamedImplNamespaceImport|UsesNamedImplNamespaceOverloads)$' -count=1 -timeout 60s`
+  - `ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES='06_12_02_stdlib_array_helpers,10_03_interface_type_dynamic_dispatch,14_01_language_interfaces_index_apply_iterable' go test ./pkg/compiler -run 'TestCompilerBoundaryFallbackMarkerForStaticFixtures$' -count=1 -timeout 60s`
+  - `git diff --check`
+
 # 2026-03-22 — Compiler Milestone 5 complete: compiled runtime core independence (v12)
 - Closed `PLAN.md` Milestone 5 by moving remaining static compiled helper
   families onto direct Go runtime-core helpers instead of interpreter-oriented

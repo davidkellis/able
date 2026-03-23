@@ -85,6 +85,46 @@ func TestRuntimeEnvFallsBackAfterSwapNil(t *testing.T) {
 	}
 }
 
+func TestSwapEnvIfNeededSkipsSameEnvironment(t *testing.T) {
+	rt := New(interpreter.New())
+	env := runtime.NewEnvironment(nil)
+	rt.SetEnv(env)
+
+	prev, swapped := SwapEnvIfNeeded(rt, env)
+	if swapped {
+		t.Fatalf("SwapEnvIfNeeded swapped identical environment")
+	}
+	if prev != nil {
+		t.Fatalf("SwapEnvIfNeeded prev = %p, want nil", prev)
+	}
+	if got := rt.Env(); got != env {
+		t.Fatalf("Env() = %p, want %p", got, env)
+	}
+}
+
+func TestSwapEnvIfNeededSwapsDifferentEnvironment(t *testing.T) {
+	rt := New(interpreter.New())
+	base := runtime.NewEnvironment(nil)
+	next := runtime.NewEnvironment(nil)
+	rt.SetEnv(base)
+
+	prev, swapped := SwapEnvIfNeeded(rt, next)
+	if !swapped {
+		t.Fatalf("SwapEnvIfNeeded did not swap distinct environment")
+	}
+	if prev != base {
+		t.Fatalf("SwapEnvIfNeeded prev = %p, want %p", prev, base)
+	}
+	if got := rt.Env(); got != next {
+		t.Fatalf("Env() after swap = %p, want %p", got, next)
+	}
+
+	RestoreEnvIfNeeded(rt, prev, swapped)
+	if got := rt.Env(); got != base {
+		t.Fatalf("Env() after restore = %p, want %p", got, base)
+	}
+}
+
 func TestExecutorKind(t *testing.T) {
 	if got := ExecutorKind(nil); got != "serial" {
 		t.Fatalf("ExecutorKind(nil) = %q, want serial", got)

@@ -311,6 +311,23 @@ borrowing interpreter-oriented execution as its normal implementation strategy.
 
 ### 6. Finish Boundary Containment
 
+Status:
+- complete on 2026-03-22.
+- the final explicit dynamic-boundary helper set is now locked to:
+  - `call_value` through `__able_call_value(...)`
+  - `call_named` through `__able_call_named(...)`
+  - `call_original` through generated original-wrapper calls
+- representative static no-bootstrap fixture execution now proves:
+  - zero fallback boundary calls
+  - zero explicit dynamic boundary calls
+  - zero interface/member lookup fallback calls
+  - zero global lookup fallback calls
+- representative proof now includes:
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_containment_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_touchpoint_audit_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`
+
 #### Goal
 
 All residual runtime/interpreter carriers live only at explicit dynamic or ABI
@@ -334,6 +351,19 @@ edges.
 - explicit compiled <-> dynamic callback boundaries
 - values that already originate from dynamic runtime payloads
 
+#### Allowed explicit boundary helper set
+
+- `__able_call_value(...)`
+  - explicit compiled value/callback -> dynamic callable entry
+- `__able_call_named(...)`
+  - explicit compiled -> dynamic named lookup/call entry
+- generated `call_original` wrappers
+  - explicit preserved original/dynamic implementation entry
+
+All other generated helpers must either stay fully native or act only as
+immediate carrier adapters adjacent to one of the three explicit entry helpers
+or an extern/host ABI edge.
+
 #### Definition of done
 
 - A static source program does not cross boundary helpers unless it explicitly
@@ -347,6 +377,23 @@ edges.
 - generated-source audits around boundary helper use
 
 ### 7. Finish Performance Completeness
+
+Status:
+- complete on 2026-03-22.
+- added the reduced checked-in recursion benchmark:
+  - `v12/fixtures/bench/fib_i32_small/main.able`
+- shared compiled callable/runtime env scaffolding now swaps package envs only
+  when necessary through:
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_env_swap.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_env_helpers.go`
+- representative performance closure is recorded in:
+  - `v12/docs/perf-baselines/2026-03-22-compiler-performance-milestone-7-compiled.md`
+- current representative compiled results after the shared env-swap fast path:
+  - `bench/fib_i32_small`: `2.7567s`, `0.00` GC
+  - `bench/heap_i32_small`: `0.2900s`, `5.00` GC
+  - `bench/linked_list_iterator_pipeline_i64_small`: `0.1433s`, `9.67` GC
+  - `bench/matrixmultiply_f64_small`: `0.1167s`, `7.33` GC
+  - `examples/benchmarks/matrixmultiply`: `1.0633s`, `13.33` GC
 
 #### Goal
 
@@ -410,14 +457,12 @@ The compiler is releasable when:
 
 This is the concrete next queue derived from the larger work program.
 
-1. Centralize remaining carrier-synthesis decisions so representable static
-   types stop falling back to `runtime.Value` / `any`.
-2. Remove remaining static typed-pattern fallback to runtime type-match helpers.
-3. Tighten remaining static dispatch paths that still route through dynamic
-   helper dispatch.
-4. Audit compiled runtime helper families that still model static semantics too
-   closely after interpreter-oriented helpers.
-5. Re-run the boundary and benchmark gates after each completed workstream.
+1. Run the compiled release matrix and close any remaining fixture failures
+   under no-bootstrap/no-fallback enforcement.
+2. Run `./run_all_tests.sh` and close compiler-side regressions.
+3. Run `./run_stdlib_tests.sh` and close compiled-mode stdlib regressions.
+4. Audit compiled diagnostics/failure behavior for release stability.
+5. Confirm reproducible clean-checkout compiler builds and release-gate docs.
 
 ## How To Judge Proposed Compiler Changes
 

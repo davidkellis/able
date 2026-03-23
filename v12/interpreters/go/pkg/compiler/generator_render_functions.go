@@ -48,10 +48,7 @@ func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
 			}
 			fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
 			if envVar, ok := g.packageEnvVar(info.Package); ok {
-				fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
-				fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
-				fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
-				fmt.Fprintf(buf, "\t}\n")
+				writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 			}
 			for _, line := range lines {
 				fmt.Fprintf(buf, "\t%s\n", line)
@@ -80,10 +77,7 @@ func (g *generator) renderCompiledFunctionFallback(buf *bytes.Buffer, info *func
 	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
 	if envVar, ok := g.packageEnvVar(info.Package); ok {
-		fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
-		fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
-		fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
-		fmt.Fprintf(buf, "\t}\n")
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	}
 	qualified := info.Name
 	if info.QualifiedName != "" {
@@ -171,10 +165,7 @@ func (g *generator) renderCompiledMethods(buf *bytes.Buffer) {
 		}
 		fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
 		if envVar, ok := g.packageEnvVar(info.Package); ok {
-			fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
-			fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
-			fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
-			fmt.Fprintf(buf, "\t}\n")
+			writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 		}
 		for _, line := range lines {
 			fmt.Fprintf(buf, "\t%s\n", line)
@@ -198,10 +189,7 @@ func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *meth
 	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
 	if envVar, ok := g.packageEnvVar(info.Package); ok {
-		fmt.Fprintf(buf, "\tif __able_runtime != nil && %s != nil {\n", envVar)
-		fmt.Fprintf(buf, "\t\tprevEnv := __able_runtime.SwapEnv(%s)\n", envVar)
-		fmt.Fprintf(buf, "\t\tdefer __able_runtime.SwapEnv(prevEnv)\n")
-		fmt.Fprintf(buf, "\t}\n")
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	}
 	runtimeArgs := make([]string, 0, len(info.Params))
 	for _, param := range info.Params {
@@ -278,10 +266,7 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 		}
 		genericNames := g.callableGenericNames(info)
 		fmt.Fprintf(buf, "func __able_wrap_%s(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (result runtime.Value, err error) {\n", info.GoName)
-		fmt.Fprintf(buf, "\tif rt != nil && ctx != nil && ctx.Env != nil {\n")
-		fmt.Fprintf(buf, "\t\tprevEnv := rt.SwapEnv(ctx.Env)\n")
-		fmt.Fprintf(buf, "\t\tdefer rt.SwapEnv(prevEnv)\n")
-		fmt.Fprintf(buf, "\t}\n")
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "rt", "ctx.Env", "ctx != nil")
 		if g.hasOptionalLastParam(info) && info.Arity > 0 {
 			fmt.Fprintf(buf, "\tif len(args) == %d {\n", info.Arity-1)
 			fmt.Fprintf(buf, "\t\targs = append(args, runtime.NilValue{})\n")
@@ -348,10 +333,7 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 		info := method.Info
 		genericNames := g.methodGenericNames(method)
 		fmt.Fprintf(buf, "func __able_wrap_%s(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (result runtime.Value, err error) {\n", info.GoName)
-		fmt.Fprintf(buf, "\tif rt != nil && ctx != nil && ctx.Env != nil {\n")
-		fmt.Fprintf(buf, "\t\tprevEnv := rt.SwapEnv(ctx.Env)\n")
-		fmt.Fprintf(buf, "\t\tdefer rt.SwapEnv(prevEnv)\n")
-		fmt.Fprintf(buf, "\t}\n")
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "rt", "ctx.Env", "ctx != nil")
 		if g.hasOptionalLastParam(info) && info.Arity > 0 {
 			fmt.Fprintf(buf, "\tif len(args) == %d {\n", info.Arity-1)
 			fmt.Fprintf(buf, "\t\targs = append(args, runtime.NilValue{})\n")

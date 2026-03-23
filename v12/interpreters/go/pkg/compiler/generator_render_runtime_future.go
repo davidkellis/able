@@ -515,8 +515,9 @@ func __able_run_compiled_task(payload *__able_async_payload, env *runtime.Enviro
 	if env != nil {
 		env.SetRuntimeData(payload)
 		if __able_runtime != nil {
-			prev := __able_runtime.SwapEnv(env)
-			defer __able_runtime.SwapEnv(prev)
+			if prev, swapped := bridge.SwapEnvIfNeeded(__able_runtime, env); swapped {
+				defer bridge.RestoreEnvIfNeeded(__able_runtime, prev, swapped)
+			}
 		}
 		defer env.SetRuntimeData(nil)
 	}
