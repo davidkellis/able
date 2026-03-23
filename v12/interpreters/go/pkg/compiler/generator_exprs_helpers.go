@@ -20,7 +20,7 @@ func (g *generator) typeMatches(expected, actual string) bool {
 	}
 	if g != nil {
 		if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil {
-			return g.nativeInterfaceAcceptsActual(iface, actual)
+			return g.nativeInterfaceAcceptsActualShallow(iface, actual)
 		}
 		if union := g.nativeUnionInfoForGoType(expected); union != nil {
 			if _, ok := g.nativeUnionMember(union, actual); ok {
@@ -47,6 +47,9 @@ func (g *generator) canCoerceStaticExpr(expected, actual string) bool {
 		return true
 	}
 	if g.typeMatches(expected, actual) {
+		return true
+	}
+	if g != nil && g.sameNominalStructFamily(expected, actual) {
 		return true
 	}
 	if g != nil && g.isIntegerType(expected) && g.isIntegerType(actual) {
@@ -204,6 +207,24 @@ func (g *generator) compileExprLinesWithExpectedTypeExpr(ctx *compileContext, ex
 	return g.compileExprLines(ctx, expr, expectedGoType)
 }
 
+func (g *generator) staticParamCarrierType(ctx *compileContext, param paramInfo) string {
+	expectedType := param.GoType
+	if g == nil || ctx == nil || param.TypeExpr == nil {
+		return expectedType
+	}
+	if expectedType != "" && expectedType != "runtime.Value" && expectedType != "any" {
+		return expectedType
+	}
+	if recovered, ok := g.joinCarrierTypeFromTypeExpr(ctx, param.TypeExpr); ok && recovered != "" {
+		return recovered
+	}
+	recovered, ok := g.lowerCarrierType(ctx, param.TypeExpr)
+	if !ok || recovered == "" {
+		return expectedType
+	}
+	return recovered
+}
+
 func (g *generator) nativeUnionWrapLines(ctx *compileContext, expected, actual, expr string) ([]string, string, bool) {
 	if wrapped, ok := g.nativeUnionWrapExpr(expected, actual, expr); ok {
 		return nil, wrapped, true
@@ -299,6 +320,9 @@ func (g *generator) compileableInterfaceMethodForConcreteReceiver(goType string,
 		}
 		candidate := &methodInfo{MethodName: methodName, ExpectsSelf: true, Info: impl.Info}
 		if found != nil && found.Info != candidate.Info {
+			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+				continue
+			}
 			return nil
 		}
 		found = candidate
@@ -356,6 +380,9 @@ func (g *generator) compileableInterfaceStaticMethodForConcreteTarget(target ast
 			ReceiverType: "",
 		}
 		if found != nil && found.Info != candidate.Info {
+			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+				continue
+			}
 			return nil
 		}
 		found = candidate

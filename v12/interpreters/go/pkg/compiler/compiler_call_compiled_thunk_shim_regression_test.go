@@ -26,7 +26,7 @@ func TestCompilerNormalizesCallCompiledThunkDispatch(t *testing.T) {
 		t.Fatalf("expected __able_call_compiled_thunk helper to be emitted")
 	}
 	segment := compiledSrc[start:]
-	end := strings.Index(segment, "func __able_call_native_function(fn runtime.NativeFunctionValue, partialTarget runtime.Value, providedArgs []runtime.Value, invokeArgs []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext) runtime.Value {")
+	end := strings.Index(segment, "func __able_call_native_function(fn runtime.NativeFunctionValue, partialTarget runtime.Value, providedArgs []runtime.Value, invokeArgs []runtime.Value, call *ast.FunctionCall, ctx *runtime.NativeCallContext)")
 	if end < 0 {
 		t.Fatalf("expected __able_call_compiled_thunk segment terminator")
 	}

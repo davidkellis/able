@@ -207,7 +207,7 @@ func (g *generator) ensureSpecializedNominalMethod(method *methodInfo, bindings 
 		return nil, false
 	}
 	key := g.specializedImplFunctionKey(method.Info, bindings)
-	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil && existing.Compileable {
+	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil && (existing.Compileable || existing == method.Info) {
 		return g.specializedNominalMethodInfo(method, existing, bindings), true
 	}
 	specialized := &functionInfo{
@@ -232,14 +232,12 @@ func (g *generator) ensureSpecializedNominalMethod(method *methodInfo, bindings 
 	}
 	specialized.Compileable = true
 	g.specializedFunctions = append(g.specializedFunctions, specialized)
+	g.touchNativeInterfaceAdapters()
 	g.specializedFunctionIndex[key] = specialized
-	if !g.bodyCompileable(specialized, specialized.ReturnType) {
-		delete(g.specializedFunctionIndex, key)
-		g.specializedFunctions = removeSpecializedFunction(g.specializedFunctions, specialized)
-		return nil, false
+	if g.bodyCompileable(specialized, specialized.ReturnType) {
+		specialized.Compileable = true
+		specialized.Reason = ""
 	}
-	specialized.Compileable = true
-	specialized.Reason = ""
 	return g.specializedNominalMethodInfo(method, specialized, bindings), true
 }
 

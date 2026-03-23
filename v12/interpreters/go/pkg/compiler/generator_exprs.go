@@ -98,8 +98,28 @@ func (g *generator) compileExprLines(ctx *compileContext, expr ast.Expression, e
 }
 
 func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string, expr string, actual string, expected string) ([]string, string, string, bool) {
+	if expected == "runtime.Value" && actual != "" && actual != "runtime.Value" {
+		convLines, converted, ok := g.lowerRuntimeValue(ctx, expr, actual)
+		if ok {
+			lines = append(lines, convLines...)
+			return lines, converted, "runtime.Value", true
+		}
+	}
 	if g != nil && expected != "" && expected != actual && g.isIntegerType(expected) && g.isIntegerType(actual) {
 		return lines, fmt.Sprintf("%s(%s)", expected, expr), expected, true
+	}
+	if actual == "any" && expected != "" && expected != "any" {
+		valueTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", valueTemp, expr))
+		expr = valueTemp
+		actual = "runtime.Value"
+	}
+	if g != nil && g.sameNominalStructFamily(expected, actual) {
+		convLines, converted, ok := g.coerceNominalStructFamilyLines(ctx, expr, actual, expected)
+		if ok {
+			lines = append(lines, convLines...)
+			return lines, converted, expected, true
+		}
 	}
 	if g.nativeNullableWraps(expected, actual) {
 		ptrTemp := ctx.newTemp()
@@ -111,6 +131,19 @@ func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string
 		if ok {
 			lines = append(lines, convLines...)
 			return lines, converted, expected, true
+		}
+	}
+	if g != nil && expected != "" && expected != actual {
+		if g.nativeUnionInfoForGoType(expected) != nil && g.nativeUnionInfoForGoType(actual) != nil {
+			runtimeLines, runtimeExpr, ok := g.lowerRuntimeValue(ctx, expr, actual)
+			if ok {
+				convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, runtimeExpr, expected)
+				if ok {
+					lines = append(lines, runtimeLines...)
+					lines = append(lines, convLines...)
+					return lines, converted, expected, true
+				}
+			}
 		}
 	}
 	if innerType, nullable := g.nativeNullableValueInnerType(expected); nullable && innerType == "runtime.ErrorValue" {
@@ -195,6 +228,9 @@ func (g *generator) compileExprExpected(ctx *compileContext, expr ast.Expression
 	case *ast.NilLiteral:
 		if expected == "runtime.Value" {
 			return "runtime.NilValue{}", "runtime.Value", true
+		}
+		if wrapped, ok := g.nativeUnionNilExpr(expected); ok {
+			return wrapped, expected, true
 		}
 		if expected == "any" || expected == "" {
 			return "any(nil)", "any", true
@@ -301,6 +337,37 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 			integerSuffix(lit),
 		), "runtime.Value", true
 	}
+	if union := g.nativeUnionInfoForGoType(expected); union != nil {
+		targetType := ""
+		if explicit {
+			if _, ok := g.nativeUnionMember(union, actual); ok {
+				targetType = actual
+			}
+		} else {
+			if _, ok := g.nativeUnionMember(union, actual); ok {
+				targetType = actual
+			}
+			if targetType == "" {
+				for _, member := range union.Members {
+					if member == nil {
+						continue
+					}
+					if g.isIntegerType(member.GoType) {
+						if targetType != "" && targetType != member.GoType {
+							targetType = ""
+							break
+						}
+						targetType = member.GoType
+					}
+				}
+			}
+		}
+		if targetType == "" {
+			ctx.setReason(fmt.Sprintf("unsupported integer literal type (%s)", expected))
+			return "", "", false
+		}
+		return fmt.Sprintf("%s(%s)", targetType, lit.Value.String()), targetType, true
+	}
 	if innerType, ok := g.nativeNullableValueInnerType(expected); ok {
 		switch {
 		case g.isIntegerType(innerType):
@@ -335,11 +402,7 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 		ctx.setReason(fmt.Sprintf("unsupported integer literal type (%s)", expected))
 		return "", "", false
 	}
-	targetType := expected
-	if g.nativeUnionInfoForGoType(expected) != nil {
-		targetType = actual
-	}
-	return fmt.Sprintf("%s(%s)", targetType, lit.Value.String()), targetType, true
+	return fmt.Sprintf("%s(%s)", expected, lit.Value.String()), expected, true
 }
 
 func (g *generator) compileFloatLiteral(ctx *compileContext, lit *ast.FloatLiteral, expected string) (string, string, bool) {

@@ -135,6 +135,29 @@ func (g *generator) functionsForPackage(pkgName string) map[string]*functionInfo
 	return g.functions[pkgName]
 }
 
+func (g *generator) functionsForCompileContext(info *functionInfo) map[string]*functionInfo {
+	if g == nil || info == nil {
+		return g.functionsForPackage("")
+	}
+	base := g.functionsForPackage(info.Package)
+	name := strings.TrimSpace(info.Name)
+	if name == "" {
+		return base
+	}
+	if existing, ok := base[name]; ok && existing == info {
+		return base
+	}
+	if len(base) == 0 {
+		return map[string]*functionInfo{name: info}
+	}
+	overlay := make(map[string]*functionInfo, len(base)+1)
+	for key, value := range base {
+		overlay[key] = value
+	}
+	overlay[name] = info
+	return overlay
+}
+
 func (g *generator) overloadsForPackage(pkgName string) map[string]*overloadInfo {
 	if g == nil {
 		return nil

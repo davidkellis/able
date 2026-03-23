@@ -2,6 +2,25 @@ package compiler
 
 import "able/interpreter-go/pkg/ast"
 
+func (g *generator) discardSpecializedFunctionInfo(key string, info *functionInfo) {
+	if g == nil || info == nil {
+		return
+	}
+	if key != "" {
+		if existing, ok := g.specializedFunctionIndex[key]; ok && existing == info {
+			delete(g.specializedFunctionIndex, key)
+		}
+	}
+	filtered := g.specializedFunctions[:0]
+	for _, candidate := range g.specializedFunctions {
+		if candidate == nil || candidate == info {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+	g.specializedFunctions = filtered
+}
+
 func (g *generator) specializationExpectedTypeExpr(ctx *compileContext, expected string) ast.TypeExpression {
 	if g == nil {
 		return nil
@@ -43,7 +62,8 @@ func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.F
 		return nil, false
 	}
 	genericNames := g.callableGenericNames(info)
-	bindings := g.normalizeConcreteTypeBindings(info.Package, cloneTypeBindings(info.TypeBindings), genericNames)
+	bindings := g.concreteCompileContextBindings(info, genericNames)
+	bindings = g.mergeConcreteTypeBindings(info.Package, genericNames, bindings, ctx.typeBindings)
 	if bindings == nil {
 		bindings = make(map[string]ast.TypeExpression)
 	}
@@ -96,8 +116,10 @@ func (g *generator) ensureSpecializedFunctionInfo(info *functionInfo, bindings m
 		return nil, false
 	}
 	key := g.specializedImplFunctionKey(info, bindings)
-	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil && existing.Compileable {
-		return existing, true
+	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil {
+		if existing.Compileable || existing == info {
+			return existing, true
+		}
 	}
 	specialized := &functionInfo{
 		Name:           info.Name,
@@ -117,14 +139,12 @@ func (g *generator) ensureSpecializedFunctionInfo(info *functionInfo, bindings m
 	}
 	specialized.Compileable = true
 	g.specializedFunctions = append(g.specializedFunctions, specialized)
+	g.touchNativeInterfaceAdapters()
 	g.specializedFunctionIndex[key] = specialized
-	if !g.bodyCompileable(specialized, specialized.ReturnType) {
-		delete(g.specializedFunctionIndex, key)
-		g.specializedFunctions = removeSpecializedFunction(g.specializedFunctions, specialized)
-		return nil, false
+	if g.bodyCompileable(specialized, specialized.ReturnType) {
+		specialized.Compileable = true
+		specialized.Reason = ""
 	}
-	specialized.Compileable = true
-	specialized.Reason = ""
 	return specialized, true
 }
 
@@ -148,6 +168,7 @@ func (g *generator) fillSpecializedFunctionInfo(info *functionInfo, mapper *Type
 		}
 		paramType := normalizeTypeExprForPackage(g, info.Package, substituteTypeParams(param.ParamType, info.TypeBindings))
 		goType, ok := mapper.Map(paramType)
+		goType, ok = g.recoverRepresentableCarrierType(info.Package, paramType, goType)
 		if !ok || goType == "" {
 			supported = false
 		}
@@ -161,6 +182,7 @@ func (g *generator) fillSpecializedFunctionInfo(info *functionInfo, mapper *Type
 	}
 	retExpr := normalizeTypeExprForPackage(g, info.Package, substituteTypeParams(def.ReturnType, info.TypeBindings))
 	retType, ok := mapper.Map(retExpr)
+	retType, ok = g.recoverRepresentableCarrierType(info.Package, retExpr, retType)
 	if !ok || retType == "" {
 		supported = false
 	}

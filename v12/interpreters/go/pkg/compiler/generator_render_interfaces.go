@@ -10,7 +10,9 @@ func (g *generator) renderNativeInterfaces(buf *bytes.Buffer) {
 	if g == nil || buf == nil || len(g.nativeInterfaces) == 0 {
 		return
 	}
-	renderedConcreteAdapters := make(map[string]struct{})
+	if g.nativeInterfaceRenderedAdapters == nil {
+		g.nativeInterfaceRenderedAdapters = make(map[string]struct{})
+	}
 	for _, key := range g.sortedNativeInterfaceKeys() {
 		info := g.nativeInterfaces[key]
 		if info == nil {
@@ -20,7 +22,7 @@ func (g *generator) renderNativeInterfaces(buf *bytes.Buffer) {
 		g.renderNativeInterfaceRuntimeIteratorAdapter(buf, info)
 		g.renderNativeInterfaceRuntimeAdapter(buf, info)
 	}
-	for g.renderPendingNativeInterfaceConcreteAdapters(buf, renderedConcreteAdapters) {
+	for g.renderPendingNativeInterfaceConcreteAdapters(buf) {
 	}
 	for _, key := range g.sortedNativeInterfaceKeys() {
 		info := g.nativeInterfaces[key]
@@ -31,11 +33,11 @@ func (g *generator) renderNativeInterfaces(buf *bytes.Buffer) {
 		g.renderNativeInterfaceApplyRuntimeHelper(buf, info)
 	}
 	g.renderNativeInterfaceGenericDispatchHelpers(buf)
-	for g.renderPendingNativeInterfaceConcreteAdapters(buf, renderedConcreteAdapters) {
+	for g.renderPendingNativeInterfaceConcreteAdapters(buf) {
 	}
 }
 
-func (g *generator) renderPendingNativeInterfaceConcreteAdapters(buf *bytes.Buffer, rendered map[string]struct{}) bool {
+func (g *generator) renderPendingNativeInterfaceConcreteAdapters(buf *bytes.Buffer) bool {
 	if g == nil || buf == nil {
 		return false
 	}
@@ -45,16 +47,37 @@ func (g *generator) renderPendingNativeInterfaceConcreteAdapters(buf *bytes.Buff
 		if info == nil {
 			continue
 		}
+		if info.AdapterVersion != g.nativeInterfaceAdapterVersion {
+			g.refreshNativeInterfaceAdapters(info)
+		}
 		for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 			if adapter == nil || adapter.GoType == "" {
 				continue
 			}
 			renderKey := info.Key + "::" + adapter.GoType
-			if _, ok := rendered[renderKey]; ok {
+			if _, ok := g.nativeInterfaceRenderedAdapters[renderKey]; ok {
 				continue
 			}
 			g.renderNativeInterfaceConcreteAdapter(buf, info, adapter)
-			rendered[renderKey] = struct{}{}
+			g.nativeInterfaceRenderedAdapters[renderKey] = struct{}{}
+			progress = true
+		}
+	}
+	for key, adapters := range g.nativeInterfaceExplicitAdapters {
+		info := g.nativeInterfaces[key]
+		if info == nil {
+			continue
+		}
+		for _, adapter := range adapters {
+			if adapter == nil || adapter.GoType == "" {
+				continue
+			}
+			renderKey := info.Key + "::" + adapter.GoType
+			if _, ok := g.nativeInterfaceRenderedAdapters[renderKey]; ok {
+				continue
+			}
+			g.renderNativeInterfaceConcreteAdapter(buf, info, adapter)
+			g.nativeInterfaceRenderedAdapters[renderKey] = struct{}{}
 			progress = true
 		}
 	}
@@ -379,6 +402,8 @@ func (g *generator) renderNativeInterfaceBoundaryHelpers(buf *bytes.Buffer, info
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tbase := __able_unwrap_interface(value)\n")
+	fmt.Fprintf(buf, "\t_ = base\n")
 	if baseName == "Iterator" {
 		fmt.Fprintf(buf, "\tif iter, ok, nilPtr := __able_runtime_iterator_value(value); ok || nilPtr {\n")
 		fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
@@ -395,7 +420,7 @@ func (g *generator) renderNativeInterfaceBoundaryHelpers(buf *bytes.Buffer, info
 		if !ok {
 			continue
 		}
-		fmt.Fprintf(buf, "\tif coerced, ok, err := bridge.MatchType(rt, %s, value); err != nil {\n", renderedAdapterType)
+		fmt.Fprintf(buf, "\tif coerced, ok, err := bridge.MatchType(rt, %s, base); err != nil {\n", renderedAdapterType)
 		fmt.Fprintf(buf, "\t\treturn nil, err\n")
 		fmt.Fprintf(buf, "\t} else if ok {\n")
 		if g.renderNativeInterfaceRuntimeToGoValueError(buf, "converted", "coerced", adapter.GoType, "\t\t") {

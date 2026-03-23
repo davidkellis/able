@@ -107,7 +107,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		if !ok {
 			return nil, "", "", false
 		}
-		if cond == "true" && len(condLines) == 0 && len(bindLines) == 0 {
+		if len(bindLines) == 0 && ((cond == "true" && len(condLines) == 0) || (cond == "false" && len(condLines) == 0)) {
 			clauseSubjectLines = nil
 		}
 		guardExpr := ""
@@ -150,7 +150,9 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 			bodyNode:     clause.Body,
 			bodyTypeExpr: bodyTypeExpr,
 		})
-		clauseSubjectType = g.narrowedNativeUnionSubjectType(clauseCtx, clauseSubjectType, clause.Pattern)
+		if clause.Guard == nil {
+			clauseSubjectType = g.narrowedNativeUnionSubjectType(clauseCtx, clauseSubjectType, clause.Pattern)
+		}
 	}
 	if !explicitExpected {
 		joinBranches := make([]joinBranchInfo, 0, len(clauses))
@@ -206,6 +208,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 	lines := append([]string{}, subjectLines...)
 	lines = append(lines,
 		fmt.Sprintf("%s := %s", subjectTemp, subjectExpr),
+		fmt.Sprintf("_ = %s", subjectTemp),
 		fmt.Sprintf("%s := false", matchedTemp),
 		fmt.Sprintf("var %s %s", resultTemp, resultType),
 	)
@@ -256,6 +259,7 @@ func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchE
 	lines := append([]string{}, subjectLines...)
 	lines = append(lines,
 		fmt.Sprintf("%s := %s", subjectTemp, subjectExpr),
+		fmt.Sprintf("_ = %s", subjectTemp),
 		fmt.Sprintf("%s := false", matchedTemp),
 	)
 	clauseSubjectType := subjectType
@@ -270,7 +274,7 @@ func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchE
 			ctx.setReason(clauseCtx.reason)
 			return nil, false
 		}
-		if cond == "true" && len(condLines) == 0 && len(bindLines) == 0 {
+		if len(bindLines) == 0 && ((cond == "true" && len(condLines) == 0) || (cond == "false" && len(condLines) == 0)) {
 			clauseSubjectLines = nil
 		}
 		guardExpr := ""
@@ -331,7 +335,9 @@ func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchE
 			}
 			lines = append(lines, "}")
 		}
-		clauseSubjectType = g.narrowedNativeUnionSubjectType(clauseCtx, clauseSubjectType, clause.Pattern)
+		if clause.Guard == nil {
+			clauseSubjectType = g.narrowedNativeUnionSubjectType(clauseCtx, clauseSubjectType, clause.Pattern)
+		}
 	}
 	lines = append(lines, fmt.Sprintf("if !%s { bridge.RaiseRuntimeErrorWithContext(__able_runtime, %s, fmt.Errorf(\"Non-exhaustive match\")) }", matchedTemp, matchNode))
 	return lines, true

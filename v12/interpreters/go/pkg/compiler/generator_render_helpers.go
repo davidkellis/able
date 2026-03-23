@@ -93,7 +93,57 @@ func (g *generator) methodGenericNames(method *methodInfo) map[string]struct{} {
 	if iface, ok := g.interfaces[baseName]; ok && iface != nil {
 		names = addGenericParams(names, iface.GenericParams)
 	}
+	names = mergeGenericNameSets(names, g.typeExprVariableNames(method.TargetType))
 	return names
+}
+
+func (g *generator) typeExprVariableNames(expr ast.TypeExpression) map[string]struct{} {
+	if g == nil || expr == nil {
+		return nil
+	}
+	names := make(map[string]struct{})
+	g.collectTypeExprVariableNames(expr, names)
+	if len(names) == 0 {
+		return nil
+	}
+	return names
+}
+
+func (g *generator) collectTypeExprVariableNames(expr ast.TypeExpression, names map[string]struct{}) {
+	if g == nil || expr == nil || names == nil {
+		return
+	}
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t == nil || t.Name == nil || t.Name.Name == "" || t.Name.Name == "_" {
+			return
+		}
+		if g.isConcreteTypeName(t.Name.Name) {
+			return
+		}
+		names[t.Name.Name] = struct{}{}
+	case *ast.GenericTypeExpression:
+		if t == nil {
+			return
+		}
+		g.collectTypeExprVariableNames(t.Base, names)
+		for _, arg := range t.Arguments {
+			g.collectTypeExprVariableNames(arg, names)
+		}
+	case *ast.NullableTypeExpression:
+		g.collectTypeExprVariableNames(t.InnerType, names)
+	case *ast.ResultTypeExpression:
+		g.collectTypeExprVariableNames(t.InnerType, names)
+	case *ast.UnionTypeExpression:
+		for _, member := range t.Members {
+			g.collectTypeExprVariableNames(member, names)
+		}
+	case *ast.FunctionTypeExpression:
+		for _, param := range t.ParamTypes {
+			g.collectTypeExprVariableNames(param, names)
+		}
+		g.collectTypeExprVariableNames(t.ReturnType, names)
+	}
 }
 
 func mergeGenericNameSets(left map[string]struct{}, right map[string]struct{}) map[string]struct{} {

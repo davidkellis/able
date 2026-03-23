@@ -25,7 +25,33 @@ func (g *generator) ensureSpecializedNativeInterfaceGenericDefaultMethod(method 
 	}
 	mergedBindings := g.nativeInterfaceGenericDefaultMethodBindings(method, bindings)
 	key := g.specializedNativeInterfaceGenericMethodKey(method, receiverType, mergedBindings)
-	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil && existing.Compileable {
+	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil {
+		if _, building := g.nativeInterfaceSpecializing[key]; building {
+			return existing, true
+		}
+		existing.Name = fmt.Sprintf("iface %s.%s", method.InterfaceName, method.Name)
+		existing.Package = method.InterfacePackage
+		existing.QualifiedName = fmt.Sprintf("iface %s.%s", method.InterfaceName, method.Name)
+		existing.Definition = method.DefaultDefinition
+		existing.TypeBindings = cloneTypeBindings(mergedBindings)
+		existing.HasOriginal = false
+		existing.InternalOnly = true
+		existing.Compileable = false
+		existing.Reason = ""
+		if !g.fillNativeInterfaceGenericDefaultMethodInfo(existing, receiverType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType) {
+			return nil, false
+		}
+		existing.Compileable = true
+		g.nativeInterfaceSpecializing[key] = struct{}{}
+		defer delete(g.nativeInterfaceSpecializing, key)
+		g.touchNativeInterfaceAdapters()
+		if g.bodyCompileable(existing, existing.ReturnType) {
+			existing.Compileable = true
+			existing.Reason = ""
+		} else {
+			g.discardSpecializedFunctionInfo(key, existing)
+			return nil, false
+		}
 		return existing, true
 	}
 	info := &functionInfo{
@@ -37,20 +63,24 @@ func (g *generator) ensureSpecializedNativeInterfaceGenericDefaultMethod(method 
 		TypeBindings:  cloneTypeBindings(mergedBindings),
 		HasOriginal:   false,
 		InternalOnly:  true,
-		Compileable:   true,
+		Compileable:   false,
 	}
 	if !g.fillNativeInterfaceGenericDefaultMethodInfo(info, receiverType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType) {
 		return nil, false
 	}
 	g.specializedFunctions = append(g.specializedFunctions, info)
+	info.Compileable = true
+	g.nativeInterfaceSpecializing[key] = struct{}{}
+	defer delete(g.nativeInterfaceSpecializing, key)
+	g.touchNativeInterfaceAdapters()
 	g.specializedFunctionIndex[key] = info
-	if !g.bodyCompileable(info, info.ReturnType) {
-		delete(g.specializedFunctionIndex, key)
-		g.specializedFunctions = removeSpecializedFunction(g.specializedFunctions, info)
+	if g.bodyCompileable(info, info.ReturnType) {
+		info.Compileable = true
+		info.Reason = ""
+	} else {
+		g.discardSpecializedFunctionInfo(key, info)
 		return nil, false
 	}
-	info.Compileable = true
-	info.Reason = ""
 	return info, true
 }
 

@@ -10,64 +10,14 @@ import (
 )
 
 func (g *generator) renderCompiledFunctions(buf *bytes.Buffer) {
-	rendered := make(map[*functionInfo]struct{})
-	for {
-		progress := false
-		for _, info := range g.sortedFunctionInfos() {
-			if info == nil || !info.Compileable {
-				continue
-			}
-			if _, ok := rendered[info]; ok {
-				continue
-			}
-			ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
-			if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
-				ctx.implSiblings = g.implSiblingsForFunction(info)
-			}
-			lines, retExpr, ok := g.compileBody(ctx, info)
-			if !ok {
-				if info.Reason == "" {
-					reason := ctx.reason
-					if reason == "" {
-						reason = "unsupported function body"
-					}
-					info.Reason = reason
-				}
-				info.Compileable = false
-				g.renderCompiledFunctionFallback(buf, info)
-				rendered[info] = struct{}{}
-				progress = true
-				continue
-			}
-			fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
-			for i, param := range info.Params {
-				if i > 0 {
-					fmt.Fprintf(buf, ", ")
-				}
-				fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
-			}
-			fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
-			if envVar, ok := g.packageEnvVar(info.Package); ok {
-				writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
-			}
-			for _, line := range lines {
-				fmt.Fprintf(buf, "\t%s\n", line)
-			}
-			fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
-			fmt.Fprintf(buf, "}\n\n")
-			rendered[info] = struct{}{}
-			progress = true
-		}
-		if !progress {
-			break
-		}
-	}
+	g.renderCompiledBodies(buf)
 }
 
 func (g *generator) renderCompiledFunctionFallback(buf *bytes.Buffer, info *functionInfo) {
 	if info == nil {
 		return
 	}
+	g.refreshRepresentableFunctionInfo(info)
 	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
 	for i, param := range info.Params {
 		if i > 0 {
@@ -133,46 +83,7 @@ func (g *generator) renderCompiledFunctionFallback(buf *bytes.Buffer, info *func
 }
 
 func (g *generator) renderCompiledMethods(buf *bytes.Buffer) {
-	for _, method := range g.sortedMethodInfos() {
-		if method == nil || method.Info == nil || !method.Info.Compileable {
-			continue
-		}
-		info := method.Info
-		if isNativeArrayCoreMethod(method) {
-			g.renderNativeArrayCoreMethod(buf, method, info)
-			continue
-		}
-		ctx := newCompileContext(g, info, g.functionsForPackage(info.Package), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
-		lines, retExpr, ok := g.compileBody(ctx, info)
-		if !ok {
-			if info.Reason == "" {
-				reason := ctx.reason
-				if reason == "" {
-					reason = "unsupported method body"
-				}
-				info.Reason = reason
-			}
-			info.Compileable = false
-			g.renderCompiledMethodFallback(buf, method)
-			continue
-		}
-		fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
-		for i, param := range info.Params {
-			if i > 0 {
-				fmt.Fprintf(buf, ", ")
-			}
-			fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
-		}
-		fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
-		if envVar, ok := g.packageEnvVar(info.Package); ok {
-			writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
-		}
-		for _, line := range lines {
-			fmt.Fprintf(buf, "\t%s\n", line)
-		}
-		fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
-		fmt.Fprintf(buf, "}\n\n")
-	}
+	g.renderCompiledBodies(buf)
 }
 
 func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *methodInfo) {
@@ -180,6 +91,7 @@ func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *meth
 		return
 	}
 	info := method.Info
+	g.refreshRepresentableFunctionInfo(info)
 	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
 	for i, param := range info.Params {
 		if i > 0 {
@@ -258,6 +170,7 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 		if info == nil {
 			continue
 		}
+		g.refreshRepresentableFunctionInfo(info)
 		if info.InternalOnly {
 			continue
 		}
@@ -331,6 +244,7 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 			continue
 		}
 		info := method.Info
+		g.refreshRepresentableFunctionInfo(info)
 		genericNames := g.methodGenericNames(method)
 		fmt.Fprintf(buf, "func __able_wrap_%s(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (result runtime.Value, err error) {\n", info.GoName)
 		writeRuntimeEnvSwapIfNeeded(buf, "\t", "rt", "ctx.Env", "ctx != nil")
@@ -532,7 +446,15 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\tvar state any\n")
 	fmt.Fprintf(buf, "\t\tstate = entryEnv.RuntimeData()\n")
 	fmt.Fprintf(buf, "\t\tctx := &runtime.NativeCallContext{Env: entryEnv, State: state}\n")
-	fmt.Fprintf(buf, "\t\t_, err := entry.fn.Impl(ctx, nil)\n")
+	fmt.Fprintf(buf, "\t\terr := func() (err error) {\n")
+	fmt.Fprintf(buf, "\t\t\tdefer func() {\n")
+	fmt.Fprintf(buf, "\t\t\t\tif r := recover(); r != nil {\n")
+	fmt.Fprintf(buf, "\t\t\t\t\terr = bridge.Recover(rt, ctx, r)\n")
+	fmt.Fprintf(buf, "\t\t\t\t}\n")
+	fmt.Fprintf(buf, "\t\t\t}()\n")
+	fmt.Fprintf(buf, "\t\t\t_, err = entry.fn.Impl(ctx, nil)\n")
+	fmt.Fprintf(buf, "\t\t\treturn err\n")
+	fmt.Fprintf(buf, "\t\t}()\n")
 	fmt.Fprintf(buf, "\t\treturn err\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tmainValue, err := entryEnv.Get(\"main\")\n")
