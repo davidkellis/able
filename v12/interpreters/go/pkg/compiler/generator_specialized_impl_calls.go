@@ -9,307 +9,106 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expression, memberName string) (*methodInfo, bool) {
-	if g == nil || object == nil || memberName == "" {
-		return nil, false
-	}
-	ident, ok := object.(*ast.Identifier)
-	if !ok || ident == nil || ident.Name == "" {
-		return nil, false
-	}
-	if ctx != nil {
-		if _, ok := ctx.lookup(ident.Name); ok {
-			return nil, false
-		}
-	}
-	targetName := ident.Name
-	targetTypeExpr := ast.TypeExpression(ast.Ty(targetName))
-	if ctx != nil && len(ctx.typeBindings) > 0 {
-		if bound, ok := ctx.typeBindings[ident.Name]; ok && bound != nil {
-			targetTypeExpr = bound
-			if boundName, ok := typeExprBaseName(bound); ok && boundName != "" {
-				targetName = boundName
-			}
-		}
-	}
-	info, ok := g.structInfoForTypeName(ctx.packageName, targetName)
-	if (!ok || info == nil) && g != nil {
-		info, _ = g.structInfoByNameUnique(targetName)
-	}
-	method := g.methodForTypeName(targetName, memberName, false)
-	if method == nil && info != nil {
-		if typeBucket := g.methods[targetName]; len(typeBucket) > 0 {
-			entries := typeBucket[memberName]
-			var found *methodInfo
-			for _, candidate := range entries {
-				if candidate == nil || candidate.Info == nil || !candidate.Info.Compileable || candidate.ExpectsSelf {
-					continue
-				}
-				if found != nil && found.Info != candidate.Info {
-					if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
-						continue
-					}
-					found = nil
-					break
-				}
-				found = candidate
-			}
-			method = found
-		}
-	}
-	if method == nil && info != nil {
-		method = g.methodForStruct(info, memberName, false)
-	}
-	if method == nil {
-		var found *methodInfo
-		for _, candidate := range g.methodList {
-			if candidate == nil || candidate.Info == nil || !candidate.Info.Compileable || candidate.ExpectsSelf {
-				continue
-			}
-			if candidate.TargetName != targetName || candidate.MethodName != memberName {
-				continue
-			}
-			if found != nil && found.Info != candidate.Info {
-				if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
-					continue
-				}
-				found = nil
-				break
-			}
-			found = candidate
-		}
-		method = found
-	}
-	if method == nil {
-		method = g.compileableInterfaceStaticMethodForConcreteTarget(targetTypeExpr, memberName)
-	}
-	if method == nil {
-		return nil, false
-	}
-	return method, true
-}
-
-func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, method *methodInfo, receiverExpr string, receiverType string, callNode string) ([]string, string, string, bool) {
-	if call == nil || method == nil || method.Info == nil {
-		ctx.setReason("missing method call")
-		return nil, "", "", false
-	}
-	info := method.Info
-	if !info.Compileable {
-		ctx.setReason("unsupported method call")
-		return nil, "", "", false
-	}
-	needsIntCast := false
-	needsRuntimeConv := expected != "" && expected != "runtime.Value" && info.ReturnType == "runtime.Value"
-	needsAnyConv := expected != "" && expected != "any" && info.ReturnType == "any"
-	needsStaticCoerce := expected != "" && expected != "runtime.Value" && expected != "any" && expected != info.ReturnType && g.canCoerceStaticExpr(expected, info.ReturnType)
-	if !g.typeMatches(expected, info.ReturnType) && !needsRuntimeConv && !needsAnyConv && !needsStaticCoerce {
-		if g.isIntegerType(expected) && g.isIntegerType(info.ReturnType) {
-			needsIntCast = true
-		} else {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-	}
-	paramOffset := 0
-	args := make([]string, 0, len(call.Arguments)+1)
-	var argPreLines []string
-	if method.ExpectsSelf {
-		if receiverExpr == "" {
-			ctx.setReason("method receiver missing")
-			return nil, "", "", false
-		}
-		selfType := ""
-		if len(info.Params) > 0 {
-			selfType = info.Params[0].GoType
-		}
-		receiverLines, coercedReceiver, _, ok := g.prepareStaticCallArg(ctx, receiverExpr, receiverType, selfType)
-		if !ok {
-			ctx.setReason("method receiver type mismatch")
-			return nil, "", "", false
-		}
-		argPreLines = append(argPreLines, receiverLines...)
-		receiverExpr = coercedReceiver
-		args = append(args, receiverExpr)
-		paramOffset = 1
-	}
-	params := info.Params
-	if paramOffset > len(params) {
-		ctx.setReason("method params missing")
-		return nil, "", "", false
-	}
-	callArgCount := len(call.Arguments)
-	paramCount := len(params) - paramOffset
-	optionalLast := g.hasOptionalLastParam(info)
-	if callArgCount != paramCount {
-		if !(optionalLast && callArgCount == paramCount-1) {
-			ctx.setReason("call arity mismatch")
-			return nil, "", "", false
-		}
-	}
-	missingOptional := optionalLast && callArgCount == paramCount-1
-	if missingOptional && paramCount > 0 {
-		lastType := params[len(params)-1].GoType
-		if lastType != "runtime.Value" && lastType != "any" {
-			ctx.setReason("call arity mismatch")
-			return nil, "", "", false
-		}
-	}
-	for idx, arg := range call.Arguments {
-		param := params[paramOffset+idx]
-		paramGoType := param.GoType
-		expectedArgType := g.staticParamCarrierType(ctx, param)
-		compileExpectedArgType := expectedArgType
-		if g.nativeUnionInfoForGoType(expectedArgType) != nil {
-			compileExpectedArgType = ""
-		}
-		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && (expectedArgType == "" || expectedArgType == "runtime.Value" || expectedArgType == "any") {
-			if ifaceInfo, ok := g.ensureNativeInterfaceInfo(ctx.packageName, ifaceType); ok && ifaceInfo != nil && ifaceInfo.GoType != "" {
-				expectedArgType = ifaceInfo.GoType
-			}
-		}
-		argLines, expr, exprType, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, compileExpectedArgType, param.TypeExpr)
-		if !ok {
-			return nil, "", "", false
-		}
-		argPreLines = append(argPreLines, argLines...)
-		argExpr := expr
-		argType := exprType
-		if paramGoType == "runtime.Value" && argType != "runtime.Value" {
-			convLines, valueExpr, ok := g.lowerRuntimeValue(ctx, argExpr, argType)
-			if !ok {
-				ctx.setReason("call argument unsupported")
-				return nil, "", "", false
-			}
-			argPreLines = append(argPreLines, convLines...)
-			argExpr = valueExpr
-			argType = "runtime.Value"
-		}
-		if ifaceType, ok := g.interfaceTypeExpr(param.TypeExpr); ok && paramGoType == "runtime.Value" {
-			ifaceLines, coerced, ok := g.interfaceArgExprLines(ctx, argExpr, ifaceType, info.Name, ctx.genericNames)
-			if !ok {
-				ctx.setReason("interface argument unsupported")
-				return nil, "", "", false
-			}
-			argPreLines = append(argPreLines, ifaceLines...)
-			argExpr = coerced
-		} else if paramGoType != "" && paramGoType != "any" && argType != paramGoType {
-			coerceLines, coercedExpr, coercedType, ok := g.prepareStaticCallArg(ctx, argExpr, argType, paramGoType)
-			if !ok {
-				ctx.setReason("call argument type mismatch")
-				return nil, "", "", false
-			}
-			argPreLines = append(argPreLines, coerceLines...)
-			argExpr = coercedExpr
-			argType = coercedType
-		}
-		args = append(args, argExpr)
-	}
-	if missingOptional {
-		lastType := params[len(params)-1].GoType
-		if lastType == "any" {
-			args = append(args, "nil")
-		} else {
-			args = append(args, "runtime.NilValue{}")
-		}
-	}
-	callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
-	resultTemp := ctx.newTemp()
-	controlTemp := ctx.newTemp()
-	lines := append(argPreLines, []string{
-		fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-		fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr),
-		"__able_pop_call_frame()",
-	}...)
-	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-	if !ok {
-		return nil, "", "", false
-	}
-	lines = append(lines, controlLines...)
-	if needsIntCast {
-		castTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := %s(%s)", castTemp, expected, resultTemp))
-		return lines, castTemp, expected, true
-	}
-	if needsRuntimeConv {
-		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
-		if !ok {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	}
-	if needsAnyConv {
-		if expected == "runtime.Value" {
-			convTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", convTemp, resultTemp))
-			return lines, convTemp, "runtime.Value", true
-		}
-		anyTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", anyTemp, resultTemp))
-		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, anyTemp, expected)
-		if !ok {
-			ctx.setReason("call return type mismatch")
-			return nil, "", "", false
-		}
-		lines = append(lines, convLines...)
-		return lines, converted, expected, true
-	}
-	if needsStaticCoerce {
-		return g.lowerCoerceExpectedStaticExpr(ctx, lines, resultTemp, info.ReturnType, expected)
-	}
-	return lines, resultTemp, info.ReturnType, true
-}
-
-func (g *generator) specializeConcreteImplMethod(ctx *compileContext, call *ast.FunctionCall, method *methodInfo, impl *implMethodInfo, receiver ast.Expression, receiverType string, expected string) (*methodInfo, bool) {
-	if g == nil || ctx == nil || call == nil || method == nil || method.Info == nil || impl == nil {
-		return nil, false
-	}
-	receiverTypeExpr, ok := g.staticReceiverTypeExpr(ctx, receiver, receiverType)
-	if !ok || receiverTypeExpr == nil {
-		return nil, false
-	}
-	genericNames := g.callableGenericNames(method.Info)
-	if g.typeExprHasGeneric(receiverTypeExpr, genericNames) {
-		return nil, false
-	}
-	bindings, ok := g.specializedImplMethodBindings(ctx, call, method, impl, receiverTypeExpr, expected)
-	if !ok || len(bindings) == 0 {
-		return nil, false
-	}
-	return g.ensureSpecializedImplMethod(method, impl, bindings)
-}
-
-func (g *generator) specializeConcreteStaticImplMethod(ctx *compileContext, call *ast.FunctionCall, method *methodInfo, impl *implMethodInfo, target ast.Expression, expected string) (*methodInfo, bool) {
-	if g == nil || ctx == nil || call == nil || method == nil || method.Info == nil || impl == nil {
-		return nil, false
-	}
-	targetTypeExpr, ok := g.staticTargetTypeExpr(ctx, target)
-	if !ok || targetTypeExpr == nil {
-		return nil, false
-	}
-	targetTypeExpr = g.refineStaticTargetTypeExprWithExpected(ctx, target, method.Info.Package, targetTypeExpr, expected)
-	genericNames := g.callableGenericNames(method.Info)
-	if g.typeExprHasGeneric(targetTypeExpr, genericNames) {
-		return nil, false
-	}
-	bindings, ok := g.specializedStaticImplMethodBindings(ctx, call, method, impl, targetTypeExpr, expected)
-	if !ok || len(bindings) == 0 {
-		return nil, false
-	}
-	specialized, ok := g.ensureSpecializedImplMethod(method, impl, bindings)
-	return specialized, ok
-}
-
 func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMethodInfo, bindings map[string]ast.TypeExpression) (*methodInfo, bool) {
 	if g == nil || method == nil || method.Info == nil || impl == nil || len(bindings) == 0 {
 		return nil, false
 	}
-	key := g.specializedImplFunctionKey(method.Info, bindings)
-	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil && (existing.Compileable || existing == method.Info) {
+	if canonical := g.canonicalImplSpecializationBindings(method.Info, impl, bindings); len(canonical) > 0 {
+		bindings = canonical
+	}
+	expectsSelf := method.ExpectsSelf || methodDefinitionExpectsSelf(method.Info.Definition)
+	if !expectsSelf && len(method.Info.Params) > 0 {
+		expectsSelf = true
+	}
+	genericNames := g.implSpecializationGenericNames(method)
+	if selfExpr, ok := bindings["Self"]; ok && selfExpr != nil && impl.TargetType != nil {
+		targetBindings := cloneTypeBindings(bindings)
+		if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+			for name := range g.interfaceSelfBindingNames(iface) {
+				delete(targetBindings, name)
+			}
+		}
+		delete(targetBindings, "Self")
+		delete(targetBindings, "SelfType")
+		expectedSelf := normalizeTypeExprForPackage(g, method.Info.Package, substituteTypeParams(impl.TargetType, targetBindings))
+		normalizedSelf := normalizeTypeExprForPackage(g, method.Info.Package, substituteTypeParams(selfExpr, bindings))
+		if expectedSelf != nil && normalizedSelf != nil {
+			if normalizeTypeExprString(g, method.Info.Package, normalizedSelf) != normalizeTypeExprString(g, method.Info.Package, expectedSelf) &&
+				!g.nominalTargetTypeExprCompatible(method.Info.Package, normalizedSelf, expectedSelf) {
+				return nil, false
+			}
+		}
+	}
+	concreteTarget := g.specializedImplTargetType(impl, bindings)
+	if concreteTarget != nil {
+		if selfExpr, ok := bindings["Self"]; ok && selfExpr != nil {
+			normalizedSelf := normalizeTypeExprForPackage(g, method.Info.Package, substituteTypeParams(selfExpr, bindings))
+			normalizedTarget := normalizeTypeExprForPackage(g, method.Info.Package, concreteTarget)
+			if normalizeTypeExprString(g, method.Info.Package, normalizedSelf) != normalizeTypeExprString(g, method.Info.Package, normalizedTarget) {
+				return nil, false
+			}
+		}
+	}
+	fillBindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
+	if fillBindings == nil {
+		fillBindings = make(map[string]ast.TypeExpression, len(bindings))
+	}
+	if iface := g.interfaces[impl.InterfaceName]; iface != nil && concreteTarget != nil {
+		for name, expr := range g.interfaceSelfTypeBindings(iface, concreteTarget) {
+			if expr == nil {
+				continue
+			}
+			fillBindings[name] = normalizeTypeExprForPackage(g, method.Info.Package, expr)
+		}
+	}
+	if concreteTarget != nil {
+		if !g.seedImplBindingsFromConcreteTarget(method, impl, concreteTarget, fillBindings) {
+			return nil, false
+		}
+	}
+	for name, expr := range bindings {
+		if expr == nil {
+			continue
+		}
+		normalized := normalizeTypeExprForPackage(g, method.Info.Package, expr)
+		if existing, ok := fillBindings[name]; ok && existing != nil {
+			existing = normalizeTypeExprForPackage(g, method.Info.Package, existing)
+			if simple, ok := existing.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == name {
+				fillBindings[name] = normalized
+				continue
+			}
+			existingHasGeneric := g.typeExprHasGeneric(existing, genericNames)
+			normalizedHasGeneric := g.typeExprHasGeneric(normalized, genericNames)
+			if existingHasGeneric && !normalizedHasGeneric {
+				fillBindings[name] = normalized
+				continue
+			}
+			if !existingHasGeneric && normalizedHasGeneric {
+				continue
+			}
+			if normalizeTypeExprString(g, method.Info.Package, existing) != normalizeTypeExprString(g, method.Info.Package, normalized) {
+				return nil, false
+			}
+			continue
+		}
+		fillBindings[name] = normalized
+	}
+	if concreteTarget != nil {
+		fillBindings["Self"] = normalizeTypeExprForPackage(g, method.Info.Package, concreteTarget)
+	}
+	if !g.specializedImplBindingsAreConcrete(method.Info.Package, method, fillBindings) {
+		return nil, false
+	}
+	key := g.specializedImplFunctionKey(method.Info, fillBindings)
+	if existing, ok := g.reusableSpecializedFunctionInfo(key, method.Info); ok {
+		existing.TypeBindings = cloneTypeBindings(fillBindings)
+		mapper := NewTypeMapper(g, existing.Package)
+		g.fillImplMethodInfo(existing, mapper, concreteTarget, fillBindings)
+		if !existing.SupportedTypes {
+			return nil, false
+		}
 		receiverType := method.ReceiverType
-		if method.ExpectsSelf && len(existing.Params) > 0 {
+		if expectsSelf && len(existing.Params) > 0 {
 			receiverType = existing.Params[0].GoType
 		}
 		return &methodInfo{
@@ -317,7 +116,7 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 			TargetType:   g.specializedImplTargetType(impl, bindings),
 			MethodName:   method.MethodName,
 			ReceiverType: receiverType,
-			ExpectsSelf:  method.ExpectsSelf,
+			ExpectsSelf:  expectsSelf,
 			Info:         existing,
 		}, true
 	}
@@ -325,7 +124,7 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 		Name:           method.Info.Name,
 		Package:        method.Info.Package,
 		QualifiedName:  method.Info.QualifiedName,
-		GoName:         g.mangler.unique(method.Info.GoName + "_spec"),
+		GoName:         g.mangler.unique(method.Info.GoName) + "_spec",
 		TypeBindings:   cloneTypeBindings(bindings),
 		Definition:     method.Info.Definition,
 		HasOriginal:    method.Info.HasOriginal,
@@ -333,21 +132,28 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 		SupportedTypes: method.Info.SupportedTypes,
 	}
 	mapper := NewTypeMapper(g, specialized.Package)
-	concreteTarget := g.specializedImplTargetType(impl, bindings)
-	fillBindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
-	if fillBindings == nil {
-		fillBindings = make(map[string]ast.TypeExpression, len(bindings))
-	}
-	for name, expr := range bindings {
-		if expr == nil {
-			continue
-		}
-		fillBindings[name] = normalizeTypeExprForPackage(g, specialized.Package, expr)
-	}
 	specialized.TypeBindings = cloneTypeBindings(fillBindings)
 	g.fillImplMethodInfo(specialized, mapper, concreteTarget, fillBindings)
 	if !specialized.SupportedTypes {
 		return nil, false
+	}
+	if expectsSelf && concreteTarget != nil {
+		if len(specialized.Params) == 0 || specialized.Params[0].TypeExpr == nil {
+			return nil, false
+		}
+		if normalizeTypeExprString(g, method.Info.Package, specialized.Params[0].TypeExpr) != normalizeTypeExprString(g, method.Info.Package, concreteTarget) {
+			return nil, false
+		}
+		if expectedReceiverGoType, ok := g.lowerCarrierTypeInPackage(method.Info.Package, concreteTarget); ok && expectedReceiverGoType != "" && expectedReceiverGoType != "runtime.Value" && expectedReceiverGoType != "any" {
+			if specialized.Params[0].GoType != expectedReceiverGoType {
+				return nil, false
+			}
+		}
+		if selfExpr, ok := specialized.TypeBindings["Self"]; ok && selfExpr != nil {
+			if normalizeTypeExprString(g, method.Info.Package, selfExpr) != normalizeTypeExprString(g, method.Info.Package, concreteTarget) {
+				return nil, false
+			}
+		}
 	}
 	specialized.Compileable = true
 	g.implMethodByInfo[specialized] = impl
@@ -359,7 +165,7 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 		specialized.Reason = ""
 	}
 	receiverType := method.ReceiverType
-	if method.ExpectsSelf && len(specialized.Params) > 0 {
+	if expectsSelf && len(specialized.Params) > 0 {
 		receiverType = specialized.Params[0].GoType
 	}
 	return &methodInfo{
@@ -367,30 +173,61 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 		TargetType:   concreteTarget,
 		MethodName:   method.MethodName,
 		ReceiverType: receiverType,
-		ExpectsSelf:  method.ExpectsSelf,
+		ExpectsSelf:  expectsSelf,
 		Info:         specialized,
 	}, true
+}
+
+func (g *generator) specializedImplBindingsAreConcrete(pkgName string, method *methodInfo, bindings map[string]ast.TypeExpression) bool {
+	if g == nil || method == nil || len(bindings) == 0 {
+		return false
+	}
+	genericNames := g.implSpecializationGenericNames(method)
+	if len(genericNames) == 0 {
+		return false
+	}
+	for name := range genericNames {
+		expr, ok := bindings[name]
+		if !ok || expr == nil {
+			continue
+		}
+		normalized := normalizeTypeExprForPackage(g, pkgName, expr)
+		if g.typeExprHasGeneric(normalized, genericNames) {
+			return false
+		}
+		if !g.typeExprFullyBound(pkgName, normalized) {
+			return false
+		}
+	}
+	return true
 }
 
 func (g *generator) specializedImplTargetType(impl *implMethodInfo, bindings map[string]ast.TypeExpression) ast.TypeExpression {
 	if g == nil || impl == nil || impl.TargetType == nil {
 		return nil
 	}
+	originalTarget := impl.TargetType
+	if generic, ok := originalTarget.(*ast.GenericTypeExpression); ok && generic != nil {
+		args := make([]ast.TypeExpression, 0, len(generic.Arguments))
+		for _, arg := range generic.Arguments {
+			if arg == nil {
+				return originalTarget
+			}
+			args = append(args, normalizeTypeExprForPackage(g, impl.Info.Package, substituteTypeParams(arg, bindings)))
+		}
+		return ast.NewGenericTypeExpression(generic.Base, args)
+	}
 	target := normalizeTypeExprForPackage(g, impl.Info.Package, substituteTypeParams(impl.TargetType, bindings))
 	if target == nil {
 		target = impl.TargetType
-	}
-	if _, ok := target.(*ast.GenericTypeExpression); ok {
-		return target
 	}
 	baseName, ok := typeExprBaseName(target)
 	if !ok || baseName == "" {
 		return target
 	}
-	if baseName == "Array" && len(impl.InterfaceArgs) == 1 {
-		arg := normalizeTypeExprForPackage(g, impl.Info.Package, substituteTypeParams(impl.InterfaceArgs[0], bindings))
-		if arg != nil {
-			return normalizeTypeExprForPackage(g, impl.Info.Package, ast.NewGenericTypeExpression(ast.Ty(baseName), []ast.TypeExpression{arg}))
+	if baseName == "Array" {
+		if concrete := g.specializedBuiltinArrayTargetType(impl, bindings); concrete != nil {
+			return concrete
 		}
 	}
 	info, ok := g.structInfoForTypeName(impl.Info.Package, baseName)
@@ -429,16 +266,29 @@ func (g *generator) specializedImplTargetTemplate(impl *implMethodInfo, bindings
 	if g == nil || impl == nil || impl.TargetType == nil {
 		return nil
 	}
+	originalTarget := impl.TargetType
+	if generic, ok := originalTarget.(*ast.GenericTypeExpression); ok && generic != nil {
+		args := make([]ast.TypeExpression, 0, len(generic.Arguments))
+		for _, arg := range generic.Arguments {
+			if arg == nil {
+				return originalTarget
+			}
+			args = append(args, normalizeTypeExprForPackage(g, impl.Info.Package, substituteTypeParams(arg, bindings)))
+		}
+		return ast.NewGenericTypeExpression(generic.Base, args)
+	}
 	target := normalizeTypeExprForPackage(g, impl.Info.Package, substituteTypeParams(impl.TargetType, bindings))
 	if target == nil {
 		target = impl.TargetType
 	}
-	if _, ok := target.(*ast.GenericTypeExpression); ok {
-		return target
-	}
 	baseName, ok := typeExprBaseName(target)
 	if !ok || baseName == "" {
 		return target
+	}
+	if baseName == "Array" {
+		if concrete := g.specializedBuiltinArrayTargetType(impl, bindings); concrete != nil {
+			return concrete
+		}
 	}
 	info, ok := g.structInfoForTypeName(impl.Info.Package, baseName)
 	if !ok || info == nil || info.Node == nil || len(info.Node.GenericParams) == 0 {
@@ -466,6 +316,29 @@ func (g *generator) specializedImplTargetTemplate(impl *implMethodInfo, bindings
 		args = append(args, normalizeTypeExprForPackage(g, impl.Info.Package, bound))
 	}
 	return normalizeTypeExprForPackage(g, impl.Info.Package, ast.NewGenericTypeExpression(ast.Ty(baseName), args))
+}
+
+func (g *generator) specializedBuiltinArrayTargetType(impl *implMethodInfo, bindings map[string]ast.TypeExpression) ast.TypeExpression {
+	if g == nil || impl == nil {
+		return nil
+	}
+	if len(impl.InterfaceArgs) == 1 {
+		arg := normalizeTypeExprForPackage(g, impl.Info.Package, substituteTypeParams(impl.InterfaceArgs[0], bindings))
+		if arg != nil {
+			return normalizeTypeExprForPackage(g, impl.Info.Package, ast.NewGenericTypeExpression(ast.Ty("Array"), []ast.TypeExpression{arg}))
+		}
+	}
+	if len(impl.ImplGenerics) == 1 {
+		gp := impl.ImplGenerics[0]
+		if gp != nil && gp.Name != nil && gp.Name.Name != "" {
+			if bound, ok := bindings[gp.Name.Name]; ok && bound != nil {
+				return normalizeTypeExprForPackage(g, impl.Info.Package, ast.NewGenericTypeExpression(ast.Ty("Array"), []ast.TypeExpression{
+					normalizeTypeExprForPackage(g, impl.Info.Package, bound),
+				}))
+			}
+		}
+	}
+	return nil
 }
 
 func removeSpecializedFunction(list []*functionInfo, target *functionInfo) []*functionInfo {
@@ -496,6 +369,16 @@ func (g *generator) implSiblingsForFunction(info *functionInfo) map[string]implS
 	if len(currentBindings) == 0 {
 		return siblings
 	}
+	selfConcrete := false
+	if actualSelfType := g.implConcreteSelfTypeExpr(info, implInfo, currentBindings); actualSelfType != nil {
+		normalizedSelf := normalizeTypeExprForPackage(g, info.Package, actualSelfType)
+		selfConcrete = g.typeExprFullyBound(info.Package, normalizedSelf)
+		if selfConcrete && len(info.Params) > 0 && info.Params[0].GoType != "" {
+			if canonicalSelfGoType, ok := g.lowerCarrierTypeInPackage(info.Package, normalizedSelf); ok && canonicalSelfGoType != "" && canonicalSelfGoType != "runtime.Value" && canonicalSelfGoType != "any" {
+				selfConcrete = canonicalSelfGoType == info.Params[0].GoType
+			}
+		}
+	}
 	out := make(map[string]implSiblingInfo, len(siblings))
 	for name, sibling := range siblings {
 		if sibling.Info == nil {
@@ -510,6 +393,10 @@ func (g *generator) implSiblingsForFunction(info *functionInfo) map[string]implS
 		methodName := siblingImpl.MethodName
 		if methodName == "" {
 			methodName = name
+		}
+		if !selfConcrete {
+			out[name] = sibling
+			continue
 		}
 		specializedBindings := g.implSiblingBindingsForFunction(info, implInfo, siblingImpl, currentBindings)
 		if len(specializedBindings) == 0 {
@@ -628,7 +515,7 @@ func (g *generator) implConcreteSelfTypeExpr(info *functionInfo, impl *implMetho
 	if impl == nil || impl.TargetType == nil {
 		return nil
 	}
-	selfType := g.implSelfTargetType(impl.TargetType, bindings)
+	selfType := g.implSelfTargetType(info.Package, impl.TargetType, bindings)
 	selfType = substituteTypeParams(selfType, bindings)
 	return normalizeTypeExprForPackage(g, info.Package, selfType)
 }
@@ -650,6 +537,43 @@ func (g *generator) implConcreteInterfaceExpr(impl *implMethodInfo, bindings map
 	return nativeInterfaceInstantiationExpr(impl.InterfaceName, args)
 }
 
+func (g *generator) seedImplBindingsFromConcreteTarget(method *methodInfo, impl *implMethodInfo, actualTypeExpr ast.TypeExpression, bindings map[string]ast.TypeExpression) bool {
+	if g == nil || method == nil || method.Info == nil || impl == nil || actualTypeExpr == nil {
+		return false
+	}
+	if bindings == nil {
+		return false
+	}
+	genericNames := g.implSpecializationGenericNames(method)
+	targetTemplate := g.specializedImplTargetTemplate(impl, bindings)
+	if targetTemplate == nil {
+		targetTemplate = impl.TargetType
+	}
+	if targetTemplate == nil {
+		return false
+	}
+	targetTemplate = g.normalizeTypeExprForSpecialization(method.Info.Package, targetTemplate, nil)
+	actualTypeExpr = g.normalizeTypeExprForSpecialization(method.Info.Package, actualTypeExpr, nil)
+	if normalizeTypeExprString(g, method.Info.Package, targetTemplate) == normalizeTypeExprString(g, method.Info.Package, actualTypeExpr) {
+		return true
+	}
+	if templateGeneric, ok := targetTemplate.(*ast.GenericTypeExpression); ok && templateGeneric != nil {
+		if actualGeneric, ok := actualTypeExpr.(*ast.GenericTypeExpression); ok && actualGeneric != nil && len(templateGeneric.Arguments) == len(actualGeneric.Arguments) {
+			if templateBase, ok := typeExprBaseName(templateGeneric.Base); ok && templateBase != "" {
+				if actualBase, ok := typeExprBaseName(actualGeneric.Base); ok && actualBase == templateBase {
+					for idx := range templateGeneric.Arguments {
+						if !g.specializedBindTemplateArg(method.Info.Package, templateGeneric.Arguments[idx], actualGeneric.Arguments[idx], genericNames, bindings) {
+							return false
+						}
+					}
+					return true
+				}
+			}
+		}
+	}
+	return g.specializedSameBaseGenericBindings(method.Info.Package, targetTemplate, actualTypeExpr, genericNames, bindings)
+}
+
 func (g *generator) specializedImplMethodBindings(ctx *compileContext, call *ast.FunctionCall, method *methodInfo, impl *implMethodInfo, receiverTypeExpr ast.TypeExpression, expected string) (map[string]ast.TypeExpression, bool) {
 	if g == nil || ctx == nil || call == nil || method == nil || method.Info == nil || impl == nil {
 		return nil, false
@@ -663,10 +587,22 @@ func (g *generator) specializedImplMethodBindings(ctx *compileContext, call *ast
 	if method.ExpectsSelf && len(method.Info.Params) > 0 && method.Info.Params[0].TypeExpr != nil {
 		receiverTemplate := method.Info.Params[0].TypeExpr
 		if targetTemplate := g.specializedImplTargetTemplate(impl, bindings); targetTemplate != nil {
-			receiverTemplate = targetTemplate
+			if g.preferImplSpecializationTemplate(method.Info.Package, receiverTemplate, targetTemplate) {
+				receiverTemplate = targetTemplate
+			}
 		}
 		if !g.specializedTypeTemplateMatches(method.Info.Package, receiverTemplate, receiverTypeExpr, genericNames, bindings, make(map[string]struct{})) {
-			return nil, false
+			seeded := cloneTypeBindings(bindings)
+			if seeded == nil {
+				seeded = make(map[string]ast.TypeExpression)
+			}
+			for name := range genericNames {
+				delete(seeded, name)
+			}
+			if !g.seedImplBindingsFromConcreteTarget(method, impl, receiverTypeExpr, seeded) {
+				return nil, false
+			}
+			bindings = seeded
 		}
 	}
 	if len(call.TypeArguments) > 0 {
@@ -684,6 +620,12 @@ func (g *generator) specializedImplMethodBindings(ctx *compileContext, call *ast
 			bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, method.Info.Package, arg)
 		}
 	}
+	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil && method.Info.Definition != nil && method.Info.Definition.ReturnType != nil {
+		returnExpr := g.functionReturnTypeExprWithBindings(method.Info, bindings)
+		if returnExpr != nil {
+			_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings)
+		}
+	}
 	paramOffset := 0
 	if method.ExpectsSelf {
 		paramOffset = 1
@@ -698,18 +640,30 @@ func (g *generator) specializedImplMethodBindings(ctx *compileContext, call *ast
 			continue
 		}
 		actualExpr, ok := g.inferExpressionTypeExpr(ctx, arg, "")
+		argCtx := ctx.child()
+		_, _, actualGoType, actualGoTypeOK := g.compileExprLines(argCtx, arg, "")
+		if !ok || actualExpr == nil {
+			if !actualGoTypeOK {
+				continue
+			}
+			actualExpr, ok = g.typeExprForGoType(actualGoType)
+			if !ok || actualExpr == nil {
+				continue
+			}
+		}
+		actualExpr, ok = g.specializationConcreteArgTypeExprForParam(method.Info.Package, paramTypeExpr, actualExpr, actualGoType)
 		if !ok || actualExpr == nil {
 			continue
 		}
-		_ = g.specializedTypeTemplateMatches(method.Info.Package, paramTypeExpr, actualExpr, genericNames, bindings, make(map[string]struct{}))
+		_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, paramTypeExpr, actualExpr, genericNames, bindings)
 	}
 	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil && method.Info.Definition != nil && method.Info.Definition.ReturnType != nil {
 		returnExpr := g.functionReturnTypeExprWithBindings(method.Info, bindings)
 		if returnExpr != nil {
-			_ = g.specializedTypeTemplateMatches(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings, make(map[string]struct{}))
+			_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings)
 		}
 	}
-	bindings = g.normalizeConcreteTypeBindings(method.Info.Package, bindings, genericNames)
+	bindings = g.normalizeConcreteTypeBindings(method.Info.Package, bindings, nil)
 	if len(bindings) == 0 {
 		return nil, false
 	}
@@ -735,9 +689,24 @@ func (g *generator) specializedStaticImplMethodBindings(ctx *compileContext, cal
 	if targetTemplate == nil {
 		targetTemplate = impl.TargetType
 	}
+	if method.ExpectsSelf && len(method.Info.Params) > 0 && method.Info.Params[0].TypeExpr != nil {
+		if !g.preferImplSpecializationTemplate(method.Info.Package, method.Info.Params[0].TypeExpr, targetTemplate) {
+			targetTemplate = method.Info.Params[0].TypeExpr
+		}
+	}
 	if targetTemplate != nil {
 		if !g.specializedTypeTemplateMatches(method.Info.Package, targetTemplate, targetTypeExpr, genericNames, bindings, make(map[string]struct{})) {
-			return nil, false
+			seeded := cloneTypeBindings(bindings)
+			if seeded == nil {
+				seeded = make(map[string]ast.TypeExpression)
+			}
+			for name := range genericNames {
+				delete(seeded, name)
+			}
+			if !g.seedImplBindingsFromConcreteTarget(method, impl, targetTypeExpr, seeded) {
+				return nil, false
+			}
+			bindings = seeded
 		}
 	}
 	if len(call.TypeArguments) > 0 {
@@ -755,6 +724,12 @@ func (g *generator) specializedStaticImplMethodBindings(ctx *compileContext, cal
 			bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, method.Info.Package, arg)
 		}
 	}
+	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil && method.Info.Definition != nil && method.Info.Definition.ReturnType != nil {
+		returnExpr := g.functionReturnTypeExprWithBindings(method.Info, bindings)
+		if returnExpr != nil {
+			_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings)
+		}
+	}
 	for idx, arg := range call.Arguments {
 		if idx >= len(method.Info.Params) {
 			break
@@ -764,22 +739,51 @@ func (g *generator) specializedStaticImplMethodBindings(ctx *compileContext, cal
 			continue
 		}
 		actualExpr, ok := g.inferExpressionTypeExpr(ctx, arg, "")
+		argCtx := ctx.child()
+		_, _, actualGoType, actualGoTypeOK := g.compileExprLines(argCtx, arg, "")
+		if !ok || actualExpr == nil {
+			if !actualGoTypeOK {
+				continue
+			}
+			actualExpr, ok = g.typeExprForGoType(actualGoType)
+			if !ok || actualExpr == nil {
+				continue
+			}
+		}
+		actualExpr, ok = g.specializationConcreteArgTypeExprForParam(method.Info.Package, paramTypeExpr, actualExpr, actualGoType)
 		if !ok || actualExpr == nil {
 			continue
 		}
-		_ = g.specializedTypeTemplateMatches(method.Info.Package, paramTypeExpr, actualExpr, genericNames, bindings, make(map[string]struct{}))
+		_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, paramTypeExpr, actualExpr, genericNames, bindings)
 	}
 	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil && method.Info.Definition != nil && method.Info.Definition.ReturnType != nil {
 		returnExpr := g.functionReturnTypeExprWithBindings(method.Info, bindings)
 		if returnExpr != nil {
-			_ = g.specializedTypeTemplateMatches(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings, make(map[string]struct{}))
+			_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings)
 		}
 	}
-	bindings = g.normalizeConcreteTypeBindings(method.Info.Package, bindings, genericNames)
+	bindings = g.normalizeConcreteTypeBindings(method.Info.Package, bindings, nil)
 	if len(bindings) == 0 {
 		return nil, false
 	}
 	return bindings, true
+}
+
+func (g *generator) preferImplSpecializationTemplate(pkgName string, base ast.TypeExpression, candidate ast.TypeExpression) bool {
+	if g == nil || candidate == nil {
+		return false
+	}
+	if base == nil {
+		return true
+	}
+	base = normalizeTypeExprForPackage(g, pkgName, base)
+	candidate = normalizeTypeExprForPackage(g, pkgName, candidate)
+	if _, ok := base.(*ast.GenericTypeExpression); ok {
+		if _, ok := candidate.(*ast.GenericTypeExpression); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (g *generator) staticReceiverTypeExpr(ctx *compileContext, expr ast.Expression, goType string) (ast.TypeExpression, bool) {
@@ -787,9 +791,50 @@ func (g *generator) staticReceiverTypeExpr(ctx *compileContext, expr ast.Express
 		return nil, false
 	}
 	if inferred, ok := g.inferExpressionTypeExpr(ctx, expr, goType); ok && inferred != nil {
-		return normalizeTypeExprForPackage(g, ctx.packageName, inferred), true
+		inferred = normalizeTypeExprForPackage(g, ctx.packageName, inferred)
+		if preferred := g.preferConcreteTypeExprForGoType(ctx, inferred, goType); preferred != nil {
+			if g.typeExprCompatibleWithCarrier(ctx, preferred, goType) {
+				return preferred, true
+			}
+			return nil, false
+		}
+		if g.typeExprCompatibleWithCarrier(ctx, inferred, goType) {
+			return inferred, true
+		}
+		return nil, false
+	}
+	if preferred := g.preferConcreteTypeExprForGoType(ctx, nil, goType); preferred != nil {
+		if g.typeExprCompatibleWithCarrier(ctx, preferred, goType) {
+			return preferred, true
+		}
+		return nil, false
 	}
 	return nil, false
+}
+
+func (g *generator) typeExprCompatibleWithCarrier(ctx *compileContext, expr ast.TypeExpression, goType string) bool {
+	if g == nil || expr == nil {
+		return false
+	}
+	if strings.TrimSpace(goType) == "" || goType == "runtime.Value" || goType == "any" {
+		return true
+	}
+	pkgName := ""
+	if ctx != nil {
+		pkgName = ctx.packageName
+	}
+	expr = normalizeTypeExprForPackage(g, pkgName, expr)
+	if expr == nil {
+		return false
+	}
+	if !g.typeExprFullyBound(pkgName, expr) {
+		return true
+	}
+	canonicalGoType, ok := g.lowerCarrierTypeInPackage(pkgName, expr)
+	if !ok || canonicalGoType == "" || canonicalGoType == "runtime.Value" || canonicalGoType == "any" {
+		return false
+	}
+	return canonicalGoType == goType
 }
 
 func (g *generator) staticTargetTypeExpr(ctx *compileContext, expr ast.Expression) (ast.TypeExpression, bool) {
@@ -804,9 +849,41 @@ func (g *generator) staticTargetTypeExpr(ctx *compileContext, expr ast.Expressio
 		}
 	}
 	if inferred, ok := g.inferExpressionTypeExpr(ctx, expr, ""); ok && inferred != nil {
-		return normalizeTypeExprForPackage(g, ctx.packageName, inferred), true
+		inferred = normalizeTypeExprForPackage(g, ctx.packageName, inferred)
+		if preferred := g.preferConcreteTypeExprForGoType(ctx, inferred, ""); preferred != nil {
+			return preferred, true
+		}
+		return inferred, true
 	}
 	return nil, false
+}
+
+func (g *generator) preferConcreteTypeExprForGoType(ctx *compileContext, inferred ast.TypeExpression, goType string) ast.TypeExpression {
+	if g == nil || strings.TrimSpace(goType) == "" {
+		return inferred
+	}
+	concrete, ok := g.typeExprForGoType(goType)
+	if !ok || concrete == nil {
+		return inferred
+	}
+	pkgName := ""
+	if ctx != nil {
+		pkgName = ctx.packageName
+	}
+	concrete = normalizeTypeExprForPackage(g, pkgName, concrete)
+	if concrete == nil || !g.typeExprFullyBound(pkgName, concrete) {
+		return inferred
+	}
+	if inferred == nil {
+		return concrete
+	}
+	if !g.typeExprFullyBound(pkgName, inferred) {
+		return concrete
+	}
+	if ctx != nil && g.typeExprHasGeneric(inferred, ctx.genericNames) {
+		return concrete
+	}
+	return inferred
 }
 
 func (g *generator) inferExpressionTypeExpr(ctx *compileContext, expr ast.Expression, goType string) (ast.TypeExpression, bool) {
@@ -834,7 +911,34 @@ func (g *generator) functionReturnTypeExprWithBindings(info *functionInfo, bindi
 	}
 	retExpr := info.Definition.ReturnType
 	if impl := g.implMethodByInfo[info]; impl != nil {
-		retExpr = resolveSelfTypeExpr(retExpr, impl.TargetType)
+		concreteTarget := g.specializedImplTargetType(impl, bindings)
+		if concreteTarget == nil {
+			concreteTarget = impl.TargetType
+		}
+		interfaceBindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
+		selfTarget := g.implSelfTargetType(info.Package, concreteTarget, interfaceBindings)
+		allBindings := g.mergeImplSelfTargetBindings(info.Package, concreteTarget, selfTarget, interfaceBindings)
+		for name, expr := range bindings {
+			if expr == nil {
+				continue
+			}
+			if name == "Self" && selfTarget != nil {
+				continue
+			}
+			if allBindings == nil {
+				allBindings = make(map[string]ast.TypeExpression)
+			}
+			allBindings[name] = normalizeTypeExprForPackage(g, info.Package, expr)
+		}
+		if selfTarget != nil {
+			if allBindings == nil {
+				allBindings = make(map[string]ast.TypeExpression)
+			}
+			allBindings["Self"] = normalizeTypeExprForPackage(g, info.Package, selfTarget)
+		}
+		retExpr = resolveSelfTypeExpr(retExpr, selfTarget)
+		retExpr = substituteTypeParams(retExpr, allBindings)
+		return normalizeTypeExprForPackage(g, info.Package, retExpr)
 	}
 	retExpr = substituteTypeParams(retExpr, bindings)
 	return normalizeTypeExprForPackage(g, info.Package, retExpr)
@@ -883,6 +987,9 @@ func (g *generator) normalizeConcreteTypeBindings(pkgName string, bindings map[s
 			continue
 		}
 		normalized := normalizeTypeExprForPackage(g, pkgName, expr)
+		if !g.typeExprFullyBound(pkgName, normalized) {
+			continue
+		}
 		if simple, ok := normalized.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == name {
 			continue
 		}
@@ -990,16 +1097,29 @@ func (g *generator) specializedBindTemplateArg(pkgName string, template ast.Type
 		actualResult, ok := actual.(*ast.ResultTypeExpression)
 		return ok && actualResult != nil && g.specializedBindTemplateArg(pkgName, tt.InnerType, actualResult.InnerType, genericNames, bindings)
 	case *ast.UnionTypeExpression:
-		actualUnion, ok := actual.(*ast.UnionTypeExpression)
-		if !ok || actualUnion == nil || len(tt.Members) != len(actualUnion.Members) {
-			return false
-		}
-		for idx := range tt.Members {
-			if !g.specializedBindTemplateArg(pkgName, tt.Members[idx], actualUnion.Members[idx], genericNames, bindings) {
+		if actualUnion, ok := actual.(*ast.UnionTypeExpression); ok && actualUnion != nil {
+			if len(tt.Members) != len(actualUnion.Members) {
 				return false
 			}
+			for idx := range tt.Members {
+				if !g.specializedBindTemplateArg(pkgName, tt.Members[idx], actualUnion.Members[idx], genericNames, bindings) {
+					return false
+				}
+			}
+			return true
 		}
-		return true
+		for _, member := range tt.Members {
+			candidate := cloneTypeBindings(bindings)
+			if candidate == nil {
+				candidate = make(map[string]ast.TypeExpression)
+			}
+			if !g.specializedBindTemplateArg(pkgName, member, actual, genericNames, candidate) {
+				continue
+			}
+			applyTypeBindings(bindings, candidate)
+			return true
+		}
+		return false
 	case *ast.FunctionTypeExpression:
 		actualFn, ok := actual.(*ast.FunctionTypeExpression)
 		if !ok || actualFn == nil || len(tt.ParamTypes) != len(actualFn.ParamTypes) {
@@ -1021,7 +1141,11 @@ func (g *generator) specializedTypeTemplateMatchesNormalized(pkgName string, tem
 		return false
 	}
 	if !g.typeExprHasGeneric(template, genericNames) && !g.typeExprHasGeneric(actual, genericNames) {
-		return normalizeTypeExprString(g, pkgName, template) == normalizeTypeExprString(g, pkgName, actual)
+		if _, unionTemplate := template.(*ast.UnionTypeExpression); !unionTemplate {
+			if _, unionActual := actual.(*ast.UnionTypeExpression); !unionActual {
+				return normalizeTypeExprString(g, pkgName, template) == normalizeTypeExprString(g, pkgName, actual)
+			}
+		}
 	}
 	if seen == nil {
 		seen = make(map[string]struct{})
@@ -1070,16 +1194,29 @@ func (g *generator) specializedTypeTemplateMatchesNormalized(pkgName string, tem
 		actualResult, ok := actual.(*ast.ResultTypeExpression)
 		return ok && actualResult != nil && g.specializedTypeTemplateMatchesNormalized(pkgName, tt.InnerType, actualResult.InnerType, genericNames, bindings, seen)
 	case *ast.UnionTypeExpression:
-		actualUnion, ok := actual.(*ast.UnionTypeExpression)
-		if !ok || actualUnion == nil || len(tt.Members) != len(actualUnion.Members) {
-			return false
-		}
-		for idx := range tt.Members {
-			if !g.specializedTypeTemplateMatchesNormalized(pkgName, tt.Members[idx], actualUnion.Members[idx], genericNames, bindings, seen) {
+		if actualUnion, ok := actual.(*ast.UnionTypeExpression); ok && actualUnion != nil {
+			if len(tt.Members) != len(actualUnion.Members) {
 				return false
 			}
+			for idx := range tt.Members {
+				if !g.specializedTypeTemplateMatchesNormalized(pkgName, tt.Members[idx], actualUnion.Members[idx], genericNames, bindings, seen) {
+					return false
+				}
+			}
+			return true
 		}
-		return true
+		for _, member := range tt.Members {
+			candidate := cloneTypeBindings(bindings)
+			if candidate == nil {
+				candidate = make(map[string]ast.TypeExpression)
+			}
+			if !g.specializedTypeTemplateMatchesNormalized(pkgName, member, actual, genericNames, candidate, seen) {
+				continue
+			}
+			applyTypeBindings(bindings, candidate)
+			return true
+		}
+		return false
 	case *ast.FunctionTypeExpression:
 		actualFn, ok := actual.(*ast.FunctionTypeExpression)
 		if !ok || actualFn == nil || len(tt.ParamTypes) != len(actualFn.ParamTypes) {
@@ -1233,6 +1370,9 @@ func (g *generator) specializedImplFunctionKey(info *functionInfo, bindings map[
 	if info == nil {
 		return ""
 	}
+	if g != nil {
+		bindings = g.canonicalImplSpecializationBindings(info, nil, bindings)
+	}
 	base := strings.TrimSpace(info.Name)
 	if info.QualifiedName != "" {
 		base = strings.TrimSpace(info.QualifiedName)
@@ -1242,6 +1382,16 @@ func (g *generator) specializedImplFunctionKey(info *functionInfo, bindings map[
 	}
 	if pkg := strings.TrimSpace(info.Package); pkg != "" {
 		base = pkg + "::" + base
+	}
+	if g != nil {
+		if impl := g.implMethodInfoForFunction(info); impl != nil {
+			if impl.ImplName != "" {
+				base += "|impl=" + impl.ImplName
+			}
+			if constraintKey := constraintSignature(collectConstraintSpecs(impl.ImplGenerics, impl.WhereClause)); constraintKey != "" && constraintKey != "<none>" {
+				base += "|constraints=" + constraintKey
+			}
+		}
 	}
 	if len(bindings) == 0 {
 		return base

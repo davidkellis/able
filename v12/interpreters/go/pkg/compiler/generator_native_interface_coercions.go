@@ -166,9 +166,22 @@ func (g *generator) isConcreteTypeName(name string) bool {
 }
 
 func (g *generator) nativeInterfaceAcceptsActual(info *nativeInterfaceInfo, actual string) bool {
+	return g.nativeInterfaceAcceptsActualSeen(info, actual, make(map[string]struct{}))
+}
+
+func (g *generator) nativeInterfaceAcceptsActualSeen(info *nativeInterfaceInfo, actual string, seen map[string]struct{}) bool {
 	if g == nil || info == nil || actual == "" {
 		return false
 	}
+	if seen == nil {
+		seen = make(map[string]struct{})
+	}
+	seenKey := info.Key + "|" + actual
+	if _, ok := seen[seenKey]; ok {
+		return false
+	}
+	seen[seenKey] = struct{}{}
+	defer delete(seen, seenKey)
 	if actual == info.GoType || actual == "runtime.Value" {
 		return true
 	}
@@ -178,9 +191,9 @@ func (g *generator) nativeInterfaceAcceptsActual(info *nativeInterfaceInfo, actu
 	if g.nativeInterfaceAssignable(actual, info.GoType) {
 		return true
 	}
-	if _, ok := g.nativeInterfaceAdapterForActual(info, actual); ok {
-		return true
-	}
+		if _, ok := g.nativeInterfaceAdapterForActual(info, actual); ok {
+			return true
+		}
 	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || adapter.GoType == "" {
 			continue
@@ -199,7 +212,7 @@ func (g *generator) nativeInterfaceAcceptsActual(info *nativeInterfaceInfo, actu
 			if member == nil {
 				continue
 			}
-			if iface := g.nativeInterfaceInfoForGoType(member.GoType); iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
+			if iface := g.nativeInterfaceInfoForGoType(member.GoType); iface != nil && g.nativeInterfaceAcceptsActualSeen(iface, actual, seen) {
 				return true
 			}
 			if member.GoType == "runtime.ErrorValue" && g.isNativeErrorCarrierType(actual) {
@@ -271,10 +284,19 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 	if actual == expected {
 		return nil, expr, true
 	}
+	if info.AdapterVersion != g.nativeInterfaceAdapterVersion && g.nativeInterfaceRefreshAllowed() {
+		g.refreshNativeInterfaceAdapters(info)
+	}
 	if g.nativeInterfaceAssignable(actual, expected) {
 		actualInfo := g.nativeInterfaceInfoForGoType(actual)
 		if actualInfo == nil {
 			return nil, expr, true
+		}
+			if actualInfo.AdapterVersion != g.nativeInterfaceAdapterVersion && g.nativeInterfaceRefreshAllowed() {
+				g.refreshNativeInterfaceAdapters(actualInfo)
+			}
+		if directLines, directExpr, ok := g.nativeInterfaceDirectWrapLines(ctx, actualInfo, info, expr); ok {
+			return directLines, directExpr, true
 		}
 		runtimeTemp := ctx.newTemp()
 		errTemp := ctx.newTemp()
@@ -367,4 +389,57 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 		return lines, convertedTemp, true
 	}
 	return nil, "", false
+}
+
+func (g *generator) nativeInterfaceDirectWrapLines(ctx *compileContext, actualInfo *nativeInterfaceInfo, expectedInfo *nativeInterfaceInfo, expr string) ([]string, string, bool) {
+	if g == nil || ctx == nil || actualInfo == nil || expectedInfo == nil || expr == "" {
+		return nil, "", false
+	}
+	target := ctx.newTemp()
+	lines := []string{
+		fmt.Sprintf("var %s %s", target, expectedInfo.GoType),
+		fmt.Sprintf("if %s == nil {", expr),
+		fmt.Sprintf("\t%s = %s(nil)", target, expectedInfo.GoType),
+		"} else {",
+		fmt.Sprintf("\tswitch typed := %s.(type) {", expr),
+	}
+	var caseCount int
+	for _, actualAdapter := range g.nativeInterfaceKnownAdapters(actualInfo) {
+		if actualAdapter == nil || actualAdapter.AdapterType == "" || actualAdapter.GoType == "" {
+			continue
+		}
+		expectedAdapter, ok := g.nativeInterfaceAdapterForActual(expectedInfo, actualAdapter.GoType)
+		if !ok || expectedAdapter == nil || expectedAdapter.WrapHelper == "" {
+			continue
+		}
+		lines = append(lines,
+			fmt.Sprintf("\tcase %s:", actualAdapter.AdapterType),
+			fmt.Sprintf("\t\t%s = %s(typed.Value)", target, expectedAdapter.WrapHelper),
+		)
+		caseCount++
+	}
+	if actualInfo.RuntimeIteratorAdapter != "" && expectedInfo.RuntimeIteratorAdapter != "" {
+		lines = append(lines,
+			fmt.Sprintf("\tcase %s:", actualInfo.RuntimeIteratorAdapter),
+			fmt.Sprintf("\t\t%s = %s{Value: typed.Value}", target, expectedInfo.RuntimeIteratorAdapter),
+		)
+		caseCount++
+	}
+	if actualInfo.RuntimeAdapter != "" && expectedInfo.RuntimeWrapHelper != "" {
+		lines = append(lines,
+			fmt.Sprintf("\tcase %s:", actualInfo.RuntimeAdapter),
+			fmt.Sprintf("\t\t%s = %s(typed.Value)", target, expectedInfo.RuntimeWrapHelper),
+		)
+		caseCount++
+	}
+	if caseCount == 0 {
+		return nil, "", false
+	}
+	lines = append(lines,
+		"\tdefault:",
+		fmt.Sprintf("\t\t%s = %s(nil)", target, expectedInfo.GoType),
+		"\t}",
+		"}",
+	)
+	return lines, target, true
 }

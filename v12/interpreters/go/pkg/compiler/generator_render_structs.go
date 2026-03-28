@@ -14,7 +14,7 @@ func (g *generator) renderStructs(buf *bytes.Buffer) {
 		return
 	}
 	for _, info := range infos {
-		if info == nil {
+		if info == nil || info.Rendered {
 			continue
 		}
 		fmt.Fprintf(buf, "type %s struct {\n", info.GoName)
@@ -25,6 +25,7 @@ func (g *generator) renderStructs(buf *bytes.Buffer) {
 			fmt.Fprintf(buf, "\tElements []runtime.Value\n")
 		}
 		fmt.Fprintf(buf, "}\n\n")
+		info.Rendered = true
 	}
 }
 
@@ -34,7 +35,7 @@ func (g *generator) renderStructConverters(buf *bytes.Buffer) {
 		return
 	}
 	for _, info := range infos {
-		if info == nil {
+		if info == nil || info.Converters {
 			continue
 		}
 		g.renderStructFrom(buf, info)
@@ -43,6 +44,7 @@ func (g *generator) renderStructConverters(buf *bytes.Buffer) {
 		if info.Name == "Array" {
 			g.renderArrayStructHelpers(buf)
 		}
+		info.Converters = true
 	}
 }
 
@@ -191,11 +193,35 @@ func (g *generator) renderFieldFromPositional(buf *bytes.Buffer, field fieldInfo
 
 func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 	fmt.Fprintf(buf, "func __able_struct_%s_to(rt *bridge.Runtime, value *%s) (runtime.Value, error) {\n", info.GoName, info.GoName)
+	if info.Name == "Array" {
+		fmt.Fprintf(buf, "\tif rt == nil {\n")
+		fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tif value == nil {\n")
+		fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing %s value\")\n", info.Name)
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tarr, err := __able_struct_Array_runtime_value(value, value.Storage_handle)\n")
+		fmt.Fprintf(buf, "\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\treturn arr, nil\n")
+		fmt.Fprintf(buf, "}\n\n")
+	} else {
+		fmt.Fprintf(buf, "\treturn __able_struct_%s_to_seen(rt, value, map[any]runtime.Value{})\n", info.GoName)
+		fmt.Fprintf(buf, "}\n\n")
+	}
+	fmt.Fprintf(buf, "func __able_struct_%s_to_seen(rt *bridge.Runtime, value *%s, seen map[any]runtime.Value) (runtime.Value, error) {\n", info.GoName, info.GoName)
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tif value == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing %s value\")\n", info.Name)
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif seen == nil {\n")
+	fmt.Fprintf(buf, "\t\tseen = map[any]runtime.Value{}\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif existing, ok := seen[value]; ok {\n")
+	fmt.Fprintf(buf, "\t\treturn existing, nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	if info.Name == "Array" {
 		fmt.Fprintf(buf, "\tarr, err := __able_struct_Array_runtime_value(value, value.Storage_handle)\n")
@@ -216,17 +242,19 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 	fmt.Fprintf(buf, "\t\treturn nil, err\n")
 	fmt.Fprintf(buf, "\t}\n")
 	if info.Kind == ast.StructKindPositional {
-		fmt.Fprintf(buf, "\tvalues := make([]runtime.Value, 0, %d)\n", len(info.Fields))
+		fmt.Fprintf(buf, "\tout := &runtime.StructInstanceValue{Definition: def, Positional: make([]runtime.Value, 0, %d)}\n", len(info.Fields))
+		fmt.Fprintf(buf, "\tseen[value] = out\n")
 		for _, field := range info.Fields {
-			g.renderValueToRuntime(buf, "value."+field.GoName, field.GoType, "values")
+			g.renderValueToRuntimeWithSeen(buf, "value."+field.GoName, field.GoType, "out.Positional", "seen")
 		}
-		fmt.Fprintf(buf, "\treturn &runtime.StructInstanceValue{Definition: def, Positional: values}, nil\n")
+		fmt.Fprintf(buf, "\treturn out, nil\n")
 	} else {
-		fmt.Fprintf(buf, "\tfields := make(map[string]runtime.Value, %d)\n", len(info.Fields))
+		fmt.Fprintf(buf, "\tout := &runtime.StructInstanceValue{Definition: def, Fields: make(map[string]runtime.Value, %d)}\n", len(info.Fields))
+		fmt.Fprintf(buf, "\tseen[value] = out\n")
 		for _, field := range info.Fields {
-			g.renderValueToRuntimeNamed(buf, "value."+field.GoName, field.GoType, field.Name)
+			g.renderValueToRuntimeNamedWithSeen(buf, "value."+field.GoName, field.GoType, field.Name, "seen")
 		}
-		fmt.Fprintf(buf, "\treturn &runtime.StructInstanceValue{Definition: def, Fields: fields}, nil\n")
+		fmt.Fprintf(buf, "\treturn out, nil\n")
 	}
 	fmt.Fprintf(buf, "}\n\n")
 }
@@ -453,7 +481,7 @@ func (g *generator) renderValueConversion(buf *bytes.Buffer, indent, valueVar, g
 		g.renderConvertErrWith(buf, indent, returnExpr)
 		fmt.Fprintf(buf, "%s%s = %s(convertedRaw)\n", indent, assignTarget, goType)
 	case "struct":
-		baseName, ok := g.structBaseName(goType)
+		baseName, ok := g.structHelperName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
 		}
@@ -486,6 +514,28 @@ func (g *generator) renderValueConversion(buf *bytes.Buffer, indent, valueVar, g
 }
 
 func (g *generator) renderValueToRuntime(buf *bytes.Buffer, valueExpr, goType, targetSlice string) {
+	g.renderValueToRuntimeWithSeen(buf, valueExpr, goType, targetSlice, "")
+}
+
+func (g *generator) renderValueToRuntimeWithSeen(buf *bytes.Buffer, valueExpr, goType, targetSlice, seenVar string) {
+	if seenVar != "" {
+		switch g.typeCategory(goType) {
+		case "struct":
+			if baseName, ok := g.structHelperName(goType); ok {
+				fmt.Fprintf(buf, "\t{\n")
+				fmt.Fprintf(buf, "\t\tconverted, err := __able_struct_%s_to_seen(rt, %s, %s)\n", baseName, valueExpr, seenVar)
+				fmt.Fprintf(buf, "\t\tif err != nil {\n")
+				fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+				fmt.Fprintf(buf, "\t\t}\n")
+				fmt.Fprintf(buf, "\t\t%s = append(%s, converted)\n", targetSlice, targetSlice)
+				fmt.Fprintf(buf, "\t}\n")
+				return
+			}
+		case "any":
+			fmt.Fprintf(buf, "\t%s = append(%s, __able_any_to_value_seen(%s, %s))\n", targetSlice, targetSlice, valueExpr, seenVar)
+			return
+		}
+	}
 	if goType == "runtime.ErrorValue" {
 		fmt.Fprintf(buf, "\t%s = append(%s, %s)\n", targetSlice, targetSlice, valueExpr)
 		return
@@ -579,6 +629,26 @@ func (g *generator) renderValueToRuntime(buf *bytes.Buffer, valueExpr, goType, t
 }
 
 func (g *generator) renderValueToRuntimeAssign(buf *bytes.Buffer, valueExpr, goType, targetExpr string) {
+	g.renderValueToRuntimeAssignWithSeen(buf, valueExpr, goType, targetExpr, "")
+}
+
+func (g *generator) renderValueToRuntimeAssignWithSeen(buf *bytes.Buffer, valueExpr, goType, targetExpr, seenVar string) {
+	if seenVar != "" {
+		switch g.typeCategory(goType) {
+		case "struct":
+			if baseName, ok := g.structHelperName(goType); ok {
+				fmt.Fprintf(buf, "\t\tconverted, err := __able_struct_%s_to_seen(rt, %s, %s)\n", baseName, valueExpr, seenVar)
+				fmt.Fprintf(buf, "\t\tif err != nil {\n")
+				fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+				fmt.Fprintf(buf, "\t\t}\n")
+				fmt.Fprintf(buf, "\t\t%s = converted\n", targetExpr)
+				return
+			}
+		case "any":
+			fmt.Fprintf(buf, "\t\t%s = __able_any_to_value_seen(%s, %s)\n", targetExpr, valueExpr, seenVar)
+			return
+		}
+	}
 	if goType == "runtime.ErrorValue" {
 		fmt.Fprintf(buf, "\t\t%s = %s\n", targetExpr, valueExpr)
 		return
@@ -664,8 +734,30 @@ func (g *generator) renderValueToRuntimeAssign(buf *bytes.Buffer, valueExpr, goT
 }
 
 func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goType, fieldName string) {
+	g.renderValueToRuntimeNamedWithSeen(buf, valueExpr, goType, fieldName, "")
+}
+
+func (g *generator) renderValueToRuntimeNamedWithSeen(buf *bytes.Buffer, valueExpr, goType, fieldName, seenVar string) {
+	if seenVar != "" {
+		switch g.typeCategory(goType) {
+		case "struct":
+			if baseName, ok := g.structHelperName(goType); ok {
+				fmt.Fprintf(buf, "\t{\n")
+				fmt.Fprintf(buf, "\t\tconverted, err := __able_struct_%s_to_seen(rt, %s, %s)\n", baseName, valueExpr, seenVar)
+				fmt.Fprintf(buf, "\t\tif err != nil {\n")
+				fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+				fmt.Fprintf(buf, "\t\t}\n")
+				fmt.Fprintf(buf, "\t\tout.Fields[%q] = converted\n", fieldName)
+				fmt.Fprintf(buf, "\t}\n")
+				return
+			}
+		case "any":
+			fmt.Fprintf(buf, "\tout.Fields[%q] = __able_any_to_value_seen(%s, %s)\n", fieldName, valueExpr, seenVar)
+			return
+		}
+	}
 	if goType == "runtime.ErrorValue" {
-		fmt.Fprintf(buf, "\tfields[%q] = %s\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = %s\n", fieldName, valueExpr)
 		return
 	}
 	if spec, ok := g.monoArraySpecForGoType(goType); ok && spec != nil {
@@ -674,12 +766,12 @@ func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goTy
 		fmt.Fprintf(buf, "\t\tif err != nil {\n")
 		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
 		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t\tfields[%q] = converted\n", fieldName)
+		fmt.Fprintf(buf, "\t\tout.Fields[%q] = converted\n", fieldName)
 		fmt.Fprintf(buf, "\t}\n")
 		return
 	}
 	if helper, ok := g.nativeNullableToRuntimeHelper(goType); ok {
-		fmt.Fprintf(buf, "\tfields[%q] = %s(%s)\n", fieldName, helper, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = %s(%s)\n", fieldName, helper, valueExpr)
 		return
 	}
 	if callable := g.nativeCallableInfoForGoType(goType); callable != nil {
@@ -688,45 +780,45 @@ func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goTy
 		fmt.Fprintf(buf, "\t\tif err != nil {\n")
 		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
 		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t\tfields[%q] = converted\n", fieldName)
+		fmt.Fprintf(buf, "\t\tout.Fields[%q] = converted\n", fieldName)
 		fmt.Fprintf(buf, "\t}\n")
 		return
 	}
 	switch g.typeCategory(goType) {
 	case "runtime":
-		fmt.Fprintf(buf, "\tfields[%q] = %s\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = %s\n", fieldName, valueExpr)
 	case "bool":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToBool(%s)\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToBool(%s)\n", fieldName, valueExpr)
 	case "string":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToString(%s)\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToString(%s)\n", fieldName, valueExpr)
 	case "rune":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToRune(%s)\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToRune(%s)\n", fieldName, valueExpr)
 	case "float32":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToFloat32(%s)\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToFloat32(%s)\n", fieldName, valueExpr)
 	case "float64":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToFloat64(%s)\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToFloat64(%s)\n", fieldName, valueExpr)
 	case "int":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"isize\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"isize\"))\n", fieldName, valueExpr)
 	case "uint":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"usize\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"usize\"))\n", fieldName, valueExpr)
 	case "int8":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"i8\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"i8\"))\n", fieldName, valueExpr)
 	case "int16":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"i16\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"i16\"))\n", fieldName, valueExpr)
 	case "int32":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"i32\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"i32\"))\n", fieldName, valueExpr)
 	case "int64":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"i64\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToInt(int64(%s), runtime.IntegerType(\"i64\"))\n", fieldName, valueExpr)
 	case "uint8":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u8\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u8\"))\n", fieldName, valueExpr)
 	case "uint16":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u16\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u16\"))\n", fieldName, valueExpr)
 	case "uint32":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u32\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u32\"))\n", fieldName, valueExpr)
 	case "uint64":
-		fmt.Fprintf(buf, "\tfields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))\n", fieldName, valueExpr)
 	case "struct":
-		fmt.Fprintf(buf, "\tfields[%q] = __able_any_to_value(%s)\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = __able_any_to_value(%s)\n", fieldName, valueExpr)
 	case "interface":
 		info := g.nativeInterfaceInfoForGoType(goType)
 		if info == nil {
@@ -737,7 +829,7 @@ func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goTy
 		fmt.Fprintf(buf, "\t\tif err != nil {\n")
 		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
 		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t\tfields[%q] = converted\n", fieldName)
+		fmt.Fprintf(buf, "\t\tout.Fields[%q] = converted\n", fieldName)
 		fmt.Fprintf(buf, "\t}\n")
 	case "union":
 		info := g.nativeUnionInfoForGoType(goType)
@@ -749,10 +841,10 @@ func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goTy
 		fmt.Fprintf(buf, "\t\tif err != nil {\n")
 		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
 		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t\tfields[%q] = converted\n", fieldName)
+		fmt.Fprintf(buf, "\t\tout.Fields[%q] = converted\n", fieldName)
 		fmt.Fprintf(buf, "\t}\n")
 	case "any":
-		fmt.Fprintf(buf, "\tfields[%q] = __able_any_to_value(%s)\n", fieldName, valueExpr)
+		fmt.Fprintf(buf, "\tout.Fields[%q] = __able_any_to_value(%s)\n", fieldName, valueExpr)
 	}
 }
 

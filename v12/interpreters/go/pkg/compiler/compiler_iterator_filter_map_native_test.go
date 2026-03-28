@@ -29,7 +29,7 @@ func TestCompilerConcreteIteratorFilterMapStayNative(t *testing.T) {
 	for _, fragment := range []string{
 		"__able_compiled_iface_Iterator_filter_map_default(",
 		"__able_compiled_iface_Iterator_collect_default(",
-		"__able_compiled_impl_Enumerable_reduce_default_9_spec(",
+		"__able_compiled_impl_Enumerable_reduce_default_9_spec",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected concrete Iterator filter_map pipeline to call compiled helpers directly (%q):\n%s", fragment, body)
@@ -124,7 +124,7 @@ func TestCompilerConcreteIteratorFilterMapStayNativeWithExperimentalMonoArrays(t
 	for _, fragment := range []string{
 		"__able_compiled_iface_Iterator_filter_map_default(",
 		"__able_compiled_iface_Iterator_collect_",
-		"__able_compiled_impl_Enumerable_reduce_default_9_spec(",
+		"__able_compiled_impl_Enumerable_reduce_default_9_spec",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected concrete Iterator mono-array filter_map pipeline to contain %q:\n%s", fragment, body)

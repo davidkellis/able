@@ -64,6 +64,34 @@ func TestCompilerMatchExpressionMixedClausesInferNativeUnion(t *testing.T) {
 	}
 }
 
+func TestCompilerMatchExpressionInterfaceJoinCoercesNativeArrayBranches(t *testing.T) {
+	result := compileNoFallbackExecSource(t, "ablec-match-join-iterable-array", strings.Join([]string{
+		"package demo",
+		"",
+		"import able.kernel.{Array}",
+		"import able.core.iteration.{Iterable}",
+		"",
+		"fn pick(value: ?(Array String)) -> (Iterable String) {",
+		"  value match {",
+		"    case nil => Array.new(),",
+		"    case items: Array String => items",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_pick")
+	if !ok {
+		t.Fatalf("could not find compiled pick function")
+	}
+	if !strings.Contains(body, "var __able_tmp_") || !strings.Contains(body, "__able_iface_Iterable_String") {
+		t.Fatalf("expected match join to use the native Iterable carrier:\n%s", body)
+	}
+	if !strings.Contains(body, "__able_iface_Iterable_String_from_value(__able_runtime,") {
+		t.Fatalf("expected match join branches to coerce onto the native interface carrier:\n%s", body)
+	}
+}
+
 func TestCompilerRescueExpressionMixedBranchesInferNativeUnion(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

@@ -18,7 +18,49 @@ func (g *generator) inferMemberAccessTypeExpr(ctx *compileContext, expr *ast.Mem
 	if !ok || field == nil || field.TypeExpr == nil {
 		return nil, false
 	}
-	return normalizeTypeExprForPackage(g, ctx.packageName, field.TypeExpr), true
+	fieldTypeExpr := g.inferStructFieldTypeExpr(ctx, objectTypeExpr, info, field)
+	if fieldTypeExpr == nil {
+		return nil, false
+	}
+	fieldTypeExpr = g.wrapSafeNavigationTypeExpr(ctx, objectTypeExpr, expr.Safe, fieldTypeExpr)
+	return fieldTypeExpr, true
+}
+
+func (g *generator) wrapSafeNavigationTypeExpr(ctx *compileContext, objectTypeExpr ast.TypeExpression, safe bool, valueTypeExpr ast.TypeExpression) ast.TypeExpression {
+	if g == nil || ctx == nil || !safe || valueTypeExpr == nil || objectTypeExpr == nil {
+		return valueTypeExpr
+	}
+	if _, ok := valueTypeExpr.(*ast.NullableTypeExpression); ok {
+		return valueTypeExpr
+	}
+	objectGoType, ok := g.lowerCarrierType(ctx, objectTypeExpr)
+	if !ok || !g.goTypeHasNilZeroValue(objectGoType) {
+		return valueTypeExpr
+	}
+	return ast.NewNullableTypeExpression(valueTypeExpr)
+}
+
+func (g *generator) inferStructFieldTypeExpr(ctx *compileContext, objectTypeExpr ast.TypeExpression, info *structInfo, field *fieldInfo) ast.TypeExpression {
+	if g == nil || ctx == nil || info == nil || field == nil || field.TypeExpr == nil {
+		return nil
+	}
+	fieldTypeExpr := g.lowerNormalizedTypeExpr(ctx, field.TypeExpr)
+	if info.Specialized || info.Node == nil || len(info.Node.GenericParams) == 0 || objectTypeExpr == nil {
+		return fieldTypeExpr
+	}
+	objectTypeExpr = g.lowerNormalizedTypeExpr(ctx, objectTypeExpr)
+	generic, ok := objectTypeExpr.(*ast.GenericTypeExpression)
+	if !ok || generic == nil || len(generic.Arguments) != len(info.Node.GenericParams) {
+		return fieldTypeExpr
+	}
+	bindings := make(map[string]ast.TypeExpression, len(info.Node.GenericParams))
+	for idx, gp := range info.Node.GenericParams {
+		if gp == nil || gp.Name == nil || gp.Name.Name == "" || generic.Arguments[idx] == nil {
+			return fieldTypeExpr
+		}
+		bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, info.Package, generic.Arguments[idx])
+	}
+	return normalizeTypeExprForPackage(g, ctx.packageName, substituteTypeParams(field.TypeExpr, bindings))
 }
 
 func (g *generator) inferStructLiteralGenericTypeExpr(ctx *compileContext, lit *ast.StructLiteral) ast.TypeExpression {

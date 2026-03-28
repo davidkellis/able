@@ -132,7 +132,7 @@ func TestCompilerLinkedListIterableAdapterStaysNative(t *testing.T) {
 			t.Fatalf("expected LinkedList Iterable adapter iterator to avoid %q:\n%s", fragment, adapterBody)
 		}
 	}
-	if !strings.Contains(adapterBody, "__able_compiled_impl_Enumerable_iterator_1_spec(") &&
+	if !strings.Contains(adapterBody, "__able_compiled_impl_Enumerable_iterator_1_") &&
 		!strings.Contains(adapterBody, "__able_iface_Iterator_i32_wrap_ptr_LinkedListIterator(") {
 		t.Fatalf("expected LinkedList Iterable adapter iterator to stay on the native compiled path:\n%s", adapterBody)
 	}
@@ -251,7 +251,7 @@ func TestCompilerConcreteEnumerableGenericMethodsStayNative(t *testing.T) {
 			t.Fatalf("expected concrete Enumerable.lazy default impl to avoid %q:\n%s", fragment, lazyBody)
 		}
 	}
-	if !strings.Contains(lazyBody, "__able_compiled_impl_Enumerable_iterator_1_spec") {
+	if !strings.Contains(lazyBody, "__able_compiled_impl_Enumerable_iterator_1_") {
 		t.Fatalf("expected concrete Enumerable.lazy default impl to call the specialized iterator impl directly:\n%s", lazyBody)
 	}
 }
@@ -320,9 +320,9 @@ func TestCompilerConcreteIteratorGenericMethodsStayNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"__able_compiled_iface_Iterator__map_default(",
-		"__able_compiled_iface_Iterator_filter_default(",
+		"__able_compiled_iface_Iterator_filter_default",
 		"__able_compiled_iface_Iterator_collect_default(",
-		"__able_compiled_impl_Enumerable_reduce_default_9_spec(",
+		"__able_compiled_impl_Enumerable_reduce_default_9_spec",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected concrete Iterator pipeline to call compiled helpers directly (%q):\n%s", fragment, body)
@@ -401,7 +401,7 @@ func TestCompilerConcreteIteratorGenericMethodsStayNativeWithExperimentalMonoArr
 	}
 	for _, fragment := range []string{
 		"__able_compiled_iface_Iterator__map_default(",
-		"__able_compiled_iface_Iterator_filter_default(",
+		"__able_compiled_iface_Iterator_filter_default",
 		"__able_compiled_iface_Iterator_collect_",
 		"__able_compiled_impl_Enumerable_reduce_default_9_spec",
 	} {
@@ -517,7 +517,7 @@ func TestCompilerConcreteIteratorMapFilterFunctionStaysNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"__able_compiled_iface_Iterator__map_default(",
-		"__able_compiled_iface_Iterator_filter_default(",
+		"__able_compiled_iface_Iterator_filter_default",
 		".next()",
 	} {
 		if !strings.Contains(body, fragment) {

@@ -254,6 +254,7 @@ func (g *generator) fillMethodInfo(info *functionInfo, mapper *TypeMapper, targe
 	if info == nil || info.Definition == nil || mapper == nil {
 		return
 	}
+	g.invalidateFunctionDerivedInfo(info)
 	def := info.Definition
 	bindings := cloneTypeBindings(info.TypeBindings)
 	concreteTarget := target
@@ -406,8 +407,9 @@ func (g *generator) mapMethodType(mapper *TypeMapper, expr ast.TypeExpression, t
 }
 
 func (g *generator) resolveCompileableMethods() {
-	pending := make(map[*methodInfo]struct{})
-	for _, method := range g.methodList {
+	ordered := g.sortedMethodInfos()
+	pending := make([]*methodInfo, 0, len(ordered))
+	for _, method := range ordered {
 		if method == nil || method.Info == nil {
 			continue
 		}
@@ -415,32 +417,34 @@ func (g *generator) resolveCompileableMethods() {
 			method.Info.Compileable = false
 			continue
 		}
-		pending[method] = struct{}{}
+		if !method.Info.Compileable {
+			pending = append(pending, method)
+		}
 	}
 	for {
 		progress := false
-		for method := range pending {
+		for _, method := range pending {
 			if method == nil || method.Info == nil {
-				delete(pending, method)
 				continue
 			}
 			if method.Info.Compileable {
-				delete(pending, method)
 				continue
 			}
 			if ok := g.bodyCompileable(method.Info, method.Info.ReturnType); ok {
 				method.Info.Compileable = true
 				method.Info.Reason = ""
 				progress = true
-				delete(pending, method)
 			}
 		}
 		if !progress {
 			break
 		}
 	}
-	for method := range pending {
+	for _, method := range pending {
 		if method == nil || method.Info == nil {
+			continue
+		}
+		if method.Info.Compileable {
 			continue
 		}
 		if method.Info.Reason == "" {
@@ -553,6 +557,9 @@ func (g *generator) methodForReceiver(goType string, methodName string) *methodI
 		return nil
 	}
 	info := g.structInfoByGoName(goType)
+	if info == nil && g.isMonoArrayType(goType) {
+		info, _ = g.structInfoByNameUnique("Array")
+	}
 	if info != nil && info.Name != "" {
 		// Look up by struct Able name. Unlike methodForStruct, skip the
 		// package check: methods may be defined in a different package
@@ -613,7 +620,10 @@ func (g *generator) receiverMethodMatchScore(expectedReceiverType string, actual
 			expectedInfo.Package == actualInfo.Package &&
 			expectedInfo.Name != "" &&
 			expectedInfo.Name == actualInfo.Name {
-			return 1
+			if g.receiverNominalFamilyCompatible(expectedReceiverType, actualGoType) {
+				return 1
+			}
+			return 0
 		}
 	}
 	if g.isArrayStructType(expectedReceiverType) && g.isStaticArrayType(actualGoType) {

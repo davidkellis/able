@@ -14,6 +14,9 @@ func (g *generator) renderCompiledImportSeedingFile() ([]byte, error) {
 		"able/interpreter-go/pkg/runtime",
 		"strings",
 	}
+	if g.hasPublicPackageMethodCallableGroups() {
+		imports = append(imports, "able/interpreter-go/pkg/compiler/bridge")
+	}
 	sort.Strings(imports)
 	fmt.Fprintf(&buf, "import (\n")
 	for _, imp := range imports {
@@ -23,6 +26,9 @@ func (g *generator) renderCompiledImportSeedingFile() ([]byte, error) {
 	fmt.Fprintf(&buf, "var (\n")
 	fmt.Fprintf(&buf, "\t_ runtime.Value\n")
 	fmt.Fprintf(&buf, "\t_ = strings.TrimSpace\n")
+	if g.hasPublicPackageMethodCallableGroups() {
+		fmt.Fprintf(&buf, "\t_ *bridge.Runtime\n")
+	}
 	fmt.Fprintf(&buf, ")\n\n")
 	fmt.Fprintf(&buf, "func __able_seed_no_bootstrap_imports(__able_bootstrapped_metadata bool) {\n")
 	fmt.Fprintf(&buf, "\t_ = __able_bootstrapped_metadata\n")
@@ -93,6 +99,31 @@ func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageLis
 	fmt.Fprintf(buf, "\t\t\treturn fn\n")
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\t_ = __able_make_pkg_callable\n")
+	if g.hasPublicPackageMethodCallableGroups() {
+		fmt.Fprintf(buf, "\t\t__able_make_compiled_wrapper_callable := func(pkgEnv *runtime.Environment, name string, arity int, minArgs int, wrapper func(*bridge.Runtime, *runtime.NativeCallContext, []runtime.Value) (runtime.Value, error)) runtime.Value {\n")
+		fmt.Fprintf(buf, "\t\t\tif strings.TrimSpace(name) == \"\" || wrapper == nil {\n")
+		fmt.Fprintf(buf, "\t\t\t\treturn nil\n")
+		fmt.Fprintf(buf, "\t\t\t}\n")
+		fmt.Fprintf(buf, "\t\t\tif minArgs < 0 {\n")
+		fmt.Fprintf(buf, "\t\t\t\tminArgs = 0\n")
+		fmt.Fprintf(buf, "\t\t\t}\n")
+		fmt.Fprintf(buf, "\t\t\tfn := &runtime.NativeFunctionValue{Name: name, Arity: arity}\n")
+		fmt.Fprintf(buf, "\t\t\tfn.Impl = func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n")
+		fmt.Fprintf(buf, "\t\t\t\tif arity >= 0 && len(args) < minArgs {\n")
+		fmt.Fprintf(buf, "\t\t\t\t\targsCopy := append([]runtime.Value{}, args...)\n")
+		fmt.Fprintf(buf, "\t\t\t\t\treturn runtime.PartialFunctionValue{Target: fn, BoundArgs: argsCopy}, nil\n")
+		fmt.Fprintf(buf, "\t\t\t\t}\n")
+		fmt.Fprintf(buf, "\t\t\t\tif ctx == nil {\n")
+		fmt.Fprintf(buf, "\t\t\t\t\tctx = &runtime.NativeCallContext{Env: pkgEnv}\n")
+		fmt.Fprintf(buf, "\t\t\t\t} else if ctx.Env == nil {\n")
+		fmt.Fprintf(buf, "\t\t\t\t\tctx.Env = pkgEnv\n")
+		fmt.Fprintf(buf, "\t\t\t\t}\n")
+		fmt.Fprintf(buf, "\t\t\t\treturn wrapper(__able_runtime, ctx, args)\n")
+		fmt.Fprintf(buf, "\t\t\t}\n")
+		fmt.Fprintf(buf, "\t\t\treturn fn\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\t_ = __able_make_compiled_wrapper_callable\n")
+	}
 	fmt.Fprintf(buf, "\t\t__able_define_struct_binding := func(env *runtime.Environment, name string, val runtime.Value) {\n")
 	fmt.Fprintf(buf, "\t\t\tif env == nil || strings.TrimSpace(name) == \"\" || val == nil {\n")
 	fmt.Fprintf(buf, "\t\t\t\treturn\n")
@@ -118,6 +149,23 @@ func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageLis
 		for _, name := range g.sortedPublicCallableNames(sourcePkg) {
 			fmt.Fprintf(buf, "\t\tif callable := __able_make_pkg_callable(%s, %q); callable != nil {\n", sourceEnvVar, name)
 			fmt.Fprintf(buf, "\t\t\t%s[%q] = callable\n", publicVar, name)
+			fmt.Fprintf(buf, "\t\t}\n")
+		}
+		for _, group := range g.publicPackageMethodCallableGroups(sourcePkg) {
+			if group == nil || strings.TrimSpace(group.MethodName) == "" {
+				continue
+			}
+			arity := -1
+			if len(group.Entries) == 1 && group.Entries[0] != nil && group.Entries[0].Info != nil {
+				arity = group.Entries[0].Info.Arity
+			}
+			minArgs := group.MinArity
+			if minArgs < 0 {
+				minArgs = 0
+			}
+			wrapperName := g.publicPackageMethodCallableWrapperName(sourcePkg, group.MethodName)
+			fmt.Fprintf(buf, "\t\tif callable := __able_make_compiled_wrapper_callable(%s, %q, %d, %d, %s); callable != nil {\n", sourceEnvVar, group.MethodName, arity, minArgs, wrapperName)
+			fmt.Fprintf(buf, "\t\t\t%s[%q] = callable\n", publicVar, group.MethodName)
 			fmt.Fprintf(buf, "\t\t}\n")
 		}
 		for _, name := range g.sortedPublicStructNames(sourcePkg) {
@@ -184,6 +232,18 @@ func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageLis
 		}
 	}
 	fmt.Fprintf(buf, "\t}\n")
+}
+
+func (g *generator) hasPublicPackageMethodCallableGroups() bool {
+	if g == nil {
+		return false
+	}
+	for _, pkgName := range g.registrationPackageList() {
+		if len(g.publicPackageMethodCallableGroups(pkgName)) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func packageNamePathLiteral(pkgName string) string {

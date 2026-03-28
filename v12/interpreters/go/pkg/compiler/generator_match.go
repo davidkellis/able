@@ -154,7 +154,7 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			if !ok {
 				return nil, "", false
 			}
-			if g.isNativeStructPointerType(subjectType) {
+			if g.isNativeStructPointerType(subjectType) && !g.typeExprAllowsNilInPackage(ctx.packageName, g.lowerNormalizedTypeExpr(ctx, p.TypeAnnotation)) {
 				return g.guardMatchConditionWithPredicate(ctx, fmt.Sprintf("%s != nil", subjectTemp), innerCondLines, innerCond)
 			}
 			return innerCondLines, innerCond, true
@@ -614,7 +614,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 				lines = append(lines, fieldLines...)
 				if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 					bindName := sanitizeIdent(field.Binding.Name)
-					bindingTypeExpr := g.typeExprInContext(ctx, fieldInfo.TypeExpr)
+					bindingTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
 					if bindingTypeExpr == nil {
 						bindingTypeExpr, _ = g.typeExprForGoType(fieldInfo.GoType)
 						bindingTypeExpr = g.lowerNormalizedTypeExpr(ctx, bindingTypeExpr)
@@ -660,7 +660,7 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			lines = append(lines, fieldLines...)
 			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 				bindName := sanitizeIdent(field.Binding.Name)
-				bindingTypeExpr := g.typeExprInContext(ctx, fieldInfo.TypeExpr)
+				bindingTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
 				if bindingTypeExpr == nil {
 					bindingTypeExpr, _ = g.typeExprForGoType(fieldInfo.GoType)
 					bindingTypeExpr = g.lowerNormalizedTypeExpr(ctx, bindingTypeExpr)

@@ -178,19 +178,6 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 	for idx := range clauses {
 		clause := &clauses[idx]
 		if clause.bodyType == resultType {
-			if wrapLines, wrapped, ok := g.lowerWrapUnion(ctx, resultType, clause.bodyType, clause.bodyExpr); ok {
-				clause.bodyLines = append(clause.bodyLines, wrapLines...)
-				clause.bodyExpr = wrapped
-				clause.bodyType = resultType
-			}
-			continue
-		}
-		if g.typeMatches(resultType, clause.bodyType) {
-			if wrapLines, wrapped, ok := g.lowerWrapUnion(ctx, resultType, clause.bodyType, clause.bodyExpr); ok {
-				clause.bodyLines = append(clause.bodyLines, wrapLines...)
-				clause.bodyExpr = wrapped
-				clause.bodyType = resultType
-			}
 			continue
 		}
 		coerceLines, converted, ok := g.coerceJoinBranch(ctx, resultType, clause.bodyExpr, clause.bodyType)

@@ -48,6 +48,7 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 		warnings = append(warnings, message)
 	}
 	gen := newGenerator(c.opts)
+	gen.setTypecheckInference(check.Inferred)
 	if err := gen.collect(program); err != nil {
 		return nil, err
 	}
@@ -58,33 +59,44 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	gen.setDynamicFeatureReport(dynamicReport)
 	// collect() resolves compileability before dynamic usage is known; rerun so
 	// dynamic modules are allowed to keep explicit boundary call sites compiled.
-	gen.resolveCompileableFunctions()
-	gen.resolveCompileableMethods()
+	gen.resolveCompileabilityFixedPoint()
 	appendDynamicFeatureWarnings(gen, dynamicReport)
+	fallbacks := gen.collectFallbacks()
+	if err := c.validateFallbackPolicy(fallbacks, dynamicReport); err != nil {
+		return nil, err
+	}
 	files, err := gen.render()
 	if err != nil {
 		return nil, err
 	}
-	fallbacks := gen.collectFallbacks()
-	if len(fallbacks) > 0 {
-		first := fallbacks[0]
-		name := first.Name
-		if name == "" {
-			name = "<unknown>"
-		}
-		reason := first.Reason
-		if reason == "" {
-			reason = "unspecified fallback reason"
-		}
-		if c.opts.RequireNoFallbacks {
-			return nil, fmt.Errorf("compiler: fallback not allowed (count=%d, first=%s: %s)", len(fallbacks), name, reason)
-		}
-		if c.opts.RequireStaticNoFallbacks && (dynamicReport == nil || !dynamicReport.UsesDynamic()) {
-			return nil, fmt.Errorf("compiler: static fallback not allowed (count=%d, first=%s: %s)", len(fallbacks), name, reason)
-		}
+	fallbacks = gen.collectFallbacks()
+	if err := c.validateFallbackPolicy(fallbacks, dynamicReport); err != nil {
+		return nil, err
 	}
 	gen.warnings = append(warnings, gen.warnings...)
 	return &Result{Files: files, Warnings: gen.warnings, Fallbacks: fallbacks}, nil
+}
+
+func (c *Compiler) validateFallbackPolicy(fallbacks []FallbackInfo, dynamicReport *DynamicFeatureReport) error {
+	if len(fallbacks) == 0 {
+		return nil
+	}
+	first := fallbacks[0]
+	name := first.Name
+	if name == "" {
+		name = "<unknown>"
+	}
+	reason := first.Reason
+	if reason == "" {
+		reason = "unspecified fallback reason"
+	}
+	if c.opts.RequireNoFallbacks {
+		return fmt.Errorf("compiler: fallback not allowed (count=%d, first=%s: %s)", len(fallbacks), name, reason)
+	}
+	if c.opts.RequireStaticNoFallbacks && (dynamicReport == nil || !dynamicReport.UsesDynamic()) {
+		return fmt.Errorf("compiler: static fallback not allowed (count=%d, first=%s: %s)", len(fallbacks), name, reason)
+	}
+	return nil
 }
 
 func (r *Result) Write(dir string) error {

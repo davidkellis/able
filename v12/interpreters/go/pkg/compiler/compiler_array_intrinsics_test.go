@@ -179,7 +179,7 @@ func TestCompilerInlineCheckedIntegerAddSubStayStatic(t *testing.T) {
 
 func TestCompilerInlineCheckedSignedSubWithNonNegativeOperandsElidesOverflowBranch(t *testing.T) {
 	source := strings.Join([]string{
-		"package demo",
+		"package main",
 		"",
 		"fn diff() -> i32 {",
 		"  a: i32 = 7",
@@ -252,6 +252,28 @@ func TestCompilerInlineCheckedSignedAddWithCallsiteUpperBoundElidesOverflowBranc
 	}
 }
 
+func TestCompilerNativeIntegerNarrowingCastStaysStatic(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn cast_byte(value: u16) -> u8 {",
+		"  value as u8",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_cast_byte")
+	if !ok {
+		t.Fatalf("could not find compiled cast_byte function")
+	}
+	if strings.Contains(body, "__able_cast(") {
+		t.Fatalf("expected fixed-width integer narrowing cast to stay native:\n%s", body)
+	}
+	if !strings.Contains(body, "uint8(") {
+		t.Fatalf("expected fixed-width integer narrowing cast to lower directly to a Go uint8 conversion:\n%s", body)
+	}
+}
+
 func TestCompilerArrayStructKeepsSpecFieldsAndNativeStorage(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
@@ -275,6 +297,97 @@ func TestCompilerArrayStructKeepsSpecFieldsAndNativeStorage(t *testing.T) {
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
 			t.Fatalf("expected compiled array lowering to contain %q", fragment)
+		}
+	}
+}
+
+func TestCompilerArrayWithCapacityInGenericReturnContextStaysNative(t *testing.T) {
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-array-with-capacity-generic-return", strings.Join([]string{
+		"package demo",
+		"",
+		"import able.kernel.{Array}",
+		"",
+		"fn build<T>(count: i32, value: T) -> Array T {",
+		"  result := Array.with_capacity(count)",
+		"  result.push(value)",
+		"  result",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  values: Array i32 = build(1, 7)",
+		"  values.read_slot(0)",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:            "main",
+		ExperimentalMonoArrays: true,
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_build_spec")
+	if !ok {
+		t.Fatalf("could not find compiled build specialization")
+	}
+	for _, fragment := range []string{
+		"&__able_array_i32{Elements: make([]int32, 0,",
+		"__able_tmp_4.Elements = append(__able_tmp_4.Elements, __able_tmp_5)",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected generic return-context Array.with_capacity lowering to contain %q:\n%s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_compiled_method_Array_with_capacity_spec(",
+		"__able_compiled_method_Array_with_capacity(",
+		"__able_method_call_node(",
+		"runtime.Value",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected generic return-context Array.with_capacity lowering to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerArrayWithCapacityAvoidsAmbientGenericMisinference(t *testing.T) {
+	result := compileNoFallbackExecSource(t, "ablec-array-with-capacity-ambient-generic", strings.Join([]string{
+		"package demo",
+		"",
+		"import able.kernel.{Array}",
+		"",
+		"struct SlotEmpty {}",
+		"struct SlotValue T { value: T }",
+		"union Slot T = SlotEmpty | SlotValue T",
+		"struct Node T { slots: Array (Slot T) }",
+		"",
+		"fn clone<T>(node: Node T) -> Node T {",
+		"  cloned := Array.with_capacity(2)",
+		"  idx := 0",
+		"  loop {",
+		"    if idx >= 2 { break }",
+		"    cloned.write_slot(idx, node.slots.read_slot(idx))",
+		"    idx = idx + 1",
+		"  }",
+		"  Node { slots: cloned }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  slots: Array (Slot i32) = Array.with_capacity(2)",
+		"  slots.write_slot(0, SlotValue { value: 7 })",
+		"  copied := clone(Node { slots: slots })",
+		"  copied.slots.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "&__able_array_union__SlotEmpty_or__SlotValue_i32{Elements: make([]__able_union__SlotEmpty_or__SlotValue_i32, 0,") {
+		t.Fatalf("expected clone specialization to keep the nested union array carrier:\n%s", compiledSrc)
+	}
+	for _, fragment := range []string{
+		"&__able_array_i32{Elements: make([]int32, 0,",
+		"__able_array_i32_to(__able_runtime, cloned)",
+	} {
+		if strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected clone specialization to avoid ambient generic Array<T> misinference %q:\n%s", fragment, compiledSrc)
 		}
 	}
 }
@@ -303,8 +416,8 @@ func TestCompilerArrayMutationsSyncMetadata(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var arr *Array =",
-		"append(__able_tmp_1.Elements",
-		"__able_tmp_3.Elements[__able_tmp_5] = __able_tmp_6",
+		"append(__able_tmp_",
+		".Elements[__able_tmp_",
 		".Elements = ",
 		".Elements[:0]",
 	} {
@@ -322,6 +435,64 @@ func TestCompilerArrayMutationsSyncMetadata(t *testing.T) {
 	}
 	if strings.Contains(mainBody, "__able_method_call_node(") || strings.Contains(mainBody, "__able_index_set(") {
 		t.Fatalf("expected static array lowering to avoid dynamic method/index helpers")
+	}
+}
+
+func TestCompilerGenericArrayPushKeepsReceiverIdentity(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  arr := Array.new()",
+		"  arr.push(1)",
+		"  arr.push(2)",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"append(__able_tmp_",
+		"__able_struct_Array_sync(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected generic Array.push lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_array_i32_from(",
+		"__able_method_call_node(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected generic Array.push lowering to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerGenericArrayPushExecutes(t *testing.T) {
+	source := strings.Join([]string{
+		"package main",
+		"",
+		"fn main() -> void {",
+		"  arr := Array.new()",
+		"  arr.push(1)",
+		"  arr.push(2)",
+		"  print(arr.len())",
+		"}",
+		"",
+	}, "\n")
+
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-generic-array-push-", source, Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+	if strings.TrimSpace(stdout) != "2" {
+		t.Fatalf("expected compiled generic Array.push program to print 2, got %q", stdout)
 	}
 }
 

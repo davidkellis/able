@@ -42,20 +42,51 @@ func (g *generator) nativeInterfaceDefaultAdapterMethod(goType string, method *n
 	return adapterMethod
 }
 
+func (g *generator) canonicalBuiltinMappedDefaultAdapterMethod(actualGoType string, method *nativeInterfaceMethod, current *nativeInterfaceAdapterMethod) *nativeInterfaceAdapterMethod {
+	if g == nil || method == nil || current == nil || current.Info == nil || actualGoType == "" {
+		return current
+	}
+	if method.DefaultDefinition == nil || !current.Info.InternalOnly || current.Info.Definition != method.DefaultDefinition {
+		return current
+	}
+	if len(current.Info.Params) == 0 || current.Info.Params[0].GoType == actualGoType {
+		return current
+	}
+	builtinName := typeNameFromGoType(actualGoType)
+	if !isBuiltinMappedType(builtinName) {
+		return current
+	}
+	shadowName := strings.TrimPrefix(current.Info.Params[0].GoType, "*")
+	if shadowName == "" || shadowName != builtinName {
+		return current
+	}
+	preferred := g.nativeInterfaceDefaultAdapterMethod(actualGoType, method)
+	if preferred == nil || preferred.Info == nil || len(preferred.Info.Params) == 0 {
+		return current
+	}
+	if preferred.Info.Params[0].GoType != actualGoType {
+		return current
+	}
+	return preferred
+}
+
 func (g *generator) ensureSpecializedNativeInterfaceDefaultMethod(method *nativeInterfaceGenericMethod, receiverGoType string, paramGoTypes []string, returnGoType string) (*functionInfo, bool) {
 	if g == nil || method == nil || method.DefaultDefinition == nil || method.DefaultDefinition.Body == nil || receiverGoType == "" || returnGoType == "" {
 		return nil, false
 	}
-	receiverTypeExpr, ok := g.typeExprForGoType(receiverGoType)
-	if !ok || receiverTypeExpr == nil {
+	receiverTypeExpr, concreteReceiverGoType, mergedBindings, ok := g.nativeInterfaceDefaultReceiverInfo(receiverGoType, method, nil)
+	if !ok || receiverTypeExpr == nil || concreteReceiverGoType == "" {
 		return nil, false
 	}
-	mergedBindings := g.nativeInterfaceGenericDefaultMethodBindings(method, nil)
-	key := g.specializedNativeInterfaceDefaultMethodKey(method, receiverGoType, mergedBindings)
+	key := g.specializedNativeInterfaceDefaultMethodKey(method, concreteReceiverGoType, mergedBindings)
 	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil {
 		if _, building := g.nativeInterfaceSpecializing[key]; building {
 			return existing, true
 		}
+		if existing.Compileable {
+			return existing, true
+		}
+		g.invalidateFunctionDerivedInfo(existing)
 		existing.Name = fmt.Sprintf("iface %s.%s", method.InterfaceName, method.Name)
 		existing.Package = method.InterfacePackage
 		existing.QualifiedName = fmt.Sprintf("iface %s.%s", method.InterfaceName, method.Name)
@@ -65,9 +96,10 @@ func (g *generator) ensureSpecializedNativeInterfaceDefaultMethod(method *native
 		existing.InternalOnly = true
 		existing.Compileable = false
 		existing.Reason = ""
-		if !g.fillNativeInterfaceDefaultMethodInfo(existing, receiverGoType, receiverTypeExpr, method, paramGoTypes, returnGoType) {
+		if !g.fillNativeInterfaceDefaultMethodInfo(existing, concreteReceiverGoType, receiverTypeExpr, method, paramGoTypes, returnGoType) {
 			return nil, false
 		}
+		g.registerNativeInterfaceDefaultMethodInfo(existing, method, concreteReceiverGoType)
 		existing.Compileable = true
 		g.nativeInterfaceSpecializing[key] = struct{}{}
 		defer delete(g.nativeInterfaceSpecializing, key)
@@ -92,9 +124,10 @@ func (g *generator) ensureSpecializedNativeInterfaceDefaultMethod(method *native
 		InternalOnly:  true,
 		Compileable:   false,
 	}
-	if !g.fillNativeInterfaceDefaultMethodInfo(info, receiverGoType, receiverTypeExpr, method, paramGoTypes, returnGoType) {
+	if !g.fillNativeInterfaceDefaultMethodInfo(info, concreteReceiverGoType, receiverTypeExpr, method, paramGoTypes, returnGoType) {
 		return nil, false
 	}
+	g.registerNativeInterfaceDefaultMethodInfo(info, method, concreteReceiverGoType)
 	g.specializedFunctions = append(g.specializedFunctions, info)
 	info.Compileable = true
 	g.nativeInterfaceSpecializing[key] = struct{}{}
@@ -115,6 +148,7 @@ func (g *generator) fillNativeInterfaceDefaultMethodInfo(info *functionInfo, rec
 	if g == nil || info == nil || info.Definition == nil || method == nil || receiverGoType == "" || receiverTypeExpr == nil || returnGoType == "" {
 		return false
 	}
+	g.invalidateFunctionDerivedInfo(info)
 	def := info.Definition
 	expectsSelf := methodDefinitionExpectsSelf(def)
 	params := make([]paramInfo, 0, len(def.Params))

@@ -134,6 +134,37 @@ func TestCompilerTypedInterfaceAssignmentStaysNative(t *testing.T) {
 	}
 }
 
+func TestCompilerNoSelfInterfaceConcreteAdapterKeepsDeclaredArity(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"interface Reducer A B Out {",
+		"  fn combine(left: A, right: B) -> Out",
+		"}",
+		"",
+		"impl Reducer i32 i32 i32 for i32 {",
+		"  fn combine(left: i32, right: i32) -> i32 { left + right }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  reducer: Reducer i32 i32 i32 = 0",
+		"  reducer.combine(2, 3)",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "type __able_iface_Reducer_i32_i32_i32_adapter_int32 struct {") {
+		t.Fatalf("expected native adapter for no-self interface witness:\n%s", compiledSrc)
+	}
+	if !strings.Contains(compiledSrc, "result, control := __able_compiled_impl_Reducer_combine_0(arg0, arg1)") {
+		t.Fatalf("expected no-self interface adapter to call compiled impl without an extra receiver argument:\n%s", compiledSrc)
+	}
+	if strings.Contains(compiledSrc, "__able_compiled_impl_Reducer_combine_0(w.Value, arg0, arg1)") {
+		t.Fatalf("expected no-self interface adapter to avoid prepending wrapped value:\n%s", compiledSrc)
+	}
+}
+
 func TestCompilerGenericInterfaceReturnFromStructLiteralStaysNative(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

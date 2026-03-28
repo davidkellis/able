@@ -27,6 +27,19 @@ func (g *generator) compileStaticReceiverMethodCall(
 		}
 	}
 	synthetic := ast.NewFunctionCall(ast.NewIdentifier(methodName), args, nil, false)
+	if receiver != nil && g.usesImplicitReceiverSiblingCall(ctx, receiver) {
+		if sibling, ok := ctx.implSiblings[methodName]; ok && sibling.Info != nil && sibling.Info.Compileable && len(sibling.Info.Params) > 0 {
+			method := &methodInfo{
+				MethodName:  methodName,
+				ExpectsSelf: true,
+				Info:        sibling.Info,
+			}
+			if g.nativeInterfaceDefaultByInfo[sibling.Info] == nil && g.canSpecializeImplicitReceiver(ctx) {
+				method = g.concreteMethodCallInfo(ctx, synthetic, method, receiver, receiverType, expected)
+			}
+			return g.lowerResolvedMethodDispatch(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
+		}
+	}
 	if _, ok := g.nativeInterfaceMethodForGoType(receiverType, methodName); ok {
 		return g.lowerNativeInterfaceMethodDispatch(ctx, synthetic, expected, receiverExpr, receiverType, methodName, callNode)
 	}
@@ -36,11 +49,20 @@ func (g *generator) compileStaticReceiverMethodCall(
 		}
 		return g.lowerResolvedMethodDispatch(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
 	}
-	if method := g.compileableInterfaceMethodForConcreteReceiver(receiverType, methodName); method != nil {
+	var concreteInterfaceMethod *methodInfo
+	if receiver != nil {
+		concreteInterfaceMethod = g.compileableInterfaceMethodForConcreteReceiverExpr(ctx, receiver, receiverType, methodName)
+	} else {
+		concreteInterfaceMethod = g.compileableInterfaceMethodForConcreteReceiver(receiverType, methodName)
+	}
+	if method := concreteInterfaceMethod; method != nil {
 		if receiver != nil {
 			method = g.concreteMethodCallInfo(ctx, synthetic, method, receiver, receiverType, expected)
 		}
 		return g.lowerResolvedMethodDispatch(ctx, synthetic, expected, method, receiverExpr, receiverType, callNode)
+	}
+	if lines, expr, retType, ok := g.compileConcreteNativeInterfaceMethodCall(ctx, synthetic, expected, receiverExpr, receiverType, methodName, callNode); ok {
+		return lines, expr, retType, true
 	}
 	return nil, "", "", false
 }
@@ -57,6 +79,9 @@ func (g *generator) staticReceiverBestEffortCloseDefer(receiverExpr string, rece
 	}
 	if method := g.compileableInterfaceMethodForConcreteReceiver(receiverType, "close"); method != nil && method.Info != nil && method.Info.Compileable {
 		return fmt.Sprintf("defer func() { _, _ = __able_compiled_%s(%s) }()", method.Info.GoName, receiverExpr), true
+	}
+	if candidate, ok := g.concreteNativeInterfaceMethodForReceiver(receiverType, "close", 0); ok && candidate != nil && candidate.impl != nil && candidate.impl.Info != nil {
+		return fmt.Sprintf("defer func() { _, _ = __able_compiled_%s(%s) }()", candidate.impl.Info.GoName, receiverExpr), true
 	}
 	return "", false
 }

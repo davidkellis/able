@@ -265,6 +265,92 @@ func TestCompilerNullableArrayNilComparisonStaysNative(t *testing.T) {
 	}
 }
 
+func TestCompilerNullableStringEqualityStaysNative(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn same(left: ?String, right: ?String) -> bool {",
+		"  left == right",
+		"}",
+		"",
+		"fn different(left: ?String, right: ?String) -> bool {",
+		"  left != right",
+		"}",
+		"",
+	}, "\n"))
+
+	for _, name := range []string{"__able_compiled_fn_same", "__able_compiled_fn_different"} {
+		body, ok := findCompiledFunction(result, name)
+		if !ok {
+			t.Fatalf("could not find compiled function %s", name)
+		}
+		for _, fragment := range []string{
+			"== nil",
+			"!= nil",
+			"(*",
+		} {
+			if !strings.Contains(body, fragment) {
+				t.Fatalf("expected native nullable string equality lowering in %s to contain %q:\n%s", name, fragment, body)
+			}
+		}
+		for _, fragment := range []string{
+			"__able_binary_op(",
+			"__able_nullable_string_to_value(",
+			"bridge.AsBool(",
+		} {
+			if strings.Contains(body, fragment) {
+				t.Fatalf("expected native nullable string equality lowering in %s to avoid %q:\n%s", name, fragment, body)
+			}
+		}
+	}
+}
+
+func TestCompilerNullableStringEqualityExecutes(t *testing.T) {
+	compileAndRunSource(t, "ablec-nullable-string-equality-", strings.Join([]string{
+		"package demo",
+		"",
+		"extern go fn __able_os_exit(code: i32) -> void {}",
+		"",
+		"fn same(left: ?String, right: ?String) -> bool {",
+		"  left == right",
+		"}",
+		"",
+		"fn different(left: ?String, right: ?String) -> bool {",
+		"  left != right",
+		"}",
+		"",
+		"fn main() {",
+		"  if same(\"a\", \"a\") && same(nil, nil) && different(\"a\", nil) && different(nil, \"b\") {",
+		"    __able_os_exit(0)",
+		"  }",
+		"  __able_os_exit(1)",
+		"}",
+		"",
+	}, "\n"))
+}
+
+func TestCompilerAnyNilComparisonUsesRuntimeNilHelper(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn is_nil(value: any) -> bool {",
+		"  value == nil",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_is_nil")
+	if !ok {
+		t.Fatalf("could not find compiled is_nil function")
+	}
+	if !strings.Contains(body, "__able_is_nil(value)") && !strings.Contains(body, "__able_is_nil(__able_any_to_value(value))") {
+		t.Fatalf("expected runtime nil comparison to lower through __able_is_nil:\n%s", body)
+	}
+	if strings.Contains(body, "__able_binary_op(\"==\"") {
+		t.Fatalf("expected runtime nil comparison to avoid __able_binary_op equality fallback:\n%s", body)
+	}
+}
+
 func TestCompilerSafeNavigationMethodAndFieldStayNativeNullable(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
@@ -491,4 +577,52 @@ fn main() {
 }
 `
 	compileAndRunSource(t, "ablec-nullable-struct-match-", source)
+}
+
+func TestCompilerTypedMatchOnNullableArrayUnionExecutes(t *testing.T) {
+	source := `extern go fn __able_os_exit(code: i32) -> void {}
+
+struct IOError {}
+
+fn unwrap(value: IOError | ?Array i32) -> ?Array i32 {
+  value match {
+    case _: IOError => nil
+    case ok: ?Array i32 => ok
+  }
+}
+
+fn main() {
+  value: IOError | ?Array i32 = nil
+  out := unwrap(value)
+  if out == nil {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`
+	compileAndRunSource(t, "ablec-nullable-array-union-match-", source)
+}
+
+func TestCompilerGenericTypedMatchOnNullableArrayUnionExecutes(t *testing.T) {
+	source := `extern go fn __able_os_exit(code: i32) -> void {}
+
+struct IOError {}
+
+fn unwrap<T>(value: IOError | T) -> T {
+  value match {
+    case _: IOError => nil
+    case ok: T => ok
+  }
+}
+
+fn main() {
+  value: IOError | ?Array i32 = nil
+  out := unwrap(value)
+  if out == nil {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`
+	compileAndRunSource(t, "ablec-generic-nullable-array-union-match-", source)
 }

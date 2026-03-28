@@ -11,7 +11,7 @@ type lambdaConstraint struct {
 	Interface   ast.TypeExpression
 }
 
-func (g *generator) lambdaConstraintLines(expr *ast.LambdaExpression, valueVars map[string]string) ([]string, bool) {
+func (g *generator) lambdaConstraintLines(expr *ast.LambdaExpression, valueVars map[string]string, zeroExpr string) ([]string, bool) {
 	if g == nil || expr == nil {
 		return nil, true
 	}
@@ -22,7 +22,7 @@ func (g *generator) lambdaConstraintLines(expr *ast.LambdaExpression, valueVars 
 	lines := []string{}
 	addRuntimeCheck := func() {
 		if len(lines) == 0 {
-			lines = append(lines, "if __able_runtime == nil { return nil, fmt.Errorf(\"compiler: missing runtime\") }")
+			lines = append(lines, fmt.Sprintf("if __able_runtime == nil { return %s, __able_control_from_error(fmt.Errorf(\"compiler: missing runtime\")) }", zeroExpr))
 		}
 	}
 	for _, constraint := range constraints {
@@ -35,7 +35,7 @@ func (g *generator) lambdaConstraintLines(expr *ast.LambdaExpression, valueVars 
 			return nil, false
 		}
 		addRuntimeCheck()
-		lines = append(lines, fmt.Sprintf("if _, ok, err := bridge.MatchType(__able_runtime, %s, %s); err != nil { return nil, err } else if !ok { return nil, fmt.Errorf(\"Type argument %s does not satisfy constraint\") }", typeExpr, valueVar, constraint.GenericName))
+		lines = append(lines, fmt.Sprintf("if _, ok, err := bridge.MatchType(__able_runtime, %s, %s); err != nil { return %s, __able_control_from_error(err) } else if !ok { return %s, __able_control_from_error(fmt.Errorf(\"Type argument %s does not satisfy constraint\")) }", typeExpr, valueVar, zeroExpr, zeroExpr, constraint.GenericName))
 	}
 	return lines, true
 }

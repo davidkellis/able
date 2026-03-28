@@ -575,7 +575,7 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 			return allLines, callableExpr, callableType, true
 		}
 	}
-	info := g.structInfoByGoName(objectType)
+	info := g.staticStructInfoForAccess(objectType)
 	if info == nil {
 		ctx.setReason("unsupported member access")
 		return nil, "", "", false
@@ -700,7 +700,7 @@ func (g *generator) compileOriginStructFieldAccess(ctx *compileContext, expr *as
 	if !ok || info.OriginGoType == "" {
 		return nil, "", "", false
 	}
-	structInfo := g.structInfoByGoName(info.OriginGoType)
+	structInfo := g.staticStructInfoForAccess(info.OriginGoType)
 	if structInfo == nil {
 		return nil, "", "", false
 	}

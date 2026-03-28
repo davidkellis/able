@@ -69,13 +69,16 @@ func TestCompilerInterfaceLookupReportersFixtureRegression(t *testing.T) {
 func resolveInterfaceLookupAuditFixtures(t *testing.T, root string) []string {
 	t.Helper()
 	raw := strings.TrimSpace(os.Getenv(compilerInterfaceLookupFixturesEnv))
+	fixtures := []string(nil)
 	if raw == "" {
-		return defaultCompilerInterfaceLookupAuditFixtures()
+		fixtures = defaultCompilerInterfaceLookupAuditFixtures()
+		return applyCompilerFixtureBatch(t, fixtures, compilerInterfaceLookupBatchIndexEnv, compilerInterfaceLookupBatchCountEnv)
 	}
 	if strings.EqualFold(raw, "all") {
-		return collectExecFixtures(t, root)
+		fixtures = collectExecFixtures(t, root)
+		return applyCompilerFixtureBatch(t, fixtures, compilerInterfaceLookupBatchIndexEnv, compilerInterfaceLookupBatchCountEnv)
 	}
-	fixtures := []string{}
+	fixtures = []string{}
 	seen := make(map[string]struct{})
 	for _, part := range strings.FieldsFunc(raw, func(r rune) bool {
 		return r == ',' || r == ';' || r == '\n' || r == '\t' || r == ' '
@@ -90,7 +93,7 @@ func resolveInterfaceLookupAuditFixtures(t *testing.T, root string) []string {
 		seen[part] = struct{}{}
 		fixtures = append(fixtures, part)
 	}
-	return fixtures
+	return applyCompilerFixtureBatch(t, fixtures, compilerInterfaceLookupBatchIndexEnv, compilerInterfaceLookupBatchCountEnv)
 }
 
 func runCompilerInterfaceLookupAuditFixtureDefaultBatch(t *testing.T, batch int) {

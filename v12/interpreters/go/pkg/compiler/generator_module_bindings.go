@@ -76,6 +76,250 @@ func (g *generator) hasModuleBindingName(pkgName string, name string) bool {
 	return ok
 }
 
+func (g *generator) markMutableModuleBindingName(pkgName string, name string) {
+	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(name) == "" {
+		return
+	}
+	perPkg := g.moduleMutableBindingNames[pkgName]
+	if perPkg == nil {
+		perPkg = make(map[string]struct{})
+		g.moduleMutableBindingNames[pkgName] = perPkg
+	}
+	perPkg[name] = struct{}{}
+}
+
+func (g *generator) isMutableModuleBindingName(pkgName string, name string) bool {
+	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(name) == "" {
+		return false
+	}
+	perPkg := g.moduleMutableBindingNames[pkgName]
+	if perPkg == nil {
+		return false
+	}
+	_, ok := perPkg[name]
+	return ok
+}
+
+func (g *generator) collectMutableModuleBindings(stmts []ast.Statement, pkgName string) {
+	if g == nil || len(stmts) == 0 || strings.TrimSpace(pkgName) == "" {
+		return
+	}
+	for _, stmt := range stmts {
+		fn, ok := stmt.(*ast.FunctionDefinition)
+		if !ok || fn == nil || fn.Body == nil {
+			continue
+		}
+		g.collectMutableModuleBindingsFromBlock(fn.Body, pkgName)
+	}
+}
+
+func (g *generator) collectMutableModuleBindingsFromBlock(block *ast.BlockExpression, pkgName string) {
+	if g == nil || block == nil {
+		return
+	}
+	for _, stmt := range block.Body {
+		g.collectMutableModuleBindingsFromNode(stmt, pkgName)
+	}
+}
+
+func (g *generator) collectMutableModuleBindingsFromNode(node ast.Node, pkgName string) {
+	if g == nil || node == nil {
+		return
+	}
+	switch n := node.(type) {
+	case *ast.AssignmentExpression:
+		if n == nil {
+			return
+		}
+		if name, _, ok := g.assignmentTargetName(n.Left); ok && g.hasModuleBindingName(pkgName, name) {
+			g.markMutableModuleBindingName(pkgName, name)
+		}
+		g.collectMutableModuleBindingsFromNode(n.Right, pkgName)
+	case *ast.BlockExpression:
+		g.collectMutableModuleBindingsFromBlock(n, pkgName)
+	case *ast.IfExpression:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.IfCondition, pkgName)
+		g.collectMutableModuleBindingsFromBlock(n.IfBody, pkgName)
+		for _, clause := range n.ElseIfClauses {
+			if clause == nil {
+				continue
+			}
+			g.collectMutableModuleBindingsFromNode(clause.Condition, pkgName)
+			g.collectMutableModuleBindingsFromBlock(clause.Body, pkgName)
+		}
+		if n.ElseBody != nil {
+			g.collectMutableModuleBindingsFromBlock(n.ElseBody, pkgName)
+		}
+	case *ast.MatchExpression:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.Subject, pkgName)
+		for _, clause := range n.Clauses {
+			if clause == nil || clause.Body == nil {
+				continue
+			}
+			g.collectMutableModuleBindingsFromNode(clause.Body, pkgName)
+		}
+	case *ast.FunctionCall:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.Callee, pkgName)
+		for _, arg := range n.Arguments {
+			g.collectMutableModuleBindingsFromNode(arg, pkgName)
+		}
+	case *ast.MemberAccessExpression:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.Object, pkgName)
+		g.collectMutableModuleBindingsFromNode(n.Member, pkgName)
+	case *ast.ReturnStatement:
+		if n != nil {
+			g.collectMutableModuleBindingsFromNode(n.Argument, pkgName)
+		}
+	case *ast.RaiseStatement:
+		if n != nil {
+			g.collectMutableModuleBindingsFromNode(n.Expression, pkgName)
+		}
+	case *ast.WhileLoop:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.Condition, pkgName)
+		g.collectMutableModuleBindingsFromBlock(n.Body, pkgName)
+	case *ast.ForLoop:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.Iterable, pkgName)
+		g.collectMutableModuleBindingsFromBlock(n.Body, pkgName)
+	case *ast.RescueExpression:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.MonitoredExpression, pkgName)
+		for _, clause := range n.Clauses {
+			if clause == nil || clause.Body == nil {
+				continue
+			}
+			g.collectMutableModuleBindingsFromNode(clause.Body, pkgName)
+		}
+	case *ast.OrElseExpression:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.Expression, pkgName)
+		if n.Handler != nil {
+			g.collectMutableModuleBindingsFromBlock(n.Handler, pkgName)
+		}
+	case *ast.EnsureExpression:
+		if n == nil {
+			return
+		}
+		g.collectMutableModuleBindingsFromNode(n.TryExpression, pkgName)
+		if n.EnsureBlock != nil {
+			g.collectMutableModuleBindingsFromBlock(n.EnsureBlock, pkgName)
+		}
+	case *ast.LoopExpression:
+		if n != nil && n.Body != nil {
+			g.collectMutableModuleBindingsFromBlock(n.Body, pkgName)
+		}
+	case *ast.BreakpointExpression:
+		if n != nil && n.Body != nil {
+			g.collectMutableModuleBindingsFromBlock(n.Body, pkgName)
+		}
+	case *ast.FunctionDefinition:
+		// Nested function bodies should not make outer reads static.
+		if n != nil && n.Body != nil {
+			g.collectMutableModuleBindingsFromBlock(n.Body, pkgName)
+		}
+	}
+}
+
+func (g *generator) moduleBindingByName(pkgName string, name string) (moduleBinding, bool) {
+	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(name) == "" {
+		return moduleBinding{}, false
+	}
+	for _, binding := range g.moduleBindings[pkgName] {
+		if strings.TrimSpace(binding.Name) == name {
+			return binding, true
+		}
+	}
+	return moduleBinding{}, false
+}
+
+func goTypeForIntegerSuffix(suffix string) (string, bool) {
+	switch suffix {
+	case "runtime.IntegerI8":
+		return "int8", true
+	case "runtime.IntegerI16":
+		return "int16", true
+	case "runtime.IntegerI32":
+		return "int32", true
+	case "runtime.IntegerI64":
+		return "int64", true
+	case "runtime.IntegerU8":
+		return "uint8", true
+	case "runtime.IntegerU16":
+		return "uint16", true
+	case "runtime.IntegerU32":
+		return "uint32", true
+	case "runtime.IntegerU64":
+		return "uint64", true
+	}
+	return "", false
+}
+
+func (g *generator) evaluatedConstantExpr(pkgName string, name string) (string, string, bool) {
+	if g == nil || g.evaluatedConstants == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(name) == "" {
+		return "", "", false
+	}
+	c, ok := g.evaluatedConstants[pkgName+"::"+name]
+	if !ok || c == nil || c.val == nil {
+		return "", "", false
+	}
+	goType, ok := goTypeForIntegerSuffix(c.suffix)
+	if !ok || goType == "" {
+		return "", "", false
+	}
+	return goType + "(" + c.val.String() + ")", goType, true
+}
+
+func (g *generator) compileStaticModuleBindingIdentifier(ctx *compileContext, ident *ast.Identifier, expected string) ([]string, string, string, bool) {
+	if g == nil || ctx == nil || ident == nil || strings.TrimSpace(ident.Name) == "" {
+		return nil, "", "", false
+	}
+	if !g.hasModuleBindingName(ctx.packageName, ident.Name) {
+		return nil, "", "", false
+	}
+	if g.isMutableModuleBindingName(ctx.packageName, ident.Name) {
+		return nil, "", "", false
+	}
+	if expr, goType, ok := g.evaluatedConstantExpr(ctx.packageName, ident.Name); ok {
+		return g.lowerCoerceExpectedStaticExpr(ctx, nil, expr, goType, expected)
+	}
+	binding, ok := g.moduleBindingByName(ctx.packageName, ident.Name)
+	if !ok || strings.TrimSpace(binding.GoValue) == "" {
+		return nil, "", "", false
+	}
+	if expected == "" || expected == "runtime.Value" {
+		return nil, binding.GoValue, "runtime.Value", true
+	}
+	if expected == "any" {
+		return nil, "any(" + binding.GoValue + ")", "any", true
+	}
+	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, binding.GoValue, expected)
+	if !ok {
+		return nil, "", "", false
+	}
+	return convLines, converted, expected, true
+}
+
 func (g *generator) literalToRuntimeExpr(expr ast.Expression, pkgName string) (string, string) {
 	switch lit := expr.(type) {
 	case *ast.IntegerLiteral:

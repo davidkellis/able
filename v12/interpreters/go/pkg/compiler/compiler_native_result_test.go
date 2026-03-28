@@ -150,6 +150,132 @@ func TestCompilerResultVoidReturnUsesNativeCarrier(t *testing.T) {
 	}
 }
 
+func TestCompilerLocalErrorBindingDoesNotRaiseAsStatementResult(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"fn main() -> String {",
+		"  err := MyError { message: \"cannot convert\" }",
+		"  err.message",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if strings.Contains(body, "__able_raise_control(nil, __able_tmp_") {
+		t.Fatalf("expected local error binding statement to avoid implicit raise-on-discard:\n%s", body)
+	}
+	if !strings.Contains(body, "var err *MyError = &MyError{Message: \"cannot convert\"}") {
+		t.Fatalf("expected local error binding to stay as a native struct binding:\n%s", body)
+	}
+}
+
+func TestCompilerLocalErrorBindingExecutes(t *testing.T) {
+	source := strings.Join([]string{
+		"package main",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"fn main() -> void {",
+		"  err := MyError { message: \"cannot convert\" }",
+		"  print(err.message)",
+		"}",
+		"",
+	}, "\n")
+
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-local-error-binding-", source, Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+	if strings.TrimSpace(stdout) != "cannot convert" {
+		t.Fatalf("expected compiled local error binding program to print message, got %q", stdout)
+	}
+}
+
+func TestCompilerVoidCallableCoercionPropagatesReturnedErrorCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"impl Error for MyError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn fail() -> !i32 {",
+		"  MyError { message: \"boom\" }",
+		"}",
+		"",
+		"fn captures(cb: () -> void) -> bool {",
+		"  handled := false",
+		"  do { cb() } rescue {",
+		"    case err: Error => {",
+		"      handled = err.message() == \"boom\"",
+		"      nil",
+		"    }",
+		"  }",
+		"  handled",
+		"}",
+		"",
+		"fn main() -> bool {",
+		"  captures(fn() { fail() })",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	for _, fragment := range []string{
+		"func __able_fn_void_to_struct___from_runtime_value(",
+		"if errVal, ok, nilPtr := __able_runtime_error_value(result); ok || nilPtr {",
+		"return struct{}{}, __able_raise_control(nil, errVal)",
+	} {
+		if !strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected void-callable coercion to re-raise returned Error carriers via the shared callable bridge (%q):\n%s", fragment, compiledSrc)
+		}
+	}
+}
+
+func TestCompilerVoidCallableCoercionPropagatesReturnedErrorCarrierExecutes(t *testing.T) {
+	source := `extern go fn __able_os_exit(code: i32) -> void {}
+
+struct MyError { message: String }
+
+impl Error for MyError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn fail() -> !i32 {
+  MyError { message: "boom" }
+}
+
+fn captures(cb: () -> void) -> bool {
+  handled := false
+  do { cb() } rescue {
+    case err: Error => {
+      handled = err.message() == "boom"
+      nil
+    }
+  }
+  handled
+}
+
+fn main() {
+  if captures(fn() { fail() }) {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`
+	compileAndRunSource(t, "ablec-void-callable-result-propagation-", source)
+}
+
 func TestCompilerDirectErrorReturnUsesNativeCarrier(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
@@ -354,6 +480,35 @@ impl Error for RootError {
   fn cause(self: Self) -> ?Error { nil }
 }
 
+impl Error for OuterError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { self.cause }
+}
+
+fn value() -> Error {
+  OuterError { message: "outer", cause: RootError { message: "root" } }
+}
+
+fn main() {
+  parent := value()
+  inner := parent.cause()
+  outcome := if parent.message() == "outer" {
+    inner match {
+      case err: Error => err.message(),
+      case _ => "none"
+    }
+  } else {
+    "bad"
+  }
+  if outcome == "root" {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`
+	compileAndRunSource(t, "ablec-native-error-cause-", source)
+}
+
 func TestCompilerStaticCallReturningConcreteErrorCoercesToNativeResult(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
@@ -388,33 +543,4 @@ func TestCompilerStaticCallReturningConcreteErrorCoercesToNativeResult(t *testin
 	if strings.Contains(body, "__able_any_to_value(") {
 		t.Fatalf("expected concrete error call result coercion to avoid any conversion:\n%s", body)
 	}
-}
-
-impl Error for OuterError {
-  fn message(self: Self) -> String { self.message }
-  fn cause(self: Self) -> ?Error { self.cause }
-}
-
-fn value() -> Error {
-  OuterError { message: "outer", cause: RootError { message: "root" } }
-}
-
-fn main() {
-  parent := value()
-  inner := parent.cause()
-  outcome := if parent.message() == "outer" {
-    inner match {
-      case err: Error => err.message(),
-      case _ => "none"
-    }
-  } else {
-    "bad"
-  }
-  if outcome == "root" {
-    __able_os_exit(0)
-  }
-  __able_os_exit(1)
-}
-`
-	compileAndRunSource(t, "ablec-native-error-cause-", source)
 }

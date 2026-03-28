@@ -27,7 +27,7 @@ func TestResolveBuildPrecompileStdlibFromEnvExplicitValues(t *testing.T) {
 	}
 }
 
-func TestResolveBuildPrecompileStdlibFromEnvMissingDefaultsTrue(t *testing.T) {
+func TestResolveBuildPrecompileStdlibFromEnvMissingDefaultsFalse(t *testing.T) {
 	if err := os.Unsetenv("ABLE_BUILD_PRECOMPILE_STDLIB"); err != nil {
 		t.Fatalf("unset env: %v", err)
 	}
@@ -35,8 +35,8 @@ func TestResolveBuildPrecompileStdlibFromEnvMissingDefaultsTrue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve env: %v", err)
 	}
-	if !value {
-		t.Fatalf("expected missing env to default to true")
+	if value {
+		t.Fatalf("expected missing env to default to false")
 	}
 }
 

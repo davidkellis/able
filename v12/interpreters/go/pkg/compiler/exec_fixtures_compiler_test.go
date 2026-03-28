@@ -365,24 +365,27 @@ func applyFixtureEnv(base []string, overrides map[string]string) []string {
 }
 
 func resolveCompilerFixtures(t *testing.T, root string) []string {
+	fixtures := []string(nil)
 	if raw := strings.TrimSpace(os.Getenv(compilerFixtureEnv)); raw != "" {
 		if strings.EqualFold(raw, "all") {
-			return collectExecFixtures(t, root)
-		}
-		parts := strings.FieldsFunc(raw, func(r rune) bool {
-			return r == ',' || r == ';' || r == '\n' || r == '\t' || r == ' '
-		})
-		fixtures := make([]string, 0, len(parts))
-		for _, part := range parts {
-			trimmed := strings.TrimSpace(part)
-			if trimmed == "" {
-				continue
+			fixtures = collectExecFixtures(t, root)
+		} else {
+			parts := strings.FieldsFunc(raw, func(r rune) bool {
+				return r == ',' || r == ';' || r == '\n' || r == '\t' || r == ' '
+			})
+			fixtures = make([]string, 0, len(parts))
+			for _, part := range parts {
+				trimmed := strings.TrimSpace(part)
+				if trimmed == "" {
+					continue
+				}
+				fixtures = append(fixtures, trimmed)
 			}
-			fixtures = append(fixtures, trimmed)
 		}
-		return fixtures
+	} else {
+		fixtures = defaultCompilerExecFixtures()
 	}
-	return defaultCompilerExecFixtures()
+	return applyCompilerFixtureBatch(t, fixtures, compilerExecBatchIndexEnv, compilerExecBatchCountEnv)
 }
 
 func defaultCompilerExecFixtures() []string {

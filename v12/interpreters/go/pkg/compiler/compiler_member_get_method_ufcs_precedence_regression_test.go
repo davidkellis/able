@@ -28,7 +28,7 @@ func TestCompilerPrefersInterfaceDispatchBeforeUFCSInMemberGetMethod(t *testing.
 	}
 	segment = segment[:end]
 
-	methodDispatchIdx := strings.Index(segment, "if method, ok := __able_interface_dispatch_member(base, name); ok {")
+	methodDispatchIdx := strings.Index(segment, "if method, ok, err := __able_interface_dispatch_member(base, name); err != nil {")
 	if methodDispatchIdx < 0 {
 		t.Fatalf("expected interface member dispatch path in __able_member_get_method")
 	}

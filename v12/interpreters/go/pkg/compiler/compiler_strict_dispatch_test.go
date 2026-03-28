@@ -35,16 +35,30 @@ func TestCompilerStrictDispatchForStdlibHeavyFixtures(t *testing.T) {
 	}
 }
 
+func TestCompilerStrictDispatchVectorFixtureRegression(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping strict dispatch fixture audit in short mode")
+	}
+	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		root = filepath.Join("..", "..", "fixtures", "exec")
+	}
+	runCompilerStrictDispatchFixture(t, root, "06_12_10_stdlib_collections_list_vector")
+}
+
 func resolveStrictDispatchFixtures(t *testing.T, root string) []string {
 	t.Helper()
 	raw := strings.TrimSpace(os.Getenv("ABLE_COMPILER_STRICT_DISPATCH_FIXTURES"))
+	fixtures := []string(nil)
 	if raw == "" {
-		return defaultCompilerHeavyAuditFixtures()
+		fixtures = defaultCompilerHeavyAuditFixtures()
+		return applyCompilerFixtureBatch(t, fixtures, compilerStrictDispatchBatchIndexEnv, compilerStrictDispatchBatchCountEnv)
 	}
 	if strings.EqualFold(raw, "all") {
-		return collectExecFixtures(t, root)
+		fixtures = collectExecFixtures(t, root)
+		return applyCompilerFixtureBatch(t, fixtures, compilerStrictDispatchBatchIndexEnv, compilerStrictDispatchBatchCountEnv)
 	}
-	fixtures := []string{}
+	fixtures = []string{}
 	seen := make(map[string]struct{})
 	for _, part := range strings.FieldsFunc(raw, func(r rune) bool {
 		return r == ',' || r == ';' || r == '\n' || r == '\t' || r == ' '
@@ -59,7 +73,7 @@ func resolveStrictDispatchFixtures(t *testing.T, root string) []string {
 		seen[part] = struct{}{}
 		fixtures = append(fixtures, part)
 	}
-	return fixtures
+	return applyCompilerFixtureBatch(t, fixtures, compilerStrictDispatchBatchIndexEnv, compilerStrictDispatchBatchCountEnv)
 }
 
 func runCompilerStrictDispatchFixture(t *testing.T, root, rel string) {

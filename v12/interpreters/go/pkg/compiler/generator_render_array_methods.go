@@ -10,7 +10,7 @@ func isNativeArrayCoreMethod(method *methodInfo) bool {
 		return false
 	}
 	switch method.MethodName {
-	case "new", "with_capacity", "size", "len", "capacity", "is_empty", "push", "pop", "clear", "read_slot", "write_slot", "reserve", "clone_shallow", "refresh_metadata":
+	case "new", "with_capacity", "size", "len", "capacity", "is_empty", "push", "push_all", "pop", "clear", "read_slot", "write_slot", "reserve", "clone_shallow", "refresh_metadata":
 		return true
 	default:
 		return false
@@ -95,6 +95,17 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 		fmt.Fprintf(buf, "\t\treturn struct{}{}, __able_control_from_error(fmt.Errorf(\"missing Array value\"))\n")
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\t%s.Elements = append(%s.Elements, %s)\n", self, self, value)
+		fmt.Fprintf(buf, "\t%s\n", selfSyncCall)
+		fmt.Fprintf(buf, "\treturn struct{}{}, nil\n")
+	case "push_all":
+		self := info.Params[0].GoName
+		values := info.Params[1].GoName
+		fmt.Fprintf(buf, "\tif %s == nil {\n", self)
+		fmt.Fprintf(buf, "\t\treturn struct{}{}, __able_control_from_error(fmt.Errorf(\"missing Array value\"))\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tif %s != nil && len(%s.Elements) > 0 {\n", values, values)
+		fmt.Fprintf(buf, "\t\t%s.Elements = append(%s.Elements, %s.Elements...)\n", self, self, values)
+		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\t%s\n", selfSyncCall)
 		fmt.Fprintf(buf, "\treturn struct{}{}, nil\n")
 	case "pop":

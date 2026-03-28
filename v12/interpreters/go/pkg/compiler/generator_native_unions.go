@@ -21,6 +21,7 @@ type nativeUnionMember struct {
 type nativeUnionInfo struct {
 	Key                  string
 	GoType               string
+	TypeExpr             ast.TypeExpression
 	MarkerMethod         string
 	FromRuntimeHelper    string
 	FromRuntimePanic     string
@@ -249,14 +250,29 @@ func (g *generator) nativeUnionTypeExprInPackage(pkgName string, expr ast.TypeEx
 	if g == nil || expr == nil {
 		return nil, false
 	}
+	normalized := normalizeTypeExprForPackage(g, pkgName, expr)
+	exprKey := normalizeTypeExprString(g, pkgName, normalized)
+	if exprKey != "" {
+		if info, ok := g.nativeUnionExprIndex[exprKey]; ok && info != nil {
+			return info, true
+		}
+	}
 	if unionPkg, members, ok := g.expandedUnionMembersInPackage(pkgName, expr); ok {
 		if _, nullable := nativeUnionNullableInnerTypeExpr(members); nullable {
 			return nil, false
 		}
-		return g.ensureNativeUnionInfo(unionPkg, members)
+		info, ok := g.ensureNativeUnionInfo(unionPkg, members)
+		if ok && info != nil && exprKey != "" {
+			g.nativeUnionExprIndex[exprKey] = info
+		}
+		return info, ok
 	}
 	if t, ok := expr.(*ast.ResultTypeExpression); ok {
-		return g.ensureNativeResultUnionInfo(pkgName, t)
+		info, ok := g.ensureNativeResultUnionInfo(pkgName, t)
+		if ok && info != nil && exprKey != "" {
+			g.nativeUnionExprIndex[exprKey] = info
+		}
+		return info, ok
 	}
 	return nil, false
 }
@@ -344,6 +360,54 @@ func (g *generator) nativeUnionExpectedTypeForExpr(ctx *compileContext, expected
 		}
 	}
 	return expected
+}
+
+func (g *generator) expectedUnionMemberTypeExpr(pkgName string, expectedTypeExpr ast.TypeExpression, expectedGoType string, nominalName string) ast.TypeExpression {
+	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(nominalName) == "" {
+		return nil
+	}
+	candidates := make([]ast.TypeExpression, 0, 2)
+	if expectedTypeExpr != nil {
+		candidates = append(candidates, expectedTypeExpr)
+	}
+	if expectedGoType != "" && expectedGoType != "runtime.Value" && expectedGoType != "any" {
+		if expr, ok := g.typeExprForGoType(expectedGoType); ok && expr != nil {
+			candidates = append(candidates, expr)
+		}
+	}
+	seen := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		if candidate == nil {
+			continue
+		}
+		normalized := normalizeTypeExprForPackage(g, pkgName, candidate)
+		key := normalizeTypeExprString(g, pkgName, normalized)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		_, members, ok := g.expandedUnionMembersInPackage(pkgName, normalized)
+		if !ok {
+			continue
+		}
+		for _, member := range members {
+			member = normalizeTypeExprForPackage(g, pkgName, member)
+			if member == nil {
+				continue
+			}
+			baseName, ok := typeExprBaseName(member)
+			if !ok || baseName != nominalName {
+				continue
+			}
+			if info, ok := g.structInfoForTypeExpr(pkgName, member); ok && info != nil && info.Name == nominalName {
+				return member
+			}
+		}
+	}
+	return nil
 }
 
 func (g *generator) isNativeErrorCarrierType(goType string) bool {
@@ -442,6 +506,7 @@ func (g *generator) ensureNativeUnionInfo(pkgName string, members []ast.TypeExpr
 	info := &nativeUnionInfo{
 		Key:                  key,
 		GoType:               baseName,
+		TypeExpr:             ast.NewUnionTypeExpression(append([]ast.TypeExpression(nil), members...)),
 		MarkerMethod:         baseName + "_marker",
 		FromRuntimeHelper:    baseName + "_from_value",
 		FromRuntimePanic:     baseName + "_from_runtime_value_or_panic",
@@ -508,6 +573,7 @@ func (g *generator) ensureNativeResultUnionInfo(pkgName string, result *ast.Resu
 	info := &nativeUnionInfo{
 		Key:                  key,
 		GoType:               baseName,
+		TypeExpr:             ast.NewResultTypeExpression(result.InnerType),
 		MarkerMethod:         baseName + "_marker",
 		FromRuntimeHelper:    baseName + "_from_value",
 		FromRuntimePanic:     baseName + "_from_runtime_value_or_panic",

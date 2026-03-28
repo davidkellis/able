@@ -352,11 +352,58 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 	return def, nil
 }
 
+func (r *Runtime) UnionDefinition(name string) (*runtime.UnionDefinitionValue, error) {
+	if r == nil {
+		return nil, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	env := r.currentEnv()
+	if env == nil {
+		return nil, fmt.Errorf("compiler bridge: missing global environment")
+	}
+	if val, err := env.Get(name); err == nil {
+		if def, conv := toUnionDefinitionValue(val, name); conv == nil && def != nil {
+			return def, nil
+		}
+	}
+	if r.interp != nil && env != r.interp.GlobalEnvironment() && r.globalLookupFallback() {
+		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
+			if val, err := fallback.Get(name); err == nil {
+				if def, conv := toUnionDefinitionValue(val, name); conv == nil && def != nil {
+					recordGlobalLookupFallback("union_global", name)
+					return def, nil
+				}
+			}
+		}
+	}
+	if r.interp != nil {
+		def, ok := r.interp.LookupUnionDefinition(name)
+		if ok && def != nil {
+			return def, nil
+		}
+	}
+	return nil, fmt.Errorf("compiler bridge: union %s not found", name)
+}
+
 func structCacheKey(env *runtime.Environment, name string) string {
 	if env == nil {
 		return "<nil>:" + name
 	}
 	return fmt.Sprintf("%p:%s", env, name)
+}
+
+func toUnionDefinitionValue(val runtime.Value, name string) (*runtime.UnionDefinitionValue, error) {
+	switch typed := val.(type) {
+	case *runtime.UnionDefinitionValue:
+		if typed == nil {
+			return nil, fmt.Errorf("compiler bridge: %s is not a union definition", name)
+		}
+		return typed, nil
+	case runtime.UnionDefinitionValue:
+		copy := typed
+		return &copy, nil
+	default:
+		return nil, fmt.Errorf("compiler bridge: %s is not a union definition", name)
+	}
 }
 
 func Index(rt *Runtime, obj runtime.Value, idx runtime.Value) (runtime.Value, error) {

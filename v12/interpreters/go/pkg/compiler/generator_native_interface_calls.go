@@ -7,6 +7,11 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+type concreteNativeInterfaceMethodCall struct {
+	method *nativeInterfaceMethod
+	impl   *nativeInterfaceAdapterMethod
+}
+
 func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, receiverExpr string, receiverType string, methodName string, callNode string) ([]string, string, string, bool) {
 	if g == nil || ctx == nil || call == nil || receiverExpr == "" || receiverType == "" || methodName == "" {
 		return nil, "", "", false
@@ -126,4 +131,159 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	}
 	ctx.setReason("call return type mismatch")
 	return nil, "", "", false
+}
+
+func (g *generator) compileConcreteNativeInterfaceMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, receiverExpr string, receiverType string, methodName string, callNode string) ([]string, string, string, bool) {
+	if g == nil || ctx == nil || call == nil || receiverExpr == "" || receiverType == "" || methodName == "" {
+		return nil, "", "", false
+	}
+	if g.nativeInterfaceInfoForGoType(receiverType) != nil {
+		return nil, "", "", false
+	}
+	candidate, ok := g.concreteNativeInterfaceMethodForReceiver(receiverType, methodName, len(call.Arguments))
+	if !ok || candidate == nil || candidate.method == nil || candidate.impl == nil || candidate.impl.Info == nil {
+		return nil, "", "", false
+	}
+	method := candidate.method
+	impl := candidate.impl
+	lines := make([]string, 0, len(call.Arguments)*4+8)
+	args := make([]string, 0, len(call.Arguments)+1)
+	receiverLines, coercedReceiverExpr, _, ok := g.prepareConcreteNativeInterfaceReceiver(ctx, receiverExpr, receiverType, impl)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, receiverLines...)
+	args = append(args, coercedReceiverExpr)
+	for idx, arg := range call.Arguments {
+		expectedType := method.ParamGoTypes[idx]
+		if idx < len(impl.CompiledParamGoTypes) && impl.CompiledParamGoTypes[idx] != "" {
+			expectedType = impl.CompiledParamGoTypes[idx]
+		}
+		var expectedTypeExpr ast.TypeExpression
+		if idx < len(method.ParamTypeExprs) {
+			expectedTypeExpr = method.ParamTypeExprs[idx]
+		}
+		argLines, expr, _, ok := g.compileExprLinesWithExpectedTypeExpr(ctx, arg, expectedType, expectedTypeExpr)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, argLines...)
+		args = append(args, expr)
+	}
+	resultTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
+	lines = append(lines, fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", resultTemp, controlTemp, impl.Info.GoName, strings.Join(args, ", ")))
+	lines = append(lines, "__able_pop_call_frame()")
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, controlLines...)
+	resultType := impl.CompiledReturnGoType
+	if resultType == "" {
+		resultType = impl.Info.ReturnType
+	}
+	return g.finishNativeInterfaceGenericCallReturn(ctx, lines, resultTemp, resultType, expected)
+}
+
+func (g *generator) concreteNativeInterfaceMethodForReceiver(receiverType string, methodName string, argCount int) (*concreteNativeInterfaceMethodCall, bool) {
+	if g == nil || receiverType == "" || methodName == "" {
+		return nil, false
+	}
+	var found *concreteNativeInterfaceMethodCall
+	considerCandidate := func(method *nativeInterfaceMethod, impl *nativeInterfaceAdapterMethod) bool {
+		if method == nil || impl == nil || impl.Info == nil {
+			return false
+		}
+		candidate := &concreteNativeInterfaceMethodCall{method: method, impl: impl}
+		if found == nil {
+			found = candidate
+			return true
+		}
+		if found.impl.Info == candidate.impl.Info {
+			return true
+		}
+		if equivalentFunctionInfoSignature(found.impl.Info, candidate.impl.Info) {
+			if g.nativeInterfaceAdapterMethodSpecificity(candidate.impl) >= g.nativeInterfaceAdapterMethodSpecificity(found.impl) {
+				found = candidate
+			}
+			return true
+		}
+		foundScore := g.nativeInterfaceAdapterMethodSpecificity(found.impl)
+		candidateScore := g.nativeInterfaceAdapterMethodSpecificity(candidate.impl)
+		switch {
+		case candidateScore > foundScore:
+			found = candidate
+			return true
+		case candidateScore < foundScore:
+			return true
+		default:
+			return false
+		}
+	}
+	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
+		impl := candidateInfo.impl
+		info := candidateInfo.info
+		if impl == nil || info == nil || impl.ImplName != "" || impl.MethodName != methodName {
+			continue
+		}
+		concreteInfo, bindings, ok := g.nativeInterfaceConcreteImplInfo(receiverType, impl, info.TypeBindings)
+		if !ok || concreteInfo == nil {
+			continue
+		}
+		bindings, ok = g.nativeInterfaceMergeConcreteInfoBindings(concreteInfo, bindings)
+		if !ok {
+			continue
+		}
+		paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType, optionalLast, ok := g.nativeInterfaceMethodImplSignature(impl, bindings)
+		if !ok {
+			continue
+		}
+		paramCount := len(paramGoTypes)
+		if argCount != paramCount && !(optionalLast && argCount == paramCount-1) {
+			continue
+		}
+		targetName, _ := typeExprBaseName(impl.TargetType)
+		methodInfo := &methodInfo{
+			TargetName:   targetName,
+			TargetType:   impl.TargetType,
+			MethodName:   impl.MethodName,
+			ReceiverType: concreteInfo.Params[0].GoType,
+			ExpectsSelf:  len(concreteInfo.Params) > 0,
+			Info:         concreteInfo,
+		}
+		if specialized, ok := g.ensureSpecializedImplMethod(methodInfo, impl, bindings); ok && specialized != nil && specialized.Info != nil {
+			methodInfo = specialized
+			concreteInfo = specialized.Info
+		}
+		method := &nativeInterfaceMethod{
+			Name:             impl.MethodName,
+			GoName:           sanitizeIdent(impl.MethodName),
+			InterfaceName:    impl.InterfaceName,
+			InterfacePackage: impl.Info.Package,
+			InterfaceArgs:    cloneTypeExprSlice(impl.InterfaceArgs),
+			ParamGoTypes:     paramGoTypes,
+			ParamTypeExprs:   paramTypeExprs,
+			ReturnGoType:     returnGoType,
+			ReturnTypeExpr:   returnTypeExpr,
+			OptionalLast:     optionalLast,
+		}
+		adapterMethod := &nativeInterfaceAdapterMethod{
+			Info:                 concreteInfo,
+			ParamGoTypes:         paramGoTypes,
+			ReturnGoType:         returnGoType,
+			CompiledReturnGoType: concreteInfo.ReturnType,
+		}
+		if len(concreteInfo.Params) > 1 {
+			adapterMethod.CompiledParamGoTypes = make([]string, 0, len(concreteInfo.Params)-1)
+			for idx := 1; idx < len(concreteInfo.Params); idx++ {
+				adapterMethod.CompiledParamGoTypes = append(adapterMethod.CompiledParamGoTypes, concreteInfo.Params[idx].GoType)
+			}
+		}
+		if !considerCandidate(method, adapterMethod) {
+			return nil, false
+		}
+	}
+	return found, found != nil
 }

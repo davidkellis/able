@@ -74,11 +74,17 @@ func TestCompilerExperimentalMonoArraysTypedArrayUsesSpecializedWrapper(t *testi
 	for _, fragment := range []string{
 		"Elements = append(",
 		"__able_array_i32_sync(",
-		"__able_ptr(",
-		"__able_nullable_i32_to_value(",
 	} {
 		if !strings.Contains(sumBody, fragment) {
 			t.Fatalf("expected mono-array sum body to contain %q:\n%s", fragment, sumBody)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_ptr(",
+		"__able_nullable_i32_to_value(",
+	} {
+		if strings.Contains(sumBody, fragment) {
+			t.Fatalf("expected mono-array sum body to avoid obsolete nullable-pointer boxing %q:\n%s", fragment, sumBody)
 		}
 	}
 }

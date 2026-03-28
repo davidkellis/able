@@ -75,7 +75,7 @@ func (g *generator) compileStaticSafeMemberCall(ctx *compileContext, call *ast.F
 	}
 	method := g.methodForReceiver(objType, memberIdent.Name)
 	if method == nil {
-		method = g.compileableInterfaceMethodForConcreteReceiver(objType, memberIdent.Name)
+		method = g.compileableInterfaceMethodForConcreteReceiverExpr(ctx, callee.Object, objType, memberIdent.Name)
 	}
 	if method == nil || method.Info == nil {
 		return nil, "", "", false

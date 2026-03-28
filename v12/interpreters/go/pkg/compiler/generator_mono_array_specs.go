@@ -377,7 +377,7 @@ func (g *generator) staticArrayElementRuntimeExpr(arrayType string, elemExpr str
 
 func (g *generator) staticArrayResultValueExpr(arrayType string, elemExpr string) string {
 	if g.isArrayStructType(arrayType) {
-		return fmt.Sprintf("func() runtime.Value { if __v := %s; __v != nil { return __v }; return runtime.NilValue{} }()", elemExpr)
+		return fmt.Sprintf("__able_runtime_value_or_nil(%s)", elemExpr)
 	}
 	expr, ok := g.staticArrayElementRuntimeExpr(arrayType, elemExpr)
 	if !ok {

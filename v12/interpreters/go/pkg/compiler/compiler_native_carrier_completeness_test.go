@@ -46,6 +46,59 @@ func TestCompilerDivModConcreteCarrierStaysNative(t *testing.T) {
 	if !strings.Contains(body, "&DivMod_i32{Quotient:") {
 		t.Fatalf("expected concrete DivMod carrier construction in compiled body:\n%s", body)
 	}
+
+	wrapBody, ok := findCompiledFunction(result, "__able_wrap_fn_parts")
+	if !ok {
+		t.Fatalf("could not find parts wrapper")
+	}
+	if !strings.Contains(wrapBody, "__able_struct_DivMod_i32_to(rt, compiledResult)") {
+		t.Fatalf("expected wrapper to convert via specialized DivMod helper:\n%s", wrapBody)
+	}
+	if strings.Contains(wrapBody, "__able_struct_DivMod_to(rt, compiledResult)") {
+		t.Fatalf("expected wrapper to avoid base DivMod helper for specialized carrier:\n%s", wrapBody)
+	}
+}
+
+func TestCompilerGenericStructReturnConversionUsesSpecializedHelper(t *testing.T) {
+	result := compileNoFallbackExecSource(t, "ablec-generic-struct-return-helper", strings.Join([]string{
+		"package demo",
+		"",
+		"struct Span T {",
+		"  start: T,",
+		"  end: T,",
+		"}",
+		"",
+		"fn build() -> Span i32 {",
+		"  Span { start: 1, end: 3 }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  span := build()",
+		"  span.start + span.end",
+		"}",
+		"",
+	}, "\n"))
+
+	source := compiledSourceText(t, result)
+	for _, fragment := range []string{
+		"type Span_i32 struct",
+		"func __able_compiled_fn_build() (*Span_i32, *__ableControl)",
+	} {
+		if !strings.Contains(source, fragment) {
+			t.Fatalf("expected specialized Span carrier fragment %q:\n%s", fragment, source)
+		}
+	}
+
+	wrapBody, ok := findCompiledFunction(result, "__able_wrap_fn_build")
+	if !ok {
+		t.Fatalf("could not find build wrapper")
+	}
+	if !strings.Contains(wrapBody, "__able_struct_Span_i32_to(rt, compiledResult)") {
+		t.Fatalf("expected wrapper to convert via specialized Span helper:\n%s", wrapBody)
+	}
+	if strings.Contains(wrapBody, "__able_struct_Span_to(rt, compiledResult)") {
+		t.Fatalf("expected wrapper to avoid base Span helper for specialized carrier:\n%s", wrapBody)
+	}
 }
 
 func TestCompilerParameterizedUnionAliasLocalStaysNative(t *testing.T) {
@@ -132,6 +185,30 @@ func TestCompilerParameterizedResultAliasLocalStaysNative(t *testing.T) {
 	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected parameterized result alias local to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerAnyToValueSupportsSpecializedArrays(t *testing.T) {
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-any-to-value-mono-array", strings.Join([]string{
+		"package demo",
+		"",
+		"import able.kernel.{Array}",
+		"",
+		"fn main() -> void {",
+		"  values: Array i32 := Array.new()",
+		"  values.push(1)",
+		"}",
+		"",
+	}, "\n"), Options{ExperimentalMonoArrays: true})
+
+	source := compiledSourceText(t, result)
+	for _, fragment := range []string{
+		"case *__able_array_i32:",
+		"rv, err := __able_array_i32_to(__able_runtime, val)",
+	} {
+		if !strings.Contains(source, fragment) {
+			t.Fatalf("expected __able_any_to_value helper to support specialized arrays via %q:\n%s", fragment, source)
 		}
 	}
 }

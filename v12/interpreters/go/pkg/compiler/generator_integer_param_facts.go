@@ -23,10 +23,7 @@ func (g *generator) resolveStaticFunctionIntegerFacts() {
 			if info == nil || !info.Compileable || info.Definition == nil || info.Definition.Body == nil {
 				continue
 			}
-			ctx := newCompileContext(g, info, g.functionsForCompileContext(info), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
-			if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
-				ctx.implSiblings = g.implSiblingsForFunction(info)
-			}
+			ctx := g.compileBodyContext(info)
 			g.collectIntegerFactsFromStatements(ctx, info.Definition.Body.Body, observations)
 		}
 		if !g.applyStaticFunctionIntegerFacts(observations) {

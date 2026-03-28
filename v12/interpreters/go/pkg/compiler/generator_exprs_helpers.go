@@ -46,10 +46,13 @@ func (g *generator) canCoerceStaticExpr(expected, actual string) bool {
 	if g.nativeNullableWraps(expected, actual) {
 		return true
 	}
+	if g.staticArrayCarrierCoercible(expected, actual) {
+		return true
+	}
 	if g.typeMatches(expected, actual) {
 		return true
 	}
-	if g != nil && g.sameNominalStructFamily(expected, actual) {
+	if g != nil && g.nominalStructCarrierCoercible(expected, actual) {
 		return true
 	}
 	if g != nil && g.isIntegerType(expected) && g.isIntegerType(actual) {
@@ -196,7 +199,11 @@ func (g *generator) isStaticallyKnownExpectedType(goType string) bool {
 }
 
 func (g *generator) compileExprLinesWithExpectedTypeExpr(ctx *compileContext, expr ast.Expression, expectedGoType string, expectedTypeExpr ast.TypeExpression) ([]string, string, string, bool) {
-	if ctx == nil || expectedTypeExpr == nil {
+	if ctx == nil {
+		return g.compileExprLines(ctx, expr, expectedGoType)
+	}
+	expectedTypeExpr = g.concretizedExpectedTypeExpr(ctx, expectedGoType, expectedTypeExpr)
+	if expectedTypeExpr == nil {
 		return g.compileExprLines(ctx, expr, expectedGoType)
 	}
 	previous := ctx.expectedTypeExpr
@@ -205,6 +212,21 @@ func (g *generator) compileExprLinesWithExpectedTypeExpr(ctx *compileContext, ex
 		ctx.expectedTypeExpr = previous
 	}()
 	return g.compileExprLines(ctx, expr, expectedGoType)
+}
+
+func (g *generator) concretizedExpectedTypeExpr(ctx *compileContext, expectedGoType string, expectedTypeExpr ast.TypeExpression) ast.TypeExpression {
+	if g == nil {
+		return expectedTypeExpr
+	}
+	if expectedGoType != "" && expectedGoType != "runtime.Value" && expectedGoType != "any" {
+		if expr, ok := g.typeExprForGoType(expectedGoType); ok && expr != nil {
+			return g.lowerNormalizedTypeExpr(ctx, expr)
+		}
+	}
+	if expectedTypeExpr == nil {
+		return nil
+	}
+	return g.lowerNormalizedTypeExpr(ctx, expectedTypeExpr)
 }
 
 func (g *generator) staticParamCarrierType(ctx *compileContext, param paramInfo) string {
@@ -248,6 +270,19 @@ func (g *generator) nativeUnionWrapLines(ctx *compileContext, expected, actual, 
 				}
 				return ifaceLines, fmt.Sprintf("%s(%s)", member.WrapHelper, ifaceExpr), true
 			}
+		}
+		for _, runtimeMember := range union.Members {
+			if !g.nativeUnionRuntimeMemberAcceptsActual(runtimeMember, actual) {
+				continue
+			}
+			if actual == "runtime.Value" {
+				return nil, fmt.Sprintf("%s(%s)", runtimeMember.WrapHelper, expr), true
+			}
+			runtimeLines, runtimeExpr, ok := g.lowerRuntimeValue(ctx, expr, actual)
+			if !ok {
+				return nil, "", false
+			}
+			return runtimeLines, fmt.Sprintf("%s(%s)", runtimeMember.WrapHelper, runtimeExpr), true
 		}
 		return nil, "", false
 	}
@@ -303,31 +338,7 @@ func (g *generator) compileableInterfaceMethodForReceiver(goType string, interfa
 }
 
 func (g *generator) compileableInterfaceMethodForConcreteReceiver(goType string, methodName string) *methodInfo {
-	if g == nil || goType == "" || goType == "runtime.Value" || goType == "any" || methodName == "" {
-		return nil
-	}
-	var found *methodInfo
-	for _, impl := range g.implMethodList {
-		if impl == nil || impl.Info == nil || !impl.Info.Compileable || impl.ImplName != "" {
-			continue
-		}
-		if impl.MethodName != methodName || len(impl.Info.Params) == 0 || impl.Info.Params[0].GoType == "" {
-			continue
-		}
-		receiverType := impl.Info.Params[0].GoType
-		if !g.receiverGoTypeCompatible(receiverType, goType) {
-			continue
-		}
-		candidate := &methodInfo{MethodName: methodName, ExpectsSelf: true, Info: impl.Info}
-		if found != nil && found.Info != candidate.Info {
-			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
-				continue
-			}
-			return nil
-		}
-		found = candidate
-	}
-	return found
+	return g.compileableInterfaceMethodForConcreteReceiverExpr(nil, nil, goType, methodName)
 }
 
 func (g *generator) receiverGoTypeCompatible(expectedReceiverType string, actualGoType string) bool {
@@ -339,7 +350,7 @@ func (g *generator) receiverGoTypeCompatible(expectedReceiverType string, actual
 	}
 	if expectedInfo := g.structInfoByGoName(expectedReceiverType); expectedInfo != nil {
 		if actualInfo := g.structInfoByGoName(actualGoType); actualInfo != nil && expectedInfo.Name != "" && expectedInfo.Name == actualInfo.Name {
-			return true
+			return g.receiverNominalFamilyCompatible(expectedReceiverType, actualGoType)
 		}
 	}
 	// Compiler-owned static array wrappers should reuse the shared Array impl
@@ -348,6 +359,31 @@ func (g *generator) receiverGoTypeCompatible(expectedReceiverType string, actual
 		return true
 	}
 	return false
+}
+
+func (g *generator) receiverNominalFamilyCompatible(expectedReceiverType string, actualGoType string) bool {
+	if g == nil || expectedReceiverType == "" || actualGoType == "" {
+		return false
+	}
+	expectedInfo := g.structInfoByGoName(expectedReceiverType)
+	actualInfo := g.structInfoByGoName(actualGoType)
+	if expectedInfo == nil || actualInfo == nil || expectedInfo.Name == "" || expectedInfo.Name != actualInfo.Name {
+		return false
+	}
+	expectedExpr, ok := g.typeExprForGoType(expectedReceiverType)
+	if !ok || expectedExpr == nil {
+		return false
+	}
+	actualExpr, ok := g.typeExprForGoType(actualGoType)
+	if !ok || actualExpr == nil {
+		return false
+	}
+	expectedExpr = normalizeTypeExprForPackage(g, expectedInfo.Package, expectedExpr)
+	actualExpr = normalizeTypeExprForPackage(g, actualInfo.Package, actualExpr)
+	if expectedExpr == nil || actualExpr == nil {
+		return false
+	}
+	return g.typeExprFullyBound(actualInfo.Package, actualExpr) && !g.typeExprFullyBound(expectedInfo.Package, expectedExpr)
 }
 
 func (g *generator) compileableInterfaceStaticMethodForConcreteTarget(target ast.TypeExpression, methodName string) *methodInfo {
@@ -381,6 +417,7 @@ func (g *generator) compileableInterfaceStaticMethodForConcreteTarget(target ast
 		}
 		if found != nil && found.Info != candidate.Info {
 			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+				found = candidate
 				continue
 			}
 			return nil
@@ -400,7 +437,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 	var runtimeLines []string
 	runtimeExpr := expr
 	if g.typeCategory(actual) == "struct" {
-		baseName, ok := g.structBaseName(actual)
+		baseName, ok := g.structHelperName(actual)
 		if !ok {
 			baseName = strings.TrimPrefix(actual, "*")
 		}
@@ -685,7 +722,7 @@ func (g *generator) structReturnConversionLines(resultName, goType, runtimeVar s
 	if g == nil {
 		return nil, false
 	}
-	baseName, ok := g.structBaseName(goType)
+	baseName, ok := g.structHelperName(goType)
 	if !ok {
 		baseName = strings.TrimPrefix(goType, "*")
 		if baseName == "" {

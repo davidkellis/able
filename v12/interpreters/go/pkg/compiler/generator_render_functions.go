@@ -208,7 +208,7 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 			if methodDefinitionExpectsSelf(info.Definition) && len(info.Params) > 0 {
 				recv := info.Params[0]
 				if g.typeCategory(recv.GoType) == "struct" {
-					baseName, ok := g.structBaseName(recv.GoType)
+					baseName, ok := g.structHelperName(recv.GoType)
 					if !ok {
 						baseName = strings.TrimPrefix(recv.GoType, "*")
 					}
@@ -275,7 +275,7 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 		if method.ExpectsSelf && len(info.Params) > 0 {
 			recv := info.Params[0]
 			if g.typeCategory(recv.GoType) == "struct" {
-				baseName, ok := g.structBaseName(recv.GoType)
+				baseName, ok := g.structHelperName(recv.GoType)
 				if !ok {
 					baseName = strings.TrimPrefix(recv.GoType, "*")
 				}
@@ -346,6 +346,9 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tif err := __able_register_compiled_packages(rt, interp, entryEnv, __able_bootstrapped_metadata); err != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, err\n")
 	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif err := __able_run_compiled_package_inits(rt, interp, entryEnv, __able_bootstrapped_metadata); err != nil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, err\n")
+	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\trt.SetQualifiedCallableResolver(__able_resolve_qualified_callable)\n")
 	fmt.Fprintf(buf, "\tif interp != nil {\n")
 	fmt.Fprintf(buf, "\t\tinterp.SetInterfaceMethodResolver(func(receiver runtime.Value, interfaceName string, methodName string) (runtime.Value, bool) {\n")
@@ -378,7 +381,12 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\t\treturn entry.fn, true\n")
 	fmt.Fprintf(buf, "\t\t})\n")
 	fmt.Fprintf(buf, "\t\tinterp.SetCompiledInterfaceMemberResolver(func(receiver runtime.Value, methodName string) (runtime.Value, bool) {\n")
-	fmt.Fprintf(buf, "\t\t\treturn __able_interface_dispatch_member(receiver, methodName)\n")
+	fmt.Fprintf(buf, "\t\t\tmethod, ok, err := __able_interface_dispatch_member(receiver, methodName)\n")
+	fmt.Fprintf(buf, "\t\t\tif err != nil {\n")
+	fmt.Fprintf(buf, "\t\t\t\t__able_panic_on_error(err)\n")
+	fmt.Fprintf(buf, "\t\t\t\treturn nil, false\n")
+	fmt.Fprintf(buf, "\t\t\t}\n")
+	fmt.Fprintf(buf, "\t\t\treturn method, ok\n")
 	fmt.Fprintf(buf, "\t\t})\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn rt, nil\n")
@@ -578,7 +586,7 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param
 		g.renderConvertErr(buf)
 		fmt.Fprintf(buf, "\t%s := %s(%sRaw)\n", target, goType, argName)
 	case "struct":
-		baseName, ok := g.structBaseName(goType)
+		baseName, ok := g.structHelperName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
 		}

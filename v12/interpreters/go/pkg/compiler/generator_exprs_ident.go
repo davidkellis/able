@@ -13,6 +13,9 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 	}
 	param, ok := ctx.lookup(ident.Name)
 	if !ok {
+		if lines, expr, goType, ok := g.compileStaticModuleBindingIdentifier(ctx, ident, expected); ok {
+			return lines, expr, goType, true
+		}
 		if info, found := g.structInfoForTypeName(ctx.packageName, ident.Name); found && info != nil && info.Supported && len(info.Fields) == 0 {
 			structType := "*" + info.GoName
 			if expected == "" || g.typeMatches(expected, structType) {
@@ -40,6 +43,16 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 		}
 	}
 	if !g.typeMatches(expected, param.GoType) {
+		if expected != "" && param.GoType != "" && g.nominalStructCarrierCoercible(expected, param.GoType) {
+			coerceLines, converted, ok := g.coerceNominalStructFamilyLines(ctx, param.GoName, param.GoType, expected)
+			if ok {
+				ctx.setNominalCoercionOrigin(converted, nominalCoercionOrigin{
+					Expr:   param.GoName,
+					GoType: param.GoType,
+				})
+				return coerceLines, converted, expected, true
+			}
+		}
 		if g.nativeNullableWraps(expected, param.GoType) {
 			return nil, fmt.Sprintf("__able_ptr(%s)", param.GoName), expected, true
 		}

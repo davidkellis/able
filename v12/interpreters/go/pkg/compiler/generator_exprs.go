@@ -108,13 +108,20 @@ func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string
 	if g != nil && expected != "" && expected != actual && g.isIntegerType(expected) && g.isIntegerType(actual) {
 		return lines, fmt.Sprintf("%s(%s)", expected, expr), expected, true
 	}
+	if g != nil && g.staticArrayCarrierCoercible(expected, actual) {
+		convLines, converted, ok := g.coerceStaticArrayCarrierLines(ctx, expr, actual, expected)
+		if ok {
+			lines = append(lines, convLines...)
+			return lines, converted, expected, true
+		}
+	}
 	if actual == "any" && expected != "" && expected != "any" {
 		valueTemp := ctx.newTemp()
 		lines = append(lines, fmt.Sprintf("%s := __able_any_to_value(%s)", valueTemp, expr))
 		expr = valueTemp
 		actual = "runtime.Value"
 	}
-	if g != nil && g.sameNominalStructFamily(expected, actual) {
+	if g != nil && g.nominalStructCarrierCoercible(expected, actual) {
 		convLines, converted, ok := g.coerceNominalStructFamilyLines(ctx, expr, actual, expected)
 		if ok {
 			lines = append(lines, convLines...)
@@ -487,6 +494,41 @@ func (g *generator) compileStringStructLiteral(ctx *compileContext, lit *ast.Str
 	return lines, resultTemp, "string", true
 }
 
+func (g *generator) canLowerToBuiltinStringStruct(info *structInfo) bool {
+	if g == nil || info == nil || info.Name != "String" {
+		return false
+	}
+	if !strings.HasSuffix(strings.TrimSpace(info.Package), "string") {
+		return false
+	}
+	if len(info.Fields) < 2 {
+		return false
+	}
+	var bytesOK bool
+	var lenBytesOK bool
+	for _, field := range info.Fields {
+		switch field.Name {
+		case "bytes":
+			normalized := normalizeTypeExprForPackage(g, info.Package, field.TypeExpr)
+			if normalized == nil {
+				continue
+			}
+			if typeExpressionToString(normalized) == typeExpressionToString(ast.Gen(ast.Ty("Array"), ast.Ty("u8"))) {
+				bytesOK = true
+			}
+		case "len_bytes":
+			normalized := normalizeTypeExprForPackage(g, info.Package, field.TypeExpr)
+			if normalized == nil {
+				continue
+			}
+			if typeExpressionToString(normalized) == typeExpressionToString(ast.Ty("i32")) {
+				lenBytesOK = true
+			}
+		}
+	}
+	return bytesOK && lenBytesOK
+}
+
 func (g *generator) staticStructLiteralTypeExpr(ctx *compileContext, lit *ast.StructLiteral, expected string) ast.TypeExpression {
 	if g == nil || ctx == nil || lit == nil || lit.StructType == nil || lit.StructType.Name == "" {
 		return nil
@@ -497,7 +539,11 @@ func (g *generator) staticStructLiteralTypeExpr(ctx *compileContext, lit *ast.St
 			if arg == nil {
 				return nil
 			}
-			args = append(args, arg)
+			substituted := arg
+			if len(ctx.typeBindings) > 0 {
+				substituted = substituteTypeParams(substituted, ctx.typeBindings)
+			}
+			args = append(args, normalizeTypeExprForPackage(g, ctx.packageName, substituted))
 		}
 		return normalizeTypeExprForPackage(g, ctx.packageName, ast.NewGenericTypeExpression(ast.Ty(lit.StructType.Name), args))
 	}
@@ -505,6 +551,9 @@ func (g *generator) staticStructLiteralTypeExpr(ctx *compileContext, lit *ast.St
 		if baseName, ok := typeExprBaseName(ctx.expectedTypeExpr); ok && baseName == lit.StructType.Name {
 			return normalizeTypeExprForPackage(g, ctx.packageName, ctx.expectedTypeExpr)
 		}
+	}
+	if unionMember := g.expectedUnionMemberTypeExpr(ctx.packageName, ctx.expectedTypeExpr, expected, lit.StructType.Name); unionMember != nil {
+		return normalizeTypeExprForPackage(g, ctx.packageName, unionMember)
 	}
 	if expected != "" && expected != "runtime.Value" && expected != "any" {
 		if expectedInfo := g.structInfoByGoName(expected); expectedInfo != nil && expectedInfo.Name == lit.StructType.Name {
@@ -583,14 +632,22 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 		if baseName, ok := g.structBaseName(expected); ok {
 			baseExpected = baseName
 		}
-		if baseExpected != info.GoName {
-			if expected == "string" && lit.StructType.Name == "String" {
+		if baseExpected != info.Name {
+			if expected == "string" && lit.StructType.Name == "String" && g.canLowerToBuiltinStringStruct(info) {
 				return g.compileStringStructLiteral(ctx, lit)
 			}
 			if g.nativeInterfaceInfoForGoType(expected) != nil || g.nativeUnionInfoForGoType(expected) != nil {
 				expected = ""
 			} else {
-				ctx.setReason("struct literal type mismatch")
+				ctx.setReason(fmt.Sprintf(
+					"struct literal type mismatch: expected=%s actual=%s base=%s return=%s return_expr=%s contextual_expected=%s",
+					expected,
+					structType,
+					info.Name,
+					ctx.returnType,
+					typeExpressionToString(ctx.returnTypeExpr),
+					typeExpressionToString(ctx.expectedTypeExpr),
+				))
 				return nil, "", "", false
 			}
 		}

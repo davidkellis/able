@@ -21,6 +21,18 @@ func (i *Interpreter) ExpandTypeAliases(expr ast.TypeExpression) ast.TypeExpress
 	return expandTypeAliases(expr, i.typeAliases, nil)
 }
 
+// LookupUnionDefinition exposes named union lookup for compiler bridge helpers.
+func (i *Interpreter) LookupUnionDefinition(name string) (*runtime.UnionDefinitionValue, bool) {
+	if i == nil || name == "" {
+		return nil, false
+	}
+	def, ok := i.unionDefinitions[name]
+	if !ok || def == nil {
+		return nil, false
+	}
+	return def, true
+}
+
 // EnsureTypeSatisfiesInterface exposes interface constraint checks for compiler helpers.
 func (i *Interpreter) EnsureTypeSatisfiesInterface(subject ast.TypeExpression, ifaceExpr ast.TypeExpression, context string) error {
 	if i == nil {

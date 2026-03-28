@@ -118,6 +118,9 @@ func (g *generator) ensureSpecializedStructInfo(pkgName string, expr ast.TypeExp
 	if len(baseInfo.Node.GenericParams) != len(generic.Arguments) {
 		return nil, false
 	}
+	if !g.structSpecializationArgsConcrete(baseInfo.Package, generic.Arguments, baseInfo.Node.GenericParams) {
+		return nil, false
+	}
 	if !g.typeExprIsConcreteInPackage(baseInfo.Package, expr) {
 		return nil, false
 	}
@@ -142,6 +145,7 @@ func (g *generator) ensureSpecializedStructInfo(pkgName string, expr ast.TypeExp
 		Specialized: true,
 	}
 	g.specializedStructs[key] = info
+	g.touchNativeInterfaceAdapters()
 	bindings := make(map[string]ast.TypeExpression, len(baseInfo.Node.GenericParams))
 	for idx, gp := range baseInfo.Node.GenericParams {
 		if gp == nil || gp.Name == nil || gp.Name.Name == "" || generic.Arguments[idx] == nil {
@@ -163,6 +167,7 @@ func (g *generator) ensureSpecializedStructInfo(pkgName string, expr ast.TypeExp
 		}
 		substituted := normalizeTypeExprForPackage(g, baseInfo.Package, substituteTypeParams(field.FieldType, bindings))
 		goType, ok := mapper.Map(substituted)
+		goType, ok = g.recoverRepresentableCarrierType(baseInfo.Package, substituted, goType)
 		if !ok || goType == "" {
 			supported = false
 		}
@@ -179,11 +184,28 @@ func (g *generator) ensureSpecializedStructInfo(pkgName string, expr ast.TypeExp
 	return info, supported
 }
 
+func (g *generator) structSpecializationArgsConcrete(pkgName string, args []ast.TypeExpression, params []*ast.GenericParameter) bool {
+	if g == nil || len(args) == 0 {
+		return false
+	}
+	genericNames := genericParamNameSet(params)
+	for _, arg := range args {
+		normalized := normalizeTypeExprForPackage(g, pkgName, arg)
+		if normalized == nil || !g.typeExprFullyBound(pkgName, normalized) {
+			return false
+		}
+		if g.typeExprHasGeneric(normalized, genericNames) {
+			return false
+		}
+	}
+	return true
+}
+
 func specializedStructKey(g *generator, pkgName string, expr ast.TypeExpression) string {
 	if g == nil || expr == nil {
 		return ""
 	}
-	return strings.TrimSpace(pkgName) + "::" + normalizeTypeExprString(g, pkgName, expr)
+	return strings.TrimSpace(pkgName) + "::" + typeExpressionToString(expr)
 }
 
 func specializedStructSuffix(g *generator, pkgName string, args []ast.TypeExpression) string {

@@ -138,8 +138,12 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 	effectiveExpected := expected
 	if effectiveExpected == "" {
 		switch methodName {
-		case "get", "pop", "first", "last", "read_slot":
+		case "get", "pop", "first", "last":
 			if inferred, ok := g.staticArrayDefaultNullableResultType(ctx, objNode, objType); ok {
+				effectiveExpected = inferred
+			}
+		case "read_slot":
+			if inferred, ok := g.staticArrayPropagationResultType(ctx, objNode, objType); ok {
 				effectiveExpected = inferred
 			}
 		}
@@ -148,9 +152,11 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 	case "len":
 		return g.compileArrayMethodLenIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode)
 	case "push":
-		return g.compileArrayMethodPushIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode)
+		return g.compileArrayMethodPushIntrinsic(ctx, objNode, objExpr, objType, args, effectiveExpected, callNode)
+	case "push_all":
+		return g.compileArrayMethodPushAllIntrinsic(ctx, objNode, objExpr, objType, args, effectiveExpected, callNode)
 	case "pop":
-		return g.compileArrayMethodPopIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode)
+		return g.compileArrayMethodPopIntrinsic(ctx, objNode, objExpr, objType, args, effectiveExpected, callNode)
 	case "first":
 		return g.compileArrayMethodFirstLastIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode, true)
 	case "last":
@@ -158,11 +164,11 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 	case "is_empty":
 		return g.compileArrayMethodIsEmptyIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode)
 	case "clear":
-		return g.compileArrayMethodClearIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode)
+		return g.compileArrayMethodClearIntrinsic(ctx, objNode, objExpr, objType, args, effectiveExpected, callNode)
 	case "capacity":
 		return g.compileArrayMethodCapacityIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode)
 	case "reserve":
-		return g.compileArrayMethodReserveIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode)
+		return g.compileArrayMethodReserveIntrinsic(ctx, objNode, objExpr, objType, args, effectiveExpected, callNode)
 	case "clone_shallow":
 		return g.compileArrayMethodCloneShallowIntrinsic(ctx, objExpr, objType, args, effectiveExpected, callNode)
 	case "get":
@@ -241,6 +247,9 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 			"}",
 			g.staticArraySyncCall(objType, objTemp),
 		)
+		if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, objNode, objTemp, objType); ok {
+			lines = append(lines, writebackLines...)
+		}
 		if effectiveExpected == "" || effectiveExpected == "runtime.Value" {
 			return lines, resultTemp, "runtime.Value", true
 		}
@@ -319,6 +328,9 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 			"}",
 			g.staticArraySyncCall(objType, objTemp),
 		)
+		if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, objNode, objTemp, objType); ok {
+			lines = append(lines, writebackLines...)
+		}
 		if effectiveExpected == "" || effectiveExpected == "runtime.Value" {
 			return lines, "runtime.VoidValue{}", "runtime.Value", true
 		}

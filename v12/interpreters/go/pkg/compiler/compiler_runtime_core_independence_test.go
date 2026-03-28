@@ -125,6 +125,40 @@ func TestCompilerRuntimeHelperBodiesAvoidExternCallChaining(t *testing.T) {
 	}
 }
 
+func TestCompilerStringFromBuiltinKeepsArrayByteAccessStatic(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> bool {",
+		"  bytes := __able_String_from_builtin(\"a\")",
+		"  byte := bytes.read_slot(0)",
+		"  byte == 97_u8",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("main body not found")
+	}
+	for _, fragment := range []string{
+		"__able_string_from_builtin_impl(",
+		"uint8(97)",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected string-from-builtin byte access path to contain %q:\n%s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_call_named(\"read_slot\"",
+		"__able_method_call_node(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected string-from-builtin byte access path to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
 func TestCompilerZeroArgCallableTypeSyntaxStaysNative(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
@@ -204,16 +238,27 @@ func TestCompilerNilableStructExternArgUsesRuntimeNilValue(t *testing.T) {
 	if !ok {
 		t.Fatalf("main body not found")
 	}
-	if !strings.Contains(body, "runtime.NilValue{}") {
-		t.Fatalf("expected nilable struct extern arg lowering to emit runtime.NilValue{}:\n%s", body)
+	if !strings.Contains(body, "__able_compiled_fn_sink(value)") {
+		t.Fatalf("expected nilable struct extern arg to stay on the direct compiled extern call path:\n%s", body)
+	}
+	if strings.Contains(body, "__able_struct_Box_to(__able_runtime, (*Box)(nil))") || strings.Contains(body, "__able_any_to_value(any(nil))") {
+		t.Fatalf("expected main to avoid ad hoc nil extern conversion scaffolding:\n%s", body)
+	}
+
+	sinkBody, ok := findCompiledFunction(result, "__able_compiled_fn_sink")
+	if !ok {
+		t.Fatalf("compiled extern sink wrapper not found")
+	}
+	if !strings.Contains(sinkBody, "runtime.NilValue{}") {
+		t.Fatalf("expected compiled extern wrapper to lower nilable struct args through runtime.NilValue{} at the host boundary:\n%s", sinkBody)
 	}
 	for _, fragment := range []string{
 		"__able_struct_Box_to(__able_runtime, (*Box)(nil))",
 		"__able_any_to_value(any(nil))",
 		"missing Box value",
 	} {
-		if strings.Contains(body, fragment) {
-			t.Fatalf("expected nilable struct extern arg lowering to avoid %q:\n%s", fragment, body)
+		if strings.Contains(sinkBody, fragment) {
+			t.Fatalf("expected nilable struct extern arg lowering to avoid %q:\n%s", fragment, sinkBody)
 		}
 	}
 }

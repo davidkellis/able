@@ -277,15 +277,18 @@ func (g *generator) sortedPublicCallableNames(pkgName string) []string {
 		return nil
 	}
 	names := g.sortedCallableNames(pkgName)
-	if len(names) == 0 {
+	methodNames := g.sortedPublicMethodCallableNames(pkgName)
+	if len(names) == 0 && len(methodNames) == 0 {
 		return nil
 	}
-	out := make([]string, 0, len(names))
+	out := make([]string, 0, len(names)+len(methodNames))
 	for _, name := range names {
 		if g.isCallablePublic(pkgName, name) {
 			out = append(out, name)
 		}
 	}
+	out = append(out, methodNames...)
+	sort.Strings(out)
 	return out
 }
 

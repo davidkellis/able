@@ -35,6 +35,9 @@ func substituteTypeParamsSeen(expr ast.TypeExpression, bindings map[string]ast.T
 		for idx, arg := range t.Arguments {
 			args[idx] = substituteTypeParamsSeen(arg, bindings, seen)
 		}
+		if applied, ok := substituteAppliedGenericType(base, args); ok {
+			return applied
+		}
 		return ast.NewGenericTypeExpression(base, args)
 	case *ast.FunctionTypeExpression:
 		if t == nil {
@@ -67,4 +70,41 @@ func substituteTypeParamsSeen(expr ast.TypeExpression, bindings map[string]ast.T
 	default:
 		return expr
 	}
+}
+
+func substituteAppliedGenericType(base ast.TypeExpression, args []ast.TypeExpression) (ast.TypeExpression, bool) {
+	generic, ok := base.(*ast.GenericTypeExpression)
+	if !ok || generic == nil || len(args) == 0 {
+		return nil, false
+	}
+	filled, remaining, replaced := substituteFillWildcardTypeArgs(generic.Arguments, args)
+	if !replaced {
+		return nil, false
+	}
+	if len(remaining) == 0 {
+		return ast.NewGenericTypeExpression(generic.Base, filled), true
+	}
+	return ast.NewGenericTypeExpression(ast.NewGenericTypeExpression(generic.Base, filled), remaining), true
+}
+
+func substituteFillWildcardTypeArgs(existing []ast.TypeExpression, incoming []ast.TypeExpression) ([]ast.TypeExpression, []ast.TypeExpression, bool) {
+	if len(existing) == 0 || len(incoming) == 0 {
+		return existing, incoming, false
+	}
+	filled := make([]ast.TypeExpression, len(existing))
+	copy(filled, existing)
+	nextArg := 0
+	replaced := false
+	for idx, current := range filled {
+		if _, ok := current.(*ast.WildcardTypeExpression); !ok {
+			continue
+		}
+		if nextArg >= len(incoming) {
+			break
+		}
+		filled[idx] = incoming[nextArg]
+		nextArg++
+		replaced = true
+	}
+	return filled, incoming[nextArg:], replaced
 }

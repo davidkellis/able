@@ -7,10 +7,16 @@ func equivalentFunctionInfoSignature(left, right *functionInfo) bool {
 	if left == right {
 		return true
 	}
-	if left.Package != right.Package || left.Name != right.Name || left.ReturnType != right.ReturnType {
+	// Specialized compiled variants of the same source definition may receive
+	// different synthetic function names and may even be reconstructed from
+	// separate parsed AST instances while still representing the same
+	// carrier-level callable shape. Candidate selection should treat those as
+	// equivalent when the source-level function name and mapped Go signature
+	// match.
+	if left.Package != right.Package || left.ReturnType != right.ReturnType {
 		return false
 	}
-	if left.Definition == nil || right.Definition == nil || left.Definition != right.Definition {
+	if functionInfoSourceName(left) != functionInfoSourceName(right) {
 		return false
 	}
 	if len(left.Params) != len(right.Params) {
@@ -24,3 +30,12 @@ func equivalentFunctionInfoSignature(left, right *functionInfo) bool {
 	return true
 }
 
+func functionInfoSourceName(info *functionInfo) string {
+	if info == nil {
+		return ""
+	}
+	if info.Definition != nil && info.Definition.ID != nil && info.Definition.ID.Name != "" {
+		return info.Definition.ID.Name
+	}
+	return info.Name
+}

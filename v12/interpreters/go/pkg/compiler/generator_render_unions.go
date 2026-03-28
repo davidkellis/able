@@ -9,9 +9,15 @@ func (g *generator) renderNativeUnions(buf *bytes.Buffer) {
 	if g == nil || buf == nil || len(g.nativeUnions) == 0 {
 		return
 	}
+	if g.nativeUnionRendered == nil {
+		g.nativeUnionRendered = make(map[string]struct{})
+	}
 	for _, key := range g.sortedNativeUnionKeys() {
 		info := g.nativeUnions[key]
 		if info == nil {
+			continue
+		}
+		if _, ok := g.nativeUnionRendered[key]; ok {
 			continue
 		}
 		fmt.Fprintf(buf, "type %s interface {\n", info.GoType)
@@ -36,6 +42,7 @@ func (g *generator) renderNativeUnions(buf *bytes.Buffer) {
 		}
 		g.renderNativeUnionFromRuntimeHelper(buf, info)
 		g.renderNativeUnionToRuntimeHelper(buf, info)
+		g.nativeUnionRendered[key] = struct{}{}
 	}
 }
 
@@ -104,11 +111,11 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 			fmt.Fprintf(buf, "\t\t\tconverted := struct{}{}\n")
 			fmt.Fprintf(buf, "\t\t\t_ = coerced\n")
 		case g.typeCategory(member.GoType) == "struct":
-			baseName, _ := g.structBaseName(member.GoType)
-			if baseName == "" {
-				baseName = member.Token
+			helperName, ok := g.structHelperName(member.GoType)
+			if !ok || helperName == "" {
+				helperName = member.Token
 			}
-			fmt.Fprintf(buf, "\t\t\tconverted, err := __able_struct_%s_from(coerced)\n", baseName)
+			fmt.Fprintf(buf, "\t\t\tconverted, err := __able_struct_%s_from(coerced)\n", helperName)
 		case g.nativeUnionInfoForGoType(member.GoType) != nil:
 			inner := g.nativeUnionInfoForGoType(member.GoType)
 			fmt.Fprintf(buf, "\t\t\tconverted, err := %s(rt, coerced)\n", inner.FromRuntimeHelper)
@@ -140,6 +147,11 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 			fmt.Fprintf(buf, "\t\t\traw, err := bridge.AsUint(coerced, %d)\n", g.intBits(member.GoType))
 			fmt.Fprintf(buf, "\t\t\tconverted := %s(raw)\n", member.GoType)
 		default:
+			fmt.Fprintf(buf, "\t\t\tvar converted %s\n", member.GoType)
+			fmt.Fprintf(buf, "\t\t\tvar err error\n")
+			fmt.Fprintf(buf, "\t\t\t_ = converted\n")
+			fmt.Fprintf(buf, "\t\t\t_ = err\n")
+			fmt.Fprintf(buf, "\t\t\t_ = coerced\n")
 			fmt.Fprintf(buf, "\t\t\treturn nil, fmt.Errorf(\"unsupported union member type %s\")\n", member.GoType)
 		}
 		fmt.Fprintf(buf, "\t\t\tif err != nil {\n")
@@ -179,17 +191,20 @@ func (g *generator) renderNativeUnionToRuntimeHelper(buf *bytes.Buffer, info *na
 			fmt.Fprintf(buf, "\t\treturn raw.Value, nil\n")
 		case member.GoType == "struct{}":
 			fmt.Fprintf(buf, "\t\treturn runtime.VoidValue{}, nil\n")
+		case g.isMonoArrayType(member.GoType):
+			spec, _ := g.monoArraySpecForGoType(member.GoType)
+			fmt.Fprintf(buf, "\t\treturn %s(rt, raw.Value)\n", spec.ToRuntimeHelper)
 		case g.nativeInterfaceInfoForGoType(member.GoType) != nil:
 			iface := g.nativeInterfaceInfoForGoType(member.GoType)
 			fmt.Fprintf(buf, "\t\treturn %s(rt, raw.Value)\n", iface.ToRuntimeHelper)
 		case member.GoType == "runtime.ErrorValue":
 			fmt.Fprintf(buf, "\t\treturn raw.Value, nil\n")
 		case g.typeCategory(member.GoType) == "struct":
-			baseName, _ := g.structBaseName(member.GoType)
-			if baseName == "" {
-				baseName = member.Token
+			helperName, ok := g.structHelperName(member.GoType)
+			if !ok || helperName == "" {
+				helperName = member.Token
 			}
-			fmt.Fprintf(buf, "\t\treturn __able_struct_%s_to(rt, raw.Value)\n", baseName)
+			fmt.Fprintf(buf, "\t\treturn __able_struct_%s_to(rt, raw.Value)\n", helperName)
 		case g.nativeUnionInfoForGoType(member.GoType) != nil:
 			inner := g.nativeUnionInfoForGoType(member.GoType)
 			fmt.Fprintf(buf, "\t\treturn %s(rt, raw.Value)\n", inner.ToRuntimeHelper)

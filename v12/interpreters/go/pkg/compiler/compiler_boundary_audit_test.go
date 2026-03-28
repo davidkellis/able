@@ -20,6 +20,10 @@ func TestCompilerBoundaryFallbackMarkerForStaticFixtures(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping compiler boundary audit in short mode")
 	}
+	raw := strings.TrimSpace(os.Getenv("ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES"))
+	if raw == "" {
+		t.Skip("default fixture set is split across TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch{1,2,3,4}")
+	}
 	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		root = filepath.Join("..", "..", "fixtures", "exec")
@@ -28,6 +32,66 @@ func TestCompilerBoundaryFallbackMarkerForStaticFixtures(t *testing.T) {
 	if len(fixtures) == 0 {
 		t.Skip("no boundary-audit fixtures configured")
 	}
+	runCompilerBoundaryAuditFixtureList(t, root, fixtures)
+}
+
+func TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch1(t *testing.T) {
+	runCompilerBoundaryAuditFixtureDefaultBatch(t, 0)
+}
+
+func TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch2(t *testing.T) {
+	runCompilerBoundaryAuditFixtureDefaultBatch(t, 1)
+}
+
+func TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch3(t *testing.T) {
+	runCompilerBoundaryAuditFixtureDefaultBatch(t, 2)
+}
+
+func TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch4(t *testing.T) {
+	runCompilerBoundaryAuditFixtureDefaultBatch(t, 3)
+}
+
+func TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch5(t *testing.T) {
+	runCompilerBoundaryAuditFixtureDefaultBatch(t, 4)
+}
+
+func TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch6(t *testing.T) {
+	runCompilerBoundaryAuditFixtureDefaultBatch(t, 5)
+}
+
+func TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch7(t *testing.T) {
+	runCompilerBoundaryAuditFixtureDefaultBatch(t, 6)
+}
+
+func TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch8(t *testing.T) {
+	runCompilerBoundaryAuditFixtureDefaultBatch(t, 7)
+}
+
+func runCompilerBoundaryAuditFixtureDefaultBatch(t *testing.T, batch int) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("skipping compiler boundary audit in short mode")
+	}
+	if strings.TrimSpace(os.Getenv("ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES")) != "" {
+		t.Skip("explicit boundary-audit fixture selection requested")
+	}
+	batches := defaultCompilerBoundaryAuditFixtureBatches()
+	if batch < 0 || batch >= len(batches) {
+		t.Fatalf("invalid boundary-audit batch %d", batch)
+	}
+	fixtures := batches[batch]
+	if len(fixtures) == 0 {
+		t.Skip("no boundary-audit fixtures configured for batch")
+	}
+	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		root = filepath.Join("..", "..", "fixtures", "exec")
+	}
+	runCompilerBoundaryAuditFixtureList(t, root, fixtures)
+}
+
+func runCompilerBoundaryAuditFixtureList(t *testing.T, root string, fixtures []string) {
+	t.Helper()
 	for _, rel := range fixtures {
 		rel := rel
 		t.Run(rel, func(t *testing.T) {
@@ -36,21 +100,37 @@ func TestCompilerBoundaryFallbackMarkerForStaticFixtures(t *testing.T) {
 	}
 }
 
+func defaultCompilerBoundaryAuditFixtureBatches() [][]string {
+	return [][]string{
+		{"12_08_blocking_io_concurrency"},
+		{"13_06_stdlib_package_resolution", "06_01_compiler_struct_positional"},
+		{"14_02_regex_core_match_streaming", "10_17_interface_overload_dispatch"},
+		{"14_01_language_interfaces_index_apply_iterable"},
+		{"06_12_04_stdlib_numbers_bigint", "06_12_20_stdlib_math_core_numeric"},
+		{"06_12_10_stdlib_collections_list_vector", "06_12_21_stdlib_fs_path"},
+		{"06_12_18_stdlib_collections_array_range"},
+		{"06_12_19_stdlib_concurrency_channel_mutex_queue", "06_12_26_stdlib_test_harness_reporters"},
+	}
+}
+
 func resolveBoundaryAuditFixtures(t *testing.T) []string {
 	t.Helper()
 	raw := strings.TrimSpace(os.Getenv("ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES"))
+	fixtures := []string(nil)
 	if raw == "" {
-		return defaultCompilerHeavyAuditFixtures()
+		fixtures = defaultCompilerHeavyAuditFixtures()
+		return applyCompilerFixtureBatch(t, fixtures, compilerBoundaryAuditBatchIndexEnv, compilerBoundaryAuditBatchCountEnv)
 	}
 	if strings.EqualFold(raw, "all") {
 		root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
 		if _, err := os.Stat(root); os.IsNotExist(err) {
 			root = filepath.Join("..", "..", "fixtures", "exec")
 		}
-		return collectExecFixtures(t, root)
+		fixtures = collectExecFixtures(t, root)
+		return applyCompilerFixtureBatch(t, fixtures, compilerBoundaryAuditBatchIndexEnv, compilerBoundaryAuditBatchCountEnv)
 	}
 	seen := map[string]struct{}{}
-	fixtures := []string{}
+	fixtures = []string{}
 	for _, part := range strings.FieldsFunc(raw, func(r rune) bool {
 		return r == ',' || r == ';' || r == '\n' || r == '\t' || r == ' '
 	}) {
@@ -64,7 +144,7 @@ func resolveBoundaryAuditFixtures(t *testing.T) []string {
 		seen[part] = struct{}{}
 		fixtures = append(fixtures, part)
 	}
-	return fixtures
+	return applyCompilerFixtureBatch(t, fixtures, compilerBoundaryAuditBatchIndexEnv, compilerBoundaryAuditBatchCountEnv)
 }
 
 func runCompilerBoundaryAuditFixture(t *testing.T, root, rel string) {

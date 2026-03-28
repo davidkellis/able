@@ -561,6 +561,12 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 			desiredReturn = mapped
 		}
 	}
+	if desiredReturn != "" {
+		lambdaCtx.returnType = desiredReturn
+	}
+	if returnTypeExpr != nil {
+		lambdaCtx.returnTypeExpr = returnTypeExpr
+	}
 
 	exprLines, exprValue, exprType, ok := g.compileExprLines(lambdaCtx, expr, desiredReturn)
 	if !ok {
@@ -600,6 +606,7 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 		return "", "", false
 	}
 	implLines := make([]string, 0, len(paramLines)+3)
+	implLines = append(implLines, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
 	implLines = append(implLines, fmt.Sprintf("var %s *__ableControl", controlTemp))
 	implLines = append(implLines, paramLines...)
 	zeroExpr, zeroOK := g.zeroValueExpr(callableInfo.ReturnGoType)
