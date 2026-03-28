@@ -99,6 +99,7 @@ func (c *compileContext) child() *compileContext {
 		genericNames:           c.genericNames,
 		typeBindings:           c.typeBindings,
 		implSiblings:           c.implSiblings,
+		analysisOnly:           c.analysisOnly,
 	}
 }
 

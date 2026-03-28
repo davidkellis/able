@@ -192,7 +192,7 @@ func (g *generator) specializeConcreteStaticNominalMethod(ctx *compileContext, c
 		return nil, false
 	}
 	targetTypeExpr, ok := g.concreteNominalMethodTargetTypeExpr(ctx, method, target, expected)
-	if !ok || targetTypeExpr == nil || g.typeExprHasGeneric(targetTypeExpr, genericNames) {
+	if !ok || targetTypeExpr == nil {
 		return nil, false
 	}
 	bindings, ok := g.specializedStaticNominalMethodBindings(ctx, call, method, targetTypeExpr, expected)
@@ -207,7 +207,7 @@ func (g *generator) ensureSpecializedNominalMethod(method *methodInfo, bindings 
 		return nil, false
 	}
 	key := g.specializedImplFunctionKey(method.Info, bindings)
-	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil && (existing.Compileable || existing == method.Info) {
+	if existing, ok := g.reusableSpecializedFunctionInfo(key, method.Info); ok {
 		return g.specializedNominalMethodInfo(method, existing, bindings), true
 	}
 	specialized := &functionInfo{
@@ -278,6 +278,10 @@ func (g *generator) specializedNominalMethodBindings(ctx *compileContext, call *
 			return nil, false
 		}
 	}
+	bindings = g.normalizeConcreteTypeBindings(method.Info.Package, bindings, genericNames)
+	if bindings == nil {
+		bindings = make(map[string]ast.TypeExpression)
+	}
 	return g.finishSpecializedNominalMethodBindings(ctx, call, method, genericNames, bindings, expected)
 }
 
@@ -296,7 +300,41 @@ func (g *generator) specializedStaticNominalMethodBindings(ctx *compileContext, 
 			return nil, false
 		}
 	}
+	bindings = g.normalizeConcreteTypeBindings(method.Info.Package, bindings, genericNames)
+	if bindings == nil {
+		bindings = make(map[string]ast.TypeExpression)
+	}
 	return g.finishSpecializedNominalMethodBindings(ctx, call, method, genericNames, bindings, expected)
+}
+
+func (g *generator) preferredNominalMethodTargetTypeExpr(ctx *compileContext, call *ast.FunctionCall, method *methodInfo, receiverTypeExpr ast.TypeExpression, expected string) ast.TypeExpression {
+	if g == nil || ctx == nil || call == nil || method == nil || method.Info == nil || method.TargetType == nil {
+		return nil
+	}
+	genericNames := g.nominalMethodSpecializationGenericNames(method)
+	if len(genericNames) == 0 {
+		return nil
+	}
+	bindings := g.concreteCompileContextBindings(method.Info, genericNames)
+	bindings = g.mergeConcreteTypeBindings(method.Info.Package, genericNames, bindings, ctx.typeBindings)
+	if bindings == nil {
+		bindings = make(map[string]ast.TypeExpression)
+	}
+	if receiverTypeExpr != nil {
+		receiverTypeExpr = normalizeTypeExprForPackage(g, method.Info.Package, receiverTypeExpr)
+		if method.TargetType != nil {
+			_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, method.TargetType, receiverTypeExpr, genericNames, bindings)
+		}
+	}
+	bindings, ok := g.finishSpecializedNominalMethodBindings(ctx, call, method, genericNames, bindings, expected)
+	if !ok || len(bindings) == 0 {
+		return nil
+	}
+	targetTypeExpr := normalizeTypeExprForPackage(g, method.Info.Package, substituteTypeParams(method.TargetType, bindings))
+	if targetTypeExpr == nil || g.typeExprHasGeneric(targetTypeExpr, genericNames) {
+		return nil
+	}
+	return targetTypeExpr
 }
 
 func (g *generator) finishSpecializedNominalMethodBindings(ctx *compileContext, call *ast.FunctionCall, method *methodInfo, genericNames map[string]struct{}, bindings map[string]ast.TypeExpression, expected string) (map[string]ast.TypeExpression, bool) {
@@ -309,6 +347,12 @@ func (g *generator) finishSpecializedNominalMethodBindings(ctx *compileContext, 
 		}
 		if !g.applyNominalCallTypeArgumentBindings(method, call, bindings) {
 			return nil, false
+		}
+	}
+	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil && method.Info.Definition != nil && method.Info.Definition.ReturnType != nil {
+		returnExpr := g.functionReturnTypeExprWithBindings(method.Info, bindings)
+		if returnExpr != nil {
+			_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings)
 		}
 	}
 	paramOffset := 0
@@ -324,16 +368,17 @@ func (g *generator) finishSpecializedNominalMethodBindings(ctx *compileContext, 
 		if paramTypeExpr == nil {
 			continue
 		}
-		actualExpr, ok := g.inferExpressionTypeExpr(ctx, arg, "")
+		actualExpr, actualGoType, ok := g.specializedCallActualTypeExpr(ctx, method.Info.Package, arg, paramTypeExpr, bindings)
+		actualExpr, ok = g.specializationConcreteArgTypeExprForParam(method.Info.Package, paramTypeExpr, actualExpr, actualGoType)
 		if !ok || actualExpr == nil {
 			continue
 		}
-		_ = g.specializedTypeTemplateMatches(method.Info.Package, paramTypeExpr, actualExpr, genericNames, bindings, make(map[string]struct{}))
+		_ = g.bindSpecializedCallArgument(method.Info.Package, paramTypeExpr, actualExpr, genericNames, bindings)
 	}
 	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil && method.Info.Definition != nil && method.Info.Definition.ReturnType != nil {
 		returnExpr := g.functionReturnTypeExprWithBindings(method.Info, bindings)
 		if returnExpr != nil {
-			_ = g.specializedTypeTemplateMatches(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings, make(map[string]struct{}))
+			_ = g.applySpecializedTypeTemplateMatch(method.Info.Package, returnExpr, expectedExpr, genericNames, bindings)
 		}
 	}
 	bindings = g.normalizeConcreteTypeBindings(method.Info.Package, bindings, genericNames)

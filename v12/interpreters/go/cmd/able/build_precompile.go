@@ -16,7 +16,7 @@ import (
 func resolveBuildPrecompileStdlibFromEnv() (bool, error) {
 	raw, ok := os.LookupEnv("ABLE_BUILD_PRECOMPILE_STDLIB")
 	if !ok {
-		return true, nil
+		return false, nil
 	}
 	normalized := strings.TrimSpace(strings.ToLower(raw))
 	switch normalized {

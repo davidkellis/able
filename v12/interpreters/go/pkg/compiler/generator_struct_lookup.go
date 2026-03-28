@@ -94,6 +94,21 @@ func (g *generator) nativeStructCarrierType(pkgName string, typeName string) (st
 	return "*" + info.GoName, true
 }
 
+func (g *generator) staticStructInfoForAccess(goType string) *structInfo {
+	if g == nil || strings.TrimSpace(goType) == "" {
+		return nil
+	}
+	if info := g.structInfoByGoName(goType); info != nil {
+		return info
+	}
+	if g.isMonoArrayType(goType) {
+		if info, ok := g.structInfoByNameUnique("Array"); ok {
+			return info
+		}
+	}
+	return nil
+}
+
 func (g *generator) sortedStructKeys() []string {
 	if g == nil || len(g.structs) == 0 {
 		return nil

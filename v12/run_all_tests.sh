@@ -101,6 +101,9 @@ if [[ -n "$FILTER" ]]; then
   RUN_FLAG=(-run "$FILTER")
 fi
 
+COMPILER_HEAVY_RELEASE_TESTS_EGREP='^(TestCompilerExecFixtures|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerInterfaceLookupBypassForStaticFixtures(Batch[1-4])?|TestCompilerBoundaryFallbackMarkerForStaticFixtures(Batch[0-9]+)?)$'
+COMPILER_CORE_OUTLIER_TESTS_EGREP='^(TestCompiler.*ParityFixtures|TestCompilerExecFixtureFallbacks)$'
+
 echo ">>> Running Go tests"
 (
   cd "$ROOT_DIR/interpreters/go"
@@ -130,30 +133,155 @@ echo ">>> Running Go tests"
       ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
       go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" ./pkg/interpreter -count=1 -exec-mode=bytecode
   else
-    if [[ "$RUN_TREEWALKER" == true ]]; then
-      echo ">>> Running treewalker interpreter tests"
+    run_go_test_base() {
       ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
         GOCACHE="$gocache" \
         ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
-        go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" ./pkg/interpreter -count=1
+        "$@"
+    }
+
+    run_compiler_batched_release_test() {
+      local label="$1"
+      local fixture_env="$2"
+      local batch_index_env="$3"
+      local batch_count_env="$4"
+      local batch_count="$5"
+      local pattern="$6"
+      local i
+      for ((i=0; i<batch_count; i++)); do
+        echo ">>> Running ${label} batch $((i + 1))/${batch_count}"
+        env \
+          ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+          GOCACHE="$gocache" \
+          ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+          "${fixture_env}=all" \
+          "${batch_index_env}=${i}" \
+          "${batch_count_env}=${batch_count}" \
+          go test -timeout "$GO_TEST_TIMEOUT" ./pkg/compiler -run "$pattern" -count=1
+      done
+    }
+
+    run_compiler_core_batches() {
+      local batch_size="$1"
+      local -a compiler_tests=()
+      local -a batch_tests=()
+      local total=0
+      local batch_count=0
+      local batch_index=0
+      local start=0
+      local regex=""
+      local name=""
+
+      mapfile -t compiler_tests < <(
+        env \
+          ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+          GOCACHE="$gocache" \
+          ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+          go test ./pkg/compiler -list '^Test' |
+          grep '^Test' |
+          grep -Ev "$COMPILER_HEAVY_RELEASE_TESTS_EGREP" |
+          grep -Ev "$COMPILER_CORE_OUTLIER_TESTS_EGREP"
+      )
+      total=${#compiler_tests[@]}
+      if [[ "$total" -eq 0 ]]; then
+        echo "No compiler core tests found." >&2
+        exit 1
+      fi
+      batch_count=$(((total + batch_size - 1) / batch_size))
+
+      for ((start=0; start<total; start+=batch_size)); do
+        batch_tests=("${compiler_tests[@]:start:batch_size}")
+        regex='^('
+        for name in "${batch_tests[@]}"; do
+          if [[ "$regex" != '^(' ]]; then
+            regex+='|'
+          fi
+          regex+="${name}"
+        done
+        regex+=')$'
+        batch_index=$((start / batch_size))
+        echo ">>> Running compiler core batch $((batch_index + 1))/${batch_count}"
+        run_go_test_base go test -timeout "$GO_TEST_TIMEOUT" ./pkg/compiler -run "$regex" -count=1
+      done
+    }
+
+    run_compiler_outlier_tests() {
+      local -a outlier_tests=()
+      local name=""
+
+      mapfile -t outlier_tests < <(
+        env \
+          ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+          GOCACHE="$gocache" \
+          ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+          go test ./pkg/compiler -list '^Test' |
+          grep '^Test' |
+          grep -E "$COMPILER_CORE_OUTLIER_TESTS_EGREP"
+      )
+      for name in "${outlier_tests[@]}"; do
+        echo ">>> Running compiler outlier test ${name}"
+        run_go_test_base go test -timeout "$GO_TEST_TIMEOUT" ./pkg/compiler -run "^(${name})$" -count=1
+      done
+    }
+
+    if [[ "$RUN_TREEWALKER" == true ]]; then
+      echo ">>> Running treewalker interpreter tests"
+      run_go_test_base go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" ./pkg/interpreter -count=1
     fi
     if [[ "$RUN_BYTECODE" == true ]]; then
       echo ">>> Running bytecode interpreter tests"
-      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
-        GOCACHE="$gocache" \
-        ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
-        go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" ./pkg/interpreter -count=1 -exec-mode=bytecode
+      run_go_test_base go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" ./pkg/interpreter -count=1 -exec-mode=bytecode
     fi
     if [[ "$RUN_COMPILER" == true ]]; then
-      echo ">>> Running compiler tests (full matrix)"
-      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
-        GOCACHE="$gocache" \
-        ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
-        ABLE_COMPILER_EXEC_FIXTURES=all \
-        ABLE_COMPILER_STRICT_DISPATCH_FIXTURES=all \
-        ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES=all \
-        ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all \
-        go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" ./pkg/compiler ./pkg/compiler/bridge -count=1
+      if [[ -n "$FILTER" ]]; then
+        echo ">>> Running compiler tests (filtered)"
+        run_go_test_base go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" ./pkg/compiler ./pkg/compiler/bridge -count=1
+      else
+        echo ">>> Running compiler bridge tests"
+        run_go_test_base go test -timeout "$GO_TEST_TIMEOUT" ./pkg/compiler/bridge -count=1
+
+        echo ">>> Running compiler core test batches"
+        run_compiler_core_batches "25"
+
+        echo ">>> Running compiler core outlier tests"
+        run_compiler_outlier_tests
+
+        echo ">>> Running compiler full compiled fixture matrix"
+        run_compiler_batched_release_test \
+          "compiler exec fixtures" \
+          "ABLE_COMPILER_EXEC_FIXTURES" \
+          "ABLE_COMPILER_EXEC_FIXTURE_BATCH_INDEX" \
+          "ABLE_COMPILER_EXEC_FIXTURE_BATCH_COUNT" \
+          "24" \
+          '^TestCompilerExecFixtures$'
+
+        echo ">>> Running compiler strict-dispatch audit"
+        run_compiler_batched_release_test \
+          "compiler strict-dispatch audit" \
+          "ABLE_COMPILER_STRICT_DISPATCH_FIXTURES" \
+          "ABLE_COMPILER_STRICT_DISPATCH_BATCH_INDEX" \
+          "ABLE_COMPILER_STRICT_DISPATCH_BATCH_COUNT" \
+          "24" \
+          '^TestCompilerStrictDispatchForStdlibHeavyFixtures$'
+
+        echo ">>> Running compiler interface-lookup audit"
+        run_compiler_batched_release_test \
+          "compiler interface-lookup audit" \
+          "ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES" \
+          "ABLE_COMPILER_INTERFACE_LOOKUP_BATCH_INDEX" \
+          "ABLE_COMPILER_INTERFACE_LOOKUP_BATCH_COUNT" \
+          "24" \
+          '^TestCompilerInterfaceLookupBypassForStaticFixtures$'
+
+        echo ">>> Running compiler boundary audit"
+        run_compiler_batched_release_test \
+          "compiler boundary audit" \
+          "ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES" \
+          "ABLE_COMPILER_BOUNDARY_AUDIT_BATCH_INDEX" \
+          "ABLE_COMPILER_BOUNDARY_AUDIT_BATCH_COUNT" \
+          "24" \
+          '^TestCompilerBoundaryFallbackMarkerForStaticFixtures$'
+      fi
     fi
   fi
 )

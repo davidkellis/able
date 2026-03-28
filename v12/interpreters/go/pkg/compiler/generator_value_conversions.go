@@ -48,7 +48,7 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 		bits := g.intBits(expected)
 		return fmt.Sprintf("func() %s { val := %s; v, err := bridge.AsUint(val, %d); if err != nil { panic(err) }; return %s(v) }()", expected, valueExpr, bits, expected), true
 	case "struct":
-		baseName, ok := g.structBaseName(expected)
+		baseName, ok := g.structHelperName(expected)
 		if !ok {
 			baseName = strings.TrimPrefix(expected, "*")
 		}
@@ -282,7 +282,7 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		lines = append(lines, controlLines...)
 		return lines, fmt.Sprintf("%s(%s)", expected, vTemp), true
 	case "struct":
-		baseName, ok := g.structBaseName(expected)
+		baseName, ok := g.structHelperName(expected)
 		if !ok {
 			baseName = strings.TrimPrefix(expected, "*")
 		}
@@ -442,7 +442,7 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 	case "uint64":
 		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))", expr), true
 	case "struct":
-		baseName, ok := g.structBaseName(goType)
+		baseName, ok := g.structHelperName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
 		}
@@ -530,7 +530,7 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 	case "void":
 		return []string{fmt.Sprintf("_ = %s", expr)}, "runtime.VoidValue{}", true
 	case "struct":
-		baseName, ok := g.structBaseName(goType)
+		baseName, ok := g.structHelperName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
 		}

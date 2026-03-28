@@ -80,6 +80,37 @@ func TestCompilerNamedClosedUnionReturnWrapsNativeVariants(t *testing.T) {
 	}
 }
 
+func TestCompilerParameterizedStructUnionMembersUseConcreteStructHelpers(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Box T { value: T }",
+		"union Item = Box i32 | String",
+		"",
+		"fn id(value: Item) -> Item { value }",
+		"",
+	}, "\n"))
+
+	fromBody, ok := findCompiledFunction(result, "__able_union__Box_i32_or_string_from_value")
+	if !ok {
+		t.Fatalf("could not find native union from-value helper")
+	}
+	if !strings.Contains(fromBody, "__able_struct_Box_i32_from(coerced)") {
+		t.Fatalf("expected native union conversion to use the concrete struct helper for Box i32:\n%s", fromBody)
+	}
+
+	toBody, ok := findCompiledFunction(result, "__able_union__Box_i32_or_string_to_value")
+	if !ok {
+		t.Fatalf("could not find native union to-value helper")
+	}
+	if !strings.Contains(toBody, "__able_struct_Box_i32_to(rt, raw.Value)") {
+		t.Fatalf("expected native union conversion to use the concrete struct runtime helper for Box i32:\n%s", toBody)
+	}
+	if strings.Contains(fromBody, "__able_struct_Box_from(coerced)") || strings.Contains(toBody, "__able_struct_Box_to(rt, raw.Value)") {
+		t.Fatalf("expected native union conversion to avoid base generic struct helpers for Box i32:\nfrom:\n%s\n\nto:\n%s", fromBody, toBody)
+	}
+}
+
 func TestCompilerOrElseOnErrorUnionUsesNativeCarrierDetection(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
@@ -147,8 +178,13 @@ func TestCompilerMatchOnErrorUnionUsesNativeCarrierDetection(t *testing.T) {
 	if strings.Contains(body, "__able_try_cast(") || strings.Contains(body, "bridge.MatchType(") {
 		t.Fatalf("expected Error-typed native union match to avoid dynamic type probing:\n%s", body)
 	}
-	if !strings.Contains(body, "__able_any_to_value(") {
-		t.Fatalf("expected Error binding conversion to stay at the branch edge:\n%s", body)
+	for _, fragment := range []string{
+		"runtime.ErrorValue{Message:",
+		"var err runtime.ErrorValue =",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected Error binding conversion to stay on the native error carrier at the branch edge (%q):\n%s", fragment, body)
+		}
 	}
 }
 

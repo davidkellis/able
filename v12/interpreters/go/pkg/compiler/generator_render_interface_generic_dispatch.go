@@ -6,17 +6,27 @@ import (
 	"strings"
 )
 
-func (g *generator) renderNativeInterfaceGenericDispatchHelpers(buf *bytes.Buffer) {
+func (g *generator) renderNativeInterfaceGenericDispatchHelpers(buf *bytes.Buffer) bool {
 	if g == nil || buf == nil || len(g.nativeInterfaceGenericDispatches) == 0 {
-		return
+		return false
 	}
+	if g.nativeInterfaceRenderedDispatches == nil {
+		g.nativeInterfaceRenderedDispatches = make(map[string]struct{})
+	}
+	progress := false
 	for _, key := range g.sortedNativeInterfaceGenericDispatchKeys() {
 		info := g.nativeInterfaceGenericDispatches[key]
 		if info == nil {
 			continue
 		}
+		if _, ok := g.nativeInterfaceRenderedDispatches[key]; ok {
+			continue
+		}
 		g.renderNativeInterfaceGenericDispatchHelper(buf, info)
+		g.nativeInterfaceRenderedDispatches[key] = struct{}{}
+		progress = true
 	}
+	return progress
 }
 
 func (g *generator) renderNativeInterfaceGenericDispatchHelper(buf *bytes.Buffer, dispatch *nativeInterfaceGenericDispatchInfo) {
@@ -52,7 +62,28 @@ func (g *generator) renderNativeInterfaceGenericDispatchHelper(buf *bytes.Buffer
 		renderedCase = true
 		fmt.Fprintf(buf, "\tcase %s:\n", dispatchCase.AdapterType)
 		args := make([]string, 0, len(dispatch.ParamGoTypes)+1)
-		args = append(args, "typed.Value")
+		selfExpr := "typed.Value"
+		selfType := dispatchCase.GoType
+		if impl.Info != nil && len(impl.Info.Params) > 0 && impl.Info.Params[0].GoType != "" {
+			implSelfType := impl.Info.Params[0].GoType
+			if implSelfType != selfType {
+				if g.renderNativeInterfaceReceiverCoercionControl(buf, "\t\t", "__able_self_converted", "typed.Value", selfType, implSelfType, dispatch.ReturnGoType) {
+					selfExpr = "__able_self_converted"
+				} else {
+					runtimeSelf := "__able_generic_self_value"
+					g.renderNativeInterfaceGoToRuntimeValueControl(buf, runtimeSelf, "typed.Value", selfType, dispatch.ReturnGoType)
+					if implSelfType != "runtime.Value" {
+						if !g.renderNativeInterfaceRuntimeToGoValueControl(buf, "__able_self_converted", runtimeSelf, implSelfType, dispatch.ReturnGoType) {
+							return
+						}
+						selfExpr = "__able_self_converted"
+					} else {
+						selfExpr = runtimeSelf
+					}
+				}
+			}
+		}
+		args = append(args, selfExpr)
 		for idx, paramGoType := range dispatch.ParamGoTypes {
 			argExpr := fmt.Sprintf("arg%d", idx)
 			implParamType := paramGoType

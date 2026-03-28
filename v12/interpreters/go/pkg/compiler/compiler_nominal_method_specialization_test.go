@@ -286,3 +286,225 @@ func TestCompilerBoundGenericFieldCarrierSpecializationExecutes(t *testing.T) {
 		t.Fatalf("expected output 2, got %q", got)
 	}
 }
+
+func TestCompilerGenericStaticNominalMethodInfersInterfaceParamBindingStaysNative(t *testing.T) {
+	result := compileNoFallbackExecSource(t, "ablec-static-nominal-interface-param-spec", strings.Join([]string{
+		"package demo",
+		"",
+		"interface Reader T {",
+		"  fn read(self) -> T",
+		"}",
+		"",
+		"struct IntReader {",
+		"  value: i32",
+		"}",
+		"",
+		"impl Reader i32 for IntReader {",
+		"  fn read(self: Self) -> i32 {",
+		"    self.value",
+		"  }",
+		"}",
+		"",
+		"struct Holder T {",
+		"  value: T",
+		"}",
+		"",
+		"methods Holder T {",
+		"  fn from_reader(reader: Reader T) -> Holder T {",
+		"    Holder { value: reader.read() }",
+		"  }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  reader := IntReader { value: 7 }",
+		"  holder: Holder i32 = Holder.from_reader(reader)",
+		"  holder.value",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	source := compiledSourceText(t, result)
+	if !strings.Contains(mainBody, "__able_compiled_method_Holder_from_reader_spec(") {
+		t.Fatalf("expected main to call the specialized static nominal method:\n%s", mainBody)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_method_Holder_from_reader_spec(reader __able_iface_Reader_i32) (*Holder_i32, *__ableControl)",
+		"var holder *Holder_i32 = ",
+	} {
+		if !strings.Contains(source, fragment) && !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected static nominal interface-param specialization to contain %q:\n%s", fragment, source)
+		}
+	}
+	specBody, ok := findCompiledFunction(result, "__able_compiled_method_Holder_from_reader_spec")
+	if !ok {
+		t.Fatalf("could not find specialized Holder.from_reader")
+	}
+	for _, fragment := range []string{
+		"__able_method_call_node(",
+		"__able_call_value(",
+		"bridge.MatchType(",
+		"runtime.Value",
+	} {
+		if strings.Contains(specBody, fragment) {
+			t.Fatalf("expected specialized Holder.from_reader to avoid %q:\n%s", fragment, specBody)
+		}
+	}
+}
+
+func TestCompilerGenericStaticNominalMethodInfersInterfaceParamBindingExecutes(t *testing.T) {
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-static-nominal-interface-param-exec", strings.Join([]string{
+		"package demo",
+		"",
+		"interface Reader T {",
+		"  fn read(self) -> T",
+		"}",
+		"",
+		"struct IntReader {",
+		"  value: i32",
+		"}",
+		"",
+		"impl Reader i32 for IntReader {",
+		"  fn read(self: Self) -> i32 {",
+		"    self.value",
+		"  }",
+		"}",
+		"",
+		"struct Holder T {",
+		"  value: T",
+		"}",
+		"",
+		"methods Holder T {",
+		"  fn from_reader(reader: Reader T) -> Holder T {",
+		"    Holder { value: reader.read() }",
+		"  }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  reader := IntReader { value: 7 }",
+		"  holder: Holder i32 = Holder.from_reader(reader)",
+		"  print(holder.value)",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+	if got := strings.TrimSpace(stdout); got != "7" {
+		t.Fatalf("expected output 7, got %q", got)
+	}
+}
+
+func TestCompilerGenericStaticNominalMethodInfersInterfaceParamBindingWithoutExpectedStaysNative(t *testing.T) {
+	result := compileNoFallbackExecSource(t, "ablec-static-nominal-interface-param-inferred-local-spec", strings.Join([]string{
+		"package demo",
+		"",
+		"interface Reader T {",
+		"  fn read(self) -> T",
+		"}",
+		"",
+		"struct IntReader {",
+		"  value: i32",
+		"}",
+		"",
+		"impl Reader i32 for IntReader {",
+		"  fn read(self: Self) -> i32 {",
+		"    self.value",
+		"  }",
+		"}",
+		"",
+		"struct Holder T {",
+		"  value: T",
+		"}",
+		"",
+		"methods Holder T {",
+		"  fn from_reader(reader: Reader T) -> Holder T {",
+		"    Holder { value: reader.read() }",
+		"  }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  reader := IntReader { value: 9 }",
+		"  holder := Holder.from_reader(reader)",
+		"  holder.value",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	source := compiledSourceText(t, result)
+	if !strings.Contains(mainBody, "__able_compiled_method_Holder_from_reader_spec(") {
+		t.Fatalf("expected inferred-local main to call the specialized static nominal method:\n%s", mainBody)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_method_Holder_from_reader_spec(reader __able_iface_Reader_i32) (*Holder_i32, *__ableControl)",
+		"var holder *Holder_i32 = ",
+	} {
+		if !strings.Contains(source, fragment) && !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected inferred-local static nominal interface-param specialization to contain %q:\n%s", fragment, source)
+		}
+	}
+	specBody, ok := findCompiledFunction(result, "__able_compiled_method_Holder_from_reader_spec")
+	if !ok {
+		t.Fatalf("could not find specialized Holder.from_reader")
+	}
+	for _, fragment := range []string{
+		"__able_method_call_node(",
+		"__able_call_value(",
+		"bridge.MatchType(",
+		"runtime.Value",
+	} {
+		if strings.Contains(specBody, fragment) {
+			t.Fatalf("expected inferred-local specialized Holder.from_reader to avoid %q:\n%s", fragment, specBody)
+		}
+	}
+}
+
+func TestCompilerGenericStaticNominalMethodInfersInterfaceParamBindingWithoutExpectedExecutes(t *testing.T) {
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-static-nominal-interface-param-inferred-local-exec", strings.Join([]string{
+		"package demo",
+		"",
+		"interface Reader T {",
+		"  fn read(self) -> T",
+		"}",
+		"",
+		"struct IntReader {",
+		"  value: i32",
+		"}",
+		"",
+		"impl Reader i32 for IntReader {",
+		"  fn read(self: Self) -> i32 {",
+		"    self.value",
+		"  }",
+		"}",
+		"",
+		"struct Holder T {",
+		"  value: T",
+		"}",
+		"",
+		"methods Holder T {",
+		"  fn from_reader(reader: Reader T) -> Holder T {",
+		"    Holder { value: reader.read() }",
+		"  }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  reader := IntReader { value: 9 }",
+		"  holder := Holder.from_reader(reader)",
+		"  print(holder.value)",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+	if got := strings.TrimSpace(stdout); got != "9" {
+		t.Fatalf("expected output 9, got %q", got)
+	}
+}

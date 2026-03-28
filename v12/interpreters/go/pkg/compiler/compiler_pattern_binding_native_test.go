@@ -106,8 +106,11 @@ func TestCompilerNativeUnionTypedPatternWholeValueBindingUsesNativeInterfaceCarr
 	if !ok {
 		t.Fatalf("could not find compiled main function")
 	}
-	if !strings.Contains(body, "var reader __able_iface_Reader_i32 =") {
-		t.Fatalf("expected native-union typed whole-value binding to stay on the native interface carrier:\n%s", body)
+	if !strings.Contains(body, "var reader *First =") {
+		t.Fatalf("expected native-union typed whole-value binding to stay on a native carrier without runtime boxing:\n%s", body)
+	}
+	if !strings.Contains(body, "__able_compiled_impl_Reader_read_0_spec(reader)") {
+		t.Fatalf("expected native-union typed whole-value binding to dispatch through the compiled Reader impl:\n%s", body)
 	}
 	if strings.Contains(body, "var reader runtime.Value") {
 		t.Fatalf("expected native-union typed whole-value binding to avoid runtime.Value local:\n%s", body)

@@ -120,6 +120,9 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			}
 			lines = append(lines, "}")
 			lines = append(lines, g.staticArraySyncCall(objType, objTemp))
+			if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, indexTarget.Object, objTemp, objType); ok {
+				lines = append(lines, writebackLines...)
+			}
 			return lines, resultTemp, "runtime.Value", true
 		}
 	runtimeIndexAssignment:
@@ -228,7 +231,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			objExpr = recoveredExpr
 			objType = recoveredType
 		}
-		if info := g.structInfoByGoName(objType); info != nil {
+		if info := g.staticStructInfoForAccess(objType); info != nil {
 			if assign.Operator != ast.AssignmentAssign {
 				op, ok := binaryOpForAssignment(assign.Operator)
 				if !ok {
@@ -494,8 +497,9 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		ctx.setReason(":= requires new binding")
 		return nil, "", "", false
 	}
-	declaring := assign.Operator == ast.AssignmentDeclare || !exists
-	useEnvSet := assign.Operator == ast.AssignmentAssign && !exists && (typeAnnotation == nil || g.hasModuleBindingName(ctx.packageName, name))
+	moduleBindingReuse := !currentExists && g.hasModuleBindingName(ctx.packageName, name)
+	declaring := (assign.Operator == ast.AssignmentDeclare && !moduleBindingReuse) || (!exists && !moduleBindingReuse)
+	useEnvSet := !exists && moduleBindingReuse
 	var goType string
 	if typeAnnotation != nil {
 		mapped, ok := g.lowerCarrierType(ctx, typeAnnotation)
@@ -552,24 +556,41 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			assignmentTypeExpr = inferredTypeExpr
 		}
 	}
-	if ifaceType, ok := g.interfaceTypeExpr(assignmentTypeExpr); ok && goType == "runtime.Value" {
-		ifaceLines, coerced, ok := g.interfaceReturnExprLines(ctx, expr, ifaceType, ctx.genericNames)
-		if !ok {
-			ctx.setReason("unsupported interface assignment coercion")
-			return nil, "", "", false
+	if assignmentTypeExpr != nil && goType != "" {
+		if refinedLines, refinedExpr, refinedType, ok := g.refineInferredAssignmentCarrier(ctx, assign.Right, goType, assignmentTypeExpr); ok {
+			exprLines = refinedLines
+			expr = refinedExpr
+			goType = refinedType
 		}
-		exprLines = append(exprLines, ifaceLines...)
-		expr = coerced
+	}
+	if !useEnvSet {
+		if ifaceType, ok := g.interfaceTypeExpr(assignmentTypeExpr); ok && goType == "runtime.Value" {
+			ifaceLines, coerced, ok := g.interfaceReturnExprLines(ctx, expr, ifaceType, ctx.genericNames)
+			if !ok {
+				ctx.setReason("unsupported interface assignment coercion")
+				return nil, "", "", false
+			}
+			exprLines = append(exprLines, ifaceLines...)
+			expr = coerced
+		}
 	}
 	if useEnvSet {
-		valConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, expr, goType)
+		runtimeLines := exprLines
+		valueRuntime := expr
+		valueRuntimeType := goType
+		if recompiledLines, recompiledExpr, recompiledType, recompiled := g.compileTailExpression(ctx, "runtime.Value", assign.Right); recompiled && recompiledType == "runtime.Value" {
+			runtimeLines = recompiledLines
+			valueRuntime = recompiledExpr
+			valueRuntimeType = recompiledType
+		}
+		valConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, valueRuntime, valueRuntimeType)
 		if !ok {
 			ctx.setReason("env assignment value unsupported")
 			return nil, "", "", false
 		}
 		nodeName := g.diagNodeName(assign, "*ast.AssignmentExpression", "assign")
 		resultTemp := ctx.newTemp()
-		lines := append([]string{}, exprLines...)
+		lines := append([]string{}, runtimeLines...)
 		lines = append(lines, valConvLines...)
 		lines = append(lines, fmt.Sprintf("%s := __able_env_set(%q, %s, %s)", resultTemp, name, valueRuntime, nodeName))
 		return lines, resultTemp, "runtime.Value", true
@@ -638,6 +659,36 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		}
 	}
 	return lines, goName, goType, true
+}
+
+func (g *generator) refineInferredAssignmentCarrier(
+	ctx *compileContext,
+	right ast.Expression,
+	currentGoType string,
+	typeExpr ast.TypeExpression,
+) ([]string, string, string, bool) {
+	if g == nil || ctx == nil || right == nil || typeExpr == nil || currentGoType == "" {
+		return nil, "", "", false
+	}
+	refinedGoType, ok := g.lowerCarrierType(ctx, typeExpr)
+	if !ok || refinedGoType == "" || refinedGoType == currentGoType {
+		return nil, "", "", false
+	}
+	needsRefine := currentGoType == "runtime.Value" || currentGoType == "any"
+	if !needsRefine && g.isArrayStructType(currentGoType) && !g.isArrayStructType(refinedGoType) {
+		needsRefine = true
+	}
+	if !needsRefine {
+		return nil, "", "", false
+	}
+	previousExpectedTypeExpr := ctx.expectedTypeExpr
+	ctx.expectedTypeExpr = typeExpr
+	refinedLines, refinedExpr, refinedActualType, ok := g.compileTailExpression(ctx, refinedGoType, right)
+	ctx.expectedTypeExpr = previousExpectedTypeExpr
+	if !ok || refinedActualType != refinedGoType {
+		return nil, "", "", false
+	}
+	return refinedLines, refinedExpr, refinedGoType, true
 }
 
 func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.AssignmentExpression, pattern ast.Pattern) ([]string, string, string, bool) {

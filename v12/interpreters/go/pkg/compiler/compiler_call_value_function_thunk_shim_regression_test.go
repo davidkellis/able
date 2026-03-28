@@ -26,8 +26,11 @@ func TestCompilerNormalizesCallValueFunctionThunkDispatch(t *testing.T) {
 	if !strings.Contains(compiledSrc, "if !ok || nilPtr {") {
 		t.Fatalf("expected function-thunk helper to reject non-function and typed-nil function values")
 	}
-	if !strings.Contains(compiledSrc, "if val, err, ok := __able_call_compiled_thunk(fn.Bytecode, __able_runtime.Env(), args); ok {") {
-		t.Fatalf("expected function-thunk helper to wrap compiled thunk invocation")
+	if !strings.Contains(compiledSrc, "if val, err, ok := __able_call_compiled_thunk(fn.Bytecode, __able_function_call_env(fn), args); ok {") {
+		t.Fatalf("expected function-thunk helper to wrap compiled thunk invocation with the function closure env")
+	}
+	if !strings.Contains(compiledSrc, "__able_call_env := __able_function_call_env(fn)") || !strings.Contains(compiledSrc, "bridge.SwapEnvIfNeeded(__able_runtime, __able_call_env)") {
+		t.Fatalf("expected function-thunk helper to swap the runtime env to the function closure env before interpreter bridge calls")
 	}
 
 	start := strings.Index(compiledSrc, "func __able_call_bound_method(")

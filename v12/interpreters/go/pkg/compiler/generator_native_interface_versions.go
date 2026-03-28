@@ -14,5 +14,5 @@ func (g *generator) nativeInterfaceRefreshAllowed() bool {
 	if g == nil {
 		return false
 	}
-	return len(g.nativeInterfaceSpecializing) == 0 && g.bodyCompilationDepth == 0
+	return len(g.nativeInterfaceSpecializing) == 0
 }

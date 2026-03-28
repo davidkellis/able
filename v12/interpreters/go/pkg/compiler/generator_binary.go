@@ -23,6 +23,11 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 	if !ok {
 		return nil, "", "", false
 	}
+	if expr.Operator == "==" || expr.Operator == "!=" {
+		if nilLines, nilExpr, nilType, ok := g.compileRuntimeNilComparison(ctx, expr, left, leftType, right, rightType, expected); ok {
+			return append(operandLines, nilLines...), nilExpr, nilType, true
+		}
+	}
 	// If either operand is runtime.Value or any, use runtime binary operation.
 	if leftType == "runtime.Value" || rightType == "runtime.Value" || leftType == "any" || rightType == "any" {
 		rtLines, rtExpr, rtType, ok := g.compileRuntimeBinaryOperation(ctx, expr.Operator, left, leftType, right, rightType, expected)
@@ -35,6 +40,9 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 	case "==", "!=", "<", "<=", ">", ">=":
 		if expr.Operator == "==" || expr.Operator == "!=" {
 			if cmpExpr, cmpType, ok := g.compileStaticNilComparison(expr, left, leftType, right, rightType, expected); ok {
+				return operandLines, cmpExpr, cmpType, true
+			}
+			if cmpExpr, cmpType, ok := g.compileStaticNullableEqualityComparison(expr, left, leftType, right, rightType, expected); ok {
 				return operandLines, cmpExpr, cmpType, true
 			}
 		}

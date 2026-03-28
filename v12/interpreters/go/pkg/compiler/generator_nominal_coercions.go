@@ -16,7 +16,7 @@ type nominalCoercionInfo struct {
 }
 
 func (g *generator) ensureNominalCoercionInfo(actual string, expected string) *nominalCoercionInfo {
-	if g == nil || actual == "" || expected == "" || actual == expected || !g.sameNominalStructFamily(expected, actual) {
+	if g == nil || actual == "" || expected == "" || actual == expected || !g.nominalStructCarrierCoercible(expected, actual) {
 		return nil
 	}
 	if g.nominalCoercions == nil {
@@ -49,7 +49,7 @@ func (g *generator) ensureNominalCoercionInfo(actual string, expected string) *n
 		if actualField.GoType == expectedField.GoType {
 			continue
 		}
-		if g.sameNominalStructFamily(expectedField.GoType, actualField.GoType) {
+		if g.nominalStructCarrierCoercible(expectedField.GoType, actualField.GoType) {
 			g.ensureNominalCoercionInfo(actualField.GoType, expectedField.GoType)
 		}
 	}
@@ -136,7 +136,7 @@ func (g *generator) renderNominalCoercionField(buf *bytes.Buffer, info *nominalC
 		fmt.Fprintf(buf, "\t%s = %s\n", assignTarget, actualExpr)
 		return
 	}
-	if g.sameNominalStructFamily(expectedField.GoType, actualField.GoType) {
+	if g.nominalStructCarrierCoercible(expectedField.GoType, actualField.GoType) {
 		nested := g.ensureNominalCoercionInfo(actualField.GoType, expectedField.GoType)
 		if nested != nil {
 			errName := fmt.Sprintf("__able_nominal_err_%d", *tempCounter)
@@ -151,6 +151,11 @@ func (g *generator) renderNominalCoercionField(buf *bytes.Buffer, info *nominalC
 			fmt.Fprintf(buf, "\t}\n")
 			return
 		}
+	}
+	if g.renderNativeInterfaceDirectCoercionError(buf, "\t", fmt.Sprintf("__able_nominal_iface_%d", *tempCounter), actualExpr, actualField.GoType, expectedField.GoType, "nil") {
+		fmt.Fprintf(buf, "\t%s = __able_nominal_iface_%d\n", assignTarget, *tempCounter)
+		*tempCounter++
+		return
 	}
 	runtimeValueName := fmt.Sprintf("__able_nominal_runtime_%d", *tempCounter)
 	*tempCounter++
@@ -189,7 +194,7 @@ func (g *generator) nominalFieldNeedsRuntimeContext(goType string) bool {
 }
 
 func (g *generator) coerceNominalStructFamilyLines(ctx *compileContext, expr string, actual string, expected string) ([]string, string, bool) {
-	if g == nil || ctx == nil || expr == "" || !g.sameNominalStructFamily(expected, actual) {
+	if g == nil || ctx == nil || expr == "" || !g.nominalStructCarrierCoercible(expected, actual) {
 		return nil, "", false
 	}
 	if actual == expected {

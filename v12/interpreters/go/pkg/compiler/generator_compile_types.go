@@ -23,6 +23,11 @@ type controlFlowResultProbe struct {
 	sawNil          bool
 }
 
+type nominalCoercionOrigin struct {
+	Expr   string
+	GoType string
+}
+
 type compileContext struct {
 	params                 map[string]paramInfo
 	locals                 map[string]paramInfo
@@ -61,4 +66,6 @@ type compileContext struct {
 	typeBindings           map[string]ast.TypeExpression
 	implSiblings           map[string]implSiblingInfo
 	originExtractions      map[string]string // CSE cache: Able variable name → Go extraction temp
+	coercedNominalOrigins  map[string]nominalCoercionOrigin
+	analysisOnly           bool
 }

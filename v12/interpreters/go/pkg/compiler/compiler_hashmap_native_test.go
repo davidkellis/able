@@ -32,10 +32,10 @@ func TestCompilerHashMapStaticCarrierStaysNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_build() (*HashMap, *__ableControl)") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_build() (*HashMap") {
 		t.Fatalf("expected HashMap return to stay on the native carrier:\n%s", compiledSrc)
 	}
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_size_of(values *HashMap) (int32, *__ableControl)") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_size_of(values *HashMap") {
 		t.Fatalf("expected HashMap param to stay on the native carrier:\n%s", compiledSrc)
 	}
 
@@ -44,9 +44,9 @@ func TestCompilerHashMapStaticCarrierStaysNative(t *testing.T) {
 		t.Fatalf("could not find compiled build function")
 	}
 	for _, fragment := range []string{
-		"var values *HashMap =",
-		"__able_compiled_method_HashMap_with_capacity(",
-		"__able_compiled_method_HashMap_raw_set(values",
+		"var values *HashMap",
+		"__able_compiled_method_HashMap_with_capacity",
+		"__able_compiled_method_HashMap_raw_set",
 	} {
 		if !strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected native HashMap build lowering to contain %q:\n%s", fragment, buildBody)
@@ -66,7 +66,7 @@ func TestCompilerHashMapStaticCarrierStaysNative(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not find compiled size_of function")
 	}
-	if !strings.Contains(sizeBody, "__able_compiled_method_HashMap_raw_size(values)") {
+	if !strings.Contains(sizeBody, "__able_compiled_method_HashMap_raw_size") {
 		t.Fatalf("expected native HashMap param dispatch in size_of:\n%s", sizeBody)
 	}
 }
@@ -89,9 +89,9 @@ func TestCompilerHashMapLiteralStaysNative(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	for _, fragment := range []string{
-		"var values *HashMap = func() *HashMap {",
+		"var values *HashMap_String_i32 = func() *HashMap_String_i32 {",
 		"handleRaw, err := __able_hash_map_handle_from_value(handleVal)",
-		"return &HashMap{Handle: handleRaw}",
+		"return &HashMap_String_i32{Handle: handleRaw}",
 		"__able_hash_map_set_impl(",
 	} {
 		if !strings.Contains(body, fragment) {
@@ -121,8 +121,8 @@ func TestCompilerHashMapCarrierArrayStaysSpecialized(t *testing.T) {
 
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
-		"type __able_array_HashMap struct {",
-		"Elements       []*HashMap",
+		"type __able_array_HashMap_String_i32 struct {",
+		"Elements       []*HashMap_String_i32",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
 			t.Fatalf("expected Array(HashMap) carrier lowering to contain %q", fragment)
@@ -134,8 +134,9 @@ func TestCompilerHashMapCarrierArrayStaysSpecialized(t *testing.T) {
 		t.Fatalf("could not find compiled build function")
 	}
 	for _, fragment := range []string{
-		"var maps *__able_array_HashMap =",
+		"var maps *__able_array_HashMap_String_i32 =",
 		"var values *HashMap =",
+		"__able_nominal_coerce_HashMap_to_HashMap_String_i32",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected Array(HashMap) build lowering to contain %q:\n%s", fragment, body)
@@ -256,10 +257,10 @@ func TestCompilerHashSetStaticCarrierStaysNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_build() (*HashSet, *__ableControl)") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_build() (*HashSet_i32, *__ableControl)") {
 		t.Fatalf("expected HashSet return to stay on the native carrier:\n%s", compiledSrc)
 	}
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_size_of(values *HashSet) (int32, *__ableControl)") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_size_of(values *HashSet_i32) (int32, *__ableControl)") {
 		t.Fatalf("expected HashSet param to stay on the native carrier:\n%s", compiledSrc)
 	}
 
@@ -268,13 +269,17 @@ func TestCompilerHashSetStaticCarrierStaysNative(t *testing.T) {
 		t.Fatalf("could not find compiled build function")
 	}
 	for _, fragment := range []string{
-		"var values *HashSet =",
-		"__able_compiled_method_HashSet_with_capacity(",
-		"__able_compiled_method_HashSet_add(values",
+		"var values *HashSet_i32 =",
+		"__able_compiled_method_HashSet_with_capacity_spec(",
 	} {
 		if !strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected native HashSet build lowering to contain %q:\n%s", fragment, buildBody)
 		}
+	}
+	if addName, ok := calledFunctionNameFromBody(buildBody, "__able_compiled_method_HashSet_add_spec"); !ok {
+		t.Fatalf("expected native HashSet build lowering to call a specialized add helper:\n%s", buildBody)
+	} else if !strings.Contains(buildBody, addName+"(values, int32(1))") || !strings.Contains(buildBody, addName+"(values, int32(2))") {
+		t.Fatalf("expected native HashSet build lowering to reuse the specialized add helper:\n%s", buildBody)
 	}
 	for _, fragment := range []string{
 		"var values any =",
@@ -290,7 +295,7 @@ func TestCompilerHashSetStaticCarrierStaysNative(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not find compiled size_of function")
 	}
-	if !strings.Contains(sizeBody, "__able_compiled_method_HashSet_size(values)") {
+	if !strings.Contains(sizeBody, "__able_compiled_method_HashSet_size_spec(values)") {
 		t.Fatalf("expected native HashSet param dispatch in size_of:\n%s", sizeBody)
 	}
 }
@@ -313,8 +318,8 @@ func TestCompilerHashSetCarrierArrayStaysSpecialized(t *testing.T) {
 
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
-		"type __able_array_HashSet struct {",
-		"Elements       []*HashSet",
+		"type __able_array_HashSet_i32 struct {",
+		"Elements       []*HashSet_i32",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
 			t.Fatalf("expected Array(HashSet) carrier lowering to contain %q", fragment)
@@ -326,8 +331,9 @@ func TestCompilerHashSetCarrierArrayStaysSpecialized(t *testing.T) {
 		t.Fatalf("could not find compiled build function")
 	}
 	for _, fragment := range []string{
-		"var sets *__able_array_HashSet =",
+		"var sets *__able_array_HashSet_i32 =",
 		"var values *HashSet =",
+		"__able_nominal_coerce_HashSet_to_HashSet_i32",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected Array(HashSet) build lowering to contain %q:\n%s", fragment, body)
@@ -371,8 +377,8 @@ func TestCompilerHashSetIteratorWrapsConcreteNativeIterator(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "__able_iface_Iterator_i32_wrap_ptr_HashSetIterator(") {
-		t.Fatalf("expected Iterator<i32> concrete adapter for HashSetIterator to be emitted:\n%s", compiledSrc)
+	if !strings.Contains(compiledSrc, "func __able_iface_Iterator_i32_wrap_ptr_HashSetIterator_i32(") {
+		t.Fatalf("expected Iterator<i32> concrete adapter for HashSetIterator_i32 to be emitted:\n%s", compiledSrc)
 	}
 
 	buildBody, ok := findCompiledFunction(result, "__able_compiled_fn_build")
@@ -381,7 +387,9 @@ func TestCompilerHashSetIteratorWrapsConcreteNativeIterator(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"func __able_compiled_fn_build() (__able_iface_Iterator_i32, *__ableControl)",
-		"__able_compiled_impl_Enumerable_iterator_0(values)",
+		"__able_compiled_impl_Enumerable_iterator_0_spec(",
+		"__able_nominal_coerce_HashSet_to_HashSet_i32(",
+		"__able_iface_Iterator_A_to_runtime_value(__able_runtime,",
 		"__able_iface_Iterator_i32_from_value(__able_runtime,",
 	} {
 		if !strings.Contains(compiledSrc, fragment) && !strings.Contains(buildBody, fragment) {

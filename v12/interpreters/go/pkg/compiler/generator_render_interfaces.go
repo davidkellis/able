@@ -13,27 +13,64 @@ func (g *generator) renderNativeInterfaces(buf *bytes.Buffer) {
 	if g.nativeInterfaceRenderedAdapters == nil {
 		g.nativeInterfaceRenderedAdapters = make(map[string]struct{})
 	}
+	if g.nativeInterfaceRenderedInfos == nil {
+		g.nativeInterfaceRenderedInfos = make(map[string]struct{})
+	}
+	if g.nativeInterfaceRenderedDispatches == nil {
+		g.nativeInterfaceRenderedDispatches = make(map[string]struct{})
+	}
+	if g.nativeInterfaceRenderedApplyHelpers == nil {
+		g.nativeInterfaceRenderedApplyHelpers = make(map[string]struct{})
+	}
+	for {
+		progress := g.renderPendingNativeInterfaceScaffolding(buf)
+		if g.renderPendingNativeInterfaceConcreteAdapters(buf) {
+			progress = true
+		}
+		if g.renderNativeInterfaceGenericDispatchHelpers(buf) {
+			progress = true
+		}
+		if !progress {
+			break
+		}
+	}
+}
+
+func (g *generator) renderPendingNativeInterfaceScaffolding(buf *bytes.Buffer) bool {
+	if g == nil || buf == nil {
+		return false
+	}
+	progress := false
 	for _, key := range g.sortedNativeInterfaceKeys() {
 		info := g.nativeInterfaces[key]
 		if info == nil {
+			continue
+		}
+		if _, ok := g.nativeInterfaceRenderedInfos[key]; ok {
 			continue
 		}
 		g.renderNativeInterfaceType(buf, info)
 		g.renderNativeInterfaceRuntimeIteratorAdapter(buf, info)
 		g.renderNativeInterfaceRuntimeAdapter(buf, info)
+		g.nativeInterfaceRenderedInfos[key] = struct{}{}
+		progress = true
 	}
-	for g.renderPendingNativeInterfaceConcreteAdapters(buf) {
+	return progress
+}
+
+func (g *generator) renderNativeInterfaceBoundaryHelpersFinal(buf *bytes.Buffer) {
+	if g == nil || buf == nil {
+		return
 	}
 	for _, key := range g.sortedNativeInterfaceKeys() {
 		info := g.nativeInterfaces[key]
 		if info == nil {
 			continue
 		}
+		if info.AdapterVersion != g.nativeInterfaceAdapterVersion {
+			g.refreshNativeInterfaceAdapters(info)
+		}
 		g.renderNativeInterfaceBoundaryHelpers(buf, info)
-		g.renderNativeInterfaceApplyRuntimeHelper(buf, info)
-	}
-	g.renderNativeInterfaceGenericDispatchHelpers(buf)
-	for g.renderPendingNativeInterfaceConcreteAdapters(buf) {
 	}
 }
 
@@ -41,7 +78,7 @@ func (g *generator) renderPendingNativeInterfaceConcreteAdapters(buf *bytes.Buff
 	if g == nil || buf == nil {
 		return false
 	}
-	progress := false
+	progress := g.renderPendingNativeInterfaceScaffolding(buf)
 	for _, key := range g.sortedNativeInterfaceKeys() {
 		info := g.nativeInterfaces[key]
 		if info == nil {
@@ -82,6 +119,26 @@ func (g *generator) renderPendingNativeInterfaceConcreteAdapters(buf *bytes.Buff
 		}
 	}
 	return progress
+}
+
+func (g *generator) renderNativeInterfaceApplyRuntimeHelpers(buf *bytes.Buffer) {
+	if g == nil || buf == nil {
+		return
+	}
+	for _, key := range g.sortedNativeInterfaceKeys() {
+		info := g.nativeInterfaces[key]
+		if info == nil {
+			continue
+		}
+		if _, ok := g.nativeInterfaceRenderedApplyHelpers[key]; ok {
+			continue
+		}
+		if info.AdapterVersion != g.nativeInterfaceAdapterVersion {
+			g.refreshNativeInterfaceAdapters(info)
+		}
+		g.renderNativeInterfaceApplyRuntimeHelper(buf, info)
+		g.nativeInterfaceRenderedApplyHelpers[key] = struct{}{}
+	}
 }
 
 func (g *generator) renderNativeInterfaceRuntimeIteratorAdapter(buf *bytes.Buffer, info *nativeInterfaceInfo) {
@@ -125,7 +182,7 @@ func (g *generator) renderNativeInterfaceRuntimeIteratorAdapter(buf *bytes.Buffe
 			if g.renderNativeInterfaceRuntimeToGoValueControl(buf, "converted", "result", method.ReturnGoType, method.ReturnGoType) {
 				fmt.Fprintf(buf, "\treturn converted, nil\n")
 			} else {
-				fmt.Fprintf(buf, "\treturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native iterator conversion to %s\"))\n", zeroExpr, method.ReturnGoType)
+				fmt.Fprintf(buf, "\treturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native iterator conversion to %%s\", %q))\n", zeroExpr, method.ReturnGoType)
 			}
 			fmt.Fprintf(buf, "}\n\n")
 			continue
@@ -305,8 +362,35 @@ func (g *generator) renderNativeInterfaceConcreteAdapter(buf *bytes.Buffer, info
 			fmt.Fprintf(buf, "\tvar zero %s\n", method.ReturnGoType)
 			zeroExpr = "zero"
 		}
-		args := make([]string, 0, len(method.ParamGoTypes)+1)
-		args = append(args, "w.Value")
+		argCap := len(method.ParamGoTypes)
+		if method.ExpectsSelf {
+			argCap++
+		}
+		args := make([]string, 0, argCap)
+		if method.ExpectsSelf {
+			selfExpr := "w.Value"
+			selfType := adapter.GoType
+			if impl.Info != nil && len(impl.Info.Params) > 0 && impl.Info.Params[0].GoType != "" {
+				implSelfType := g.canonicalMethodReceiverGoType(impl.Info, selfType)
+				if implSelfType != selfType {
+					if g.renderNativeInterfaceReceiverCoercionControl(buf, "\t", "__able_self_converted", "w.Value", selfType, implSelfType, method.ReturnGoType) {
+						selfExpr = "__able_self_converted"
+					} else {
+						runtimeSelf := "__able_self_value"
+						g.renderNativeInterfaceGoToRuntimeValueControl(buf, runtimeSelf, "w.Value", selfType, method.ReturnGoType)
+						if implSelfType != "runtime.Value" {
+							if !g.renderNativeInterfaceRuntimeToGoValueControl(buf, "__able_self_converted", runtimeSelf, implSelfType, method.ReturnGoType) {
+								return
+							}
+							selfExpr = "__able_self_converted"
+						} else {
+							selfExpr = runtimeSelf
+						}
+					}
+				}
+			}
+			args = append(args, selfExpr)
+		}
 		for idx, paramType := range method.ParamGoTypes {
 			argExpr := fmt.Sprintf("arg%d", idx)
 			implParamType := paramType
@@ -370,7 +454,40 @@ func (g *generator) renderNativeInterfaceDirectCoercionControl(buf *bytes.Buffer
 		return false
 	}
 	fmt.Fprintf(buf, "\tvar %s %s\n", target, expectedGoType)
-	fmt.Fprintf(buf, "\tswitch typed := %s.(type) {\n", expr)
+	defaultLine := fmt.Sprintf("\t\treturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native interface conversion from %s to %s\"))", zeroExpr, actualGoType, expectedGoType)
+	return g.renderNativeInterfaceDirectCoercionSwitch(buf, "\t", target, expr, actualInfo, expectedInfo, defaultLine)
+}
+
+func (g *generator) renderNativeInterfaceDirectCoercionError(buf *bytes.Buffer, indent string, target string, expr string, actualGoType string, expectedGoType string, failureExpr string) bool {
+	if g == nil || buf == nil || target == "" || expr == "" || actualGoType == "" || expectedGoType == "" || failureExpr == "" {
+		return false
+	}
+	if actualGoType == expectedGoType {
+		fmt.Fprintf(buf, "%s%s := %s\n", indent, target, expr)
+		return true
+	}
+	actualInfo := g.nativeInterfaceInfoForGoType(actualGoType)
+	expectedInfo := g.nativeInterfaceInfoForGoType(expectedGoType)
+	if actualInfo == nil || expectedInfo == nil {
+		return false
+	}
+	fmt.Fprintf(buf, "%svar %s %s\n", indent, target, expectedGoType)
+	fmt.Fprintf(buf, "%sif %s == nil {\n", indent, expr)
+	fmt.Fprintf(buf, "%s\t%s = %s(nil)\n", indent, target, expectedGoType)
+	fmt.Fprintf(buf, "%s} else {\n", indent)
+	defaultLine := fmt.Sprintf("%s\t\treturn %s, fmt.Errorf(\"unsupported native interface conversion from %s to %s\")", indent, failureExpr, actualGoType, expectedGoType)
+	if !g.renderNativeInterfaceDirectCoercionSwitch(buf, indent+"\t", target, expr, actualInfo, expectedInfo, defaultLine) {
+		return false
+	}
+	fmt.Fprintf(buf, "%s}\n", indent)
+	return true
+}
+
+func (g *generator) renderNativeInterfaceDirectCoercionSwitch(buf *bytes.Buffer, indent string, target string, expr string, actualInfo *nativeInterfaceInfo, expectedInfo *nativeInterfaceInfo, defaultLine string) bool {
+	if g == nil || buf == nil || target == "" || expr == "" || actualInfo == nil || expectedInfo == nil || defaultLine == "" {
+		return false
+	}
+	fmt.Fprintf(buf, "%sswitch typed := %s.(type) {\n", indent, expr)
 	for _, actualAdapter := range g.nativeInterfaceKnownAdapters(actualInfo) {
 		if actualAdapter == nil || actualAdapter.AdapterType == "" || actualAdapter.GoType == "" {
 			continue
@@ -379,16 +496,16 @@ func (g *generator) renderNativeInterfaceDirectCoercionControl(buf *bytes.Buffer
 		if !ok || expectedAdapter == nil || expectedAdapter.WrapHelper == "" {
 			continue
 		}
-		fmt.Fprintf(buf, "\tcase %s:\n", actualAdapter.AdapterType)
-		fmt.Fprintf(buf, "\t\t%s = %s(typed.Value)\n", target, expectedAdapter.WrapHelper)
+		fmt.Fprintf(buf, "%scase %s:\n", indent, actualAdapter.AdapterType)
+		fmt.Fprintf(buf, "%s\t%s = %s(typed.Value)\n", indent, target, expectedAdapter.WrapHelper)
 	}
 	if actualInfo.RuntimeAdapter != "" && expectedInfo.RuntimeWrapHelper != "" {
-		fmt.Fprintf(buf, "\tcase %s:\n", actualInfo.RuntimeAdapter)
-		fmt.Fprintf(buf, "\t\t%s = %s(typed.Value)\n", target, expectedInfo.RuntimeWrapHelper)
+		fmt.Fprintf(buf, "%scase %s:\n", indent, actualInfo.RuntimeAdapter)
+		fmt.Fprintf(buf, "%s\t%s = %s(typed.Value)\n", indent, target, expectedInfo.RuntimeWrapHelper)
 	}
-	fmt.Fprintf(buf, "\tdefault:\n")
-	fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native interface conversion from %s to %s\"))\n", zeroExpr, actualGoType, expectedGoType)
-	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "%sdefault:\n", indent)
+	fmt.Fprintf(buf, "%s\n", defaultLine)
+	fmt.Fprintf(buf, "%s}\n", indent)
 	return true
 }
 
@@ -425,6 +542,8 @@ func (g *generator) renderNativeInterfaceBoundaryHelpers(buf *bytes.Buffer, info
 		fmt.Fprintf(buf, "\t} else if ok {\n")
 		if g.renderNativeInterfaceRuntimeToGoValueError(buf, "converted", "coerced", adapter.GoType, "\t\t") {
 			fmt.Fprintf(buf, "\t\treturn %s(converted), nil\n", adapter.WrapHelper)
+		} else {
+			fmt.Fprintf(buf, "\t\t_ = coerced\n")
 		}
 		fmt.Fprintf(buf, "\t}\n")
 	}
@@ -476,7 +595,7 @@ func (g *generator) renderNativeInterfaceApplyRuntimeHelper(buf *bytes.Buffer, i
 		if adapter == nil || !strings.HasPrefix(adapter.GoType, "*") || g.typeCategory(adapter.GoType) != "struct" {
 			continue
 		}
-		baseName, ok := g.structBaseName(adapter.GoType)
+		baseName, ok := g.structHelperName(adapter.GoType)
 		if !ok {
 			baseName = strings.TrimPrefix(adapter.GoType, "*")
 		}
@@ -603,7 +722,7 @@ func (g *generator) renderNativeInterfaceRuntimeToGoValueError(buf *bytes.Buffer
 		return true
 	default:
 		if g.typeCategory(goType) == "struct" {
-			baseName, ok := g.structBaseName(goType)
+			baseName, ok := g.structHelperName(goType)
 			if !ok {
 				baseName = strings.TrimPrefix(goType, "*")
 			}
@@ -719,7 +838,7 @@ func (g *generator) renderNativeInterfaceGoToRuntimeValue(buf *bytes.Buffer, tar
 		return true
 	}
 	if g.typeCategory(goType) == "struct" {
-		baseName, ok := g.structBaseName(goType)
+		baseName, ok := g.structHelperName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")
 		}
@@ -727,6 +846,8 @@ func (g *generator) renderNativeInterfaceGoToRuntimeValue(buf *bytes.Buffer, tar
 		failErr("err")
 		return true
 	}
+	fmt.Fprintf(buf, "%svar %s runtime.Value\n", indent, target)
+	fmt.Fprintf(buf, "%s_ = %s\n", indent, target)
 	if returnError {
 		fmt.Fprintf(buf, "%sreturn nil, fmt.Errorf(\"unsupported native interface conversion from %s\")\n", indent, goType)
 	} else {
@@ -792,6 +913,11 @@ func (g *generator) renderNativeInterfaceRuntimeToGoValueControl(buf *bytes.Buff
 		fmt.Fprintf(buf, "\tvar %s any = %s\n", target, expr)
 		return true
 	case "struct{}":
+		fmt.Fprintf(buf, "\tif errVal, ok, nilPtr := __able_runtime_error_value(%s); ok || nilPtr {\n", expr)
+		fmt.Fprintf(buf, "\t\tif ok {\n")
+		fmt.Fprintf(buf, "\t\t\treturn %s, __able_raise_control(nil, errVal)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\t_ = %s\n", expr)
 		fmt.Fprintf(buf, "\t%s := struct{}{}\n", target)
 		return true
@@ -856,7 +982,7 @@ func (g *generator) renderNativeInterfaceRuntimeToGoValueControl(buf *bytes.Buff
 		return true
 	default:
 		if g.typeCategory(goType) == "struct" {
-			baseName, ok := g.structBaseName(goType)
+			baseName, ok := g.structHelperName(goType)
 			if !ok {
 				baseName = strings.TrimPrefix(goType, "*")
 			}
@@ -866,6 +992,8 @@ func (g *generator) renderNativeInterfaceRuntimeToGoValueControl(buf *bytes.Buff
 			fmt.Fprintf(buf, "\t}\n")
 			return true
 		}
+		fmt.Fprintf(buf, "\tvar %s %s\n", target, goType)
+		fmt.Fprintf(buf, "\t_ = %s\n", target)
 		fmt.Fprintf(buf, "\t_ = %s\n", expr)
 		fmt.Fprintf(buf, "\treturn %s, __able_control_from_error(fmt.Errorf(\"unsupported native interface conversion to %s\"))\n", zeroExpr, goType)
 		return false

@@ -224,6 +224,12 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		}
 		desiredReturn = mapped
 	}
+	if desiredReturn != "" {
+		lambdaCtx.returnType = desiredReturn
+	}
+	if lambdaReturnTypeExpr != nil {
+		lambdaCtx.returnTypeExpr = lambdaReturnTypeExpr
+	}
 
 	var bodyLines []string
 	var bodyExpr string
@@ -283,7 +289,13 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		return "", "", false
 	}
 	implLines := make([]string, 0, len(bodyLines)+len(params)*2+3)
+	implLines = append(implLines, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
 	implLines = append(implLines, fmt.Sprintf("var %s *__ableControl", controlTemp))
+	zeroExpr, zeroOK := g.zeroValueExpr(callableInfo.ReturnGoType)
+	if !zeroOK {
+		implLines = append(implLines, fmt.Sprintf("var __able_zero %s", callableInfo.ReturnGoType))
+		zeroExpr = "__able_zero"
+	}
 	if len(genericValueVars) > 0 {
 		for _, param := range params {
 			if param.TypeExpr == nil {
@@ -304,17 +316,12 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 			}
 			implLines = append(implLines, fmt.Sprintf("%s := %s", valueVar, runtimeExpr))
 		}
-		constraintLines, ok := g.lambdaConstraintLines(expr, genericValueVars)
+		constraintLines, ok := g.lambdaConstraintLines(expr, genericValueVars, zeroExpr)
 		if !ok {
 			ctx.setReason("unsupported lambda constraints")
 			return "", "", false
 		}
 		implLines = append(implLines, constraintLines...)
-	}
-	zeroExpr, zeroOK := g.zeroValueExpr(callableInfo.ReturnGoType)
-	if !zeroOK {
-		implLines = append(implLines, fmt.Sprintf("var __able_zero %s", callableInfo.ReturnGoType))
-		zeroExpr = "__able_zero"
 	}
 	if g.isVoidType(bodyType) {
 		implLines = append(implLines, fmt.Sprintf("%s: for {", controlDoneLabel))

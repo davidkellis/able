@@ -186,7 +186,7 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 				}
 				lines = append(lines, fieldLines...)
 				if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
-					bindTypeExpr := g.typeExprInContext(ctx, fieldInfo.TypeExpr)
+					bindTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
 					bindLines, ok := g.bindPatternIdentifier(ctx, field.Binding.Name, fieldExpr, fieldInfo.GoType, bindTypeExpr, mode)
 					if !ok {
 						return nil, false
@@ -221,7 +221,7 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 			}
 			lines = append(lines, fieldLines...)
 			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
-				bindTypeExpr := g.typeExprInContext(ctx, fieldInfo.TypeExpr)
+				bindTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
 				bindLines, ok := g.bindPatternIdentifier(ctx, field.Binding.Name, fieldExpr, fieldInfo.GoType, bindTypeExpr, mode)
 				if !ok {
 					return nil, false

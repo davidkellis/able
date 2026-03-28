@@ -75,6 +75,10 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 		if g.implMethodByInfo != nil {
 			g.implMethodByInfo[info] = implInfo
 		}
+		if g.implMethodsBySignature != nil {
+			key := functionInfoSignatureKey(info)
+			g.implMethodsBySignature[key] = append(g.implMethodsBySignature[key], implInfo)
+		}
 	}
 }
 
@@ -153,6 +157,10 @@ func (g *generator) collectDefaultImplMethods() {
 			if g.implMethodByInfo != nil {
 				g.implMethodByInfo[info] = implInfo
 			}
+			if g.implMethodsBySignature != nil {
+				key := functionInfoSignatureKey(info)
+				g.implMethodsBySignature[key] = append(g.implMethodsBySignature[key], implInfo)
+			}
 		}
 	}
 }
@@ -182,10 +190,10 @@ func (g *generator) implTypeBindings(interfaceName string, params []*ast.Generic
 	iface := g.interfaces[interfaceName]
 	selfBindings := g.interfaceSelfTypeBindings(iface, target)
 	if len(selfBindings) == 0 {
-		return bindings
+		return g.normalizeImplBindings(bindings)
 	}
 	if len(bindings) == 0 {
-		return selfBindings
+		return g.normalizeImplBindings(selfBindings)
 	}
 	merged := make(map[string]ast.TypeExpression, len(bindings)+len(selfBindings))
 	for name, expr := range bindings {
@@ -196,7 +204,24 @@ func (g *generator) implTypeBindings(interfaceName string, params []*ast.Generic
 			merged[name] = expr
 		}
 	}
-	return merged
+	return g.normalizeImplBindings(merged)
+}
+
+func (g *generator) normalizeImplBindings(bindings map[string]ast.TypeExpression) map[string]ast.TypeExpression {
+	if len(bindings) == 0 {
+		return bindings
+	}
+	normalized := make(map[string]ast.TypeExpression, len(bindings))
+	for name, expr := range bindings {
+		if expr == nil {
+			continue
+		}
+		normalized[name] = substituteTypeParams(expr, bindings)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 func (g *generator) interfaceSelfTypeBindings(iface *ast.InterfaceDefinition, target ast.TypeExpression) map[string]ast.TypeExpression {
@@ -205,6 +230,16 @@ func (g *generator) interfaceSelfTypeBindings(iface *ast.InterfaceDefinition, ta
 	}
 	bindings := make(map[string]ast.TypeExpression)
 	switch pattern := iface.SelfTypePattern.(type) {
+	case *ast.SimpleTypeExpression:
+		if pattern == nil || pattern.Name == nil || pattern.Name.Name == "" || pattern.Name.Name == "_" {
+			return nil
+		}
+		switch pattern.Name.Name {
+		case "Self", "SelfType":
+		default:
+			return nil
+		}
+		bindings[pattern.Name.Name] = target
 	case *ast.GenericTypeExpression:
 		if pattern == nil || pattern.Base == nil {
 			return nil
@@ -245,12 +280,68 @@ func (g *generator) interfaceSelfTypeBindings(iface *ast.InterfaceDefinition, ta
 	return bindings
 }
 
+func (g *generator) interfaceSelfBindingNames(iface *ast.InterfaceDefinition) map[string]struct{} {
+	if g == nil || iface == nil || iface.SelfTypePattern == nil {
+		return nil
+	}
+	names := make(map[string]struct{})
+	addName := func(name string) {
+		if name == "" || name == "_" || g.isConcreteTypeName(name) {
+			return
+		}
+		names[name] = struct{}{}
+	}
+	switch pattern := iface.SelfTypePattern.(type) {
+	case *ast.SimpleTypeExpression:
+		if pattern != nil && pattern.Name != nil {
+			addName(pattern.Name.Name)
+		}
+	case *ast.GenericTypeExpression:
+		if pattern == nil {
+			break
+		}
+		if base, ok := pattern.Base.(*ast.SimpleTypeExpression); ok && base != nil && base.Name != nil {
+			addName(base.Name.Name)
+		}
+		for _, arg := range pattern.Arguments {
+			simple, ok := arg.(*ast.SimpleTypeExpression)
+			if !ok || simple == nil || simple.Name == nil {
+				continue
+			}
+			addName(simple.Name.Name)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	return names
+}
+
 func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, target ast.TypeExpression, interfaceBindings map[string]ast.TypeExpression) {
 	if info == nil || info.Definition == nil || mapper == nil {
 		return
 	}
+	g.invalidateFunctionDerivedInfo(info)
 	def := info.Definition
-	selfTarget := g.implSelfTargetType(target, interfaceBindings)
+	selfTarget := g.implSelfTargetType(info.Package, target, interfaceBindings)
+	allBindings := g.mergeImplSelfTargetBindings(info.Package, target, selfTarget, interfaceBindings)
+	if selfTarget != nil {
+		if allBindings == nil {
+			allBindings = make(map[string]ast.TypeExpression)
+		}
+		allBindings["Self"] = normalizeTypeExprForPackage(g, info.Package, selfTarget)
+		if impl := g.implMethodByInfo[info]; impl != nil {
+			if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+				for name, expr := range g.interfaceSelfTypeBindings(iface, selfTarget) {
+					if expr == nil {
+						continue
+					}
+					allBindings[name] = normalizeTypeExprForPackage(g, info.Package, expr)
+				}
+			}
+		}
+	}
+	info.TypeBindings = cloneTypeBindings(allBindings)
 	params := make([]paramInfo, 0, len(def.Params))
 	supported := true
 	if def.IsMethodShorthand {
@@ -268,6 +359,9 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 			supported = false
 		}
 		paramType := param.ParamType
+		if ident, ok := param.Name.(*ast.Identifier); ok && ident != nil && (ident.Name == "self" || ident.Name == "Self") {
+			paramType = selfTarget
+		}
 		if paramType == nil {
 			if ident, ok := param.Name.(*ast.Identifier); ok && ident != nil {
 				if ident.Name == "self" || ident.Name == "Self" {
@@ -276,7 +370,7 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 			}
 		}
 		paramType = resolveSelfTypeExpr(paramType, selfTarget)
-		paramType = substituteTypeParams(paramType, interfaceBindings)
+		paramType = substituteTypeParams(paramType, allBindings)
 		goType, ok := mapper.Map(paramType)
 		goType, ok = g.recoverRepresentableCarrierType(info.Package, paramType, goType)
 		if !ok {
@@ -291,7 +385,7 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 		})
 	}
 	retExpr := resolveSelfTypeExpr(def.ReturnType, selfTarget)
-	retExpr = substituteTypeParams(retExpr, interfaceBindings)
+	retExpr = substituteTypeParams(retExpr, allBindings)
 	expectsSelf := methodDefinitionExpectsSelf(def)
 	retType := ""
 	ok := false
@@ -317,34 +411,105 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 	}
 }
 
-func (g *generator) implSelfTargetType(target ast.TypeExpression, interfaceBindings map[string]ast.TypeExpression) ast.TypeExpression {
+func (g *generator) mergeImplSelfTargetBindings(pkgName string, target ast.TypeExpression, selfTarget ast.TypeExpression, bindings map[string]ast.TypeExpression) map[string]ast.TypeExpression {
+	if g == nil {
+		return bindings
+	}
+	merged := cloneTypeBindings(bindings)
+	targetGeneric, ok := normalizeTypeExprForPackage(g, pkgName, target).(*ast.GenericTypeExpression)
+	if !ok || targetGeneric == nil {
+		return merged
+	}
+	selfGeneric, ok := normalizeTypeExprForPackage(g, pkgName, selfTarget).(*ast.GenericTypeExpression)
+	if !ok || selfGeneric == nil || len(targetGeneric.Arguments) != len(selfGeneric.Arguments) {
+		return merged
+	}
+	targetBase, ok := typeExprBaseName(targetGeneric.Base)
+	if !ok || targetBase == "" {
+		return merged
+	}
+	selfBase, ok := typeExprBaseName(selfGeneric.Base)
+	if !ok || selfBase != targetBase {
+		return merged
+	}
+	if merged == nil {
+		merged = make(map[string]ast.TypeExpression, len(targetGeneric.Arguments))
+	}
+	for idx, arg := range targetGeneric.Arguments {
+		simple, ok := arg.(*ast.SimpleTypeExpression)
+		if !ok || simple == nil || simple.Name == nil || simple.Name.Name == "" || g.isConcreteTypeName(simple.Name.Name) {
+			continue
+		}
+		if selfGeneric.Arguments[idx] == nil {
+			continue
+		}
+		if _, exists := merged[simple.Name.Name]; exists {
+			continue
+		}
+		merged[simple.Name.Name] = normalizeTypeExprForPackage(g, pkgName, selfGeneric.Arguments[idx])
+	}
+	return merged
+}
+
+func (g *generator) implSelfTargetType(pkgName string, target ast.TypeExpression, interfaceBindings map[string]ast.TypeExpression) ast.TypeExpression {
 	if g == nil || target == nil {
 		return target
 	}
-	targetName, ok := g.methodTargetName(target)
-	if !ok || targetName != "Array" {
-		return target
+	normalizedTarget := normalizeTypeExprForPackage(g, pkgName, target)
+	if generic, ok := normalizedTarget.(*ast.GenericTypeExpression); ok && generic != nil && !g.typeExprHasWildcard(generic) {
+		return normalizedTarget
 	}
-	if _, ok := target.(*ast.GenericTypeExpression); ok {
-		return target
+	if reconstructed := g.reconstructGenericStructTargetFromBindings(pkgName, target, interfaceBindings); reconstructed != nil {
+		return reconstructed
 	}
-	var elemType ast.TypeExpression
-	for _, expr := range interfaceBindings {
+	return normalizedTarget
+}
+
+func (g *generator) reconstructGenericStructTargetFromBindings(pkgName string, target ast.TypeExpression, bindings map[string]ast.TypeExpression) ast.TypeExpression {
+	if g == nil || target == nil {
+		return nil
+	}
+	normalizedTarget := normalizeTypeExprForPackage(g, pkgName, target)
+	if normalizedTarget == nil {
+		return nil
+	}
+	if generic, ok := normalizedTarget.(*ast.GenericTypeExpression); ok && generic != nil {
+		return normalizeTypeExprForPackage(g, pkgName, substituteTypeParams(generic, bindings))
+	}
+	info, ok := g.structInfoForTypeExpr(pkgName, normalizedTarget)
+	if !ok || info == nil || info.Node == nil || len(info.Node.GenericParams) == 0 {
+		return nil
+	}
+	available := make([]ast.TypeExpression, 0, len(bindings))
+	for _, expr := range bindings {
 		if expr == nil {
 			continue
 		}
 		if _, ok := expr.(*ast.WildcardTypeExpression); ok {
 			continue
 		}
-		if elemType != nil {
-			return target
+		available = append(available, normalizeTypeExprForPackage(g, pkgName, expr))
+	}
+	args := make([]ast.TypeExpression, 0, len(info.Node.GenericParams))
+	for _, gp := range info.Node.GenericParams {
+		if gp == nil || gp.Name == nil || gp.Name.Name == "" {
+			return nil
 		}
-		elemType = expr
+		if expr := normalizeTypeExprForPackage(g, pkgName, bindings[gp.Name.Name]); expr != nil {
+			args = append(args, expr)
+			continue
+		}
+		if len(info.Node.GenericParams) == 1 && len(available) == 1 {
+			args = append(args, available[0])
+			continue
+		}
+		return nil
 	}
-	if elemType == nil {
-		return target
+	baseName, ok := typeExprBaseName(normalizedTarget)
+	if !ok || baseName == "" {
+		return nil
 	}
-	return ast.NewGenericTypeExpression(ast.Ty("Array"), []ast.TypeExpression{elemType})
+	return normalizeTypeExprForPackage(g, pkgName, ast.NewGenericTypeExpression(ast.Ty(baseName), args))
 }
 
 func (g *generator) sortedImplMethodInfos() []*implMethodInfo {

@@ -1,0 +1,9 @@
+package list_min_specs
+import able.spec.*
+import able.collections.list.{List}
+describe("List") { suite =>
+  suite.it("repro") { _ctx =>
+    left := List.empty().prepend("b").prepend("a")
+    expect(left.nth(1)).to(eq("b"))
+  }
+}

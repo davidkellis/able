@@ -45,12 +45,14 @@ var (
 	cachedGenericTypeExpressionsMu sync.RWMutex
 	cachedArrayTypeExpressions     = make(map[string]ast.TypeExpression)
 	cachedIteratorTypeExpression   = ast.Gen(ast.Ty("Iterator"), cachedWildcardTypeExpression)
+	cachedFutureTypeExpression     = ast.Gen(ast.Ty("Future"), cachedWildcardTypeExpression)
 
 	cachedTypeInfosMu    sync.RWMutex
 	cachedArrayTypeInfos = map[string]typeInfo{
 		"*": {name: "Array", typeArgs: []ast.TypeExpression{cachedWildcardTypeExpression}},
 	}
 	cachedIteratorTypeInfo = typeInfo{name: "Iterator", typeArgs: []ast.TypeExpression{cachedWildcardTypeExpression}}
+	cachedFutureTypeInfo   = typeInfo{name: "Future", typeArgs: []ast.TypeExpression{cachedWildcardTypeExpression}}
 )
 
 func cachedSimpleTypeExpression(name string) ast.TypeExpression {
@@ -210,6 +212,11 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 			return typeInfo{}, false
 		}
 		return cachedIteratorTypeInfo, true
+	case *runtime.FutureValue:
+		if v == nil {
+			return typeInfo{}, false
+		}
+		return cachedFutureTypeInfo, true
 	case runtime.IteratorEndValue:
 		return typeInfo{name: "IteratorEnd"}, true
 	case *runtime.IteratorEndValue:
@@ -363,6 +370,11 @@ func (i *Interpreter) typeExpressionFromValueWithSeen(value runtime.Value, seen 
 			return nil
 		}
 		return cachedIteratorTypeExpression
+	case *runtime.FutureValue:
+		if v == nil {
+			return nil
+		}
+		return cachedFutureTypeExpression
 	case runtime.ErrorValue:
 		if v.TypeName != nil {
 			return cachedSimpleTypeExpression(v.TypeName.Name)
