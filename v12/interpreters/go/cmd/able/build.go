@@ -356,7 +356,7 @@ func printBuildUsage() {
 	fmt.Fprintln(os.Stderr, "  -o, --out <dir>   output directory for generated Go code (default: ./target/compiled)")
 	fmt.Fprintln(os.Stderr, "      --bin <path>  output path for the compiled binary (default: <out>/<name>)")
 	fmt.Fprintln(os.Stderr, "      --with-tests  include test modules in the build")
-	fmt.Fprintln(os.Stderr, "      --precompile-stdlib  precompile stdlib/kernel package graph into generated output (default)")
+	fmt.Fprintln(os.Stderr, "      --precompile-stdlib  precompile stdlib/kernel package graph into generated output")
 	fmt.Fprintln(os.Stderr, "      --no-precompile-stdlib  disable stdlib/kernel package precompile discovery")
 	fmt.Fprintln(os.Stderr, "      --no-fallbacks  fail compile when any fallback wrappers are required")
 	fmt.Fprintln(os.Stderr, "      --allow-fallbacks  allow fallback wrappers (disables static default)")

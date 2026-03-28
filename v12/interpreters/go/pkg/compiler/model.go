@@ -12,6 +12,8 @@ type structInfo struct {
 	Node        *ast.StructDefinition
 	Supported   bool
 	Specialized bool
+	Rendered    bool
+	Converters  bool
 }
 
 type fieldInfo struct {
@@ -40,6 +42,8 @@ type functionInfo struct {
 	ParamFacts     map[string]integerFact
 	ReturnType     string
 	TypeBindings   map[string]ast.TypeExpression
+	cachedBindings map[string]ast.TypeExpression
+	cachedCarrier  bool
 	SupportedTypes bool
 	Arity          int
 	Definition     *ast.FunctionDefinition
@@ -47,6 +51,7 @@ type functionInfo struct {
 	Reason         string
 	HasOriginal    bool
 	InternalOnly   bool
+	ExternBody     *ast.ExternFunctionBody
 }
 
 type FallbackInfo struct {
@@ -88,4 +93,12 @@ type implMethodInfo struct {
 type implDefinitionInfo struct {
 	Definition *ast.ImplementationDefinition
 	Package    string
+}
+
+type nativeInterfaceDefaultMethodInfo struct {
+	InterfacePackage string
+	InterfaceName    string
+	InterfaceArgs    []ast.TypeExpression
+	ReceiverGoType   string
+	MethodName       string
 }

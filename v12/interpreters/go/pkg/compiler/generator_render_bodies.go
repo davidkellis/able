@@ -41,10 +41,12 @@ func (g *generator) tryRenderCompiledFunctionBody(buf *bytes.Buffer, info *funct
 		return false
 	}
 	g.refreshRepresentableFunctionInfo(info)
-	ctx := newCompileContext(g, info, g.functionsForCompileContext(info), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
-	if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
-		ctx.implSiblings = g.implSiblingsForFunction(info)
+	if info.ExternBody != nil {
+		g.renderCompiledExternFunctionBody(buf, info)
+		rendered[info] = struct{}{}
+		return true
 	}
+	ctx := g.compileBodyContext(info)
 	lines, retExpr, ok := g.compileBody(ctx, info)
 	if !ok {
 		if info.Reason == "" {
@@ -70,10 +72,7 @@ func (g *generator) renderPendingCompiledFunctionFallbacks(buf *bytes.Buffer, re
 		if _, ok := rendered[info]; ok {
 			continue
 		}
-		ctx := newCompileContext(g, info, g.functionsForCompileContext(info), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
-		if implInfo, ok := g.implMethodByInfo[info]; ok && implInfo != nil && implInfo.IsDefault {
-			ctx.implSiblings = g.implSiblingsForFunction(info)
-		}
+		ctx := g.compileBodyContext(info)
 		if _, _, ok := g.compileBody(ctx, info); !ok && info.Reason == "" {
 			reason := ctx.reason
 			if reason == "" {
@@ -122,7 +121,7 @@ func (g *generator) tryRenderCompiledMethodBody(buf *bytes.Buffer, method *metho
 		rendered[method] = struct{}{}
 		return true
 	}
-	ctx := newCompileContext(g, info, g.functionsForCompileContext(info), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+	ctx := g.compileBodyContext(info)
 	lines, retExpr, ok := g.compileBody(ctx, info)
 	if !ok {
 		if info.Reason == "" {
@@ -153,7 +152,7 @@ func (g *generator) renderPendingCompiledMethodFallbacks(buf *bytes.Buffer, rend
 			g.renderNativeArrayCoreMethod(buf, method, info)
 			continue
 		}
-		ctx := newCompileContext(g, info, g.functionsForCompileContext(info), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
+		ctx := g.compileBodyContext(info)
 		if _, _, ok := g.compileBody(ctx, info); !ok && info.Reason == "" {
 			reason := ctx.reason
 			if reason == "" {

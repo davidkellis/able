@@ -404,6 +404,21 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 			}, nil
 		}
 	}
+	if interfaceName == "Future" {
+		switch value.(type) {
+		case *runtime.FutureValue:
+			methods, err := i.futureInterfaceMethodDictionary(ifaceDef, value)
+			if err != nil {
+				return nil, err
+			}
+			return &runtime.InterfaceValue{
+				Interface:     ifaceDef,
+				Underlying:    value,
+				Methods:       methods,
+				InterfaceArgs: ifaceArgs,
+			}, nil
+		}
+	}
 	if inst, ok := value.(*runtime.StructInstanceValue); ok && inst != nil && (inst.Definition == nil || inst.Definition.Node == nil) {
 		methods, err := i.interfaceMethodDictionaryFromStruct(inst, ifaceDef)
 		if err == nil && methods != nil {
@@ -501,6 +516,44 @@ func (i *Interpreter) iteratorInterfaceMethodDictionary(ifaceDef *runtime.Interf
 		}
 		if name == "next" {
 			methods[name] = iteratorNextNativeMethod()
+			continue
+		}
+		if sig.DefaultImpl != nil {
+			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
+			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
+			if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
+				if i.execMode == execModeBytecode {
+					return nil, err
+				}
+			} else {
+				defaultVal.Bytecode = program
+			}
+			methods[name] = defaultVal
+			continue
+		}
+		return nil, fmt.Errorf("No method '%s' for interface %s", name, ifaceDef.Node.ID.Name)
+	}
+	if len(methods) == 0 {
+		return nil, nil
+	}
+	return methods, nil
+}
+
+func (i *Interpreter) futureInterfaceMethodDictionary(ifaceDef *runtime.InterfaceDefinitionValue, value runtime.Value) (map[string]runtime.Value, error) {
+	if ifaceDef == nil || ifaceDef.Node == nil || ifaceDef.Node.ID == nil {
+		return nil, fmt.Errorf("Future interface is not defined")
+	}
+	methods := make(map[string]runtime.Value)
+	for _, sig := range ifaceDef.Node.Signatures {
+		if sig == nil || sig.Name == nil {
+			continue
+		}
+		name := sig.Name.Name
+		if name == "" || methods[name] != nil {
+			continue
+		}
+		if member, err := i.futureMember(value.(*runtime.FutureValue), ast.NewIdentifier(name)); err == nil && member != nil {
+			methods[name] = member
 			continue
 		}
 		if sig.DefaultImpl != nil {

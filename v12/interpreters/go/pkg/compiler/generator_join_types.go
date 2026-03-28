@@ -9,6 +9,50 @@ type joinBranchInfo struct {
 	SawNil   bool
 }
 
+func (g *generator) joinUnionMemberTypeExprs(ctx *compileContext, goTypes []string) ([]ast.TypeExpression, bool) {
+	if g == nil || len(goTypes) == 0 {
+		return nil, false
+	}
+	pkgName := ""
+	if ctx != nil {
+		pkgName = ctx.packageName
+	}
+	memberExprs := make([]ast.TypeExpression, 0, len(goTypes))
+	seen := make(map[string]struct{}, len(goTypes))
+	appendMember := func(memberPkg string, expr ast.TypeExpression) {
+		if expr == nil {
+			return
+		}
+		normalized := normalizeTypeExprForPackage(g, memberPkg, expr)
+		key := normalizeTypeExprString(g, memberPkg, normalized)
+		if key == "" {
+			return
+		}
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		memberExprs = append(memberExprs, normalized)
+	}
+	for _, goType := range goTypes {
+		typeExpr, ok := g.typeExprForGoType(goType)
+		if !ok || typeExpr == nil {
+			return nil, false
+		}
+		if unionPkg, members, ok := g.expandedUnionMembersInPackage(pkgName, typeExpr); ok {
+			for _, member := range members {
+				appendMember(unionPkg, member)
+			}
+			continue
+		}
+		appendMember(pkgName, typeExpr)
+	}
+	if len(memberExprs) == 0 {
+		return nil, false
+	}
+	return memberExprs, true
+}
+
 func (g *generator) joinResultType(ctx *compileContext, types ...string) (string, bool) {
 	if g == nil || len(types) == 0 {
 		return "", false
@@ -55,13 +99,12 @@ func (g *generator) joinResultType(ctx *compileContext, types ...string) (string
 	if ifaceType, ok := g.commonJoinInterfaceType(ctx, unique); ok {
 		return ifaceType, true
 	}
-	memberExprs := make([]ast.TypeExpression, 0, len(unique))
-	for _, goType := range unique {
-		typeExpr, ok := g.typeExprForGoType(goType)
-		if !ok || typeExpr == nil {
-			return "", false
-		}
-		memberExprs = append(memberExprs, typeExpr)
+	memberExprs, ok := g.joinUnionMemberTypeExprs(ctx, unique)
+	if !ok || len(memberExprs) == 0 {
+		return "", false
+	}
+	if len(memberExprs) == 1 {
+		return g.joinCarrierTypeFromTypeExpr(ctx, memberExprs[0])
 	}
 	pkgName := ""
 	if ctx != nil {

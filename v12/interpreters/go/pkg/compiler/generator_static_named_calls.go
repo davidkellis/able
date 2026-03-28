@@ -31,7 +31,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 		missingOptional := optionalLast && len(call.Arguments) == len(info.Params)-1
 		if missingOptional && len(info.Params) > 0 {
 			lastType := info.Params[len(info.Params)-1].GoType
-			if lastType != "runtime.Value" && lastType != "any" {
+			if _, ok := g.zeroValueExpr(lastType); !ok {
 				ctx.setReason("call arity mismatch")
 				return nil, "", "", false
 			}
@@ -122,11 +122,12 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 		}
 		if missingOptional {
 			lastType := info.Params[len(info.Params)-1].GoType
-			if lastType == "any" {
-				args = append(args, "nil")
-			} else {
-				args = append(args, "runtime.NilValue{}")
+			zeroExpr, ok := g.zeroValueExpr(lastType)
+			if !ok {
+				ctx.setReason("call arity mismatch")
+				return nil, "", "", false
 			}
+			args = append(args, zeroExpr)
 		}
 		callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
 		resultTemp := ctx.newTemp()

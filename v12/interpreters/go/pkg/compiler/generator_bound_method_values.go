@@ -70,7 +70,9 @@ func (g *generator) compileNativeBoundMethodValue(ctx *compileContext, objectExp
 		}
 		callExpr = fmt.Sprintf("__able_compiled_%s(%s)", method.Info.GoName, strings.Join(args, ", "))
 	}
-	callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { return %s })", callableInfo.GoType, strings.Join(paramParts, ", "), callableInfo.ReturnGoType, callExpr)
+	bodyParts := append([]string{}, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
+	bodyParts = append(bodyParts, fmt.Sprintf("return %s", callExpr))
+	callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { %s })", callableInfo.GoType, strings.Join(paramParts, ", "), callableInfo.ReturnGoType, strings.Join(bodyParts, "; "))
 	return lines, callableExpr, callableInfo.GoType, true
 }
 
@@ -92,6 +94,8 @@ func (g *generator) compileNativeInterfaceBoundMethodValue(ctx *compileContext, 
 		argNames = append(argNames, name)
 	}
 	callExpr := fmt.Sprintf("%s.%s(%s)", receiverTemp, method.GoName, strings.Join(argNames, ", "))
-	callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { return %s })", callableInfo.GoType, strings.Join(paramParts, ", "), callableInfo.ReturnGoType, callExpr)
+	bodyParts := append([]string{}, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
+	bodyParts = append(bodyParts, fmt.Sprintf("return %s", callExpr))
+	callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { %s })", callableInfo.GoType, strings.Join(paramParts, ", "), callableInfo.ReturnGoType, strings.Join(bodyParts, "; "))
 	return lines, callableExpr, callableInfo.GoType, true
 }

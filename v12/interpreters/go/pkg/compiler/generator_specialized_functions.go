@@ -1,6 +1,48 @@
 package compiler
 
-import "able/interpreter-go/pkg/ast"
+import (
+	"strings"
+
+	"able/interpreter-go/pkg/ast"
+)
+
+func (g *generator) specializationConcreteArgTypeExpr(pkgName string, expr ast.TypeExpression) (ast.TypeExpression, bool) {
+	if g == nil || expr == nil {
+		return nil, false
+	}
+	expr = normalizeTypeExprForPackage(g, pkgName, expr)
+	if expr == nil || !g.typeExprFullyBound(pkgName, expr) {
+		return nil, false
+	}
+	goType, ok := g.lowerCarrierTypeInPackage(pkgName, expr)
+	if !ok || goType == "" || goType == "runtime.Value" || goType == "any" {
+		return nil, false
+	}
+	return expr, true
+}
+
+func (g *generator) specializationConcreteArgTypeExprForParam(pkgName string, paramExpr ast.TypeExpression, actualExpr ast.TypeExpression, actualGoType string) (ast.TypeExpression, bool) {
+	if g == nil || paramExpr == nil || actualExpr == nil {
+		return nil, false
+	}
+	paramExpr = normalizeTypeExprForPackage(g, pkgName, paramExpr)
+	actualExpr = normalizeTypeExprForPackage(g, pkgName, actualExpr)
+	concreteExpr, ok := g.specializationConcreteArgTypeExpr(pkgName, actualExpr)
+	if !ok || concreteExpr == nil {
+		return nil, false
+	}
+	if actualGoType != "" && actualGoType != "runtime.Value" && actualGoType != "any" {
+		mapped, ok := g.lowerCarrierTypeInPackage(pkgName, concreteExpr)
+		mapped, ok = g.recoverRepresentableCarrierType(pkgName, concreteExpr, mapped)
+		if !ok || mapped == "" || mapped == "runtime.Value" || mapped == "any" {
+			return nil, false
+		}
+		if mapped != actualGoType {
+			return nil, false
+		}
+	}
+	return concreteExpr, true
+}
 
 func (g *generator) discardSpecializedFunctionInfo(key string, info *functionInfo) {
 	if g == nil || info == nil {
@@ -21,29 +63,63 @@ func (g *generator) discardSpecializedFunctionInfo(key string, info *functionInf
 	g.specializedFunctions = filtered
 }
 
+func (g *generator) reusableSpecializedFunctionInfo(key string, info *functionInfo) (*functionInfo, bool) {
+	if g == nil || key == "" {
+		return nil, false
+	}
+	existing, ok := g.specializedFunctionIndex[key]
+	if !ok || existing == nil {
+		return nil, false
+	}
+	if existing.Compileable || existing == info {
+		return existing, true
+	}
+	// A same-key stale entry must be removed before replacement. Otherwise the
+	// selection scans over `specializedFunctions` can observe both bodies and
+	// keep an older, less concrete specialization.
+	g.discardSpecializedFunctionInfo(key, existing)
+	return nil, false
+}
+
 func (g *generator) specializationExpectedTypeExpr(ctx *compileContext, expected string) ast.TypeExpression {
 	if g == nil {
 		return nil
 	}
+	var contextual ast.TypeExpression
 	if ctx != nil && ctx.expectedTypeExpr != nil {
-		return g.lowerNormalizedTypeExpr(ctx, ctx.expectedTypeExpr)
+		contextual = g.lowerNormalizedTypeExpr(ctx, ctx.expectedTypeExpr)
+		if contextual != nil && !g.typeExprHasGeneric(contextual, ctx.genericNames) && g.typeExprFullyBound(ctx.packageName, contextual) {
+			return contextual
+		}
 	}
-	if expected == "" || expected == "runtime.Value" || expected == "any" {
-		return nil
+	if expected != "" && expected != "runtime.Value" && expected != "any" {
+		expectedExpr, ok := g.typeExprForGoType(expected)
+		if ok && expectedExpr != nil {
+			expectedExpr = g.lowerNormalizedTypeExpr(ctx, expectedExpr)
+			pkgName := ""
+			if ctx != nil {
+				pkgName = ctx.packageName
+			}
+			if g.typeExprFullyBound(pkgName, expectedExpr) {
+				return expectedExpr
+			}
+		}
 	}
-	expectedExpr, ok := g.typeExprForGoType(expected)
-	if !ok || expectedExpr == nil {
-		return nil
+	if ctx != nil && contextual != nil && g.typeExprFullyBound(ctx.packageName, contextual) {
+		return contextual
 	}
-	return g.lowerNormalizedTypeExpr(ctx, expectedExpr)
+	return nil
 }
 
 func (g *generator) concreteFunctionCallInfo(ctx *compileContext, call *ast.FunctionCall, info *functionInfo, expected string) *functionInfo {
 	if g == nil || ctx == nil || call == nil || info == nil || info.Definition == nil {
 		return info
 	}
-	genericNames := g.callableGenericNames(info)
+	genericNames := g.compileContextGenericNames(info)
 	if len(genericNames) == 0 {
+		return info
+	}
+	if ctx.analysisOnly && expected == "" && ctx.expectedTypeExpr == nil && len(call.TypeArguments) == 0 {
 		return info
 	}
 	bindings, ok := g.specializedFunctionBindings(ctx, call, info, expected)
@@ -57,16 +133,52 @@ func (g *generator) concreteFunctionCallInfo(ctx *compileContext, call *ast.Func
 	return specialized
 }
 
+func (g *generator) applySpecializedTypeTemplateMatch(pkgName string, template ast.TypeExpression, actual ast.TypeExpression, genericNames map[string]struct{}, bindings map[string]ast.TypeExpression) bool {
+	if g == nil || template == nil || actual == nil || bindings == nil {
+		return false
+	}
+	candidate := cloneTypeBindings(bindings)
+	if candidate == nil {
+		candidate = make(map[string]ast.TypeExpression)
+	}
+	if !g.specializedTypeTemplateMatches(pkgName, template, actual, genericNames, candidate, make(map[string]struct{})) {
+		return false
+	}
+	applyTypeBindings(bindings, candidate)
+	return true
+}
+
+func (g *generator) applySpecializedConcreteInterfaceReturnBinding(pkgName string, returnTypeExpr ast.TypeExpression, expectedExpr ast.TypeExpression, genericNames map[string]struct{}, bindings map[string]ast.TypeExpression) bool {
+	if g == nil || returnTypeExpr == nil || expectedExpr == nil || bindings == nil {
+		return false
+	}
+	candidate := cloneTypeBindings(bindings)
+	if candidate == nil {
+		candidate = make(map[string]ast.TypeExpression)
+	}
+	for name := range genericNames {
+		delete(candidate, name)
+	}
+	if !g.bindSpecializedConcreteInterfaceReturn(pkgName, returnTypeExpr, expectedExpr, genericNames, candidate) {
+		return false
+	}
+	applyTypeBindings(bindings, candidate)
+	return true
+}
+
 func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.FunctionCall, info *functionInfo, expected string) (map[string]ast.TypeExpression, bool) {
 	if g == nil || ctx == nil || call == nil || info == nil || info.Definition == nil {
 		return nil, false
 	}
-	genericNames := g.callableGenericNames(info)
+	genericNames := g.compileContextGenericNames(info)
 	bindings := g.concreteCompileContextBindings(info, genericNames)
-	bindings = g.mergeConcreteTypeBindings(info.Package, genericNames, bindings, ctx.typeBindings)
 	if bindings == nil {
 		bindings = make(map[string]ast.TypeExpression)
 	}
+	// Do not seed free-function generic bindings from the enclosing compile
+	// context by raw generic name. Function generic names are local to the
+	// callee; inheriting outer bindings here lets unrelated generics with the
+	// same spelling poison specialization selection.
 	if len(call.TypeArguments) > 0 {
 		if len(call.TypeArguments) != len(info.Definition.GenericParams) {
 			return nil, false
@@ -76,33 +188,62 @@ func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.F
 			if gp == nil || gp.Name == nil || gp.Name.Name == "" || arg == nil {
 				return nil, false
 			}
-			bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, info.Package, arg)
+			concreteArg, ok := g.specializationConcreteArgTypeExpr(info.Package, arg)
+			if !ok || concreteArg == nil {
+				continue
+			}
+			bindings[gp.Name.Name] = concreteArg
+		}
+	}
+	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil {
+		if _, _, _, _, ok := interfaceExprInfo(g, info.Package, expectedExpr); ok {
+			returnBindings := cloneTypeBindings(bindings)
+			if returnBindings == nil {
+				returnBindings = make(map[string]ast.TypeExpression)
+			}
+			for name := range genericNames {
+				delete(returnBindings, name)
+			}
+			if returnExpr := g.functionReturnTypeExprWithBindings(info, returnBindings); returnExpr != nil {
+				_ = g.applySpecializedConcreteInterfaceReturnBinding(info.Package, returnExpr, expectedExpr, genericNames, bindings)
+			}
+		} else if returnExpr := g.functionReturnTypeExprWithBindings(info, bindings); returnExpr != nil {
+			_ = g.applySpecializedTypeTemplateMatch(info.Package, returnExpr, expectedExpr, genericNames, bindings)
 		}
 	}
 	for idx, arg := range call.Arguments {
 		if idx >= len(info.Params) {
 			break
 		}
-		paramType := info.Params[idx].TypeExpr
+		paramType := g.functionParamTypeExpr(info, idx)
+		if paramType == nil {
+			paramType = info.Params[idx].TypeExpr
+		}
 		if paramType == nil {
 			continue
 		}
-		actualExpr, ok := g.inferExpressionTypeExpr(ctx, arg, "")
+		actualExpr, actualGoType, ok := g.specializedCallActualTypeExpr(ctx, info.Package, arg, paramType, bindings)
+		actualExpr, ok = g.specializationConcreteArgTypeExprForParam(info.Package, paramType, actualExpr, actualGoType)
 		if !ok || actualExpr == nil {
-			argCtx := ctx.child()
-			_, _, argType, ok := g.compileExprLines(argCtx, arg, "")
-			if !ok {
-				continue
-			}
-			actualExpr, ok = g.typeExprForGoType(argType)
-			if !ok || actualExpr == nil {
-				continue
-			}
+			continue
 		}
-		g.specializedTypeTemplateMatches(info.Package, paramType, actualExpr, genericNames, bindings, make(map[string]struct{}))
+		_ = g.bindSpecializedCallArgument(info.Package, paramType, actualExpr, genericNames, bindings)
 	}
 	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil {
-		g.specializedTypeTemplateMatches(info.Package, info.Definition.ReturnType, expectedExpr, genericNames, bindings, make(map[string]struct{}))
+		if _, _, _, _, ok := interfaceExprInfo(g, info.Package, expectedExpr); ok {
+			returnBindings := cloneTypeBindings(bindings)
+			if returnBindings == nil {
+				returnBindings = make(map[string]ast.TypeExpression)
+			}
+			for name := range genericNames {
+				delete(returnBindings, name)
+			}
+			if returnExpr := g.functionReturnTypeExprWithBindings(info, returnBindings); returnExpr != nil {
+				_ = g.applySpecializedConcreteInterfaceReturnBinding(info.Package, returnExpr, expectedExpr, genericNames, bindings)
+			}
+		} else if returnExpr := g.functionReturnTypeExprWithBindings(info, bindings); returnExpr != nil {
+			_ = g.applySpecializedTypeTemplateMatch(info.Package, returnExpr, expectedExpr, genericNames, bindings)
+		}
 	}
 	bindings = g.normalizeConcreteTypeBindings(info.Package, bindings, genericNames)
 	if len(bindings) == 0 {
@@ -111,15 +252,131 @@ func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.F
 	return bindings, true
 }
 
+func (g *generator) bindSpecializedConcreteInterfaceReturn(pkgName string, returnTypeExpr ast.TypeExpression, expectedExpr ast.TypeExpression, genericNames map[string]struct{}, bindings map[string]ast.TypeExpression) bool {
+	if g == nil || returnTypeExpr == nil || expectedExpr == nil || bindings == nil {
+		return false
+	}
+	ifacePkg, ifaceName, ifaceArgs, _, ok := interfaceExprInfo(g, pkgName, expectedExpr)
+	if !ok {
+		return false
+	}
+	returnTemplate := normalizeTypeExprForPackage(g, pkgName, returnTypeExpr)
+	if returnTemplate == nil {
+		return false
+	}
+	var found map[string]ast.TypeExpression
+	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
+		impl := candidateInfo.impl
+		info := candidateInfo.info
+		if impl == nil || info == nil || impl.InterfaceName == "" || impl.ImplName != "" {
+			continue
+		}
+		if impl.InterfaceName != ifaceName {
+			continue
+		}
+		candidateGenericNames := mergeGenericNameSets(genericNames, nativeInterfaceGenericNameSet(impl.InterfaceGenerics))
+		candidateGenericNames = mergeGenericNameSets(candidateGenericNames, g.callableGenericNames(info))
+		candidateBindings := cloneTypeBindings(bindings)
+		if candidateBindings == nil {
+			candidateBindings = make(map[string]ast.TypeExpression)
+		}
+		targetTemplate := g.specializedImplTargetTemplate(impl, candidateBindings)
+		if targetTemplate == nil {
+			targetTemplate = impl.TargetType
+		}
+		if targetTemplate == nil {
+			continue
+		}
+		targetTemplate = normalizeTypeExprForPackage(g, info.Package, targetTemplate)
+		matchedTarget := g.specializedTypeTemplateMatches(pkgName, returnTemplate, targetTemplate, candidateGenericNames, candidateBindings, make(map[string]struct{}))
+		if !matchedTarget {
+			matchedTarget = g.specializedTypeTemplateMatches(pkgName, targetTemplate, returnTemplate, candidateGenericNames, candidateBindings, make(map[string]struct{}))
+		}
+		if !matchedTarget {
+			matchedTarget = g.specializedSameBaseGenericBindings(pkgName, returnTemplate, targetTemplate, candidateGenericNames, candidateBindings)
+		}
+		if !matchedTarget {
+			matchedTarget = g.specializedSameBaseGenericBindings(pkgName, targetTemplate, returnTemplate, candidateGenericNames, candidateBindings)
+		}
+		if !matchedTarget {
+			continue
+		}
+		actualIfaceExpr := g.implConcreteInterfaceExpr(impl, candidateBindings)
+		if actualIfaceExpr == nil {
+			continue
+		}
+		matched, ok := g.nativeInterfaceImplBindingsForTarget(info.Package, actualIfaceExpr, candidateGenericNames, ifacePkg, ifaceName, ifaceArgs, make(map[string]struct{}))
+		if !ok || !g.mergeConcreteBindings(pkgName, candidateBindings, matched) {
+			continue
+		}
+		resolvedBindings := make(map[string]ast.TypeExpression, len(candidateBindings))
+		for name, expr := range candidateBindings {
+			if expr == nil {
+				continue
+			}
+			resolvedBindings[name] = normalizeTypeExprForPackage(g, pkgName, substituteTypeParams(expr, candidateBindings))
+		}
+		normalized := g.normalizeConcreteTypeBindings(pkgName, resolvedBindings, genericNames)
+		if len(normalized) == 0 {
+			continue
+		}
+		if found != nil {
+			if !concreteBindingsEquivalent(g, pkgName, found, normalized) {
+				return false
+			}
+			continue
+		}
+		found = normalized
+	}
+	if len(found) == 0 {
+		return false
+	}
+	applyTypeBindings(bindings, found)
+	return true
+}
+
 func (g *generator) ensureSpecializedFunctionInfo(info *functionInfo, bindings map[string]ast.TypeExpression) (*functionInfo, bool) {
 	if g == nil || info == nil || info.Definition == nil || len(bindings) == 0 {
 		return nil, false
 	}
-	key := g.specializedImplFunctionKey(info, bindings)
-	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil {
-		if existing.Compileable || existing == info {
-			return existing, true
+	if g.implMethodByInfo != nil {
+		if impl := g.implMethodByInfo[info]; impl != nil {
+			baseInfo := impl.Info
+			if baseInfo == nil {
+				baseInfo = info
+			}
+			targetName, _ := typeExprBaseName(impl.TargetType)
+			method := &methodInfo{
+				TargetName:   targetName,
+				TargetType:   impl.TargetType,
+				MethodName:   impl.MethodName,
+				ExpectsSelf:  methodDefinitionExpectsSelf(baseInfo.Definition),
+				Info:         baseInfo,
+			}
+			if method.ExpectsSelf && len(baseInfo.Params) > 0 {
+				method.ReceiverType = baseInfo.Params[0].GoType
+			}
+			specialized, ok := g.ensureSpecializedImplMethod(method, impl, bindings)
+			if !ok || specialized == nil || specialized.Info == nil {
+				return nil, false
+			}
+			return specialized.Info, true
 		}
+	}
+	name := strings.TrimSpace(info.Name)
+	qualified := strings.TrimSpace(info.QualifiedName)
+	if strings.HasPrefix(name, "impl ") || strings.HasPrefix(qualified, "impl ") {
+		return nil, false
+	}
+	key := g.specializedImplFunctionKey(info, bindings)
+	if existing, ok := g.reusableSpecializedFunctionInfo(key, info); ok {
+		existing.TypeBindings = cloneTypeBindings(bindings)
+		mapper := NewTypeMapper(g, existing.Package)
+		g.fillSpecializedFunctionInfo(existing, mapper)
+		if !existing.SupportedTypes {
+			return nil, false
+		}
+		return existing, true
 	}
 	specialized := &functionInfo{
 		Name:           info.Name,
@@ -152,6 +409,7 @@ func (g *generator) fillSpecializedFunctionInfo(info *functionInfo, mapper *Type
 	if info == nil || info.Definition == nil || mapper == nil {
 		return
 	}
+	g.invalidateFunctionDerivedInfo(info)
 	def := info.Definition
 	params := make([]paramInfo, 0, len(def.Params))
 	supported := true

@@ -68,3 +68,144 @@ func (g *generator) recoverDispatchExpr(ctx *compileContext, original ast.Expres
 		return nil, compiledExpr, compiledType, false
 	}
 }
+
+func (g *generator) inferredDispatchReceiverType(ctx *compileContext, expr ast.Expression) string {
+	if g == nil || ctx == nil || expr == nil {
+		return ""
+	}
+	inferred, ok := g.inferExpressionTypeExpr(ctx, expr, "")
+	if !ok || inferred == nil {
+		return ""
+	}
+	if recovered, ok := g.joinCarrierTypeFromTypeExpr(ctx, inferred); ok && recovered != "" && recovered != "runtime.Value" && recovered != "any" && !g.isVoidType(recovered) {
+		return recovered
+	}
+	if recovered, ok := g.lowerCarrierType(ctx, inferred); ok && recovered != "" && recovered != "runtime.Value" && recovered != "any" && !g.isVoidType(recovered) {
+		return recovered
+	}
+	return ""
+}
+
+func (g *generator) compileDispatchReceiverExpr(ctx *compileContext, expr ast.Expression) ([]string, string, string, bool) {
+	return g.compileDispatchReceiverExprWithExpectedTypeExpr(ctx, expr, "", nil)
+}
+
+func (g *generator) compileDispatchReceiverExprWithExpectedTypeExpr(ctx *compileContext, expr ast.Expression, expectedGoType string, expectedTypeExpr ast.TypeExpression) ([]string, string, string, bool) {
+	if g == nil || ctx == nil || expr == nil {
+		return nil, "", "", false
+	}
+	expectedType := expectedGoType
+	if expectedType == "" && expectedTypeExpr != nil {
+		if lowered, ok := g.lowerCarrierType(ctx, expectedTypeExpr); ok && lowered != "" {
+			expectedType = lowered
+		}
+	}
+	if expectedType == "" {
+		expectedType = g.inferredDispatchReceiverType(ctx, expr)
+	}
+	var guidedLines []string
+	var guidedExpr string
+	var guidedType string
+	guidedOK := false
+	if expectedType != "" || expectedTypeExpr != nil {
+		guidedLines, guidedExpr, guidedType, guidedOK = g.compileExprLinesWithExpectedTypeExpr(ctx, expr, expectedType, expectedTypeExpr)
+		if guidedOK {
+			if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, expr, guidedExpr, guidedType); recovered {
+				guidedLines = append(guidedLines, recoverLines...)
+				guidedExpr = recoveredExpr
+				guidedType = recoveredType
+			}
+			if guidedType != "" && guidedType != "runtime.Value" && guidedType != "any" && !g.isVoidType(guidedType) {
+				return guidedLines, guidedExpr, guidedType, true
+			}
+		}
+	}
+	lines, compiledExpr, compiledType, ok := g.compileExprLines(ctx, expr, "")
+	if ok {
+		if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, expr, compiledExpr, compiledType); recovered {
+			lines = append(lines, recoverLines...)
+			compiledExpr = recoveredExpr
+			compiledType = recoveredType
+		}
+		if compiledType != "" && compiledType != "runtime.Value" && compiledType != "any" && !g.isVoidType(compiledType) {
+			return lines, compiledExpr, compiledType, true
+		}
+	}
+	if ok {
+		return lines, compiledExpr, compiledType, true
+	}
+	if guidedOK {
+		return guidedLines, guidedExpr, guidedType, true
+	}
+	if expectedType == "" && expectedTypeExpr == nil {
+		return nil, "", "", false
+	}
+	return nil, "", "", false
+}
+
+func (g *generator) preferredDispatchReceiverTypeExpr(ctx *compileContext, call *ast.FunctionCall, expr ast.Expression, methodName string, expected string) ast.TypeExpression {
+	if g == nil || ctx == nil || call == nil || expr == nil || methodName == "" {
+		return nil
+	}
+	receiverTypeExpr, ok := g.inferExpressionTypeExpr(ctx, expr, "")
+	if !ok || receiverTypeExpr == nil {
+		return nil
+	}
+	receiverGoType, ok := g.lowerCarrierType(ctx, receiverTypeExpr)
+	if !ok || receiverGoType == "" || receiverGoType == "runtime.Value" || receiverGoType == "any" {
+		return nil
+	}
+	method := g.methodForReceiver(receiverGoType, methodName)
+	if method == nil {
+		return nil
+	}
+	if concreteReceiverExpr, ok := g.staticReceiverTypeExpr(ctx, expr, receiverGoType); ok && concreteReceiverExpr != nil {
+		concreteReceiverExpr = normalizeTypeExprForPackage(g, ctx.packageName, concreteReceiverExpr)
+		if g.typeExprFullyBound(ctx.packageName, concreteReceiverExpr) {
+			if concreteGoType, ok := g.lowerCarrierType(ctx, concreteReceiverExpr); ok &&
+				concreteGoType != "" &&
+				concreteGoType != receiverGoType &&
+				concreteGoType != "runtime.Value" &&
+				concreteGoType != "any" {
+				if concreteMethod := g.methodForReceiver(concreteGoType, methodName); concreteMethod != nil {
+					currentScore := g.receiverMethodMatchScore(method.ReceiverType, receiverGoType)
+					concreteScore := g.receiverMethodMatchScore(concreteMethod.ReceiverType, concreteGoType)
+					if concreteScore > currentScore {
+						return concreteReceiverExpr
+					}
+				}
+			}
+		}
+	}
+	targetTypeExpr := g.preferredNominalMethodTargetTypeExpr(ctx, call, method, receiverTypeExpr, expected)
+	if targetTypeExpr == nil {
+		return nil
+	}
+	targetTypeExpr = normalizeTypeExprForPackage(g, ctx.packageName, targetTypeExpr)
+	if !g.typeExprFullyBound(ctx.packageName, targetTypeExpr) {
+		return nil
+	}
+	targetGoType, ok := g.lowerCarrierType(ctx, targetTypeExpr)
+	if !ok || targetGoType == "" || targetGoType == receiverGoType || targetGoType == "runtime.Value" || targetGoType == "any" {
+		return nil
+	}
+	targetMethod := g.methodForReceiver(targetGoType, methodName)
+	if targetMethod == nil {
+		return nil
+	}
+	currentScore := g.receiverMethodMatchScore(method.ReceiverType, receiverGoType)
+	targetScore := g.receiverMethodMatchScore(targetMethod.ReceiverType, targetGoType)
+	if targetScore < currentScore {
+		return nil
+	}
+	if targetMethod.Info == method.Info && targetScore <= currentScore {
+		return nil
+	}
+	if targetScore == currentScore &&
+		targetMethod.Info != nil &&
+		method.Info != nil &&
+		targetMethod.Info.GoName == method.Info.GoName {
+		return nil
+	}
+	return targetTypeExpr
+}

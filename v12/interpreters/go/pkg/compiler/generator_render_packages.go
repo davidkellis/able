@@ -178,7 +178,7 @@ func (g *generator) renderCompiledPackageCallableFile(pkgName string, idx int) (
 			fmt.Fprintf(&buf, "\t\t%s = overloadFn\n", g.overloadValueName(pkgName, name))
 			fmt.Fprintf(&buf, "\t}\n")
 			for _, entry := range overload.Entries {
-				if entry == nil || !entry.Compileable {
+				if entry == nil || !entry.Compileable || entry.ExternBody != nil {
 					continue
 				}
 				paramExprs, ok := g.renderFunctionParamTypes(entry)
@@ -209,7 +209,7 @@ func (g *generator) renderCompiledPackageCallableFile(pkgName string, idx int) (
 		fmt.Fprintf(&buf, "\tif original, err := pkgEnv.Get(%q); err == nil {\n", info.Name)
 		fmt.Fprintf(&buf, "\t\trt.RegisterOriginal(%q, original)\n", qualified)
 		fmt.Fprintf(&buf, "\t}\n")
-		if info.Compileable {
+		if info.Compileable && info.ExternBody == nil {
 			paramExprs, ok := g.renderFunctionParamTypes(info)
 			if !ok {
 				return nil, fmt.Errorf("compiler: render param types for function %s in package %s", info.Name, pkgName)
@@ -384,6 +384,9 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 				qualified := method.TargetName + "." + method.MethodName
 				fmt.Fprintf(&buf, "\tif entry := __able_lookup_compiled_method(%q, %q, false); entry != nil && entry.fn != nil {\n", method.TargetName, method.MethodName)
 				fmt.Fprintf(&buf, "\t\tpkgEnv.Define(%q, entry.fn)\n", qualified)
+				fmt.Fprintf(&buf, "\t\tif interp != nil {\n")
+				fmt.Fprintf(&buf, "\t\t\tinterp.RegisterPackageSymbol(%q, %q, entry.fn)\n", pkgName, qualified)
+				fmt.Fprintf(&buf, "\t\t}\n")
 				fmt.Fprintf(&buf, "\t\tif entryEnv != nil && entryEnv != pkgEnv {\n")
 				fmt.Fprintf(&buf, "\t\t\tentryEnv.Define(%q, entry.fn)\n", qualified)
 				fmt.Fprintf(&buf, "\t\t}\n")

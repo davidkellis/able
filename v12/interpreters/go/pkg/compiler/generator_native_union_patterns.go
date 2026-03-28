@@ -220,13 +220,13 @@ func (g *generator) compileNativeUnionDynamicTypedPatternBindings(ctx *compileCo
 }
 
 func isTypedPatternConditionOnly(pattern ast.Pattern) bool {
-	switch p := pattern.(type) {
+	switch pattern.(type) {
 	case nil:
 		return true
 	case *ast.WildcardPattern:
 		return true
 	case *ast.Identifier:
-		return p == nil || p.Name == "" || p.Name == "_"
+		return true
 	default:
 		return false
 	}

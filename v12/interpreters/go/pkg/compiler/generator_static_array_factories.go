@@ -18,10 +18,7 @@ func (g *generator) compileStaticArrayFactoryCall(
 		return nil, "", "", false
 	}
 	_ = callNode
-	arrayType := expected
-	if arrayType == "" {
-		arrayType = "*Array"
-	}
+	arrayType := g.staticArrayFactoryResultGoType(ctx, expected)
 	if !g.isStaticArrayType(arrayType) {
 		return nil, "", "", false
 	}
@@ -80,6 +77,38 @@ func (g *generator) compileStaticArrayFactoryCall(
 	default:
 		return nil, "", "", false
 	}
+}
+
+func (g *generator) staticArrayFactoryResultGoType(ctx *compileContext, expected string) string {
+	if g == nil {
+		return "*Array"
+	}
+	if expected != "" && g.isStaticArrayType(expected) {
+		return expected
+	}
+	if expr := g.staticArrayFactoryResultTypeExpr(ctx); expr != nil {
+		if goType, ok := g.lowerCarrierType(ctx, expr); ok && g.isStaticArrayType(goType) {
+			return goType
+		}
+	}
+	return "*Array"
+}
+
+func (g *generator) staticArrayFactoryResultTypeExpr(ctx *compileContext) ast.TypeExpression {
+	if g == nil || ctx == nil {
+		return ast.Gen(ast.Ty("Array"), ast.NewWildcardTypeExpression())
+	}
+	if ctx.expectedTypeExpr != nil {
+		if baseName, ok := typeExprBaseName(ctx.expectedTypeExpr); ok && baseName == "Array" {
+			return normalizeTypeExprForPackage(g, ctx.packageName, ctx.expectedTypeExpr)
+		}
+	}
+	if ctx.returnTypeExpr != nil {
+		if baseName, ok := typeExprBaseName(ctx.returnTypeExpr); ok && baseName == "Array" {
+			return normalizeTypeExprForPackage(g, ctx.packageName, ctx.returnTypeExpr)
+		}
+	}
+	return ast.Gen(ast.Ty("Array"), ast.NewWildcardTypeExpression())
 }
 
 func (g *generator) coerceStaticArrayFactoryResult(

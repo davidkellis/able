@@ -13,6 +13,11 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 		return nil, "", "", false
 	}
 	callNode := g.diagNodeName(call, "*ast.FunctionCall", "call")
+	if callee, ok := call.Callee.(*ast.MemberAccessExpression); ok && callee != nil && !callee.Safe {
+		if lines, expr, goType, ok := g.compileStaticPackageSelectorCall(ctx, call, expected, callee, callNode); ok {
+			return lines, expr, goType, true
+		}
+	}
 	if callee, ok := call.Callee.(*ast.MemberAccessExpression); ok && callee != nil && !callee.Safe && callee.Member != nil {
 		if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
 			if typeIdent, ok := callee.Object.(*ast.Identifier); ok && typeIdent != nil && typeIdent.Name != "" {
@@ -25,15 +30,14 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 	if len(call.TypeArguments) > 0 {
 		if callee, ok := call.Callee.(*ast.MemberAccessExpression); ok && callee != nil && !callee.Safe && callee.Member != nil {
 			if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
-				objLines, objExpr, objType, ok := g.compileExprLines(ctx, callee.Object, "")
+				preferredReceiverTypeExpr := g.preferredDispatchReceiverTypeExpr(ctx, call, callee.Object, ident.Name, expected)
+				objLines, objExpr, objType, ok := g.compileDispatchReceiverExprWithExpectedTypeExpr(ctx, callee.Object, "", preferredReceiverTypeExpr)
 				if ok {
-					if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, callee.Object, objExpr, objType); recovered {
-						objLines = append(objLines, recoverLines...)
-						objExpr = recoveredExpr
-						objType = recoveredType
-					}
 					if siblingLines, expr, retType, ok := g.compileDirectImplSiblingMethodCall(ctx, call, callee, expected, objExpr, objType, callNode); ok {
-						lines := append(objLines, siblingLines...)
+						lines := siblingLines
+						if !g.usesImplicitReceiverSiblingCall(ctx, callee.Object) {
+							lines = append(objLines, siblingLines...)
+						}
 						return lines, expr, retType, true
 					}
 					if method := g.methodForReceiver(objType, ident.Name); method != nil {
@@ -44,7 +48,7 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 							return lines, expr, retType, true
 						}
 					}
-					if method := g.compileableInterfaceMethodForConcreteReceiver(objType, ident.Name); method != nil {
+					if method := g.compileableInterfaceMethodForConcreteReceiverExpr(ctx, callee.Object, objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
 						methodLines, expr, retType, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 						if ok {
@@ -54,6 +58,10 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 					}
 					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceGenericMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines := append(objLines, ifaceLines...)
+						return lines, expr, retType, true
+					}
+					if fieldCallLines, expr, retType, ok := g.compileStaticCallableFieldCall(ctx, call, expected, callee, objExpr, objType, callNode); ok {
+						lines := append(objLines, fieldCallLines...)
 						return lines, expr, retType, true
 					}
 				}
@@ -223,22 +231,23 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		case *ast.MemberAccessExpression:
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
-					if method, ok := g.lowerResolveStaticMethod(ctx, callee.Object, ident.Name); ok {
+					if method, ok := g.resolveStaticMethodCallForCall(ctx, call, callee.Object, ident.Name); ok {
 						method = g.concreteStaticMethodCallInfo(ctx, call, method, callee.Object, expected)
 						return g.lowerResolvedMethodDispatch(ctx, call, expected, method, "", "", callNode)
 					}
 				}
 			}
-			objLines, objExpr, objType, ok := g.compileExprLines(ctx, callee.Object, "")
+			var preferredReceiverTypeExpr ast.TypeExpression
+			if callee.Member != nil && !callee.Safe {
+				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+					preferredReceiverTypeExpr = g.preferredDispatchReceiverTypeExpr(ctx, call, callee.Object, ident.Name, expected)
+				}
+			}
+			objLines, objExpr, objType, ok := g.compileDispatchReceiverExprWithExpectedTypeExpr(ctx, callee.Object, "", preferredReceiverTypeExpr)
 			if !ok {
 				return nil, "", "", false
 			}
 			lines = append(lines, objLines...)
-			if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, callee.Object, objExpr, objType); recovered {
-				lines = append(lines, recoverLines...)
-				objExpr = recoveredExpr
-				objType = recoveredType
-			}
 			if callee.Member != nil && !callee.Safe {
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
 					if controllerLines, expr, retType, ok := g.compileStaticIteratorControllerCall(ctx, call, expected, objExpr, objType, ident.Name); ok {
@@ -260,14 +269,22 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 						return lines, v, t, ok
 					}
 					if siblingLines, expr, retType, ok := g.compileDirectImplSiblingMethodCall(ctx, call, callee, expected, objExpr, objType, callNode); ok {
-						lines = append(lines, siblingLines...)
+						if !g.usesImplicitReceiverSiblingCall(ctx, callee.Object) {
+							lines = append(lines, siblingLines...)
+						} else {
+							lines = append(lines[:len(lines)-len(objLines)], siblingLines...)
+						}
 						return lines, expr, retType, true
 					}
-					if method := g.compileableInterfaceMethodForConcreteReceiver(objType, ident.Name); method != nil {
+					if method := g.compileableInterfaceMethodForConcreteReceiverExpr(ctx, callee.Object, objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
 						methodLines, v, t, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 						lines = append(lines, methodLines...)
 						return lines, v, t, ok
+					}
+					if ifaceLines, expr, retType, ok := g.compileConcreteNativeInterfaceMethodCall(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
+						lines = append(lines, ifaceLines...)
+						return lines, expr, retType, true
 					}
 					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines = append(lines, ifaceLines...)
@@ -275,6 +292,10 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 					}
 					if ifaceLines, expr, retType, ok := g.lowerNativeInterfaceGenericMethodDispatch(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines = append(lines, ifaceLines...)
+						return lines, expr, retType, true
+					}
+					if fieldCallLines, expr, retType, ok := g.compileStaticCallableFieldCall(ctx, call, expected, callee, objExpr, objType, callNode); ok {
+						lines = append(lines, fieldCallLines...)
 						return lines, expr, retType, true
 					}
 					// When receiver is runtime.Value with known origin struct type,
@@ -311,7 +332,9 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 									ExpectsSelf: true,
 									Info:        sibling.Info,
 								}
-								method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
+								if g.canSpecializeImplicitReceiver(ctx) {
+									method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
+								}
 								methodLines, v, t, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
 								if ok {
 									lines = append(lines, methodLines...)
@@ -521,6 +544,27 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	return lines, resultExpr, resultType, true
 }
 
+func (g *generator) compileStaticCallableFieldCall(ctx *compileContext, call *ast.FunctionCall, expected string, callee *ast.MemberAccessExpression, objExpr string, objType string, callNode string) ([]string, string, string, bool) {
+	if g == nil || ctx == nil || call == nil || callee == nil || callee.Safe || objExpr == "" || objType == "" {
+		return nil, "", "", false
+	}
+	if fieldLines, fieldExpr, fieldType, ok := g.compileOriginStructFieldAccess(ctx, callee, objExpr, ""); ok {
+		if applyLines, expr, retType, ok := g.compileStaticApplyCall(ctx, call, expected, fieldExpr, fieldType, callNode); ok {
+			fieldLines = append(fieldLines, applyLines...)
+			return fieldLines, expr, retType, true
+		}
+	}
+	info := g.structInfoByGoName(objType)
+	if info == nil {
+		return nil, "", "", false
+	}
+	field, ok := g.structFieldForMember(info, callee.Member)
+	if !ok || field == nil {
+		return nil, "", "", false
+	}
+	return g.compileStaticApplyCall(ctx, call, expected, fmt.Sprintf("%s.%s", objExpr, field.GoName), field.GoType, callNode)
+}
+
 func (g *generator) compileDirectImplSiblingMethodCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string, callNode string) ([]string, string, string, bool) {
 	if g == nil || ctx == nil || call == nil || callee == nil || callee.Safe || !ctx.hasImplicitReceiver || len(ctx.implSiblings) == 0 {
 		return nil, "", "", false
@@ -533,6 +577,30 @@ func (g *generator) compileDirectImplSiblingMethodCall(ctx *compileContext, call
 	if !ok || objIdent == nil || objIdent.Name != ctx.implicitReceiver.Name {
 		return nil, "", "", false
 	}
+	receiverExpr := objExpr
+	receiverType := objType
+	if ctx.implicitReceiver.GoName != "" && ctx.implicitReceiver.GoType != "" {
+		receiverExpr = ctx.implicitReceiver.GoName
+		receiverType = ctx.implicitReceiver.GoType
+	}
+	// Prefer full concrete receiver resolution over the cached sibling entry.
+	// Default/generic sibling metadata can still point at a base impl, while the
+	// implicit receiver may already be fully specialized on the current body.
+	preferConcreteSibling := g.canSpecializeImplicitReceiver(ctx) && !g.typeExprHasGeneric(ctx.returnTypeExpr, ctx.genericNames)
+	if preferConcreteSibling && receiverType != "" && receiverType != "runtime.Value" && receiverType != "any" {
+		if method := g.methodForReceiver(receiverType, ident.Name); method != nil {
+			method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, receiverType, expected)
+			if lines, expr, retType, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, receiverExpr, receiverType, callNode); ok {
+				return lines, expr, retType, true
+			}
+		}
+		if method := g.compileableInterfaceMethodForConcreteReceiverExpr(ctx, callee.Object, receiverType, ident.Name); method != nil {
+			method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, receiverType, expected)
+			if lines, expr, retType, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, receiverExpr, receiverType, callNode); ok {
+				return lines, expr, retType, true
+			}
+		}
+	}
 	sibling, ok := ctx.implSiblings[ident.Name]
 	if !ok || sibling.Info == nil || !sibling.Info.Compileable || len(sibling.Info.Params) == 0 {
 		return nil, "", "", false
@@ -542,8 +610,39 @@ func (g *generator) compileDirectImplSiblingMethodCall(ctx *compileContext, call
 		ExpectsSelf: true,
 		Info:        sibling.Info,
 	}
-	method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
-	return g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
+	if g.nativeInterfaceDefaultByInfo[sibling.Info] == nil && g.canSpecializeImplicitReceiver(ctx) {
+		method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
+	}
+	return g.lowerResolvedMethodDispatch(ctx, call, expected, method, receiverExpr, receiverType, callNode)
+}
+
+func (g *generator) usesImplicitReceiverSiblingCall(ctx *compileContext, object ast.Expression) bool {
+	if ctx == nil || !ctx.hasImplicitReceiver {
+		return false
+	}
+	ident, ok := object.(*ast.Identifier)
+	if !ok || ident == nil {
+		return false
+	}
+	return ident.Name != "" && ident.Name == ctx.implicitReceiver.Name
+}
+
+func (g *generator) canSpecializeImplicitReceiver(ctx *compileContext) bool {
+	if g == nil || ctx == nil || !ctx.hasImplicitReceiver || ctx.implicitReceiver.TypeExpr == nil {
+		return false
+	}
+	receiverTypeExpr := normalizeTypeExprForPackage(g, ctx.packageName, ctx.implicitReceiver.TypeExpr)
+	if receiverTypeExpr == nil || !g.typeExprFullyBound(ctx.packageName, receiverTypeExpr) {
+		return false
+	}
+	if ctx.implicitReceiver.GoType == "" {
+		return true
+	}
+	canonicalGoType, ok := g.lowerCarrierTypeInPackage(ctx.packageName, receiverTypeExpr)
+	if !ok || canonicalGoType == "" || canonicalGoType == "runtime.Value" || canonicalGoType == "any" {
+		return false
+	}
+	return canonicalGoType == ctx.implicitReceiver.GoType
 }
 
 func (g *generator) runtimeHelperImpl(name string) (string, bool) {

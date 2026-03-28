@@ -35,6 +35,13 @@ func (g *generator) nativeInterfaceAdapterMethodSpecificity(method *nativeInterf
 		return 0
 	}
 	score := 0
+	if method.Info != nil {
+		for _, expr := range method.Info.TypeBindings {
+			if expr != nil {
+				score += 1
+			}
+		}
+	}
 	for _, goType := range method.CompiledParamGoTypes {
 		if goType != "" && goType != "runtime.Value" && goType != "any" {
 			score += 2
@@ -123,20 +130,70 @@ func (g *generator) nativeInterfaceGenericDispatchCases(ctx *compileContext, cal
 			specializationExpected = returnGoType
 		}
 	}
-	var cases []nativeInterfaceGenericDispatchCase
+	caseByGoType := make(map[string]nativeInterfaceGenericDispatchCase)
+	addCase := func(adapter *nativeInterfaceAdapter) {
+		if adapter == nil || adapter.GoType == "" {
+			return
+		}
+		impl := g.nativeInterfaceSpecializedGenericMethodImpl(ctx, call, specializationExpected, adapter.GoType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType)
+		if impl == nil {
+			impl = g.nativeInterfaceGenericMethodImpl(adapter.GoType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType)
+		}
+		if impl == nil {
+			return
+		}
+		candidate := nativeInterfaceGenericDispatchCase{
+			AdapterType: adapter.AdapterType,
+			GoType:      adapter.GoType,
+			Impl:        impl,
+		}
+		if existing, ok := caseByGoType[adapter.GoType]; ok && existing.Impl != nil {
+			if g.nativeInterfaceAdapterMethodSpecificity(existing.Impl) >= g.nativeInterfaceAdapterMethodSpecificity(candidate.Impl) {
+				return
+			}
+		}
+		caseByGoType[adapter.GoType] = candidate
+	}
+	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
+		addCase(adapter)
+	}
+	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
+		impl := candidateInfo.impl
+		if impl == nil || impl.InterfaceName != method.InterfaceName || impl.MethodName != method.Name {
+			continue
+		}
+		goType := g.implReceiverGoType(impl)
+		if goType == "" || g.nativeInterfaceInfoForGoType(goType) != nil {
+			continue
+		}
+		adapter, ok := g.nativeInterfaceAdapterForActual(info, goType)
+		if !ok || adapter == nil {
+			continue
+		}
+		addCase(adapter)
+	}
+	if len(caseByGoType) == 0 {
+		return nil
+	}
+	cases := make([]nativeInterfaceGenericDispatchCase, 0, len(caseByGoType))
 	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || adapter.GoType == "" {
 			continue
 		}
-		impl := g.nativeInterfaceSpecializedGenericMethodImpl(ctx, call, specializationExpected, adapter.GoType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType)
-		if impl == nil {
-			continue
+		if candidate, ok := caseByGoType[adapter.GoType]; ok {
+			cases = append(cases, candidate)
+			delete(caseByGoType, adapter.GoType)
 		}
-		cases = append(cases, nativeInterfaceGenericDispatchCase{
-			AdapterType: adapter.AdapterType,
-			GoType:      adapter.GoType,
-			Impl:        impl,
-		})
+	}
+	if len(caseByGoType) > 0 {
+		remaining := make([]string, 0, len(caseByGoType))
+		for goType := range caseByGoType {
+			remaining = append(remaining, goType)
+		}
+		sort.Strings(remaining)
+		for _, goType := range remaining {
+			cases = append(cases, caseByGoType[goType])
+		}
 	}
 	return cases
 }
@@ -157,15 +214,29 @@ func (g *generator) nativeInterfaceSpecializedGenericMethodImpl(ctx *compileCont
 	if g == nil || ctx == nil || call == nil || goType == "" || method == nil {
 		return nil
 	}
-	receiverTypeExpr, ok := g.typeExprForGoType(goType)
-	if !ok || receiverTypeExpr == nil {
-		return nil
+	var receiverTypeExpr ast.TypeExpression
+	if member, ok := call.Callee.(*ast.MemberAccessExpression); ok && member != nil && member.Object != nil {
+		if actualExpr, ok := g.inferExpressionTypeExpr(ctx, member.Object, goType); ok && actualExpr != nil {
+			receiverTypeExpr = actualExpr
+		}
+	}
+	if receiverTypeExpr != nil {
+		if mapped, ok := g.lowerCarrierTypeInPackage(method.InterfacePackage, receiverTypeExpr); !ok || mapped == "" || mapped == "runtime.Value" || mapped == "any" || !(mapped == goType || g.receiverGoTypeCompatible(goType, mapped) || g.receiverGoTypeCompatible(mapped, goType)) {
+			receiverTypeExpr = nil
+		}
+	}
+	if receiverTypeExpr == nil {
+		var ok bool
+		receiverTypeExpr, ok = g.typeExprForGoType(goType)
+		if !ok || receiverTypeExpr == nil {
+			return nil
+		}
 	}
 	var found *nativeInterfaceAdapterMethod
 	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
 		impl := candidateInfo.impl
 		info := candidateInfo.info
-		if impl == nil || info == nil || !info.Compileable || impl.ImplName != "" {
+		if impl == nil || info == nil || !g.nativeInterfaceDispatchCandidateEligible(info) || impl.ImplName != "" {
 			continue
 		}
 		if impl.MethodName != method.Name || len(info.Params) == 0 {
@@ -175,9 +246,24 @@ func (g *generator) nativeInterfaceSpecializedGenericMethodImpl(ctx *compileCont
 		if !ok {
 			continue
 		}
-		if info.Params[0].GoType != goType {
+		bindings, ok = g.nativeInterfaceMergeConcreteInfoBindings(info, bindings)
+		if !ok {
+			continue
+		}
+		if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+			if concreteTarget := g.specializedImplTargetTemplate(impl, bindings); concreteTarget != nil {
+				if !g.mergeConcreteBindings(impl.Info.Package, bindings, g.interfaceSelfTypeBindings(iface, concreteTarget)) {
+					continue
+				}
+			}
+		}
+		if g.isNativeStructPointerType(goType) || info.Params[0].GoType != goType {
 			info, bindings, ok = g.nativeInterfaceConcreteImplInfo(goType, impl, bindings)
 			if !ok || info == nil || len(info.Params) == 0 || info.Params[0].GoType != goType {
+				continue
+			}
+			bindings, ok = g.nativeInterfaceMergeConcreteInfoBindings(info, bindings)
+			if !ok {
 				continue
 			}
 		}
@@ -190,7 +276,7 @@ func (g *generator) nativeInterfaceSpecializedGenericMethodImpl(ctx *compileCont
 			ExpectsSelf:  true,
 			Info:         info,
 		}
-		bindings, ok = g.specializedImplMethodBindings(ctx, call, methodInfo, impl, receiverTypeExpr, expected)
+		bindings, ok = g.nativeInterfaceConcreteGenericCallBindings(methodInfo, impl, receiverTypeExpr, paramTypeExprs, returnTypeExpr, call.TypeArguments, bindings)
 		if !ok || len(bindings) == 0 {
 			continue
 		}
@@ -232,6 +318,11 @@ func (g *generator) nativeInterfaceSpecializedGenericMethodImpl(ctx *compileCont
 		}
 		if found != nil && found.Info != candidate.Info {
 			if equivalentFunctionInfoSignature(found.Info, candidate.Info) {
+				foundScore := g.nativeInterfaceAdapterMethodSpecificity(found)
+				candidateScore := g.nativeInterfaceAdapterMethodSpecificity(candidate)
+				if candidateScore >= foundScore {
+					found = candidate
+				}
 				continue
 			}
 			foundScore := g.nativeInterfaceAdapterMethodSpecificity(found)

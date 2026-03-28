@@ -2,6 +2,120 @@ package compiler
 
 import "able/interpreter-go/pkg/ast"
 
+func (g *generator) builtinSemanticTypeShadowedInPackage(pkgName string, name string) bool {
+	if g == nil || name == "" {
+		return false
+	}
+	if aliases := g.typeAliases[pkgName]; aliases != nil {
+		if _, ok := aliases[name]; ok {
+			return true
+		}
+	}
+	if recorded, ok := g.unionPackages[name]; ok && recorded == pkgName {
+		return true
+	}
+	if recorded, ok := g.interfacePackages[name]; ok && recorded == pkgName {
+		return true
+	}
+	if info := g.structs[name]; info != nil && info.Package == pkgName {
+		return true
+	}
+	return false
+}
+
+func normalizeBuiltinSemanticTypeExprInPackage(g *generator, pkgName string, expr ast.TypeExpression) ast.TypeExpression {
+	if expr == nil {
+		return nil
+	}
+	switch t := expr.(type) {
+	case *ast.GenericTypeExpression:
+		if t == nil {
+			return expr
+		}
+		base := normalizeBuiltinSemanticTypeExprInPackage(g, pkgName, t.Base)
+		args := make([]ast.TypeExpression, 0, len(t.Arguments))
+		changed := base != t.Base
+		for _, arg := range t.Arguments {
+			next := normalizeBuiltinSemanticTypeExprInPackage(g, pkgName, arg)
+			args = append(args, next)
+			if next != arg {
+				changed = true
+			}
+		}
+		if baseSimple, ok := base.(*ast.SimpleTypeExpression); ok && baseSimple != nil && baseSimple.Name != nil && len(args) == 1 {
+			switch baseSimple.Name.Name {
+			case "Option":
+				if !g.builtinSemanticTypeShadowedInPackage(pkgName, "Option") {
+					return ast.NewNullableTypeExpression(args[0])
+				}
+			case "Result":
+				if !g.builtinSemanticTypeShadowedInPackage(pkgName, "Result") {
+					return ast.NewResultTypeExpression(args[0])
+				}
+			}
+		}
+		if !changed {
+			return expr
+		}
+		return ast.NewGenericTypeExpression(base, args)
+	case *ast.NullableTypeExpression:
+		if t == nil {
+			return expr
+		}
+		inner := normalizeBuiltinSemanticTypeExprInPackage(g, pkgName, t.InnerType)
+		if inner == t.InnerType {
+			return expr
+		}
+		return ast.NewNullableTypeExpression(inner)
+	case *ast.ResultTypeExpression:
+		if t == nil {
+			return expr
+		}
+		inner := normalizeBuiltinSemanticTypeExprInPackage(g, pkgName, t.InnerType)
+		if inner == t.InnerType {
+			return expr
+		}
+		return ast.NewResultTypeExpression(inner)
+	case *ast.UnionTypeExpression:
+		if t == nil {
+			return expr
+		}
+		changed := false
+		members := make([]ast.TypeExpression, 0, len(t.Members))
+		for _, member := range t.Members {
+			next := normalizeBuiltinSemanticTypeExprInPackage(g, pkgName, member)
+			members = append(members, next)
+			if next != member {
+				changed = true
+			}
+		}
+		if !changed {
+			return expr
+		}
+		return ast.NewUnionTypeExpression(members)
+	case *ast.FunctionTypeExpression:
+		if t == nil {
+			return expr
+		}
+		ret := normalizeBuiltinSemanticTypeExprInPackage(g, pkgName, t.ReturnType)
+		changed := ret != t.ReturnType
+		params := make([]ast.TypeExpression, 0, len(t.ParamTypes))
+		for _, param := range t.ParamTypes {
+			next := normalizeBuiltinSemanticTypeExprInPackage(g, pkgName, param)
+			params = append(params, next)
+			if next != param {
+				changed = true
+			}
+		}
+		if !changed {
+			return expr
+		}
+		return ast.NewFunctionTypeExpression(params, ret)
+	default:
+		return expr
+	}
+}
+
 func normalizeKernelBuiltinTypeName(name string) string {
 	switch name {
 	case "KernelArray":
@@ -24,6 +138,24 @@ func normalizeKernelBuiltinTypeName(name string) string {
 		return "AwaitWaker"
 	case "KernelAwaitRegistration":
 		return "AwaitRegistration"
+	case "KernelDisplay":
+		return "Display"
+	case "KernelClone":
+		return "Clone"
+	case "KernelDefault":
+		return "Default"
+	case "KernelPartialEq":
+		return "PartialEq"
+	case "KernelEq":
+		return "Eq"
+	case "KernelPartialOrd":
+		return "PartialOrd"
+	case "KernelOrd":
+		return "Ord"
+	case "KernelHash":
+		return "Hash"
+	case "KernelHasherInterface":
+		return "Hasher"
 	case "KernelLess":
 		return "Less"
 	case "KernelGreater":

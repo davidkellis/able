@@ -40,6 +40,33 @@ func (g *generator) compileStaticArrayValueArg(
 	return argLines, argExpr, true
 }
 
+func (g *generator) compileStaticArrayCarrierArg(
+	ctx *compileContext,
+	arrayType string,
+	arg ast.Expression,
+) ([]string, string, bool) {
+	argLines, argExpr, argType, ok := g.compileExprLines(ctx, arg, arrayType)
+	if !ok {
+		return nil, "", false
+	}
+	if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, arg, argExpr, argType); recovered {
+		argLines = append(argLines, recoverLines...)
+		argExpr = recoveredExpr
+		argType = recoveredType
+	}
+	if argType == arrayType {
+		return argLines, argExpr, true
+	}
+	if argType == "runtime.Value" || argType == "any" {
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, argExpr, arrayType)
+		if !ok {
+			return nil, "", false
+		}
+		return append(argLines, convLines...), converted, true
+	}
+	return nil, "", false
+}
+
 // compileArrayMethodLenIntrinsic compiles arr.len() → int32 for all arrays.
 func (g *generator) compileArrayMethodLenIntrinsic(
 	ctx *compileContext,
@@ -82,6 +109,7 @@ func (g *generator) compileArrayMethodLenIntrinsic(
 // compileArrayMethodPushIntrinsic compiles arr.push(value) for all arrays.
 func (g *generator) compileArrayMethodPushIntrinsic(
 	ctx *compileContext,
+	objNode ast.Expression,
 	objExpr string,
 	objType string,
 	args []ast.Expression,
@@ -102,6 +130,46 @@ func (g *generator) compileArrayMethodPushIntrinsic(
 		fmt.Sprintf("%s.Elements = append(%s.Elements, %s)", objTemp, objTemp, valueTemp),
 		g.staticArraySyncCall(objType, objTemp),
 	}...)...)
+	if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, objNode, objTemp, objType); ok {
+		lines = append(lines, writebackLines...)
+	}
+	if expected == "runtime.Value" {
+		return lines, "runtime.VoidValue{}", "runtime.Value", true
+	}
+	if expected == "" || expected == "struct{}" {
+		return lines, "struct{}{}", "struct{}", true
+	}
+	return nil, "", "", false
+}
+
+func (g *generator) compileArrayMethodPushAllIntrinsic(
+	ctx *compileContext,
+	objNode ast.Expression,
+	objExpr string,
+	objType string,
+	args []ast.Expression,
+	expected string,
+	callNode string,
+) ([]string, string, string, bool) {
+	if len(args) != 1 {
+		return nil, "", "", false
+	}
+	valuesArgLines, valuesExpr, ok := g.compileStaticArrayCarrierArg(ctx, objType, args[0])
+	if !ok {
+		return nil, "", "", false
+	}
+	lines, objTemp := g.arrayObjLines(ctx, objExpr, callNode)
+	valuesTemp := ctx.newTemp()
+	lines = append(valuesArgLines, append(lines, []string{
+		fmt.Sprintf("%s := %s", valuesTemp, valuesExpr),
+		fmt.Sprintf("if %s != nil && len(%s.Elements) > 0 {", valuesTemp, valuesTemp),
+		fmt.Sprintf("\t%s.Elements = append(%s.Elements, %s.Elements...)", objTemp, objTemp, valuesTemp),
+		"}",
+		g.staticArraySyncCall(objType, objTemp),
+	}...)...)
+	if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, objNode, objTemp, objType); ok {
+		lines = append(lines, writebackLines...)
+	}
 	if expected == "runtime.Value" {
 		return lines, "runtime.VoidValue{}", "runtime.Value", true
 	}
@@ -114,6 +182,7 @@ func (g *generator) compileArrayMethodPushIntrinsic(
 // compileArrayMethodPopIntrinsic compiles arr.pop() → ?T for all arrays.
 func (g *generator) compileArrayMethodPopIntrinsic(
 	ctx *compileContext,
+	objNode ast.Expression,
 	objExpr string,
 	objType string,
 	args []ast.Expression,
@@ -148,6 +217,9 @@ func (g *generator) compileArrayMethodPopIntrinsic(
 		"}",
 		g.staticArraySyncCall(objType, objTemp),
 	)
+	if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, objNode, objTemp, objType); ok {
+		lines = append(lines, writebackLines...)
+	}
 	return lines, resultTemp, resultType, true
 }
 
@@ -227,6 +299,7 @@ func (g *generator) compileArrayMethodIsEmptyIntrinsic(
 // compileArrayMethodClearIntrinsic compiles arr.clear() → void.
 func (g *generator) compileArrayMethodClearIntrinsic(
 	ctx *compileContext,
+	objNode ast.Expression,
 	objExpr string,
 	objType string,
 	args []ast.Expression,
@@ -241,6 +314,9 @@ func (g *generator) compileArrayMethodClearIntrinsic(
 		fmt.Sprintf("%s.Elements = %s.Elements[:0]", objTemp, objTemp),
 		g.staticArraySyncCall(objType, objTemp),
 	)
+	if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, objNode, objTemp, objType); ok {
+		lines = append(lines, writebackLines...)
+	}
 	if expected == "runtime.Value" {
 		return lines, "runtime.VoidValue{}", "runtime.Value", true
 	}
@@ -287,6 +363,7 @@ func (g *generator) compileArrayMethodCapacityIntrinsic(
 
 func (g *generator) compileArrayMethodReserveIntrinsic(
 	ctx *compileContext,
+	objNode ast.Expression,
 	objExpr string,
 	objType string,
 	args []ast.Expression,
@@ -322,6 +399,9 @@ func (g *generator) compileArrayMethodReserveIntrinsic(
 		"}",
 		g.staticArraySyncCall(objType, objTemp),
 	)
+	if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, objNode, objTemp, objType); ok {
+		lines = append(lines, writebackLines...)
+	}
 	if expected == "runtime.Value" {
 		return lines, "runtime.VoidValue{}", "runtime.Value", true
 	}

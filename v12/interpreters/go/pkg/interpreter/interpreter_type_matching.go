@@ -91,9 +91,9 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			}
 		case "IteratorEnd":
 			return i.isIteratorEnd(value)
-		case "Iterator":
+		case "Iterator", "Future":
 			switch v := value.(type) {
-			case *runtime.IteratorValue:
+			case *runtime.IteratorValue, *runtime.FutureValue:
 				return true
 			case *runtime.InterfaceValue:
 				return i.interfaceMatches(v, name, nil)
@@ -218,9 +218,9 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		if baseName == "Self" || (len(baseName) == 1 && baseName[0] >= 'A' && baseName[0] <= 'Z') {
 			return true
 		}
-		if baseName == "Iterator" {
+		if baseName == "Iterator" || baseName == "Future" {
 			switch v := value.(type) {
-			case *runtime.IteratorValue:
+			case *runtime.IteratorValue, *runtime.FutureValue:
 				return true
 			case *runtime.InterfaceValue:
 				return i.interfaceMatches(v, baseName, t.Arguments)

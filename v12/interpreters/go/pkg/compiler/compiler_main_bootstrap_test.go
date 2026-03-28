@@ -282,6 +282,63 @@ func TestCompilerMainSkipsProgramEvaluationWhenStaticUsesNamedImplNamespaceOverl
 	}
 }
 
+func TestCompilerMainSkipsProgramEvaluationWhenStaticUsesImportedPublicMethodSelector(t *testing.T) {
+	mainSrc, compiledSrc := compileOutputs(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.spec.{use}",
+			"",
+			"fn main() -> i32 {",
+			"  use()",
+			"}",
+			"",
+		}, "\n"),
+		"assertions.able": strings.Join([]string{
+			"package assertions",
+			"",
+			"struct Expectation {",
+			"  actual: i32",
+			"}",
+			"",
+			"fn expect(value: i32) -> Expectation {",
+			"  Expectation { actual: value }",
+			"}",
+			"",
+			"methods Expectation {",
+			"  fn to(self: Self, expected: i32) -> i32 {",
+			"    if self.actual == expected { 1 } else { 0 }",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"spec.able": strings.Join([]string{
+			"package spec",
+			"",
+			"import demo.assertions.{Expectation, expect, to::assertions_to}",
+			"",
+			"to := assertions_to",
+			"",
+			"fn use() -> i32 {",
+			"  to(expect(7), 7)",
+			"}",
+			"",
+		}, "\n"),
+	})
+	if strings.Contains(mainSrc, "EvaluateProgram(") {
+		t.Fatalf("expected static imported-public-method launcher to skip interpreter program evaluation")
+	}
+	if !strings.Contains(compiledSrc, "__able_make_compiled_wrapper_callable") {
+		t.Fatalf("expected no-bootstrap seeder to synthesize wrapper-backed callables for imported public methods")
+	}
+	if !strings.Contains(compiledSrc, "__able_public_package_method_demo_assertions_to") {
+		t.Fatalf("expected compiled source to emit a package-scoped public method dispatcher:\n%s", compiledSrc)
+	}
+	if !strings.Contains(compiledSrc, "\"to\", 2, 2, __able_public_package_method_demo_assertions_to") {
+		t.Fatalf("expected no-bootstrap import seeding to bind the imported public method through the shared wrapper helper:\n%s", compiledSrc)
+	}
+}
+
 func compileMainSource(t *testing.T, pkgName string, source string, extraPairs ...string) string {
 	t.Helper()
 	files := map[string]string{"main.able": source}

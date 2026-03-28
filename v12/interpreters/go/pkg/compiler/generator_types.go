@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
@@ -57,7 +58,19 @@ func (g *generator) isOrderedComparable(goType string) bool {
 
 func (g *generator) structBaseName(goType string) (string, bool) {
 	if info := g.structInfoByGoName(goType); info != nil {
-		return info.GoName, true
+		return info.Name, true
+	}
+	return "", false
+}
+
+func (g *generator) structHelperName(goType string) (string, bool) {
+	if info := g.structInfoByGoName(goType); info != nil {
+		if info.GoName != "" {
+			return info.GoName, true
+		}
+		if info.Name != "" {
+			return info.Name, true
+		}
 	}
 	return "", false
 }
@@ -74,7 +87,28 @@ func (g *generator) sameNominalStructFamily(left string, right string) bool {
 	if leftInfo == nil || rightInfo == nil {
 		return false
 	}
-	return leftInfo.Package == rightInfo.Package && leftInfo.Name == rightInfo.Name
+	if leftInfo.Package != rightInfo.Package || leftInfo.Name == "" || leftInfo.Name != rightInfo.Name {
+		return false
+	}
+	if leftInfo.TypeExpr == nil || rightInfo.TypeExpr == nil {
+		return true
+	}
+	leftExpr := normalizeTypeExprString(g, leftInfo.Package, leftInfo.TypeExpr)
+	rightExpr := normalizeTypeExprString(g, rightInfo.Package, rightInfo.TypeExpr)
+	return leftExpr != "" && leftExpr == rightExpr
+}
+
+func (g *generator) nominalStructCarrierCoercible(expected string, actual string) bool {
+	if g == nil || expected == "" || actual == "" {
+		return false
+	}
+	if g.sameNominalStructFamily(expected, actual) {
+		return true
+	}
+	if g.receiverNominalFamilyCompatible(expected, actual) {
+		return true
+	}
+	return g.receiverNominalFamilyCompatible(actual, expected)
 }
 
 func (g *generator) recoverRepresentableCarrierType(pkgName string, expr ast.TypeExpression, mapped string) (string, bool) {
@@ -124,8 +158,30 @@ func (g *generator) recoverRepresentableCarrierType(pkgName string, expr ast.Typ
 	return recovered, true
 }
 
+func (g *generator) typeExprAllowsNilInPackage(pkgName string, expr ast.TypeExpression) bool {
+	if g == nil || expr == nil {
+		return false
+	}
+	normalized := normalizeTypeExprForPackage(g, pkgName, expr)
+	switch t := normalized.(type) {
+	case *ast.NullableTypeExpression:
+		return t != nil
+	case *ast.UnionTypeExpression:
+		if t == nil {
+			return false
+		}
+		_, ok := nativeUnionNullableInnerTypeExpr(t.Members)
+		return ok
+	default:
+		return false
+	}
+}
+
 func (g *generator) refreshRepresentableFunctionInfo(info *functionInfo) {
 	if g == nil || info == nil {
+		return
+	}
+	if info.cachedCarrier {
 		return
 	}
 	for idx := range info.Params {
@@ -154,6 +210,7 @@ func (g *generator) refreshRepresentableFunctionInfo(info *functionInfo) {
 			info.ReturnType = recovered
 		}
 	}
+	info.cachedCarrier = true
 }
 
 func (g *generator) functionParamTypeExpr(info *functionInfo, idx int) ast.TypeExpression {
@@ -166,14 +223,52 @@ func (g *generator) functionParamTypeExpr(info *functionInfo, idx int) ast.TypeE
 	}
 	paramType := param.ParamType
 	if impl := g.implMethodByInfo[info]; impl != nil {
-		interfaceBindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, impl.TargetType)
-		selfTarget := g.implSelfTargetType(impl.TargetType, interfaceBindings)
+		contextBindings := g.compileContextTypeBindings(info)
+		concreteTarget := g.specializedImplTargetType(impl, contextBindings)
+		if concreteTarget == nil {
+			concreteTarget = impl.TargetType
+		}
+		if ident, ok := param.Name.(*ast.Identifier); ok && ident != nil && (ident.Name == "self" || ident.Name == "Self") {
+			if idx >= 0 && idx < len(info.Params) && info.Params[idx].TypeExpr != nil {
+				if concreteParam := normalizeTypeExprForPackage(g, info.Package, info.Params[idx].TypeExpr); concreteParam != nil {
+					return concreteParam
+				}
+			}
+			if concreteTarget != nil {
+				return normalizeTypeExprForPackage(g, info.Package, concreteTarget)
+			}
+		}
+		interfaceBindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
+		selfTarget := g.implSelfTargetType(impl.Info.Package, concreteTarget, interfaceBindings)
+		allBindings := g.mergeImplSelfTargetBindings(info.Package, concreteTarget, selfTarget, interfaceBindings)
+		for name, expr := range contextBindings {
+			if expr == nil {
+				continue
+			}
+			if name == "Self" && selfTarget != nil {
+				continue
+			}
+			if allBindings == nil {
+				allBindings = make(map[string]ast.TypeExpression)
+			}
+			allBindings[name] = normalizeTypeExprForPackage(g, info.Package, expr)
+		}
+		if selfTarget != nil {
+			if allBindings == nil {
+				allBindings = make(map[string]ast.TypeExpression)
+			}
+			allBindings["Self"] = normalizeTypeExprForPackage(g, info.Package, selfTarget)
+		}
 		if paramType == nil {
 			if ident, ok := param.Name.(*ast.Identifier); ok && ident != nil && (ident.Name == "self" || ident.Name == "Self") {
 				paramType = selfTarget
 			}
 		}
+		if ident, ok := param.Name.(*ast.Identifier); ok && ident != nil && (ident.Name == "self" || ident.Name == "Self") {
+			paramType = selfTarget
+		}
 		paramType = resolveSelfTypeExpr(paramType, selfTarget)
+		paramType = substituteTypeParams(paramType, allBindings)
 	}
 	paramType = substituteTypeParams(paramType, g.compileContextTypeBindings(info))
 	return normalizeTypeExprForPackage(g, info.Package, paramType)
@@ -269,6 +364,15 @@ func (g *generator) nativeFloatToIntBounds(targetType string) (string, string, b
 }
 
 func (g *generator) nativePrimitiveCastLines(ctx *compileContext, nodeExpr string, expr string, srcType string, targetType string) ([]string, string, string, bool) {
+	if g != nil && ctx != nil && expr != "" && g.isIntegerType(srcType) && g.isIntegerType(targetType) {
+		valueTemp := ctx.newTemp()
+		resultTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s := %s", valueTemp, expr),
+			fmt.Sprintf("%s := %s(%s)", resultTemp, targetType, valueTemp),
+		}
+		return lines, resultTemp, targetType, true
+	}
 	if directExpr, ok := g.nativePrimitiveCastExpr(expr, srcType, targetType); ok {
 		return nil, directExpr, targetType, true
 	}
@@ -534,6 +638,20 @@ func isFunctionTypeExpr(expr ast.TypeExpression) bool {
 }
 
 func typeExpressionToString(expr ast.TypeExpression) string {
+	return typeExpressionToStringSeen(expr, make(map[uintptr]struct{}))
+}
+
+func typeExpressionToStringSeen(expr ast.TypeExpression, seen map[uintptr]struct{}) string {
+	if expr == nil {
+		return "<?>"
+	}
+	if key, ok := typeExpressionIdentity(expr); ok {
+		if _, exists := seen[key]; exists {
+			return "<cycle>"
+		}
+		seen[key] = struct{}{}
+		defer delete(seen, key)
+	}
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name == nil {
@@ -541,29 +659,39 @@ func typeExpressionToString(expr ast.TypeExpression) string {
 		}
 		return t.Name.Name
 	case *ast.GenericTypeExpression:
-		base := typeExpressionToString(t.Base)
+		base := typeExpressionToStringSeen(t.Base, seen)
 		args := make([]string, 0, len(t.Arguments))
 		for _, arg := range t.Arguments {
-			args = append(args, typeExpressionToString(arg))
+			args = append(args, typeExpressionToStringSeen(arg, seen))
 		}
 		return fmt.Sprintf("%s<%s>", base, strings.Join(args, ", "))
 	case *ast.NullableTypeExpression:
-		return typeExpressionToString(t.InnerType) + "?"
+		return typeExpressionToStringSeen(t.InnerType, seen) + "?"
+	case *ast.ResultTypeExpression:
+		return fmt.Sprintf("Result<%s>", typeExpressionToStringSeen(t.InnerType, seen))
 	case *ast.FunctionTypeExpression:
 		parts := make([]string, 0, len(t.ParamTypes))
 		for _, p := range t.ParamTypes {
-			parts = append(parts, typeExpressionToString(p))
+			parts = append(parts, typeExpressionToStringSeen(p, seen))
 		}
-		return fmt.Sprintf("fn(%s) -> %s", strings.Join(parts, ", "), typeExpressionToString(t.ReturnType))
+		return fmt.Sprintf("fn(%s) -> %s", strings.Join(parts, ", "), typeExpressionToStringSeen(t.ReturnType, seen))
 	case *ast.UnionTypeExpression:
 		parts := make([]string, 0, len(t.Members))
 		for _, member := range t.Members {
-			parts = append(parts, typeExpressionToString(member))
+			parts = append(parts, typeExpressionToStringSeen(member, seen))
 		}
 		return strings.Join(parts, " | ")
 	default:
 		return "<?>"
 	}
+}
+
+func typeExpressionIdentity(expr ast.TypeExpression) (uintptr, bool) {
+	value := reflect.ValueOf(expr)
+	if !value.IsValid() || value.Kind() != reflect.Pointer || value.IsNil() {
+		return 0, false
+	}
+	return value.Pointer(), true
 }
 
 func typeNameFromGoType(goType string) string {

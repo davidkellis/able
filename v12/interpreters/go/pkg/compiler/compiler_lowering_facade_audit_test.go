@@ -50,8 +50,8 @@ func TestCompilerLoweringFacadeSourceAudit(t *testing.T) {
 		{pattern: `\bcompileFunctionCall\(`, allowed: loweringFacadeAllowed("generator_exprs_calls_lambda.go", "generator_lowering_dispatch.go")},
 		{pattern: `\bcompileMemberAccess\(`, allowed: loweringFacadeAllowed("generator_collections.go", "generator_lowering_dispatch.go")},
 		{pattern: `\bcompileIndexExpression\(`, allowed: loweringFacadeAllowed("generator_collections_static_array_access.go", "generator_lowering_dispatch.go")},
-		{pattern: `\bresolveStaticMethodCall\(`, allowed: loweringFacadeAllowed("generator_specialized_impl_calls.go", "generator_lowering_dispatch.go")},
-		{pattern: `\bcompileResolvedMethodCall\(`, allowed: loweringFacadeAllowed("generator_specialized_impl_calls.go", "generator_lowering_dispatch.go")},
+		{pattern: `\bresolveStaticMethodCall\(`, allowed: loweringFacadeAllowed("generator_resolved_method_calls.go", "generator_lowering_dispatch.go")},
+		{pattern: `\bcompileResolvedMethodCall\(`, allowed: loweringFacadeAllowed("generator_resolved_method_calls.go", "generator_lowering_dispatch.go")},
 		{pattern: `\bcompileNativeInterfaceMethodCall\(`, allowed: loweringFacadeAllowed("generator_native_interface_calls.go", "generator_lowering_dispatch.go")},
 		{pattern: `\bcompileNativeInterfaceGenericMethodCall\(`, allowed: loweringFacadeAllowed("generator_native_interface_generic_calls.go", "generator_lowering_dispatch.go")},
 	}

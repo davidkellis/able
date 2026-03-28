@@ -16,6 +16,13 @@ type methodOverloadGroup struct {
 	MinArity    int
 }
 
+type publicPackageMethodCallableGroup struct {
+	PackageName string
+	MethodName  string
+	Entries     []*methodInfo
+	MinArity    int
+}
+
 func (g *generator) allFunctionInfos() []*functionInfo {
 	if g == nil {
 		return nil
@@ -38,15 +45,21 @@ func (g *generator) allFunctionInfos() []*functionInfo {
 	}
 	total += len(g.specializedFunctions)
 	all := make([]*functionInfo, 0, total)
-	for _, pkgFuncs := range g.functions {
-		for _, info := range pkgFuncs {
+	functionPackages := sortedMapKeys(g.functions)
+	for _, pkgName := range functionPackages {
+		pkgFuncs := g.functions[pkgName]
+		for _, name := range sortedMapKeys(pkgFuncs) {
+			info := pkgFuncs[name]
 			if info != nil {
 				all = append(all, info)
 			}
 		}
 	}
-	for _, pkgOverloads := range g.overloads {
-		for _, overload := range pkgOverloads {
+	overloadPackages := sortedMapKeys(g.overloads)
+	for _, pkgName := range overloadPackages {
+		pkgOverloads := g.overloads[pkgName]
+		for _, name := range sortedMapKeys(pkgOverloads) {
+			overload := pkgOverloads[name]
 			if overload == nil {
 				continue
 			}
@@ -84,6 +97,18 @@ func (g *generator) sortedFunctionInfos() []*functionInfo {
 		return all[i].GoName < all[j].GoName
 	})
 	return all
+}
+
+func sortedMapKeys[T any](m map[string]T) []string {
+	if len(m) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func (g *generator) sortedCallableNames(pkgName string) []string {
@@ -345,6 +370,15 @@ func (g *generator) methodOverloadBase(targetName string, methodName string, exp
 	return base + "_static"
 }
 
+func (g *generator) publicPackageMethodCallableWrapperName(pkgName string, methodName string) string {
+	return fmt.Sprintf("__able_public_package_method_%s", g.publicPackageMethodCallableBase(pkgName, methodName))
+}
+
+func (g *generator) publicPackageMethodCallableBase(pkgName string, methodName string) string {
+	base := fmt.Sprintf("%s_%s", sanitizeIdent(pkgName), sanitizeIdent(methodName))
+	return strings.Trim(base, "_")
+}
+
 func (g *generator) methodOverloadKey(targetName string, methodName string, expectsSelf bool) string {
 	return fmt.Sprintf("%s|%s|%t", targetName, methodName, expectsSelf)
 }
@@ -425,6 +459,115 @@ func (g *generator) methodOverloadGroups() []*methodOverloadGroup {
 		return false
 	})
 	return result
+}
+
+func (g *generator) publicPackageMethodCallableGroups(pkgName string) []*publicPackageMethodCallableGroup {
+	if g == nil || strings.TrimSpace(pkgName) == "" || len(g.methodList) == 0 {
+		return nil
+	}
+	blockedNames := make(map[string]struct{})
+	for _, name := range g.sortedCallableNames(pkgName) {
+		blockedNames[strings.TrimSpace(name)] = struct{}{}
+	}
+	for _, name := range g.sortedPublicStructNames(pkgName) {
+		blockedNames[strings.TrimSpace(name)] = struct{}{}
+	}
+	for _, name := range g.sortedPublicInterfaceNames(pkgName) {
+		blockedNames[strings.TrimSpace(name)] = struct{}{}
+	}
+	for _, name := range g.sortedPublicUnionNames(pkgName) {
+		blockedNames[strings.TrimSpace(name)] = struct{}{}
+	}
+	for _, name := range g.sortedPublicImplNamespaceNames(pkgName) {
+		blockedNames[strings.TrimSpace(name)] = struct{}{}
+	}
+
+	groups := make(map[string]*publicPackageMethodCallableGroup)
+	for _, method := range g.methodList {
+		if method == nil || method.Info == nil || method.Info.Definition == nil {
+			continue
+		}
+		if method.Info.Package != pkgName {
+			continue
+		}
+		if method.Info.Definition.IsPrivate {
+			continue
+		}
+		if !g.registerableMethod(method) {
+			continue
+		}
+		name := strings.TrimSpace(method.MethodName)
+		if name == "" {
+			continue
+		}
+		if _, blocked := blockedNames[name]; blocked {
+			continue
+		}
+		group := groups[name]
+		if group == nil {
+			group = &publicPackageMethodCallableGroup{
+				PackageName: pkgName,
+				MethodName:  name,
+				MinArity:    -1,
+			}
+			groups[name] = group
+		}
+		group.Entries = append(group.Entries, method)
+		if minArgs := minArgsForMethod(method); minArgs >= 0 {
+			if group.MinArity < 0 || minArgs < group.MinArity {
+				group.MinArity = minArgs
+			}
+		}
+	}
+	if len(groups) == 0 {
+		return nil
+	}
+	result := make([]*publicPackageMethodCallableGroup, 0, len(groups))
+	for _, group := range groups {
+		if group == nil || len(group.Entries) == 0 {
+			continue
+		}
+		sort.Slice(group.Entries, func(i, j int) bool {
+			left := group.Entries[i]
+			right := group.Entries[j]
+			if left == nil || right == nil {
+				return left != nil
+			}
+			if left.Info == nil || right.Info == nil {
+				return left.Info != nil
+			}
+			return left.Info.GoName < right.Info.GoName
+		})
+		result = append(result, group)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		left := result[i]
+		right := result[j]
+		if left == nil || right == nil {
+			return left != nil
+		}
+		if left.PackageName != right.PackageName {
+			return left.PackageName < right.PackageName
+		}
+		return left.MethodName < right.MethodName
+	})
+	return result
+}
+
+func (g *generator) sortedPublicMethodCallableNames(pkgName string) []string {
+	groups := g.publicPackageMethodCallableGroups(pkgName)
+	if len(groups) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(groups))
+	for _, group := range groups {
+		if group == nil || strings.TrimSpace(group.MethodName) == "" {
+			continue
+		}
+		names = append(names, group.MethodName)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func (g *generator) compileOverloadCall(ctx *compileContext, call *ast.FunctionCall, expected string, name string, callNode string) ([]string, string, string, bool) {

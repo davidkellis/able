@@ -4,11 +4,18 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
 func (g *generator) render() (map[string][]byte, error) {
 	g.resolveStaticFunctionIntegerFacts()
+	if err := g.preparePackageInitBodies(); err != nil {
+		return nil, err
+	}
+	if err := g.prepareGoHostSupport(); err != nil {
+		return nil, err
+	}
 	files := make(map[string][]byte)
 	compiled, err := g.renderCompiled()
 	if err != nil {
@@ -64,6 +71,13 @@ func (g *generator) render() (map[string][]byte, error) {
 			return nil, err
 		}
 		files["compiled_package_aggregators.go"] = compiledPackageAggregators
+		packageInitSrc, err := g.renderCompiledPackageInitFile()
+		if err != nil {
+			return nil, err
+		}
+		if len(packageInitSrc) > 0 {
+			files["compiled_package_inits.go"] = packageInitSrc
+		}
 	}
 	if g.opts.EmitMain {
 		mainSrc, err := g.renderMain()
@@ -72,6 +86,7 @@ func (g *generator) render() (map[string][]byte, error) {
 		}
 		files["main.go"] = mainSrc
 	}
+	g.discardRedundantImplFallbackSpecializations()
 	return files, nil
 }
 
@@ -93,6 +108,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 			fmt.Fprintf(&body, "\n")
 		}
 		g.renderRuntimeHelpers(&body)
+		g.renderGoPreludeDecls(&body)
 	}
 
 	if g.hasFunctions() {
@@ -102,12 +118,16 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderFunctionThunks(&body)
 		g.renderOverloadDispatchers(&body)
 		g.renderMethodThunks(&body)
-		// Native interface/union carriers and boundary helpers can be discovered
-		// while compiling bodies above, so emit them after codegen has settled.
-		g.renderNativeCallables(&body)
-		g.renderNativeInterfaces(&body)
+		// Warm native interface discovery before the later body/fallback passes so
+		// adapter/default-method specialization can settle, but defer the actual
+		// code emission until after the compiled body graph has stabilized.
+		var nativeInterfaceWarmup bytes.Buffer
+		g.renderNativeInterfaces(&nativeInterfaceWarmup)
+		g.nativeInterfaceRenderedAdapters = make(map[string]struct{})
+		g.nativeInterfaceRenderedInfos = make(map[string]struct{})
+		g.nativeInterfaceRenderedDispatches = make(map[string]struct{})
+		g.nativeInterfaceRenderedApplyHelpers = make(map[string]struct{})
 		g.renderIteratorCollectMonoArrayHelpers(&body)
-		g.renderNativeUnions(&body)
 		// Generic nominal specializations and carrier arrays are discovered while
 		// compiling function bodies above, so emit their concrete type
 		// declarations only after codegen has settled.
@@ -120,6 +140,16 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderAdditionalCompiledBodies(&body, renderedMethods, renderedFunctions)
 		g.renderPendingCompiledMethodFallbacks(&body, renderedMethods)
 		g.renderPendingCompiledFunctionFallbacks(&body, renderedFunctions)
+		// Emit shared native interfaces and unions only after the compiled body
+		// graph has stabilized so the generated adapter/default-method bodies are
+		// final on first emission.
+		g.renderNativeInterfaces(&body)
+		g.renderNativeUnions(&body)
+		// Boundary/apply helpers must wait until every body/specialization pass
+		// has settled so their interface-adapter switch tables are complete.
+		g.renderNativeInterfaceBoundaryHelpersFinal(&body)
+		g.renderNativeInterfaceApplyRuntimeHelpers(&body)
+		g.renderNativeCallables(&body)
 		g.renderNominalCoercions(&body)
 		g.renderDiagnosticGlobals(&body)
 	} else {
@@ -140,13 +170,24 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	if len(imports) > 0 {
 		fmt.Fprintf(&buf, "import (\n")
 		for _, imp := range imports {
-			fmt.Fprintf(&buf, "\t%q\n", imp)
+			fmt.Fprintf(&buf, "\t%s\n", formatCompiledImportSpec(imp))
 		}
 		fmt.Fprintf(&buf, ")\n\n")
 	}
 	buf.Write(body.Bytes())
 
 	return formatSource(buf.Bytes())
+}
+
+func formatCompiledImportSpec(spec string) string {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return `""`
+	}
+	if strings.HasPrefix(spec, `"`) || strings.Contains(spec, " ") || strings.HasPrefix(spec, ". ") || strings.HasPrefix(spec, "_ ") {
+		return spec
+	}
+	return strconv.Quote(spec)
 }
 
 func (g *generator) renderDiagnosticGlobals(buf *bytes.Buffer) {
@@ -202,6 +243,12 @@ func (g *generator) importsForCompiled() []string {
 	}
 	if needsRuntime {
 		importSet["able/interpreter-go/pkg/runtime"] = struct{}{}
+	}
+	for _, imp := range g.goPreludeImports {
+		if strings.TrimSpace(imp) == "" {
+			continue
+		}
+		importSet[imp] = struct{}{}
 	}
 	if g.needsIterator {
 		importSet["errors"] = struct{}{}

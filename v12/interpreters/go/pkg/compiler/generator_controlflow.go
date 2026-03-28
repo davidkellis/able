@@ -120,11 +120,8 @@ func (g *generator) compileCondition(ctx *compileContext, expr ast.Expression) (
 			if !ok {
 				return nil, "", false
 			}
-			if condType == "bool" {
-				return condLines, condExpr, true
-			}
-			if g.isNilableStaticCarrierType(condType) {
-				return condLines, fmt.Sprintf("%s != nil", condExpr), true
+			if condBoolExpr, ok := g.staticTruthinessExpr(condExpr, condType); ok {
+				return condLines, condBoolExpr, true
 			}
 			condRuntime := condExpr
 			if condType != "runtime.Value" {
@@ -143,11 +140,8 @@ func (g *generator) compileCondition(ctx *compileContext, expr ast.Expression) (
 	if !ok {
 		return nil, "", false
 	}
-	if condType == "bool" {
-		return condLines, condExpr, true
-	}
-	if g.isNilableStaticCarrierType(condType) {
-		return condLines, fmt.Sprintf("%s != nil", condExpr), true
+	if condBoolExpr, ok := g.staticTruthinessExpr(condExpr, condType); ok {
+		return condLines, condBoolExpr, true
 	}
 	condRuntime := condExpr
 	if condType != "runtime.Value" {
@@ -160,6 +154,66 @@ func (g *generator) compileCondition(ctx *compileContext, expr ast.Expression) (
 		condRuntime = converted
 	}
 	return condLines, fmt.Sprintf("__able_truthy(%s)", condRuntime), true
+}
+
+func (g *generator) staticTruthinessExpr(expr string, goType string) (string, bool) {
+	if g == nil || goType == "" {
+		return "", false
+	}
+	if goType == "bool" {
+		return expr, true
+	}
+	if g.nativeUnionInfoForGoType(goType) != nil {
+		return "", false
+	}
+	if g.staticFalsyErrorCarrierType(goType) {
+		return "false", true
+	}
+	if g.isNilableStaticCarrierType(goType) {
+		return fmt.Sprintf("%s != nil", expr), true
+	}
+	return "", false
+}
+
+func (g *generator) staticFalsyErrorCarrierType(goType string) bool {
+	if g == nil || goType == "" || goType == "runtime.Value" || goType == "any" {
+		return false
+	}
+	if g.nativeUnionInfoForGoType(goType) != nil {
+		return false
+	}
+	if innerType, nullable := g.nativeNullableValueInnerType(goType); nullable {
+		return g.staticFalsyErrorCarrierType(innerType)
+	}
+	if g.isNativeErrorCarrierType(goType) {
+		return true
+	}
+	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
+		return g.interfaceTypeExprSatisfies(iface.TypeExpr, "Error")
+	}
+	return false
+}
+
+func (g *generator) interfaceTypeExprSatisfies(expr ast.TypeExpression, interfaceName string) bool {
+	if g == nil || expr == nil || interfaceName == "" {
+		return false
+	}
+	baseName, ok := typeExprBaseName(expr)
+	if !ok || baseName == "" {
+		return false
+	}
+	if baseName == interfaceName {
+		return true
+	}
+	if !g.isInterfaceName(baseName) {
+		return false
+	}
+	for _, candidate := range g.interfaceSearchNames(baseName, make(map[string]struct{})) {
+		if candidate == interfaceName {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *generator) coerceIfBranch(ctx *compileContext, resultType string, expr string, exprType string) ([]string, string, bool) {

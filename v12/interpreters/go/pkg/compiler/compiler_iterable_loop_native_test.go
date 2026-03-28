@@ -51,7 +51,7 @@ func TestCompilerConcreteIterableForLoopStaysNative(t *testing.T) {
 		}
 	}
 	for _, fragment := range []string{
-		"__able_compiled_impl_Iterable_iterator_0(",
+		"__able_compiled_impl_Iterable_iterator_0_spec(",
 		"__able_iface_Iterator_i32",
 		".next()",
 	} {
@@ -109,7 +109,7 @@ func TestCompilerInterfaceIterableForLoopStaysNative(t *testing.T) {
 	for _, fragment := range []string{
 		"__able_iface_Iterable_i32",
 		"__able_iface_Iterator_i32",
-		".iterator()",
+		"__able_compiled_iface_Iterable_iterator_default",
 		".next()",
 	} {
 		if !strings.Contains(body, fragment) {

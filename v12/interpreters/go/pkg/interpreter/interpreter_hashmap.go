@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/runtime"
 )
@@ -409,6 +410,12 @@ func (i *Interpreter) newKernelHasher() (runtime.Value, error) {
 	for _, name := range candidates {
 		val, err := i.global.Get(name)
 		if err != nil {
+			if resolved, ok := i.lookupPackageRegistrySymbol("able.kernel", name); ok {
+				val = resolved
+				err = nil
+			}
+		}
+		if err != nil {
 			continue
 		}
 		result, err := i.callCallableValue(val, nil, i.global, nil)
@@ -424,6 +431,25 @@ func (i *Interpreter) newKernelHasher() (runtime.Value, error) {
 		return nil, fmt.Errorf("KernelHasher.new returned unexpected value")
 	}
 	return nil, fmt.Errorf("KernelHasher.new is not available")
+}
+
+func (i *Interpreter) lookupPackageRegistrySymbol(pkgName string, symbol string) (runtime.Value, bool) {
+	if i == nil || pkgName == "" || symbol == "" {
+		return nil, false
+	}
+	bucket, ok := i.packageRegistry[pkgName]
+	if !ok || bucket == nil {
+		return nil, false
+	}
+	if val, ok := bucket[symbol]; ok {
+		return val, true
+	}
+	if idx := strings.LastIndex(symbol, "."); idx >= 0 && idx+1 < len(symbol) {
+		if val, ok := bucket[symbol[idx+1:]]; ok {
+			return val, true
+		}
+	}
+	return nil, false
 }
 
 func (i *Interpreter) finishKernelHasher(hasher runtime.Value) (uint64, error) {

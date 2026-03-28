@@ -34,3 +34,24 @@ func loadKernelModule(t *testing.T, interp *Interpreter) {
 		t.Fatalf("kernel KernelHasher.new overloaded (%d entries)", len(overload.Overloads))
 	}
 }
+
+func TestNewKernelHasherFallsBackToPackageRegistry(t *testing.T) {
+	interp := New()
+	loadKernelModule(t, interp)
+
+	if _, err := interp.GlobalEnvironment().Get("KernelHasher.new"); err == nil {
+		t.Fatalf("expected unqualified KernelHasher.new to be absent from the global environment for this regression")
+	}
+
+	value, err := interp.newKernelHasher()
+	if err != nil {
+		t.Fatalf("newKernelHasher should resolve through package registry fallback: %v", err)
+	}
+	inst, ok := value.(*runtime.StructInstanceValue)
+	if !ok || inst == nil {
+		t.Fatalf("expected KernelHasher struct instance, got %T", value)
+	}
+	if name := structInstanceName(inst); name != "KernelHasher" {
+		t.Fatalf("expected KernelHasher instance, got %q", name)
+	}
+}

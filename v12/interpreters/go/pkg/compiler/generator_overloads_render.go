@@ -152,9 +152,6 @@ func (g *generator) renderOverloadDispatchers(buf *bytes.Buffer) {
 
 func (g *generator) renderMethodOverloadDispatchers(buf *bytes.Buffer) {
 	groups := g.methodOverloadGroups()
-	if len(groups) == 0 {
-		return
-	}
 	for _, group := range groups {
 		if group == nil || len(group.Entries) == 0 {
 			continue
@@ -256,5 +253,107 @@ func (g *generator) renderMethodOverloadDispatchers(buf *bytes.Buffer) {
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn nil, fmt.Errorf(\"No overloads of %s match provided arguments\")\n", displayName)
 		fmt.Fprintf(buf, "}\n\n")
+	}
+	g.renderPublicPackageMethodDispatchers(buf)
+}
+
+func (g *generator) renderPublicPackageMethodDispatchers(buf *bytes.Buffer) {
+	if g == nil || buf == nil {
+		return
+	}
+	packages := g.registrationPackageList()
+	for _, pkgName := range packages {
+		groups := g.publicPackageMethodCallableGroups(pkgName)
+		for _, group := range groups {
+			if group == nil || len(group.Entries) == 0 {
+				continue
+			}
+			wrapperName := g.publicPackageMethodCallableWrapperName(pkgName, group.MethodName)
+			displayName := fmt.Sprintf("%s.%s", pkgName, group.MethodName)
+			fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n", wrapperName)
+			fmt.Fprintf(buf, "\tif rt == nil {\n")
+			fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"compiler: missing runtime\")\n")
+			fmt.Fprintf(buf, "\t}\n")
+			fmt.Fprintf(buf, "\tbestIdx := -1\n")
+			fmt.Fprintf(buf, "\tbestScore := 0.0\n")
+			fmt.Fprintf(buf, "\tties := 0\n")
+			fmt.Fprintf(buf, "\tvar bestArgs []runtime.Value\n")
+			for idx, method := range group.Entries {
+				if method == nil || method.Info == nil || method.Info.Definition == nil {
+					continue
+				}
+				def := method.Info.Definition
+				paramTypes := methodDefinitionParamTypes(def, method.TargetType, method.ExpectsSelf)
+				paramCount := len(paramTypes)
+				optionalLast := len(def.Params) > 0 && isNullableParam(def.Params[len(def.Params)-1])
+				fmt.Fprintf(buf, "\t{\n")
+				fmt.Fprintf(buf, "\t\tif len(args) == %d", paramCount)
+				if optionalLast {
+					fmt.Fprintf(buf, " || len(args) == %d", paramCount-1)
+				}
+				fmt.Fprintf(buf, " {\n")
+				if optionalLast {
+					fmt.Fprintf(buf, "\t\t\tmissingOptional := len(args) == %d\n", paramCount-1)
+				}
+				fmt.Fprintf(buf, "\t\t\tcompatible := true\n")
+				fmt.Fprintf(buf, "\t\t\tscore := 0.0\n")
+				fmt.Fprintf(buf, "\t\t\tcoercedArgs := make([]runtime.Value, len(args))\n")
+				if optionalLast {
+					fmt.Fprintf(buf, "\t\t\tif missingOptional { score -= 0.5 }\n")
+				}
+				generics := g.methodGenericNames(method)
+				for pIdx, paramType := range paramTypes {
+					fmt.Fprintf(buf, "\t\t\tif len(args) > %d {\n", pIdx)
+					if paramType != nil && !typeExprUsesGeneric(paramType, generics) {
+						typeExpr, ok := g.renderTypeExpression(paramType)
+						if !ok {
+							fmt.Fprintf(buf, "\t\t\t\tcompatible = false\n")
+						} else {
+							spec := parameterSpecificity(paramType, generics)
+							fmt.Fprintf(buf, "\t\t\t\tif compatible {\n")
+							fmt.Fprintf(buf, "\t\t\t\t\tcoerced, ok, err := bridge.MatchType(rt, %s, args[%d])\n", typeExpr, pIdx)
+							fmt.Fprintf(buf, "\t\t\t\t\tif err != nil { return nil, err }\n")
+							fmt.Fprintf(buf, "\t\t\t\t\tif !ok { compatible = false } else { coercedArgs[%d] = coerced; score += %d }\n", pIdx, spec)
+							fmt.Fprintf(buf, "\t\t\t\t}\n")
+						}
+					} else {
+						fmt.Fprintf(buf, "\t\t\t\tcoercedArgs[%d] = args[%d]\n", pIdx, pIdx)
+					}
+					fmt.Fprintf(buf, "\t\t\t}\n")
+				}
+				fmt.Fprintf(buf, "\t\t\tif compatible {\n")
+				if optionalLast {
+					fmt.Fprintf(buf, "\t\t\t\tif missingOptional { coercedArgs = append(coercedArgs, runtime.NilValue{}) }\n")
+				}
+				fmt.Fprintf(buf, "\t\t\t\tif bestIdx < 0 || score > bestScore {\n")
+				fmt.Fprintf(buf, "\t\t\t\t\tbestIdx = %d\n", idx)
+				fmt.Fprintf(buf, "\t\t\t\t\tbestScore = score\n")
+				fmt.Fprintf(buf, "\t\t\t\t\tbestArgs = coercedArgs\n")
+				fmt.Fprintf(buf, "\t\t\t\t\tties = 1\n")
+				fmt.Fprintf(buf, "\t\t\t\t} else if score == bestScore {\n")
+				fmt.Fprintf(buf, "\t\t\t\t\tties++\n")
+				fmt.Fprintf(buf, "\t\t\t\t}\n")
+				fmt.Fprintf(buf, "\t\t\t}\n")
+				fmt.Fprintf(buf, "\t\t}\n")
+				fmt.Fprintf(buf, "\t}\n")
+			}
+			fmt.Fprintf(buf, "\tif bestIdx < 0 {\n")
+			fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"No overloads of %s match provided arguments\")\n", displayName)
+			fmt.Fprintf(buf, "\t}\n")
+			fmt.Fprintf(buf, "\tif ties > 1 {\n")
+			fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"Ambiguous overload for %s\")\n", displayName)
+			fmt.Fprintf(buf, "\t}\n")
+			fmt.Fprintf(buf, "\tswitch bestIdx {\n")
+			for idx, method := range group.Entries {
+				if method == nil || method.Info == nil {
+					continue
+				}
+				fmt.Fprintf(buf, "\tcase %d:\n", idx)
+				fmt.Fprintf(buf, "\t\treturn __able_wrap_%s(rt, ctx, bestArgs)\n", method.Info.GoName)
+			}
+			fmt.Fprintf(buf, "\t}\n")
+			fmt.Fprintf(buf, "\treturn nil, fmt.Errorf(\"No overloads of %s match provided arguments\")\n", displayName)
+			fmt.Fprintf(buf, "}\n\n")
+		}
 	}
 }
