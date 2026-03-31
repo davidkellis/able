@@ -116,6 +116,41 @@ func TestCompilerImportedZeroArgPackageSelectorCallStaysNative(t *testing.T) {
 	}
 }
 
+func TestCompilerImportedNominalStaticMethodCallStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.io.temp",
+			"",
+			"fn main() -> String {",
+			"  temp.TempDir.new(\"probe\").path",
+			"}",
+			"",
+		}, "\n"),
+		"io/temp/helpers.able": strings.Join([]string{
+			"struct TempDir { path: String }",
+			"",
+			"methods TempDir {",
+			"  fn new(path: String) -> TempDir {",
+			"    TempDir { path }",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+	})
+
+	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
+	if !strings.Contains(mainBody, "__able_compiled_method_TempDir_new(") {
+		t.Fatalf("expected imported nominal static method call to lower to a compiled direct call:\n%s", mainBody)
+	}
+	for _, fragment := range []string{"__able_call_named(", "__able_call_value(", "__able_method_call_node(", "__able_member_get_method(", "__able_member_get(__able_env_get(\"temp\""} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected imported nominal static method call to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
 func TestCompilerPackageInitVerboseLambdaNestedReturnCompiles(t *testing.T) {
 	result := compileNoFallbackPackage(t, "demo", map[string]string{
 		"main.able": strings.Join([]string{
@@ -609,6 +644,90 @@ func TestCompilerSpawnCapturedReceiverDispatchStaysNative(t *testing.T) {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected spawned captured receiver dispatch to stay on compiled methods %q:\n%s", fragment, mainBody)
 		}
+	}
+}
+
+func TestCompilerSpawnSiblingCapturedReceiverDispatchBuildsAndStaysNative(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"import able.concurrency.{Channel}",
+		"",
+		"extern go fn __able_os_exit(code: i32) -> void {}",
+		"",
+		"fn main() -> void {",
+		"  ready := Channel.new(1)",
+		"  sender := spawn { ready.send(true) }",
+		"  receiver := spawn { ready.receive() }",
+		"  sender.value()!",
+		"  receiver.value()!",
+		"  __able_os_exit(0)",
+		"}",
+		"",
+	}, "\n")
+
+	result := compileNoFallbackExecSource(t, "ablec-spawn-sibling-captured-receiver", source)
+	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
+	for _, fragment := range []string{
+		"__able_member_get_method(",
+		"__able_struct_Channel_to(__able_runtime, ready)",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected sibling spawned captured receiver dispatch to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_compiled_method_Channel_send_spec(",
+		"__able_compiled_method_Channel_receive(ready)",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected sibling spawned captured receiver dispatch to stay on compiled methods %q:\n%s", fragment, mainBody)
+		}
+	}
+
+	compileAndRunExecSourceWithOptions(t, "ablec-spawn-sibling-captured-receiver-exec", source, Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+}
+
+func TestCompilerStaticIndexedStructMemberAccessFixtureStaysNative(t *testing.T) {
+	result := compileExecFixtureResult(t, "06_01_compiler_dynamic_member_access")
+	if len(result.Fallbacks) != 0 {
+		t.Fatalf("expected no fallbacks, got %v", result.Fallbacks)
+	}
+
+	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
+	for _, fragment := range []string{
+		"__able_member_get(",
+		"__able_member_get_method(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected indexed struct member access to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+	if !strings.Contains(mainBody, ".Value") {
+		t.Fatalf("expected indexed struct member access to lower to direct field access:\n%s", mainBody)
+	}
+}
+
+func TestCompilerStaticIndexedStructMemberCompoundFixtureStaysNative(t *testing.T) {
+	result := compileExecFixtureResult(t, "06_01_compiler_dynamic_member_compound")
+	if len(result.Fallbacks) != 0 {
+		t.Fatalf("expected no fallbacks, got %v", result.Fallbacks)
+	}
+
+	bumpBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_bump")
+	for _, fragment := range []string{
+		"__able_member_get(",
+		"__able_member_get_method(",
+	} {
+		if strings.Contains(bumpBody, fragment) {
+			t.Fatalf("expected indexed struct member compound assignment to avoid %q:\n%s", fragment, bumpBody)
+		}
+	}
+	if !strings.Contains(bumpBody, ".Value") {
+		t.Fatalf("expected indexed struct member compound assignment to lower to direct field access:\n%s", bumpBody)
 	}
 }
 

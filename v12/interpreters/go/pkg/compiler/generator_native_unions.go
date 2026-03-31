@@ -21,6 +21,7 @@ type nativeUnionMember struct {
 type nativeUnionInfo struct {
 	Key                  string
 	GoType               string
+	PackageName          string
 	TypeExpr             ast.TypeExpression
 	MarkerMethod         string
 	FromRuntimeHelper    string
@@ -506,6 +507,7 @@ func (g *generator) ensureNativeUnionInfo(pkgName string, members []ast.TypeExpr
 	info := &nativeUnionInfo{
 		Key:                  key,
 		GoType:               baseName,
+		PackageName:          pkgName,
 		TypeExpr:             ast.NewUnionTypeExpression(append([]ast.TypeExpression(nil), members...)),
 		MarkerMethod:         baseName + "_marker",
 		FromRuntimeHelper:    baseName + "_from_value",
@@ -573,6 +575,7 @@ func (g *generator) ensureNativeResultUnionInfo(pkgName string, result *ast.Resu
 	info := &nativeUnionInfo{
 		Key:                  key,
 		GoType:               baseName,
+		PackageName:          pkgName,
 		TypeExpr:             ast.NewResultTypeExpression(result.InnerType),
 		MarkerMethod:         baseName + "_marker",
 		FromRuntimeHelper:    baseName + "_from_value",

@@ -13,6 +13,7 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 	}
 	if info != nil && info.Compileable {
 		info = g.concreteFunctionCallInfo(ctx, call, info, expected)
+		g.refreshRepresentableFunctionInfo(info)
 		needsRuntimeValue := expected == "runtime.Value" && info.ReturnType != "runtime.Value"
 		needsExpect := expected != "" && expected != "runtime.Value" && info.ReturnType == "runtime.Value"
 		needsAnyConv := expected != "" && expected != "any" && info.ReturnType == "any"

@@ -50,16 +50,22 @@ func (g *generator) narrowedNativeUnionSubjectType(ctx *compileContext, subjectT
 
 func (g *generator) narrowedNativeUnionSubjectExpr(ctx *compileContext, originalSubjectExpr string, originalSubjectType string, narrowedType string) ([]string, string) {
 	if g == nil || ctx == nil || originalSubjectExpr == "" || originalSubjectType == "" || narrowedType == "" || narrowedType == originalSubjectType {
+		if ctx != nil {
+			ctx.matchSubjectTypeExpr = nil
+		}
 		return nil, originalSubjectExpr
 	}
 	union := g.nativeUnionInfoForGoType(originalSubjectType)
 	if union == nil {
+		ctx.matchSubjectTypeExpr = nil
 		return nil, originalSubjectExpr
 	}
 	member, ok := g.nativeUnionMember(union, narrowedType)
 	if !ok || member == nil {
+		ctx.matchSubjectTypeExpr = nil
 		return nil, originalSubjectExpr
 	}
+	ctx.matchSubjectTypeExpr = member.TypeExpr
 	narrowedTemp := ctx.newTemp()
 	return []string{fmt.Sprintf("%s, _ := %s(%s)", narrowedTemp, member.UnwrapHelper, originalSubjectExpr)}, narrowedTemp
 }

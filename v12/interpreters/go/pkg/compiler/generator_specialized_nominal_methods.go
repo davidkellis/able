@@ -173,7 +173,7 @@ func (g *generator) specializeConcreteNominalMethod(ctx *compileContext, call *a
 		return nil, false
 	}
 	receiverTypeExpr, ok := g.staticReceiverTypeExpr(ctx, receiver, receiverType)
-	if !ok || receiverTypeExpr == nil || g.typeExprHasGeneric(receiverTypeExpr, genericNames) {
+	if !ok || receiverTypeExpr == nil {
 		return nil, false
 	}
 	bindings, ok := g.specializedNominalMethodBindings(ctx, call, method, receiverTypeExpr, expected)
@@ -274,7 +274,7 @@ func (g *generator) specializedNominalMethodBindings(ctx *compileContext, call *
 		bindings = make(map[string]ast.TypeExpression)
 	}
 	if method.TargetType != nil {
-		if !g.specializedTypeTemplateMatches(method.Info.Package, method.TargetType, receiverTypeExpr, genericNames, bindings, make(map[string]struct{})) {
+		if !g.specializedTargetMatchesOrDefers(method.Info.Package, method.TargetType, receiverTypeExpr, genericNames, bindings) {
 			return nil, false
 		}
 	}
@@ -296,7 +296,7 @@ func (g *generator) specializedStaticNominalMethodBindings(ctx *compileContext, 
 		bindings = make(map[string]ast.TypeExpression)
 	}
 	if method.TargetType != nil {
-		if !g.specializedTypeTemplateMatches(method.Info.Package, method.TargetType, targetTypeExpr, genericNames, bindings, make(map[string]struct{})) {
+		if !g.specializedTargetMatchesOrDefers(method.Info.Package, method.TargetType, targetTypeExpr, genericNames, bindings) {
 			return nil, false
 		}
 	}

@@ -1,5 +1,35 @@
 # Able Project Log
 
+# 2026-03-30 — Compiler Milestone 8 complete: release validation (v12)
+- Closed the compiler completion program in `PLAN.md`.
+- The milestone-closing fixes were shared semantic/compiler correctness fixes,
+  not nominal fast paths:
+  - `v12/interpreters/go/pkg/compiler/generator_inferred_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_calls.go`
+  - `v12/interpreters/go/pkg/typechecker/binary_expression.go`
+  - `v12/interpreters/go/pkg/typechecker/type_utils.go`
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_range_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_test.go`
+  - `v12/interpreters/go/pkg/typechecker/numeric_test.go`
+- What those fixes closed:
+  - range expressions no longer infer a nominal `Range<T>` carrier on static
+    paths where the language surface is `Iterable<T>`
+  - native interface default-method dispatch no longer bypasses concrete
+    wrapped receiver overrides by always selecting the default helper
+  - numeric operators now accept all-numeric union operands and resolve them
+    through shared pairwise promotion/normalization
+- Release validation passed:
+  - `GOFLAGS='-p=1' ./run_all_tests.sh --compiler`
+  - `./run_stdlib_tests.sh`
+  - direct treewalker stdlib gate:
+    - `cd /home/david/sync/projects/able-stdlib && /tmp/able_m8_resume --exec-mode=treewalker test /home/david/sync/projects/able-stdlib/tests`
+  - direct bytecode stdlib gate:
+    - `cd /home/david/sync/projects/able-stdlib && /tmp/able_m8_resume --exec-mode=bytecode test /home/david/sync/projects/able-stdlib/tests`
+  - focused typechecker slice:
+    - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/typechecker -run 'TestBinaryExpression(AcceptsNumericUnionOperands|PromotesChainedNumericUnionAddition|PromotesChainedNumericUnionSubtraction)$' -count=1 -timeout 60s`
+  - `git diff --check`
+
 # 2026-03-22 — Compiler Milestone 7 complete: performance completion (v12)
 - Closed `PLAN.md` Milestone 7 with a shared callable/runtime performance
   change instead of a new nominal-type-specific fast path.

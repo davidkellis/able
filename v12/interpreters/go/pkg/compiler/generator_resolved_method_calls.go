@@ -7,34 +7,115 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+func (g *generator) staticImportedPackageSource(pkgName string, localName string) (string, bool) {
+	if g == nil {
+		return "", false
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	localName = strings.TrimSpace(localName)
+	if pkgName == "" || localName == "" {
+		return "", false
+	}
+	var sourcePkg string
+	for _, binding := range g.staticImportsForPackage(pkgName) {
+		if binding.Kind != staticImportBindingPackage {
+			continue
+		}
+		if strings.TrimSpace(binding.LocalName) != localName {
+			continue
+		}
+		candidate := strings.TrimSpace(binding.SourcePackage)
+		if candidate == "" {
+			continue
+		}
+		if sourcePkg != "" && sourcePkg != candidate {
+			return "", false
+		}
+		sourcePkg = candidate
+	}
+	return sourcePkg, sourcePkg != ""
+}
+
+func (g *generator) staticMethodTarget(ctx *compileContext, object ast.Expression) (string, string, ast.TypeExpression, *structInfo, bool) {
+	if g == nil || object == nil {
+		return "", "", nil, nil, false
+	}
+	switch obj := object.(type) {
+	case *ast.Identifier:
+		if obj == nil || obj.Name == "" {
+			return "", "", nil, nil, false
+		}
+		if ctx != nil {
+			if _, ok := ctx.lookup(obj.Name); ok {
+				return "", "", nil, nil, false
+			}
+		}
+		targetName := obj.Name
+		targetTypeExpr := ast.TypeExpression(ast.Ty(targetName))
+		if ctx != nil && len(ctx.typeBindings) > 0 {
+			if bound, ok := ctx.typeBindings[obj.Name]; ok && bound != nil {
+				targetTypeExpr = bound
+				if boundName, ok := typeExprBaseName(bound); ok && boundName != "" {
+					targetName = boundName
+				}
+			}
+		}
+		targetPkg := ""
+		if ctx != nil {
+			targetPkg = ctx.packageName
+		}
+		info, ok := g.structInfoForTypeName(targetPkg, targetName)
+		if (!ok || info == nil) && g != nil {
+			info, _ = g.structInfoByNameUnique(targetName)
+		}
+		return targetPkg, targetName, targetTypeExpr, info, true
+	case *ast.MemberAccessExpression:
+		if obj == nil || obj.Safe {
+			return "", "", nil, nil, false
+		}
+		pkgIdent, ok := obj.Object.(*ast.Identifier)
+		if !ok || pkgIdent == nil || pkgIdent.Name == "" {
+			return "", "", nil, nil, false
+		}
+		if ctx != nil {
+			if _, ok := ctx.lookup(pkgIdent.Name); ok {
+				return "", "", nil, nil, false
+			}
+		}
+		targetIdent, ok := obj.Member.(*ast.Identifier)
+		if !ok || targetIdent == nil || targetIdent.Name == "" {
+			return "", "", nil, nil, false
+		}
+		currentPkg := ""
+		if ctx != nil {
+			currentPkg = ctx.packageName
+		}
+		sourcePkg, ok := g.staticImportedPackageSource(currentPkg, pkgIdent.Name)
+		if !ok {
+			return "", "", nil, nil, false
+		}
+		info, ok := g.structInfoForTypeName(sourcePkg, targetIdent.Name)
+		if ok && info != nil {
+			if info.TypeExpr != nil {
+				return sourcePkg, targetIdent.Name, normalizeTypeExprForPackage(g, sourcePkg, info.TypeExpr), info, true
+			}
+			return sourcePkg, targetIdent.Name, ast.Ty(targetIdent.Name), info, true
+		}
+		return sourcePkg, targetIdent.Name, ast.Ty(targetIdent.Name), nil, true
+	default:
+		return "", "", nil, nil, false
+	}
+}
+
 func (g *generator) resolveStaticMethodCall(ctx *compileContext, object ast.Expression, memberName string) (*methodInfo, bool) {
 	if g == nil || object == nil || memberName == "" {
 		return nil, false
 	}
-	ident, ok := object.(*ast.Identifier)
-	if !ok || ident == nil || ident.Name == "" {
+	targetPkg, targetName, targetTypeExpr, info, ok := g.staticMethodTarget(ctx, object)
+	if !ok || targetName == "" {
 		return nil, false
 	}
-	if ctx != nil {
-		if _, ok := ctx.lookup(ident.Name); ok {
-			return nil, false
-		}
-	}
-	targetName := ident.Name
-	targetTypeExpr := ast.TypeExpression(ast.Ty(targetName))
-	if ctx != nil && len(ctx.typeBindings) > 0 {
-		if bound, ok := ctx.typeBindings[ident.Name]; ok && bound != nil {
-			targetTypeExpr = bound
-			if boundName, ok := typeExprBaseName(bound); ok && boundName != "" {
-				targetName = boundName
-			}
-		}
-	}
-	info, ok := g.structInfoForTypeName(ctx.packageName, targetName)
-	if (!ok || info == nil) && g != nil {
-		info, _ = g.structInfoByNameUnique(targetName)
-	}
-	method := g.methodForTypeName(targetName, memberName, false)
+	method := g.methodForTypeNameInPackage(targetPkg, targetName, memberName, false)
 	if method == nil && info != nil {
 		if typeBucket := g.methods[targetName]; len(typeBucket) > 0 {
 			entries := typeBucket[memberName]
@@ -93,28 +174,9 @@ func (g *generator) staticMethodCallCandidates(ctx *compileContext, object ast.E
 	if g == nil || object == nil || memberName == "" {
 		return nil
 	}
-	ident, ok := object.(*ast.Identifier)
-	if !ok || ident == nil || ident.Name == "" {
+	_, targetName, targetTypeExpr, info, ok := g.staticMethodTarget(ctx, object)
+	if !ok || targetName == "" {
 		return nil
-	}
-	if ctx != nil {
-		if _, ok := ctx.lookup(ident.Name); ok {
-			return nil
-		}
-	}
-	targetName := ident.Name
-	targetTypeExpr := ast.TypeExpression(ast.Ty(targetName))
-	if ctx != nil && len(ctx.typeBindings) > 0 {
-		if bound, ok := ctx.typeBindings[ident.Name]; ok && bound != nil {
-			targetTypeExpr = bound
-			if boundName, ok := typeExprBaseName(bound); ok && boundName != "" {
-				targetName = boundName
-			}
-		}
-	}
-	info, ok := g.structInfoForTypeName(ctx.packageName, targetName)
-	if (!ok || info == nil) && g != nil {
-		info, _ = g.structInfoByNameUnique(targetName)
 	}
 	var candidates []*methodInfo
 	appendCandidate := func(candidate *methodInfo) {
@@ -227,6 +289,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		}
 	}
 	info := method.Info
+	g.refreshRepresentableFunctionInfo(info)
 	if !info.Compileable {
 		ctx.setReason("unsupported method call")
 		return nil, "", "", false
@@ -267,7 +330,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 				receiverType != "" &&
 				selfType != "" &&
 				receiverType != selfType &&
-				(g.sameNominalStructFamily(receiverType, selfType) || g.staticArrayCarrierCoercible(receiverType, selfType)) {
+				(g.nominalStructCarrierCoercible(selfType, receiverType) || g.staticArrayCarrierCoercible(receiverType, selfType)) {
 				receiverWritebackNeeded = true
 				receiverWritebackTargetExpr = receiverExpr
 				receiverWritebackTargetType = receiverType
@@ -384,6 +447,9 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 			return nil, "", "", false
 		}
 		lines = append(lines, writebackLines...)
+		if member, ok := call.Callee.(*ast.MemberAccessExpression); ok && member != nil && len(info.Params) > 0 {
+			g.refineStaticReceiverBinding(ctx, member.Object, receiverWritebackTargetType, receiverExpr, info.Params[0].GoType, g.functionParamTypeExpr(info, 0))
+		}
 	}
 	if needsIntCast {
 		castTemp := ctx.newTemp()
@@ -448,7 +514,7 @@ func (g *generator) appendStaticNominalReceiverWriteback(ctx *compileContext, ac
 		}
 		lines = append(lines, coerceLines...)
 		convertedExpr = converted
-	case g.sameNominalStructFamily(actualType, coercedType):
+	case g.nominalStructCarrierCoercible(actualType, coercedType):
 		coerceLines, converted, ok := g.coerceNominalStructFamilyLines(ctx, coercedExpr, coercedType, actualType)
 		if !ok {
 			return nil, false
@@ -466,6 +532,66 @@ func (g *generator) appendStaticNominalReceiverWriteback(ctx *compileContext, ac
 	return lines, true
 }
 
+func (g *generator) refineStaticReceiverBinding(ctx *compileContext, receiver ast.Expression, actualType string, concreteExpr string, concreteType string, concreteTypeExpr ast.TypeExpression) {
+	if g == nil || ctx == nil || receiver == nil || concreteTypeExpr == nil {
+		if concreteType == "" {
+			return
+		}
+	}
+	ident, ok := receiver.(*ast.Identifier)
+	if !ok || ident == nil || ident.Name == "" {
+		return
+	}
+	binding, ok := ctx.lookup(ident.Name)
+	if !ok || binding.GoType == "" || binding.GoType == "runtime.Value" || binding.GoType == "any" {
+		return
+	}
+	if actualType == "" {
+		actualType = binding.GoType
+	}
+	if concreteType == "" {
+		if mapped, ok := g.lowerCarrierType(ctx, concreteTypeExpr); ok {
+			concreteType = mapped
+		}
+	}
+	if concreteType == "" {
+		return
+	}
+	concreteTypeExpr = normalizeTypeExprForPackage(g, ctx.packageName, concreteTypeExpr)
+	if concreteTypeExpr == nil || !g.typeExprFullyBound(ctx.packageName, concreteTypeExpr) {
+		if recovered, ok := g.typeExprForGoType(concreteType); ok && recovered != nil {
+			concreteTypeExpr = normalizeTypeExprForPackage(g, ctx.packageName, recovered)
+		}
+	}
+	if concreteTypeExpr == nil || !g.typeExprFullyBound(ctx.packageName, concreteTypeExpr) {
+		return
+	}
+	if !(g.nominalStructCarrierCoercible(concreteType, binding.GoType) ||
+		g.nominalStructCarrierCoercible(concreteType, actualType) ||
+		g.staticArrayCarrierCoercible(binding.GoType, concreteType) ||
+		g.staticArrayCarrierCoercible(actualType, concreteType) ||
+		g.receiverGoTypeCompatible(concreteType, binding.GoType) ||
+		g.receiverGoTypeCompatible(binding.GoType, concreteType)) {
+		return
+	}
+	updated := binding
+	if concreteExpr != "" {
+		updated.GoName = concreteExpr
+	}
+	updated.GoType = concreteType
+	updated.TypeExpr = normalizeTypeExprForPackage(g, ctx.packageName, concreteTypeExpr)
+	if _, ok := ctx.lookupCurrent(ident.Name); ok {
+		_ = ctx.updateBinding(ident.Name, updated)
+		return
+	}
+	if ctx.locals == nil {
+		ctx.locals = make(map[string]paramInfo)
+	}
+	// Nested closures must not overwrite captured outer bindings with
+	// closure-local receiver temps. Shadow the refined binding locally instead.
+	ctx.locals[ident.Name] = updated
+}
+
 func (g *generator) specializeConcreteImplMethod(ctx *compileContext, call *ast.FunctionCall, method *methodInfo, impl *implMethodInfo, receiver ast.Expression, receiverType string, expected string) (*methodInfo, bool) {
 	if g == nil || ctx == nil || call == nil || method == nil || method.Info == nil || impl == nil {
 		return nil, false
@@ -475,21 +601,12 @@ func (g *generator) specializeConcreteImplMethod(ctx *compileContext, call *ast.
 		return nil, false
 	}
 	if concreteReceiverType, ok := g.lowerCarrierTypeInPackage(method.Info.Package, receiverTypeExpr); ok && concreteReceiverType != "" && concreteReceiverType != "runtime.Value" && concreteReceiverType != "any" && concreteReceiverType != receiverType {
-		if !(g.sameNominalStructFamily(receiverType, concreteReceiverType) ||
+		if !(g.nominalStructCarrierCoercible(concreteReceiverType, receiverType) ||
 			g.staticArrayCarrierCoercible(receiverType, concreteReceiverType) ||
 			g.receiverGoTypeCompatible(concreteReceiverType, receiverType) ||
 			g.receiverGoTypeCompatible(receiverType, concreteReceiverType)) {
 			return nil, false
 		}
-	}
-	genericNames := g.implSpecializationGenericNames(&methodInfo{
-		TargetType:  impl.TargetType,
-		MethodName:  method.MethodName,
-		ExpectsSelf: method.ExpectsSelf,
-		Info:        method.Info,
-	})
-	if g.typeExprHasGeneric(receiverTypeExpr, genericNames) {
-		return nil, false
 	}
 	bindings, ok := g.specializedImplMethodBindings(ctx, call, method, impl, receiverTypeExpr, expected)
 	if !ok || len(bindings) == 0 {
@@ -507,15 +624,6 @@ func (g *generator) specializeConcreteStaticImplMethod(ctx *compileContext, call
 		return nil, false
 	}
 	targetTypeExpr = g.refineStaticTargetTypeExprWithExpected(ctx, target, method.Info.Package, targetTypeExpr, expected)
-	genericNames := g.implSpecializationGenericNames(&methodInfo{
-		TargetType:  impl.TargetType,
-		MethodName:  method.MethodName,
-		ExpectsSelf: method.ExpectsSelf,
-		Info:        method.Info,
-	})
-	if g.typeExprHasGeneric(targetTypeExpr, genericNames) {
-		return nil, false
-	}
 	bindings, ok := g.specializedStaticImplMethodBindings(ctx, call, method, impl, targetTypeExpr, expected)
 	if !ok || len(bindings) == 0 {
 		return nil, false

@@ -57,6 +57,22 @@ func (g *generator) staticArrayCloneLines(ctx *compileContext, arrayType string,
 	return nil, "", false
 }
 
+func (g *generator) genericArrayWildcardTypeExpr(ctx *compileContext) ast.TypeExpression {
+	typeExpr := ast.Gen(ast.Ty("Array"), ast.NewWildcardTypeExpression())
+	if g == nil {
+		return typeExpr
+	}
+	return g.lowerNormalizedTypeExpr(ctx, typeExpr)
+}
+
+func (g *generator) runtimeArrayRestCarrierLines(ctx *compileContext, valuesExpr string) ([]string, string, ast.TypeExpression, bool) {
+	lines, expr, ok := g.staticArrayCloneLines(ctx, "*Array", valuesExpr, "")
+	if !ok {
+		return nil, "", nil, false
+	}
+	return lines, expr, g.genericArrayWildcardTypeExpr(ctx), true
+}
+
 func (g *generator) inferStaticArrayTypeExpr(ctx *compileContext, expr ast.Expression, goType string) (ast.TypeExpression, bool) {
 	if g == nil {
 		return nil, false
@@ -211,10 +227,14 @@ func (g *generator) inferStaticArrayLiteralTypeExpr(ctx *compileContext, lit *as
 	}
 	var elemExpr ast.TypeExpression
 	for _, element := range lit.Elements {
-		inferred, ok := g.inferStaticElementTypeExpr(ctx, element)
+		inferred, ok := g.inferExpressionTypeExpr(ctx, element, "")
+		if (!ok || inferred == nil) && element != nil {
+			inferred, ok = g.inferStaticElementTypeExpr(ctx, element)
+		}
 		if !ok || inferred == nil {
 			return ast.Gen(ast.Ty("Array"), ast.NewWildcardTypeExpression()), true
 		}
+		inferred = g.lowerNormalizedTypeExpr(ctx, inferred)
 		if elemExpr == nil {
 			elemExpr = inferred
 			continue
@@ -301,6 +321,22 @@ func (g *generator) staticArrayPropagationResultType(ctx *compileContext, expr a
 }
 
 func (g *generator) inferLocalTypeExpr(ctx *compileContext, expr ast.Expression, goType string) (ast.TypeExpression, bool) {
+	if call, ok := expr.(*ast.FunctionCall); ok && call != nil {
+		if inferred, ok := g.inferStaticCallResultTypeExpr(ctx, call); ok && inferred != nil {
+			return inferred, true
+		}
+	}
+	if indexExpr, ok := expr.(*ast.IndexExpression); ok && indexExpr != nil {
+		if inferred, ok := g.inferIndexResultTypeExpr(ctx, indexExpr); ok && inferred != nil {
+			return inferred, true
+		}
+	}
+	if inferred := g.inferredExpressionTypeExpr(ctx, expr); inferred != nil {
+		inferred = g.lowerNormalizedTypeExpr(ctx, inferred)
+		if g.typeExprFullyBound(ctx.packageName, inferred) {
+			return inferred, true
+		}
+	}
 	if typeExpr, ok := g.inferStaticArrayTypeExpr(ctx, expr, goType); ok && typeExpr != nil {
 		return typeExpr, true
 	}
@@ -335,8 +371,6 @@ func (g *generator) inferLocalTypeExpr(ctx *compileContext, expr ast.Expression,
 			if goType == "" || goType == "runtime.Value" || goType == "any" {
 				return nil, false
 			}
-		} else {
-			return inferred, true
 		}
 	}
 	if goType != "" {

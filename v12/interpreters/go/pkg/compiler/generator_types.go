@@ -195,18 +195,15 @@ func (g *generator) refreshRepresentableFunctionInfo(info *functionInfo) {
 		if param.TypeExpr == nil {
 			continue
 		}
-		if param.GoType != "" && param.GoType != "runtime.Value" && param.GoType != "any" {
-			continue
-		}
 		recovered, ok := g.recoverRepresentableCarrierType(info.Package, param.TypeExpr, param.GoType)
-		if ok && recovered != "" {
+		if ok && recovered != "" && (param.GoType == "" || param.GoType == "runtime.Value" || param.GoType == "any" || !g.typeMatches(param.GoType, recovered)) {
 			param.GoType = recovered
 			param.Supported = true
 		}
 	}
-	if info.ReturnType == "" || info.ReturnType == "runtime.Value" || info.ReturnType == "any" {
-		retExpr := g.functionReturnTypeExpr(info)
-		if recovered, ok := g.recoverRepresentableCarrierType(info.Package, retExpr, info.ReturnType); ok && recovered != "" {
+	retExpr := g.functionReturnTypeExpr(info)
+	if recovered, ok := g.recoverRepresentableCarrierType(info.Package, retExpr, info.ReturnType); ok && recovered != "" {
+		if info.ReturnType == "" || info.ReturnType == "runtime.Value" || info.ReturnType == "any" || !g.typeMatches(info.ReturnType, recovered) {
 			info.ReturnType = recovered
 		}
 	}
@@ -238,7 +235,7 @@ func (g *generator) functionParamTypeExpr(info *functionInfo, idx int) ast.TypeE
 				return normalizeTypeExprForPackage(g, info.Package, concreteTarget)
 			}
 		}
-		interfaceBindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
+		interfaceBindings := g.implTypeBindings(info.Package, impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
 		selfTarget := g.implSelfTargetType(impl.Info.Package, concreteTarget, interfaceBindings)
 		allBindings := g.mergeImplSelfTargetBindings(info.Package, concreteTarget, selfTarget, interfaceBindings)
 		for name, expr := range contextBindings {

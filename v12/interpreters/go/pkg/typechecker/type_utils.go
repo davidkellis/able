@@ -223,30 +223,11 @@ func isTypeParameter(t Type) bool {
 }
 
 func isIntegerType(t Type) bool {
-	if t == nil {
-		return false
-	}
-	switch val := t.(type) {
-	case IntegerType:
-		return true
-	case PrimitiveType:
-		return val.Kind == PrimitiveInt
-	default:
-		return false
-	}
+	return typeSatisfiesExpandedUnion(t, isLeafIntegerType)
 }
 
 func isFloatType(t Type) bool {
-	if t == nil {
-		return false
-	}
-	switch v := t.(type) {
-	case FloatType:
-		return true
-	case PrimitiveType:
-		return v.Kind == PrimitiveFloat
-	}
-	return false
+	return typeSatisfiesExpandedUnion(t, isLeafFloatType)
 }
 
 func typeCanBeNil(t Type) bool {
@@ -273,10 +254,56 @@ func typeCanBeNil(t Type) bool {
 }
 
 func isNumericType(t Type) bool {
-	if isRatioType(t) {
-		return true
+	return typeSatisfiesExpandedUnion(t, isLeafNumericType)
+}
+
+func typeSatisfiesExpandedUnion(t Type, predicate func(Type) bool) bool {
+	if t == nil {
+		return false
 	}
-	return isIntegerType(t) || isFloatType(t)
+	t = expandAliasForUnion(t)
+	switch val := t.(type) {
+	case UnionLiteralType:
+		if len(val.Members) == 0 {
+			return false
+		}
+		for _, member := range val.Members {
+			if !typeSatisfiesExpandedUnion(member, predicate) {
+				return false
+			}
+		}
+		return true
+	case NullableType:
+		return false
+	default:
+		return predicate(t)
+	}
+}
+
+func isLeafIntegerType(t Type) bool {
+	switch val := t.(type) {
+	case IntegerType:
+		return true
+	case PrimitiveType:
+		return val.Kind == PrimitiveInt
+	default:
+		return false
+	}
+}
+
+func isLeafFloatType(t Type) bool {
+	switch val := t.(type) {
+	case FloatType:
+		return true
+	case PrimitiveType:
+		return val.Kind == PrimitiveFloat
+	default:
+		return false
+	}
+}
+
+func isLeafNumericType(t Type) bool {
+	return isRatioType(t) || isLeafIntegerType(t) || isLeafFloatType(t)
 }
 
 func isBoolType(t Type) bool {

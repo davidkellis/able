@@ -136,7 +136,8 @@ func TestCompilerHashMapCarrierArrayStaysSpecialized(t *testing.T) {
 	for _, fragment := range []string{
 		"var maps *__able_array_HashMap_String_i32 =",
 		"var values *HashMap =",
-		"__able_nominal_coerce_HashMap_to_HashMap_String_i32",
+		"&HashMap_String_i32{}",
+		"Handle = values.Handle",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected Array(HashMap) build lowering to contain %q:\n%s", fragment, body)
@@ -145,6 +146,8 @@ func TestCompilerHashMapCarrierArrayStaysSpecialized(t *testing.T) {
 	for _, fragment := range []string{
 		"[]runtime.Value{",
 		"runtime.ArrayValue",
+		"__able_nominal_coerce_HashMap_to_HashMap_String_i32(",
+		"__able_nominal_coerce_HashMap_String_i32_to_HashMap(",
 	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected Array(HashMap) build lowering to avoid %q:\n%s", fragment, body)
@@ -333,7 +336,8 @@ func TestCompilerHashSetCarrierArrayStaysSpecialized(t *testing.T) {
 	for _, fragment := range []string{
 		"var sets *__able_array_HashSet_i32 =",
 		"var values *HashSet =",
-		"__able_nominal_coerce_HashSet_to_HashSet_i32",
+		"&HashSet_i32{}",
+		"&HashMap_i32_bool{}",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected Array(HashSet) build lowering to contain %q:\n%s", fragment, body)
@@ -342,6 +346,8 @@ func TestCompilerHashSetCarrierArrayStaysSpecialized(t *testing.T) {
 	for _, fragment := range []string{
 		"[]runtime.Value{",
 		"runtime.ArrayValue",
+		"__able_nominal_coerce_HashSet_to_HashSet_i32(",
+		"__able_nominal_coerce_HashSet_i32_to_HashSet(",
 	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected Array(HashSet) build lowering to avoid %q:\n%s", fragment, body)
@@ -388,7 +394,8 @@ func TestCompilerHashSetIteratorWrapsConcreteNativeIterator(t *testing.T) {
 	for _, fragment := range []string{
 		"func __able_compiled_fn_build() (__able_iface_Iterator_i32, *__ableControl)",
 		"__able_compiled_impl_Enumerable_iterator_0_spec(",
-		"__able_nominal_coerce_HashSet_to_HashSet_i32(",
+		"&HashSet_i32{}",
+		"&HashMap_i32_bool{}",
 		"__able_iface_Iterator_A_to_runtime_value(__able_runtime,",
 		"__able_iface_Iterator_i32_from_value(__able_runtime,",
 	} {
@@ -399,6 +406,8 @@ func TestCompilerHashSetIteratorWrapsConcreteNativeIterator(t *testing.T) {
 	for _, fragment := range []string{
 		"__able_call_named(",
 		"__able_try_cast(",
+		"__able_nominal_coerce_HashSet_to_HashSet_i32(",
+		"__able_nominal_coerce_HashSet_i32_to_HashSet(",
 	} {
 		if strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected HashSet iterator lowering to avoid %q:\n%s", fragment, buildBody)

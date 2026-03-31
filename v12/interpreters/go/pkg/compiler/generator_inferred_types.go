@@ -30,6 +30,34 @@ func (g *generator) inferredExpressionTypeExpr(ctx *compileContext, expr ast.Exp
 	return g.lowerNormalizedTypeExpr(ctx, g.typeExprFromInferredType(typ))
 }
 
+func (g *generator) inferredBodyTypeExpr(pkgName string, body *ast.BlockExpression) ast.TypeExpression {
+	if g == nil || body == nil || len(g.inferredTypes) == 0 {
+		return nil
+	}
+	pkgInferred := g.inferredTypes[pkgName]
+	if len(pkgInferred) == 0 {
+		return nil
+	}
+	typ, ok := pkgInferred[body]
+	if !ok || typ == nil {
+		return nil
+	}
+	if _, unknown := typ.(typechecker.UnknownType); unknown {
+		return nil
+	}
+	return normalizeTypeExprForPackage(g, pkgName, g.typeExprFromInferredType(typ))
+}
+
+func (g *generator) functionDeclaredOrInferredReturnTypeExpr(info *functionInfo) ast.TypeExpression {
+	if g == nil || info == nil || info.Definition == nil {
+		return nil
+	}
+	if info.Definition.ReturnType != nil {
+		return normalizeTypeExprForPackage(g, info.Package, info.Definition.ReturnType)
+	}
+	return g.inferredBodyTypeExpr(info.Package, info.Definition.Body)
+}
+
 func (g *generator) typeExprFromInferredType(typ typechecker.Type) ast.TypeExpression {
 	if typ == nil {
 		return ast.NewWildcardTypeExpression()
@@ -83,7 +111,10 @@ func (g *generator) typeExprFromInferredType(typ typechecker.Type) ast.TypeExpre
 	case typechecker.ArrayType:
 		return ast.Gen(ast.Ty("Array"), g.typeExprFromInferredType(v.Element))
 	case typechecker.RangeType:
-		return ast.Gen(ast.Ty("Range"), g.typeExprFromInferredType(v.Element))
+		// Range expressions are specified by their iterable behavior. Rebuild the
+		// observable surface type here instead of forcing the internal checker
+		// placeholder onto the nominal kernel Range struct carrier.
+		return ast.Gen(ast.Ty("Iterable"), g.typeExprFromInferredType(v.Element))
 	case typechecker.IteratorType:
 		return ast.Gen(ast.Ty("Iterator"), g.typeExprFromInferredType(v.Element))
 	case typechecker.FutureType:

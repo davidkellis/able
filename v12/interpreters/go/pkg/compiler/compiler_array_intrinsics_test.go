@@ -293,7 +293,7 @@ func TestCompilerArrayStructKeepsSpecFieldsAndNativeStorage(t *testing.T) {
 		"Storage_handle int64",
 		"Elements       []runtime.Value",
 		"func __able_struct_Array_sync(value *Array) {",
-		"&Array{Length: int32(2), Capacity: int32(2), Storage_handle: int64(0), Elements: []runtime.Value{",
+		"&__able_array_i32{Length: int32(2), Capacity: int32(2), Storage_handle: int64(0), Elements: []int32{",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
 			t.Fatalf("expected compiled array lowering to contain %q", fragment)
@@ -411,11 +411,11 @@ func TestCompilerArrayMutationsSyncMetadata(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not find compiled main function")
 	}
-	if count := strings.Count(mainBody, "__able_struct_Array_sync("); count < 4 {
+	if count := strings.Count(mainBody, "__able_array_i32_sync("); count < 4 {
 		t.Fatalf("expected static array mutations to sync metadata, found %d sync calls in main", count)
 	}
 	for _, fragment := range []string{
-		"var arr *Array =",
+		"var arr *__able_array_i32 =",
 		"append(__able_tmp_",
 		".Elements[__able_tmp_",
 		".Elements = ",
@@ -438,7 +438,7 @@ func TestCompilerArrayMutationsSyncMetadata(t *testing.T) {
 	}
 }
 
-func TestCompilerGenericArrayPushKeepsReceiverIdentity(t *testing.T) {
+func TestCompilerUntypedArrayPushInfersSpecializedReceiverCarrier(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
 		"",
@@ -456,20 +456,22 @@ func TestCompilerGenericArrayPushKeepsReceiverIdentity(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	for _, fragment := range []string{
-		"var arr *Array =",
+		"var arr *__able_array_i32 =",
 		"append(__able_tmp_",
-		"__able_struct_Array_sync(",
+		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
-			t.Fatalf("expected generic Array.push lowering to contain %q:\n%s", fragment, mainBody)
+			t.Fatalf("expected untyped Array.push lowering to contain %q:\n%s", fragment, mainBody)
 		}
 	}
 	for _, fragment := range []string{
 		"__able_array_i32_from(",
 		"__able_method_call_node(",
+		"var arr *Array =",
+		"__able_struct_Array_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
-			t.Fatalf("expected generic Array.push lowering to avoid %q:\n%s", fragment, mainBody)
+			t.Fatalf("expected untyped Array.push lowering to avoid %q:\n%s", fragment, mainBody)
 		}
 	}
 }
@@ -496,6 +498,205 @@ func TestCompilerGenericArrayPushExecutes(t *testing.T) {
 	}
 }
 
+func TestCompilerUntypedArrayWithCapacityInfersSpecializedCarrierFromWriteSlot(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  arr := Array.with_capacity(3)",
+		"  arr.write_slot(1, 9)",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var arr *__able_array_i32 =",
+		"&__able_array_i32{Elements: make([]int32, 0, ",
+		"__able_array_i32_sync(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected untyped Array.with_capacity lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"[]runtime.Value",
+		"runtime.Value",
+		"__able_compiled_method_Array_with_capacity(",
+		"__able_method_call_node(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected untyped Array.with_capacity lowering to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerEmptyArrayLiteralPushInfersSpecializedCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  arr := []",
+		"  arr.push(1)",
+		"  arr.push(2)",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var arr *__able_array_i32 =",
+		"append(__able_tmp_",
+		"__able_array_i32_sync(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected empty array literal push lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"[]runtime.Value",
+		"runtime.ArrayValue",
+		"__able_struct_Array_sync(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected empty array literal push lowering to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerEmptyArrayLiteralWriteSlotInfersSpecializedCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  arr := []",
+		"  arr.write_slot(2, 9)",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var arr *__able_array_i32 =",
+		"__able_array_i32_sync(",
+		"Elements = append(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected empty array literal write_slot lowering to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"[]runtime.Value",
+		"runtime.ArrayValue",
+		"__able_struct_Array_sync(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected empty array literal write_slot lowering to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerUntypedArrayCallArgInfersSpecializedCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn seed<T>(xs: Array T, value: T) -> void {",
+		"  xs.push(value)",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  arr := Array.new()",
+		"  seed(arr, 1)",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var arr *__able_array_i32 =",
+		"__able_compiled_fn_seed_spec(arr, int32(1))",
+		"__able_array_i32_sync(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected untyped Array.new call-arg inference to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"__able_struct_Array_sync(",
+		"__able_array_i32_from(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected untyped Array.new call-arg inference to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerEmptyArrayLiteralMethodArgInfersSpecializedCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Sink {}",
+		"",
+		"methods Sink {",
+		"  fn seed<T>(self: Self, xs: Array T, value: T) -> void {",
+		"    xs.push(value)",
+		"  }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  sink: Sink = Sink{}",
+		"  arr := []",
+		"  sink.seed(arr, 1)",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var arr *__able_array_i32 =",
+		"__able_compiled_method_Sink_seed_spec(",
+		"__able_array_i32_sync(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected empty array literal method-arg inference to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"[]runtime.Value",
+		"runtime.ArrayValue",
+		"__able_struct_Array_sync(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected empty array literal method-arg inference to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
 func TestCompilerArrayWrapperUsesExplicitArrayBoundaryConverters(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
@@ -508,19 +709,19 @@ func TestCompilerArrayWrapperUsesExplicitArrayBoundaryConverters(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_cloneish(arr *Array) (*Array, *__ableControl)") {
-		t.Fatalf("expected cloneish to keep a native *Array signature")
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_cloneish(arr *__able_array_i32) (*__able_array_i32, *__ableControl)") {
+		t.Fatalf("expected cloneish to keep a native specialized array signature")
 	}
 
 	wrapBody, ok := findCompiledFunction(result, "__able_wrap_fn_cloneish")
 	if !ok {
 		t.Fatalf("could not find wrapper for cloneish")
 	}
-	if !strings.Contains(wrapBody, "__able_struct_Array_from(arg0Value)") {
-		t.Fatalf("expected wrapper arg conversion to use explicit Array_from:\n%s", wrapBody)
+	if !strings.Contains(wrapBody, "__able_array_i32_from(arg0Value)") {
+		t.Fatalf("expected wrapper arg conversion to use explicit __able_array_i32_from:\n%s", wrapBody)
 	}
-	if !strings.Contains(wrapBody, "return __able_struct_Array_to(rt, compiledResult)") {
-		t.Fatalf("expected wrapper return to use explicit Array_to:\n%s", wrapBody)
+	if !strings.Contains(wrapBody, "return __able_array_i32_to(rt, compiledResult)") {
+		t.Fatalf("expected wrapper return to use explicit __able_array_i32_to:\n%s", wrapBody)
 	}
 	if strings.Contains(wrapBody, "__able_any_to_value(compiledResult)") {
 		t.Fatalf("wrapper should not route Array return through __able_any_to_value:\n%s", wrapBody)
@@ -546,8 +747,8 @@ func TestCompilerMatchArrayRestBindingStaysNative(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	for _, fragment := range []string{
-		"var tail *Array",
-		"__able_struct_Array_sync(",
+		"var tail *__able_array_i32",
+		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native array rest lowering to contain %q:\n%s", fragment, mainBody)
@@ -581,8 +782,8 @@ func TestCompilerPatternAssignmentArrayRestBindingStaysNative(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	for _, fragment := range []string{
-		"var tail *Array",
-		"__able_struct_Array_sync(",
+		"var tail *__able_array_i32",
+		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native pattern assignment rest lowering to contain %q:\n%s", fragment, mainBody)
@@ -608,7 +809,7 @@ func TestCompilerArrayHelperFixtureNullableIntrinsicsStayNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var popped *int32 =",
-		"__able_nullable_i32_from_value(",
+		"__able_ptr(__able_tmp_",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected stdlib array-helper lowering to contain %q:\n%s", fragment, mainBody)
@@ -617,6 +818,7 @@ func TestCompilerArrayHelperFixtureNullableIntrinsicsStayNative(t *testing.T) {
 	for _, fragment := range []string{
 		"var popped runtime.Value =",
 		"func() runtime.Value {",
+		"__able_nullable_i32_from_value(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected stdlib array-helper lowering to avoid %q:\n%s", fragment, mainBody)

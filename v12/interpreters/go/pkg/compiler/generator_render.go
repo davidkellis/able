@@ -96,13 +96,16 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	var body bytes.Buffer
 
 	if g.hasFunctions() {
-		fmt.Fprintf(&body, "const __able_experimental_mono_arrays = %t\n\n", g.opts.ExperimentalMonoArrays)
+		fmt.Fprintf(&body, "const __able_experimental_mono_arrays = %t\n\n", g.monoArraysEnabled())
 		fmt.Fprintf(&body, "var __able_runtime *bridge.Runtime\n\n")
 		g.ensurePackageEnvVars()
 		if len(g.packageEnvOrder) > 0 {
 			for _, pkgName := range g.packageEnvOrder {
 				if envVar, ok := g.packageEnvVars[pkgName]; ok {
 					fmt.Fprintf(&body, "var %s *runtime.Environment\n", envVar)
+				}
+				if bootVar, ok := g.packageBootstrappedVars[pkgName]; ok {
+					fmt.Fprintf(&body, "var %s bool\n", bootVar)
 				}
 			}
 			fmt.Fprintf(&body, "\n")
@@ -166,7 +169,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	// Now render the header with imports (flags are set by body rendering).
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "package %s\n\n", g.opts.PackageName)
-	imports := g.importsForCompiled()
+	imports := g.importsForCompiled(body.String())
 	if len(imports) > 0 {
 		fmt.Fprintf(&buf, "import (\n")
 		for _, imp := range imports {
@@ -221,7 +224,7 @@ func (g *generator) renderDiagnosticGlobals(buf *bytes.Buffer) {
 	}
 }
 
-func (g *generator) importsForCompiled() []string {
+func (g *generator) importsForCompiled(compiledBody string) []string {
 	importSet := map[string]struct{}{}
 	needsRuntime := g.hasFunctions() || g.structUsesRuntimeValue()
 	if g.hasFunctions() {
@@ -256,7 +259,7 @@ func (g *generator) importsForCompiled() []string {
 	if g.hasFunctions() && g.needsIterator {
 		importSet["sync"] = struct{}{}
 	}
-	if g.needsStrconv {
+	if g.needsStrconv && strings.Contains(compiledBody, "strconv.") {
 		importSet["strconv"] = struct{}{}
 	}
 	imports := make([]string, 0, len(importSet))

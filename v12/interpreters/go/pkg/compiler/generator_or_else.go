@@ -336,14 +336,21 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	}
 	newHandlerCtx := func() *compileContext {
 		handlerCtx := ctx.child()
+		if handlerCtx != nil {
+			handlerCtx.expectedTypeExpr = nil
+		}
 		if bindingName != "" {
 			handlerCtx.locals[bindingName] = paramInfo{Name: bindingName, GoName: sanitizeIdent(bindingName), GoType: bindingType}
 		}
 		return handlerCtx
 	}
+	handlerExpected := ""
+	if expected != "" {
+		handlerExpected = preferredType
+	}
 	handlerCtx := newHandlerCtx()
-	handlerLines, handlerExpr, handlerType, ok := g.compileBlockExpression(handlerCtx, expr.Handler, preferredType)
-	if !ok && expected == "" && preferredType != "" {
+	handlerLines, handlerExpr, handlerType, ok := g.compileBlockExpression(handlerCtx, expr.Handler, handlerExpected)
+	if !ok && handlerExpected != "" {
 		handlerCtx = newHandlerCtx()
 		handlerLines, handlerExpr, handlerType, ok = g.compileBlockExpression(handlerCtx, expr.Handler, "")
 	}

@@ -54,6 +54,105 @@ func TestBinaryExpressionPromotesMixedSignedUnsigned(t *testing.T) {
 	}
 }
 
+func TestBinaryExpressionAcceptsNumericUnionOperands(t *testing.T) {
+	checker := New()
+	i64 := ast.IntegerTypeI64
+	left := ast.NewIfExpression(
+		ast.Bool(true),
+		ast.Block(ast.IntTyped(1, &i64)),
+		nil,
+		ast.Block(ast.Int(0)),
+	)
+	right := ast.NewIfExpression(
+		ast.Bool(false),
+		ast.Block(ast.IntTyped(2, &i64)),
+		nil,
+		ast.Block(ast.Int(0)),
+	)
+	expr := ast.Bin("+", left, right)
+	assign := ast.Assign(ast.ID("sum"), expr)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+	typ, ok := checker.infer[expr]
+	if !ok {
+		t.Fatalf("expected inferred type for expression")
+	}
+	if name := typeName(typ); name != "i64 | i32" {
+		t.Fatalf("expected union result i64 | i32, got %s", name)
+	}
+}
+
+func TestBinaryExpressionPromotesChainedNumericUnionAddition(t *testing.T) {
+	checker := New()
+	i64 := ast.IntegerTypeI64
+	left := ast.NewIfExpression(
+		ast.Bool(true),
+		ast.Block(ast.IntTyped(1, &i64)),
+		nil,
+		ast.Block(ast.Int(0)),
+	)
+	right := ast.NewIfExpression(
+		ast.Bool(false),
+		ast.Block(ast.IntTyped(2, &i64)),
+		nil,
+		ast.Block(ast.Int(0)),
+	)
+	expr := ast.Bin("+", ast.Bin("+", left, right), ast.IntTyped(1, &i64))
+	assign := ast.Assign(ast.ID("sum"), expr)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+	typ, ok := checker.infer[expr]
+	if !ok {
+		t.Fatalf("expected inferred type for expression")
+	}
+	if name := typeName(typ); name != "i64" {
+		t.Fatalf("expected promoted type i64, got %s", name)
+	}
+}
+
+func TestBinaryExpressionPromotesChainedNumericUnionSubtraction(t *testing.T) {
+	checker := New()
+	i64 := ast.IntegerTypeI64
+	right := ast.NewIfExpression(
+		ast.Bool(true),
+		ast.Block(ast.IntTyped(2, &i64)),
+		nil,
+		ast.Block(ast.Int(0)),
+	)
+	expr := ast.Bin("-", ast.Bin("-", ast.IntTyped(5, &i64), right), ast.IntTyped(1, &i64))
+	assign := ast.Assign(ast.ID("diff"), expr)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+	typ, ok := checker.infer[expr]
+	if !ok {
+		t.Fatalf("expected inferred type for expression")
+	}
+	if name := typeName(typ); name != "i64" {
+		t.Fatalf("expected promoted type i64, got %s", name)
+	}
+}
+
 func TestBinaryExpressionFallsBackToUnsignedForU128(t *testing.T) {
 	checker := New()
 	u128 := ast.IntegerTypeU128

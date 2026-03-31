@@ -23,7 +23,7 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	if !ok || method == nil {
 		return nil, "", "", false
 	}
-	if method.DefaultDefinition != nil {
+	if method.DefaultDefinition != nil && !g.nativeInterfaceReceiverUsesConcreteAdapterWrapper(receiverType, receiverExpr) {
 		defaultMethod := &nativeInterfaceGenericMethod{
 			Name:              method.Name,
 			GoName:            method.GoName,
@@ -131,6 +131,26 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	}
 	ctx.setReason("call return type mismatch")
 	return nil, "", "", false
+}
+
+func (g *generator) nativeInterfaceReceiverUsesConcreteAdapterWrapper(receiverType string, receiverExpr string) bool {
+	if g == nil || receiverType == "" || receiverExpr == "" {
+		return false
+	}
+	info := g.nativeInterfaceInfoForGoType(receiverType)
+	if info == nil || len(info.Adapters) == 0 {
+		return false
+	}
+	trimmed := strings.TrimSpace(receiverExpr)
+	for _, adapter := range info.Adapters {
+		if adapter == nil || adapter.WrapHelper == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, adapter.WrapHelper+"(") {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *generator) compileConcreteNativeInterfaceMethodCall(ctx *compileContext, call *ast.FunctionCall, expected string, receiverExpr string, receiverType string, methodName string, callNode string) ([]string, string, string, bool) {

@@ -394,6 +394,19 @@ func (g *generator) compileBlockExpression(ctx *compileContext, block *ast.Block
 		return nil, "", "", false
 	}
 	child := ctx.child()
+	if child != nil {
+		child.blockStatements = block.Body
+		switch {
+		case expected == "", expected == "runtime.Value", expected == "any":
+			child.expectedTypeExpr = nil
+		default:
+			if expectedExpr, ok := g.typeExprForGoType(expected); ok && expectedExpr != nil {
+				child.expectedTypeExpr = normalizeTypeExprForPackage(g, child.packageName, expectedExpr)
+			} else {
+				child.expectedTypeExpr = nil
+			}
+		}
+	}
 	if len(block.Body) == 0 {
 		if expected == "" || g.isVoidType(expected) {
 			return nil, "struct{}{}", "struct{}", true
@@ -419,6 +432,7 @@ func (g *generator) compileBlockExpression(ctx *compileContext, block *ast.Block
 	}
 	lines := make([]string, 0, len(block.Body)+1)
 	for idx, stmt := range block.Body {
+		child.statementIndex = idx
 		isLast := idx == len(block.Body)-1
 		if isLast {
 			if raiseStmt, ok := stmt.(*ast.RaiseStatement); ok {
@@ -558,8 +572,10 @@ func (g *generator) compileBlockStatement(ctx *compileContext, block *ast.BlockE
 		return nil, false
 	}
 	child := ctx.child()
+	child.blockStatements = block.Body
 	lines := make([]string, 0, len(block.Body))
-	for _, stmt := range block.Body {
+	for idx, stmt := range block.Body {
+		child.statementIndex = idx
 		stmtLines, ok := g.compileStatement(child, stmt)
 		if !ok {
 			ctx.setReason(child.reason)

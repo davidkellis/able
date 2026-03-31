@@ -71,6 +71,7 @@ type generator struct {
 	diagNames                           map[ast.Node]string
 	nodeOrigins                         map[ast.Node]string
 	packageEnvVars                      map[string]string
+	packageBootstrappedVars             map[string]string
 	packageEnvOrder                     []string
 	packageInitOrder                    []string
 	packageInitStatements               map[string][]ast.Statement
@@ -90,6 +91,10 @@ type generator struct {
 }
 
 func newGenerator(opts Options) *generator {
+	// Compiler-native array carriers are now the default static lowering path.
+	// Keep the option field for compatibility while older call sites/tests are
+	// updated, but do not let the generic *Array carrier remain the default.
+	opts.ExperimentalMonoArrays = true
 	return &generator{
 		opts:                                opts,
 		structs:                             make(map[string]*structInfo),
@@ -192,6 +197,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.packageInitOrder = nil
 	g.packageInitStatements = make(map[string][]ast.Statement)
 	g.packageInitCompiled = make(map[string][]string)
+	g.invalidatePackageEnvVars()
 	if g.nodeOrigins == nil {
 		g.nodeOrigins = make(map[ast.Node]string)
 	}
@@ -382,6 +388,7 @@ func (g *generator) collect(program *driver.Program) error {
 		if _, ok := seenPackages[pkgName]; !ok {
 			seenPackages[pkgName] = struct{}{}
 			g.packages = append(g.packages, pkgName)
+			g.invalidatePackageEnvVars()
 		}
 		mapper := NewTypeMapper(g, pkgName)
 
@@ -555,6 +562,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.collectPackageInitStatements(program)
 	g.collectDefaultImplMethods()
 	sort.Strings(g.packages)
+	g.invalidatePackageEnvVars()
 	g.resolveCompileabilityFixedPoint()
 	g.detectAstNeeds()
 	return nil
@@ -592,8 +600,9 @@ func (g *generator) fillFunctionInfo(info *functionInfo, mapper *TypeMapper) {
 			Supported: ok,
 		})
 	}
-	retType, ok := mapper.Map(def.ReturnType)
-	retType, ok = g.recoverRepresentableCarrierType(info.Package, def.ReturnType, retType)
+	retExpr := g.functionDeclaredOrInferredReturnTypeExpr(info)
+	retType, ok := mapper.Map(retExpr)
+	retType, ok = g.recoverRepresentableCarrierType(info.Package, retExpr, retType)
 	if !ok || retType == "" {
 		supported = false
 	}
@@ -631,8 +640,10 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 		ctx.setReason("empty body requires void return")
 		return nil, "", false
 	}
+	ctx.blockStatements = statements
 	lines := make([]string, 0, len(statements))
 	for idx, stmt := range statements {
+		ctx.statementIndex = idx
 		isLast := idx == len(statements)-1
 		if ret, ok := stmt.(*ast.ReturnStatement); ok {
 			return g.compileReturnStatement(ctx, info.ReturnType, ret, lines)

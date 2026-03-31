@@ -119,6 +119,9 @@ func (g *generator) compileRangeExpression(ctx *compileContext, expr *ast.RangeE
 	lines = append(lines, fmt.Sprintf("%s := %s", endTemp, endRuntime))
 	rangeExpr := fmt.Sprintf("__able_range(%s, %s, %t)", startTemp, endTemp, expr.Inclusive)
 	if expected != "" && expected != "runtime.Value" {
+		if info := g.structInfoByGoName(expected); info != nil && info.Name == "Range" {
+			return lines, rangeExpr, "runtime.Value", true
+		}
 		expectLines, converted, ok := g.lowerExpectRuntimeValue(ctx, rangeExpr, expected)
 		if !ok {
 			ctx.setReason("range expression type mismatch")

@@ -204,9 +204,14 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			elseDiags, elseType := c.checkExpression(env, e.ElseBody)
 			diags = append(diags, elseDiags...)
 			branchTypes = append(branchTypes, elseType)
+		} else {
+			// `if` without `else` yields `nil` when no branch matches, so the
+			// inferred type must remain nil-capable instead of collapsing to the
+			// body branch alone.
+			branchTypes = append(branchTypes, PrimitiveType{Kind: PrimitiveNil})
 		}
 
-		resultType := mergeBranchTypes(branchTypes)
+		resultType := buildUnionType(branchTypes...)
 		c.infer.set(e, resultType)
 		return diags, resultType
 	case *ast.UnaryExpression:

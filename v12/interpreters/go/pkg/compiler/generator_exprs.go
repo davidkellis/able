@@ -405,6 +405,14 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 		}
 		return fmt.Sprintf("%s(%s)", expected, lit.Value.String()), expected, true
 	}
+	if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
+		return fmt.Sprintf("%s(%s)", actual, lit.Value.String()), actual, true
+	}
+	if ctx != nil && ctx.expectedTypeExpr != nil {
+		if iface, ok := g.ensureNativeInterfaceInfo(ctx.packageName, ctx.expectedTypeExpr); ok && iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
+			return fmt.Sprintf("%s(%s)", actual, lit.Value.String()), actual, true
+		}
+	}
 	if !g.typeMatches(expected, actual) && !g.isIntegerType(expected) {
 		ctx.setReason(fmt.Sprintf("unsupported integer literal type (%s)", expected))
 		return "", "", false

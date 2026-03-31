@@ -191,9 +191,10 @@ func (g *generator) nativeInterfaceAcceptsActualSeen(info *nativeInterfaceInfo, 
 	if g.nativeInterfaceAssignable(actual, info.GoType) {
 		return true
 	}
-		if _, ok := g.nativeInterfaceAdapterForActual(info, actual); ok {
-			return true
-		}
+	if _, ok := g.nativeInterfaceAdapterForActualSeen(info, actual, seen); ok {
+		return true
+	}
+	actualUnion := g.nativeUnionInfoForGoType(actual)
 	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter == nil || adapter.GoType == "" {
 			continue
@@ -203,6 +204,9 @@ func (g *generator) nativeInterfaceAcceptsActualSeen(info *nativeInterfaceInfo, 
 		}
 		union := g.nativeUnionInfoForGoType(adapter.GoType)
 		if union == nil {
+			continue
+		}
+		if actualUnion == nil {
 			continue
 		}
 		if _, ok := g.nativeUnionMember(union, actual); ok {
@@ -268,6 +272,9 @@ func (g *generator) nativeInterfaceAcceptsActualShallow(info *nativeInterfaceInf
 			return true
 		}
 		if union := g.nativeUnionInfoForGoType(adapter.GoType); union != nil {
+			if g.nativeUnionInfoForGoType(actual) == nil {
+				continue
+			}
 			if _, ok := g.nativeUnionMember(union, actual); ok {
 				return true
 			}
@@ -292,9 +299,9 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 		if actualInfo == nil {
 			return nil, expr, true
 		}
-			if actualInfo.AdapterVersion != g.nativeInterfaceAdapterVersion && g.nativeInterfaceRefreshAllowed() {
-				g.refreshNativeInterfaceAdapters(actualInfo)
-			}
+		if actualInfo.AdapterVersion != g.nativeInterfaceAdapterVersion && g.nativeInterfaceRefreshAllowed() {
+			g.refreshNativeInterfaceAdapters(actualInfo)
+		}
 		if directLines, directExpr, ok := g.nativeInterfaceDirectWrapLines(ctx, actualInfo, info, expr); ok {
 			return directLines, directExpr, true
 		}

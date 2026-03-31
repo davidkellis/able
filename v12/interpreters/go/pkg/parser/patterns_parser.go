@@ -216,7 +216,7 @@ func (ctx *parseContext) normalizeStructPattern(pattern *ast.StructPattern) {
 	}
 	isPositional := false
 	if structType == nil {
-		isPositional = true
+		isPositional = hasPositionalStructFields(pattern.Fields)
 	} else if hasStructKind && structKind == ast.StructKindPositional {
 		isPositional = true
 	} else if hasStructKind && structKind == ast.StructKindNamed {

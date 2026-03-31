@@ -210,6 +210,11 @@ func (g *generator) nativeInterfaceTypeTemplateMatches(pkgName string, template 
 			bindings[tt.Name.Name] = actual
 			return true
 		}
+		if actualGeneric, ok := actual.(*ast.GenericTypeExpression); ok && actualGeneric != nil {
+			if actualBase, ok := typeExprBaseName(actualGeneric.Base); ok && actualBase == tt.Name.Name {
+				return true
+			}
+		}
 		actualSimple, ok := actual.(*ast.SimpleTypeExpression)
 		return ok && actualSimple != nil && actualSimple.Name != nil && actualSimple.Name.Name == tt.Name.Name
 	case *ast.GenericTypeExpression:

@@ -193,12 +193,135 @@ func (g *generator) nominalFieldNeedsRuntimeContext(goType string) bool {
 	}
 }
 
+func (g *generator) nominalStructInlineCoercible(actual string, expected string) bool {
+	if g == nil || actual == "" || expected == "" {
+		return false
+	}
+	return g.nominalStructInlineCoercibleSeen(actual, expected, make(map[string]struct{}))
+}
+
+func (g *generator) nominalStructInlineCoercibleSeen(actual string, expected string, seen map[string]struct{}) bool {
+	if g == nil || actual == "" || expected == "" || !g.nominalStructCarrierCoercible(expected, actual) {
+		return false
+	}
+	if actual == expected {
+		return true
+	}
+	if seen == nil {
+		seen = make(map[string]struct{})
+	}
+	key := actual + "->" + expected
+	if _, ok := seen[key]; ok {
+		return false
+	}
+	seen[key] = struct{}{}
+	defer delete(seen, key)
+	actualInfo := g.structInfoByGoName(actual)
+	expectedInfo := g.structInfoByGoName(expected)
+	if actualInfo == nil || expectedInfo == nil {
+		return false
+	}
+	for _, expectedField := range expectedInfo.Fields {
+		actualField := g.fieldInfo(actualInfo, expectedField.Name)
+		if actualField == nil {
+			return false
+		}
+		if actualField.GoType == expectedField.GoType {
+			continue
+		}
+		if g.nominalStructCarrierCoercible(expectedField.GoType, actualField.GoType) {
+			if !g.nominalStructInlineCoercibleSeen(actualField.GoType, expectedField.GoType, seen) {
+				return false
+			}
+			continue
+		}
+		if !g.canCoerceStaticExpr(expectedField.GoType, actualField.GoType) {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *generator) inlineNominalStructCoercionFieldLines(ctx *compileContext, actualExpr string, actualGoType string, expectedGoType string) ([]string, string, bool) {
+	if g == nil || ctx == nil || actualExpr == "" || actualGoType == "" || expectedGoType == "" {
+		return nil, "", false
+	}
+	if actualGoType == expectedGoType {
+		return nil, actualExpr, true
+	}
+	lines, converted, convertedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, actualExpr, actualGoType, expectedGoType)
+	if !ok || converted == "" || convertedType == "" {
+		return nil, "", false
+	}
+	if convertedType != expectedGoType {
+		return nil, "", false
+	}
+	return lines, converted, true
+}
+
+func (g *generator) inlineNominalStructFamilyLines(ctx *compileContext, expr string, actual string, expected string) ([]string, string, bool) {
+	if g == nil || ctx == nil || expr == "" || !g.nominalStructInlineCoercible(actual, expected) {
+		return nil, "", false
+	}
+	if actual == expected {
+		return nil, expr, true
+	}
+	actualInfo := g.structInfoByGoName(actual)
+	expectedInfo := g.structInfoByGoName(expected)
+	if actualInfo == nil || expectedInfo == nil {
+		return nil, "", false
+	}
+	resultTemp := ctx.newTemp()
+	if strings.HasPrefix(expected, "*") {
+		lines := []string{
+			fmt.Sprintf("var %s %s", resultTemp, expected),
+			fmt.Sprintf("if %s != nil {", expr),
+		}
+		instanceTemp := ctx.newTemp()
+		lines = append(lines, fmt.Sprintf("\t%s := &%s{}", instanceTemp, expectedInfo.GoName))
+		for _, expectedField := range expectedInfo.Fields {
+			actualField := g.fieldInfo(actualInfo, expectedField.Name)
+			if actualField == nil {
+				return nil, "", false
+			}
+			fieldExpr := expr + "." + actualField.GoName
+			fieldLines, convertedExpr, ok := g.inlineNominalStructCoercionFieldLines(ctx, fieldExpr, actualField.GoType, expectedField.GoType)
+			if !ok {
+				return nil, "", false
+			}
+			lines = append(lines, indentLines(fieldLines, 1)...)
+			lines = append(lines, fmt.Sprintf("\t%s.%s = %s", instanceTemp, expectedField.GoName, convertedExpr))
+		}
+		lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, instanceTemp))
+		lines = append(lines, "}")
+		return lines, resultTemp, true
+	}
+	lines := []string{fmt.Sprintf("var %s %s", resultTemp, expectedInfo.GoName)}
+	for _, expectedField := range expectedInfo.Fields {
+		actualField := g.fieldInfo(actualInfo, expectedField.Name)
+		if actualField == nil {
+			return nil, "", false
+		}
+		fieldExpr := expr + "." + actualField.GoName
+		fieldLines, convertedExpr, ok := g.inlineNominalStructCoercionFieldLines(ctx, fieldExpr, actualField.GoType, expectedField.GoType)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, fieldLines...)
+		lines = append(lines, fmt.Sprintf("%s.%s = %s", resultTemp, expectedField.GoName, convertedExpr))
+	}
+	return lines, resultTemp, true
+}
+
 func (g *generator) coerceNominalStructFamilyLines(ctx *compileContext, expr string, actual string, expected string) ([]string, string, bool) {
 	if g == nil || ctx == nil || expr == "" || !g.nominalStructCarrierCoercible(expected, actual) {
 		return nil, "", false
 	}
 	if actual == expected {
 		return nil, expr, true
+	}
+	if inlineLines, converted, ok := g.inlineNominalStructFamilyLines(ctx, expr, actual, expected); ok {
+		return inlineLines, converted, true
 	}
 	info := g.ensureNominalCoercionInfo(actual, expected)
 	if info == nil {

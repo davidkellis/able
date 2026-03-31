@@ -186,6 +186,11 @@ func (g *generator) renderNativeUnionToRuntimeHelper(buf *bytes.Buffer, info *na
 	fmt.Fprintf(buf, "\tswitch raw := value.(type) {\n")
 	for _, member := range info.Members {
 		fmt.Fprintf(buf, "\tcase %s:\n", member.WrapperType)
+		if member != nil && member.TypeExpr != nil && g.typeExprIncludesNilInPackage(info.PackageName, member.TypeExpr) && g.goTypeHasNilZeroValue(member.GoType) {
+			fmt.Fprintf(buf, "\t\tif raw.Value == nil {\n")
+			fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, nil\n")
+			fmt.Fprintf(buf, "\t\t}\n")
+		}
 		switch {
 		case member.GoType == "runtime.Value":
 			fmt.Fprintf(buf, "\t\treturn raw.Value, nil\n")

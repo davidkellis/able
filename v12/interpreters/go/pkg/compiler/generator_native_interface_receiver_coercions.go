@@ -74,6 +74,9 @@ func (g *generator) nativeInterfaceDefaultReceiverInfo(receiverGoType string, me
 		preserveStructReceiver := g.preserveNativeInterfaceDefaultStructReceiver(method.InterfacePackage, receiverGoType, receiverTypeExpr)
 		if iface.SelfTypePattern != nil {
 			concreteReceiver := normalizeTypeExprForPackage(g, method.InterfacePackage, substituteTypeParams(iface.SelfTypePattern, mergedBindings))
+			if simple, ok := concreteReceiver.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && isBuiltinMappedType(simple.Name.Name) {
+				concreteReceiver = ast.Ty(simple.Name.Name)
+			}
 			if generic, ok := concreteReceiver.(*ast.GenericTypeExpression); ok && generic != nil {
 				if base, ok := generic.Base.(*ast.SimpleTypeExpression); ok && base != nil && base.Name != nil && isBuiltinMappedType(base.Name.Name) {
 					concreteReceiver = ast.Ty(base.Name.Name)

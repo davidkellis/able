@@ -22,6 +22,29 @@ func (g *generator) recoverDispatchBinding(ctx *compileContext, binding paramInf
 	return binding
 }
 
+func (g *generator) dispatchReceiverTypeExpr(ctx *compileContext, expr ast.Expression) ast.TypeExpression {
+	if g == nil || ctx == nil || expr == nil {
+		return nil
+	}
+	if ident, ok := expr.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+		if binding, ok := ctx.lookup(ident.Name); ok {
+			if binding.GoType != "" && binding.GoType != "runtime.Value" && binding.GoType != "any" && !g.isVoidType(binding.GoType) {
+				if inferred, ok := g.typeExprForGoType(binding.GoType); ok && inferred != nil {
+					return g.lowerNormalizedTypeExpr(ctx, inferred)
+				}
+			}
+			if inferred := g.inferBindingTypeExpr(ctx, binding); inferred != nil {
+				return g.lowerNormalizedTypeExpr(ctx, inferred)
+			}
+		}
+	}
+	inferred, ok := g.inferExpressionTypeExpr(ctx, expr, "")
+	if !ok || inferred == nil {
+		return nil
+	}
+	return g.lowerNormalizedTypeExpr(ctx, inferred)
+}
+
 func (g *generator) recoverDispatchCarrierType(ctx *compileContext, expr ast.Expression, goType string) (string, bool) {
 	if g == nil || expr == nil {
 		return "", false
@@ -73,8 +96,8 @@ func (g *generator) inferredDispatchReceiverType(ctx *compileContext, expr ast.E
 	if g == nil || ctx == nil || expr == nil {
 		return ""
 	}
-	inferred, ok := g.inferExpressionTypeExpr(ctx, expr, "")
-	if !ok || inferred == nil {
+	inferred := g.dispatchReceiverTypeExpr(ctx, expr)
+	if inferred == nil {
 		return ""
 	}
 	if recovered, ok := g.joinCarrierTypeFromTypeExpr(ctx, inferred); ok && recovered != "" && recovered != "runtime.Value" && recovered != "any" && !g.isVoidType(recovered) {
@@ -147,9 +170,20 @@ func (g *generator) preferredDispatchReceiverTypeExpr(ctx *compileContext, call 
 	if g == nil || ctx == nil || call == nil || expr == nil || methodName == "" {
 		return nil
 	}
-	receiverTypeExpr, ok := g.inferExpressionTypeExpr(ctx, expr, "")
-	if !ok || receiverTypeExpr == nil {
+	receiverTypeExpr := g.dispatchReceiverTypeExpr(ctx, expr)
+	if receiverTypeExpr == nil {
 		return nil
+	}
+	receiverTypeExpr = normalizeTypeExprForPackage(g, ctx.packageName, receiverTypeExpr)
+	if g.typeExprFullyBound(ctx.packageName, receiverTypeExpr) {
+		if ifaceInfo, ok := g.ensureNativeInterfaceInfo(ctx.packageName, receiverTypeExpr); ok && ifaceInfo != nil && ifaceInfo.GoType != "" {
+			if _, ok := g.nativeInterfaceMethodForGoType(ifaceInfo.GoType, methodName); ok {
+				return receiverTypeExpr
+			}
+			if _, ok := g.nativeInterfaceGenericMethodForGoType(ifaceInfo.GoType, methodName); ok {
+				return receiverTypeExpr
+			}
+		}
 	}
 	receiverGoType, ok := g.lowerCarrierType(ctx, receiverTypeExpr)
 	if !ok || receiverGoType == "" || receiverGoType == "runtime.Value" || receiverGoType == "any" {

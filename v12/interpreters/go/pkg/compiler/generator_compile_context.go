@@ -17,7 +17,9 @@ func newCompileContext(gen *generator, info *functionInfo, functions map[string]
 	}
 	if info != nil {
 		ctx.returnType = info.ReturnType
-		if info.Definition != nil {
+		if gen != nil {
+			ctx.returnTypeExpr = gen.functionReturnTypeExpr(info)
+		} else if info.Definition != nil {
 			ctx.returnTypeExpr = info.Definition.ReturnType
 		}
 		for _, param := range info.Params {
@@ -51,7 +53,7 @@ func (g *generator) compileContextTypeBindings(info *functionInfo) map[string]as
 		if impl := g.implMethodByInfo[info]; impl != nil {
 			currentImpl = impl
 			currentTarget = g.compileContextImplTargetType(info, impl)
-			bindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, currentTarget)
+			bindings := g.implTypeBindings(info.Package, impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, currentTarget)
 			selfTarget := g.implSelfTargetType(info.Package, currentTarget, bindings)
 			merged = g.mergeImplSelfTargetBindings(info.Package, currentTarget, selfTarget, bindings)
 			if merged == nil {
@@ -118,24 +120,40 @@ func (g *generator) compileContextImplTargetType(info *functionInfo, impl *implM
 	if g == nil || info == nil || impl == nil {
 		return nil
 	}
+	currentTarget := g.specializedImplTargetType(impl, info.TypeBindings)
 	if len(info.Params) > 0 {
 		selfParam := info.Params[0]
 		if selfParam.Name == "self" || selfParam.Name == "Self" {
 			if selfParam.TypeExpr != nil {
 				if candidate := normalizeTypeExprForPackage(g, info.Package, selfParam.TypeExpr); candidate != nil {
-					return candidate
+					if currentTarget == nil {
+						return candidate
+					}
+					if normalizeTypeExprString(g, info.Package, candidate) == normalizeTypeExprString(g, info.Package, currentTarget) ||
+						g.nominalTargetTypeExprCompatible(info.Package, candidate, currentTarget) ||
+						g.nominalTargetTypeExprCompatible(info.Package, currentTarget, candidate) {
+						return candidate
+					}
+					return currentTarget
 				}
 			}
 			if selfParam.GoType != "" {
 				if candidate, ok := g.typeExprForGoType(selfParam.GoType); ok && candidate != nil {
 					if candidate = normalizeTypeExprForPackage(g, info.Package, candidate); candidate != nil {
-						return candidate
+						if currentTarget == nil {
+							return candidate
+						}
+						if normalizeTypeExprString(g, info.Package, candidate) == normalizeTypeExprString(g, info.Package, currentTarget) ||
+							g.nominalTargetTypeExprCompatible(info.Package, candidate, currentTarget) ||
+							g.nominalTargetTypeExprCompatible(info.Package, currentTarget, candidate) {
+							return candidate
+						}
+						return currentTarget
 					}
 				}
 			}
 		}
 	}
-	currentTarget := g.specializedImplTargetType(impl, info.TypeBindings)
 	if currentTarget != nil {
 		return currentTarget
 	}

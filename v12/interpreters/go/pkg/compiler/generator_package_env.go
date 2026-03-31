@@ -13,15 +13,26 @@ func (g *generator) setDynamicFeatureReport(report *DynamicFeatureReport) {
 }
 
 func (g *generator) ensurePackageEnvVars() {
-	if g.packageEnvVars != nil {
+	if g.packageEnvVars != nil && g.packageBootstrappedVars != nil {
 		return
 	}
 	names := g.collectPackageNames()
 	g.packageEnvVars = make(map[string]string, len(names))
+	g.packageBootstrappedVars = make(map[string]string, len(names))
 	g.packageEnvOrder = names
 	for idx, name := range names {
 		g.packageEnvVars[name] = fmt.Sprintf("__able_pkg_env_%d", idx)
+		g.packageBootstrappedVars[name] = fmt.Sprintf("__able_pkg_bootstrapped_%d", idx)
 	}
+}
+
+func (g *generator) invalidatePackageEnvVars() {
+	if g == nil {
+		return
+	}
+	g.packageEnvVars = nil
+	g.packageBootstrappedVars = nil
+	g.packageEnvOrder = nil
 }
 
 func (g *generator) packageEnvVar(name string) (string, bool) {
@@ -31,6 +42,15 @@ func (g *generator) packageEnvVar(name string) (string, bool) {
 	g.ensurePackageEnvVars()
 	envVar, ok := g.packageEnvVars[name]
 	return envVar, ok
+}
+
+func (g *generator) packageBootstrappedVar(name string) (string, bool) {
+	if g == nil {
+		return "", false
+	}
+	g.ensurePackageEnvVars()
+	bootVar, ok := g.packageBootstrappedVars[name]
+	return bootVar, ok
 }
 
 func (g *generator) collectPackageNames() []string {

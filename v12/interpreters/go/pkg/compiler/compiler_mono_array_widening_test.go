@@ -637,7 +637,7 @@ func TestCompilerExperimentalMonoArraysNestedCharRowsStaySpecialized(t *testing.
 	}
 }
 
-func TestCompilerCarrierArrayWrappersRemainAvailableWithoutExperimentalMonoArrays(t *testing.T) {
+func TestCompilerNestedCarrierArraysDefaultToNativeWrappers(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
 		"",
@@ -653,14 +653,14 @@ func TestCompilerCarrierArrayWrappersRemainAvailableWithoutExperimentalMonoArray
 
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
-		"const __able_experimental_mono_arrays = false",
-		"type __able_array_Array struct {",
-		"Elements       []*Array",
-		"func __able_array_Array_from(value runtime.Value) (*__able_array_Array, error) {",
-		"func __able_array_Array_to(rt *bridge.Runtime, value *__able_array_Array) (runtime.Value, error) {",
+		"const __able_experimental_mono_arrays = true",
+		"type __able_array_array_char struct {",
+		"Elements       []*__able_array_char",
+		"func __able_array_array_char_from(value runtime.Value) (*__able_array_array_char, error) {",
+		"func __able_array_array_char_to(rt *bridge.Runtime, value *__able_array_array_char) (runtime.Value, error) {",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
-			t.Fatalf("expected mono-off carrier-array lowering to contain %q", fragment)
+			t.Fatalf("expected default nested carrier-array lowering to contain %q", fragment)
 		}
 	}
 
@@ -669,14 +669,14 @@ func TestCompilerCarrierArrayWrappersRemainAvailableWithoutExperimentalMonoArray
 		t.Fatalf("could not find compiled build function")
 	}
 	for _, fragment := range []string{
-		"var rows *__able_array_Array =",
-		"var row *Array =",
+		"var rows *__able_array_array_char =",
+		"var row *__able_array_char =",
 		".Elements = append(",
-		"__able_array_Array_sync(",
-		"__able_struct_Array_sync(",
+		"__able_array_array_char_sync(",
+		"__able_array_char_sync(",
 	} {
 		if !strings.Contains(body, fragment) {
-			t.Fatalf("expected mono-off carrier-array build body to contain %q:\n%s", fragment, body)
+			t.Fatalf("expected default nested carrier-array build body to contain %q:\n%s", fragment, body)
 		}
 	}
 	for _, fragment := range []string{
@@ -685,12 +685,12 @@ func TestCompilerCarrierArrayWrappersRemainAvailableWithoutExperimentalMonoArray
 		"__able_struct_Array_from(__able_tmp_",
 	} {
 		if strings.Contains(body, fragment) {
-			t.Fatalf("expected mono-off carrier-array build body to avoid %q:\n%s", fragment, body)
+			t.Fatalf("expected default nested carrier-array build body to avoid %q:\n%s", fragment, body)
 		}
 	}
 }
 
-func TestCompilerCarrierArrayWrappersPreserveNestedRowIdentityWithoutExperimentalMonoArrays(t *testing.T) {
+func TestCompilerNestedCarrierArraysPreserveRowIdentityByDefault(t *testing.T) {
 	source := strings.Join([]string{
 		"package demo",
 		"",
@@ -714,7 +714,7 @@ func TestCompilerCarrierArrayWrappersPreserveNestedRowIdentityWithoutExperimenta
 		EmitMain:    true,
 	})
 	if strings.TrimSpace(stdout) != "3" {
-		t.Fatalf("expected mono-off carrier-array program to print 3, got %q", stdout)
+		t.Fatalf("expected default nested carrier-array program to print 3, got %q", stdout)
 	}
 }
 

@@ -222,14 +222,17 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			ctx.setReason("safe member assignment unsupported")
 			return nil, "", "", false
 		}
-		objLines, objExpr, objType, ok := g.compileExprLines(ctx, memberTarget.Object, "")
+		objLines, objExpr, objType, ok := g.compileDispatchReceiverExpr(ctx, memberTarget.Object)
 		if !ok {
-			return nil, "", "", false
-		}
-		if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, memberTarget.Object, objExpr, objType); recovered {
-			objLines = append(objLines, recoverLines...)
-			objExpr = recoveredExpr
-			objType = recoveredType
+			objLines, objExpr, objType, ok = g.compileExprLines(ctx, memberTarget.Object, "")
+			if !ok {
+				return nil, "", "", false
+			}
+			if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, memberTarget.Object, objExpr, objType); recovered {
+				objLines = append(objLines, recoverLines...)
+				objExpr = recoveredExpr
+				objType = recoveredType
+			}
 		}
 		if info := g.staticStructInfoForAccess(objType); info != nil {
 			if assign.Operator != ast.AssignmentAssign {
@@ -556,6 +559,9 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			assignmentTypeExpr = inferredTypeExpr
 		}
 	}
+	if refinedTypeExpr, ok := g.refinedFreshArrayBindingTypeExpr(ctx, name, assign.Right, goType, assignmentTypeExpr); ok {
+		assignmentTypeExpr = refinedTypeExpr
+	}
 	if assignmentTypeExpr != nil && goType != "" {
 		if refinedLines, refinedExpr, refinedType, ok := g.refineInferredAssignmentCarrier(ctx, assign.Right, goType, assignmentTypeExpr); ok {
 			exprLines = refinedLines
@@ -633,6 +639,12 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	binding.GoName = goName
 	binding.GoType = goType
 	binding.TypeExpr = assignmentTypeExpr
+	switch {
+	case declaring || rebindCurrent:
+		ctx.setLocalBinding(name, binding)
+	case exists:
+		_ = ctx.updateBinding(name, binding)
+	}
 	g.refreshIntegerFactForBinding(ctx, binding, assign.Right)
 	if typeAnnotation != nil && (goType == "runtime.Value" || goType == "any") {
 		typeExpr, ok := g.renderTypeExpression(typeAnnotation)
@@ -674,10 +686,7 @@ func (g *generator) refineInferredAssignmentCarrier(
 	if !ok || refinedGoType == "" || refinedGoType == currentGoType {
 		return nil, "", "", false
 	}
-	needsRefine := currentGoType == "runtime.Value" || currentGoType == "any"
-	if !needsRefine && g.isArrayStructType(currentGoType) && !g.isArrayStructType(refinedGoType) {
-		needsRefine = true
-	}
+	needsRefine := g.assignmentCarrierNeedsRefine(currentGoType, refinedGoType)
 	if !needsRefine {
 		return nil, "", "", false
 	}
@@ -689,6 +698,27 @@ func (g *generator) refineInferredAssignmentCarrier(
 		return nil, "", "", false
 	}
 	return refinedLines, refinedExpr, refinedGoType, true
+}
+
+func (g *generator) assignmentCarrierNeedsRefine(currentGoType string, refinedGoType string) bool {
+	if g == nil || currentGoType == "" || refinedGoType == "" || currentGoType == refinedGoType {
+		return false
+	}
+	if currentGoType == "runtime.Value" || currentGoType == "any" {
+		return true
+	}
+	if g.isArrayStructType(currentGoType) && !g.isArrayStructType(refinedGoType) {
+		return true
+	}
+	currentInfo := g.structInfoByGoName(currentGoType)
+	refinedInfo := g.structInfoByGoName(refinedGoType)
+	if currentInfo == nil || refinedInfo == nil {
+		return false
+	}
+	if currentInfo.Package != refinedInfo.Package || currentInfo.Name == "" || currentInfo.Name != refinedInfo.Name {
+		return false
+	}
+	return currentInfo.GoName != refinedInfo.GoName
 }
 
 func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.AssignmentExpression, pattern ast.Pattern) ([]string, string, string, bool) {

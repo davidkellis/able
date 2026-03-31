@@ -45,7 +45,7 @@ func compileNoFallbackSourceWithCompilerOptions(t *testing.T, source string, opt
 	return result
 }
 
-func TestCompilerFeatureFlagMonoArraysDefaultsDisabled(t *testing.T) {
+func TestCompilerFeatureFlagMonoArraysDefaultEnabled(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
 		"",
@@ -53,8 +53,8 @@ func TestCompilerFeatureFlagMonoArraysDefaultsDisabled(t *testing.T) {
 		"",
 	}, "\n"))
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "const __able_experimental_mono_arrays = false") {
-		t.Fatalf("expected mono-array feature flag constant to default to false")
+	if !strings.Contains(compiledSrc, "const __able_experimental_mono_arrays = true") {
+		t.Fatalf("expected mono-array feature flag constant to default to true")
 	}
 }
 

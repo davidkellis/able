@@ -483,7 +483,10 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	}
 
 	if writebackNeeded {
-		baseName, ok := g.structBaseName(writebackObjType)
+		baseName, ok := g.structHelperName(writebackObjType)
+		if !ok {
+			baseName, ok = g.structBaseName(writebackObjType)
+		}
 		if !ok {
 			baseName = strings.TrimPrefix(writebackObjType, "*")
 		}
