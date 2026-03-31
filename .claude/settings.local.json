@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURES=all timeout 60s go test:*)",
+      "Bash(ABLE_COMPILER_FALLBACK_AUDIT=1 ABLE_COMPILER_FIXTURES=all go test:*)",
+      "Bash(go test:*)",
+      "Bash(ABLE_COMPILER_EXEC_FIXTURES=15_01_program_entry_hello_world go test:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=15_01_program_entry_hello_world go test:*)",
+      "Bash(go run:*)",
+      "Bash(/tmp/ablec_debug_test.go:*)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=\"15_01_program_entry_hello_world,06_01_compiler_if_block_exprs,06_01_compiler_struct_update,06_01_compiler_struct_positional,06_01_compiler_match_patterns,06_01_compiler_assignment_patterns\" go test:*)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=06_01_compiler_match_patterns go test:*)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=\"15_01_program_entry_hello_world,06_01_compiler_if_block_exprs,06_01_compiler_struct_update,06_01_compiler_struct_positional,06_01_compiler_match_patterns,06_01_compiler_assignment_patterns,06_01_compiler_map_literal_typed,06_01_compiler_spawn_await,06_01_compiler_await_future,06_01_compiler_rescue,06_01_compiler_ensure_rethrow,15_02_entry_args_signature,15_03_exit_status_return_value\" go test:*)",
+      "Bash(for fix in 06_01_compiler_map_literal_typed 06_01_compiler_spawn_await 06_01_compiler_await_future)",
+      "Bash(do)",
+      "Bash(echo:*)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=$fix go test:*)",
+      "Bash(done)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=06_01_compiler_spawn_await go test:*)",
+      "Bash(for fix in 06_01_compiler_match_patterns 06_01_compiler_assignment_patterns 06_01_compiler_map_literal_typed)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=\"06_01_compiler_map_literal_typed,06_01_compiler_match_patterns,06_01_compiler_assignment_patterns\" go test:*)",
+      "Bash(go build:*)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=\"15_01_program_entry_hello_world,06_01_compiler_if_block_exprs,06_01_compiler_struct_update,06_01_compiler_struct_positional,06_01_compiler_spawn_await,06_01_compiler_await_future,06_01_compiler_rescue,06_01_compiler_ensure_rethrow,15_02_entry_args_signature,15_03_exit_status_return_value,06_01_compiler_map_literal_typed,06_01_compiler_match_patterns,06_01_compiler_assignment_patterns\" go test:*)",
+      "Bash(ABLE_COMPILER_FIXTURES=all go test:*)",
+      "Bash(ABLE_COMPILER_NO_BOOTSTRAP_FIXTURES=all go test:*)",
+      "Bash(/home/david/sync/projects/able/v12/interpreters/go/able build:*)",
+      "Bash(./target/compiled/fib:*)",
+      "Bash(./target/compiled/binarytrees:*)",
+      "Bash(timeout 120 ./target/compiled/matrixmultiply:*)",
+      "Bash(./target/compiled/quicksort:*)",
+      "Bash(./target/compiled/i_before_e:*)",
+      "Bash(do echo:*)",
+      "Bash(bash:*)"
+    ]
+  }
+}

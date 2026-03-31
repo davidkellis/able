@@ -193,6 +193,61 @@ fn main() {
 	}
 }
 
+func TestParseAnonymousNamedStructPatternStaysNamed(t *testing.T) {
+	mp, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser: %v", err)
+	}
+	t.Cleanup(func() { mp.Close() })
+
+	source := []byte(`package sample
+
+struct Info {
+  label: String,
+}
+
+fn main(value) {
+  value match {
+    case { label } => label,
+    case _ => ""
+  }
+}
+`)
+
+	mod, err := mp.ParseModule(source)
+	if err != nil {
+		t.Fatalf("ParseModule returned error: %v", err)
+	}
+	if mod == nil || len(mod.Body) < 2 {
+		t.Fatalf("expected struct and function definitions in module body")
+	}
+	fn, ok := mod.Body[1].(*ast.FunctionDefinition)
+	if !ok {
+		t.Fatalf("expected second body element to be FunctionDefinition, got %T", mod.Body[1])
+	}
+	matchExpr, ok := fn.Body.Body[0].(*ast.MatchExpression)
+	if !ok {
+		t.Fatalf("expected first body statement to be MatchExpression, got %T", fn.Body.Body[0])
+	}
+	structPattern, ok := matchExpr.Clauses[0].Pattern.(*ast.StructPattern)
+	if !ok {
+		t.Fatalf("expected first match clause to use struct pattern, got %T", matchExpr.Clauses[0].Pattern)
+	}
+	if structPattern.IsPositional {
+		t.Fatalf("expected anonymous named-field struct pattern to stay named")
+	}
+	if len(structPattern.Fields) != 1 {
+		t.Fatalf("expected struct pattern to have 1 field, got %d", len(structPattern.Fields))
+	}
+	field := structPattern.Fields[0]
+	if field == nil || field.FieldName == nil || field.FieldName.Name != "label" {
+		t.Fatalf("expected struct pattern field name label, got %#v", field)
+	}
+	if ident, ok := field.Pattern.(*ast.Identifier); !ok || ident == nil || ident.Name != "label" {
+		t.Fatalf("expected shorthand field pattern to bind identifier label, got %#v", field.Pattern)
+	}
+}
+
 func TestParsePlaceholderExpressions(t *testing.T) {
 	source := "fn partials(data, factor) {\n  add(@, 10)\n  merge(@, @2, @1)\n  5.add\n}\n"
 

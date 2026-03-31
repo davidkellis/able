@@ -438,7 +438,8 @@ func (g *generator) fillSpecializedFunctionInfo(info *functionInfo, mapper *Type
 			Supported: ok,
 		})
 	}
-	retExpr := normalizeTypeExprForPackage(g, info.Package, substituteTypeParams(def.ReturnType, info.TypeBindings))
+	retExpr := g.functionDeclaredOrInferredReturnTypeExpr(info)
+	retExpr = normalizeTypeExprForPackage(g, info.Package, substituteTypeParams(retExpr, info.TypeBindings))
 	retType, ok := mapper.Map(retExpr)
 	retType, ok = g.recoverRepresentableCarrierType(info.Package, retExpr, retType)
 	if !ok || retType == "" {

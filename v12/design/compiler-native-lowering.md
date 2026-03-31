@@ -752,8 +752,18 @@ not `panic` / `recover`.
     only when the target env differs from the current env
   - representative current compiled numbers are recorded in
     `v12/docs/perf-baselines/2026-03-22-compiler-performance-milestone-7-compiled.md`
-- Milestone 8 is now the next active compiler milestone: compiler release
-  validation.
+- Milestone 8 is complete:
+  - compiler release validation is green under:
+    - `GOFLAGS='-p=1' ./run_all_tests.sh --compiler`
+    - `./run_stdlib_tests.sh`
+  - the milestone-closing shared semantic fixes were:
+    - range expression inferred-carrier correction back to shared iterable
+      lowering
+    - native-interface default-method dispatch preserving concrete wrapped
+      receiver overrides
+    - all-numeric union operator typing through pairwise numeric promotion
+  - the compiler completion program is now closed and the next active project
+    priority is bytecode performance
 
 ## Relationship To Other Design Notes
 

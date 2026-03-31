@@ -433,6 +433,10 @@ func binaryDiagnosticNode(expr *ast.BinaryExpression) ast.Node {
 }
 
 func resolveNumericBinaryType(left, right Type) (Type, string) {
+	return resolveUnionAwareBinaryType(left, right, resolveNumericBinaryTypeConcrete)
+}
+
+func resolveNumericBinaryTypeConcrete(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
 	}
@@ -454,10 +458,14 @@ func resolveNumericBinaryType(left, right Type) (Type, string) {
 	if !isNumericType(left) || !isNumericType(right) {
 		return UnknownType{}, fmt.Sprintf("requires numeric operands (got %s and %s)", typeName(left), typeName(right))
 	}
-	return resolveIntegerBinaryType(left, right)
+	return resolveIntegerBinaryTypeConcrete(left, right)
 }
 
 func resolveDivisionBinaryType(left, right Type) (Type, string) {
+	return resolveUnionAwareBinaryType(left, right, resolveDivisionBinaryTypeConcrete)
+}
+
+func resolveDivisionBinaryTypeConcrete(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
 	}
@@ -494,6 +502,10 @@ func resolveFloatBinaryType(left, right Type) (Type, string) {
 }
 
 func resolveIntegerBinaryType(left, right Type) (Type, string) {
+	return resolveUnionAwareBinaryType(left, right, resolveIntegerBinaryTypeConcrete)
+}
+
+func resolveIntegerBinaryTypeConcrete(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
 	}
@@ -513,6 +525,34 @@ func resolveIntegerBinaryType(left, right Type) (Type, string) {
 		return UnknownType{}, errMsg
 	}
 	return IntegerType{Suffix: resultSuffix}, ""
+}
+
+func resolveUnionAwareBinaryType(left, right Type, resolver func(Type, Type) (Type, string)) (Type, string) {
+	if isUnknownType(left) || isUnknownType(right) {
+		return UnknownType{}, ""
+	}
+	if isTypeParameter(left) || isTypeParameter(right) {
+		return UnknownType{}, ""
+	}
+	leftVariants := unionVariantsFromType(expandAliasForUnion(left))
+	rightVariants := unionVariantsFromType(expandAliasForUnion(right))
+	if len(leftVariants) == 1 && len(rightVariants) == 1 {
+		return resolver(leftVariants[0], rightVariants[0])
+	}
+	results := make([]Type, 0, len(leftVariants)*len(rightVariants))
+	for _, leftVariant := range leftVariants {
+		for _, rightVariant := range rightVariants {
+			result, err := resolver(leftVariant, rightVariant)
+			if err != "" {
+				return UnknownType{}, err
+			}
+			if isUnknownType(result) {
+				return UnknownType{}, ""
+			}
+			results = append(results, result)
+		}
+	}
+	return normalizeUnionTypes(results), ""
 }
 
 func integerSuffixForType(t Type) (string, bool) {

@@ -17,6 +17,8 @@ type iteratorCollectMonoArrayInfo struct {
 	ElemGoType        string
 	IteratorEndUnwrap string
 	ValueUnwrap       string
+	DefaultGoName     string
+	ExtendGoName      string
 }
 
 func (g *generator) compileStaticIteratorCollectMonoArrayCall(ctx *compileContext, call *ast.FunctionCall, expected string, receiverExpr string, receiverType string, method *nativeInterfaceGenericMethod, returnGoType string, callNode string) ([]string, string, string, bool) {
@@ -27,18 +29,23 @@ func (g *generator) compileStaticIteratorCollectMonoArrayCall(ctx *compileContex
 	if !ok || info == nil {
 		return nil, "", "", false
 	}
-	methodInfo := &methodInfo{
-		MethodName:  method.Name,
-		ExpectsSelf: true,
-		Info: &functionInfo{
-			GoName:      info.GoName,
-			Package:     info.Package,
-			Params:      []paramInfo{{GoName: "self", GoType: info.ReceiverType}},
-			ReturnType:  info.ReturnType,
-			Compileable: true,
-		},
+	lines := make([]string, 0, 6)
+	receiverLines, coercedReceiverExpr, _, ok := g.prepareStaticCallArg(ctx, receiverExpr, receiverType, info.ReceiverType)
+	if !ok {
+		return nil, "", "", false
 	}
-	return g.lowerResolvedMethodDispatch(ctx, call, expected, methodInfo, receiverExpr, receiverType, callNode)
+	lines = append(lines, receiverLines...)
+	resultTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
+	lines = append(lines, fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", resultTemp, controlTemp, info.GoName, coercedReceiverExpr))
+	lines = append(lines, "__able_pop_call_frame()")
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	if !ok {
+		return nil, "", "", false
+	}
+	lines = append(lines, controlLines...)
+	return g.finishNativeInterfaceGenericCallReturn(ctx, lines, resultTemp, info.ReturnType, expected)
 }
 
 func (g *generator) ensureIteratorCollectMonoArrayInfo(method *nativeInterfaceGenericMethod, receiverType string, returnGoType string) (*iteratorCollectMonoArrayInfo, bool) {
@@ -75,7 +82,7 @@ func (g *generator) ensureIteratorCollectMonoArrayInfo(method *nativeInterfaceGe
 	}
 	info := &iteratorCollectMonoArrayInfo{
 		Key:               key,
-		GoName:            g.mangler.unique(fmt.Sprintf("iface_%s_collect_%s", sanitizeIdent(method.InterfaceName), sanitizeIdent(returnGoType))),
+		GoName:            g.mangler.unique(fmt.Sprintf("iface_%s_%s_default", sanitizeIdent(method.InterfaceName), sanitizeIdent(method.Name))),
 		Package:           method.InterfacePackage,
 		ReceiverType:      receiverType,
 		ReturnType:        returnGoType,
@@ -83,8 +90,216 @@ func (g *generator) ensureIteratorCollectMonoArrayInfo(method *nativeInterfaceGe
 		IteratorEndUnwrap: iterEndMember.UnwrapHelper,
 		ValueUnwrap:       valueMember.UnwrapHelper,
 	}
+	elemExpr, ok := g.typeExprForGoType(spec.ElemGoType)
+	if !ok || elemExpr == nil {
+		return nil, false
+	}
+	arrayExpr := ast.NewGenericTypeExpression(ast.Ty("Array"), []ast.TypeExpression{
+		normalizeTypeExprForPackage(g, method.InterfacePackage, elemExpr),
+	})
+	defaultMethod, ok := g.specializedBuiltinArrayInterfaceMethod("Default", "default", arrayExpr, nil)
+	if !ok || defaultMethod == nil || defaultMethod.Info == nil {
+		return nil, false
+	}
+	extendMethod, ok := g.specializedBuiltinArrayInterfaceMethod("Extend", "extend", arrayExpr, map[string]ast.TypeExpression{"T": elemExpr})
+	if !ok || extendMethod == nil || extendMethod.Info == nil {
+		return nil, false
+	}
+	info.DefaultGoName = defaultMethod.Info.GoName
+	info.ExtendGoName = extendMethod.Info.GoName
 	g.iteratorCollectMonoArrays[key] = info
 	return info, true
+}
+
+func (g *generator) specializedBuiltinArrayInterfaceMethod(interfaceName string, methodName string, arrayExpr ast.TypeExpression, extraBindings map[string]ast.TypeExpression) (*methodInfo, bool) {
+	if g == nil || interfaceName == "" || methodName == "" || arrayExpr == nil {
+		return nil, false
+	}
+	concreteArrayExpr := normalizeTypeExprForPackage(g, "", arrayExpr)
+	bindings := map[string]ast.TypeExpression{
+		"Self": concreteArrayExpr,
+	}
+	var elemExpr ast.TypeExpression
+	if generic, ok := concreteArrayExpr.(*ast.GenericTypeExpression); ok && generic != nil && len(generic.Arguments) == 1 {
+		if baseName, ok := typeExprBaseName(generic.Base); ok && baseName == "Array" {
+			elemExpr = normalizeTypeExprForPackage(g, "", generic.Arguments[0])
+			bindings["T"] = elemExpr
+		}
+	}
+	for name, expr := range extraBindings {
+		if expr == nil {
+			continue
+		}
+		bindings[name] = normalizeTypeExprForPackage(g, "", expr)
+	}
+	for _, impl := range g.implMethodList {
+		if impl == nil || impl.Info == nil {
+			continue
+		}
+		if impl.InterfaceName != interfaceName || impl.MethodName != methodName {
+			continue
+		}
+		baseName, ok := typeExprBaseName(impl.TargetType)
+		if !ok || baseName != "Array" {
+			continue
+		}
+		baseInfo := impl.Info
+		method := &methodInfo{
+			TargetName:   baseName,
+			TargetType:   impl.TargetType,
+			MethodName:   methodName,
+			ExpectsSelf:  methodDefinitionExpectsSelf(baseInfo.Definition),
+			Info:         baseInfo,
+		}
+		if method.ExpectsSelf && len(baseInfo.Params) > 0 {
+			method.ReceiverType = baseInfo.Params[0].GoType
+		}
+		implBindings := cloneTypeBindings(bindings)
+		for name, expr := range implBindings {
+			implBindings[name] = normalizeTypeExprForPackage(g, baseInfo.Package, expr)
+		}
+		specialized, ok := g.ensureSpecializedImplMethod(method, impl, implBindings)
+		expectedSelfGoType, _ := g.lowerCarrierTypeInPackage(baseInfo.Package, concreteArrayExpr)
+		expectedElemGoType := ""
+		if elemExpr != nil {
+			expectedElemGoType, _ = g.lowerCarrierTypeInPackage(baseInfo.Package, elemExpr)
+		}
+		if ok && specialized != nil && specialized.Info != nil && g.builtinArrayMethodInfoMatchesCarrier(specialized.Info, methodName, expectedSelfGoType, expectedElemGoType) {
+			return specialized, true
+		}
+		if matched, ok := g.findBuiltinArraySpecializedMethodInfo(impl, methodName, concreteArrayExpr, expectedSelfGoType, expectedElemGoType); ok && matched != nil {
+			return matched, true
+		}
+		if synthesized, ok := g.ensureBuiltinArrayConcreteImplMethod(method, impl, concreteArrayExpr, implBindings, expectedSelfGoType, expectedElemGoType); ok && synthesized != nil {
+			return synthesized, true
+		}
+	}
+	return nil, false
+}
+
+func (g *generator) builtinArrayMethodInfoMatchesCarrier(info *functionInfo, methodName string, expectedSelfGoType string, expectedElemGoType string) bool {
+	if g == nil || info == nil || expectedSelfGoType == "" {
+		return false
+	}
+	switch methodName {
+	case "default":
+		return info.ReturnType == expectedSelfGoType
+	case "extend":
+		if len(info.Params) < 2 || info.Params[0].GoType != expectedSelfGoType || info.ReturnType != expectedSelfGoType {
+			return false
+		}
+		return expectedElemGoType == "" || info.Params[1].GoType == expectedElemGoType
+	default:
+		if len(info.Params) > 0 && info.Params[0].GoType != expectedSelfGoType {
+			return false
+		}
+		return true
+	}
+}
+
+func (g *generator) findBuiltinArraySpecializedMethodInfo(impl *implMethodInfo, methodName string, concreteArrayExpr ast.TypeExpression, expectedSelfGoType string, expectedElemGoType string) (*methodInfo, bool) {
+	if g == nil || impl == nil || expectedSelfGoType == "" {
+		return nil, false
+	}
+	for _, info := range g.specializedFunctions {
+		if info == nil || !info.Compileable || !g.builtinArrayMethodInfoMatchesCarrier(info, methodName, expectedSelfGoType, expectedElemGoType) {
+			continue
+		}
+		currentImpl := g.implMethodByInfo[info]
+		if currentImpl != impl {
+			continue
+		}
+		targetType := g.specializedImplTargetType(impl, info.TypeBindings)
+		if targetType == nil {
+			targetType = concreteArrayExpr
+		}
+		receiverType := ""
+		if len(info.Params) > 0 {
+			receiverType = info.Params[0].GoType
+		}
+		return &methodInfo{
+			TargetName:   "Array",
+			TargetType:   targetType,
+			MethodName:   methodName,
+			ReceiverType: receiverType,
+			ExpectsSelf:  methodDefinitionExpectsSelf(info.Definition),
+			Info:         info,
+		}, true
+	}
+	return nil, false
+}
+
+func (g *generator) ensureBuiltinArrayConcreteImplMethod(method *methodInfo, impl *implMethodInfo, concreteArrayExpr ast.TypeExpression, bindings map[string]ast.TypeExpression, expectedSelfGoType string, expectedElemGoType string) (*methodInfo, bool) {
+	if g == nil || method == nil || method.Info == nil || impl == nil || concreteArrayExpr == nil {
+		return nil, false
+	}
+	baseInfo := impl.Info
+	if baseInfo == nil {
+		baseInfo = method.Info
+	}
+	fillBindings := cloneTypeBindings(bindings)
+	if fillBindings == nil {
+		fillBindings = make(map[string]ast.TypeExpression)
+	}
+	fillBindings["Self"] = normalizeTypeExprForPackage(g, baseInfo.Package, concreteArrayExpr)
+	if canonical := g.canonicalImplSpecializationBindings(method.Info, impl, fillBindings); len(canonical) > 0 {
+		fillBindings = canonical
+	}
+	key := g.specializedImplFunctionKey(method.Info, fillBindings)
+	if existing, ok := g.reusableSpecializedFunctionInfo(key, method.Info); ok && existing != nil {
+		receiverType := ""
+		if len(existing.Params) > 0 {
+			receiverType = existing.Params[0].GoType
+		}
+		if g.builtinArrayMethodInfoMatchesCarrier(existing, method.MethodName, expectedSelfGoType, expectedElemGoType) {
+			return &methodInfo{
+				TargetName:   "Array",
+				TargetType:   concreteArrayExpr,
+				MethodName:   method.MethodName,
+				ReceiverType: receiverType,
+				ExpectsSelf:  methodDefinitionExpectsSelf(existing.Definition),
+				Info:         existing,
+			}, true
+		}
+	}
+	mapper := NewTypeMapper(g, baseInfo.Package)
+	specialized := &functionInfo{
+		Name:          baseInfo.Name,
+		Package:       baseInfo.Package,
+		QualifiedName: baseInfo.QualifiedName,
+		GoName:        g.mangler.unique(baseInfo.GoName + "_spec"),
+		TypeBindings:  cloneTypeBindings(fillBindings),
+		Definition:    baseInfo.Definition,
+		HasOriginal:   baseInfo.HasOriginal,
+		InternalOnly:  true,
+	}
+	g.fillImplMethodInfo(specialized, mapper, concreteArrayExpr, fillBindings)
+	g.invalidateFunctionDerivedInfo(specialized)
+	g.refreshRepresentableFunctionInfo(specialized)
+	if !specialized.SupportedTypes || !g.builtinArrayMethodInfoMatchesCarrier(specialized, method.MethodName, expectedSelfGoType, expectedElemGoType) {
+		return nil, false
+	}
+	specialized.Compileable = true
+	g.implMethodByInfo[specialized] = impl
+	g.specializedFunctions = append(g.specializedFunctions, specialized)
+	g.touchNativeInterfaceAdapters()
+	g.specializedFunctionIndex[key] = specialized
+	if g.bodyCompileable(specialized, specialized.ReturnType) {
+		specialized.Compileable = true
+		specialized.Reason = ""
+	}
+	receiverType := ""
+	if len(specialized.Params) > 0 {
+		receiverType = specialized.Params[0].GoType
+	}
+	return &methodInfo{
+		TargetName:   "Array",
+		TargetType:   concreteArrayExpr,
+		MethodName:   method.MethodName,
+		ReceiverType: receiverType,
+		ExpectsSelf:  methodDefinitionExpectsSelf(specialized.Definition),
+		Info:         specialized,
+	}, true
 }
 
 func (g *generator) renderIteratorCollectMonoArrayHelpers(buf *bytes.Buffer) {
@@ -123,7 +338,12 @@ func (g *generator) renderIteratorCollectMonoArrayHelper(buf *bytes.Buffer, info
 	} else {
 		fmt.Fprintf(buf, "func __able_compiled_%s(self %s) (%s, *__ableControl) {\n", info.GoName, info.ReceiverType, info.ReturnType)
 	}
-	fmt.Fprintf(buf, "\tacc := &%s{Elements: make([]%s, 0)}\n", spec.GoName, spec.ElemGoType)
+	fmt.Fprintf(buf, "\t__able_push_call_frame(nil)\n")
+	fmt.Fprintf(buf, "\tacc, control := __able_compiled_%s()\n", info.DefaultGoName)
+	fmt.Fprintf(buf, "\t__able_pop_call_frame()\n")
+	fmt.Fprintf(buf, "\tif control != nil {\n")
+	fmt.Fprintf(buf, "\t\treturn %s, control\n", zeroExpr)
+	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\titer := self\n")
 	fmt.Fprintf(buf, "\tfor {\n")
 	fmt.Fprintf(buf, "\t\t__able_push_call_frame(nil)\n")
@@ -142,12 +362,17 @@ func (g *generator) renderIteratorCollectMonoArrayHelper(buf *bytes.Buffer, info
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\tvalue, valueOK := %s(next)\n", info.ValueUnwrap)
 	fmt.Fprintf(buf, "\t\tif valueOK {\n")
-	fmt.Fprintf(buf, "\t\t\tacc.Elements = append(acc.Elements, value)\n")
+	fmt.Fprintf(buf, "\t\t\t__able_push_call_frame(nil)\n")
+	fmt.Fprintf(buf, "\t\t\tnextAcc, control := __able_compiled_%s(acc, value)\n", info.ExtendGoName)
+	fmt.Fprintf(buf, "\t\t\t__able_pop_call_frame()\n")
+	fmt.Fprintf(buf, "\t\t\tif control != nil {\n")
+	fmt.Fprintf(buf, "\t\t\t\treturn %s, control\n", zeroExpr)
+	fmt.Fprintf(buf, "\t\t\t}\n")
+	fmt.Fprintf(buf, "\t\t\tacc = nextAcc\n")
 	fmt.Fprintf(buf, "\t\t\tcontinue\n")
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\treturn %s, __able_runtime_error_control(nil, fmt.Errorf(\"Non-exhaustive match\"))\n", zeroExpr)
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\t%s\n", g.staticArraySyncCall(info.ReturnType, "acc"))
 	fmt.Fprintf(buf, "\treturn acc, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 }

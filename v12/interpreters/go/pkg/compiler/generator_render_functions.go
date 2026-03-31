@@ -217,7 +217,7 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 					fmt.Fprintf(buf, "\t}\n")
 				}
 			}
-			g.renderReturnConversion(buf, "compiledResult", info.ReturnType, info.Definition.ReturnType, info.Name, genericNames)
+			g.renderReturnConversion(buf, "compiledResult", info.ReturnType, g.functionReturnTypeExpr(info), info.Name, genericNames)
 			fmt.Fprintf(buf, "}\n\n")
 			continue
 		}
@@ -284,7 +284,7 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 				fmt.Fprintf(buf, "\t}\n")
 			}
 		}
-		g.renderReturnConversion(buf, "compiledResult", info.ReturnType, info.Definition.ReturnType, info.Name, genericNames)
+		g.renderReturnConversion(buf, "compiledResult", info.ReturnType, g.functionReturnTypeExpr(info), info.Name, genericNames)
 		fmt.Fprintf(buf, "}\n\n")
 	}
 }

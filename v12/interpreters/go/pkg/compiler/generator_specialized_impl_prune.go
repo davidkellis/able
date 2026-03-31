@@ -1,5 +1,10 @@
 package compiler
 
+import (
+	"sort"
+	"strings"
+)
+
 func (g *generator) discardRedundantImplFallbackSpecializations() {
 	if g == nil || len(g.specializedFunctions) == 0 {
 		return
@@ -46,13 +51,50 @@ func (g *generator) redundantImplSpecializationKey(info *functionInfo) (*implMet
 	if impl == nil {
 		return nil, "", false
 	}
-	if len(info.TypeBindings) == 0 {
+	baseInfo := impl.Info
+	if baseInfo == nil {
+		baseInfo = info
+	}
+	method := &methodInfo{
+		TargetType:  impl.TargetType,
+		MethodName:  impl.MethodName,
+		ExpectsSelf: methodDefinitionExpectsSelf(baseInfo.Definition),
+		Info:        baseInfo,
+	}
+	concreteTarget := g.specializedImplTargetType(impl, info.TypeBindings)
+	if concreteTarget == nil {
+		concreteTarget = impl.TargetType
+	}
+	if concreteTarget == nil {
 		return nil, "", false
 	}
-	key := g.specializedImplFunctionKey(info, info.TypeBindings)
-	if key == "" {
-		return nil, "", false
+	parts := []string{
+		g.implMethodCanonicalKey(impl),
+		normalizeTypeExprString(g, baseInfo.Package, concreteTarget),
 	}
+	genericNames := g.implSpecializationGenericNames(method)
+	if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+		for name := range g.interfaceSelfBindingNames(iface) {
+			delete(genericNames, name)
+		}
+	}
+	delete(genericNames, "Self")
+	delete(genericNames, "SelfType")
+	if len(genericNames) > 0 {
+		names := make([]string, 0, len(genericNames))
+		for name := range genericNames {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			expr := info.TypeBindings[name]
+			if expr == nil {
+				continue
+			}
+			parts = append(parts, name+"="+normalizeTypeExprString(g, baseInfo.Package, expr))
+		}
+	}
+	key := strings.Join(parts, "|")
 	return impl, key, true
 }
 

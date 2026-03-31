@@ -190,6 +190,66 @@ func TestCompilerOrElseOnErrorUnionMixedBranchesInferNativeUnion(t *testing.T) {
 	}
 }
 
+func TestCompilerOrElseStructPrimitiveMixExecutesWithoutFallback(t *testing.T) {
+	stdout := strings.TrimSpace(compileAndRunExecSourceWithOptions(t, "ablec-or-else-struct-primitive-mix", strings.Join([]string{
+		"package demo",
+		"",
+		"struct Info { label: String }",
+		"",
+		"fn maybe_text(ok: bool) {",
+		"  if ok { \"ok\" } else { nil }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  mixed_nil = maybe_text(false) or { err => Info { label: \"fallback\" } }",
+		"  mixed_ok = maybe_text(true) or { err => Info { label: \"fallback\" } }",
+		"",
+		"  nil_label = mixed_nil match {",
+		"    case { label } => label,",
+		"    case v: String => v,",
+		"  }",
+		"  ok_label = mixed_ok match {",
+		"    case { label } => label,",
+		"    case v: String => v,",
+		"  }",
+		"",
+		"  print(`nil ${nil_label}`)",
+		"  print(`ok ${ok_label}`)",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:        "main",
+		RequireNoFallbacks: true,
+		EmitMain:           true,
+	}))
+	if stdout != "nil fallback\nok ok" {
+		t.Fatalf("expected compiled or-else struct/primitive mix to execute without fallback, got %q", stdout)
+	}
+}
+
+func TestCompilerOrElsePrimitiveMixAvoidsUnusedStrconvImport(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn maybe_text(ok: bool) {",
+		"  if ok { \"ok\" } else { nil }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  mixed_nil = maybe_text(false) or { err => 9 }",
+		"  mixed_ok = maybe_text(true) or { err => 9 }",
+		"  print(`mixed_nil ${mixed_nil}`)",
+		"  print(`mixed_ok ${mixed_ok}`)",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if strings.Contains(compiledSrc, "\"strconv\"") {
+		t.Fatalf("expected compiled or-else primitive mix to avoid unused strconv import:\n%s", compiledSrc)
+	}
+}
+
 func TestCompilerLoopExpressionBreakValuesInferNativeUnion(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

@@ -52,3 +52,25 @@ func TestCompilerIfTruthinessValueErrorAndZeroExecutes(t *testing.T) {
 		t.Fatalf("expected compiled truthiness program to print zero/err falsy, got %q", stdout)
 	}
 }
+
+func TestCompilerIfWithoutElseStringInterpolationKeepsNilCapableCarrier(t *testing.T) {
+	result := compileNoFallbackExecSource(t, "ablec-if-without-else-stringify", strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> void {",
+		"  no_else := if false { 123 }",
+		"  print(`no_else ${no_else}`)",
+		"}",
+		"",
+	}, "\n"))
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main body")
+	}
+	if strings.Contains(body, "bridge.AsInt(no_else") {
+		t.Fatalf("expected nil-capable if result to avoid integer recovery during string interpolation:\n%s", body)
+	}
+	if !strings.Contains(body, "__able_stringify(") {
+		t.Fatalf("expected nil-capable if result to stringify through runtime value conversion:\n%s", body)
+	}
+}

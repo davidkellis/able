@@ -58,6 +58,13 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 	if directLines, expr, retType, ok := g.compileConcreteNativeInterfaceGenericMethodCall(ctx, call, expected, receiverExpr, actualReceiverType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType, bindings, callNode); ok {
 		return directLines, expr, retType, true
 	}
+	// Built-in Array remains an explicit language/kernel container boundary.
+	// Prefer the dedicated mono-array collect helper before the generic default
+	// method path so static `collect<Array T>()` stays on the specialized array
+	// accumulator instead of widening back through the generic helper.
+	if directLines, expr, retType, ok := g.compileStaticIteratorCollectMonoArrayCall(ctx, call, expected, receiverExpr, receiverType, method, returnGoType, callNode); ok {
+		return directLines, expr, retType, true
+	}
 	if directLines, expr, retType, ok := g.compileStaticNativeInterfaceGenericDefaultMethodCall(ctx, call, expected, receiverExpr, defaultReceiverType, method, paramTypeExprs, paramGoTypes, returnTypeExpr, returnGoType, bindings, callNode); ok {
 		return directLines, expr, retType, true
 	}
@@ -92,13 +99,6 @@ func (g *generator) compileNativeInterfaceGenericMethodCall(ctx *compileContext,
 		}
 		lines = append(lines, controlLines...)
 		return g.finishNativeInterfaceGenericCallReturn(ctx, lines, resultTemp, returnGoType, expected)
-	}
-	// Built-in Array remains an explicit language/kernel container boundary.
-	// If the shared generic default-method path cannot materialize the bound
-	// accumulator statically, fall back to the dedicated Array collect helper
-	// rather than widening the generic path with more nominal-type branches.
-	if directLines, expr, retType, ok := g.compileStaticIteratorCollectMonoArrayCall(ctx, call, expected, receiverExpr, receiverType, method, returnGoType, callNode); ok {
-		return directLines, expr, retType, true
 	}
 	lines := make([]string, 0, len(call.Arguments)*5+10)
 	receiverTemp := ctx.newTemp()
@@ -239,6 +239,10 @@ func (g *generator) nativeInterfaceGenericMethodForConcreteReceiver(receiverType
 				if !g.mergeConcreteBindings(impl.Info.Package, bindings, g.interfaceSelfTypeBindings(iface, actualExpr)) {
 					continue
 				}
+			}
+			if !g.bindNominalTargetActualArgs(impl.Info.Package, impl.TargetType, impl.InterfaceArgs, actualExpr, bindings) {
+				// constructor-style nominal generic binding is optional; ordinary
+				// generic targets continue through the normal matcher
 			}
 			genericNames := mergeGenericNameSets(nativeInterfaceGenericNameSet(impl.InterfaceGenerics), g.callableGenericNames(info))
 			targetTemplate := g.specializedImplTargetTemplate(impl, bindings)

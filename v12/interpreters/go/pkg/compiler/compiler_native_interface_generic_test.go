@@ -500,8 +500,8 @@ func TestCompilerIterableDefaultMethodSelfSiblingStaysStaticForStdlibImports(t *
 			t.Fatalf("expected Iterable.iterator default method to stay static, got fallback reason %q", fallback.Reason)
 		}
 	}
-	if !strings.Contains(string(result.Files["compiled.go"]), "__able_compiled_iface_Iterable_iterator_default") {
-		t.Fatalf("expected compiled Iterable.iterator default helper to be rendered")
+	if !strings.Contains(string(result.Files["compiled.go"]), "__able_compiled_impl_Iterable_iterator_") {
+		t.Fatalf("expected compiled Iterable.iterator impl helper to be rendered")
 	}
 }
 
@@ -534,11 +534,11 @@ func TestCompilerCanonicalStdlibStringIterableEachUsesBuiltinReceiver(t *testing
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	builtinReceiverPattern := regexp.MustCompile(`func __able_compiled_iface_Iterable_each_default_[A-Za-z0-9_]+\(self string, visit __able_fn_char_to_struct__\)`)
+	builtinReceiverPattern := regexp.MustCompile(`func __able_compiled_impl_Iterable_each_default_[A-Za-z0-9_]+\(self string, visit __able_fn_rune_to_struct__\)`)
 	if !builtinReceiverPattern.MatchString(compiledSrc) {
 		t.Fatalf("expected String Iterable.each default helper to use builtin string receiver:\n%s", compiledSrc)
 	}
-	structReceiverPattern := regexp.MustCompile(`func __able_compiled_iface_Iterable_each_default_[A-Za-z0-9_]+\(self \*String, visit __able_fn_char_to_struct__\)`)
+	structReceiverPattern := regexp.MustCompile(`func __able_compiled_impl_Iterable_each_default_[A-Za-z0-9_]+\(self \*String, visit __able_fn_rune_to_struct__\)`)
 	if structReceiverPattern.MatchString(compiledSrc) {
 		t.Fatalf("expected String Iterable.each default helper to avoid *String receiver:\n%s", compiledSrc)
 	}
@@ -579,21 +579,26 @@ func TestCompilerTypedArrayDefaultMethodsKeepConcreteReceivers(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	for _, pattern := range []*regexp.Regexp{
-		regexp.MustCompile(`func __able_compiled_iface_Enumerable_drop_default_[A-Za-z0-9_]+\(self \*Array, count int32\) \(\*__able_array_String, \*__ableControl\)`),
-		regexp.MustCompile(`func __able_compiled_iface_Enumerable_drop_default_[A-Za-z0-9_]+\(self \*Array, count int32\) \(\*__able_array_i32, \*__ableControl\)`),
-		regexp.MustCompile(`func __able_compiled_iface_Enumerable_lazy_default_[A-Za-z0-9_]+\(self \*Array\) \(__able_iface_Iterator_String, \*__ableControl\)`),
-		regexp.MustCompile(`func __able_compiled_iface_Enumerable_lazy_default_[A-Za-z0-9_]+\(self \*Array\) \(__able_iface_Iterator_i32, \*__ableControl\)`),
-	} {
-		if pattern.MatchString(compiledSrc) {
-			t.Fatalf("expected typed Array default helper to avoid generic *Array receiver:\n%s", compiledSrc)
-		}
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main body")
 	}
-	if !regexp.MustCompile(`func __able_compiled_iface_Enumerable_drop_default_[A-Za-z0-9_]+\(self \*__able_array_String, count int32\) \(\*__able_array_String, \*__ableControl\)`).MatchString(compiledSrc) {
-		t.Fatalf("expected String Array drop default helper to use the specialized receiver:\n%s", compiledSrc)
+	dropCalls := regexp.MustCompile(`__able_compiled_impl_Enumerable_drop_default_[A-Za-z0-9_]+_spec(?:_[A-Za-z0-9_]+)?\(`).FindAllString(mainBody, -1)
+	if len(dropCalls) < 2 {
+		t.Fatalf("expected typed Array drop calls to use specialized impl helpers:\n%s", mainBody)
 	}
-	if !regexp.MustCompile(`func __able_compiled_iface_Enumerable_drop_default_[A-Za-z0-9_]+\(self \*__able_array_i32, count int32\) \(\*__able_array_i32, \*__ableControl\)`).MatchString(compiledSrc) {
-		t.Fatalf("expected i32 Array drop default helper to use the specialized receiver:\n%s", compiledSrc)
+	lazyCalls := regexp.MustCompile(`__able_compiled_impl_Enumerable_lazy_default_[A-Za-z0-9_]+_spec(?:_[A-Za-z0-9_]+)?\(`).FindAllString(mainBody, -1)
+	if len(lazyCalls) < 2 {
+		t.Fatalf("expected typed Array lazy calls to use specialized impl helpers:\n%s", mainBody)
+	}
+	if !regexp.MustCompile(`func __able_compiled_impl_Enumerable_drop_default_[A-Za-z0-9_]+_spec(?:_[A-Za-z0-9_]+)?\(self \*[A-Za-z0-9_]+, count int32\) \(\*[A-Za-z0-9_]+, \*__ableControl\)`).MatchString(compiledSrc) {
+		t.Fatalf("expected typed Array drop default helper to stay on the shared impl specialization path:\n%s", compiledSrc)
+	}
+	if !regexp.MustCompile(`func __able_compiled_impl_Enumerable_lazy_default_[A-Za-z0-9_]+_spec\(self \*[A-Za-z0-9_]+\) \(__able_iface_Iterator_String, \*__ableControl\)`).MatchString(compiledSrc) {
+		t.Fatalf("expected String Array lazy default helper to keep the concrete iterator result:\n%s", compiledSrc)
+	}
+	if !regexp.MustCompile(`func __able_compiled_impl_Enumerable_lazy_default_[A-Za-z0-9_]+_spec_[A-Za-z0-9_]+\(self \*[A-Za-z0-9_]+\) \(__able_iface_Iterator_i32, \*__ableControl\)`).MatchString(compiledSrc) {
+		t.Fatalf("expected i32 Array lazy default helper to keep the concrete iterator result:\n%s", compiledSrc)
 	}
 }
 
@@ -823,6 +828,17 @@ func TestCompilerCallableReturnCoercionInterfaceAdapterExecutes(t *testing.T) {
 
 func TestCompilerIteratorInterfaceBoundaryAcceptsRuntimeIteratorDirectly(t *testing.T) {
 	result := compileExecFixtureResult(t, "06_12_18_stdlib_collections_array_range")
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if strings.Contains(mainBody, "__able_compiled_iface_Iterable_iterator_default(") {
+		t.Fatalf("expected concrete Iterable receiver calls to dispatch through the carrier adapter instead of the generic default helper:\n%s", mainBody)
+	}
+	if !regexp.MustCompile(`__able_iface_Iterable_i32_wrap_ptr_Range\([^)]*\)\.iterator\(\)`).MatchString(mainBody) {
+		t.Fatalf("expected concrete Range iterable calls to dispatch through the wrapped interface carrier method:\n%s", mainBody)
+	}
 
 	body, ok := findCompiledFunction(result, "__able_iface_Iterator_i32_from_value")
 	if !ok {

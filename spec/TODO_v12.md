@@ -20,7 +20,7 @@ This list tracks the remaining v12 items after audit; completed work should be r
 - Native-lowering mandate: static compiled code should represent nominal/user-defined program values with host-native concrete structures (not interpreter object-model carriers) and should never invoke interpreter execution paths unless entering explicit dynamic features.
 - Desired container end-state: compiled arrays use native Go array-backed storage on static paths; `runtime.ArrayValue`, `ArrayStore*`, and kernel `storage_handle` are boundary mechanisms only, not the compiler's internal static representation.
 - Desired nominal-type end-state: compiled structs remain Go structs/pointers and compiled unions lower to generated Go interfaces plus native variant carriers; `any` is a staged fallback only, not the target union ABI.
-- Current staged compiler limit: the in-flight `Array -> Elements []runtime.Value` hybrid plus conversions through `runtime.ArrayValue` / `ArrayStore*` is not an approved final architecture and must be replaced by a true compiler-native array ABI.
+- Current staged compiler limit: representable static arrays now default to compiler-native specialized carriers, including same-scope-evidenced fresh untyped local `Array.new()` / `Array.with_capacity()` factories and empty array literals, plus typed call-argument evidence on those fresh locals, but the residual generic/boundary `Array -> Elements []runtime.Value` hybrid plus conversions through `runtime.ArrayValue` / `ArrayStore*` is still not an approved final architecture and must be reduced to explicit dynamic or ABI edges.
 - Union-ABI target and bring-up order are now captured in `v12/design/compiler-union-abi.md`; the first code-bearing slice should replace `any` for nullable value carriers before widening to closed nominal unions.
 - Current progress note: the native nullable-value slice now covers the
   compiler-native scalar family: `?bool`, `?String`, `?char`, `?f32`, `?f64`,
@@ -88,9 +88,14 @@ This list tracks the remaining v12 items after audit; completed work should be r
   wrapped struct payloads (for example `IndexError`) before synthesizing an
   anonymous error struct view, so static `case _: IndexError` matches stay
   exhaustive under the zero-boundary harness too.
+  Representable static arrays now also default to specialized compiler-native
+  carriers, including generic alias specializations, default-method helpers,
+  and nested carrier arrays, instead of requiring the old experimental path.
   Remaining work is to keep shrinking the explicit `runtime.ArrayValue` /
-  `ArrayStore*` boundary surface in the residual dynamic helpers and then
-  extend the same native strategy to structs/unions.
+  `ArrayStore*` boundary surface in the residual dynamic/helpers layer,
+  eliminate the residual generic `*Array` fallback where it is still broader
+  than an explicit boundary, and then extend the same native strategy to
+  structs/unions.
 - Current progress note: unannotated local struct declarations no longer
   default back to `runtime.Value`; static struct field/method tests now assert
   native `*Struct` locals and direct compiled access without extract/writeback
@@ -259,12 +264,14 @@ This list tracks the remaining v12 items after audit; completed work should be r
   `arr[idx] = value`, and explicit wrapper/lambda/interface/union/struct
   boundary conversion on those staged wrappers.
 - Stage-1 widening slice is now landed too: non-empty unannotated local array
-  literals infer staged specialized carriers, `Array.new()` /
-  `Array.with_capacity()` lower directly to compiler-owned static carriers on
-  typed static paths, `reserve()` / `clone_shallow()` stay specialized, static
-  array `for` loops iterate directly over typed slices, and array-pattern rest
-  tails preserve specialized carriers instead of dropping back to generic
-  `*Array`.
+  literals infer staged specialized carriers, and fresh empty unannotated
+  locals now join that path once later same-scope evidence pins the element
+  type; `Array.new()` / `Array.with_capacity()` lower directly to
+  compiler-owned static carriers on typed static paths and on those same
+  same-scope-evidenced untyped local factory paths, including later typed call
+  arguments; `reserve()` / `clone_shallow()` stay specialized, static array
+  `for` loops iterate directly over typed slices, and array-pattern rest tails
+  preserve specialized carriers instead of dropping back to generic `*Array`.
 - Stage-1 compiled remeasurement snapshot (2026-03-19, 5-run averages via
   `v12/bench_perf`, compiled mode built through `cmd/ablec`): `bench/noop`
   mono on `0.0100s` / `0.00` GC vs mono off `0.0100s` / `0.00`;

@@ -99,7 +99,10 @@ func (g *generator) concreteInterfaceMethodCandidate(ctx *compileContext, impl *
 		currentGenericNames = mergeGenericNameSets(currentGenericNames, ctx.genericNames)
 	}
 	if actualExpr != nil && impl.TargetType != nil {
-		if !g.nominalTargetTypeExprCompatible(impl.Info.Package, actualExpr, impl.TargetType) {
+		targetType := normalizeTypeExprForPackage(g, impl.Info.Package, impl.TargetType)
+		if !g.typeExprHasGeneric(targetType, genericNames) &&
+			g.usesNominalStructCarrier(impl.Info.Package, targetType) &&
+			!g.nominalTargetTypeExprCompatible(impl.Info.Package, actualExpr, impl.TargetType) {
 			return nil
 		}
 		if receiverType != goType && g.typeExprHasGeneric(actualExpr, currentGenericNames) {
@@ -144,30 +147,14 @@ func (g *generator) implReceiverGoType(impl *implMethodInfo) string {
 	if g == nil || impl == nil || impl.Info == nil {
 		return ""
 	}
-	if len(impl.Info.Params) == 0 {
-		return ""
-	}
-	receiverType := impl.Info.Params[0].GoType
-	if receiverType != "" && receiverType != "runtime.Value" && receiverType != "any" {
-		return receiverType
-	}
-	paramTypeExpr := impl.Info.Params[0].TypeExpr
-	if paramTypeExpr == nil {
-		paramTypeExpr = impl.TargetType
-	}
-	if paramTypeExpr == nil {
-		return receiverType
-	}
-	mapper := NewTypeMapper(g, impl.Info.Package)
-	mapped, ok := mapper.Map(paramTypeExpr)
-	mapped, ok = g.recoverRepresentableCarrierType(impl.Info.Package, paramTypeExpr, mapped)
-	if !ok || mapped == "" {
-		return receiverType
-	}
-	return mapped
+	return g.nativeInterfaceImplWitnessGoType(impl.Info, impl, impl.Info.TypeBindings)
 }
 
 func (g *generator) implConstraintsSatisfied(pkgName string, impl *implMethodInfo, bindings map[string]ast.TypeExpression) bool {
+	return g.implConstraintsSatisfiedSeen(pkgName, impl, bindings, make(map[string]struct{}))
+}
+
+func (g *generator) implConstraintsSatisfiedSeen(pkgName string, impl *implMethodInfo, bindings map[string]ast.TypeExpression, seen map[string]struct{}) bool {
 	if g == nil || impl == nil {
 		return false
 	}
@@ -196,7 +183,7 @@ func (g *generator) implConstraintsSatisfied(pkgName string, impl *implMethodInf
 		if !ok || ifaceInfo == nil {
 			return false
 		}
-		if !g.nativeInterfaceAcceptsActual(ifaceInfo, subjectGoType) {
+		if !g.nativeInterfaceAcceptsActualSeen(ifaceInfo, subjectGoType, seen) {
 			return false
 		}
 	}

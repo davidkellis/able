@@ -60,6 +60,7 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	// collect() resolves compileability before dynamic usage is known; rerun so
 	// dynamic modules are allowed to keep explicit boundary call sites compiled.
 	gen.resolveCompileabilityFixedPoint()
+	gen.discardRedundantImplFallbackSpecializations()
 	appendDynamicFeatureWarnings(gen, dynamicReport)
 	fallbacks := gen.collectFallbacks()
 	if err := c.validateFallbackPolicy(fallbacks, dynamicReport); err != nil {
@@ -69,6 +70,7 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	gen.discardRedundantImplFallbackSpecializations()
 	fallbacks = gen.collectFallbacks()
 	if err := c.validateFallbackPolicy(fallbacks, dynamicReport); err != nil {
 		return nil, err

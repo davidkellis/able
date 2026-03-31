@@ -5,6 +5,17 @@
 This is the ordered execution plan for reaching the lowering architecture defined
 in `v12/design/compiler-go-lowering-spec.md`.
 
+Compiler completion status:
+- release validation completed on 2026-03-30.
+- release validation passed through:
+  - `GOFLAGS='-p=1' ./run_all_tests.sh --compiler`
+  - `./run_stdlib_tests.sh`
+- compiler-native encoding completion is still open under the stronger finish
+  line that removes staged hybrid carriers from static compiled paths.
+- representable static arrays now default to compiler-native specialized
+  carriers; the remaining array work is to shrink the residual generic
+  `*Array` boundary carrier and retire transitional scaffolding.
+
 This plan is deliberately organized around completion goals, not around whatever
 local emitter file was touched most recently.
 
@@ -33,24 +44,26 @@ The compiler is done when it satisfies all of these conditions together:
 
 ## Current State Summary
 
-Substantial native lowering is already landed:
+Compiler release validation is complete, but stronger compiler-native encoding
+completion is not:
 - large parts of arrays, structs, interfaces, callables, joins, and control
   flow now stay native
 - explicit dynamic-boundary enforcement exists
 - benchmark work has already removed major scaffolding on hot array/matrix paths
-
-But the compiler is not done because these broader goals are still incomplete:
-- carrier synthesis still has representable fallback gaps
-- some pattern/control surfaces still degrade when type recovery gets indirect
-- some dispatch surfaces still retain residual runtime paths
-- the compiled runtime still contains areas whose semantics are too closely tied
-  to interpreter-oriented helpers
-- validation is still distributed across many narrow slices rather than a small
-  number of hard completion gates
+- the hard release gates are green:
+  - `GOFLAGS='-p=1' ./run_all_tests.sh --compiler`
+  - `./run_stdlib_tests.sh`
+- staged hybrid carrier work remains in the static compiler architecture,
+  especially:
+  - the general compiler-owned `Array` path still using `Elements []runtime.Value`
+  - residual union/result/interface carrier shapes that still retain
+    `runtime.Value` / `any` members beyond the desired final host-native end-state
+  - transitional mono-array/runtime-store machinery still present in-tree
 
 ## Ordered Work Program
 
-Work through this list in order.
+This ordered work program is complete and retained as the record of how the
+compiler was brought to release shape.
 
 ### 1. Centralize Lowering Knowledge
 
@@ -453,16 +466,34 @@ The compiler is releasable when:
 - the benchmark family is materially improved and no longer regresses into known
   scaffolding classes
 
+Status:
+- complete on 2026-03-30.
+- final release-blocking fixes in this milestone were:
+  - range expression inferred-carrier correction back to shared iterable
+    semantics instead of nominal range recoercion
+  - concrete wrapped native-interface receiver dispatch preserving overrides
+    instead of always selecting default helpers
+  - union-aware numeric operator typing for all-numeric unions
+
 ## Immediate Ordered Queue
 
-This is the concrete next queue derived from the larger work program.
+This is the concrete next queue derived from the stronger compiler-native finish
+line.
 
-1. Run the compiled release matrix and close any remaining fixture failures
-   under no-bootstrap/no-fallback enforcement.
-2. Run `./run_all_tests.sh` and close compiler-side regressions.
-3. Run `./run_stdlib_tests.sh` and close compiled-mode stdlib regressions.
-4. Audit compiled diagnostics/failure behavior for release stability.
-5. Confirm reproducible clean-checkout compiler builds and release-gate docs.
+1. Finish shrinking the residual generic/boundary `Array` lowering path so
+   `Elements []runtime.Value` remains only at explicit dynamic or ABI edges;
+   same-scope-evidenced fresh untyped local factories and empty literals,
+   including later typed call-argument sites, are now out of that residual
+   bucket.
+2. Remove remaining representable union/result/interface lowering paths that
+   still depend on residual `runtime.Value` / `any` members outside explicit
+   dynamic boundaries.
+3. Retire the remaining mono-array transitional runtime-store scaffolding now
+   that the final static array representation is the default path.
+4. Resolve the remaining no-interpreter alias/constraint revalidation policy
+   for generic interface dispatch and align lowering/typechecking/docs.
+5. Re-run source audits, fixture parity, and top-level compiler release gates
+   after each material closure step.
 
 ## How To Judge Proposed Compiler Changes
 

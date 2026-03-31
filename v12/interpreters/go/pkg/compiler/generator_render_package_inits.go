@@ -55,16 +55,22 @@ func (g *generator) renderCompiledPackageInitFile() ([]byte, error) {
 	fmt.Fprintf(&buf, "func __able_run_compiled_package_inits(rt *bridge.Runtime, interp *interpreter.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n")
 	fmt.Fprintf(&buf, "\t_ = interp\n")
 	fmt.Fprintf(&buf, "\t_ = entryEnv\n")
-	fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata {\n")
-	fmt.Fprintf(&buf, "\t\treturn nil\n")
-	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "\t_ = __able_bootstrapped_metadata\n")
 	for idx, pkgName := range g.packageInitOrder {
+		bootVar, ok := g.packageBootstrappedVar(pkgName)
+		if !ok {
+			continue
+		}
 		if _, ok := g.packageEnvVar(pkgName); !ok {
 			continue
 		}
+		fmt.Fprintf(&buf, "\tif %s {\n", bootVar)
+		fmt.Fprintf(&buf, "\t\tgoto __able_pkg_init_done_%d\n", idx)
+		fmt.Fprintf(&buf, "\t}\n")
 		fmt.Fprintf(&buf, "\tif err := %s(rt); err != nil {\n", g.packageInitFuncName(pkgName, idx))
 		fmt.Fprintf(&buf, "\t\treturn err\n")
 		fmt.Fprintf(&buf, "\t}\n")
+		fmt.Fprintf(&buf, "__able_pkg_init_done_%d:\n", idx)
 	}
 	fmt.Fprintf(&buf, "\treturn nil\n")
 	fmt.Fprintf(&buf, "}\n\n")

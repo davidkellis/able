@@ -73,26 +73,36 @@ Canonical architecture docs:
 
 #### Current state snapshot
 
-The compiler already has major native-lowering work landed:
+Compiler release validation is closed, but compiler-native encoding completion
+is still open:
 - large static slices of arrays, structs, interfaces, callables, joins, and
   control-flow now stay native;
 - explicit dynamic-boundary audits exist;
 - reduced benchmark fixtures exist for matrix, iterator, heap, and array-heavy
   paths;
-- no-bootstrap / no-fallback enforcement exists for large parts of the static
-  fixture set.
-
-The compiler is still not done because these conditions are not yet all true:
-- every statically representable type still does not map cleanly to one native
-  carrier in all contexts;
-- all static patterns/control-flow joins still do not stay native in all cases;
-- all static dispatch still does not lower directly in all cases;
-- compiled runtime helpers are still too interpreter-shaped in some areas;
-- the full compiler validation/perf gate is not yet at release quality.
+- no-bootstrap / no-fallback enforcement is green across the release gate;
+- the compiler release gates currently pass:
+  - `GOFLAGS='-p=1' ./run_all_tests.sh --compiler`
+  - `./run_stdlib_tests.sh`
+- however, the stronger finish line is not yet met because staged hybrid
+  carriers and transitional compiler-native limits are still documented in
+  `spec/TODO_v12.md`, especially around:
+  - the residual generic/boundary `Array` carrier still using
+    `Elements []runtime.Value` on residual wildcard, dynamic, and ABI paths
+    even though representable static arrays, including fresh untyped local
+    factory and empty-literal sites with same-scope concrete evidence,
+    including typed call arguments, now default to compiler-native carriers;
+  - residual union/result/interface lowering paths that still permit
+    `runtime.Value` / `any` members for cases that should eventually become
+    host-native compiled carriers;
+  - the remaining mono-array transition still carrying historical
+    runtime-typed-store scaffolding in-tree even though native array carriers
+    are now the default static lowering path.
 
 #### Production definition of done
 
-The compiler is production-ready when all of these are true together:
+The compiler is only fully done for the stronger native-encoding goal when all
+of these are true together:
 - every statically representable Able type expression lowers to a native Go
   carrier;
 - static control flow and pattern binding stay on native carriers;
@@ -101,6 +111,11 @@ The compiler is production-ready when all of these are true together:
 - dynamic/runtime carriers remain only at explicit dynamic or ABI boundaries;
 - compiled runtime helpers implement language semantics directly in Go instead
   of modeling normal static execution in terms of interpreter behavior;
+- no staged hybrid carrier architecture remains on static paths for arrays,
+  unions, or other nominal values that should have final host-native compiled
+  representations;
+- experimental transition machinery is either removed or reduced to explicit
+  boundary-only helpers instead of serving as the general static lowering path;
 - compiler fixture parity is green under no-bootstrap/no-fallback enforcement;
 - the compiled benchmark family is materially faster and free of already-known
   avoidable scaffolding on hot paths.
@@ -381,43 +396,78 @@ Definition of done for this milestone:
 Goal:
 - turn the above architecture into a hard release gate.
 
+Status:
+- complete on 2026-03-30.
+- release validation is now green under the real top-level gates:
+  - `GOFLAGS='-p=1' ./run_all_tests.sh --compiler`
+  - `./run_stdlib_tests.sh`
+- the milestone-closing fixes were shared semantic fixes, not nominal
+  special-cases:
+  - range expressions inferred through `Iterable<T>` instead of incorrectly
+    recoercing compiled ranges through nominal `Range<T>` carriers
+  - native interface default-method dispatch now preserves concrete wrapped
+    receiver overrides instead of eagerly short-circuiting to default helpers
+  - numeric operators now accept unions whose members are all numeric and
+    resolve them through pairwise promotion/normalization instead of rejecting
+    them as non-numeric
+
 Required work:
-- [ ] keep one authoritative lowering spec and one authoritative completion plan
+- [x] keep one authoritative lowering spec and one authoritative completion plan
       in sync with implementation;
-- [ ] keep compiler fixture parity green under no-bootstrap/no-fallback rules;
-- [ ] run the full compiler matrix and stdlib suite in compiled mode as a
+- [x] keep compiler fixture parity green under no-bootstrap/no-fallback rules;
+- [x] run the full compiler matrix and stdlib suite in compiled mode as a
       release gate;
-- [ ] ensure diagnostics and failure behavior are stable enough for production
+- [x] ensure diagnostics and failure behavior are stable enough for production
       use;
-- [ ] confirm reproducible build trees and clean-checkout behavior for the
+- [x] confirm reproducible build trees and clean-checkout behavior for the
       compiler toolchain.
 
 Release gate checklist:
-- [ ] `./run_all_tests.sh` green
-- [ ] `./run_stdlib_tests.sh` green
-- [ ] full compiled fixture matrix green
-- [ ] strict static no-fallback/no-boundary audits green
-- [ ] benchmark baselines updated
-- [ ] no known representable static-path regressions remaining in PLAN
+- [x] `./run_all_tests.sh` green
+- [x] `./run_stdlib_tests.sh` green
+- [x] full compiled fixture matrix green
+- [x] strict static no-fallback/no-boundary audits green
+- [x] benchmark baselines updated
+- [x] no known representable static-path regressions remaining in PLAN
 
-#### Immediate compiler queue (start here)
+#### Compiler Program Status
 
-1. [ ] Run the compiler release validation matrix in compiled mode and close any
-       remaining fixture regressions under the no-bootstrap/no-fallback gates.
-2. [ ] Run `./run_all_tests.sh` and close any remaining compiler-side failures.
-3. [ ] Run `./run_stdlib_tests.sh` and close any remaining compiled-mode stdlib
-       failures.
-4. [ ] Audit compiled diagnostics/failure behavior for release stability and
-       fix any remaining production blockers.
-5. [ ] Confirm reproducible clean-checkout compiler builds and release-gate
-       documentation.
-3. [ ] Remove residual dynamic-boundary leakage from static fixtures and static
-       helper paths.
-4. [ ] Keep strict no-bootstrap/no-fallback/no-boundary audits green for static
-       fixture families.
-5. [ ] Re-run benchmark gates after each completed compiler milestone.
+Compiler release validation is closed, but compiler-native encoding completion
+remains the active highest-priority work. Bytecode performance does not start
+until the staged hybrid/static-lowering gaps below are closed.
 
-### Bytecode Performance Program (second priority; start after compiler release work is closed or paused explicitly)
+#### Compiler Native Encoding Completion (active follow-on)
+
+Goal:
+- finish the stronger compiler end-state where statically representable Able
+  constructs lower to final Go-native encoded constructs rather than to staged
+  hybrid carriers.
+
+Required work:
+- [ ] finish shrinking the residual generic/boundary `Array` carrier so
+      `Elements []runtime.Value` survives only at explicit dynamic or ABI
+      edges, not as a catch-all fallback for static representable code;
+- [ ] finish eliminating residual representable union/result/interface lowering
+      paths that still rely on `runtime.Value` / `any` members outside explicit
+      dynamic or ABI boundaries;
+- [ ] retire the remaining transitional mono-array/runtime-typed-store
+      scaffolding now that static compiled arrays use compiler-native carriers
+      by default;
+- [ ] decide and document the final no-interpreter policy for alias /
+      constraint revalidation in generic interface dispatch, then make the
+      implementation match that policy;
+- [ ] rerun the compiled release gates after each material native-encoding
+      closure so the stronger finish line is enforced, not just the milestone-8
+      release gate.
+
+Proof required:
+- source audits showing no staged hybrid carrier shapes remain on static paths
+  where final host-native encodings are expected;
+- fixture and generated-source coverage proving arrays, unions, interfaces,
+  patterns, and dispatch stay on final native carriers;
+- top-level release gates still green after each closure step.
+
+### Bytecode Performance Program (second priority; start after compiler-native completion work is closed or paused explicitly)
 
 Goal:
 - make the Go bytecode interpreter fast enough to be a practical execution mode

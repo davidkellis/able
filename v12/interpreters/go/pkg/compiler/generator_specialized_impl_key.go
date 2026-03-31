@@ -46,9 +46,24 @@ func (g *generator) canonicalImplSpecializationBindings(info *functionInfo, impl
 		return out
 	}
 	concreteTarget = normalizeTypeExprForPackage(g, info.Package, concreteTarget)
+	if seeded := cloneTypeBindings(out); seeded != nil {
+		if g.seedImplBindingsFromConcreteTarget(method, impl, concreteTarget, seeded) {
+			for name, expr := range seeded {
+				if expr == nil {
+					continue
+				}
+				if len(allowed) > 0 {
+					if _, ok := allowed[name]; !ok {
+						continue
+					}
+				}
+				out[name] = normalizeTypeExprForPackage(g, info.Package, expr)
+			}
+		}
+	}
 	out["Self"] = concreteTarget
 	if iface := g.interfaces[impl.InterfaceName]; iface != nil {
-		interfaceBindings := g.implTypeBindings(impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
+		interfaceBindings := g.implTypeBindings(info.Package, impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
 		selfTarget := g.implSelfTargetType(info.Package, concreteTarget, interfaceBindings)
 		for name, expr := range g.interfaceSelfTypeBindings(iface, selfTarget) {
 			if expr == nil {

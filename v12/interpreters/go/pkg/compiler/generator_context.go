@@ -60,6 +60,30 @@ func (c *compileContext) lookupCurrent(name string) (paramInfo, bool) {
 	return paramInfo{}, false
 }
 
+func (c *compileContext) updateBinding(name string, info paramInfo) bool {
+	if c == nil || name == "" {
+		return false
+	}
+	if c.locals != nil {
+		if _, ok := c.locals[name]; ok {
+			c.locals[name] = info
+			return true
+		}
+	}
+	if c.parent != nil {
+		if c.parent.updateBinding(name, info) {
+			return true
+		}
+	}
+	if c.params != nil {
+		if _, ok := c.params[name]; ok {
+			c.params[name] = info
+			return true
+		}
+	}
+	return false
+}
+
 func (c *compileContext) child() *compileContext {
 	if c == nil {
 		return nil
@@ -70,6 +94,8 @@ func (c *compileContext) child() *compileContext {
 		functions:              c.functions,
 		overloads:              c.overloads,
 		packageName:            c.packageName,
+		blockStatements:        c.blockStatements,
+		statementIndex:         c.statementIndex,
 		parent:                 c,
 		temps:                  c.temps,
 		loopDepth:              c.loopDepth,
@@ -91,6 +117,7 @@ func (c *compileContext) child() *compileContext {
 		returnType:             c.returnType,
 		returnTypeExpr:         c.returnTypeExpr,
 		expectedTypeExpr:       c.expectedTypeExpr,
+		matchSubjectTypeExpr:   c.matchSubjectTypeExpr,
 		controlMode:            c.controlMode,
 		controlCaptureVar:      c.controlCaptureVar,
 		controlCaptureLabel:    c.controlCaptureLabel,

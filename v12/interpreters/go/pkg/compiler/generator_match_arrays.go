@@ -154,10 +154,16 @@ func (g *generator) compileRuntimeArrayPatternBindings(ctx *compileContext, patt
 		switch rest := pattern.RestPattern.(type) {
 		case *ast.Identifier:
 			if rest.Name != "" && rest.Name != "_" {
+				restLines, restExpr, restTypeExpr, ok := g.runtimeArrayRestCarrierLines(ctx, fmt.Sprintf("%s[%d:]", valuesTemp, len(pattern.Elements)))
+				if !ok {
+					ctx.setReason("array pattern unsupported")
+					return nil, false
+				}
+				lines = append(lines, restLines...)
 				goName := sanitizeIdent(rest.Name)
-				ctx.setLocalBinding(rest.Name, paramInfo{Name: rest.Name, GoName: goName, GoType: "runtime.Value"})
+				ctx.setLocalBinding(rest.Name, paramInfo{Name: rest.Name, GoName: goName, GoType: "*Array", TypeExpr: restTypeExpr})
 				lines = append(lines,
-					fmt.Sprintf("var %s runtime.Value = &runtime.ArrayValue{Elements: append([]runtime.Value(nil), %s[%d:]...)}", goName, valuesTemp, len(pattern.Elements)),
+					fmt.Sprintf("var %s *Array = %s", goName, restExpr),
 					fmt.Sprintf("_ = %s", goName),
 				)
 			}

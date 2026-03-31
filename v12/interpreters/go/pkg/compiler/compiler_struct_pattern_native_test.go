@@ -58,6 +58,28 @@ func TestCompilerStructPatternNamedFieldBindingExecutes(t *testing.T) {
 	compileAndRunSource(t, "ablec-struct-pattern-native-", source)
 }
 
+func TestCompilerAnonymousPositionalStructPatternExecutes(t *testing.T) {
+	stdout := strings.TrimSpace(compileAndRunExecSourceWithOptions(t, "ablec-anon-positional-struct-pattern", strings.Join([]string{
+		"package demo",
+		"",
+		"struct IntPair { i32, i32 }",
+		"",
+		"fn main() -> void {",
+		"  pair := IntPair { 3, 4 }",
+		"  { left, right } := pair",
+		"  print(`pair ${left},${right}`)",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:        "main",
+		RequireNoFallbacks: true,
+		EmitMain:           true,
+	}))
+	if stdout != "pair 3,4" {
+		t.Fatalf("expected anonymous positional struct pattern to execute, got %q", stdout)
+	}
+}
+
 func TestCompilerStructPatternFieldBindingPreservesGenericTypeExpr(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

@@ -145,7 +145,7 @@ func TestCompilerNoFallbacksGraphemeCloneKeepsNativeArrayClone(t *testing.T) {
 	})
 
 	compiledSrc := string(result.Files["compiled.go"])
-	graphemeClone := regexp.MustCompile(`func __able_compiled_impl_Clone_clone_[^(]*\\(self \\*Grapheme\\)[\\s\\S]*?\\n}`).FindString(compiledSrc)
+	graphemeClone := regexp.MustCompile(`func __able_compiled_impl_Clone_clone_[^(]*\(self \*Grapheme\)[\s\S]*?\n}`).FindString(compiledSrc)
 	if graphemeClone == "" {
 		t.Fatalf("expected compiled Grapheme.clone impl in output")
 	}

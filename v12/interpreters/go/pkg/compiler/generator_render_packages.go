@@ -93,15 +93,23 @@ func (g *generator) renderRegisterPackageRegistrar(buf *bytes.Buffer, pkgName st
 	fmt.Fprintf(buf, "\t_ = entryEnv\n")
 	if pkgName == g.entryPackage {
 		fmt.Fprintf(buf, "\tpkgEnv := entryEnv\n")
+		if bootVar, ok := g.packageBootstrappedVar(pkgName); ok {
+			fmt.Fprintf(buf, "\t%s = __able_bootstrapped_metadata\n", bootVar)
+		}
 	} else {
 		fmt.Fprintf(buf, "\tvar pkgEnv *runtime.Environment\n")
+		if bootVar, ok := g.packageBootstrappedVar(pkgName); ok {
+			fmt.Fprintf(buf, "\t%s = false\n", bootVar)
+		}
 		fmt.Fprintf(buf, "\tif interp != nil {\n")
 		fmt.Fprintf(buf, "\t\tpkgEnv = interp.PackageEnvironment(%q)\n", pkgName)
+		if bootVar, ok := g.packageBootstrappedVar(pkgName); ok {
+			fmt.Fprintf(buf, "\t\tif pkgEnv != nil {\n")
+			fmt.Fprintf(buf, "\t\t\t%s = true\n", bootVar)
+			fmt.Fprintf(buf, "\t\t}\n")
+		}
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tif pkgEnv == nil {\n")
-		fmt.Fprintf(buf, "\t\tif __able_bootstrapped_metadata && interp != nil {\n")
-		fmt.Fprintf(buf, "\t\t\treturn nil // package not loaded during bootstrap\n")
-		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\tpkgEnv = runtime.NewEnvironment(entryEnv)\n")
 		fmt.Fprintf(buf, "\t}\n")
 	}
@@ -330,15 +338,22 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 	fmt.Fprintf(&buf, "\t_ = __able_bootstrapped_metadata\n")
 	fmt.Fprintf(&buf, "\tpkgEnv := entryEnv\n")
 	if pkgName != g.entryPackage {
+		if bootVar, ok := g.packageBootstrappedVar(pkgName); ok {
+			fmt.Fprintf(&buf, "\t%s = false\n", bootVar)
+		}
 		fmt.Fprintf(&buf, "\tif interp != nil {\n")
 		fmt.Fprintf(&buf, "\t\tpkgEnv = interp.PackageEnvironment(%q)\n", pkgName)
+		if bootVar, ok := g.packageBootstrappedVar(pkgName); ok {
+			fmt.Fprintf(&buf, "\t\tif pkgEnv != nil {\n")
+			fmt.Fprintf(&buf, "\t\t\t%s = true\n", bootVar)
+			fmt.Fprintf(&buf, "\t\t}\n")
+		}
 		fmt.Fprintf(&buf, "\t}\n")
 		fmt.Fprintf(&buf, "\tif pkgEnv == nil {\n")
-		fmt.Fprintf(&buf, "\t\tif __able_bootstrapped_metadata && interp != nil {\n")
-		fmt.Fprintf(&buf, "\t\t\treturn nil // package not loaded during bootstrap\n")
-		fmt.Fprintf(&buf, "\t\t}\n")
 		fmt.Fprintf(&buf, "\t\tpkgEnv = runtime.NewEnvironment(entryEnv)\n")
 		fmt.Fprintf(&buf, "\t}\n")
+	} else if bootVar, ok := g.packageBootstrappedVar(pkgName); ok {
+		fmt.Fprintf(&buf, "\t%s = __able_bootstrapped_metadata\n", bootVar)
 	}
 	fmt.Fprintf(&buf, "\t_ = pkgEnv\n")
 	for _, method := range g.sortedMethodInfos() {

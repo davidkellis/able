@@ -17,6 +17,20 @@ func (g *generator) recoverTypedPatternCarrier(ctx *compileContext, expr ast.Typ
 	return mapped, true
 }
 
+func (g *generator) runtimeSubjectDirectTypedPatternMatch(ctx *compileContext, expr ast.TypeExpression) bool {
+	if g == nil || ctx == nil || expr == nil || ctx.matchSubjectTypeExpr == nil {
+		return false
+	}
+	subjectExpr := g.lowerNormalizedTypeExpr(ctx, ctx.matchSubjectTypeExpr)
+	patternExpr := g.lowerNormalizedTypeExpr(ctx, expr)
+	if subjectExpr == nil || patternExpr == nil {
+		return false
+	}
+	subjectKey := normalizeTypeExprString(g, ctx.packageName, subjectExpr)
+	patternKey := normalizeTypeExprString(g, ctx.packageName, patternExpr)
+	return subjectKey != "" && subjectKey == patternKey
+}
+
 func (g *generator) compileDynamicTypedPatternCast(ctx *compileContext, subjectTemp string, subjectType string, expr ast.TypeExpression) ([]string, string, string, string, bool) {
 	if g == nil || ctx == nil || subjectTemp == "" || expr == nil {
 		return nil, "", "", "", false

@@ -98,8 +98,8 @@ func TestCompilerBroadStaticNativeTouchpointsStayNative(t *testing.T) {
 	if !strings.Contains(mainBody, "var reader __able_iface_Reader = __able_iface_Reader_wrap_ptr_Counter(") {
 		t.Fatalf("expected object-safe interface assignment to stay on the native carrier:\n%s", mainBody)
 	}
-	if !strings.Contains(mainBody, "&Array{Length: int32(3), Capacity: int32(3), Storage_handle: int64(0), Elements: []runtime.Value{") {
-		t.Fatalf("expected array literal to stay on the compiler-owned Array carrier:\n%s", mainBody)
+	if !strings.Contains(mainBody, "&__able_array_i32{Length: int32(3), Capacity: int32(3), Storage_handle: int64(0), Elements: []int32{") {
+		t.Fatalf("expected array literal to stay on the compiler-native i32 array carrier:\n%s", mainBody)
 	}
 
 	applyBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_apply_twice")

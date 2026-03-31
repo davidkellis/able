@@ -11,6 +11,10 @@ func memberAccessMismatchReason(objectExpr string, objectType string, memberName
 	return fmt.Sprintf("member access type mismatch: expr=%s object=%s member=%s field=%s expected=%s", objectExpr, objectType, memberName, fieldType, expected)
 }
 
+func unsupportedMemberAccessReason(objectExpr string, objectType string, memberName string) string {
+	return fmt.Sprintf("unsupported member access: expr=%s object=%s member=%s", objectExpr, objectType, memberName)
+}
+
 func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiteral, expected string) ([]string, string, string, bool) {
 	if lit == nil {
 		ctx.setReason("missing array literal")
@@ -466,14 +470,17 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		ctx.setReason("missing member access")
 		return nil, "", "", false
 	}
-	objLines, objectExpr, objectType, ok := g.compileExprLines(ctx, expr.Object, "")
+	objLines, objectExpr, objectType, ok := g.compileDispatchReceiverExpr(ctx, expr.Object)
 	if !ok {
-		return nil, "", "", false
-	}
-	if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, expr.Object, objectExpr, objectType); recovered {
-		objLines = append(objLines, recoverLines...)
-		objectExpr = recoveredExpr
-		objectType = recoveredType
+		objLines, objectExpr, objectType, ok = g.compileExprLines(ctx, expr.Object, "")
+		if !ok {
+			return nil, "", "", false
+		}
+		if recoverLines, recoveredExpr, recoveredType, recovered := g.recoverDispatchExpr(ctx, expr.Object, objectExpr, objectType); recovered {
+			objLines = append(objLines, recoverLines...)
+			objectExpr = recoveredExpr
+			objectType = recoveredType
+		}
 	}
 	objectCategory := g.typeCategory(objectType)
 	if objectCategory == "runtime" || objectCategory == "any" {
@@ -488,12 +495,12 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 		}
 		memberValue, ok := g.memberAssignmentRuntimeValue(ctx, expr.Member)
 		if !ok {
-			ctx.setReason("unsupported member access")
+			ctx.setReason(unsupportedMemberAccessReason(objectExpr, objectType, g.memberName(expr.Member)))
 			return nil, "", "", false
 		}
 		objConvLines, objValue, ok := g.lowerRuntimeValue(ctx, objectExpr, objectType)
 		if !ok {
-			ctx.setReason("unsupported member access")
+			ctx.setReason(unsupportedMemberAccessReason(objectExpr, objectType, g.memberName(expr.Member)))
 			return nil, "", "", false
 		}
 		lines := append([]string{}, objLines...)
@@ -577,12 +584,12 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 	}
 	info := g.staticStructInfoForAccess(objectType)
 	if info == nil {
-		ctx.setReason("unsupported member access")
+		ctx.setReason(unsupportedMemberAccessReason(objectExpr, objectType, memberName))
 		return nil, "", "", false
 	}
 	field, ok := g.structFieldForMember(info, expr.Member)
 	if !ok {
-		ctx.setReason("unsupported member access")
+		ctx.setReason(unsupportedMemberAccessReason(objectExpr, objectType, memberName))
 		return nil, "", "", false
 	}
 	if field != nil {

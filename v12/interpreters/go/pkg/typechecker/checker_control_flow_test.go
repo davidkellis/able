@@ -71,6 +71,29 @@ func TestIfExpressionConditionAllowsTruthiness(t *testing.T) {
 		t.Fatalf("expected no diagnostics for truthy condition, got %v", diags)
 	}
 }
+
+func TestIfExpressionWithoutElseInfersNullableBranchType(t *testing.T) {
+	checker := New()
+	ifExpr := ast.IfExpr(
+		ast.Bool(false),
+		ast.Block(ast.Int(123)),
+	)
+	module := ast.NewModule([]ast.Statement{ast.Assign(ast.ID("value"), ifExpr)}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+	typ, ok := checker.infer[ifExpr]
+	if !ok {
+		t.Fatalf("expected inference for if expression")
+	}
+	if typeName(typ) != "i32?" {
+		t.Fatalf("expected if without else to infer i32?, got %q", typeName(typ))
+	}
+}
 func TestReturnOutsideFunctionProducesDiagnostic(t *testing.T) {
 	checker := New()
 	module := ast.NewModule([]ast.Statement{ast.Ret(nil)}, nil, nil)

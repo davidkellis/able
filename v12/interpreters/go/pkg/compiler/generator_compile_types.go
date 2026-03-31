@@ -35,6 +35,8 @@ type compileContext struct {
 	functions              map[string]*functionInfo
 	overloads              map[string]*overloadInfo
 	packageName            string
+	blockStatements        []ast.Statement
+	statementIndex         int
 	parent                 *compileContext
 	temps                  *int
 	reason                 string
@@ -57,6 +59,7 @@ type compileContext struct {
 	returnType             string
 	returnTypeExpr         ast.TypeExpression
 	expectedTypeExpr       ast.TypeExpression
+	matchSubjectTypeExpr   ast.TypeExpression
 	controlMode            string
 	controlCaptureVar      string
 	controlCaptureLabel    string
