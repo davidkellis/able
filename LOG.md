@@ -1,5 +1,889 @@
 # Able Project Log
 
+# 2026-04-12 — Compiler rescue higher-order failure inference slice complete (v12)
+- Closed the next compiler-native failure-inference slice for rescue handlers
+  around higher-order calls and propagated-call carrier recovery.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_failure_type_inference.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_rescue_dynamic_error_value_test.go`
+- What this fixed:
+  - rescue failure inference no longer reuses an arbitrary callback return type
+    as a fake raised-value carrier, so higher-order handlers like
+    `err.value match { ... }` stay on the dynamic error path instead of
+    collapsing `err` to `String`
+  - statically known propagated rescue callsites still recover native carriers
+    from the callee body, including the imported shadowed nominal/interface
+    slices already covered by the focused native compiler tests
+  - raised struct literals now keep their explicit nominal type expression
+    during failure inference, which prevents shadowed local/remote struct
+    families from degrading into synthetic join carriers on rescue locals
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(RescueHigherOrderCallKeepsDynamicErrorValueBinding|RescueIdentifierJoinRecoversPropagated(CallableCarrier|ImportedShadowedNominalCarrier|ImportedShadowedInterfaceCarrier)|ConcurrencyParityFixtures/12_07_channel_mutex_error_types)$' -count=1 -timeout 120s`
+  - `GOCACHE=/home/david/sync/projects/able/v12/interpreters/go/.gocache /usr/bin/time -p ./run_all_tests.sh --compiler`
+  - `git diff --check`
+- Runtime note:
+  - the timed compiler gate now reaches compiler core outliers again and the
+    first surfaced post-core failure moved to
+    `TestCompilerConcurrencyParityFixtures/12_07_channel_mutex_error_types`
+    at `real 858.67`; that slice is now fixed locally
+  - I did not rerun the entire compiler release gate after landing this rescue
+    fix, so the next full-gate blocker after the repaired concurrency slice is
+    still unknown in the current worktree
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, plus the follow-on full-gate rerun needed to
+  expose the next real release-path blocker.
+
+# 2026-04-12 — Compiler error-payload struct matcher slice complete (v12)
+- Closed the next compiler-native cleanup slice for error-wrapped nominal
+  struct typed matches on the no-bootstrap path.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_failure_type_inference.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_struct_error_payload_native_test.go`
+- What this fixed:
+  - generated `__able_struct_*_try_from(...)` / `__able_struct_*_from(...)`
+    helpers now unwrap through `__able_struct_instance(current)` after
+    interface unwrapping, so wrapped struct payloads carried in
+    `runtime.ErrorValue` stay on their nominal struct definition instead of
+    silently missing on raw `*runtime.StructInstanceValue` assertions
+  - static `case _: IndexError` matches on array helper bounds results now
+    stay exhaustive under the no-bootstrap boundary harness, fixing the
+    previous `06_12_02_stdlib_array_helpers` regression
+  - shared handled-failure inference now also goes back through the lowering
+    facade instead of bypassing it with a direct `joinResultType(...)` call,
+    which keeps the compiler source-audit green for this slice
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(ArrayHelperFixtureIndexErrorStaysBoundaryClean|StructErrorPayloadHelpersUseSharedStructInstanceUnwrap|LoweringFacadeSourceAudit)$' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/v12/interpreters/go/.gocache /usr/bin/time -p ./run_all_tests.sh --compiler`
+  - `git diff --check`
+- Runtime note:
+  - the timed compiler gate now clears the old array-helper failure and runs
+    through compiler core batch 9 before the next surfaced issue; the first
+    post-fix timed run reached batch 10/23 in `real 472.06`
+  - that same run exposed an independent source-audit failure in
+    `TestCompilerLoweringFacadeSourceAudit`, which is now fixed locally
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, plus the later full-gate rerun needed to see
+  what the next real blocker is after the audit fix.
+
+# 2026-04-12 — Compiler imported generic-struct carrier slice complete (v12)
+- Closed the next union/result/interface carrier cleanup slice for imported
+  generic struct members with shadowed nominal type arguments inside result and
+  union carriers.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_generic_nominal_inference.go`
+  - `v12/interpreters/go/pkg/compiler/generator_typeexpr_bound.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_generic_struct_native_test.go`
+- What this fixed:
+  - imported generic struct specializations like `Box RemoteThing` now count as
+    fully bound in the caller package, so the compiler stops falling back to
+    the unspecialized base `*Box` carrier inside `Result` / nested `Result` /
+    nested union-result families
+  - field/member lowering on those carriers now keeps direct specialized field
+    access such as `box.Value.Remote` instead of routing through
+    `__able_member_get(...)`
+  - generic struct field-type inference now preserves caller-side imported
+    selector package context while substituting foreign generic arguments
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedGenericStruct(ResultAliasWithShadowedNominalStaysNative|NestedResultAliasWithShadowedNominalStaysNative|NestedUnionAliasWithShadowedNominalStaysNative|ShadowedNominalSpecializesCarrier)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported(GenericStruct(ResultAliasWithShadowedNominalStaysNative|NestedResultAliasWithShadowedNominalStaysNative|NestedUnionAliasWithShadowedNominalStaysNative|ShadowedNominalSpecializesCarrier)|NullableAliasWithShadowedNominalStaysNative|OptionAliasWithShadowedNominalStaysNative|UnionAliasWithShadowedNominalStaysNative|ResultSemanticAliasWithShadowedNominalStaysNative|ResultAliasWithShadowedNominalStaysNative|AndLocalShadowedNominalJoinStaysNative)|ParameterizedStructUnionMembersUseConcreteStructHelpers|RescueIdentifierJoinRecoversPropagatedImportedShadowedNominalCarrier)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals where failure inference is genuinely incomplete.
+
+# 2026-04-11 — Compiler nested callable-result alias carrier slice complete (v12)
+- Closed the next union/result/interface carrier cleanup slice for imported
+  semantic `Result` aliases over shadowed callable members when they are
+  nested under an outer `Result` carrier.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_context.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_callable_alias_native_test.go`
+- What this fixed:
+  - raw imported selector aliases nested inside function type expressions now
+    keep lexical caller-package normalization, so callable typed patterns like
+    `(() -> RemoteThing)` no longer get re-normalized in a stale foreign
+    package and widened to `__able_fn_*_to_runtime_Value`
+  - imported semantic nested results such as `!(Outcome)` where
+    `Outcome = Result (() -> Thing)` now resolve their callable member back to
+    the foreign native callable carrier and keep direct typed-pattern
+    narrowing instead of falling back with `typed pattern type mismatch`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedSemanticResultAliasNestedResultWithShadowedCallable(StaysNative|ResolvesNativePatternTarget)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported.*ShadowedCallable.*|Imported.*ShadowedInterface.*NestedResult.*|Nested.*|RescueTypedPattern.*Callable|PlaceholderLambdaStaysNative|BoundMethodValueStaysNative)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals where failure inference is genuinely incomplete.
+
+# 2026-04-11 — Compiler imported semantic nested-result carrier slice complete (v12)
+- Closed the next union/result/interface carrier cleanup slice by keeping
+  imported semantic `Result` aliases native when they are nested under an
+  outer `Result` carrier.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_cache.go`
+  - `v12/interpreters/go/pkg/compiler/generator_compileability.go`
+  - `v12/interpreters/go/pkg/compiler/generator_function_cache.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_interface_nested_result_native_test.go`
+- What this fixed:
+  - imported semantic aliases such as `Outcome T = Result T` now preserve the
+    alias source package while expanding nested carriers, so
+    `!(Outcome(RemoteReader i32))` stays on the foreign native interface
+    member instead of widening to `runtime.Value` / `any`
+  - builtin language carrier identities such as `Error` are now package-
+    independent during carrier synthesis, so nested result flattening
+    collapses repeated builtin members even when they originate from different
+    package contexts
+  - compileability probing now drops stale normalized type-expression and
+    function-carrier caches before final codegen reuses them
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedSemanticResultAliasNestedResultWithShadowedInterface(StaysNative|ResolvesNativeCarrier|NormalizesInnerAlias|ResultMembersStayNative)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported.*ShadowedInterface.*|Nested.*|Result.*|Join.*|OrElseOnErrorUnion.*|MatchOnErrorUnion.*|IfJoinRecoversTypeExprBackedInterfaceCarrier|RescueIdentifierJoinRecoversPropagatedImportedShadowedInterfaceCarrier|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|ParameterizedStructUnionMembersUseConcreteStructHelpers)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals where failure inference is genuinely incomplete.
+
+# 2026-04-11 — Compiler direct nested result carrier flattening slice complete (v12)
+- Closed the next union/result/interface carrier cleanup slice by flattening
+  direct nested result families during native carrier synthesis.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_nested_union_member_native_test.go`
+- What this fixed:
+  - direct nested result families such as `!!String` and `!!(RemoteReader i32)`
+    now lower to one native union family instead of synthesizing nested native
+    unions with repeated `Error` layers
+  - imported interface results preserve the direct native interface member
+    carrier through that flattening path, so nested-result matches keep direct
+    native interface dispatch instead of unwrapping multiple union layers
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Nested(ResultCarrierFlattensRepresentableMembers|ResultImportedInterfaceCarrierFlattensRepresentableMembers|ResultUnionCarrierFlattensRepresentableMembers|ImportedNestedResultInterfaceUnionFlattensRepresentableMembers|ResultUnionStringLiteralStaysNative|NullableUnionStringLiteralStaysNative|UnionIntegerLiteralRetargetsUniqueInnerCarrier|ResultUnionStructLiteralStaysNative)|Imported(GenericResultAliasWithShadowedInterfaceStaysNative|ResultAliasWithShadowedInterfaceStaysNative|SemanticResultAliasWithShadowedInterfaceStaysNative))$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported.*ShadowedInterface.*|Nested.*|Result.*|Join.*|OrElseOnErrorUnion.*|MatchOnErrorUnion.*|IfJoinRecoversTypeExprBackedInterfaceCarrier|RescueIdentifierJoinRecoversPropagatedImportedShadowedInterfaceCarrier|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|ParameterizedStructUnionMembersUseConcreteStructHelpers)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals where failure inference is genuinely incomplete.
+
+# 2026-04-11 — Compiler nested representable union/result carrier flattening slice complete (v12)
+- Closed the next union/result/interface carrier cleanup slice by flattening
+  representable nested union/result members during native carrier synthesis.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_nested_union_member_native_test.go`
+- What this fixed:
+  - outer unions such as `(!T) | U` and `(A | B) | U` now lower to one native
+    union family instead of nesting one native union carrier inside another
+  - imported shadowed-interface result members now flatten through that same
+    path, so `Outcome(RemoteReader i32) | bool` stays on one native outer
+    carrier while preserving direct native interface dispatch
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Nested(ResultUnionCarrierFlattensRepresentableMembers|ImportedNestedResultInterfaceUnionFlattensRepresentableMembers|ResultUnionStringLiteralStaysNative|NullableUnionStringLiteralStaysNative|UnionIntegerLiteralRetargetsUniqueInnerCarrier|ResultUnionStructLiteralStaysNative)|Imported(GenericResultAliasWithShadowedInterfaceStaysNative|ResultAliasWithShadowedInterfaceStaysNative|SemanticResultAliasWithShadowedInterfaceStaysNative))$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported.*ShadowedInterface.*|Nested.*|Result.*|OrElseOnErrorUnion.*|MatchOnErrorUnion.*|IfJoinRecoversTypeExprBackedInterfaceCarrier|RescueIdentifierJoinRecoversPropagatedImportedShadowedInterfaceCarrier|InlineClosedUnionParamAndMatchStayNative|NamedClosedUnionReturnWrapsNativeVariants|ParameterizedStructUnionMembersUseConcreteStructHelpers)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals where failure inference is genuinely incomplete.
+
+# 2026-04-02 — Compiler imported selector-alias typed-pattern normalization slice complete (v12)
+- Closed the next union/result/interface carrier cleanup slice by fixing raw
+  imported selector-alias typed-pattern normalization for generic
+  `Result` / semantic-result carriers under local shadowing.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_compileability.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_interface_native_test.go`
+- What this fixed:
+  - raw typed patterns like `case reader: RemoteReader i32 => ...` now
+    normalize in the lexical caller package before previously recorded foreign
+    package context is reused, so imported selector aliases still expand
+    through the caller's `RemoteReader -> remote.Reader` import binding
+  - generic `Result` / semantic-result carriers such as
+    `Outcome(RemoteReader i32)` now resolve those typed patterns back onto the
+    native imported interface carrier instead of degrading to `runtime.Value`
+    with `typed pattern type mismatch`
+- Verification:
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedGeneric(ResultAliasWithShadowedInterfaceResolvesNativePatternTarget|ResultAliasWithShadowedInterfaceClausesCompileNatively|UnionAliasWithShadowedInterfaceResolvesNativePatternTarget|UnionAliasWithShadowedInterfaceClausesCompileNatively|UnionAliasWithShadowedInterfaceStaysNative|ResultAliasWithShadowedInterfaceStaysNative)$' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImported.*ShadowedInterface.*' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported.*ShadowedInterface.*|RescueIdentifierJoinRecoversPropagatedImportedShadowedInterfaceCarrier|ImportedShadowedInterface(GenericBindingPreservesSourcePackage|DuplicateGenericUnionCollapsesToNativeCarrier)|ImportedSemantic(Result|Option)AliasWithShadowedInterfaceStaysNative)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals where failure inference is genuinely incomplete.
+
+# 2026-04-01 — Compiler nested native-union member narrowing slice complete (v12)
+- Closed the next union/result/interface carrier cleanup slice by fixing
+  spec-aligned narrowing and wrapping for representable outer unions built
+  from native nullable/result members.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_nested.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match_runtime_types.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_nested_union_member_native_test.go`
+- What this fixed:
+  - nested native nullable/result members now accept direct inner literals and
+    struct literals under outer unions too, so representable cases such as
+    `?String | bool` and `!Box | bool` stay on native outer carriers instead
+    of falling back with literal type mismatches
+  - native-union match narrowing now only removes a member when the pattern
+    exhausts that whole v12 member type; `case text: String` no longer
+    incorrectly narrows `?String | bool` to `bool` and strand a later
+    `case nil`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerNested(ResultUnionStringLiteralStaysNative|NullableUnionStringLiteralStaysNative|UnionIntegerLiteralRetargetsUniqueInnerCarrier|ResultUnionStructLiteralStaysNative)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Nested(ResultUnionStringLiteralStaysNative|NullableUnionStringLiteralStaysNative|UnionIntegerLiteralRetargetsUniqueInnerCarrier|ResultUnionStructLiteralStaysNative)|NullableTypedMatchOnNativeResultUnionCoversNonNilAndNilBranches|NullableTypedMatchOnNativeInterfaceUnionCoversNonNilAndNilBranches)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Current state:
+  - this closes the nested native-union member literal/typed-match ordering
+    sub-gap inside the broader union/result/interface carrier program
+  - top-level release gates were not rerun in this slice
+
+# 2026-04-01 — Compiler nominal-interface join and imported specialization package-context slice complete (v12)
+- Closed the next real union/result/interface carrier slice after the earlier
+  audit tranche exposed two remaining spec bugs.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_type_substitute.go`
+  - `v12/interpreters/go/pkg/compiler/generator_static_arrays.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_interface_nominal_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_interface_native_test.go`
+- What this fixed:
+  - join carrier selection now treats interfaces nominally, so unrelated
+    same-shape joins such as `Reader<i32> | Source<i32>` stay on a native
+    union instead of collapsing onto one interface carrier
+  - imported selector source-package context now survives non-alias selector
+    expansion and no-op type substitution, so specialized helpers keep the
+    foreign native interface carrier instead of rebinding imported shadowed
+    interfaces into the local package during materialization
+  - fully bound duplicate generic unions over imported shadowed interfaces
+    now really collapse to the single foreign native interface carrier in
+    generated code, rather than only in the earlier audit-level binding view
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedShadowedInterfaceGenericBindingPreservesSourcePackage$' -count=1 -timeout 120s -v`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedShadowedInterfaceDuplicateGenericUnionCollapsesToNativeCarrier$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(UnrelatedSameShapeInterfaceJoinStaysNominalUnion|IfJoinRecoversTypeExprBackedInterfaceCarrier|RescueIdentifierJoinRecoversPropagatedImportedShadowedInterfaceCarrier|Imported(NullableAliasWithShadowedInterfaceStaysNative|UnionAliasWithShadowedInterfaceStaysNative|ResultAliasWithShadowedInterfaceStaysNative|Semantic(Result|Option)AliasWithShadowedInterfaceStaysNative)|ImportedShadowedInterface(GenericReturnStaysNative|DuplicateGenericUnionCollapsesToNativeCarrier|GenericBindingPreservesSourcePackage)|SpecializedGeneric(InterfaceReturnStaysNative|UnionInterfaceMemberStaysNative))$' -count=1 -timeout 120s`
+  - pending broader compiler-native cleanup still lives in the residual
+    union/result/interface carrier backlog; top-level release gates were not
+    rerun in this slice
+
+# 2026-04-01 — Compiler generic interface specialization audit slice complete (v12)
+- Closed the next proof tranche around native interface carrier specialization.
+- Landed the coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_generic_function_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_interface_native_test.go`
+- What this pinned:
+  - local generic specialization on interface actuals already keeps the
+    specialized helper signature and local bindings on the native interface
+    carrier instead of widening through `runtime.Value` / `any`
+  - imported shadowed interface actuals already preserve foreign package
+    provenance through specialization too
+  - fully bound duplicate generic unions like `T | RemoteReader<i32>` at
+    `T = RemoteReader<i32>` already collapse to the native imported interface
+    carrier instead of materializing a synthetic union wrapper
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerSpecializedGeneric(InterfaceReturnStaysNative|UnionInterfaceMemberStaysNative)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedShadowedInterface(GenericReturnStaysNative|DuplicateGenericUnionCollapsesToNativeCarrier)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(SpecializedGeneric(InterfaceReturnStaysNative|UnionInterfaceMemberStaysNative)|ImportedShadowedInterface(GenericReturnStaysNative|DuplicateGenericUnionCollapsesToNativeCarrier)|Imported(NullableAliasWithShadowedInterfaceStaysNative|UnionAliasWithShadowedInterfaceStaysNative|ResultAliasWithShadowedInterfaceStaysNative|Semantic(Result|Option)AliasWithShadowedInterfaceStaysNative))$' -count=1 -timeout 120s`
+  - `git diff --check`
+
+# 2026-04-01 — Compiler shadowed-callable placeholder carrier slice complete (v12)
+- Closed the next union/result callable-carrier slice for imported shadowed
+  callable aliases by covering placeholder lambdas on semantic `Result`
+  carriers too.
+- Landed the closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_placeholders.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_callable_alias_native_test.go`
+- What this closed:
+  - placeholder lambdas now narrow through the expected callable member inside
+    native union/result carriers instead of rejecting the whole expected
+    carrier with `placeholder lambda type mismatch`
+  - semantic `Result` carrier synthesis now preserves the callable member's
+    resolved package context, so imported `Result (i32 -> RemoteThing)`-style
+    aliases keep the foreign callable return type even when the caller
+    shadows `Thing` locally
+  - imported semantic `Result` aliases and direct callable-union aliases now
+    keep native callable carriers across construction and later typed matches
+    instead of widening or falling back
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImported(UnionAliasWithShadowedCallablePlaceholderStaysNative|SemanticResultAliasWithShadowedCallablePlaceholderStaysNative)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported(SemanticOptionAliasWithShadowedCallableStaysNative|UnionAliasWithShadowedCallableStaysNative|SemanticResultAliasWithShadowedCallableStaysNative|UnionAliasWithShadowedCallablePlaceholderStaysNative|SemanticResultAliasWithShadowedCallablePlaceholderStaysNative)|ShadowedCallable(TypedPatternBindingRecordsLocal|TypedPatternBodyCompilesWithRecordedBinding|JoinAssignmentKeepsNativeUnionCarrier|JoinMatchExpressionCompilesNatively)|Specialized(GenericUnionReturnStaysNative|Duplicate(UnionReturnCollapsesToNativeCarrier|ResultReturnCollapsesToNativeErrorCarrier)))$' -count=1 -timeout 120s`
+  - `git diff --check`
+
+# 2026-04-01 — Compiler shadowed-callable alias carrier slice complete (v12)
+- Closed the next union/result callable-carrier synthesis slice for imported
+  semantic aliases and direct union aliases built from shadowed callable
+  returns.
+- Landed the closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_exprs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_callable_alias_native_test.go`
+- What this closed:
+  - lambda literals now narrow through the expected callable member inside a
+    native union/result carrier instead of rejecting the whole expected union
+    with `lambda expression type mismatch`
+  - imported semantic `Option (() -> RemoteThing)` /
+    `Result (() -> RemoteThing)` aliases and direct `(() -> RemoteThing) |
+    String` aliases now keep native callable carriers even when the caller
+    shadows `Thing` locally
+  - the resulting nullable/union/result locals, matches, and rescue handlers
+    stay on direct callable carriers instead of widening through
+    `runtime.Value`, `any`, or dynamic call/member fallback
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImported(SemanticOptionAliasWithShadowedCallableStaysNative|UnionAliasWithShadowedCallableStaysNative|SemanticResultAliasWithShadowedCallableStaysNative)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported(SemanticOptionAliasWithShadowedCallableStaysNative|UnionAliasWithShadowedCallableStaysNative|SemanticResultAliasWithShadowedCallableStaysNative|ImportedSemantic(Option|Result)AliasWithShadowedInterfaceStaysNative)|ShadowedCallable(TypedPatternBindingRecordsLocal|TypedPatternBodyCompilesWithRecordedBinding|JoinAssignmentKeepsNativeUnionCarrier|JoinMatchExpressionCompilesNatively)|Specialized(GenericUnionReturnStaysNative|Duplicate(UnionReturnCollapsesToNativeCarrier|ResultReturnCollapsesToNativeErrorCarrier)))$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining compiler-native queue stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals that only widen when the failure surface is not
+  recoverably inferred.
+
+# 2026-04-01 — Compiler duplicate union/result specialization slice complete (v12)
+- Closed the next carrier-synthesis slice for fully bound duplicate
+  union/result members produced by alias substitution and generic
+  specialization.
+- Landed the closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_generic_function_native_test.go`
+- What this closed:
+  - duplicate normalized union members now collapse before native-union
+    synthesis, so a fully bound specialization like `T | String` at
+    `T = String` maps directly to `string` instead of getting stuck on a
+    synthetic `runtime.Value | String` carrier
+  - the duplicate-result case now collapses too, so `!T` at `T = Error`
+    maps directly to `runtime.ErrorValue` instead of carrying a redundant
+    result union shape through specialization
+  - generic specialization now keeps native specialized helper signatures and
+    locals for those collapsed shapes instead of dropping back to the
+    unspecialized generic helper
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerSpecializedDuplicate(UnionReturnCollapsesToNativeCarrier|ResultReturnCollapsesToNativeErrorCarrier)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(InferredGeneric(FunctionCallStaysNative|NominalReturnStaysNative)|GenericAliasFunctionCallsStayNative|SpecializedGenericUnionReturnStaysNative|SpecializedDuplicate(UnionReturnCollapsesToNativeCarrier|ResultReturnCollapsesToNativeErrorCarrier)|GenericUnionAliasesStayNative|Parameterized(ResultAliasLocalStaysNative|UnionAliasLocalStaysNative))$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining compiler-native queue stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals that only widen when the failure surface is not
+  recoverably inferred.
+
+# 2026-04-01 — Compiler carrier audit tranche expanded (v12)
+- Added focused coverage around remaining compiler-native carrier-synthesis and
+  recovery proofs without needing further generator changes.
+- Landed the coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_interface_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_recovery_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_generic_function_native_test.go`
+- What this pinned:
+  - imported shadowed-interface semantic aliases built from `Option (Reader T)`
+    and `Result (Reader T)` stay on native interface carriers too, not just
+    the direct `?(Reader T)` / `!(Reader T)` shorthand aliases
+  - propagated rescue identifier recovery on imported shadowed interface
+    carriers stays native through the subsequent `if` join and direct method
+    dispatch
+  - concrete generic specializations whose generic source body forms a mixed
+    union return now still synthesize native union carriers instead of
+    widening the specialized helper back to `runtime.Value`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedSemantic(Option|Result)AliasWithShadowedInterfaceStaysNative$|TestCompilerRescueIdentifierJoinRecoversPropagatedImportedShadowedInterfaceCarrier$|TestCompilerSpecializedGenericUnionReturnStaysNative$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported(Nullable|Union|Result|Semantic(Option|Result))AliasWithShadowedInterfaceStaysNative|ImportedUnionAliasWithShadowedInterfaceResolvesNativePatternTarget|RescueIdentifierJoinRecoversPropagatedImportedShadowedInterfaceCarrier|SpecializedGenericUnionReturnStaysNative|InferredGeneric(FunctionCallStaysNative|NominalReturnStaysNative)|GenericAliasFunctionCallsStayNative)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- No generator/runtime code changes were required in this tranche; the current
+  compiler already satisfied these stronger invariants once they were pinned by
+  direct tests.
+
+# 2026-04-01 — Compiler static nullable typed-match nil-guard slice complete (v12)
+- Closed the next compiler-native nullable typed-match slice for nil-capable
+  static carriers.
+- Landed the closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_typed_pattern_nil_guards.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match_runtime_types.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_nullable_native_test.go`
+- What this closed:
+  - static typed-pattern conditions now share one nil-capable carrier guard,
+    so nil-capable native interface/callable/union carriers no longer treat
+    a non-nullable typed branch as unconditionally true
+  - native-union whole-carrier typed patterns now reuse that same non-nil
+    guard instead of bypassing it when the pattern resolves to the whole
+    representable union/result carrier rather than a single member
+  - native-union literal `case nil` checks now lower directly on nil-capable
+    carriers, so nullable result-family matches no longer compile the nil arm
+    to a dead `false` condition once the typed branch stops shadowing it
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerNullable(Interface|Result)TypedMatch(RequiresNonNil|Executes)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(GenericUnionAliasesStayNative|InterfaceBranchUnionStaysOnNativeCarrier|NullableStructTypedMatch(RequiresNonNil|Executes)|Nullable(Interface|Result)TypedMatch(RequiresNonNil|Executes))$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining compiler-native queue stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals that only widen when the failure surface is not
+  recoverably inferred.
+
+# 2026-04-01 — Compiler imported shadowed-interface alias carrier slice complete (v12)
+- Closed the next compiler-native imported-alias slice for generic interface
+  selector aliases shadowed by same-name local interfaces in the caller.
+- Landed the closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_interface_lookup.go`
+  - `v12/interpreters/go/pkg/compiler/generator_impls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_receiver_coercions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_shapes.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_defaults.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_key.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_prune.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_helpers.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_nominal_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_compile_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_controlflow.go`
+  - `v12/interpreters/go/pkg/compiler/generator_interface_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/generator_export_defs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_types.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_interface_native_test.go`
+- What this closed:
+  - imported selector aliases like `RemoteReader<T>` now resolve through the
+    shared type-normalization path even when they point at generic interface
+    definitions rather than declared type aliases
+  - package-aware interface lookup is now used through impl/default/specialized
+    interface helper paths instead of collapsing shadowed foreign interfaces on
+    bare unqualified names
+  - imported nullable / union / result aliases built from foreign interface
+    members now stay on native interface carriers and direct native dispatch
+    even when the caller shadows the same interface name locally
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImported(Nullable|Union|Result)AliasWithShadowedInterfaceStaysNative$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported(Nullable|Union|Result)AliasWithShadowed(Nominal|Interface)StaysNative|ImportedUnionAliasWithShadowedInterfaceResolvesNativePatternTarget|ImportedAndLocalShadowedNominalJoinStaysNative|ShadowedCallable(TypedPatternBindingRecordsLocal|TypedPatternBodyCompilesWithRecordedBinding|JoinAssignmentKeepsNativeUnionCarrier|JoinMatchExpressionCompilesNatively))$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining compiler-native queue stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals that only widen when the failure surface is not
+  recoverably inferred.
+
+# 2026-04-01 — Compiler propagated-call rescue join carrier slice complete (v12)
+- Closed the next compiler-native rescue/join slice for propagated call
+  failures whose static return types were already native-encodable.
+- Landed the closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_failure_type_inference.go`
+  - `v12/interpreters/go/pkg/compiler/generator_rescue.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_join_recovery_test.go`
+- What this closed:
+  - handled-failure inference now records native carrier type expressions for
+    propagated call sites too, instead of only direct raises and explicit
+    propagation forms
+  - plain `rescue { case value => ... }` identifier bindings now recover
+    native callable and imported shadowed nominal carriers when the monitored
+    call already has a statically known native return type
+  - follow-on join locals built from those rescue identifiers now stay on
+    native callable / foreign nominal carriers instead of widening through
+    `runtime.Value`, native-error unions, or falling back on member access
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerRescueIdentifierJoinRecoversPropagated(CallableCarrier|ImportedShadowedNominalCarrier)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerRescue(TypedPattern|IdentifierJoinRecoversPropagated)' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler.*(Join|Rescue)' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler.*(Pattern|Join|Result|Rescue|OrElse)' -count=1 -timeout 120s`
+- Remaining compiler-native queue stays on the broader residual
+  union/result/interface carrier cleanup, then the still-conservative
+  rescue/or-else/join locals that only widen when the failure surface is not
+  recoverably inferred.
+
+# 2026-04-01 — Compiler shadowed-callable join carrier slice complete (v12)
+- Closed the next compiler-native callable/join slice for mixed imported/local
+  shadowed nominal returns flowing through callable branches.
+- Landed the closure in:
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_callables.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_bound_method_values.go`
+  - `v12/interpreters/go/pkg/compiler/generator_exprs_lambda_cast_range.go`
+  - `v12/interpreters/go/pkg/compiler/generator_placeholders.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_callable_native_test.go`
+- What this closed:
+  - native callable carrier metadata now preserves source-package context the
+    same way native structs/interfaces/unions already did
+  - join synthesis no longer treats unrelated native callable carriers as
+    freely interchangeable just because both are callable
+  - mixed imported/local shadowed callable branches now infer a native callable
+    union instead of collapsing to one side or widening through
+    `fn(...) -> runtime.Value`
+  - typed-pattern binding and direct invocation on those callable-union members
+    now stay fully native under no-fallback compilation
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedAndLocalShadowedNominalCallableJoinStaysNative$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerShadowedCallableTypedPattern(BindingRecordsLocal|BodyCompilesWithRecordedBinding)$|TestCompilerShadowedCallableJoin(AssignmentKeepsNativeUnionCarrier|MatchExpressionCompilesNatively)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImported.*ShadowedNominal.*' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler.*(Join|Pattern|Callable)' -count=1 -timeout 120s`
+- Remaining compiler-native queue stays on the broader residual
+  union/result/interface carrier cleanup beyond the imported/source-package and
+  shadowed-join slices, then mono-array transition cleanup.
+
+# 2026-04-01 — Compiler mixed shadowed-nominal join carrier slice complete (v12)
+- Closed the next compiler-native union/join slice for mixed imported/local
+  same-named nominals that were still collapsing onto one member during native
+  join-carrier synthesis.
+- Landed the package-aware type-expression identity key changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_cache.go`
+  - `v12/interpreters/go/pkg/compiler/generator_join_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+- What this closed:
+  - mixed imported/local shadowed nominals no longer dedupe on unqualified
+    type-expression strings during native join-carrier synthesis
+  - `if` joins like `remote.Thing | local Thing` now stay on distinct native
+    union members instead of falling back with branch type mismatch
+  - the same package-aware identity key now also protects nearby native-union
+    cache, handled-failure, and direct typed-pattern equality checks from the
+    same shadowed-name collapse
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+- Verified with:
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImportedAndLocalShadowedNominalJoinStaysNative$' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler.*(Join|Pattern|Union|Result)' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImported.*ShadowedNominal.*' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the now-direct
+    imported-alias source-package recovery, imported shadowed-pattern nominal
+    rebinding, and mixed shadowed-nominal join-identity slices
+  - residual rescue/or-else/join locals where the full branch set is still
+    genuinely mixed or the failure carrier cannot yet be recoverably inferred
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler imported-pattern nominal binding cleanup slice complete (v12)
+- Closed the next compiler-native pattern/binding slice for imported shadowed
+  nominal members that were already on native nullable/union/result carriers
+  but still round-tripped through local nominal/runtime helpers after
+  typed-pattern rebinding.
+- Landed the shared source-package reconstruction changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+- What this closed:
+  - recorded type-expression source-package context is now authoritative during
+    normalization instead of being treated as post-normalization bookkeeping
+  - type-expression reconstruction from native struct/nullable/union/interface
+    Go carriers now preserves foreign package provenance
+  - imported nullable / union / result typed-pattern bindings now access
+    shadowed foreign nominal fields directly instead of round-tripping through
+    `__able_struct_*_to(...)`, `__able_struct_*_from(...)`, and
+    `__able_member_get(...)`
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+- Verified with:
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImported(Nullable|Union|Result)AliasWithShadowedNominalStaysNative$' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(DivModConcreteCarrierStaysNative|GenericStructReturnConversionUsesSpecializedHelper|ParameterizedUnionAliasLocalStaysNative|ParameterizedResultAliasLocalStaysNative|AnyToValueSupportsSpecializedArrays|Imported(Nullable|Union|Result)AliasWithShadowedNominalStaysNative)$' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the now-direct
+    imported-alias source-package recovery and imported shadowed-pattern
+    nominal rebinding slices
+  - residual rescue/or-else/join locals where the full branch set is still
+    genuinely mixed or the failure carrier cannot yet be recoverably inferred
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler imported-alias carrier-context recovery slice complete (v12)
+- Closed the next compiler-native carrier-synthesis slice for imported type
+  aliases whose expanded nominal members come from another package and are
+  shadowed locally in the caller package.
+- Landed the shared normalization/context tracking changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_types.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_typeexpr_bound.go`
+- What this closed:
+  - imported nullable / union / result aliases now retain the alias source
+    package during carrier synthesis instead of silently remapping shadowed
+    foreign nominal members onto same-named local structs
+  - those imported alias carriers now stay on native pointer/union carriers in
+    the caller package instead of widening to dead typed-pattern branches or
+    fallbacking on typed-pattern type mismatch
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+- Verified with:
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerImported(Nullable|Union|Result)AliasWithShadowedNominalStaysNative$' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler.*(Carrier|Union|Result|Nullable|TypeAlias)' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the direct imported
+    alias source-package recovery slice, including direct imported-pattern
+    nominal binding cleanup that still round-trips through runtime helpers
+  - residual rescue/or-else/join locals where the full branch set is still
+    genuinely mixed or the failure carrier cannot yet be recoverably inferred
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler propagated rescue/or-else failure-binding recovery slice complete (v12)
+- Closed the next compiler-native rescue/join binding slice for propagated
+  failures wrapped in blocks and non-tail statements.
+- Landed the shared handled-failure inference changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_failure_type_inference.go`
+  - `v12/interpreters/go/pkg/compiler/generator_rescue.go`
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+- What this closed:
+  - block-wrapped and non-tail propagated `rescue { case err => ... }`
+    bindings now recover the native failure carrier instead of defaulting the
+    clause local to `runtime.Value`
+  - rescue-clause local joins fed by those propagated bindings now keep the
+    native error carrier instead of widening through `runtime.Value`
+  - block-wrapped and non-tail propagated `or { err => ... }` handlers now
+    recover the native error carrier too
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_join_recovery_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_result_test.go`
+- Verified with:
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(RescueIdentifierJoinRecovers(Propagated|NonTailPropagated)ErrorCarrier|ResultPropagation(BlockErrorBindingStaysNativeErrorCarrier|ErrorBindingStaysNativeErrorCarrier))$' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler.*(Pattern|Join|Result|Rescue|OrElse)' -count=1 -timeout 120s`
+  - `git diff --check`
+- Full compiler gate status:
+  - attempted `./run_all_tests.sh --compiler`, but the current dirty tree still
+    fails on `TestCompilerNoBootstrapStaticFixturesStayBoundaryClean/06_12_02_stdlib_array_helpers`
+    and `TestCompilerExecFixtures/06_12_02_stdlib_array_helpers` with
+    `runtime: v12/fixtures/exec/06_12_02_stdlib_array_helpers/main.able:31:3 Non-exhaustive match`
+    on `arr.set(99, 10) match { ... }`, outside the files touched in this
+    propagated rescue/or-else slice
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the now-direct
+    typed-pattern, direct `or {}` failure-binding, and propagated
+    rescue-or-else failure-binding slices
+  - residual rescue/or-else/join locals where the full branch set is still
+    genuinely mixed or the failure carrier cannot yet be recoverably inferred
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler native `or {}` error-binding slice complete (v12)
+- Closed the next compiler-native control-flow binding slice for
+  statically-known `or { err => ... }` failure carriers.
+- Landed the shared binding changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_or_else.go`
+- What this closed:
+  - propagated `!T` `or { err => ... }` handlers now bind `err` on the native
+    error carrier instead of defaulting the handler local to `runtime.Value`
+  - native error-union `or { err => ... }` handlers now keep the binding on a
+    native failure carrier instead of widening back through `runtime.Value`
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_result_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_union_test.go`
+- Verified with:
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(ResultPropagation(ErrorBindingStaysNativeErrorCarrier|UsesNativeCarrier)|OrElseOnErrorUnion(BindingStaysNativeCarrier|UsesNativeCarrierDetection))$' -count=1 -timeout 120s`
+  - `GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler.*(Result|Union|Join)' -count=1 -timeout 120s`
+  - `git diff --check`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the direct
+    typed-pattern and `or {}` failure-binding slices
+  - remaining rescue/join locals that still widen through `runtime.Value`
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler dynamic typed-pattern nullable slice complete (v12)
+- Closed the next compiler-native carrier slice for representable dynamic
+  typed-pattern bindings on native nullable scalar/error carriers.
+- Landed the shared narrowing changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+- What this closed:
+  - recoverable dynamic rescue/match typed-pattern casts for native nullable
+    scalar/error carriers now skip `__able_try_cast(...)` and narrow through
+    the shared native nullable helpers instead
+  - rescue typed-pattern bindings and condition-only checks on those nullable
+    carriers now stay on the native pointer carrier instead of widening back
+    through `runtime.Value`
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_pattern_binding_native_test.go`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the direct
+    native-nullable / native-scalar / native-struct / native-union /
+    native-interface / native-callable / `Error` typed-pattern slice
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler dynamic typed-pattern union slice complete (v12)
+- Closed the next compiler-native carrier slice for representable dynamic
+  typed-pattern bindings on native union/result carriers.
+- Landed the shared narrowing changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_unions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+- What this closed:
+  - generated native union/result families now emit shared
+    `*_try_from_value(...)` matcher helpers for non-raising dynamic
+    typed-pattern narrowing
+  - recoverable dynamic rescue/match typed-pattern casts for native
+    union/result carriers now skip `__able_try_cast(...)` and narrow through
+    those shared union matcher helpers instead
+  - rescue whole-value typed-pattern bindings and condition-only checks on
+    those union/result carriers now stay on the native carrier instead of
+    widening back through `runtime.Value`
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_pattern_binding_native_test.go`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the direct
+    native-scalar / native-struct / native-union / native-interface /
+    native-callable / `Error` typed-pattern slice
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler dynamic typed-pattern struct slice complete (v12)
+- Closed the next compiler-native carrier slice for representable dynamic
+  typed-pattern bindings on native nominal struct carriers.
+- Landed the shared narrowing changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments_patterns.go`
+- What this closed:
+  - generated native struct families now emit shared
+    `__able_struct_*_try_from(...)` matcher helpers for non-raising dynamic
+    typed-pattern narrowing
+  - recoverable dynamic rescue/match typed-pattern casts for native nominal
+    struct carriers now skip `__able_try_cast(...)` and narrow through those
+    shared struct matcher helpers instead
+  - rescue typed-pattern bindings and condition-only singleton checks now stay
+    on native struct carriers instead of widening back through `runtime.Value`
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_pattern_binding_native_test.go`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the direct
+    native-scalar / native-struct / native-interface / native-callable /
+    `Error` typed-pattern slice
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler dynamic typed-pattern scalar slice complete (v12)
+- Closed the next compiler-native carrier slice for representable dynamic
+  typed-pattern bindings on native scalar carriers.
+- Landed the shared narrowing changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+- What this closed:
+  - recoverable dynamic rescue/match typed-pattern casts for the native scalar
+    family now skip `__able_try_cast(...)` and use shared runtime scalar type
+    checks plus native carrier conversion instead
+  - rescue typed-pattern bindings and condition-only scalar checks now stay on
+    native scalar carriers instead of widening back through `runtime.Value`
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_pattern_binding_native_test.go`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the direct
+    native-scalar / native-interface / native-callable / `Error`
+    typed-pattern slice
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler dynamic typed-pattern callable slice complete (v12)
+- Closed the next compiler-native carrier slice for representable dynamic
+  typed-pattern bindings on native callable/function-type carriers.
+- Landed the shared narrowing changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_callables.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_callables.go`
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+- What this closed:
+  - generated native callable families now emit shared
+    `*_try_from_runtime_value(...)` matcher helpers for non-raising dynamic
+    typed-pattern narrowing
+  - recoverable dynamic rescue/match typed-pattern casts for native callable
+    carriers now skip `__able_try_cast(...)` and narrow through those shared
+    callable matcher helpers instead
+  - rescue typed-pattern bindings and condition-only callable checks now stay
+    on native callable carriers instead of widening back through
+    `runtime.Value`
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_pattern_binding_native_test.go`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the direct
+    native-interface / native-callable / `Error` typed-pattern slice
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler dynamic typed-pattern interface/error slice complete (v12)
+- Closed the next compiler-native carrier slice for representable dynamic
+  typed-pattern bindings on native interface and `Error` carriers.
+- Landed the shared narrowing changes in:
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_union_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go`
+- What this closed:
+  - recoverable dynamic typed-pattern casts for native interface carriers now
+    use generated `*_try_from_value(...)` matcher helpers instead of
+    `__able_try_cast(...)`
+  - recoverable dynamic typed-pattern casts for `runtime.ErrorValue` now use
+    direct `__able_is_error(...)` detection plus native error conversion
+    instead of `__able_try_cast(...)`
+  - rescue bindings on those representable interface/error shapes now stay on
+    native carriers without the generic runtime cast path in compiled bodies
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_pattern_binding_native_test.go`
+- Verification passed:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerRescueTypedPatternBindingStaysNative(Interface|Error)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(RescueTypedPatternBindingStaysNative(Interface|Error)|NativeUnionTypedPatternWholeValueBindingUsesNativeInterfaceCarrier|InterfaceParamAndReturnStayNative|TypedInterfaceAssignmentStaysNative|GenericInterfaceReturnFromStructLiteralStaysNative|UnionTargetInterfaceAssignmentStaysNative)$' -count=1 -timeout 120s`
+- Remaining active compiler-native work in this queue:
+  - broader union/result/interface carrier cleanup beyond the direct
+    native-interface / `Error` typed-pattern slice
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
+# 2026-04-01 — Compiler array-native tranche complete (v12)
+- Closed the array-native lowering tranche in `PLAN.md`,
+  `spec/TODO_v12.md`, `v12/design/compiler-go-lowering-plan.md`, and
+  `v12/design/compiler-native-lowering.md`.
+- Landed the closing shared boundary/helper cleanup in:
+  - `v12/interpreters/go/pkg/compiler/generator_array_carrier_coercions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_mono_arrays.go`
+- What this closed:
+  - generic `*Array` boundary entry conversions now stay direct for both raw
+    runtime arrays and explicit `Array` struct instances instead of routing
+    back through `__able_struct_Array_from(...)`
+  - generic `Array_from` and mono-array `*_from` helpers now share one
+    explicit struct-instance reader instead of duplicating fallback plumbing
+  - remaining `runtime.ArrayValue` / `ArrayStore*` use is now limited to
+    explicit dynamic or ABI edges plus the unspecialized wildcard-array ABI
+- Added/updated focused regressions in:
+  - `v12/interpreters/go/pkg/compiler/compiler_array_value_boundary_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_boundary_helper_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go`
+- Verification passed:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler.*Array' -count=1 -timeout 120s`
+  - `./run_all_tests.sh --compiler`
+  - `./run_stdlib_tests.sh`
+  - `git diff --check`
+- Next active compiler-native work:
+  - union/result/interface carrier cleanup
+  - mono-array transition/runtime-store cleanup
+  - alias/constraint revalidation policy closure
+
 # 2026-03-30 — Compiler Milestone 8 complete: release validation (v12)
 - Closed the compiler completion program in `PLAN.md`.
 - The milestone-closing fixes were shared semantic/compiler correctness fixes,

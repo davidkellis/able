@@ -579,6 +579,159 @@ fn main() {
 	compileAndRunSource(t, "ablec-nullable-struct-match-", source)
 }
 
+func TestCompilerNullableInterfaceTypedMatchRequiresNonNil(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"interface Reader <T> for Self {",
+		"  fn read(self: Self) -> T",
+		"}",
+		"",
+		"struct First {}",
+		"",
+		"impl Reader i32 for First {",
+		"  fn read(self: Self) -> i32 { 1 }",
+		"}",
+		"",
+		"fn maybe(flag: bool) -> ?(Reader i32) {",
+		"  if flag { First {} } else { nil }",
+		"}",
+		"",
+		"fn describe(flag: bool) -> i32 {",
+		"  maybe(flag) match {",
+		"    case reader: Reader i32 => reader.read(),",
+		"    case nil => 0",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_describe")
+	if !ok {
+		t.Fatalf("could not find compiled describe function")
+	}
+	if !strings.Contains(body, "!= nil") {
+		t.Fatalf("expected nullable interface typed match to guard against nil before narrowing:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"&& true {",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected nullable interface typed match to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerNullableInterfaceTypedMatchExecutes(t *testing.T) {
+	source := `extern go fn __able_os_exit(code: i32) -> void {}
+
+interface Reader <T> for Self {
+  fn read(self: Self) -> T
+}
+
+struct First {}
+
+impl Reader i32 for First {
+  fn read(self: Self) -> i32 { 1 }
+}
+
+fn maybe(flag: bool) -> ?(Reader i32) {
+  if flag { First {} } else { nil }
+}
+
+fn describe(flag: bool) -> i32 {
+  maybe(flag) match {
+    case reader: Reader i32 => reader.read(),
+    case nil => 0
+  }
+}
+
+fn main() {
+  if describe(true) == 1 && describe(false) == 0 {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`
+	compileAndRunSource(t, "ablec-nullable-interface-match-", source)
+}
+
+func TestCompilerNullableResultTypedMatchRequiresNonNil(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"impl Error for MyError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn maybe(flag: bool) -> ?(!String) {",
+		"  if flag { \"ok\" } else { nil }",
+		"}",
+		"",
+		"fn describe(flag: bool) -> String {",
+		"  maybe(flag) match {",
+		"    case text: !String => text! or { err => err.message() },",
+		"    case nil => \"none\"",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_describe")
+	if !ok {
+		t.Fatalf("could not find compiled describe function")
+	}
+	if !strings.Contains(body, "!= nil") {
+		t.Fatalf("expected nullable result typed match to guard against nil before narrowing:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"&& true {",
+		"&& false {",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected nullable result typed match to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerNullableResultTypedMatchExecutes(t *testing.T) {
+	source := `extern go fn __able_os_exit(code: i32) -> void {}
+
+struct MyError { message: String }
+
+impl Error for MyError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn maybe(flag: bool) -> ?(!String) {
+  if flag { "ok" } else { nil }
+}
+
+fn describe(flag: bool) -> String {
+  maybe(flag) match {
+    case text: !String => text! or { err => err.message() },
+    case nil => "none"
+  }
+}
+
+fn main() {
+  if describe(true) == "ok" && describe(false) == "none" {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`
+	compileAndRunSource(t, "ablec-nullable-result-match-", source)
+}
+
 func TestCompilerTypedMatchOnNullableArrayUnionExecutes(t *testing.T) {
 	source := `extern go fn __able_os_exit(code: i32) -> void {}
 

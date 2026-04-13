@@ -113,12 +113,10 @@ func (g *generator) sortedInterfaceDefsForPackage(pkgName string) []*ast.Interfa
 	if g == nil || strings.TrimSpace(pkgName) == "" {
 		return nil
 	}
-	names := make([]string, 0, len(g.interfaces))
-	for name, def := range g.interfaces {
+	defs := g.interfacesByPackage[pkgName]
+	names := make([]string, 0, len(defs))
+	for name, def := range defs {
 		if def == nil || def.ID == nil || strings.TrimSpace(def.ID.Name) == "" {
-			continue
-		}
-		if g.interfacePackages[name] != pkgName {
 			continue
 		}
 		names = append(names, name)
@@ -129,7 +127,7 @@ func (g *generator) sortedInterfaceDefsForPackage(pkgName string) []*ast.Interfa
 	sort.Strings(names)
 	out := make([]*ast.InterfaceDefinition, 0, len(names))
 	for _, name := range names {
-		if def := g.interfaces[name]; def != nil {
+		if def := defs[name]; def != nil {
 			out = append(out, def)
 		}
 	}

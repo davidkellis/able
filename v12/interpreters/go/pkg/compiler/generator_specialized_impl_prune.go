@@ -73,7 +73,7 @@ func (g *generator) redundantImplSpecializationKey(info *functionInfo) (*implMet
 		normalizeTypeExprString(g, baseInfo.Package, concreteTarget),
 	}
 	genericNames := g.implSpecializationGenericNames(method)
-	if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 		for name := range g.interfaceSelfBindingNames(iface) {
 			delete(genericNames, name)
 		}

@@ -130,7 +130,7 @@ func (g *generator) nativeInterfaceGenericDefaultMethodBindings(method *nativeIn
 		return cloneTypeBindings(bindings)
 	}
 	merged := cloneTypeBindings(bindings)
-	iface := g.interfaces[method.InterfaceName]
+	iface, _, _ := g.interfaceDefinitionForPackage(method.InterfacePackage, method.InterfaceName)
 	for name, expr := range nativeInterfaceBindings(iface, method.InterfaceArgs) {
 		if expr == nil {
 			continue

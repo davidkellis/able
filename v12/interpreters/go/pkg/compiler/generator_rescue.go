@@ -6,6 +6,10 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+func (g *generator) inferRescueSubjectTypeExpr(ctx *compileContext, monitored ast.Expression) ast.TypeExpression {
+	return g.inferHandledFailureTypeExpr(ctx, monitored)
+}
+
 func (g *generator) compileRaiseStatement(ctx *compileContext, stmt *ast.RaiseStatement) ([]string, bool) {
 	if stmt == nil || stmt.Expression == nil {
 		ctx.setReason("missing raise expression")
@@ -72,6 +76,7 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 		return nil, "", "", false
 	}
 	monitoredTypeExpr, _ := g.inferExpressionTypeExpr(monitoredCtx, expr.MonitoredExpression, monitoredType)
+	rescueSubjectTypeExpr := g.inferRescueSubjectTypeExpr(ctx, expr.MonitoredExpression)
 
 	clauses := make([]rescueClause, 0, len(expr.Clauses))
 	clauseTypes := make([]string, 0, len(expr.Clauses))
@@ -82,6 +87,9 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 		clauseCtx := ctx.child()
 		clauseCtx.rethrowVar = subjectTemp
 		clauseCtx.rethrowControlVar = controlTemp
+		if rescueSubjectTypeExpr != nil {
+			clauseCtx.expectedTypeExpr = rescueSubjectTypeExpr
+		}
 		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, subjectTemp, "runtime.Value")
 		if !ok {
 			return nil, "", "", false

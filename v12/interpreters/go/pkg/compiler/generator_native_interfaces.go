@@ -42,12 +42,14 @@ type nativeInterfaceAdapterMethod struct {
 type nativeInterfaceInfo struct {
 	Key                    string
 	GoType                 string
+	PackageName            string
 	TypeExpr               ast.TypeExpression
 	TypeString             string
 	AdapterVersion         int
 	MarkerMethod           string
 	ToRuntimeMethod        string
 	FromRuntimeHelper      string
+	TryFromRuntimeHelper   string
 	FromRuntimePanic       string
 	ToRuntimeHelper        string
 	ToRuntimePanic         string
@@ -390,22 +392,7 @@ func normalizeTypeExprForPackage(g *generator, pkgName string, expr ast.TypeExpr
 	if g == nil || expr == nil {
 		return expr
 	}
-	cacheKey := normalizeTypeExprCacheKey(pkgName, expr)
-	if cacheKey != "" {
-		if cached, ok := g.normalizedTypeExprCache[cacheKey]; ok && cached != nil {
-			return cached
-		}
-	}
-	normalized := expr
-	if expanded := g.expandTypeAliasForPackage(pkgName, expr); expanded != nil {
-		normalized = expanded
-	}
-	normalized = normalizeBuiltinSemanticTypeExprInPackage(g, pkgName, normalized)
-	normalized = normalizeKernelBuiltinTypeExpr(normalized)
-	normalized = normalizeCallableSyntaxTypeExpr(normalized)
-	if cacheKey != "" && normalized != nil {
-		g.normalizedTypeExprCache[cacheKey] = normalized
-	}
+	_, normalized := g.normalizeTypeExprContextForPackage(pkgName, expr)
 	return normalized
 }
 
@@ -428,18 +415,15 @@ func interfaceExprInfo(g *generator, pkgName string, expr ast.TypeExpression) (s
 	if g == nil || expr == nil {
 		return "", "", nil, nil, false
 	}
-	expr = normalizeTypeExprForPackage(g, pkgName, expr)
+	exprPkg, normalized := g.normalizeTypeExprContextForPackage(pkgName, expr)
+	expr = normalized
 	baseName, ok := typeExprBaseName(expr)
 	if !ok || baseName == "" || !g.isInterfaceName(baseName) || baseName == "Error" {
 		return "", "", nil, nil, false
 	}
-	iface := g.interfaces[baseName]
-	if iface == nil {
+	iface, ifacePkg, ok := g.interfaceDefinitionForPackage(exprPkg, baseName)
+	if !ok || iface == nil {
 		return "", "", nil, nil, false
-	}
-	ifacePkg := pkgName
-	if recorded, ok := g.interfacePackages[baseName]; ok && recorded != "" {
-		ifacePkg = recorded
 	}
 	args := interfaceTypeArgs(expr)
 	if len(iface.GenericParams) != len(args) {
@@ -718,7 +702,7 @@ func (g *generator) nativeInterfaceConcreteImplInfoSeen(goType string, impl *imp
 	if bindings == nil {
 		bindings = make(map[string]ast.TypeExpression)
 	}
-	if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForPackage(impl.Info.Package, impl.InterfaceName); ok && iface != nil {
 		delete(bindings, "Self")
 		delete(bindings, "SelfType")
 		for name := range g.interfaceSelfBindingNames(iface) {
@@ -734,7 +718,7 @@ func (g *generator) nativeInterfaceConcreteImplInfoSeen(goType string, impl *imp
 	}
 	actualExpr = normalizeTypeExprForPackage(g, impl.Info.Package, actualExpr)
 	bindings["Self"] = actualExpr
-	if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForPackage(impl.Info.Package, impl.InterfaceName); ok && iface != nil {
 		if !g.mergeConcreteBindings(impl.Info.Package, bindings, g.interfaceSelfTypeBindings(iface, actualExpr)) {
 			return nil, nil, false
 		}
@@ -871,7 +855,7 @@ func (g *generator) ensureNativeInterfaceInfo(pkgName string, expr ast.TypeExpre
 	if !ok {
 		return nil, false
 	}
-	keyParts := []string{ifaceName}
+	keyParts := []string{ifacePkg, ifaceName}
 	if len(ifaceArgs) > 0 {
 		keyParts = append(keyParts, normalizeTypeExprListKey(g, ifacePkg, ifaceArgs))
 	}
@@ -890,20 +874,23 @@ func (g *generator) ensureNativeInterfaceInfo(pkgName string, expr ast.TypeExpre
 	if len(ifaceArgs) > 0 {
 		baseToken = sanitizeIdent(baseToken + "_" + normalizeTypeExprListKey(g, ifacePkg, ifaceArgs))
 	}
+	baseToken = g.mangler.unique(baseToken)
 	info := &nativeInterfaceInfo{
-		Key:                key,
-		GoType:             baseToken,
-		TypeExpr:           expr,
-		TypeString:         typeExpressionToString(expr),
-		MarkerMethod:       baseToken + "_marker",
-		ToRuntimeMethod:    baseToken + "_to_value",
-		FromRuntimeHelper:  baseToken + "_from_value",
-		FromRuntimePanic:   baseToken + "_from_runtime_value_or_panic",
-		ToRuntimeHelper:    baseToken + "_to_runtime_value",
-		ToRuntimePanic:     baseToken + "_to_runtime_value_or_panic",
-		ApplyRuntimeHelper: baseToken + "_apply_runtime_value",
-		RuntimeAdapter:     baseToken + "_runtime_adapter",
-		RuntimeWrapHelper:  baseToken + "_wrap_runtime",
+		Key:                  key,
+		GoType:               baseToken,
+		PackageName:          ifacePkg,
+		TypeExpr:             g.recordResolvedTypeExprPackage(expr, ifacePkg),
+		TypeString:           typeExpressionToString(expr),
+		MarkerMethod:         baseToken + "_marker",
+		ToRuntimeMethod:      baseToken + "_to_value",
+		FromRuntimeHelper:    baseToken + "_from_value",
+		TryFromRuntimeHelper: baseToken + "_try_from_value",
+		FromRuntimePanic:     baseToken + "_from_runtime_value_or_panic",
+		ToRuntimeHelper:      baseToken + "_to_runtime_value",
+		ToRuntimePanic:       baseToken + "_to_runtime_value_or_panic",
+		ApplyRuntimeHelper:   baseToken + "_apply_runtime_value",
+		RuntimeAdapter:       baseToken + "_runtime_adapter",
+		RuntimeWrapHelper:    baseToken + "_wrap_runtime",
 	}
 	if ifaceName == "Iterator" {
 		info.RuntimeIteratorAdapter = baseToken + "_runtime_iterator"
@@ -1085,7 +1072,7 @@ func (g *generator) refreshNativeInterfaceAdapterConcreteTarget(info *nativeInte
 	}
 	infoGenericNames := make(map[string]struct{})
 	if baseName, ok := typeExprBaseName(info.TypeExpr); ok {
-		if iface := g.interfaces[baseName]; iface != nil {
+		if iface, _, ok := g.interfaceDefinitionForPackage(info.PackageName, baseName); ok && iface != nil {
 			infoGenericNames = addGenericParams(infoGenericNames, iface.GenericParams)
 		}
 	}

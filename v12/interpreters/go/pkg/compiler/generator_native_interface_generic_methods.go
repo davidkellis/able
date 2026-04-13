@@ -123,7 +123,8 @@ func (g *generator) typeExprForGoType(goType string) (ast.TypeExpression, bool) 
 		if !ok {
 			return nil, false
 		}
-		return ast.NewGenericTypeExpression(ast.Ty("Array"), []ast.TypeExpression{innerExpr}), true
+		arrayExpr := ast.NewGenericTypeExpression(ast.Ty("Array"), []ast.TypeExpression{innerExpr})
+		return g.recordResolvedTypeExprPackage(arrayExpr, g.resolvedTypeExprPackage("", innerExpr)), true
 	}
 	switch goType {
 	case "runtime.Value", "any":
@@ -166,30 +167,31 @@ func (g *generator) typeExprForGoType(goType string) (ast.TypeExpression, bool) 
 		return ast.NewGenericTypeExpression(ast.Ty("Array"), []ast.TypeExpression{ast.NewWildcardTypeExpression()}), true
 	}
 	if info := g.nativeUnionInfoForGoType(goType); info != nil && info.TypeExpr != nil {
-		return info.TypeExpr, true
+		return g.recordResolvedTypeExprPackage(info.TypeExpr, info.PackageName), true
 	}
 	if iface := g.nativeInterfaceInfoForGoType(goType); iface != nil {
-		return iface.TypeExpr, true
+		return g.recordResolvedTypeExprPackage(iface.TypeExpr, iface.PackageName), true
 	}
 	if callable := g.nativeCallableInfoForGoType(goType); callable != nil && callable.TypeExpr != nil {
-		return callable.TypeExpr, true
+		return g.recordResolvedTypeExprPackage(callable.TypeExpr, callable.PackageName), true
 	}
 	if spec, ok := nativeNullableSpecForPointer(goType); ok {
 		innerExpr, ok := g.typeExprForGoType(spec.InnerType)
 		if !ok {
 			return nil, false
 		}
-		return ast.NewNullableTypeExpression(innerExpr), true
+		nullableExpr := ast.NewNullableTypeExpression(innerExpr)
+		return g.recordResolvedTypeExprPackage(nullableExpr, g.resolvedTypeExprPackage("", innerExpr)), true
 	}
 	if g.typeCategory(goType) == "struct" {
 		if info := g.structInfoByGoName(goType); info != nil && info.Name != "" {
 			if info.TypeExpr != nil {
-				return info.TypeExpr, true
+				return g.recordResolvedTypeExprPackage(info.TypeExpr, info.Package), true
 			}
-			return ast.Ty(info.Name), true
+			return g.recordResolvedTypeExprPackage(ast.Ty(info.Name), info.Package), true
 		}
-		if recovered, _, ok := g.recoverKnownConcreteTypeExprForGoType(goType); ok && recovered != nil {
-			return recovered, true
+		if recovered, pkgName, ok := g.recoverKnownConcreteTypeExprForGoType(goType); ok && recovered != nil {
+			return g.recordResolvedTypeExprPackage(recovered, pkgName), true
 		}
 		baseName, ok := g.structHelperName(goType)
 		if !ok {
@@ -226,7 +228,7 @@ func (g *generator) inferNativeInterfaceGenericMethodShape(ctx *compileContext, 
 				bindings[name] = normalizeTypeExprForPackage(g, method.InterfacePackage, expr)
 			}
 		}
-		if iface := g.interfaces[method.InterfaceName]; iface != nil {
+		if iface, _, ok := g.interfaceDefinitionForPackage(method.InterfacePackage, method.InterfaceName); ok && iface != nil {
 			for name, expr := range g.interfaceSelfTypeBindings(iface, actualExpr) {
 				if expr == nil {
 					continue

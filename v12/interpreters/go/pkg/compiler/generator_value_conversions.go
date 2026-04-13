@@ -48,6 +48,9 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 		bits := g.intBits(expected)
 		return fmt.Sprintf("func() %s { val := %s; v, err := bridge.AsUint(val, %d); if err != nil { panic(err) }; return %s(v) }()", expected, valueExpr, bits, expected), true
 	case "struct":
+		if g.isArrayStructType(expected) {
+			return g.runtimeValueToGenericArrayPanicExpr(valueExpr, true), true
+		}
 		baseName, ok := g.structHelperName(expected)
 		if !ok {
 			baseName = strings.TrimPrefix(expected, "*")
@@ -282,6 +285,22 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		lines = append(lines, controlLines...)
 		return lines, fmt.Sprintf("%s(%s)", expected, vTemp), true
 	case "struct":
+		if g.isArrayStructType(expected) {
+			controlTemp := ctx.newTemp()
+			lines := []string{
+				fmt.Sprintf("%s := %s", valTemp, valueExpr),
+				fmt.Sprintf("var %s *Array", vTemp),
+				fmt.Sprintf("var %s error", errTemp),
+			}
+			lines = append(lines, g.runtimeValueToGenericArrayBoundaryLines(vTemp, errTemp, valTemp, true)...)
+			lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+			if !ok {
+				return nil, "", false
+			}
+			lines = append(lines, controlLines...)
+			return lines, vTemp, true
+		}
 		baseName, ok := g.structHelperName(expected)
 		if !ok {
 			baseName = strings.TrimPrefix(expected, "*")

@@ -86,6 +86,87 @@ func TestCompilerResultPropagationUsesNativeCarrier(t *testing.T) {
 	}
 }
 
+func TestCompilerResultPropagationErrorBindingStaysNativeErrorCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"impl Error for MyError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn value(ok: bool) -> !String {",
+		"  if ok { \"ok\" } else { MyError { message: \"bad\" } }",
+		"}",
+		"",
+		"fn main() -> String {",
+		"  value(false)! or { err => err.message() }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(body, "var err runtime.ErrorValue") {
+		t.Fatalf("expected result propagation or-else binding to stay on the native error carrier:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"var err runtime.Value",
+		"__able_method_call_node(",
+		"__able_any_to_value(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected result propagation or-else binding to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerResultPropagationBlockErrorBindingStaysNativeErrorCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"impl Error for MyError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn value(ok: bool) -> !String {",
+		"  if ok { \"ok\" } else { MyError { message: \"bad\" } }",
+		"}",
+		"",
+		"fn main() -> String {",
+		"  do {",
+		"    text := value(false)!",
+		"    text",
+		"  } or { err => err.message() }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(body, "var err runtime.ErrorValue") {
+		t.Fatalf("expected block-wrapped result propagation or-else binding to stay on the native error carrier:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"var err runtime.Value",
+		"__able_method_call_node(",
+		"__able_any_to_value(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected block-wrapped result propagation or-else binding to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
 func TestCompilerResultPropagationExecutes(t *testing.T) {
 	source := `extern go fn __able_os_exit(code: i32) -> void {}
 

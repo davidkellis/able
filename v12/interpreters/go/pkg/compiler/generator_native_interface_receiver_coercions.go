@@ -60,8 +60,7 @@ func (g *generator) nativeInterfaceDefaultReceiverInfo(receiverGoType string, me
 			}
 		}
 	}
-	iface := g.interfaces[method.InterfaceName]
-	if iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForPackage(method.InterfacePackage, method.InterfaceName); ok && iface != nil {
 		for name, expr := range g.interfaceSelfTypeBindings(iface, receiverTypeExpr) {
 			if expr == nil {
 				continue

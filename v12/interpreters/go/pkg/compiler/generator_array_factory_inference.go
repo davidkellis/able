@@ -27,10 +27,66 @@ func (g *generator) isForwardInferrableFreshArrayExpr(expr ast.Expression) bool 
 	if g == nil || expr == nil {
 		return false
 	}
-	if lit, ok := expr.(*ast.ArrayLiteral); ok && lit != nil {
-		return len(lit.Elements) == 0
+	switch e := expr.(type) {
+	case *ast.ArrayLiteral:
+		return e != nil && len(e.Elements) == 0
+	case *ast.BlockExpression:
+		return g.isForwardInferrableFreshArrayBlock(e)
+	case *ast.IfExpression:
+		return g.isForwardInferrableFreshArrayIf(e)
+	case *ast.MatchExpression:
+		return g.isForwardInferrableFreshArrayMatch(e)
 	}
 	return g.isUntypedArrayFactoryCall(expr)
+}
+
+func (g *generator) isForwardInferrableFreshArrayBlock(block *ast.BlockExpression) bool {
+	if g == nil || block == nil || len(block.Body) == 0 {
+		return false
+	}
+	resultExpr, ok := g.blockResultExpression(block)
+	if !ok || resultExpr == nil {
+		return false
+	}
+	return g.isForwardInferrableFreshArrayExpr(resultExpr)
+}
+
+func (g *generator) isForwardInferrableFreshArrayIf(expr *ast.IfExpression) bool {
+	if g == nil || expr == nil || expr.IfBody == nil || expr.ElseBody == nil {
+		return false
+	}
+	if !g.isForwardInferrableFreshArrayBlock(expr.IfBody) || !g.isForwardInferrableFreshArrayBlock(expr.ElseBody) {
+		return false
+	}
+	for _, clause := range expr.ElseIfClauses {
+		if clause == nil || clause.Body == nil || !g.isForwardInferrableFreshArrayBlock(clause.Body) {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *generator) isForwardInferrableFreshArrayMatch(expr *ast.MatchExpression) bool {
+	if g == nil || expr == nil || len(expr.Clauses) == 0 {
+		return false
+	}
+	for _, clause := range expr.Clauses {
+		if clause == nil || clause.Body == nil || !g.isForwardInferrableFreshArrayExpr(clause.Body) {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *generator) blockResultExpression(block *ast.BlockExpression) (ast.Expression, bool) {
+	if block == nil || len(block.Body) == 0 {
+		return nil, false
+	}
+	resultExpr, ok := block.Body[len(block.Body)-1].(ast.Expression)
+	if !ok || resultExpr == nil {
+		return nil, false
+	}
+	return resultExpr, true
 }
 
 func (g *generator) isUntypedArrayFactoryCall(expr ast.Expression) bool {

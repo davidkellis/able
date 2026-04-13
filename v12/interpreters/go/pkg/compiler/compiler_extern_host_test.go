@@ -139,3 +139,52 @@ func TestCompilerGoExternStructBoundaryWithNamedUnionFieldExecutes(t *testing.T)
 		t.Fatalf("expected extern named-union field output missing, got %q", stdout)
 	}
 }
+
+func TestCompilerGoExternGenericUnwrapExecutesForNativeSuccessMembers(t *testing.T) {
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-go-extern-generic-unwrap-", strings.Join([]string{
+		"package demo",
+		"",
+		"prelude go {",
+		`import "errors"`,
+		"}",
+		"",
+		"struct IOError {",
+		"  message: String,",
+		"}",
+		"",
+		"impl Error for IOError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"extern go fn write_count() -> IOError | i32 {",
+		"  return int32(5)",
+		"}",
+		"",
+		"extern go fn read_none() -> IOError | ?Array u8 {",
+		"  _ = errors.New(\"unused\")",
+		"  return nil",
+		"}",
+		"",
+		"fn unwrap<T>(value: IOError | T) -> T {",
+		"  value match {",
+		"    case err: IOError => { raise err },",
+		"    case ok: T => ok",
+		"  }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  count := unwrap(write_count())",
+		"  maybe := unwrap(read_none())",
+		"  print(count)",
+		"  print(maybe == nil)",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+	if strings.TrimSpace(stdout) != "5\ntrue" {
+		t.Fatalf("expected extern generic unwrap output 5/true, got %q", stdout)
+	}
+}

@@ -250,7 +250,7 @@ func (g *generator) nativeInterfaceSpecializedGenericMethodImpl(ctx *compileCont
 		if !ok {
 			continue
 		}
-		if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+		if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 			if concreteTarget := g.specializedImplTargetTemplate(impl, bindings); concreteTarget != nil {
 				if !g.mergeConcreteBindings(impl.Info.Package, bindings, g.interfaceSelfTypeBindings(iface, concreteTarget)) {
 					continue

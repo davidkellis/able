@@ -31,40 +31,73 @@ func substituteTypeParamsSeen(expr ast.TypeExpression, bindings map[string]ast.T
 			return expr
 		}
 		base := substituteTypeParamsSeen(t.Base, bindings, seen)
+		changed := base != t.Base
 		args := make([]ast.TypeExpression, len(t.Arguments))
 		for idx, arg := range t.Arguments {
 			args[idx] = substituteTypeParamsSeen(arg, bindings, seen)
+			if args[idx] != arg {
+				changed = true
+			}
 		}
 		if applied, ok := substituteAppliedGenericType(base, args); ok {
 			return applied
+		}
+		if !changed {
+			return expr
 		}
 		return ast.NewGenericTypeExpression(base, args)
 	case *ast.FunctionTypeExpression:
 		if t == nil {
 			return expr
 		}
+		changed := false
 		params := make([]ast.TypeExpression, len(t.ParamTypes))
 		for idx, param := range t.ParamTypes {
 			params[idx] = substituteTypeParamsSeen(param, bindings, seen)
+			if params[idx] != param {
+				changed = true
+			}
 		}
-		return ast.NewFunctionTypeExpression(params, substituteTypeParamsSeen(t.ReturnType, bindings, seen))
+		ret := substituteTypeParamsSeen(t.ReturnType, bindings, seen)
+		if ret != t.ReturnType {
+			changed = true
+		}
+		if !changed {
+			return expr
+		}
+		return ast.NewFunctionTypeExpression(params, ret)
 	case *ast.NullableTypeExpression:
 		if t == nil {
 			return expr
 		}
-		return ast.NewNullableTypeExpression(substituteTypeParamsSeen(t.InnerType, bindings, seen))
+		inner := substituteTypeParamsSeen(t.InnerType, bindings, seen)
+		if inner == t.InnerType {
+			return expr
+		}
+		return ast.NewNullableTypeExpression(inner)
 	case *ast.ResultTypeExpression:
 		if t == nil {
 			return expr
 		}
-		return ast.NewResultTypeExpression(substituteTypeParamsSeen(t.InnerType, bindings, seen))
+		inner := substituteTypeParamsSeen(t.InnerType, bindings, seen)
+		if inner == t.InnerType {
+			return expr
+		}
+		return ast.NewResultTypeExpression(inner)
 	case *ast.UnionTypeExpression:
 		if t == nil {
 			return expr
 		}
+		changed := false
 		members := make([]ast.TypeExpression, len(t.Members))
 		for idx, member := range t.Members {
 			members[idx] = substituteTypeParamsSeen(member, bindings, seen)
+			if members[idx] != member {
+				changed = true
+			}
+		}
+		if !changed {
+			return expr
 		}
 		return ast.NewUnionTypeExpression(members)
 	default:

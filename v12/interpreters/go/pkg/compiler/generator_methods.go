@@ -81,30 +81,8 @@ func (g *generator) methodsTargetTypeExpr(pkgName string, def *ast.MethodsDefini
 }
 
 func (g *generator) expandTypeAliasForPackage(pkgName string, expr ast.TypeExpression) ast.TypeExpression {
-	if g == nil || expr == nil {
-		return expr
-	}
-	current := expr
-	seen := make(map[string]struct{})
-	for {
-		next, nextPkg, key, changed := g.expandTypeAliasOnceForPackage(pkgName, current)
-		if !changed || next == nil {
-			return current
-		}
-		if nextPkg == "" {
-			nextPkg = pkgName
-		}
-		if strings.TrimSpace(key) == "" {
-			return current
-		}
-		seenKey := nextPkg + "|" + strings.TrimSpace(key)
-		if _, exists := seen[seenKey]; exists {
-			return current
-		}
-		seen[seenKey] = struct{}{}
-		pkgName = nextPkg
-		current = next
-	}
+	_, expanded := g.expandTypeAliasContextForPackage(pkgName, expr)
+	return expanded
 }
 
 func (g *generator) expandTypeAliasOnceForPackage(pkgName string, expr ast.TypeExpression) (ast.TypeExpression, string, string, bool) {
@@ -116,8 +94,11 @@ func (g *generator) expandTypeAliasOnceForPackage(pkgName string, expr ast.TypeE
 		if t == nil || t.Name == nil || strings.TrimSpace(t.Name.Name) == "" {
 			return expr, pkgName, "", false
 		}
-		aliasPkg, aliasName, target, _, ok := g.typeAliasTargetForPackage(pkgName, t.Name.Name)
+		aliasPkg, aliasName, target, params, ok := g.typeAliasTargetForPackage(pkgName, t.Name.Name)
 		if !ok || target == nil {
+			return expr, pkgName, "", false
+		}
+		if len(params) != 0 {
 			return expr, pkgName, "", false
 		}
 		return normalizeTypeExprForPackage(g, aliasPkg, target), aliasPkg, aliasName, true
@@ -130,7 +111,21 @@ func (g *generator) expandTypeAliasOnceForPackage(pkgName string, expr ast.TypeE
 			return expr, pkgName, "", false
 		}
 		aliasPkg, aliasName, target, params, ok := g.typeAliasTargetForPackage(pkgName, base.Name.Name)
-		if !ok || target == nil || len(params) == 0 || len(params) != len(t.Arguments) {
+		if !ok || target == nil {
+			return expr, pkgName, "", false
+		}
+		if len(params) == 0 {
+			args := make([]ast.TypeExpression, 0, len(t.Arguments))
+			for _, arg := range t.Arguments {
+				if arg == nil {
+					return expr, pkgName, "", false
+				}
+				args = append(args, normalizeTypeExprForPackage(g, pkgName, arg))
+			}
+			expanded := ast.NewGenericTypeExpression(cloneTypeExpr(target), args)
+			return normalizeTypeExprForPackage(g, aliasPkg, expanded), aliasPkg, aliasName + "<" + normalizeTypeExprListKey(g, pkgName, t.Arguments) + ">", true
+		}
+		if len(params) != len(t.Arguments) {
 			return expr, pkgName, "", false
 		}
 		bindings := make(map[string]ast.TypeExpression, len(params))
@@ -165,7 +160,7 @@ func (g *generator) typeAliasTargetForPackage(pkgName string, aliasName string) 
 	}
 	target, params, ok := g.lookupTypeAlias(sourcePkg, sourceName)
 	if !ok {
-		return "", "", ast.NewSimpleTypeExpression(ast.NewIdentifier(sourceName)), nil, true
+		return sourcePkg, sourceName, ast.NewSimpleTypeExpression(ast.NewIdentifier(sourceName)), nil, true
 	}
 	return sourcePkg, sourceName, target, params, true
 }

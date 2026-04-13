@@ -24,7 +24,7 @@ func (g *generator) joinUnionMemberTypeExprs(ctx *compileContext, goTypes []stri
 			return
 		}
 		normalized := normalizeTypeExprForPackage(g, memberPkg, expr)
-		key := normalizeTypeExprString(g, memberPkg, normalized)
+		key := normalizeTypeExprIdentityKey(g, memberPkg, normalized)
 		if key == "" {
 			return
 		}
@@ -84,7 +84,7 @@ func (g *generator) joinResultType(ctx *compileContext, types ...string) (string
 			if actual == candidate {
 				continue
 			}
-			if !g.canCoerceStaticExpr(candidate, actual) {
+			if !g.joinCarrierCandidateAcceptsActual(candidate, actual) {
 				compatible = false
 				break
 			}
@@ -167,6 +167,25 @@ func (g *generator) recoverJoinBranchType(ctx *compileContext, branch joinBranch
 		}
 	}
 	return "", false
+}
+
+func (g *generator) joinCarrierCandidateAcceptsActual(candidate string, actual string) bool {
+	if g == nil || candidate == "" || actual == "" {
+		return false
+	}
+	if candidate == actual {
+		return true
+	}
+	if g.nativeCallableInfoForGoType(candidate) != nil && g.nativeCallableInfoForGoType(actual) != nil {
+		return g.typeMatches(candidate, actual)
+	}
+	if iface := g.nativeInterfaceInfoForGoType(candidate); iface != nil {
+		if g.nativeInterfaceInfoForGoType(actual) != nil {
+			return g.nativeInterfaceAssignable(actual, candidate)
+		}
+		return g.nativeInterfaceAcceptsActual(iface, actual)
+	}
+	return g.canCoerceStaticExpr(candidate, actual)
 }
 
 func (g *generator) joinResultTypeFromBranches(ctx *compileContext, branches []joinBranchInfo) (string, bool) {
@@ -345,7 +364,7 @@ func (g *generator) materializeJoinInterfaceCandidatesForActual(pkgName string, 
 		if ifaceExpr == nil {
 			continue
 		}
-		ifacePkg := g.interfacePackages[impl.InterfaceName]
+		ifacePkg := g.interfacePackageForName(info.Package, impl.InterfaceName)
 		if ifacePkg == "" {
 			ifacePkg = info.Package
 		}

@@ -840,15 +840,22 @@ func TestCompilerIteratorInterfaceBoundaryAcceptsRuntimeIteratorDirectly(t *test
 		t.Fatalf("expected concrete Range iterable calls to dispatch through the wrapped interface carrier method:\n%s", mainBody)
 	}
 
+	tryBody, ok := findCompiledFunction(result, "__able_iface_Iterator_i32_try_from_value")
+	if !ok {
+		t.Fatalf("could not find Iterator<i32> matcher helper")
+	}
+	if !strings.Contains(tryBody, "if iter, ok, nilPtr := __able_runtime_iterator_value(value); ok || nilPtr {") {
+		t.Fatalf("expected Iterator<i32> matcher helper to fast-path raw runtime iterators:\n%s", tryBody)
+	}
+	if !strings.Contains(tryBody, "return __able_iface_Iterator_i32_wrap_runtime(iter), true, nil") {
+		t.Fatalf("expected Iterator<i32> matcher helper to wrap raw runtime iterators directly:\n%s", tryBody)
+	}
 	body, ok := findCompiledFunction(result, "__able_iface_Iterator_i32_from_value")
 	if !ok {
 		t.Fatalf("could not find Iterator<i32> boundary helper")
 	}
-	if !strings.Contains(body, "if iter, ok, nilPtr := __able_runtime_iterator_value(value); ok || nilPtr {") {
-		t.Fatalf("expected Iterator<i32> boundary helper to fast-path raw runtime iterators:\n%s", body)
-	}
-	if !strings.Contains(body, "return __able_iface_Iterator_i32_wrap_runtime(iter), nil") {
-		t.Fatalf("expected Iterator<i32> boundary helper to wrap raw runtime iterators directly:\n%s", body)
+	if !strings.Contains(body, "converted, ok, err := __able_iface_Iterator_i32_try_from_value(rt, value)") {
+		t.Fatalf("expected Iterator<i32> boundary helper to delegate to the shared matcher helper:\n%s", body)
 	}
 
 	nextBody, ok := findCompiledFunction(result, "(w __able_iface_Iterator_i32_runtime_adapter) next")

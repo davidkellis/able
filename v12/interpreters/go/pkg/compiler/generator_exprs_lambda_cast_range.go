@@ -286,7 +286,7 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		ctx.setReason("unsupported lambda return type")
 		return "", "", false
 	}
-	callableInfo, ok := g.ensureNativeCallableInfoFromSignature(paramExprs, paramGoTypes, returnTypeExpr, bodyType)
+	callableInfo, ok := g.ensureNativeCallableInfoFromSignatureInPackage(ctx.packageName, paramExprs, paramGoTypes, returnTypeExpr, bodyType)
 	if !ok || callableInfo == nil {
 		ctx.setReason("unsupported lambda type")
 		return "", "", false
@@ -368,6 +368,80 @@ func (g *generator) expectedLambdaFunctionType(ctx *compileContext) *ast.Functio
 		return nil
 	}
 	return fnType
+}
+
+func (g *generator) lambdaTypeExprCompatible(ctx *compileContext, actual ast.TypeExpression, expected ast.TypeExpression) bool {
+	if g == nil || actual == nil || expected == nil {
+		return false
+	}
+	actualExpr := g.lowerNormalizedTypeExpr(ctx, actual)
+	expectedExpr := g.lowerNormalizedTypeExpr(ctx, expected)
+	actualKey := normalizeTypeExprIdentityKey(g, ctx.packageName, actualExpr)
+	expectedKey := normalizeTypeExprIdentityKey(g, ctx.packageName, expectedExpr)
+	if actualKey != "" && actualKey == expectedKey {
+		return true
+	}
+	actualType, actualOK := g.lowerCarrierType(ctx, actualExpr)
+	expectedType, expectedOK := g.lowerCarrierType(ctx, expectedExpr)
+	if !actualOK || !expectedOK || actualType == "" || expectedType == "" {
+		return false
+	}
+	return g.typeMatches(expectedType, actualType) && g.typeMatches(actualType, expectedType)
+}
+
+func (g *generator) lambdaExpressionMatchesExpectedFunctionType(ctx *compileContext, expr *ast.LambdaExpression, expected *ast.FunctionTypeExpression) bool {
+	if g == nil || ctx == nil || expr == nil || expected == nil {
+		return false
+	}
+	if len(expr.Params) != len(expected.ParamTypes) {
+		return false
+	}
+	for idx, param := range expr.Params {
+		if param == nil {
+			return false
+		}
+		if param.ParamType != nil && !g.lambdaTypeExprCompatible(ctx, param.ParamType, expected.ParamTypes[idx]) {
+			return false
+		}
+	}
+	if expr.ReturnType != nil && !g.lambdaTypeExprCompatible(ctx, expr.ReturnType, expected.ReturnType) {
+		return false
+	}
+	return true
+}
+
+func (g *generator) expectedCallableTypeForLambda(ctx *compileContext, expected string, expr *ast.LambdaExpression) (string, ast.TypeExpression, bool) {
+	if g == nil || ctx == nil || expr == nil {
+		return "", nil, false
+	}
+	if callableInfo := g.nativeCallableInfoForGoType(expected); callableInfo != nil && callableInfo.TypeExpr != nil {
+		return expected, callableInfo.TypeExpr, true
+	}
+	union := g.nativeUnionInfoForGoType(expected)
+	if union == nil {
+		return "", nil, false
+	}
+	var matchedType string
+	var matchedExpr ast.TypeExpression
+	for _, member := range union.Members {
+		if member == nil || member.TypeExpr == nil {
+			continue
+		}
+		memberExpr := g.lowerNormalizedTypeExpr(ctx, member.TypeExpr)
+		fnType, ok := memberExpr.(*ast.FunctionTypeExpression)
+		if !ok || fnType == nil || !g.lambdaExpressionMatchesExpectedFunctionType(ctx, expr, fnType) {
+			continue
+		}
+		if matchedType != "" && matchedType != member.GoType {
+			return "", nil, false
+		}
+		matchedType = member.GoType
+		matchedExpr = fnType
+	}
+	if matchedType == "" {
+		return "", nil, false
+	}
+	return matchedType, matchedExpr, true
 }
 
 func (g *generator) compileLambdaBlockBody(ctx *compileContext, returnType string, block *ast.BlockExpression) ([]string, string, string, bool) {
@@ -562,6 +636,19 @@ func (g *generator) lambdaArgConversionLines(pkgName string, argVar string, valu
 			fmt.Sprintf("%s := %s(%s)", target, goType, raw),
 		}, true
 	case "struct":
+		if g.isArrayStructType(goType) {
+			errVar := argVar + "_err"
+			lines := []string{
+				fmt.Sprintf("var %s *Array", target),
+				fmt.Sprintf("var %s error", errVar),
+			}
+			lines = append(lines, g.runtimeValueToGenericArrayBoundaryLines(target, errVar, valueVar, true)...)
+			lines = append(lines, fmt.Sprintf("if %s != nil { return nil, %s }", errVar, errVar))
+			if g.structArgRequiresValue(pkgName, typeExpr, goType) {
+				lines = append(lines, fmt.Sprintf("if %s == nil { return nil, fmt.Errorf(\"type mismatch calling lambda: expected Array\") }", target))
+			}
+			return lines, true
+		}
 		baseName, ok := g.structBaseName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")

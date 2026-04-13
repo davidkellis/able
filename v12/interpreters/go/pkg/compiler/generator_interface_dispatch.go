@@ -325,16 +325,21 @@ func (g *generator) interfaceSearchMap() map[string][]string {
 }
 
 func (g *generator) interfaceSearchNames(name string, visited map[string]struct{}) []string {
+	return g.interfaceSearchNamesForPackage("", name, visited)
+}
+
+func (g *generator) interfaceSearchNamesForPackage(pkgName string, name string, visited map[string]struct{}) []string {
 	if name == "" {
 		return nil
 	}
-	if _, seen := visited[name]; seen {
+	key := strings.TrimSpace(pkgName) + "::" + name
+	if _, seen := visited[key]; seen {
 		return nil
 	}
-	visited[name] = struct{}{}
+	visited[key] = struct{}{}
 	names := []string{name}
-	iface := g.interfaces[name]
-	if iface == nil {
+	iface, ifacePkg, ok := g.interfaceDefinitionForPackage(pkgName, name)
+	if !ok || iface == nil {
 		return names
 	}
 	for _, base := range iface.BaseInterfaces {
@@ -342,7 +347,11 @@ func (g *generator) interfaceSearchNames(name string, visited map[string]struct{
 		if !ok || baseName == "" {
 			continue
 		}
-		names = append(names, g.interfaceSearchNames(baseName, visited)...)
+		basePkg := ifacePkg
+		if resolvedPkg, _, _, _, ok := interfaceExprInfo(g, ifacePkg, base); ok && resolvedPkg != "" {
+			basePkg = resolvedPkg
+		}
+		names = append(names, g.interfaceSearchNamesForPackage(basePkg, baseName, visited)...)
 	}
 	return names
 }

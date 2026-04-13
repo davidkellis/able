@@ -33,7 +33,7 @@ func (g *generator) canonicalImplSpecializationBindings(info *functionInfo, impl
 	}
 	delete(out, "Self")
 	delete(out, "SelfType")
-	if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 		for name := range g.interfaceSelfBindingNames(iface) {
 			delete(out, name)
 		}
@@ -62,7 +62,7 @@ func (g *generator) canonicalImplSpecializationBindings(info *functionInfo, impl
 		}
 	}
 	out["Self"] = concreteTarget
-	if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 		interfaceBindings := g.implTypeBindings(info.Package, impl.InterfaceName, impl.InterfaceGenerics, impl.InterfaceArgs, concreteTarget)
 		selfTarget := g.implSelfTargetType(info.Package, concreteTarget, interfaceBindings)
 		for name, expr := range g.interfaceSelfTypeBindings(iface, selfTarget) {

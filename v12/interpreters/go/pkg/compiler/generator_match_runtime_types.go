@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -133,6 +134,56 @@ func (g *generator) compileNativeUnionLiteralMatch(ctx *compileContext, lit ast.
 		return nil, "", false
 	}
 	if _, isNil := lit.(*ast.NilLiteral); isNil {
+		var (
+			lines []string
+			conds []string
+		)
+		for _, member := range union.Members {
+			if member == nil || member.TypeExpr == nil || !g.typeExprIncludesNilInPackage(union.PackageName, member.TypeExpr) {
+				continue
+			}
+			memberTemp := ctx.newTemp()
+			okTemp := ctx.newTemp()
+			memberLines := []string{fmt.Sprintf("%s, %s := %s(%s)", memberTemp, okTemp, member.UnwrapHelper, subjectTemp)}
+			if g.nativeUnionInfoForGoType(member.GoType) != nil {
+				innerLines, innerCond, ok := g.compileNativeUnionLiteralMatch(ctx, lit, memberTemp, member.GoType)
+				if !ok {
+					continue
+				}
+				guardedLines, cond, ok := g.guardMatchConditionWithPredicate(ctx, okTemp, innerLines, innerCond)
+				if !ok {
+					continue
+				}
+				lines = append(lines, memberLines...)
+				lines = append(lines, guardedLines...)
+				conds = append(conds, cond)
+				continue
+			}
+			var nilCond string
+			switch {
+			case member.GoType == "runtime.Value":
+				nilCond = fmt.Sprintf("__able_is_nil(%s)", memberTemp)
+			case member.GoType == "any":
+				nilCond = fmt.Sprintf("(%s == nil)", memberTemp)
+			case g.goTypeHasNilZeroValue(member.GoType):
+				nilCond = fmt.Sprintf("(%s == nil)", memberTemp)
+			default:
+				continue
+			}
+			guardedLines, cond, ok := g.guardMatchConditionWithPredicate(ctx, okTemp, nil, nilCond)
+			if !ok {
+				continue
+			}
+			lines = append(lines, memberLines...)
+			lines = append(lines, guardedLines...)
+			conds = append(conds, cond)
+		}
+		if len(conds) != 0 {
+			return lines, fmt.Sprintf("(%s)", strings.Join(conds, " || ")), true
+		}
+		if g.goTypeHasNilZeroValue(subjectType) {
+			return nil, fmt.Sprintf("(%s == nil)", subjectTemp), true
+		}
 		return nil, "false", true
 	}
 	litExpr, ok := lit.(ast.Expression)

@@ -90,7 +90,7 @@ func (g *generator) methodGenericNames(method *methodInfo) map[string]struct{} {
 	if def, ok := g.structInfoForTypeName(method.Info.Package, baseName); ok && def != nil && def.Node != nil {
 		names = addGenericParams(names, def.Node.GenericParams)
 	}
-	if iface, ok := g.interfaces[baseName]; ok && iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForPackage(method.Info.Package, baseName); ok && iface != nil {
 		names = addGenericParams(names, iface.GenericParams)
 	}
 	names = mergeGenericNameSets(names, g.typeExprVariableNames(method.TargetType))

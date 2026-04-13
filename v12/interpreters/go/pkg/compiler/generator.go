@@ -38,11 +38,14 @@ type generator struct {
 	nativeInterfaceSpecializing         map[string]struct{}
 	nativeInterfaceImplBindingCache     map[string]nativeInterfaceImplBindingCacheEntry
 	normalizedTypeExprCache             map[string]ast.TypeExpression
+	normalizedTypeExprPackageCache      map[string]string
+	normalizedTypeExprPackagesByExpr    map[ast.TypeExpression]string
 	nativeInterfaceImplCandidateCache   []nativeInterfaceImplCandidate
 	nativeInterfaceImplCandidateCounts  [2]int
 	nativeInterfaceAdapterVersion       int
 	bodyCompilationDepth                int
 	interfaces                          map[string]*ast.InterfaceDefinition
+	interfacesByPackage                 map[string]map[string]*ast.InterfaceDefinition
 	interfacePackages                   map[string]string
 	staticImports                       map[string][]staticImportBinding
 	functions                           map[string]map[string]*functionInfo
@@ -123,9 +126,12 @@ func newGenerator(opts Options) *generator {
 		nativeInterfaceSpecializing:         make(map[string]struct{}),
 		nativeInterfaceImplBindingCache:     make(map[string]nativeInterfaceImplBindingCacheEntry),
 		normalizedTypeExprCache:             make(map[string]ast.TypeExpression),
+		normalizedTypeExprPackageCache:      make(map[string]string),
+		normalizedTypeExprPackagesByExpr:    make(map[ast.TypeExpression]string),
 		nativeInterfaceImplCandidateCounts:  [2]int{-1, -1},
 		nativeInterfaceAdapterVersion:       1,
 		interfaces:                          make(map[string]*ast.InterfaceDefinition),
+		interfacesByPackage:                 make(map[string]map[string]*ast.InterfaceDefinition),
 		interfacePackages:                   make(map[string]string),
 		staticImports:                       make(map[string][]staticImportBinding),
 		functions:                           make(map[string]map[string]*functionInfo),
@@ -179,10 +185,13 @@ func (g *generator) collect(program *driver.Program) error {
 	g.nativeInterfaceSpecializing = make(map[string]struct{})
 	g.nativeInterfaceImplBindingCache = make(map[string]nativeInterfaceImplBindingCacheEntry)
 	g.normalizedTypeExprCache = make(map[string]ast.TypeExpression)
+	g.normalizedTypeExprPackageCache = make(map[string]string)
+	g.normalizedTypeExprPackagesByExpr = make(map[ast.TypeExpression]string)
 	g.nativeInterfaceImplCandidateCache = nil
 	g.nativeInterfaceImplCandidateCounts = [2]int{-1, -1}
 	g.nativeInterfaceAdapterVersion = 1
 	g.interfaces = make(map[string]*ast.InterfaceDefinition)
+	g.interfacesByPackage = make(map[string]map[string]*ast.InterfaceDefinition)
 	g.interfacePackages = make(map[string]string)
 	g.staticCallableNames = nil
 	g.externCallables = make(map[string]map[string]struct{})
@@ -264,11 +273,16 @@ func (g *generator) collect(program *driver.Program) error {
 			if name == "" {
 				continue
 			}
-			if _, exists := g.interfaces[name]; exists {
-				continue
+			if g.interfacesByPackage != nil {
+				if g.interfacesByPackage[module.Package] == nil {
+					g.interfacesByPackage[module.Package] = make(map[string]*ast.InterfaceDefinition)
+				}
+				if _, exists := g.interfacesByPackage[module.Package][name]; !exists {
+					g.interfacesByPackage[module.Package][name] = def
+				}
 			}
-			g.interfaces[name] = def
-			if g.interfacePackages != nil {
+			if _, exists := g.interfaces[name]; !exists {
+				g.interfaces[name] = def
 				g.interfacePackages[name] = module.Package
 			}
 		}

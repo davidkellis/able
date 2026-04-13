@@ -20,7 +20,7 @@ This list tracks the remaining v12 items after audit; completed work should be r
 - Native-lowering mandate: static compiled code should represent nominal/user-defined program values with host-native concrete structures (not interpreter object-model carriers) and should never invoke interpreter execution paths unless entering explicit dynamic features.
 - Desired container end-state: compiled arrays use native Go array-backed storage on static paths; `runtime.ArrayValue`, `ArrayStore*`, and kernel `storage_handle` are boundary mechanisms only, not the compiler's internal static representation.
 - Desired nominal-type end-state: compiled structs remain Go structs/pointers and compiled unions lower to generated Go interfaces plus native variant carriers; `any` is a staged fallback only, not the target union ABI.
-- Current staged compiler limit: representable static arrays now default to compiler-native specialized carriers, including same-scope-evidenced fresh untyped local `Array.new()` / `Array.with_capacity()` factories and empty array literals, plus typed call-argument evidence on those fresh locals, but the residual generic/boundary `Array -> Elements []runtime.Value` hybrid plus conversions through `runtime.ArrayValue` / `ArrayStore*` is still not an approved final architecture and must be reduced to explicit dynamic or ABI edges.
+- Array-native closure note: representable static arrays now default to compiler-native specialized carriers, including same-scope-evidenced fresh untyped local `Array.new()` / `Array.with_capacity()` factories, empty array literals, fresh-array `if` / `match` control-flow joins, typed call-argument evidence on those fresh locals, recoverable runtime/`any` array-pattern subjects that still retain concrete static metadata, direct static `*Array <-> *__able_array_*` carrier coercions, direct static `runtime.Value -> *Array` carrier coercions, direct mono-array wrapper/lambda boundary helpers, direct generic `Array_apply` plus `Array_to` / `Array_to_seen` edges for raw runtime arrays and `Array` struct instances, direct generic `*Array` wrapper/lambda/native-interface/runtime-value entry conversions for both raw runtime arrays and explicit `Array` struct-instance boundaries, and a shared explicit struct-instance reader for generic `Array_from` plus mono-array `*_from` helpers. Remaining `runtime.ArrayValue` / `ArrayStore*` use is now limited to explicit dynamic or ABI edges plus the unspecialized wildcard-array ABI, so array-native lowering no longer blocks the active compiler-native finish line.
 - Union-ABI target and bring-up order are now captured in `v12/design/compiler-union-abi.md`; the first code-bearing slice should replace `any` for nullable value carriers before widening to closed nominal unions.
 - Current progress note: the native nullable-value slice now covers the
   compiler-native scalar family: `?bool`, `?String`, `?char`, `?f32`, `?f64`,
@@ -87,7 +87,11 @@ This list tracks the remaining v12 items after audit; completed work should be r
   the error-wrapper bridge for those array bounds paths now preserves concrete
   wrapped struct payloads (for example `IndexError`) before synthesizing an
   anonymous error struct view, so static `case _: IndexError` matches stay
-  exhaustive under the zero-boundary harness too.
+  exhaustive under the zero-boundary harness too. Shared nominal
+  `__able_struct_*_try_from(...)` / `__able_struct_*_from(...)` converters now
+  also reuse `__able_struct_instance(...)` after interface unwrapping, so
+  compiled typed matches see those wrapped struct payloads directly instead of
+  missing on raw struct-instance assertions.
   Representable static arrays now also default to specialized compiler-native
   carriers, including generic alias specializations, default-method helpers,
   and nested carrier arrays, instead of requiring the old experimental path.
@@ -127,15 +131,60 @@ This list tracks the remaining v12 items after audit; completed work should be r
   or `any` but retains a concrete normalized Able `TypeExpr`, the compiler now
   recovers the native carrier instead of widening the whole join back to
   `runtime.Value`. Remaining ordered backlog in this category:
-  - close `types.go` / `generator_native_unions.go` carrier-synthesis fallbacks
-    that still map fully bound normalized union/result/nullable `TypeExpr`s to
-    `runtime.Value` / `any`;
-  - remove `generator_match.go` / `generator_match_runtime_types.go` /
-    `generator_rescue.go` typed-pattern fallback to `__able_try_cast(...)` for
-    subjects that still retain recoverable native `TypeExpr` metadata;
-  - remove remaining `generator_or_else.go` / `generator_rescue.go` /
+  Nested representable outer unions now stay native across direct inner-member
+  literal/struct-literal assignment and typed-match clause ordering too:
+  nested nullable/result members accept the inner native carrier directly, and
+  match narrowing now only removes a union member when the pattern exhausts
+  that whole v12 member type instead of a non-nil subcase such as `String`
+  inside `?String`.
+  - close the remaining `types.go` / `generator_native_unions.go`
+    carrier-synthesis fallbacks beyond the now-direct imported-alias
+    source-package recovery, imported shadowed-pattern nominal rebinding,
+    imported shadowed-interface selector-alias generic normalization,
+    the now-direct imported selector-alias typed-pattern normalization slice
+    for generic `Result` / semantic-result carriers, the now-direct imported
+    semantic nested-result carrier slice where alias expansion preserves the
+    alias source package and builtin `Error` identities collapse across
+    package contexts during result flattening,
+    the now-direct local/imported generic interface specialization slice
+    (including imported shadowed-interface duplicate-member collapse plus
+    specialization-time package preservation across no-op type
+    substitution), the now-direct nominal same-shape interface join slice,
+    mixed shadowed-nominal join-identity slices, and the now-direct
+    shadowed-callable join slice for imported/local nominal returns plus the
+    now-direct callable-literal / placeholder narrowing slice for imported
+    semantic callable aliases built from shadowed nominal returns, the now-
+    direct package-aware semantic-result callable carrier synthesis for those
+    placeholder cases, plus the now-direct nested callable-result alias slice
+    where raw imported selector aliases inside function type expressions stay
+    anchored to lexical caller-package normalization, plus the now-direct
+    imported generic-struct carrier slice where fully bound selector-imported
+    nominal arguments count as concrete during foreign specialization, plus
+    the now-direct duplicate-member collapse for fully bound union/result
+    specializations, plus the now-direct flattening of representable nested
+    union/result members into one carrier family across both outer unions and
+    direct nested result families, for
+    nullable/union/result members that still map fully bound normalized
+    union/result/nullable
+    `TypeExpr`s to `runtime.Value` / `any`;
+  - remove the remaining `generator_match.go` /
+    `generator_match_runtime_types.go` /
+    `generator_native_union_patterns.go` typed-pattern fallback to
+    `__able_try_cast(...)` for representable subjects beyond the now-direct
+    native nullable scalar/error, native scalar, native nominal struct,
+    native union/result, nested native-union member, native interface, native
+    callable, and `Error` carrier slices;
+  - continue shrinking `generator_or_else.go` / `generator_rescue.go` /
     `generator_join_types.go` join/binding locals that still default to
-    `runtime.Value` when the branch set is statically representable;
+    `runtime.Value` when the whole branch set is genuinely mixed or the
+    failure surface is not recoverably inferred, beyond the now-direct native
+    `or { err => ... }` failure-binding slice and the now-direct block-wrapped
+    / non-tail propagated rescue-or-else failure-binding slice plus the now-
+    direct propagated-call rescue identifier join slice for native callable
+    and imported shadowed nominal/interface carriers, plus the now-direct
+    higher-order unknown-call rescue slice where `err.value` handlers stay on
+    the dynamic error path instead of misinferring from the callback return
+    type;
   - tighten `generator_native_unions.go` residual runtime-member gates so
     `runtime.Value` union members remain only for true dynamic payloads.
 - Current staged compiler limit: the whole-union fallback to `any` is no
@@ -153,7 +202,9 @@ This list tracks the remaining v12 items after audit; completed work should be r
   first landed closed two-member native union slice; it now also excludes the
   broader carrier-widening tranche for multi-member nominal unions, generic
   alias unions that normalize to native carrier families, and interface/open
-  unions with explicit residual `runtime.Value` members. It still applies to
+  unions with explicit residual `runtime.Value` members. It also no longer
+  applies to fully bound duplicate union/result specializations that collapse
+  to one native member after alias substitution. It still applies to
   broader interface/existential lowering beyond that residual-carrier strategy,
   broader result/error shapes beyond the current `runtime.ErrorValue | T`
   slice, and other union surfaces not yet moved onto native carriers.
@@ -203,7 +254,8 @@ This list tracks the remaining v12 items after audit; completed work should be r
   Mixed success/handler result shapes stay on native carriers when
   representable, nullable success paths join on the unwrapped payload carrier,
   and `err => ...` bindings now stay on the native failure carrier when that
-  failure type is statically known.
+  failure type is statically known, including propagated `!T` control-failure
+  bindings and native error-union handler bindings.
 - Current progress note: `loop` and labeled `breakpoint` expressions now use
   that same shared native join/coercion machinery too. Statically
   representable break payloads stay on native carriers instead of defaulting
@@ -214,6 +266,17 @@ This list tracks the remaining v12 items after audit; completed work should be r
   carriers, and direct lambdas, local functions, placeholder lambdas, bound
   method values, function-typed params/fields, wrapper boundaries, and
   interface conversions now stay on those carriers on static compiled paths.
+- Current progress note: dynamic typed-pattern narrowing now also skips
+  `__able_try_cast(...)` for representable native nullable scalar/error,
+  native scalar, native nominal struct, native union/result, native
+  interface, native callable, and `Error` carriers. Rescue/match bindings on
+  those shapes now go through shared native matcher helpers, direct scalar
+  runtime type checks, direct native nullable helpers, and direct native
+  error detection instead of the generic runtime cast path.
+- Current progress note: static nullable typed matches on nil-capable native
+  carriers now guard both the non-nil typed branch and the `case nil` branch
+  directly too, so native interface/result whole-carrier matches no longer
+  emit dead unconditional/false conditions ahead of the actual nil arm.
 - Current progress note: the strict interface/global lookup audit now defaults
   to four deterministic batch tests so each strict run stays below the repo's
   one-minute per-test target; the unsuffixed
@@ -269,9 +332,10 @@ This list tracks the remaining v12 items after audit; completed work should be r
   type; `Array.new()` / `Array.with_capacity()` lower directly to
   compiler-owned static carriers on typed static paths and on those same
   same-scope-evidenced untyped local factory paths, including later typed call
-  arguments; `reserve()` / `clone_shallow()` stay specialized, static array
-  `for` loops iterate directly over typed slices, and array-pattern rest tails
-  preserve specialized carriers instead of dropping back to generic `*Array`.
+  arguments and fresh-array `if` / `match` joins; `reserve()` /
+  `clone_shallow()` stay specialized, static array `for` loops iterate
+  directly over typed slices, and array-pattern rest tails preserve
+  specialized carriers instead of dropping back to generic `*Array`.
 - Stage-1 compiled remeasurement snapshot (2026-03-19, 5-run averages via
   `v12/bench_perf`, compiled mode built through `cmd/ablec`): `bench/noop`
   mono on `0.0100s` / `0.00` GC vs mono off `0.0100s` / `0.00`;
@@ -282,6 +346,16 @@ This list tracks the remaining v12 items after audit; completed work should be r
   array binding still carries a recoverable element type, generic helper
   results such as `get`, `pop`, `first`, `last`, and `read_slot` now prefer
   native nullable carriers instead of dropping back to `runtime.Value`.
+- Runtime/`any` array-pattern narrowing landed too: when an array `match` or
+  destructuring subject still carries recoverable static `Array<T>` metadata,
+  the compiler now rehydrates the native array carrier before pattern
+  condition/binding lowering instead of staying on the generic
+  `__able_array_values(...)` extraction path.
+- Static array carrier coercion narrowing landed too: when the compiler needs
+  to cross `*Array <-> *__able_array_*` on static paths, it now converts
+  carriers directly with element-wise coercion and metadata sync instead of
+  round-tripping whole arrays through `__able_struct_Array_to/from(...)` or
+  mono-array runtime helpers.
 - The staged specialized wrapper set now includes `f64` too:
   `Array f64 -> *__able_array_f64`, with explicit wrapper/runtime boundary
   helpers and dynamic-boundary callback coverage.

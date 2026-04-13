@@ -118,28 +118,6 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 			lines = append(lines, bindLines...)
 			return lines, true
 		}
-		if mapped, mappedOK := g.lowerCarrierType(ctx, p.TypeAnnotation); mappedOK && g.isNativeStructPointerType(mapped) {
-			baseName, _ := g.structBaseName(mapped)
-			convertedTemp := ctx.newTemp()
-			bindLines, ok := g.compileAssignmentPatternBindings(ctx, p.Pattern, convertedTemp, mapped, mode)
-			if !ok {
-				return nil, false
-			}
-			if len(bindLines) == 0 {
-				return nil, true
-			}
-			errTemp := ctx.newTemp()
-			controlTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", convertedTemp, errTemp, baseName, castSubject))
-			lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-			if !ok {
-				return nil, false
-			}
-			lines = append(lines, controlLines...)
-			lines = append(lines, bindLines...)
-			return lines, true
-		}
 		dynamicLines, narrowedTemp, narrowedType, _, ok := g.compileDynamicTypedPatternCast(ctx, castSubject, "runtime.Value", p.TypeAnnotation)
 		if !ok {
 			ctx.setReason("unsupported typed pattern")
@@ -214,26 +192,26 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 			return nil, true
 		}
 		lines := []string{}
-			for _, field := range p.Fields {
-				fieldPattern, ok := positionalStructFieldPattern(field)
-				if !ok {
-					ctx.setReason("invalid struct pattern field")
-					return nil, false
-				}
-				if field.FieldName == nil || field.FieldName.Name == "" {
-					ctx.setReason("struct pattern missing field name")
+		for _, field := range p.Fields {
+			fieldPattern, ok := positionalStructFieldPattern(field)
+			if !ok {
+				ctx.setReason("invalid struct pattern field")
+				return nil, false
+			}
+			if field.FieldName == nil || field.FieldName.Name == "" {
+				ctx.setReason("struct pattern missing field name")
 				return nil, false
 			}
 			fieldInfo := g.fieldInfo(info, field.FieldName.Name)
-				if fieldInfo == nil {
-					ctx.setReason("unknown struct field")
-					return nil, false
-				}
-				fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
-				fieldLines, ok := g.compileAssignmentPatternBindings(ctx, fieldPattern, fieldExpr, fieldInfo.GoType, mode)
-				if !ok {
-					return nil, false
-				}
+			if fieldInfo == nil {
+				ctx.setReason("unknown struct field")
+				return nil, false
+			}
+			fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+			fieldLines, ok := g.compileAssignmentPatternBindings(ctx, fieldPattern, fieldExpr, fieldInfo.GoType, mode)
+			if !ok {
+				return nil, false
+			}
 			lines = append(lines, fieldLines...)
 			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 				bindTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
@@ -246,6 +224,15 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 		}
 		return lines, true
 	case *ast.ArrayPattern:
+		if subjectType == "runtime.Value" || subjectType == "any" {
+			if recoveredLines, recoveredTemp, recoveredType, recovered := g.recoverStaticArrayPatternSubject(ctx, subjectTemp, subjectType); recovered {
+				bindLines, ok := g.compileNativeArrayPatternAssignmentBindings(ctx, p, recoveredTemp, recoveredType, mode)
+				if !ok {
+					return nil, false
+				}
+				return append(recoveredLines, bindLines...), true
+			}
+		}
 		if subjectType == "runtime.Value" {
 			return g.compileRuntimeArrayPatternAssignmentBindings(ctx, p, subjectTemp, mode)
 		}
@@ -273,27 +260,43 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 	if name == "" || name == "_" {
 		return nil, true
 	}
+	lines := []string{}
+	if (goType == "runtime.Value" || goType == "any") && typeExpr == nil && g != nil && ctx != nil && ctx.expectedTypeExpr != nil {
+		typeExpr = g.lowerNormalizedTypeExpr(ctx, ctx.expectedTypeExpr)
+	}
 	if typeExpr == nil && g != nil {
 		typeExpr, _ = g.typeExprForGoType(goType)
 		typeExpr = g.lowerNormalizedTypeExpr(ctx, typeExpr)
+	}
+	if (goType == "runtime.Value" || goType == "any") && typeExpr != nil && g != nil && ctx != nil {
+		if recoveredType, ok := g.joinCarrierTypeFromTypeExpr(ctx, typeExpr); ok && recoveredType != "" && recoveredType != "runtime.Value" && recoveredType != "any" {
+			convLines, converted, convertedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, expr, goType, recoveredType)
+			if ok {
+				lines = append(lines, convLines...)
+				expr = converted
+				goType = convertedType
+			}
+		}
 	}
 	if mode.declare {
 		if _, ok := mode.newNames[name]; ok {
 			goName := sanitizeIdent(name)
 			ctx.setLocalBinding(name, paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: typeExpr})
-			return []string{
+			lines = append(lines, []string{
 				fmt.Sprintf("var %s %s = %s", goName, goType, expr),
 				fmt.Sprintf("_ = %s", goName),
-			}, true
+			}...)
+			return lines, true
 		}
 		existing, exists := ctx.lookup(name)
 		if !exists {
 			goName := sanitizeIdent(name)
 			ctx.setLocalBinding(name, paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: typeExpr})
-			return []string{
+			lines = append(lines, []string{
 				fmt.Sprintf("var %s %s = %s", goName, goType, expr),
 				fmt.Sprintf("_ = %s", goName),
-			}, true
+			}...)
+			return lines, true
 		}
 		if !g.typeMatches(existing.GoType, goType) {
 			if existing.GoType == "runtime.Value" {
@@ -303,7 +306,7 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 					return nil, false
 				}
 				convLines = append(convLines, fmt.Sprintf("%s = %s", existing.GoName, converted))
-				return convLines, true
+				return append(lines, convLines...), true
 			}
 			if goType == "runtime.Value" {
 				convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, expr, existing.GoType)
@@ -312,12 +315,13 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 					return nil, false
 				}
 				convLines = append(convLines, fmt.Sprintf("%s = %s", existing.GoName, converted))
-				return convLines, true
+				return append(lines, convLines...), true
 			}
 			ctx.setReason("pattern assignment type mismatch")
 			return nil, false
 		}
-		return []string{fmt.Sprintf("%s = %s", existing.GoName, expr)}, true
+		lines = append(lines, fmt.Sprintf("%s = %s", existing.GoName, expr))
+		return lines, true
 	}
 	existing, exists := ctx.lookup(name)
 	if exists {
@@ -329,7 +333,7 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 					return nil, false
 				}
 				convLines = append(convLines, fmt.Sprintf("%s = %s", existing.GoName, converted))
-				return convLines, true
+				return append(lines, convLines...), true
 			}
 			if goType == "runtime.Value" {
 				convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, expr, existing.GoType)
@@ -338,19 +342,21 @@ func (g *generator) bindPatternIdentifier(ctx *compileContext, name string, expr
 					return nil, false
 				}
 				convLines = append(convLines, fmt.Sprintf("%s = %s", existing.GoName, converted))
-				return convLines, true
+				return append(lines, convLines...), true
 			}
 			ctx.setReason("pattern assignment type mismatch")
 			return nil, false
 		}
-		return []string{fmt.Sprintf("%s = %s", existing.GoName, expr)}, true
+		lines = append(lines, fmt.Sprintf("%s = %s", existing.GoName, expr))
+		return lines, true
 	}
 	goName := sanitizeIdent(name)
 	ctx.setLocalBinding(name, paramInfo{Name: name, GoName: goName, GoType: goType, TypeExpr: typeExpr})
-	return []string{
+	lines = append(lines, []string{
 		fmt.Sprintf("var %s %s = %s", goName, goType, expr),
 		fmt.Sprintf("_ = %s", goName),
-	}, true
+	}...)
+	return lines, true
 }
 
 func (g *generator) compileRuntimeStructPatternAssignmentBindings(ctx *compileContext, pattern *ast.StructPattern, subjectTemp string, mode patternBindingMode) ([]string, bool) {
