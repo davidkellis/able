@@ -16,25 +16,71 @@ func (g *generator) nativeInterfaceAssignable(actual string, expected string) bo
 	if actualInfo == nil || expectedInfo == nil {
 		return false
 	}
-	for _, expectedMethod := range expectedInfo.Methods {
-		found := false
-		for _, actualMethod := range actualInfo.Methods {
-			if actualMethod == nil || expectedMethod == nil || actualMethod.Name != expectedMethod.Name {
-				continue
-			}
-			if actualMethod.OptionalLast != expectedMethod.OptionalLast || len(actualMethod.ParamGoTypes) != len(expectedMethod.ParamGoTypes) {
-				continue
-			}
-			if g.nativeInterfaceMethodShapeAssignable(actualMethod, expectedMethod) {
-				found = true
-				break
-			}
+	if actualInfo.GoType == expectedInfo.GoType {
+		return true
+	}
+	return g.nativeInterfaceNominallyAssignable(actualInfo, expectedInfo)
+}
+
+func (g *generator) nativeInterfaceNominallyAssignable(actualInfo, expectedInfo *nativeInterfaceInfo) bool {
+	if g == nil || actualInfo == nil || expectedInfo == nil || actualInfo.TypeExpr == nil || expectedInfo.TypeExpr == nil {
+		return false
+	}
+	actualPkg, _, _, _, ok := interfaceExprInfo(g, "", actualInfo.TypeExpr)
+	if !ok {
+		return false
+	}
+	expectedPkg, expectedName, expectedArgs, _, ok := interfaceExprInfo(g, "", expectedInfo.TypeExpr)
+	if !ok {
+		return false
+	}
+	if _, ok := g.nativeInterfaceImplBindingsForTarget(actualPkg, actualInfo.TypeExpr, nil, expectedPkg, expectedName, expectedArgs, make(map[string]struct{})); ok {
+		return true
+	}
+	return g.nativeInterfaceExplicitImplAssignable(actualInfo.TypeExpr, actualPkg, expectedPkg, expectedName, expectedArgs)
+}
+
+func (g *generator) nativeInterfaceExplicitImplAssignable(
+	actualExpr ast.TypeExpression,
+	actualPkg string,
+	expectedPkg string,
+	expectedName string,
+	expectedArgs []ast.TypeExpression,
+) bool {
+	if g == nil || actualExpr == nil || expectedName == "" || len(g.implDefinitions) == 0 {
+		return false
+	}
+	actualPkg = strings.TrimSpace(actualPkg)
+	actualExpr = normalizeTypeExprForPackage(g, actualPkg, actualExpr)
+	actualExprPkg, actualName, actualArgs, _, ok := interfaceExprInfo(g, actualPkg, actualExpr)
+	if !ok {
+		return false
+	}
+	for _, entry := range g.implDefinitions {
+		if entry == nil || entry.Definition == nil || entry.Definition.TargetType == nil || entry.Definition.InterfaceName == nil || entry.Definition.InterfaceName.Name == "" {
+			continue
 		}
-		if !found {
-			return false
+		genericNames := genericParamNameSet(entry.Definition.GenericParams)
+		targetExpr := normalizeTypeExprForPackage(g, entry.Package, entry.Definition.TargetType)
+		if targetExpr == nil {
+			targetExpr = entry.Definition.TargetType
+		}
+		if _, ok := g.nativeInterfaceImplBindingsForTarget(entry.Package, targetExpr, genericNames, actualExprPkg, actualName, actualArgs, make(map[string]struct{})); !ok {
+			continue
+		}
+		ifaceExpr := nativeInterfaceInstantiationExpr(entry.Definition.InterfaceName.Name, entry.Definition.InterfaceArgs)
+		if ifaceExpr == nil {
+			continue
+		}
+		ifacePkg := g.interfacePackageForName(entry.Package, entry.Definition.InterfaceName.Name)
+		if ifacePkg == "" {
+			ifacePkg = entry.Package
+		}
+		if _, ok := g.nativeInterfaceImplBindingsForTarget(ifacePkg, ifaceExpr, genericNames, expectedPkg, expectedName, expectedArgs, make(map[string]struct{})); ok {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (g *generator) nativeInterfaceMethodShapeAssignable(actualMethod, expectedMethod *nativeInterfaceMethod) bool {

@@ -697,6 +697,84 @@ func TestCompilerEmptyArrayLiteralMethodArgInfersSpecializedCarrier(t *testing.T
 	}
 }
 
+func TestCompilerIfFreshArrayBranchesInferSpecializedCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main(flag: bool) -> i32 {",
+		"  arr := if flag { [] } else { [] }",
+		"  arr.push(1)",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var arr *__able_array_i32 =",
+		"__able_array_i32_sync(",
+		"append(__able_tmp_",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected if-fresh-array specialization to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"[]runtime.Value",
+		"runtime.ArrayValue",
+		"__able_struct_Array_sync(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected if-fresh-array specialization to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
+func TestCompilerMatchFreshArrayClausesInferSpecializedCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  choice := 1",
+		"  arr := choice match {",
+		"    case 1 => Array.new(),",
+		"    case _ => Array.new(),",
+		"  }",
+		"  arr.push(1)",
+		"  arr.len()",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var arr *__able_array_i32 =",
+		"__able_array_i32_sync(",
+		"append(__able_tmp_",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected match-fresh-array specialization to contain %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"var arr *Array =",
+		"[]runtime.Value",
+		"runtime.ArrayValue",
+		"__able_struct_Array_sync(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected match-fresh-array specialization to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
 func TestCompilerArrayWrapperUsesExplicitArrayBoundaryConverters(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
@@ -847,35 +925,63 @@ func TestCompilerArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges(t *t
 	if !strings.Contains(arrayFrom, "state, err := runtime.ArrayStoreState(raw.Handle)") {
 		t.Fatalf("Array_from should read existing handle state directly:\n%s", arrayFrom)
 	}
-
-	arrayRuntimeValue, ok := findCompiledFunction(result, "__able_struct_Array_runtime_value")
-	if !ok {
-		t.Fatalf("could not find __able_struct_Array_runtime_value")
+	if !strings.Contains(arrayFrom, "__able_array_struct_instance_state(inst)") {
+		t.Fatalf("Array_from should delegate struct-instance fallback through the shared helper now:\n%s", arrayFrom)
 	}
 	for _, fragment := range []string{
-		"if preferredHandle == 0 {",
-		"return &runtime.ArrayValue{Elements: elems}, nil",
-		"runtime.ArrayStoreEnsureHandle(preferredHandle, len(elems), cap(elems))",
+		"lengthVal, ok := inst.Fields[\"length\"]",
+		"capacityVal, ok := inst.Fields[\"capacity\"]",
+		"handleVal, ok := inst.Fields[\"storage_handle\"]",
 	} {
-		if !strings.Contains(arrayRuntimeValue, fragment) {
-			t.Fatalf("expected Array runtime-value helper to contain %q:\n%s", fragment, arrayRuntimeValue)
+		if strings.Contains(arrayFrom, fragment) {
+			t.Fatalf("Array_from should avoid inline struct-instance field plumbing %q:\n%s", fragment, arrayFrom)
 		}
+	}
+
+	sharedStructHelper, ok := findCompiledFunction(result, "__able_array_struct_instance_state")
+	if !ok {
+		t.Fatalf("could not find __able_array_struct_instance_state")
+	}
+	for _, fragment := range []string{
+		"lengthVal, ok := inst.Fields[\"length\"]",
+		"capacityVal, ok := inst.Fields[\"capacity\"]",
+		"handleVal, ok := inst.Fields[\"storage_handle\"]",
+		"runtime.ArrayStoreState(sourceHandle)",
+	} {
+		if !strings.Contains(sharedStructHelper, fragment) {
+			t.Fatalf("expected shared Array struct-instance helper to contain %q:\n%s", fragment, sharedStructHelper)
+		}
+	}
+
+	if _, ok := findCompiledFunction(result, "__able_struct_Array_runtime_value"); ok {
+		t.Fatalf("expected shared Array runtime-value helper to be removed from generated output")
 	}
 
 	arrayTo, ok := findCompiledFunction(result, "__able_struct_Array_to")
 	if !ok {
 		t.Fatalf("could not find __able_struct_Array_to")
 	}
-	if !strings.Contains(arrayTo, "arr, err := __able_struct_Array_runtime_value(value, value.Storage_handle)") {
-		t.Fatalf("Array_to should route through the shared runtime-value helper:\n%s", arrayTo)
+	for _, fragment := range []string{
+		"__able_struct_Array_sync(value)",
+		"capHint := __able_struct_Array_capacity_hint(value)",
+		"elems := __able_struct_Array_clone_elements(value.Elements, capHint)",
+		"if value.Storage_handle == 0 {",
+		"return &runtime.ArrayValue{Elements: elems}, nil",
+		"state, err := runtime.ArrayStoreEnsureHandle(value.Storage_handle, len(elems), cap(elems))",
+		"return &runtime.ArrayValue{Elements: state.Values, Handle: value.Storage_handle}, nil",
+	} {
+		if !strings.Contains(arrayTo, fragment) {
+			t.Fatalf("expected Array_to to contain %q:\n%s", fragment, arrayTo)
+		}
 	}
 	for _, fragment := range []string{
+		"__able_struct_Array_runtime_value(value, value.Storage_handle)",
 		"runtime.ArrayStoreEnsure(arr, capHint)",
 		"value.Storage_handle = arr.Handle",
 		"value.Elements = arr.Elements",
 	} {
 		if strings.Contains(arrayTo, fragment) {
-			t.Fatalf("Array_to should avoid legacy in-place ArrayStore sync fragment %q:\n%s", fragment, arrayTo)
+			t.Fatalf("Array_to should avoid legacy/shared-helper fragment %q:\n%s", fragment, arrayTo)
 		}
 	}
 
@@ -886,7 +992,8 @@ func TestCompilerArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges(t *t
 	for _, fragment := range []string{
 		"preferredHandle := raw.Handle",
 		"preferredHandle = runtime.ArrayStoreNewWithCapacity(__able_struct_Array_capacity_hint(value))",
-		"inst.Fields[\"storage_handle\"] = bridge.ToInt(arr.Handle, runtime.IntegerI64)",
+		"state, err := runtime.ArrayStoreEnsureHandle(preferredHandle, len(elems), cap(elems))",
+		"inst.Fields[\"storage_handle\"] = bridge.ToInt(preferredHandle, runtime.IntegerI64)",
 	} {
 		if !strings.Contains(arrayApply, fragment) {
 			t.Fatalf("expected Array_apply to contain %q:\n%s", fragment, arrayApply)
@@ -895,6 +1002,7 @@ func TestCompilerArrayBoundaryHelpersOnlyUseArrayStoreAtExplicitHandleEdges(t *t
 	for _, fragment := range []string{
 		"_, _, _ = runtime.ArrayStoreEnsure(raw, len(value.Elements))",
 		"converted, err := __able_struct_Array_to(rt, value)",
+		"arr, err := __able_struct_Array_runtime_value(value, preferredHandle)",
 	} {
 		if strings.Contains(arrayApply, fragment) {
 			t.Fatalf("Array_apply should avoid legacy boundary fragment %q:\n%s", fragment, arrayApply)

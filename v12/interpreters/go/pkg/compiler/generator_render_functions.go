@@ -586,6 +586,19 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param
 		g.renderConvertErr(buf)
 		fmt.Fprintf(buf, "\t%s := %s(%sRaw)\n", target, goType, argName)
 	case "struct":
+		if g.isArrayStructType(goType) {
+			fmt.Fprintf(buf, "\tvar %s *Array\n", target)
+			for _, line := range g.runtimeValueToGenericArrayBoundaryLines(target, "err", argName+"Value", true) {
+				fmt.Fprintf(buf, "\t%s\n", line)
+			}
+			g.renderConvertErr(buf)
+			if g.structArgRequiresValue(pkgName, param.TypeExpr, goType) {
+				fmt.Fprintf(buf, "\tif %s == nil {\n", target)
+				fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"type mismatch calling %s: expected %s\")\n", funcName, typeExpressionToString(param.TypeExpr))
+				fmt.Fprintf(buf, "\t}\n")
+			}
+			return
+		}
 		baseName, ok := g.structHelperName(goType)
 		if !ok {
 			baseName = strings.TrimPrefix(goType, "*")

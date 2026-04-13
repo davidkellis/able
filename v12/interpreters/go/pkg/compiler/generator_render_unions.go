@@ -40,16 +40,17 @@ func (g *generator) renderNativeUnions(buf *bytes.Buffer) {
 			fmt.Fprintf(buf, "\treturn raw.Value, true\n")
 			fmt.Fprintf(buf, "}\n\n")
 		}
+		g.renderNativeUnionTryFromRuntimeHelper(buf, info)
 		g.renderNativeUnionFromRuntimeHelper(buf, info)
 		g.renderNativeUnionToRuntimeHelper(buf, info)
 		g.nativeUnionRendered[key] = struct{}{}
 	}
 }
 
-func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *nativeUnionInfo) {
-	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, error) {\n", info.FromRuntimeHelper, info.GoType)
+func (g *generator) renderNativeUnionTryFromRuntimeHelper(buf *bytes.Buffer, info *nativeUnionInfo) {
+	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, bool, error) {\n", info.TryFromRuntimeHelper, info.GoType)
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
-	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
+	fmt.Fprintf(buf, "\t\treturn nil, false, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")
 	var fallbackRuntimeMember *nativeUnionMember
 	for _, member := range info.Members {
@@ -62,10 +63,10 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 				fmt.Fprintf(buf, "\t{\n")
 				fmt.Fprintf(buf, "\t\tcoerced, ok, err := bridge.MatchType(rt, %s, value)\n", renderedType)
 				fmt.Fprintf(buf, "\t\tif err != nil {\n")
-				fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+				fmt.Fprintf(buf, "\t\t\treturn nil, false, err\n")
 				fmt.Fprintf(buf, "\t\t}\n")
 				fmt.Fprintf(buf, "\t\tif ok {\n")
-				fmt.Fprintf(buf, "\t\t\treturn %s(coerced), nil\n", member.WrapHelper)
+				fmt.Fprintf(buf, "\t\t\treturn %s(coerced), true, nil\n", member.WrapHelper)
 				fmt.Fprintf(buf, "\t\t}\n")
 				fmt.Fprintf(buf, "\t}\n")
 			} else if fallbackRuntimeMember == nil {
@@ -77,10 +78,10 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 			fmt.Fprintf(buf, "\t{\n")
 			fmt.Fprintf(buf, "\t\tcoerced, ok, err := bridge.MatchType(rt, %s, value)\n", renderedType)
 			fmt.Fprintf(buf, "\t\tif err != nil {\n")
-			fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+			fmt.Fprintf(buf, "\t\t\treturn nil, false, err\n")
 			fmt.Fprintf(buf, "\t\t}\n")
 			fmt.Fprintf(buf, "\t\tif ok {\n")
-			fmt.Fprintf(buf, "\t\t\treturn %s(%s(coerced)), nil\n", member.WrapHelper, iface.RuntimeWrapHelper)
+			fmt.Fprintf(buf, "\t\t\treturn %s(%s(coerced)), true, nil\n", member.WrapHelper, iface.RuntimeWrapHelper)
 			fmt.Fprintf(buf, "\t\t}\n")
 			fmt.Fprintf(buf, "\t}\n")
 			continue
@@ -89,10 +90,10 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 			fmt.Fprintf(buf, "\t{\n")
 			fmt.Fprintf(buf, "\t\tcoerced, ok, err := bridge.MatchType(rt, %s, value)\n", renderedType)
 			fmt.Fprintf(buf, "\t\tif err != nil {\n")
-			fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+			fmt.Fprintf(buf, "\t\t\treturn nil, false, err\n")
 			fmt.Fprintf(buf, "\t\t}\n")
 			fmt.Fprintf(buf, "\t\tif ok {\n")
-			fmt.Fprintf(buf, "\t\t\treturn %s(bridge.ErrorValue(rt, coerced)), nil\n", member.WrapHelper)
+			fmt.Fprintf(buf, "\t\t\treturn %s(bridge.ErrorValue(rt, coerced)), true, nil\n", member.WrapHelper)
 			fmt.Fprintf(buf, "\t\t}\n")
 			fmt.Fprintf(buf, "\t}\n")
 			continue
@@ -100,7 +101,7 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 		fmt.Fprintf(buf, "\t{\n")
 		fmt.Fprintf(buf, "\t\tcoerced, ok, err := bridge.MatchType(rt, %s, value)\n", renderedType)
 		fmt.Fprintf(buf, "\t\tif err != nil {\n")
-		fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t\treturn nil, false, err\n")
 		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\tif ok {\n")
 		switch {
@@ -152,18 +153,32 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 			fmt.Fprintf(buf, "\t\t\t_ = converted\n")
 			fmt.Fprintf(buf, "\t\t\t_ = err\n")
 			fmt.Fprintf(buf, "\t\t\t_ = coerced\n")
-			fmt.Fprintf(buf, "\t\t\treturn nil, fmt.Errorf(\"unsupported union member type %s\")\n", member.GoType)
+			fmt.Fprintf(buf, "\t\t\treturn nil, false, fmt.Errorf(\"unsupported union member type %s\")\n", member.GoType)
 		}
 		fmt.Fprintf(buf, "\t\t\tif err != nil {\n")
-		fmt.Fprintf(buf, "\t\t\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t\t\t\treturn nil, false, err\n")
 		fmt.Fprintf(buf, "\t\t\t}\n")
-		fmt.Fprintf(buf, "\t\t\treturn %s(converted), nil\n", member.WrapHelper)
+		fmt.Fprintf(buf, "\t\t\treturn %s(converted), true, nil\n", member.WrapHelper)
 		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t}\n")
 	}
 	if fallbackRuntimeMember != nil {
-		fmt.Fprintf(buf, "\treturn %s(value), nil\n", fallbackRuntimeMember.WrapHelper)
+		fmt.Fprintf(buf, "\treturn %s(value), true, nil\n", fallbackRuntimeMember.WrapHelper)
+	} else {
+		fmt.Fprintf(buf, "\treturn nil, false, nil\n")
 	}
+	fmt.Fprintf(buf, "}\n\n")
+}
+
+func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *nativeUnionInfo) {
+	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, error) {\n", info.FromRuntimeHelper, info.GoType)
+	fmt.Fprintf(buf, "\tconverted, ok, err := %s(rt, value)\n", info.TryFromRuntimeHelper)
+	fmt.Fprintf(buf, "\tif err != nil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, err\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif ok {\n")
+	fmt.Fprintf(buf, "\t\treturn converted, nil\n")
+	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn nil, fmt.Errorf(\"type mismatch: expected %s\")\n", info.TypeString)
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func %s(value runtime.Value) %s {\n", info.FromRuntimePanic, info.GoType)

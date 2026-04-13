@@ -222,9 +222,11 @@ func (g *generator) compileNativeArrayPatternBindings(ctx *compileContext, patte
 					ctx.setReason("array pattern unsupported")
 					return nil, false
 				}
+				restTypeExpr, _ := g.typeExprForGoType(subjectType)
+				restTypeExpr = g.lowerNormalizedTypeExpr(ctx, restTypeExpr)
 				lines = append(lines, restLines...)
 				goName := sanitizeIdent(rest.Name)
-				ctx.setLocalBinding(rest.Name, paramInfo{Name: rest.Name, GoName: goName, GoType: subjectType})
+				ctx.setLocalBinding(rest.Name, paramInfo{Name: rest.Name, GoName: goName, GoType: subjectType, TypeExpr: restTypeExpr})
 				lines = append(lines,
 					fmt.Sprintf("var %s %s = %s", goName, subjectType, restExpr),
 					fmt.Sprintf("_ = %s", goName),

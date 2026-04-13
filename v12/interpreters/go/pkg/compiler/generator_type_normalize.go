@@ -14,7 +14,7 @@ func (g *generator) builtinSemanticTypeShadowedInPackage(pkgName string, name st
 	if recorded, ok := g.unionPackages[name]; ok && recorded == pkgName {
 		return true
 	}
-	if recorded, ok := g.interfacePackages[name]; ok && recorded == pkgName {
+	if g.interfaceDefinedInPackage(pkgName, name) {
 		return true
 	}
 	if info := g.structs[name]; info != nil && info.Package == pkgName {

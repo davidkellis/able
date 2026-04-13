@@ -20,7 +20,7 @@ func (g *generator) nominalTargetGenericParams(method *methodInfo) []*ast.Generi
 	if info, ok := g.structInfoForTypeName(method.Info.Package, baseName); ok && info != nil && info.Node != nil {
 		return info.Node.GenericParams
 	}
-	if iface, ok := g.interfaces[baseName]; ok && iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForPackage(method.Info.Package, baseName); ok && iface != nil {
 		return iface.GenericParams
 	}
 	return nil

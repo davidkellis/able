@@ -8,18 +8,20 @@ import (
 )
 
 type nativeCallableInfo struct {
-	Key               string
-	GoType            string
-	TypeExpr          *ast.FunctionTypeExpression
-	TypeString        string
-	ParamGoTypes      []string
-	ParamTypeExprs    []ast.TypeExpression
-	ReturnGoType      string
-	ReturnTypeExpr    ast.TypeExpression
-	FromRuntimeHelper string
-	FromRuntimePanic  string
-	ToRuntimeHelper   string
-	ToRuntimePanic    string
+	Key                  string
+	PackageName          string
+	GoType               string
+	TypeExpr             *ast.FunctionTypeExpression
+	TypeString           string
+	ParamGoTypes         []string
+	ParamTypeExprs       []ast.TypeExpression
+	ReturnGoType         string
+	ReturnTypeExpr       ast.TypeExpression
+	FromRuntimeHelper    string
+	TryFromRuntimeHelper string
+	FromRuntimePanic     string
+	ToRuntimeHelper      string
+	ToRuntimePanic       string
 }
 
 func (g *generator) nativeCallableInfoForGoType(goType string) *nativeCallableInfo {
@@ -93,10 +95,14 @@ func (g *generator) ensureNativeCallableInfo(pkgName string, expr *ast.FunctionT
 	if !ok || returnGoType == "" {
 		return nil, false
 	}
-	return g.ensureNativeCallableInfoFromSignature(paramExprs, paramGoTypes, returnExpr, returnGoType)
+	return g.ensureNativeCallableInfoFromSignatureInPackage(pkgName, paramExprs, paramGoTypes, returnExpr, returnGoType)
 }
 
 func (g *generator) ensureNativeCallableInfoFromSignature(paramExprs []ast.TypeExpression, paramGoTypes []string, returnExpr ast.TypeExpression, returnGoType string) (*nativeCallableInfo, bool) {
+	return g.ensureNativeCallableInfoFromSignatureInPackage("", paramExprs, paramGoTypes, returnExpr, returnGoType)
+}
+
+func (g *generator) ensureNativeCallableInfoFromSignatureInPackage(pkgName string, paramExprs []ast.TypeExpression, paramGoTypes []string, returnExpr ast.TypeExpression, returnGoType string) (*nativeCallableInfo, bool) {
 	if g == nil || returnGoType == "" {
 		return nil, false
 	}
@@ -124,6 +130,12 @@ func (g *generator) ensureNativeCallableInfoFromSignature(paramExprs []ast.TypeE
 	}
 	key := nativeCallableKey(paramGoTypes, returnGoType)
 	if info, ok := g.nativeCallables[key]; ok && info != nil {
+		if info.PackageName == "" && strings.TrimSpace(pkgName) != "" {
+			info.PackageName = strings.TrimSpace(pkgName)
+			if info.TypeExpr != nil {
+				info.TypeExpr = g.recordResolvedTypeExprPackage(info.TypeExpr, info.PackageName).(*ast.FunctionTypeExpression)
+			}
+		}
 		return info, true
 	}
 	paramExprCopy := append([]ast.TypeExpression{}, paramExprs...)
@@ -131,18 +143,20 @@ func (g *generator) ensureNativeCallableInfoFromSignature(paramExprs []ast.TypeE
 	typeExpr := ast.NewFunctionTypeExpression(paramExprCopy, returnExpr)
 	baseToken := nativeCallableToken(paramGoCopy, returnGoType)
 	info := &nativeCallableInfo{
-		Key:               key,
-		GoType:            baseToken,
-		TypeExpr:          typeExpr,
-		TypeString:        typeExpressionToString(typeExpr),
-		ParamGoTypes:      paramGoCopy,
-		ParamTypeExprs:    paramExprCopy,
-		ReturnGoType:      returnGoType,
-		ReturnTypeExpr:    returnExpr,
-		FromRuntimeHelper: baseToken + "_from_runtime_value",
-		FromRuntimePanic:  baseToken + "_from_runtime_value_or_panic",
-		ToRuntimeHelper:   baseToken + "_to_runtime_value",
-		ToRuntimePanic:    baseToken + "_to_runtime_value_or_panic",
+		Key:                  key,
+		PackageName:          strings.TrimSpace(pkgName),
+		GoType:               baseToken,
+		TypeExpr:             g.recordResolvedTypeExprPackage(typeExpr, pkgName).(*ast.FunctionTypeExpression),
+		TypeString:           typeExpressionToString(typeExpr),
+		ParamGoTypes:         paramGoCopy,
+		ParamTypeExprs:       paramExprCopy,
+		ReturnGoType:         returnGoType,
+		ReturnTypeExpr:       returnExpr,
+		FromRuntimeHelper:    baseToken + "_from_runtime_value",
+		TryFromRuntimeHelper: baseToken + "_try_from_runtime_value",
+		FromRuntimePanic:     baseToken + "_from_runtime_value_or_panic",
+		ToRuntimeHelper:      baseToken + "_to_runtime_value",
+		ToRuntimePanic:       baseToken + "_to_runtime_value_or_panic",
 	}
 	g.nativeCallables[key] = info
 	return info, true

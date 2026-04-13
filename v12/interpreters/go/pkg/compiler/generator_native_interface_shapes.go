@@ -49,7 +49,7 @@ func (g *generator) nonTransferableConcreteInfoBindingNames(info *functionInfo) 
 	if impl == nil {
 		return skip
 	}
-	if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 		for name := range g.interfaceSelfBindingNames(iface) {
 			skip[name] = struct{}{}
 		}

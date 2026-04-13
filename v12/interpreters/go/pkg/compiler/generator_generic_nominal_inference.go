@@ -58,7 +58,7 @@ func (g *generator) inferStructFieldTypeExpr(ctx *compileContext, objectTypeExpr
 		if gp == nil || gp.Name == nil || gp.Name.Name == "" || generic.Arguments[idx] == nil {
 			return fieldTypeExpr
 		}
-		bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, info.Package, generic.Arguments[idx])
+		bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, ctx.packageName, generic.Arguments[idx])
 	}
 	return normalizeTypeExprForPackage(g, ctx.packageName, substituteTypeParams(field.TypeExpr, bindings))
 }

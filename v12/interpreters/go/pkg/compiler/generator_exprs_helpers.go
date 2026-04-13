@@ -23,17 +23,7 @@ func (g *generator) typeMatches(expected, actual string) bool {
 			return g.nativeInterfaceAcceptsActualShallow(iface, actual)
 		}
 		if union := g.nativeUnionInfoForGoType(expected); union != nil {
-			if _, ok := g.nativeUnionMember(union, actual); ok {
-				return true
-			}
-			for _, member := range union.Members {
-				if iface := g.nativeInterfaceInfoForGoType(member.GoType); iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
-					return true
-				}
-				if g.nativeUnionRuntimeMemberAcceptsActual(member, actual) {
-					return true
-				}
-			}
+			return g.nativeUnionAcceptsActual(union, actual)
 		}
 	}
 	return false
@@ -83,22 +73,8 @@ func (g *generator) canCoerceStaticExpr(expected, actual string) bool {
 		}
 	}
 	if union := g.nativeUnionInfoForGoType(expected); union != nil {
-		if _, ok := g.nativeUnionMember(union, actual); ok {
+		if g.nativeUnionAcceptsActual(union, actual) {
 			return true
-		}
-		for _, member := range union.Members {
-			if member == nil {
-				continue
-			}
-			if iface := g.nativeInterfaceInfoForGoType(member.GoType); iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
-				return true
-			}
-			if member.GoType == "runtime.ErrorValue" && g.isNativeErrorCarrierType(actual) {
-				return true
-			}
-			if g.nativeUnionRuntimeMemberAcceptsActual(member, actual) {
-				return true
-			}
 		}
 	}
 	return false
@@ -218,15 +194,20 @@ func (g *generator) concretizedExpectedTypeExpr(ctx *compileContext, expectedGoT
 	if g == nil {
 		return expectedTypeExpr
 	}
+	if expectedTypeExpr != nil {
+		expectedTypeExpr = g.lowerNormalizedTypeExpr(ctx, expectedTypeExpr)
+		if expectedTypeExpr != nil {
+			if expectedGoType == "" || expectedGoType == "runtime.Value" || expectedGoType == "any" || g.typeExprCompatibleWithCarrier(ctx, expectedTypeExpr, expectedGoType) {
+				return expectedTypeExpr
+			}
+		}
+	}
 	if expectedGoType != "" && expectedGoType != "runtime.Value" && expectedGoType != "any" {
 		if expr, ok := g.typeExprForGoType(expectedGoType); ok && expr != nil {
 			return g.lowerNormalizedTypeExpr(ctx, expr)
 		}
 	}
-	if expectedTypeExpr == nil {
-		return nil
-	}
-	return g.lowerNormalizedTypeExpr(ctx, expectedTypeExpr)
+	return nil
 }
 
 func (g *generator) staticParamCarrierType(ctx *compileContext, param paramInfo) string {
@@ -248,9 +229,6 @@ func (g *generator) staticParamCarrierType(ctx *compileContext, param paramInfo)
 }
 
 func (g *generator) nativeUnionWrapLines(ctx *compileContext, expected, actual, expr string) ([]string, string, bool) {
-	if wrapped, ok := g.nativeUnionWrapExpr(expected, actual, expr); ok {
-		return nil, wrapped, true
-	}
 	if g == nil || ctx == nil || expected == "" || actual == "" || expr == "" {
 		return nil, "", false
 	}
@@ -258,56 +236,7 @@ func (g *generator) nativeUnionWrapLines(ctx *compileContext, expected, actual, 
 	if union == nil {
 		return nil, "", false
 	}
-	if !g.isNativeErrorCarrierType(actual) {
-		for _, member := range union.Members {
-			if member == nil {
-				continue
-			}
-			if iface := g.nativeInterfaceInfoForGoType(member.GoType); iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
-				ifaceLines, ifaceExpr, ok := g.lowerWrapInterface(ctx, member.GoType, actual, expr)
-				if !ok {
-					return nil, "", false
-				}
-				return ifaceLines, fmt.Sprintf("%s(%s)", member.WrapHelper, ifaceExpr), true
-			}
-		}
-		for _, runtimeMember := range union.Members {
-			if !g.nativeUnionRuntimeMemberAcceptsActual(runtimeMember, actual) {
-				continue
-			}
-			if actual == "runtime.Value" {
-				return nil, fmt.Sprintf("%s(%s)", runtimeMember.WrapHelper, expr), true
-			}
-			runtimeLines, runtimeExpr, ok := g.lowerRuntimeValue(ctx, expr, actual)
-			if !ok {
-				return nil, "", false
-			}
-			return runtimeLines, fmt.Sprintf("%s(%s)", runtimeMember.WrapHelper, runtimeExpr), true
-		}
-		return nil, "", false
-	}
-	member, ok := g.nativeUnionMember(union, "runtime.ErrorValue")
-	if !ok || member == nil {
-		for _, runtimeMember := range union.Members {
-			if !g.nativeUnionRuntimeMemberAcceptsActual(runtimeMember, actual) {
-				continue
-			}
-			if actual == "runtime.Value" {
-				return nil, fmt.Sprintf("%s(%s)", runtimeMember.WrapHelper, expr), true
-			}
-			runtimeLines, runtimeExpr, ok := g.lowerRuntimeValue(ctx, expr, actual)
-			if !ok {
-				return nil, "", false
-			}
-			return runtimeLines, fmt.Sprintf("%s(%s)", runtimeMember.WrapHelper, runtimeExpr), true
-		}
-		return nil, "", false
-	}
-	lines, errorExpr, ok := g.nativeErrorValueLines(ctx, actual, expr)
-	if !ok {
-		return nil, "", false
-	}
-	return lines, fmt.Sprintf("%s(%s)", member.WrapHelper, errorExpr), true
+	return g.nativeUnionWrapLinesSeen(ctx, union, actual, expr, make(map[string]struct{}))
 }
 
 func (g *generator) compileableInterfaceMethodForReceiver(goType string, interfaceName string, methodName string) *functionInfo {

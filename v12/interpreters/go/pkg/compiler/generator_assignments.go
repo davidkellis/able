@@ -756,6 +756,14 @@ func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.As
 	}
 
 	if valueType == "runtime.Value" || valueType == "any" {
+		valueTypeExpr, _ := g.inferLocalTypeExpr(ctx, assign.Right, valueType)
+		previousExpectedTypeExpr := ctx.expectedTypeExpr
+		if valueTypeExpr != nil {
+			ctx.expectedTypeExpr = g.lowerNormalizedTypeExpr(ctx, valueTypeExpr)
+		}
+		defer func() {
+			ctx.expectedTypeExpr = previousExpectedTypeExpr
+		}()
 		valConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
 		if !ok {
 			ctx.setReason("pattern assignment value unsupported")

@@ -198,9 +198,13 @@ func (g *generator) interfaceTypeExprSatisfies(expr ast.TypeExpression, interfac
 	if g == nil || expr == nil || interfaceName == "" {
 		return false
 	}
+	pkgName := g.resolvedTypeExprPackage("", expr)
 	baseName, ok := typeExprBaseName(expr)
 	if !ok || baseName == "" {
 		return false
+	}
+	if ifacePkg, _, _, _, ok := interfaceExprInfo(g, pkgName, expr); ok && ifacePkg != "" {
+		pkgName = ifacePkg
 	}
 	if baseName == interfaceName {
 		return true
@@ -208,7 +212,7 @@ func (g *generator) interfaceTypeExprSatisfies(expr ast.TypeExpression, interfac
 	if !g.isInterfaceName(baseName) {
 		return false
 	}
-	for _, candidate := range g.interfaceSearchNames(baseName, make(map[string]struct{})) {
+	for _, candidate := range g.interfaceSearchNamesForPackage(pkgName, baseName, make(map[string]struct{})) {
 		if candidate == interfaceName {
 			return true
 		}
@@ -400,11 +404,11 @@ func (g *generator) compileBlockExpression(ctx *compileContext, block *ast.Block
 		case expected == "", expected == "runtime.Value", expected == "any":
 			child.expectedTypeExpr = nil
 		default:
-			if expectedExpr, ok := g.typeExprForGoType(expected); ok && expectedExpr != nil {
-				child.expectedTypeExpr = normalizeTypeExprForPackage(g, child.packageName, expectedExpr)
-			} else {
-				child.expectedTypeExpr = nil
+			expectedTypeExpr := ctx.expectedTypeExpr
+			if expectedTypeExpr == nil {
+				expectedTypeExpr = ctx.returnTypeExpr
 			}
+			child.expectedTypeExpr = g.concretizedExpectedTypeExpr(child, expected, expectedTypeExpr)
 		}
 	}
 	if len(block.Body) == 0 {

@@ -118,7 +118,7 @@ func (g *generator) recoverRepresentableCarrierType(pkgName string, expr ast.Typ
 	if mapped != "" && mapped != "runtime.Value" && mapped != "any" {
 		return mapped, true
 	}
-	expr = normalizeTypeExprForPackage(g, pkgName, expr)
+	pkgName, expr = g.normalizeTypeExprContextForPackage(pkgName, expr)
 	if ifaceExpr, ok := g.interfaceTypeExpr(expr); ok {
 		if ifacePkg, _, _, _, ok := interfaceExprInfo(g, pkgName, ifaceExpr); ok {
 			if info, ok := g.ensureNativeInterfaceInfo(ifacePkg, ifaceExpr); ok && info != nil && info.GoType != "" {
@@ -162,7 +162,7 @@ func (g *generator) typeExprAllowsNilInPackage(pkgName string, expr ast.TypeExpr
 	if g == nil || expr == nil {
 		return false
 	}
-	normalized := normalizeTypeExprForPackage(g, pkgName, expr)
+	_, normalized := g.normalizeTypeExprContextForPackage(pkgName, expr)
 	switch t := normalized.(type) {
 	case *ast.NullableTypeExpression:
 		return t != nil
@@ -537,10 +537,10 @@ func (g *generator) isResultVoidTypeExpr(expr ast.TypeExpression) bool {
 }
 
 func (g *generator) isInterfaceName(name string) bool {
-	if name == "" || g == nil || g.interfaces == nil {
+	if name == "" || g == nil {
 		return false
 	}
-	_, ok := g.interfaces[name]
+	_, _, ok := g.interfaceDefinitionForPackage("", name)
 	return ok
 }
 

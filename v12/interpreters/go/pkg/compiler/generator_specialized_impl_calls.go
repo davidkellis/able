@@ -31,7 +31,7 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 	genericNames := g.implSpecializationGenericNames(method)
 	if selfExpr, ok := bindings["Self"]; ok && selfExpr != nil && impl.TargetType != nil {
 		targetBindings := cloneTypeBindings(bindings)
-		if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+		if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 			for name := range g.interfaceSelfBindingNames(iface) {
 				delete(targetBindings, name)
 			}
@@ -50,7 +50,7 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 	concreteTarget := g.specializedImplTargetType(impl, bindings)
 	if concreteTarget != nil && impl.TargetType != nil {
 		targetBindings := cloneTypeBindings(bindings)
-		if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+		if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 			for name := range g.interfaceSelfBindingNames(iface) {
 				delete(targetBindings, name)
 			}
@@ -78,7 +78,7 @@ func (g *generator) ensureSpecializedImplMethod(method *methodInfo, impl *implMe
 	if fillBindings == nil {
 		fillBindings = make(map[string]ast.TypeExpression, len(bindings))
 	}
-	if iface := g.interfaces[impl.InterfaceName]; iface != nil && concreteTarget != nil {
+	if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil && concreteTarget != nil {
 		for name, expr := range g.interfaceSelfTypeBindings(iface, concreteTarget) {
 			if expr == nil {
 				continue

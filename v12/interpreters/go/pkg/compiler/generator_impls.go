@@ -3,6 +3,7 @@ package compiler
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -41,7 +42,7 @@ func (g *generator) collectImplDefinition(def *ast.ImplementationDefinition, map
 		implName = def.ImplName.Name
 	}
 	var ifaceGenerics []*ast.GenericParameter
-	if iface := g.interfaces[ifaceName]; iface != nil {
+	if iface, _, ok := g.interfaceDefinitionForPackage(pkgName, ifaceName); ok && iface != nil {
 		ifaceGenerics = iface.GenericParams
 	}
 	interfaceBindings := g.implTypeBindings(pkgName, ifaceName, ifaceGenerics, def.InterfaceArgs, targetType)
@@ -95,8 +96,8 @@ func (g *generator) collectDefaultImplMethods() {
 			continue
 		}
 		ifaceName := def.InterfaceName.Name
-		iface := g.interfaces[ifaceName]
-		if iface == nil || len(iface.Signatures) == 0 {
+		iface, ifacePkg, ok := g.interfaceDefinitionForPackage(entry.Package, ifaceName)
+		if !ok || iface == nil || len(iface.Signatures) == 0 {
 			continue
 		}
 		explicit := make(map[string]struct{}, len(def.Definitions))
@@ -110,7 +111,7 @@ func (g *generator) collectDefaultImplMethods() {
 		if def.ImplName != nil {
 			implName = def.ImplName.Name
 		}
-		pkgName := g.interfacePackages[ifaceName]
+		pkgName := ifacePkg
 		if pkgName == "" {
 			pkgName = entry.Package
 		}
@@ -204,7 +205,7 @@ func (g *generator) implTypeBindings(pkgName string, interfaceName string, param
 			bindings = merged
 		}
 	}
-	iface := g.interfaces[interfaceName]
+	iface, _, _ := g.interfaceDefinitionForPackage(pkgName, interfaceName)
 	selfBindings := g.interfaceSelfTypeBindings(iface, target)
 	if len(selfBindings) == 0 {
 		return g.normalizeImplBindings(bindings)
@@ -412,7 +413,7 @@ func (g *generator) fillImplMethodInfo(info *functionInfo, mapper *TypeMapper, t
 		}
 		allBindings["Self"] = normalizeTypeExprForPackage(g, info.Package, selfTarget)
 		if impl := g.implMethodByInfo[info]; impl != nil {
-			if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+			if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 				for name, expr := range g.interfaceSelfTypeBindings(iface, selfTarget) {
 					if expr == nil {
 						continue
@@ -710,12 +711,20 @@ func (g *generator) implSiblingsForDefault(target *implMethodInfo) map[string]im
 	targetTypeName, targetTypeNameOK := g.methodTargetName(target.TargetType)
 	siblings := make(map[string]implSiblingInfo)
 	ambiguous := make(map[string]struct{})
-	allowedInterfaces := g.interfaceFamilyNames(target.InterfaceName)
+	targetInterfacePkg := ""
+	if _, resolvedPkg, ok := g.interfaceDefinitionForImpl(target); ok {
+		targetInterfacePkg = resolvedPkg
+	}
+	allowedInterfaces := g.interfaceFamilyNames(targetInterfacePkg, target.InterfaceName)
 	for _, impl := range g.implMethodList {
 		if impl == nil || impl.Info == nil || !impl.Info.Compileable {
 			continue
 		}
-		if _, ok := allowedInterfaces[impl.InterfaceName]; !ok {
+		implInterfacePkg := ""
+		if _, resolvedPkg, ok := g.interfaceDefinitionForImpl(impl); ok {
+			implInterfacePkg = resolvedPkg
+		}
+		if _, ok := allowedInterfaces[strings.TrimSpace(implInterfacePkg)+"::"+impl.InterfaceName]; !ok {
 			continue
 		}
 		// For named impls, match by impl name; for unnamed, match by target type.
@@ -755,33 +764,33 @@ func (g *generator) implSiblingsForDefault(target *implMethodInfo) map[string]im
 	return siblings
 }
 
-func (g *generator) interfaceFamilyNames(interfaceName string) map[string]struct{} {
+func (g *generator) interfaceFamilyNames(pkgName string, interfaceName string) map[string]struct{} {
 	if g == nil || interfaceName == "" {
 		return nil
 	}
 	seen := make(map[string]struct{})
-	var visit func(string)
-	visit = func(name string) {
+	var visit func(string, string)
+	visit = func(currentPkg string, name string) {
 		if name == "" {
 			return
 		}
-		if _, ok := seen[name]; ok {
+		key := strings.TrimSpace(currentPkg) + "::" + name
+		if _, ok := seen[key]; ok {
 			return
 		}
-		seen[name] = struct{}{}
-		iface := g.interfaces[name]
-		if iface == nil {
+		seen[key] = struct{}{}
+		iface, ifacePkg, ok := g.interfaceDefinitionForPackage(currentPkg, name)
+		if !ok || iface == nil {
 			return
 		}
-		pkgName := g.interfacePackages[name]
 		for _, baseExpr := range iface.BaseInterfaces {
-			_, baseName, _, _, ok := interfaceExprInfo(g, pkgName, baseExpr)
+			basePkg, baseName, _, _, ok := interfaceExprInfo(g, ifacePkg, baseExpr)
 			if !ok {
 				continue
 			}
-			visit(baseName)
+			visit(basePkg, baseName)
 		}
 	}
-	visit(interfaceName)
+	visit(pkgName, interfaceName)
 	return seen
 }

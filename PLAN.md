@@ -80,6 +80,89 @@ is still open:
 - explicit dynamic-boundary audits exist;
 - reduced benchmark fixtures exist for matrix, iterator, heap, and array-heavy
   paths;
+- the array-native lowering tranche is complete on 2026-04-01; remaining
+  `runtime.ArrayValue` / `ArrayStore*` use is now limited to explicit dynamic
+  or ABI edges plus the unspecialized wildcard-array ABI;
+- imported shadowed nominal match bindings now preserve foreign package
+  context through carrier reconstruction too, so direct field access stays
+  native instead of round-tripping through nominal/runtime helpers;
+- mixed imported/local shadowed nominal joins now keep distinct native union
+  members instead of collapsing on unqualified type-expression strings, and
+  shadowed callable joins built from those nominal returns now stay on native
+  callable-union carriers instead of silently collapsing to
+  `fn(...) -> runtime.Value`;
+- lambda literals and placeholder lambdas now narrow through expected callable
+  members inside native union/result carriers, and semantic `Result` carrier
+  synthesis preserves that callable member's resolved package context too, so
+  imported semantic `Option` / `Result` aliases and direct union aliases
+  built from shadowed callable returns stay on native callable carriers
+  instead of failing with `lambda expression type mismatch` or
+  `placeholder lambda type mismatch`;
+- imported semantic `Result` aliases over shadowed callable members now stay
+  native under outer `Result` carriers too, because raw imported selector
+  aliases nested inside function type expressions keep lexical caller-package
+  normalization instead of being re-normalized under stale foreign package
+  context and collapsing to `__able_fn_*_to_runtime_Value`;
+- imported generic struct members with shadowed nominal type arguments now
+  stay on specialized native carriers inside result and nested union/result
+  families too, because fully bound imported selector arguments count as
+  concrete in the caller package and foreign generic-struct specialization
+  keeps that caller-side package context through field substitution;
+- error-wrapped nominal struct typed matches now stay on those native struct
+  carriers too, because generated `__able_struct_*_try_from(...)` /
+  `__able_struct_*_from(...)` helpers unwrap through the shared
+  `__able_struct_instance(...)` path before enforcing the nominal definition
+  check, fixing static `case _: IndexError` matches on array helper bounds
+  results under the no-bootstrap boundary harness;
+- imported shadowed interface selector aliases now preserve their source
+  package through generic type normalization too, so nullable / union / result
+  aliases built from foreign `Interface<T>` members stay on native interface
+  carriers even when the caller shadows the same interface name locally;
+- raw imported selector-alias typed patterns now normalize in their lexical
+  caller package before any recorded foreign package is reapplied, so generic
+  `Result` / semantic-result carrier matches like
+  `Outcome(RemoteIface<i32>) match { case value: RemoteIface<i32> => ... }`
+  resolve back onto the native imported interface carrier instead of widening
+  to `runtime.Value`;
+- imported semantic `Result` aliases nested under outer `Result` carriers now
+  stay native across shadowed foreign interfaces too, because alias expansion
+  preserves alias-source normalization and builtin `Error` identities collapse
+  across package contexts during nested carrier synthesis;
+- generic specializations now also keep native interface carriers for both
+  local and imported-shadowed interface actuals, including the duplicate-
+  member collapse case where a fully bound generic union normalizes to the
+  same foreign interface type twice, because imported selector source-package
+  context now survives specialization materialization too instead of being
+  dropped by no-op type substitution;
+- join carrier selection now treats interfaces nominally instead of
+  structurally, so unrelated same-shape interfaces stay on distinct native
+  carriers and join through a native union rather than silently collapsing
+  onto one interface family;
+- propagated rescue identifier joins built from statically typed call failures
+  now recover native callable plus imported shadowed nominal/interface
+  carriers instead of widening back through `runtime.Value`, native-error
+  unions, or member access fallback, and higher-order/unknown rescue call
+  failures no longer misinfer from the callable return type so `err.value`
+  style handlers stay on the dynamic error path instead of collapsing to
+  arbitrary static return carriers;
+- static nullable typed matches on nil-capable native carriers now guard both
+  the non-nil typed branch and the `case nil` branch directly, so native
+  interface and result-family whole-carrier matches no longer compile to dead
+  `true`/`false` conditions ahead of the real nil arm;
+- nested native nullable/result outer unions now keep representable literals,
+  struct literals, and typed-match clause ordering on native carriers too,
+  because nested member wrapping is direct and match narrowing only removes a
+  union member when the pattern exhausts that whole v12 member type rather
+  than a non-nil subcase inside it;
+- representable nested union/result members now flatten during carrier
+  synthesis too, so outer unions like `(!T) | U` and `(A | B) | U`, plus
+  direct nested result families like `!!T` and `!(A | B)`, lower to a single
+  native union family instead of nesting one native union carrier inside
+  another;
+- fully bound duplicate union/result members now collapse to their single
+  native carrier during mapping too, so generic specializations like
+  `T | String` at `T = String` and `!T` at `T = Error` no longer miss native
+  specialization behind synthetic union/runtime carriers;
 - no-bootstrap / no-fallback enforcement is green across the release gate;
 - the compiler release gates currently pass:
   - `GOFLAGS='-p=1' ./run_all_tests.sh --compiler`
@@ -87,11 +170,6 @@ is still open:
 - however, the stronger finish line is not yet met because staged hybrid
   carriers and transitional compiler-native limits are still documented in
   `spec/TODO_v12.md`, especially around:
-  - the residual generic/boundary `Array` carrier still using
-    `Elements []runtime.Value` on residual wildcard, dynamic, and ABI paths
-    even though representable static arrays, including fresh untyped local
-    factory and empty-literal sites with same-scope concrete evidence,
-    including typed call arguments, now default to compiler-native carriers;
   - residual union/result/interface lowering paths that still permit
     `runtime.Value` / `any` members for cases that should eventually become
     host-native compiled carriers;
@@ -443,10 +521,12 @@ Goal:
   constructs lower to final Go-native encoded constructs rather than to staged
   hybrid carriers.
 
+Status:
+- array-native lowering tranche complete on 2026-04-01; remaining
+  `runtime.ArrayValue` / `ArrayStore*` use is limited to explicit dynamic or
+  ABI edges plus the unspecialized wildcard-array ABI.
+
 Required work:
-- [ ] finish shrinking the residual generic/boundary `Array` carrier so
-      `Elements []runtime.Value` survives only at explicit dynamic or ABI
-      edges, not as a catch-all fallback for static representable code;
 - [ ] finish eliminating residual representable union/result/interface lowering
       paths that still rely on `runtime.Value` / `any` members outside explicit
       dynamic or ABI boundaries;

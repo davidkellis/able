@@ -66,7 +66,7 @@ func (g *generator) structInfoForTypeExpr(pkgName string, expr ast.TypeExpressio
 	if g == nil || expr == nil {
 		return nil, false
 	}
-	expr = normalizeTypeExprForPackage(g, pkgName, expr)
+	pkgName, expr = g.normalizeTypeExprContextForPackage(pkgName, expr)
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t == nil || t.Name == nil {
@@ -102,7 +102,7 @@ func (g *generator) ensureSpecializedStructInfo(pkgName string, expr ast.TypeExp
 	if g == nil || expr == nil {
 		return nil, false
 	}
-	expr = normalizeTypeExprForPackage(g, pkgName, expr)
+	pkgName, expr = g.normalizeTypeExprContextForPackage(pkgName, expr)
 	generic, ok := expr.(*ast.GenericTypeExpression)
 	if !ok || generic == nil {
 		return nil, false
@@ -118,7 +118,7 @@ func (g *generator) ensureSpecializedStructInfo(pkgName string, expr ast.TypeExp
 	if len(baseInfo.Node.GenericParams) != len(generic.Arguments) {
 		return nil, false
 	}
-	if !g.structSpecializationArgsConcrete(baseInfo.Package, generic.Arguments, baseInfo.Node.GenericParams) {
+	if !g.structSpecializationArgsConcrete(pkgName, generic.Arguments, baseInfo.Node.GenericParams) {
 		return nil, false
 	}
 	if !g.typeExprIsConcreteInPackage(baseInfo.Package, expr) {
@@ -152,7 +152,9 @@ func (g *generator) ensureSpecializedStructInfo(pkgName string, expr ast.TypeExp
 			info.Supported = false
 			return info, false
 		}
-		bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, baseInfo.Package, generic.Arguments[idx])
+		// Preserve the caller-side lexical package context for imported selector
+		// arguments such as `RemoteThing` while specializing foreign generics.
+		bindings[gp.Name.Name] = normalizeTypeExprForPackage(g, pkgName, generic.Arguments[idx])
 	}
 	mapper := NewTypeMapper(g, baseInfo.Package)
 	fields := make([]fieldInfo, 0, len(baseInfo.Node.Fields))
@@ -235,10 +237,7 @@ func (g *generator) typeExprIsConcreteInPackageSeen(pkgName string, expr ast.Typ
 	if g == nil || expr == nil {
 		return false
 	}
-	expr = normalizeTypeExprForPackage(g, pkgName, expr)
-	if expanded := g.expandTypeAliasForPackage(pkgName, expr); expanded != nil {
-		expr = expanded
-	}
+	pkgName, expr = g.normalizeTypeExprContextForPackage(pkgName, expr)
 	key := strings.TrimSpace(pkgName) + "::" + typeExpressionToString(expr)
 	if cache != nil {
 		if result, ok := cache[key]; ok {

@@ -102,6 +102,12 @@ func (g *generator) resolveCompileabilityFixedPoint() {
 			break
 		}
 	}
+	// Compileability probing happens while imports, aliases, and native carrier
+	// graphs are still being discovered. Drop any cached unresolved type
+	// normalizations and function carrier snapshots before actual codegen
+	// reuses them.
+	g.invalidateNormalizedTypeExprCaches()
+	g.invalidateAllFunctionDerivedInfo()
 }
 
 func (g *generator) collectFallbacks() []FallbackInfo {

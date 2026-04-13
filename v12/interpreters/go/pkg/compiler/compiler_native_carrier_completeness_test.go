@@ -212,3 +212,377 @@ func TestCompilerAnyToValueSupportsSpecializedArrays(t *testing.T) {
 		}
 	}
 }
+
+func TestCompilerImportedNullableAliasWithShadowedNominalStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, MaybeThing}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn read(value: MaybeThing) -> i32 {",
+			"  value match {",
+			"    case thing: RemoteThing => thing.remote,",
+			"    case nil => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type MaybeThing = ?Thing",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read")
+	if !ok {
+		t.Fatalf("could not find compiled read function")
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_read(value runtime.Value)",
+		"func __able_compiled_fn_read(value any)",
+		"if !__able_tmp_19 && false",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_struct_Thing_a_to(",
+		"__able_struct_Thing_from(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected imported nullable alias to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "(__able_tmp_0 != nil)") {
+		t.Fatalf("expected imported nullable alias to keep a native nullable branch condition:\n%s", body)
+	}
+	if !strings.Contains(body, "thing.Remote") {
+		t.Fatalf("expected imported nullable alias binding to access the remote field directly:\n%s", body)
+	}
+}
+
+func TestCompilerImportedOptionAliasWithShadowedNominalStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, MaybeThing}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn read(value: MaybeThing) -> i32 {",
+			"  value match {",
+			"    case thing: RemoteThing => thing.remote,",
+			"    case nil => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type MaybeThing = Option Thing",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read")
+	if !ok {
+		t.Fatalf("could not find compiled read function")
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_read(value runtime.Value)",
+		"func __able_compiled_fn_read(value any)",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_struct_Thing_a_to(",
+		"__able_struct_Thing_from(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected imported Option alias to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "(__able_tmp_0 != nil)") {
+		t.Fatalf("expected imported Option alias to keep a native nullable branch condition:\n%s", body)
+	}
+	if !strings.Contains(body, "thing.Remote") {
+		t.Fatalf("expected imported Option alias binding to access the remote field directly:\n%s", body)
+	}
+}
+
+func TestCompilerImportedUnionAliasWithShadowedNominalStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, Choice}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn read(value: Choice) -> i32 {",
+			"  value match {",
+			"    case thing: RemoteThing => thing.remote,",
+			"    case _text: String => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type Choice = Thing | String",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read")
+	if !ok {
+		t.Fatalf("could not find compiled read function")
+	}
+	if !strings.Contains(body, "_as_ptr_Thing") {
+		t.Fatalf("expected imported union alias to stay on a native nominal union member carrier:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_read(value runtime.Value)",
+		"func __able_compiled_fn_read(value any)",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_struct_Thing_a_to(",
+		"__able_struct_Thing_from(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected imported union alias to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "thing.Remote") {
+		t.Fatalf("expected imported union alias binding to access the remote field directly:\n%s", body)
+	}
+}
+
+func TestCompilerImportedResultSemanticAliasWithShadowedNominalStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, Outcome}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn read(value: Outcome) -> i32 {",
+			"  value match {",
+			"    case thing: RemoteThing => thing.remote,",
+			"    case _: Error => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type Outcome = Result Thing",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read")
+	if !ok {
+		t.Fatalf("could not find compiled read function")
+	}
+	if !strings.Contains(body, "_as_ptr_Thing") {
+		t.Fatalf("expected imported Result semantic alias to stay on a native nominal result member carrier:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_read(value runtime.Value)",
+		"func __able_compiled_fn_read(value any)",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_struct_Thing_a_to(",
+		"__able_struct_Thing_from(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected imported Result semantic alias to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "thing.Remote") {
+		t.Fatalf("expected imported Result semantic alias binding to access the remote field directly:\n%s", body)
+	}
+}
+
+func TestCompilerImportedResultAliasWithShadowedNominalStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, Outcome}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn read(value: Outcome) -> i32 {",
+			"  value match {",
+			"    case thing: RemoteThing => thing.remote,",
+			"    case _: Error => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type Outcome = Error | Thing",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read")
+	if !ok {
+		t.Fatalf("could not find compiled read function")
+	}
+	if !strings.Contains(body, "_as_ptr_Thing") {
+		t.Fatalf("expected imported result alias to stay on a native nominal result member carrier:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_read(value runtime.Value)",
+		"func __able_compiled_fn_read(value any)",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_struct_Thing_a_to(",
+		"__able_struct_Thing_from(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected imported result alias to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "thing.Remote") {
+		t.Fatalf("expected imported result alias binding to access the remote field directly:\n%s", body)
+	}
+}
+
+func TestCompilerImportedAndLocalShadowedNominalJoinStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn main() -> i32 {",
+			"  mixed := if true {",
+			"    RemoteThing { remote: 1 }",
+			"  } else {",
+			"    Thing { local: 2 }",
+			"  }",
+			"  mixed match {",
+			"    case thing: RemoteThing => thing.remote,",
+			"    case thing: Thing => thing.local",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(body, "var mixed __able_union_") {
+		t.Fatalf("expected mixed imported/local shadowed nominal join to use a native union carrier:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"var mixed runtime.Value",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_struct_Thing_a_to(",
+		"__able_struct_Thing_from(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected mixed imported/local shadowed nominal join to avoid %q:\n%s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{"thing.Remote", "thing.Local"} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected mixed imported/local shadowed nominal join to access fields directly (%q):\n%s", fragment, body)
+		}
+	}
+}
+
+func TestCompilerImportedAndLocalShadowedNominalCallableJoinStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn main() -> i32 {",
+			"  mixed := if true {",
+			"    fn() -> RemoteThing { RemoteThing { remote: 1 } }",
+			"  } else {",
+			"    fn() -> Thing { Thing { local: 2 } }",
+			"  }",
+			"  mixed match {",
+			"    case build: (() -> RemoteThing) => build().remote,",
+			"    case build: (() -> Thing) => build().local",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+		}, "\n"),
+	})
+
+	source := compiledSourceText(t, result)
+	for _, fragment := range []string{
+		"type __able_fn_void_to__Thing func() (*Thing, *__ableControl)",
+		"type __able_fn_void_to__Thing_a func() (*Thing_a, *__ableControl)",
+	} {
+		if !strings.Contains(source, fragment) {
+			t.Fatalf("expected mixed shadowed callable join to keep both native callable carriers via %q:\n%s", fragment, source)
+		}
+	}
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(body, "var mixed __able_union_") {
+		t.Fatalf("expected mixed imported/local shadowed callable join to use a native union carrier:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"var mixed runtime.Value",
+		"unresolved static call (build)",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_call_value(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected mixed imported/local shadowed callable join to avoid %q:\n%s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{
+		"var build __able_fn_void_to__Thing_a =",
+		"var build __able_fn_void_to__Thing =",
+		".Remote",
+		".Local",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected mixed imported/local shadowed callable join to compile direct native calls/field access (%q):\n%s", fragment, body)
+		}
+	}
+}

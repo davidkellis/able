@@ -6,6 +6,32 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+func valueNullableFailurePossible(valueType string, valueErrorUnion bool, g *generator) bool {
+	if g == nil {
+		return false
+	}
+	if _, nullable := g.nativeNullableValueInnerType(valueType); nullable {
+		return true
+	}
+	return !valueErrorUnion && (valueType == "runtime.Value" || valueType == "any")
+}
+
+func (g *generator) inferOrElseBindingTypeExpr(ctx *compileContext, expr *ast.OrElseExpression, valueErrorUnion bool, unionFailureMember *nativeUnionMember) ast.TypeExpression {
+	if g == nil || ctx == nil || expr == nil || expr.ErrorBinding == nil {
+		return nil
+	}
+	if inferred, ok := g.inferExpressionTypeExpr(ctx.child(), expr.ErrorBinding, ""); ok && inferred != nil {
+		return g.lowerNormalizedTypeExpr(ctx, inferred)
+	}
+	if inferred := g.inferHandledFailureTypeExpr(ctx, expr.Expression); inferred != nil {
+		return inferred
+	}
+	if valueErrorUnion && unionFailureMember != nil && unionFailureMember.TypeExpr != nil {
+		return g.lowerNormalizedTypeExpr(ctx, unionFailureMember.TypeExpr)
+	}
+	return nil
+}
+
 func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.PropagationExpression, expected string) ([]string, string, string, bool) {
 	if expr == nil || expr.Expression == nil {
 		ctx.setReason("missing propagation expression")
@@ -316,13 +342,23 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	if valueErrorUnion {
 		effectiveValueType = unionSuccessMember.GoType
 	}
+	valueTypeExpr, _ := g.inferExpressionTypeExpr(valueCtx, expr.Expression, valueType)
 
 	bindingName := ""
 	bindingType := "runtime.Value"
+	var bindingTypeExpr ast.TypeExpression
 	if expr.ErrorBinding != nil && expr.ErrorBinding.Name != "" {
 		bindingName = expr.ErrorBinding.Name
-		if valueErrorUnion && unionFailureMember != nil && unionFailureMember.GoType != "" {
+		bindingTypeExpr = g.inferOrElseBindingTypeExpr(ctx, expr, valueErrorUnion, unionFailureMember)
+		bindingCanStayNative := !valueNullableFailurePossible(valueType, valueErrorUnion, g)
+		if bindingCanStayNative && bindingTypeExpr != nil {
+			if inferredType, ok := g.joinCarrierTypeFromTypeExpr(ctx, bindingTypeExpr); ok && inferredType != "" && inferredType != "runtime.Value" && inferredType != "any" {
+				bindingType = inferredType
+			}
+		}
+		if bindingType == "runtime.Value" && valueErrorUnion && unionFailureMember != nil && unionFailureMember.GoType != "" {
 			bindingType = unionFailureMember.GoType
+			bindingTypeExpr = g.lowerNormalizedTypeExpr(ctx, unionFailureMember.TypeExpr)
 		}
 	}
 
@@ -340,7 +376,7 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 			handlerCtx.expectedTypeExpr = nil
 		}
 		if bindingName != "" {
-			handlerCtx.locals[bindingName] = paramInfo{Name: bindingName, GoName: sanitizeIdent(bindingName), GoType: bindingType}
+			handlerCtx.locals[bindingName] = paramInfo{Name: bindingName, GoName: sanitizeIdent(bindingName), GoType: bindingType, TypeExpr: bindingTypeExpr}
 		}
 		return handlerCtx
 	}
@@ -357,7 +393,6 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	if !ok {
 		return nil, "", "", false
 	}
-	valueTypeExpr, _ := g.inferExpressionTypeExpr(valueCtx, expr.Expression, valueType)
 	handlerTypeExpr, _ := g.inferExpressionTypeExpr(handlerCtx, expr.Handler, handlerType)
 
 	resultType := expected
@@ -490,7 +525,13 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 				lines = append(lines, indentLines(failureRuntimeLines, 2)...)
 				lines = append(lines, fmt.Sprintf("\t\t%s = %s", failureTemp, failureRuntimeExpr))
 			} else {
-				lines = append(lines, fmt.Sprintf("\t\t%s = %s", failureTemp, failureNativeTemp))
+				coerceLines, coercedExpr, _, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, failureNativeTemp, unionFailureMember.GoType, bindingType)
+				if !ok {
+					ctx.setReason("or-else union error binding type mismatch")
+					return nil, "", "", false
+				}
+				lines = append(lines, indentLines(coerceLines, 2)...)
+				lines = append(lines, fmt.Sprintf("\t\t%s = %s", failureTemp, coercedExpr))
 			}
 			lines = append(lines, fmt.Sprintf("\t\t%s = true", failedTemp))
 			lines = append(lines, fmt.Sprintf("\t\t%s = true", errorTemp))

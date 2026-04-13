@@ -10,6 +10,7 @@ type nativeUnionPatternTarget struct {
 	GoType          string
 	Member          *nativeUnionMember
 	InterfaceBranch bool
+	Nested          *nativeUnionPatternTarget
 }
 
 func (g *generator) nativeCarrierImplementsInterface(goType string, interfaceName string) bool {
@@ -94,6 +95,10 @@ func (g *generator) nativeUnionInterfacePatternMember(subjectType string, patter
 }
 
 func (g *generator) resolveNativeUnionTypedPattern(subjectType string, patternType ast.TypeExpression, pkgName string) (nativeUnionPatternTarget, bool) {
+	return g.resolveNativeUnionTypedPatternSeen(subjectType, patternType, pkgName, make(map[string]struct{}))
+}
+
+func (g *generator) resolveNativeUnionTypedPatternSeen(subjectType string, patternType ast.TypeExpression, pkgName string, seen map[string]struct{}) (nativeUnionPatternTarget, bool) {
 	if mapped, ok := g.lowerNativeUnionPatternMemberTypeInPackage(pkgName, subjectType, patternType); ok {
 		if mapped == subjectType {
 			return nativeUnionPatternTarget{GoType: mapped}, true
@@ -104,19 +109,59 @@ func (g *generator) resolveNativeUnionTypedPattern(subjectType string, patternTy
 		}
 		member, ok := g.nativeUnionMember(union, mapped)
 		if !ok {
+			for _, nullableMember := range union.Members {
+				if nullableMember == nil || !g.nativeNullableWraps(nullableMember.GoType, mapped) {
+					continue
+				}
+				return nativeUnionPatternTarget{GoType: mapped, Member: nullableMember}, true
+			}
 			return nativeUnionPatternTarget{}, false
 		}
 		return nativeUnionPatternTarget{GoType: mapped, Member: member}, true
 	}
 	member, ok := g.nativeUnionInterfacePatternMember(subjectType, patternType, pkgName)
-	if !ok || member == nil {
+	if ok && member != nil {
+		return nativeUnionPatternTarget{
+			GoType:          member.GoType,
+			Member:          member,
+			InterfaceBranch: true,
+		}, true
+	}
+	union := g.nativeUnionInfoForGoType(subjectType)
+	if union == nil {
 		return nativeUnionPatternTarget{}, false
 	}
-	return nativeUnionPatternTarget{
-		GoType:          member.GoType,
-		Member:          member,
-		InterfaceBranch: true,
-	}, true
+	if _, ok := seen[subjectType]; ok {
+		return nativeUnionPatternTarget{}, false
+	}
+	seen[subjectType] = struct{}{}
+	defer delete(seen, subjectType)
+	var matched *nativeUnionPatternTarget
+	for _, outerMember := range union.Members {
+		if outerMember == nil || outerMember.GoType == "" {
+			continue
+		}
+		if g.nativeUnionInfoForGoType(outerMember.GoType) == nil {
+			continue
+		}
+		nested, ok := g.resolveNativeUnionTypedPatternSeen(outerMember.GoType, patternType, pkgName, seen)
+		if !ok {
+			continue
+		}
+		candidate := &nativeUnionPatternTarget{
+			GoType: outerMember.GoType,
+			Member: outerMember,
+			Nested: &nested,
+		}
+		if matched != nil {
+			return nativeUnionPatternTarget{}, false
+		}
+		matched = candidate
+	}
+	if matched == nil {
+		return nativeUnionPatternTarget{}, false
+	}
+	return *matched, true
 }
 
 func (g *generator) resolveNativeUnionTypedPatternInContext(ctx *compileContext, subjectType string, patternType ast.TypeExpression) (nativeUnionPatternTarget, bool) {
@@ -171,6 +216,11 @@ func (g *generator) compileNativeUnionDynamicTypedPatternCondition(ctx *compileC
 		return append(guardLines, guardedLines...), cond, true
 	}
 	if isTypedPatternConditionOnly(pattern.Pattern) {
+		if directLines, directOK, ok := g.compileDirectDynamicTypedPatternCondition(ctx, memberTemp, pattern.TypeAnnotation); ok {
+			lines := append([]string{}, guardLines...)
+			lines = append(lines, directLines...)
+			return lines, fmt.Sprintf("(%s && %s)", okTemp, directOK), true
+		}
 		typeExpr, ok := g.renderTypeExpression(g.lowerNormalizedTypeExpr(ctx, pattern.TypeAnnotation))
 		if !ok {
 			return nil, "", false
@@ -292,8 +342,8 @@ func (g *generator) nativeUnionDynamicTypedPatternDirectRuntimeMatch(ctx *compil
 	if memberExpr == nil || patternExpr == nil {
 		return false
 	}
-	memberKey := normalizeTypeExprString(g, ctx.packageName, memberExpr)
-	patternKey := normalizeTypeExprString(g, ctx.packageName, patternExpr)
+	memberKey := normalizeTypeExprIdentityKey(g, ctx.packageName, memberExpr)
+	patternKey := normalizeTypeExprIdentityKey(g, ctx.packageName, patternExpr)
 	return memberKey != "" && memberKey == patternKey
 }
 
@@ -302,22 +352,41 @@ func nativeUnionWholeValueBinding(pattern ast.Pattern) bool {
 	return ok && ident != nil && ident.Name != "" && ident.Name != "_"
 }
 
-func (g *generator) compileNativeUnionTypedPatternCondition(ctx *compileContext, subjectTemp string, subjectType string, pattern *ast.TypedPattern) ([]string, string, bool) {
-	if pattern == nil || pattern.TypeAnnotation == nil {
-		ctx.setReason("missing typed pattern annotation")
-		return nil, "", false
-	}
-	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
-	if !ok {
-		member, _, dynamicOK := g.nativeUnionDynamicTypedPatternMember(ctx, subjectType, pattern.TypeAnnotation)
-		if !dynamicOK {
-			ctx.setReason("typed pattern type mismatch")
+func (g *generator) compileResolvedNativeUnionTypedPatternCondition(ctx *compileContext, subjectTemp string, subjectType string, target nativeUnionPatternTarget, pattern *ast.TypedPattern) ([]string, string, bool) {
+	if target.Member == nil {
+		innerCondLines, innerCond, ok := g.compileMatchPatternCondition(ctx, pattern.Pattern, subjectTemp, subjectType)
+		if !ok {
 			return nil, "", false
 		}
-		return g.compileNativeUnionDynamicTypedPatternCondition(ctx, subjectTemp, member, pattern)
+		return g.guardStaticTypedPatternNonNil(ctx, subjectTemp, subjectType, pattern.TypeAnnotation, innerCondLines, innerCond)
 	}
-	if target.Member == nil {
-		return g.compileMatchPatternCondition(ctx, pattern.Pattern, subjectTemp, subjectType)
+	if target.Nested != nil {
+		okTemp := ctx.newTemp()
+		memberTemp := ctx.newTemp()
+		nestedLines, nestedCond, ok := g.compileResolvedNativeUnionTypedPatternCondition(ctx, memberTemp, target.GoType, *target.Nested, pattern)
+		if !ok {
+			return nil, "", false
+		}
+		lines := []string{fmt.Sprintf("%s, %s := %s(%s)", memberTemp, okTemp, target.Member.UnwrapHelper, subjectTemp)}
+		guardedLines, cond, ok := g.guardMatchConditionWithPredicate(ctx, okTemp, nestedLines, nestedCond)
+		if !ok {
+			return nil, "", false
+		}
+		return append(lines, guardedLines...), cond, true
+	}
+	if target.Member.GoType != target.GoType && g.nativeNullableWraps(target.Member.GoType, target.GoType) {
+		okTemp := ctx.newTemp()
+		memberTemp := ctx.newTemp()
+		innerLines, innerCond, ok := g.compileMatchPatternCondition(ctx, pattern, memberTemp, target.Member.GoType)
+		if !ok {
+			return nil, "", false
+		}
+		lines := []string{fmt.Sprintf("%s, %s := %s(%s)", memberTemp, okTemp, target.Member.UnwrapHelper, subjectTemp)}
+		guardedLines, cond, ok := g.guardMatchConditionWithPredicate(ctx, okTemp, innerLines, innerCond)
+		if !ok {
+			return nil, "", false
+		}
+		return append(lines, guardedLines...), cond, true
 	}
 	if g.nativeUnionDynamicTypedPatternDirectRuntimeMatch(ctx, target.Member, pattern.TypeAnnotation) {
 		okTemp := ctx.newTemp()
@@ -361,25 +430,34 @@ func (g *generator) compileNativeUnionTypedPatternCondition(ctx *compileContext,
 	return lines, condTemp, true
 }
 
-func (g *generator) compileNativeUnionTypedPatternBindings(ctx *compileContext, subjectTemp string, subjectType string, pattern *ast.TypedPattern) ([]string, bool) {
-	if pattern == nil || pattern.TypeAnnotation == nil {
-		ctx.setReason("missing typed pattern annotation")
-		return nil, false
-	}
-	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
-	if !ok {
-		member, _, dynamicOK := g.nativeUnionDynamicTypedPatternMember(ctx, subjectType, pattern.TypeAnnotation)
-		if !dynamicOK {
-			ctx.setReason("typed pattern type mismatch")
-			return nil, false
-		}
-		return g.compileNativeUnionDynamicTypedPatternBindings(ctx, subjectTemp, member, pattern)
-	}
+func (g *generator) compileResolvedNativeUnionTypedPatternBindings(ctx *compileContext, subjectTemp string, subjectType string, target nativeUnionPatternTarget, pattern *ast.TypedPattern) ([]string, bool) {
 	if target.Member == nil {
 		return g.compileMatchPatternBindings(ctx, pattern.Pattern, subjectTemp, subjectType)
 	}
 	convertedTemp := ctx.newTemp()
 	lines := []string{fmt.Sprintf("%s, _ := %s(%s)", convertedTemp, target.Member.UnwrapHelper, subjectTemp)}
+	if target.Nested != nil {
+		bindLines, ok := g.compileResolvedNativeUnionTypedPatternBindings(ctx, convertedTemp, target.GoType, *target.Nested, pattern)
+		if !ok {
+			return nil, false
+		}
+		if len(bindLines) == 0 {
+			return nil, true
+		}
+		lines = append(lines, bindLines...)
+		return lines, true
+	}
+	if target.Member.GoType != target.GoType && g.nativeNullableWraps(target.Member.GoType, target.GoType) {
+		bindLines, ok := g.compileMatchPatternBindings(ctx, pattern, convertedTemp, target.Member.GoType)
+		if !ok {
+			return nil, false
+		}
+		if len(bindLines) == 0 {
+			return nil, true
+		}
+		lines = append(lines, bindLines...)
+		return lines, true
+	}
 	bindSubject := convertedTemp
 	bindType := target.GoType
 	expectedTypeExpr := ast.TypeExpression(nil)
@@ -429,25 +507,34 @@ func (g *generator) compileNativeUnionTypedPatternBindings(ctx *compileContext, 
 	return lines, true
 }
 
-func (g *generator) compileNativeUnionTypedAssignmentPatternBindings(ctx *compileContext, subjectTemp string, subjectType string, pattern *ast.TypedPattern, mode patternBindingMode) ([]string, bool) {
-	if pattern == nil || pattern.TypeAnnotation == nil {
-		ctx.setReason("missing typed pattern annotation")
-		return nil, false
-	}
-	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
-	if !ok {
-		member, _, dynamicOK := g.nativeUnionDynamicTypedPatternMember(ctx, subjectType, pattern.TypeAnnotation)
-		if !dynamicOK {
-			ctx.setReason("typed pattern type mismatch")
-			return nil, false
-		}
-		return g.compileNativeUnionDynamicTypedAssignmentPatternBindings(ctx, subjectTemp, member, pattern, mode)
-	}
+func (g *generator) compileResolvedNativeUnionTypedAssignmentPatternBindings(ctx *compileContext, subjectTemp string, subjectType string, target nativeUnionPatternTarget, pattern *ast.TypedPattern, mode patternBindingMode) ([]string, bool) {
 	if target.Member == nil {
 		return g.compileAssignmentPatternBindings(ctx, pattern.Pattern, subjectTemp, subjectType, mode)
 	}
 	convertedTemp := ctx.newTemp()
 	lines := []string{fmt.Sprintf("%s, _ := %s(%s)", convertedTemp, target.Member.UnwrapHelper, subjectTemp)}
+	if target.Nested != nil {
+		bindLines, ok := g.compileResolvedNativeUnionTypedAssignmentPatternBindings(ctx, convertedTemp, target.GoType, *target.Nested, pattern, mode)
+		if !ok {
+			return nil, false
+		}
+		if len(bindLines) == 0 {
+			return nil, true
+		}
+		lines = append(lines, bindLines...)
+		return lines, true
+	}
+	if target.Member.GoType != target.GoType && g.nativeNullableWraps(target.Member.GoType, target.GoType) {
+		bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, convertedTemp, target.Member.GoType, mode)
+		if !ok {
+			return nil, false
+		}
+		if len(bindLines) == 0 {
+			return nil, true
+		}
+		lines = append(lines, bindLines...)
+		return lines, true
+	}
 	bindSubject := convertedTemp
 	bindType := target.GoType
 	expectedTypeExpr := ast.TypeExpression(nil)
@@ -495,4 +582,55 @@ func (g *generator) compileNativeUnionTypedAssignmentPatternBindings(ctx *compil
 	}
 	lines = append(lines, bindLines...)
 	return lines, true
+}
+
+func (g *generator) compileNativeUnionTypedPatternCondition(ctx *compileContext, subjectTemp string, subjectType string, pattern *ast.TypedPattern) ([]string, string, bool) {
+	if pattern == nil || pattern.TypeAnnotation == nil {
+		ctx.setReason("missing typed pattern annotation")
+		return nil, "", false
+	}
+	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
+	if !ok {
+		member, _, dynamicOK := g.nativeUnionDynamicTypedPatternMember(ctx, subjectType, pattern.TypeAnnotation)
+		if !dynamicOK {
+			ctx.setReason("typed pattern type mismatch")
+			return nil, "", false
+		}
+		return g.compileNativeUnionDynamicTypedPatternCondition(ctx, subjectTemp, member, pattern)
+	}
+	return g.compileResolvedNativeUnionTypedPatternCondition(ctx, subjectTemp, subjectType, target, pattern)
+}
+
+func (g *generator) compileNativeUnionTypedPatternBindings(ctx *compileContext, subjectTemp string, subjectType string, pattern *ast.TypedPattern) ([]string, bool) {
+	if pattern == nil || pattern.TypeAnnotation == nil {
+		ctx.setReason("missing typed pattern annotation")
+		return nil, false
+	}
+	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
+	if !ok {
+		member, _, dynamicOK := g.nativeUnionDynamicTypedPatternMember(ctx, subjectType, pattern.TypeAnnotation)
+		if !dynamicOK {
+			ctx.setReason("typed pattern type mismatch")
+			return nil, false
+		}
+		return g.compileNativeUnionDynamicTypedPatternBindings(ctx, subjectTemp, member, pattern)
+	}
+	return g.compileResolvedNativeUnionTypedPatternBindings(ctx, subjectTemp, subjectType, target, pattern)
+}
+
+func (g *generator) compileNativeUnionTypedAssignmentPatternBindings(ctx *compileContext, subjectTemp string, subjectType string, pattern *ast.TypedPattern, mode patternBindingMode) ([]string, bool) {
+	if pattern == nil || pattern.TypeAnnotation == nil {
+		ctx.setReason("missing typed pattern annotation")
+		return nil, false
+	}
+	target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, pattern.TypeAnnotation)
+	if !ok {
+		member, _, dynamicOK := g.nativeUnionDynamicTypedPatternMember(ctx, subjectType, pattern.TypeAnnotation)
+		if !dynamicOK {
+			ctx.setReason("typed pattern type mismatch")
+			return nil, false
+		}
+		return g.compileNativeUnionDynamicTypedAssignmentPatternBindings(ctx, subjectTemp, member, pattern, mode)
+	}
+	return g.compileResolvedNativeUnionTypedAssignmentPatternBindings(ctx, subjectTemp, subjectType, target, pattern, mode)
 }

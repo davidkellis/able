@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -25,6 +24,7 @@ type nativeUnionInfo struct {
 	TypeExpr             ast.TypeExpression
 	MarkerMethod         string
 	FromRuntimeHelper    string
+	TryFromRuntimeHelper string
 	FromRuntimePanic     string
 	ToRuntimeHelper      string
 	ToRuntimePanic       string
@@ -75,10 +75,97 @@ func nativeUnionNullableInnerTypeExpr(members []ast.TypeExpression) (ast.TypeExp
 	return nil, false
 }
 
+func (g *generator) uniqueUnionMembersInPackage(pkgName string, members []ast.TypeExpression) []ast.TypeExpression {
+	if g == nil || len(members) == 0 {
+		return nil
+	}
+	members = g.flattenRepresentableUnionMembersInPackage(pkgName, members)
+	out := make([]ast.TypeExpression, 0, len(members))
+	seen := make(map[string]struct{}, len(members))
+	for _, member := range members {
+		if member == nil {
+			continue
+		}
+		normalized := normalizeTypeExprForPackage(g, pkgName, member)
+		key := normalizeTypeExprIdentityKey(g, pkgName, normalized)
+		if key == "" {
+			key = typeExpressionToString(normalized)
+		}
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out
+}
+
+func (g *generator) flattenRepresentableUnionMembersInPackage(pkgName string, members []ast.TypeExpression) []ast.TypeExpression {
+	if g == nil || len(members) == 0 {
+		return nil
+	}
+	out := make([]ast.TypeExpression, 0, len(members))
+	seen := make(map[string]struct{}, len(members))
+	for _, member := range members {
+		g.appendFlattenedRepresentableUnionMemberInPackage(pkgName, member, seen, &out)
+	}
+	return out
+}
+
+func (g *generator) appendFlattenedRepresentableUnionMemberInPackage(pkgName string, member ast.TypeExpression, seen map[string]struct{}, out *[]ast.TypeExpression) {
+	if g == nil || member == nil || out == nil {
+		return
+	}
+	pkgName, member = g.normalizeTypeExprContextForPackage(pkgName, member)
+	if member == nil {
+		return
+	}
+	switch typed := member.(type) {
+	case *ast.NullableTypeExpression:
+		// Keep nullable members on their native nil-capable carrier instead of
+		// flattening to `nil | T`, which would lose the direct nullable lowering.
+		*out = append(*out, typed)
+		return
+	case *ast.ResultTypeExpression:
+		key := normalizeTypeExprIdentityKey(g, pkgName, member)
+		if key != "" {
+			if _, ok := seen[key]; ok {
+				*out = append(*out, member)
+				return
+			}
+			seen[key] = struct{}{}
+			defer delete(seen, key)
+		}
+		g.appendFlattenedRepresentableUnionMemberInPackage(pkgName, ast.Ty("Error"), seen, out)
+		g.appendFlattenedRepresentableUnionMemberInPackage(pkgName, typed.InnerType, seen, out)
+		return
+	}
+	if unionPkg, nestedMembers, ok := g.expandedUnionMembersInPackage(pkgName, member); ok {
+		key := normalizeTypeExprIdentityKey(g, pkgName, member)
+		if key != "" {
+			if _, ok := seen[key]; ok {
+				*out = append(*out, member)
+				return
+			}
+			seen[key] = struct{}{}
+			defer delete(seen, key)
+		}
+		for _, nested := range nestedMembers {
+			g.appendFlattenedRepresentableUnionMemberInPackage(unionPkg, nested, seen, out)
+		}
+		return
+	}
+	*out = append(*out, member)
+}
+
 func (g *generator) expandedUnionMembersInPackage(pkgName string, expr ast.TypeExpression) (string, []ast.TypeExpression, bool) {
 	if g == nil || expr == nil {
 		return "", nil, false
 	}
+	pkgName, expr = g.normalizeTypeExprContextForPackage(pkgName, expr)
 	switch t := expr.(type) {
 	case *ast.UnionTypeExpression:
 		return pkgName, t.Members, t != nil
@@ -183,11 +270,7 @@ func (g *generator) nativeUnionWrapExpr(expected, actual, expr string) (string, 
 	if info == nil {
 		return "", false
 	}
-	member, ok := g.nativeUnionMember(info, actual)
-	if !ok {
-		return "", false
-	}
-	return fmt.Sprintf("%s(%s)", member.WrapHelper, expr), true
+	return g.nativeUnionWrapExprSeen(info, actual, expr, make(map[string]struct{}))
 }
 
 func (g *generator) nativeUnionPatternMemberType(subjectType string, patternType ast.TypeExpression, pkgName string) (string, bool) {
@@ -208,6 +291,9 @@ func (g *generator) nativeUnionPatternMemberType(subjectType string, patternType
 	for _, member := range info.Members {
 		if member == nil || member.GoType == "" {
 			continue
+		}
+		if g.nativeNullableWraps(member.GoType, mapped) {
+			return mapped, true
 		}
 		if g.receiverGoTypeCompatible(mapped, member.GoType) {
 			return member.GoType, true
@@ -252,7 +338,7 @@ func (g *generator) nativeUnionTypeExprInPackage(pkgName string, expr ast.TypeEx
 		return nil, false
 	}
 	normalized := normalizeTypeExprForPackage(g, pkgName, expr)
-	exprKey := normalizeTypeExprString(g, pkgName, normalized)
+	exprKey := normalizeTypeExprIdentityKey(g, pkgName, normalized)
 	if exprKey != "" {
 		if info, ok := g.nativeUnionExprIndex[exprKey]; ok && info != nil {
 			return info, true
@@ -360,6 +446,20 @@ func (g *generator) nativeUnionExpectedTypeForExpr(ctx *compileContext, expected
 			}
 		}
 	}
+	if info != nil {
+		for _, member := range info.Members {
+			if member == nil || member.GoType == "" || member.GoType == expected {
+				continue
+			}
+			if g.nativeUnionInfoForGoType(member.GoType) == nil {
+				continue
+			}
+			narrowed := g.nativeUnionExpectedTypeForExpr(ctx, member.GoType, expr)
+			if narrowed != "" && narrowed != member.GoType && g.canCoerceStaticExpr(member.GoType, narrowed) {
+				return narrowed
+			}
+		}
+	}
 	return expected
 }
 
@@ -382,7 +482,7 @@ func (g *generator) expectedUnionMemberTypeExpr(pkgName string, expectedTypeExpr
 			continue
 		}
 		normalized := normalizeTypeExprForPackage(g, pkgName, candidate)
-		key := normalizeTypeExprString(g, pkgName, normalized)
+		key := normalizeTypeExprIdentityKey(g, pkgName, normalized)
 		if key == "" {
 			continue
 		}
@@ -458,7 +558,11 @@ func nativeUnionDefinitionMembers(def *ast.UnionDefinition) []ast.TypeExpression
 }
 
 func (g *generator) ensureNativeUnionInfo(pkgName string, members []ast.TypeExpression) (*nativeUnionInfo, bool) {
-	if g == nil || len(members) < 2 {
+	if g == nil {
+		return nil, false
+	}
+	members = g.uniqueUnionMembersInPackage(pkgName, members)
+	if len(members) < 2 {
 		return nil, false
 	}
 	mapper := NewTypeMapper(g, pkgName)
@@ -511,6 +615,7 @@ func (g *generator) ensureNativeUnionInfo(pkgName string, members []ast.TypeExpr
 		TypeExpr:             ast.NewUnionTypeExpression(append([]ast.TypeExpression(nil), members...)),
 		MarkerMethod:         baseName + "_marker",
 		FromRuntimeHelper:    baseName + "_from_value",
+		TryFromRuntimeHelper: baseName + "_try_from_value",
 		FromRuntimePanic:     baseName + "_from_runtime_value_or_panic",
 		ToRuntimeHelper:      baseName + "_to_value",
 		ToRuntimePanic:       baseName + "_to_runtime_value_or_panic",
@@ -527,72 +632,33 @@ func (g *generator) ensureNativeUnionInfo(pkgName string, members []ast.TypeExpr
 	return info, true
 }
 
+func (g *generator) resultUnionMembersInPackage(pkgName string, result *ast.ResultTypeExpression) (string, []ast.TypeExpression, bool) {
+	if g == nil || result == nil || result.InnerType == nil {
+		return "", nil, false
+	}
+	resultPkg, normalized := g.normalizeTypeExprContextForPackage(pkgName, result)
+	resultExpr, ok := normalized.(*ast.ResultTypeExpression)
+	if !ok || resultExpr == nil || resultExpr.InnerType == nil {
+		return "", nil, false
+	}
+	innerExpr := normalizeTypeExprForPackage(g, resultPkg, resultExpr.InnerType)
+	members := g.flattenRepresentableUnionMembersInPackage(resultPkg, []ast.TypeExpression{ast.Ty("Error"), innerExpr})
+	members = g.uniqueUnionMembersInPackage(resultPkg, members)
+	if len(members) == 0 {
+		return "", nil, false
+	}
+	return resultPkg, members, true
+}
+
 func (g *generator) ensureNativeResultUnionInfo(pkgName string, result *ast.ResultTypeExpression) (*nativeUnionInfo, bool) {
 	if g == nil || result == nil || result.InnerType == nil {
 		return nil, false
 	}
-	mapper := NewTypeMapper(g, pkgName)
-	innerType, ok := mapper.Map(result.InnerType)
-	if !ok || innerType == "" {
+	resultPkg, members, ok := g.resultUnionMembersInPackage(pkgName, result)
+	if !ok {
 		return nil, false
 	}
-	if innerType == "any" || innerType == "runtime.Value" {
-		if g.typeExprIsConcreteInPackage(pkgName, result.InnerType) {
-			return nil, false
-		}
-		innerType = "runtime.Value"
-	}
-	keyParts := []string{"runtime.ErrorValue", innerType}
-	if innerType == "runtime.Value" {
-		keyParts[1] = innerType + "<" + typeExpressionToString(result.InnerType) + ">"
-	}
-	sort.Strings(keyParts)
-	key := strings.Join(keyParts, "|")
-	if info, ok := g.nativeUnions[key]; ok && info != nil {
-		return info, true
-	}
-	memberSpecs := []*nativeUnionMember{
-		{
-			GoType:   "runtime.ErrorValue",
-			TypeExpr: ast.Ty("Error"),
-			KeyPart:  "runtime.ErrorValue",
-			Token:    g.nativeUnionTypeToken("runtime_ErrorValue"),
-		},
-		{
-			GoType:   innerType,
-			TypeExpr: result.InnerType,
-			KeyPart: func() string {
-				if innerType == "runtime.Value" {
-					return innerType + "<" + typeExpressionToString(result.InnerType) + ">"
-				}
-				return innerType
-			}(),
-			Token: g.nativeUnionTypeToken(innerType),
-		},
-	}
-	baseName := "__able_union_" + strings.Join(keyParts, "_or_")
-	baseName = sanitizeIdent(baseName)
-	info := &nativeUnionInfo{
-		Key:                  key,
-		GoType:               baseName,
-		PackageName:          pkgName,
-		TypeExpr:             ast.NewResultTypeExpression(result.InnerType),
-		MarkerMethod:         baseName + "_marker",
-		FromRuntimeHelper:    baseName + "_from_value",
-		FromRuntimePanic:     baseName + "_from_runtime_value_or_panic",
-		ToRuntimeHelper:      baseName + "_to_value",
-		ToRuntimePanic:       baseName + "_to_runtime_value_or_panic",
-		TypeString:           "Error | " + typeExpressionToString(result.InnerType),
-		OrderedMemberGoTypes: append([]string(nil), keyParts...),
-		Members:              memberSpecs,
-	}
-	for _, member := range info.Members {
-		member.WrapperType = info.GoType + "_variant_" + member.Token
-		member.WrapHelper = info.GoType + "_wrap_" + member.Token
-		member.UnwrapHelper = info.GoType + "_as_" + member.Token
-	}
-	g.nativeUnions[key] = info
-	return info, true
+	return g.ensureNativeUnionInfo(resultPkg, members)
 }
 
 func (g *generator) sortedNativeUnionKeys() []string {

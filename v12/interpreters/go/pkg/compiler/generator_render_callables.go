@@ -31,6 +31,22 @@ func (g *generator) renderNativeCallableType(buf *bytes.Buffer, info *nativeCall
 }
 
 func (g *generator) renderNativeCallableBoundaryHelpers(buf *bytes.Buffer, info *nativeCallableInfo) {
+	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, bool, error) {\n", info.TryFromRuntimeHelper, info.GoType)
+	fmt.Fprintf(buf, "\tif rt == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, false, fmt.Errorf(\"missing runtime bridge\")\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif value == nil || __able_is_nil(value) {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, false, nil\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif !__able_is_callable_value(value) {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, false, nil\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tconverted, err := %s(rt, value)\n", info.FromRuntimeHelper)
+	fmt.Fprintf(buf, "\tif err != nil {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, false, err\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn converted, true, nil\n")
+	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, error) {\n", info.FromRuntimeHelper, info.GoType)
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")

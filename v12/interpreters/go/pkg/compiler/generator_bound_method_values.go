@@ -40,7 +40,7 @@ func (g *generator) nativeCallableInfoForMethod(method *methodInfo) (*nativeCall
 	if returnExpr != nil {
 		returnExpr = normalizeTypeExprForPackage(g, method.Info.Package, returnExpr)
 	}
-	return g.ensureNativeCallableInfoFromSignature(paramExprs, paramGoTypes, returnExpr, method.Info.ReturnType)
+	return g.ensureNativeCallableInfoFromSignatureInPackage(method.Info.Package, paramExprs, paramGoTypes, returnExpr, method.Info.ReturnType)
 }
 
 func (g *generator) compileNativeBoundMethodValue(ctx *compileContext, objectExpr string, objectType string, method *methodInfo) ([]string, string, string, bool) {
@@ -80,7 +80,7 @@ func (g *generator) compileNativeInterfaceBoundMethodValue(ctx *compileContext, 
 	if g == nil || ctx == nil || objectExpr == "" || objectType == "" || method == nil {
 		return nil, "", "", false
 	}
-	callableInfo, ok := g.ensureNativeCallableInfoFromSignature(method.ParamTypeExprs, method.ParamGoTypes, method.ReturnTypeExpr, method.ReturnGoType)
+	callableInfo, ok := g.ensureNativeCallableInfoFromSignatureInPackage(ctx.packageName, method.ParamTypeExprs, method.ParamGoTypes, method.ReturnTypeExpr, method.ReturnGoType)
 	if !ok || callableInfo == nil {
 		return nil, "", "", false
 	}

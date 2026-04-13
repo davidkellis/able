@@ -6,6 +6,31 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+func (g *generator) nativeUnionPatternConsumesWholeMember(ctx *compileContext, subjectType string, member *nativeUnionMember, matchedGoType string, patternType ast.TypeExpression, nested bool) bool {
+	if g == nil || member == nil || member.GoType == "" || matchedGoType == "" || nested || matchedGoType != member.GoType {
+		return false
+	}
+	union := g.nativeUnionInfoForGoType(subjectType)
+	pkgName := ""
+	if union != nil {
+		pkgName = union.PackageName
+	} else if ctx != nil {
+		pkgName = ctx.packageName
+	}
+	if member.TypeExpr == nil || patternType == nil {
+		return true
+	}
+	memberExpr := normalizeTypeExprForPackage(g, pkgName, member.TypeExpr)
+	patternExpr := normalizeTypeExprForPackage(g, pkgName, patternType)
+	if memberExpr == nil || patternExpr == nil {
+		return true
+	}
+	if g.typeExprIncludesNilInPackage(pkgName, memberExpr) && !g.typeExprIncludesNilInPackage(pkgName, patternExpr) {
+		return false
+	}
+	return true
+}
+
 func (g *generator) narrowedNativeUnionSubjectType(ctx *compileContext, subjectType string, pattern ast.Pattern) string {
 	union := g.nativeUnionInfoForGoType(subjectType)
 	if g == nil || union == nil || pattern == nil {
@@ -16,12 +41,14 @@ func (g *generator) narrowedNativeUnionSubjectType(ctx *compileContext, subjectT
 	case *ast.StructPattern:
 		if p != nil && p.StructType != nil && p.StructType.Name != "" {
 			if mapped, ok := g.lowerCarrierType(ctx, ast.Ty(p.StructType.Name)); ok {
-				removeType = mapped
+				if member, memberOK := g.nativeUnionMember(union, mapped); memberOK && g.nativeUnionPatternConsumesWholeMember(ctx, subjectType, member, mapped, ast.Ty(p.StructType.Name), false) {
+					removeType = mapped
+				}
 			}
 		}
 	case *ast.TypedPattern:
 		if p != nil && p.TypeAnnotation != nil {
-			if target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, p.TypeAnnotation); ok && target.Member != nil {
+			if target, ok := g.resolveNativeUnionTypedPatternInContext(ctx, subjectType, p.TypeAnnotation); ok && target.Member != nil && g.nativeUnionPatternConsumesWholeMember(ctx, subjectType, target.Member, target.GoType, p.TypeAnnotation, target.Nested != nil) {
 				removeType = target.Member.GoType
 			}
 		}
@@ -80,6 +107,7 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		return nil, "", "", false
 	}
 	subjectTemp := ctx.newTemp()
+	subjectTypeExpr, _ := g.inferLocalTypeExpr(ctx, match.Subject, subjectType)
 	resultType := expected
 	explicitExpected := expected != "" && expected != "runtime.Value"
 	compileExpected := expected
@@ -109,6 +137,9 @@ func (g *generator) compileMatchExpression(ctx *compileContext, match *ast.Match
 		}
 		clauseCtx := ctx.child()
 		clauseSubjectLines, clauseSubjectExpr := g.narrowedNativeUnionSubjectExpr(clauseCtx, subjectTemp, subjectType, clauseSubjectType)
+		if clauseCtx.matchSubjectTypeExpr == nil && subjectTypeExpr != nil {
+			clauseCtx.matchSubjectTypeExpr = g.lowerNormalizedTypeExpr(clauseCtx, subjectTypeExpr)
+		}
 		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, clauseSubjectExpr, clauseSubjectType)
 		if !ok {
 			return nil, "", "", false

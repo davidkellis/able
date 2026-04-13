@@ -516,7 +516,14 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 	paramLines := make([]string, 0, plan.paramCount)
 	var firstParam paramInfo
 	expectedFnType := g.expectedLambdaFunctionType(ctx)
-	if expectedCallable := g.nativeCallableInfoForGoType(expected); expectedCallable != nil && expectedFnType == nil {
+	expectedCallableType := expected
+	if narrowedExpected, narrowedFnType, ok := g.expectedCallableTypeForPlaceholderPlan(ctx, expected, plan); ok {
+		expectedCallableType = narrowedExpected
+		if expectedFnType == nil {
+			expectedFnType = narrowedFnType
+		}
+	}
+	if expectedCallable := g.nativeCallableInfoForGoType(expectedCallableType); expectedCallable != nil && expectedFnType == nil {
 		expectedFnType = expectedCallable.TypeExpr
 	}
 	if expectedFnType != nil && len(expectedFnType.ParamTypes) != plan.paramCount {
@@ -600,7 +607,7 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 			return "", "", false
 		}
 	}
-	callableInfo, ok := g.ensureNativeCallableInfoFromSignature(paramTypeExprs, paramGoTypes, returnTypeExpr, exprType)
+	callableInfo, ok := g.ensureNativeCallableInfoFromSignatureInPackage(ctx.packageName, paramTypeExprs, paramGoTypes, returnTypeExpr, exprType)
 	if !ok || callableInfo == nil {
 		ctx.setReason("placeholder lambda type unsupported")
 		return "", "", false
@@ -645,6 +652,40 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 	}
 	lambdaExpr += fmt.Sprintf(") (%s, *__ableControl) { %s })", callableInfo.ReturnGoType, strings.Join(implLines, "; "))
 	return lambdaExpr, callableInfo.GoType, true
+}
+
+func (g *generator) expectedCallableTypeForPlaceholderPlan(ctx *compileContext, expected string, plan placeholderPlan) (string, *ast.FunctionTypeExpression, bool) {
+	if g == nil || ctx == nil || plan.paramCount <= 0 {
+		return "", nil, false
+	}
+	if callableInfo := g.nativeCallableInfoForGoType(expected); callableInfo != nil && callableInfo.TypeExpr != nil {
+		return expected, callableInfo.TypeExpr, true
+	}
+	union := g.nativeUnionInfoForGoType(expected)
+	if union == nil {
+		return "", nil, false
+	}
+	var matchedType string
+	var matchedExpr *ast.FunctionTypeExpression
+	for _, member := range union.Members {
+		if member == nil || member.TypeExpr == nil {
+			continue
+		}
+		memberExpr := g.lowerNormalizedTypeExpr(ctx, member.TypeExpr)
+		fnType, ok := memberExpr.(*ast.FunctionTypeExpression)
+		if !ok || fnType == nil || len(fnType.ParamTypes) != plan.paramCount {
+			continue
+		}
+		if matchedType != "" && matchedType != member.GoType {
+			return "", nil, false
+		}
+		matchedType = member.GoType
+		matchedExpr = fnType
+	}
+	if matchedType == "" || matchedExpr == nil {
+		return "", nil, false
+	}
+	return matchedType, matchedExpr, true
 }
 
 func (g *generator) compilePlaceholderExpression(ctx *compileContext, expr *ast.PlaceholderExpression, expected string) (string, string, bool) {

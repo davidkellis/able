@@ -260,7 +260,19 @@ func (g *generator) compileExprExpected(ctx *compileContext, expr ast.Expression
 	case *ast.PlaceholderExpression:
 		return g.compilePlaceholderExpression(ctx, e, expected)
 	case *ast.LambdaExpression:
-		return g.compileLambdaExpression(ctx, e, expected)
+		lambdaExpected := expected
+		previousExpectedTypeExpr := ctx.expectedTypeExpr
+		if callableExpected, callableExpectedTypeExpr, ok := g.expectedCallableTypeForLambda(ctx, expected, e); ok {
+			lambdaExpected = callableExpected
+			if callableExpectedTypeExpr != nil {
+				ctx.expectedTypeExpr = callableExpectedTypeExpr
+			}
+		} else if callableInfo := g.nativeCallableInfoForGoType(expected); callableInfo != nil && callableInfo.TypeExpr != nil {
+			ctx.expectedTypeExpr = callableInfo.TypeExpr
+		}
+		value, goType, ok := g.compileLambdaExpression(ctx, e, lambdaExpected)
+		ctx.expectedTypeExpr = previousExpectedTypeExpr
+		return value, goType, ok
 	default:
 		ctx.setReason("unsupported expression")
 		return "", "", false
@@ -344,33 +356,16 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 			integerSuffix(lit),
 		), "runtime.Value", true
 	}
-	if union := g.nativeUnionInfoForGoType(expected); union != nil {
-		targetType := ""
-		if explicit {
-			if _, ok := g.nativeUnionMember(union, actual); ok {
-				targetType = actual
-			}
-		} else {
-			if _, ok := g.nativeUnionMember(union, actual); ok {
-				targetType = actual
-			}
-			if targetType == "" {
-				for _, member := range union.Members {
-					if member == nil {
-						continue
-					}
-					if g.isIntegerType(member.GoType) {
-						if targetType != "" && targetType != member.GoType {
-							targetType = ""
-							break
-						}
-						targetType = member.GoType
-					}
-				}
-			}
-		}
-		if targetType == "" {
+	if g.nativeUnionInfoForGoType(expected) != nil {
+		targetType, ok := g.nativeUnionLiteralTargetType(expected, actual, explicit, func(goType string) bool {
+			return g.isIntegerType(goType) || g.isFloatType(goType)
+		})
+		if !ok || targetType == "" {
 			ctx.setReason(fmt.Sprintf("unsupported integer literal type (%s)", expected))
+			return "", "", false
+		}
+		if explicit && targetType != actual {
+			ctx.setReason("integer literal type mismatch")
 			return "", "", false
 		}
 		return fmt.Sprintf("%s(%s)", targetType, lit.Value.String()), targetType, true
@@ -445,14 +440,19 @@ func (g *generator) compileFloatLiteral(ctx *compileContext, lit *ast.FloatLiter
 		ctx.setReason("float literal type mismatch")
 		return "", "", false
 	}
+	if union := g.nativeUnionInfoForGoType(expected); union != nil {
+		targetType, ok := g.nativeUnionLiteralTargetType(expected, actual, explicit, g.isFloatType)
+		if !ok || targetType == "" {
+			ctx.setReason("unsupported float literal type")
+			return "", "", false
+		}
+		return fmt.Sprintf("%s(%s)", targetType, strconv.FormatFloat(lit.Value, 'g', -1, 64)), targetType, true
+	}
 	if !g.typeMatches(expected, actual) && !g.isFloatType(expected) {
 		ctx.setReason("unsupported float literal type")
 		return "", "", false
 	}
 	targetType := expected
-	if g.nativeUnionInfoForGoType(expected) != nil {
-		targetType = actual
-	}
 	return fmt.Sprintf("%s(%s)", targetType, strconv.FormatFloat(lit.Value, 'g', -1, 64)), targetType, true
 }
 

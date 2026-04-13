@@ -154,12 +154,8 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			if !ok {
 				return nil, "", false
 			}
-			if g.isNativeStructPointerType(subjectType) && !g.typeExprAllowsNilInPackage(ctx.packageName, g.lowerNormalizedTypeExpr(ctx, p.TypeAnnotation)) {
-				return g.guardMatchConditionWithPredicate(ctx, fmt.Sprintf("%s != nil", subjectTemp), innerCondLines, innerCond)
-			}
-			return innerCondLines, innerCond, true
+			return g.guardStaticTypedPatternNonNil(ctx, subjectTemp, subjectType, p.TypeAnnotation, innerCondLines, innerCond)
 		}
-		typeExpr, ok := g.renderTypeExpression(g.lowerNormalizedTypeExpr(ctx, p.TypeAnnotation))
 		castSubject := subjectTemp
 		var prefixLines []string
 		if subjectType == "any" {
@@ -177,80 +173,45 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			}
 			return append(prefixLines, innerCondLines...), innerCond, true
 		}
-		if mapped, mappedOK := g.lowerCarrierType(ctx, p.TypeAnnotation); mappedOK && g.isNativeStructPointerType(mapped) {
-			if checkLines, checkCond, checkOK := g.lowerPatternRuntimeTypeCheck(ctx, p.TypeAnnotation, castSubject); checkOK {
-				baseName, _ := g.structBaseName(mapped)
-				convertedTemp := ctx.newTemp()
-				innerCondLines, innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, convertedTemp, mapped)
-				if !ok {
-					return nil, "", false
-				}
-				lines := append(prefixLines, checkLines...)
-				if innerCond == "true" && len(innerCondLines) == 0 {
-					return lines, checkCond, true
-				}
-				errTemp := ctx.newTemp()
-				controlTemp := ctx.newTemp()
-				innerLines := []string{
-					fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", convertedTemp, errTemp, baseName, castSubject),
-					fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
-				}
-				controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-				if !ok {
-					return nil, "", false
-				}
-				innerLines = append(innerLines, controlLines...)
-				innerLines = append(innerLines, innerCondLines...)
-				guardedLines, cond, ok := g.guardMatchConditionWithPredicate(ctx, checkCond, innerLines, innerCond)
-				if !ok {
-					return nil, "", false
-				}
-				return append(lines, guardedLines...), cond, true
-			}
-		}
-		if mapped, mappedOK := g.lowerCarrierType(ctx, p.TypeAnnotation); mappedOK && g.isNativeStructPointerType(mapped) {
-			info := g.structInfoByGoName(mapped)
-			if info != nil && info.Kind != ast.StructKindSingleton {
-				baseName, _ := g.structBaseName(mapped)
-				instTemp := ctx.newTemp()
-				convertedTemp := ctx.newTemp()
-				innerCondLines, innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, convertedTemp, mapped)
-				if !ok {
-					return nil, "", false
-				}
-				lines := append(prefixLines, fmt.Sprintf("%s := __able_struct_instance(%s)", instTemp, castSubject))
-				guardExpr := fmt.Sprintf("%s != nil && %s.Definition != nil && %s.Definition.Node != nil && %s.Definition.Node.ID != nil && %s.Definition.Node.ID.Name == %q", instTemp, instTemp, instTemp, instTemp, instTemp, info.Name)
-				if innerCond == "true" && len(innerCondLines) == 0 {
-					return lines, guardExpr, true
-				}
-				errTemp := ctx.newTemp()
-				innerLines := []string{fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", convertedTemp, errTemp, baseName, castSubject)}
-				controlTemp := ctx.newTemp()
-				innerLines = append(innerLines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-				controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-				if !ok {
-					return nil, "", false
-				}
-				innerLines = append(innerLines, controlLines...)
-				innerLines = append(innerLines, innerCondLines...)
-				guardedLines, cond, ok := g.guardMatchConditionWithPredicate(ctx, guardExpr, innerLines, innerCond)
-				if !ok {
-					return nil, "", false
-				}
-				return append(lines, guardedLines...), cond, true
-			}
-		}
-		if !ok {
-			ctx.setReason("unsupported typed pattern")
-			return nil, "", false
-		}
-		g.needsAst = true
 		castTemp := ctx.newTemp()
 		okTemp := ctx.newTemp()
 		innerCondLines, innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, castTemp, "runtime.Value")
 		if !ok {
 			return nil, "", false
 		}
+		if innerCond == "true" && len(innerCondLines) == 0 {
+			if directLines, directOK, ok := g.compileDirectDynamicTypedPatternCondition(ctx, castSubject, p.TypeAnnotation); ok {
+				return append(prefixLines, directLines...), directOK, true
+			}
+		}
+		if !(innerCond == "true" && len(innerCondLines) == 0) {
+			if dynamicLines, narrowedTemp, narrowedType, narrowedOK, ok := g.compileDynamicTypedPatternCast(ctx, castSubject, "runtime.Value", p.TypeAnnotation); ok {
+				innerCondLines, innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, narrowedTemp, narrowedType)
+				if !ok {
+					return nil, "", false
+				}
+				innerLines := append([]string{}, dynamicLines...)
+				innerLines = append(innerLines, innerCondLines...)
+				guardCond := narrowedOK
+				if innerCond != "true" {
+					guardCond = fmt.Sprintf("(%s && %s)", narrowedOK, innerCond)
+				}
+				guardedLines, cond, ok := g.guardMatchConditionWithPredicate(ctx, "true", innerLines, guardCond)
+				if !ok {
+					return nil, "", false
+				}
+				return append(prefixLines, guardedLines...), cond, true
+			}
+		}
+		if !ok {
+			ctx.setReason("unsupported typed pattern")
+			return nil, "", false
+		}
+		typeExpr, ok := g.renderTypeExpression(g.lowerNormalizedTypeExpr(ctx, p.TypeAnnotation))
+		if !ok {
+			return nil, "", false
+		}
+		g.needsAst = true
 		if innerCond == "true" && len(innerCondLines) == 0 {
 			controlTemp := ctx.newTemp()
 			lines := append(prefixLines, fmt.Sprintf("_, %s, %s := __able_try_cast(%s, %s)", okTemp, controlTemp, castSubject, typeExpr))
@@ -281,34 +242,34 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 			lines = append(lines, "}")
 		}
 		return lines, condTemp, true
-		case *ast.StructPattern:
-			if union := g.nativeUnionInfoForGoType(subjectType); union != nil {
-				var (
-					member *nativeUnionMember
-					mapped string
-					ok     bool
-				)
-				if p.StructType != nil && p.StructType.Name != "" {
-					mapped, ok = g.lowerNativeUnionPatternMemberType(ctx, subjectType, ast.Ty(p.StructType.Name))
-					if !ok {
-						ctx.setReason("unsupported struct pattern")
-						return nil, "", false
-					}
-					member, ok = g.nativeUnionMember(union, mapped)
-					if !ok {
-						return nil, "false", true
-					}
-				} else {
-					member, mapped, ok = g.nativeUnionStructPatternMember(union, p)
-					if !ok {
-						return nil, "false", true
-					}
-				}
-				okTemp := ctx.newTemp()
-				castTemp := ctx.newTemp()
-				innerLines, innerCond, ok := g.compileMatchPatternCondition(ctx, p, castTemp, mapped)
+	case *ast.StructPattern:
+		if union := g.nativeUnionInfoForGoType(subjectType); union != nil {
+			var (
+				member *nativeUnionMember
+				mapped string
+				ok     bool
+			)
+			if p.StructType != nil && p.StructType.Name != "" {
+				mapped, ok = g.lowerNativeUnionPatternMemberType(ctx, subjectType, ast.Ty(p.StructType.Name))
 				if !ok {
+					ctx.setReason("unsupported struct pattern")
 					return nil, "", false
+				}
+				member, ok = g.nativeUnionMember(union, mapped)
+				if !ok {
+					return nil, "false", true
+				}
+			} else {
+				member, mapped, ok = g.nativeUnionStructPatternMember(union, p)
+				if !ok {
+					return nil, "false", true
+				}
+			}
+			okTemp := ctx.newTemp()
+			castTemp := ctx.newTemp()
+			innerLines, innerCond, ok := g.compileMatchPatternCondition(ctx, p, castTemp, mapped)
+			if !ok {
+				return nil, "", false
 			}
 			if innerCond == "true" && len(innerLines) == 0 {
 				return []string{fmt.Sprintf("_, %s := %s(%s)", okTemp, member.UnwrapHelper, subjectTemp)}, okTemp, true
@@ -394,26 +355,26 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 		}
 		var allLines []string
 		conds := make([]string, 0, len(p.Fields))
-			for _, field := range p.Fields {
-				fieldPattern, ok := positionalStructFieldPattern(field)
-				if !ok {
-					ctx.setReason("invalid struct pattern field")
-					return nil, "", false
-				}
-				if field.FieldName == nil || field.FieldName.Name == "" {
-					ctx.setReason("struct pattern missing field name")
+		for _, field := range p.Fields {
+			fieldPattern, ok := positionalStructFieldPattern(field)
+			if !ok {
+				ctx.setReason("invalid struct pattern field")
 				return nil, "", false
-				}
-				fieldInfo := g.fieldInfo(info, field.FieldName.Name)
-				if fieldInfo == nil {
-					ctx.setReason("unknown struct field")
-					return nil, "", false
-				}
-				fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
-				fieldCondLines, fieldCond, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldExpr, fieldInfo.GoType)
-				if !ok {
-					return nil, "", false
-				}
+			}
+			if field.FieldName == nil || field.FieldName.Name == "" {
+				ctx.setReason("struct pattern missing field name")
+				return nil, "", false
+			}
+			fieldInfo := g.fieldInfo(info, field.FieldName.Name)
+			if fieldInfo == nil {
+				ctx.setReason("unknown struct field")
+				return nil, "", false
+			}
+			fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+			fieldCondLines, fieldCond, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldExpr, fieldInfo.GoType)
+			if !ok {
+				return nil, "", false
+			}
 			if len(fieldCondLines) > 0 {
 				allLines = append(allLines, fieldCondLines...)
 				if fieldCond != "true" {
@@ -437,6 +398,15 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 		}
 		return allLines, condExpr, true
 	case *ast.ArrayPattern:
+		if subjectType == "runtime.Value" || subjectType == "any" {
+			if recoveredLines, recoveredTemp, recoveredType, recovered := g.recoverStaticArrayPatternSubject(ctx, subjectTemp, subjectType); recovered {
+				condLines, cond, ok := g.compileNativeArrayPatternCondition(ctx, p, recoveredTemp, recoveredType)
+				if !ok {
+					return nil, "", false
+				}
+				return append(recoveredLines, condLines...), cond, true
+			}
+		}
 		if subjectType == "runtime.Value" {
 			return g.compileRuntimeArrayPatternCondition(ctx, p, subjectTemp)
 		}
@@ -475,7 +445,6 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 		if g.isSingletonPattern(ctx, p.Name) {
 			return nil, true
 		}
-		goName := sanitizeIdent(p.Name)
 		typeExpr := ast.TypeExpression(nil)
 		switch {
 		case (subjectType == "runtime.Value" || subjectType == "any") && ctx != nil && ctx.expectedTypeExpr != nil:
@@ -484,11 +453,10 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			typeExpr, _ = g.typeExprForGoType(subjectType)
 			typeExpr = g.lowerNormalizedTypeExpr(ctx, typeExpr)
 		}
-		ctx.setLocalBinding(p.Name, paramInfo{Name: p.Name, GoName: goName, GoType: subjectType, TypeExpr: typeExpr})
-		return []string{
-			fmt.Sprintf("var %s %s = %s", goName, subjectType, subjectTemp),
-			fmt.Sprintf("_ = %s", goName),
-		}, true
+		return g.bindPatternIdentifier(ctx, p.Name, subjectTemp, subjectType, typeExpr, patternBindingMode{
+			declare:  true,
+			newNames: map[string]struct{}{p.Name: {}},
+		})
 	case *ast.LiteralPattern:
 		return nil, true
 	case *ast.TypedPattern:
@@ -518,7 +486,6 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			}
 			return g.compileMatchPatternBindings(ctx, p.Pattern, subjectTemp, subjectType)
 		}
-		convertedTemp := ctx.newTemp()
 		var lines []string
 		castSubject := subjectTemp
 		if subjectType == "any" {
@@ -540,27 +507,6 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			lines = append(lines, bindLines...)
 			return lines, true
 		}
-		if mapped, mappedOK := g.lowerCarrierType(ctx, p.TypeAnnotation); mappedOK && g.isNativeStructPointerType(mapped) {
-			baseName, _ := g.structBaseName(mapped)
-			bindLines, ok := g.compileMatchPatternBindings(ctx, p.Pattern, convertedTemp, mapped)
-			if !ok {
-				return nil, false
-			}
-			if len(bindLines) == 0 {
-				return nil, true
-			}
-			errTemp := ctx.newTemp()
-			controlTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s, %s := __able_struct_%s_from(%s)", convertedTemp, errTemp, baseName, castSubject))
-			lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
-			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-			if !ok {
-				return nil, false
-			}
-			lines = append(lines, controlLines...)
-			lines = append(lines, bindLines...)
-			return lines, true
-		}
 		dynamicLines, narrowedTemp, narrowedType, _, ok := g.compileDynamicTypedPatternCast(ctx, castSubject, "runtime.Value", p.TypeAnnotation)
 		if !ok {
 			ctx.setReason("unsupported typed pattern")
@@ -579,35 +525,35 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 		lines = append(lines, dynamicLines...)
 		lines = append(lines, bindLines...)
 		return lines, true
-		case *ast.StructPattern:
-			if union := g.nativeUnionInfoForGoType(subjectType); union != nil {
-				var (
-					member *nativeUnionMember
-					mapped string
-					ok     bool
-				)
-				if p.StructType != nil && p.StructType.Name != "" {
-					mapped, ok = g.lowerNativeUnionPatternMemberType(ctx, subjectType, ast.Ty(p.StructType.Name))
-					if !ok {
-						ctx.setReason("unsupported struct pattern")
-						return nil, false
-					}
-					member, ok = g.nativeUnionMember(union, mapped)
-					if !ok {
-						ctx.setReason("struct pattern type mismatch")
-						return nil, false
-					}
-				} else {
-					member, mapped, ok = g.nativeUnionStructPatternMember(union, p)
-					if !ok {
-						ctx.setReason("struct pattern type mismatch")
-						return nil, false
-					}
-				}
-				convertedTemp := ctx.newTemp()
-				bindLines, ok := g.compileMatchPatternBindings(ctx, p, convertedTemp, mapped)
+	case *ast.StructPattern:
+		if union := g.nativeUnionInfoForGoType(subjectType); union != nil {
+			var (
+				member *nativeUnionMember
+				mapped string
+				ok     bool
+			)
+			if p.StructType != nil && p.StructType.Name != "" {
+				mapped, ok = g.lowerNativeUnionPatternMemberType(ctx, subjectType, ast.Ty(p.StructType.Name))
 				if !ok {
+					ctx.setReason("unsupported struct pattern")
 					return nil, false
+				}
+				member, ok = g.nativeUnionMember(union, mapped)
+				if !ok {
+					ctx.setReason("struct pattern type mismatch")
+					return nil, false
+				}
+			} else {
+				member, mapped, ok = g.nativeUnionStructPatternMember(union, p)
+				if !ok {
+					ctx.setReason("struct pattern type mismatch")
+					return nil, false
+				}
+			}
+			convertedTemp := ctx.newTemp()
+			bindLines, ok := g.compileMatchPatternBindings(ctx, p, convertedTemp, mapped)
+			if !ok {
+				return nil, false
 			}
 			if len(bindLines) == 0 {
 				return nil, true
@@ -688,26 +634,26 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 			return nil, false
 		}
 		lines := []string{}
-			for _, field := range p.Fields {
-				fieldPattern, ok := positionalStructFieldPattern(field)
-				if !ok {
-					ctx.setReason("invalid struct pattern field")
-					return nil, false
-				}
-				if field.FieldName == nil || field.FieldName.Name == "" {
-					ctx.setReason("struct pattern missing field name")
+		for _, field := range p.Fields {
+			fieldPattern, ok := positionalStructFieldPattern(field)
+			if !ok {
+				ctx.setReason("invalid struct pattern field")
 				return nil, false
-				}
-				fieldInfo := g.fieldInfo(info, field.FieldName.Name)
-				if fieldInfo == nil {
-					ctx.setReason("unknown struct field")
-					return nil, false
-				}
-				fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
-				fieldLines, ok := g.compileMatchPatternBindings(ctx, fieldPattern, fieldExpr, fieldInfo.GoType)
-				if !ok {
-					return nil, false
-				}
+			}
+			if field.FieldName == nil || field.FieldName.Name == "" {
+				ctx.setReason("struct pattern missing field name")
+				return nil, false
+			}
+			fieldInfo := g.fieldInfo(info, field.FieldName.Name)
+			if fieldInfo == nil {
+				ctx.setReason("unknown struct field")
+				return nil, false
+			}
+			fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+			fieldLines, ok := g.compileMatchPatternBindings(ctx, fieldPattern, fieldExpr, fieldInfo.GoType)
+			if !ok {
+				return nil, false
+			}
 			lines = append(lines, fieldLines...)
 			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 				bindName := sanitizeIdent(field.Binding.Name)
@@ -730,6 +676,15 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 		}
 		return lines, true
 	case *ast.ArrayPattern:
+		if subjectType == "runtime.Value" || subjectType == "any" {
+			if recoveredLines, recoveredTemp, recoveredType, recovered := g.recoverStaticArrayPatternSubject(ctx, subjectTemp, subjectType); recovered {
+				bindLines, ok := g.compileNativeArrayPatternBindings(ctx, p, recoveredTemp, recoveredType)
+				if !ok {
+					return nil, false
+				}
+				return append(recoveredLines, bindLines...), true
+			}
+		}
 		if subjectType == "runtime.Value" {
 			return g.compileRuntimeArrayPatternBindings(ctx, p, subjectTemp)
 		}

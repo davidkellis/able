@@ -8,3 +8,11 @@ func (g *generator) invalidateFunctionDerivedInfo(info *functionInfo) {
 	info.cachedCarrier = false
 }
 
+func (g *generator) invalidateAllFunctionDerivedInfo() {
+	if g == nil {
+		return
+	}
+	for _, info := range g.allFunctionInfos() {
+		g.invalidateFunctionDerivedInfo(info)
+	}
+}

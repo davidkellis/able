@@ -331,6 +331,13 @@ func (g *generator) inferLocalTypeExpr(ctx *compileContext, expr ast.Expression,
 			return inferred, true
 		}
 	}
+	if ident, ok := expr.(*ast.Identifier); ok && ident != nil && ctx != nil {
+		if binding, found := ctx.lookup(ident.Name); found {
+			if inferred := g.inferBindingTypeExpr(ctx, binding); inferred != nil {
+				return inferred, true
+			}
+		}
+	}
 	if inferred := g.inferredExpressionTypeExpr(ctx, expr); inferred != nil {
 		inferred = g.lowerNormalizedTypeExpr(ctx, inferred)
 		if g.typeExprFullyBound(ctx.packageName, inferred) {
@@ -351,13 +358,6 @@ func (g *generator) inferLocalTypeExpr(ctx *compileContext, expr ast.Expression,
 	if call, ok := expr.(*ast.FunctionCall); ok && call != nil {
 		if inferred, ok := g.inferStaticCallResultTypeExpr(ctx, call); ok && inferred != nil {
 			return inferred, true
-		}
-	}
-	if ident, ok := expr.(*ast.Identifier); ok && ident != nil && ctx != nil {
-		if binding, found := ctx.lookup(ident.Name); found {
-			if inferred := g.inferBindingTypeExpr(ctx, binding); inferred != nil {
-				return inferred, true
-			}
 		}
 	}
 	if member, ok := expr.(*ast.MemberAccessExpression); ok && member != nil {
@@ -400,12 +400,22 @@ func (g *generator) inferBindingTypeExpr(ctx *compileContext, binding paramInfo)
 	if boundExpr == nil {
 		return carrierExpr
 	}
-	if typeExpressionToString(boundExpr) == typeExpressionToString(carrierExpr) {
+	boundKey := normalizeTypeExprIdentityKey(g, ctx.packageName, boundExpr)
+	carrierKey := normalizeTypeExprIdentityKey(g, ctx.packageName, carrierExpr)
+	if boundKey != "" && boundKey == carrierKey {
+		return boundExpr
+	}
+	if typeExpressionToString(boundExpr) == typeExpressionToString(carrierExpr) && carrierKey == "" {
 		return boundExpr
 	}
 	boundBase, boundOK := typeExprBaseName(boundExpr)
 	carrierBase, carrierOK := typeExprBaseName(carrierExpr)
 	if boundOK && carrierOK && boundBase == carrierBase {
+		if boundKey != "" && carrierKey != "" && boundKey != carrierKey {
+			if g.typeExprFullyBound(ctx.packageName, carrierExpr) {
+				return carrierExpr
+			}
+		}
 		if !g.typeExprHasWildcard(boundExpr) && g.typeExprHasWildcard(carrierExpr) {
 			return boundExpr
 		}

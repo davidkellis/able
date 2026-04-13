@@ -19,15 +19,20 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 	if expr == nil {
 		return "any", true
 	}
+	mapper := m
 	if m != nil && m.gen != nil {
-		expr = normalizeTypeExprForPackage(m.gen, m.packageName, expr)
+		resolvedPkg, normalized := m.gen.normalizeTypeExprContextForPackage(m.packageName, expr)
+		expr = normalized
+		if resolvedPkg != "" && resolvedPkg != m.packageName {
+			mapper = &TypeMapper{gen: m.gen, packageName: resolvedPkg}
+		}
 	}
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name == nil {
 			return "", false
 		}
-		return m.mapSimple(t.Name.Name)
+		return mapper.mapSimple(t.Name.Name)
 	case *ast.GenericTypeExpression:
 		if t == nil {
 			return "", false
@@ -35,36 +40,36 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base != nil && base.Name != nil {
 			switch base.Name.Name {
 			case "Array":
-				return m.mapArrayType(t)
+				return mapper.mapArrayType(t)
 			}
-			if goType, ok := m.gen.nativeStructCarrierTypeForExpr(m.packageName, t); ok {
+			if goType, ok := mapper.gen.nativeStructCarrierTypeForExpr(mapper.packageName, t); ok {
 				return goType, true
 			}
-			if info, ok := m.gen.ensureNativeInterfaceInfo(m.packageName, t); ok && info != nil {
+			if info, ok := mapper.gen.ensureNativeInterfaceInfo(mapper.packageName, t); ok && info != nil {
 				return info.GoType, true
 			}
-			if unionPkg, members, ok := m.gen.expandedUnionMembersInPackage(m.packageName, t); ok {
-				return m.mapExpandedUnionMembers(unionPkg, t, members)
+			if unionPkg, members, ok := mapper.gen.expandedUnionMembersInPackage(mapper.packageName, t); ok {
+				return mapper.mapExpandedUnionMembers(unionPkg, t, members)
 			}
 		}
-		if m != nil && m.gen != nil && m.gen.typeExprIsConcreteInPackage(m.packageName, t) {
+		if mapper != nil && mapper.gen != nil && mapper.gen.typeExprIsConcreteInPackage(mapper.packageName, t) {
 			return "", false
 		}
 		return "runtime.Value", true
 	case *ast.FunctionTypeExpression:
-		if info, ok := m.gen.ensureNativeCallableInfo(m.packageName, t); ok && info != nil {
+		if info, ok := mapper.gen.ensureNativeCallableInfo(mapper.packageName, t); ok && info != nil {
 			return info.GoType, true
 		}
-		if m != nil && m.gen != nil && m.gen.typeExprIsConcreteInPackage(m.packageName, t) {
+		if mapper != nil && mapper.gen != nil && mapper.gen.typeExprIsConcreteInPackage(mapper.packageName, t) {
 			return "", false
 		}
 		return "any", true
 	case *ast.NullableTypeExpression:
-		return m.mapNullableType(t)
+		return mapper.mapNullableType(t)
 	case *ast.ResultTypeExpression:
-		return m.mapResultType(t)
+		return mapper.mapResultType(t)
 	case *ast.UnionTypeExpression:
-		return m.mapUnionType(t)
+		return mapper.mapUnionType(t)
 	case *ast.WildcardTypeExpression:
 		return "any", true
 	default:
@@ -75,6 +80,9 @@ func (m *TypeMapper) Map(expr ast.TypeExpression) (string, bool) {
 func (m *TypeMapper) mapResultType(t *ast.ResultTypeExpression) (string, bool) {
 	if t == nil || m == nil || m.gen == nil {
 		return "", false
+	}
+	if innerType, ok := m.Map(t.InnerType); ok && innerType == "runtime.ErrorValue" {
+		return "runtime.ErrorValue", true
 	}
 	if info, ok := m.gen.ensureNativeResultUnionInfo(m.packageName, t); ok && info != nil {
 		return info.GoType, true
@@ -144,6 +152,11 @@ func (m *TypeMapper) mapUnionType(t *ast.UnionTypeExpression) (string, bool) {
 func (m *TypeMapper) mapExpandedUnionMembers(pkgName string, expr ast.TypeExpression, members []ast.TypeExpression) (string, bool) {
 	if m == nil || m.gen == nil || expr == nil {
 		return "", false
+	}
+	pkgName = m.gen.resolvedTypeExprPackage(pkgName, expr)
+	members = m.gen.uniqueUnionMembersInPackage(pkgName, members)
+	if len(members) == 1 {
+		return (&TypeMapper{gen: m.gen, packageName: pkgName}).Map(members[0])
 	}
 	if inner, ok := nativeUnionNullableInnerTypeExpr(members); ok {
 		return (&TypeMapper{gen: m.gen, packageName: pkgName}).mapNullableType(ast.NewNullableTypeExpression(inner))

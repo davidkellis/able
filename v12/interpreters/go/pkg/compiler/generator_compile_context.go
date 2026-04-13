@@ -64,7 +64,7 @@ func (g *generator) compileContextTypeBindings(info *functionInfo) map[string]as
 				merged["Self"] = normalizeTypeExprForPackage(g, info.Package, selfTarget)
 				skipNames["Self"] = struct{}{}
 				skipNames["SelfType"] = struct{}{}
-				if iface := g.interfaces[impl.InterfaceName]; iface != nil {
+				if iface, _, ok := g.interfaceDefinitionForImpl(impl); ok && iface != nil {
 					for name, expr := range g.interfaceSelfTypeBindings(iface, selfTarget) {
 						if expr == nil {
 							continue

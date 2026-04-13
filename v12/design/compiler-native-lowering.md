@@ -294,14 +294,17 @@ not `panic` / `recover`.
   at zero. Statically-known generic interface calls are now covered by that
   same fully-native expectation rather than a narrowed residual-runtime audit
   exception.
-- The broader compiler re-audit tranche is now closed too: the last surfaced
-  native array mismatch under the zero-boundary harness was
-  `runtime.ErrorValue` -> anonymous synthetic struct conversion dropping the
-  wrapped `IndexError` definition, which broke static `case _: IndexError`
-  matches on array bounds results. `__able_error_to_struct(...)` now preserves
-  concrete wrapped struct payloads before falling back to the synthetic error
-  view, and the zero-boundary fixture audit now includes
-  `06_08_array_ops_mutability`.
+- The broader compiler re-audit tranche is now closed too: the surfaced
+  native array mismatch under the zero-boundary harness on
+  `06_12_02_stdlib_array_helpers` was a two-part error-wrapped nominal-struct
+  gap. `__able_error_to_struct(...)` already preserves concrete wrapped struct
+  payloads before falling back to the synthetic error view, and the remaining
+  shared nominal-converter gap is now closed too: generated
+  `__able_struct_*_try_from(...)` / `__able_struct_*_from(...)` helpers now
+  unwrap through `__able_struct_instance(current)` after interface unwrapping
+  before enforcing the nominal definition check. That keeps static
+  `case _: IndexError` matches exhaustive on array bounds results under the
+  zero-boundary fixture audit.
 - The mono-array design tranche is now revised too: the older typed-runtime-
   store / handle-tag rollout has been superseded as the target architecture.
   Future `Array<T>` specialization work must converge on compiler-owned
@@ -707,9 +710,121 @@ not `panic` / `recover`.
     typed-pattern cast path, so the bound local stays on its native carrier
     instead of defaulting to `runtime.Value`
   - rescue typed bindings now stay native on recoverable carriers such as
-    `runtime.ErrorValue` and generated native interface carriers
+    the native nullable scalar/error family, the native scalar family,
+    `runtime.ErrorValue`, generated native nominal struct carriers,
+    generated native union/result carriers, generated native interface
+    carriers, and generated native callable carriers
+  - dynamic rescue/match typed-pattern narrowing for those native nullable
+    scalar/error, native scalar, native nominal struct, native union/result,
+    native interface, native callable, and `runtime.ErrorValue` carriers now
+    also skips `__able_try_cast(...)` and instead uses shared native matcher
+    helpers / direct scalar runtime type checks / direct nullable helpers /
+    direct error detection
   - native-union whole-value typed bindings now coerce directly onto the
     shared interface carrier instead of reboxing through `runtime.Value`
+  - `or { err => ... }` bindings now also stay native on statically known
+    failure carriers for propagated result-control paths and native
+    error-union handler paths instead of defaulting those locals back to
+    `runtime.Value`
+  - shared handled-failure inference now follows propagated `!T` failures
+    through block-wrapped and non-tail statement contexts too, so `rescue`
+    bindings, `or { err => ... }` bindings, and rescue-clause local joins
+    keep their native error carriers in those wrapped forms instead of
+    widening back through `runtime.Value`
+  - imported nullable / union / result aliases now retain their alias-source
+    package during carrier synthesis too, so shadowed foreign nominal members
+    stay on native pointer/union carriers instead of collapsing onto same-
+    named local structs and falling back on typed-pattern mismatch
+  - that same foreign-package context now survives later typed-pattern/local
+    rebinding too, so imported nullable / union / result match bindings access
+    shadowed foreign nominal members directly instead of round-tripping
+    through nominal conversion helpers or runtime member dispatch
+  - mixed imported/local shadowed nominal joins now key normalized type
+    identity with resolved package context too, so same-named local and
+    imported struct branches keep distinct native union members instead of
+    collapsing onto one `Thing`-shaped join and falling back
+  - shadowed callable joins built from those nominal returns now stay on
+    native callable-union carriers too: callable metadata retains package
+    context during carrier reconstruction, and join synthesis no longer treats
+    unrelated native callable carriers as interchangeable just because both
+    happen to be callable
+  - lambda literals and placeholder lambdas now narrow through expected
+    callable members inside native union/result carriers too, and semantic
+    `Result` carrier synthesis now preserves the callable member's resolved
+    package context, so imported semantic `Option` / `Result` aliases and
+    direct union aliases built from shadowed callable returns no longer fall
+    back with `lambda expression type mismatch` or
+    `placeholder lambda type mismatch`
+  - imported selector aliases for generic interfaces now preserve their source
+    package during generic type normalization too, so `RemoteIface<T>`-style
+    aliases keep foreign native interface carriers inside nullable / union /
+    result aliases even when the caller shadows the same interface name
+    locally
+  - raw imported selector-alias typed patterns now normalize in the lexical
+    caller package before any previously recorded foreign package is reused,
+    so generic `Result` / semantic-result matches like
+    `Outcome(RemoteIface<i32>) match { case value: RemoteIface<i32> => ... }`
+    resolve back onto the same foreign native interface carrier instead of
+    degrading to `runtime.Value`
+  - imported semantic `Result` aliases nested under outer `Result` carriers
+    now stay on that same foreign native interface carrier too: alias
+    expansion preserves the alias source package, builtin `Error` identities
+    collapse across package contexts during carrier synthesis, and final
+    codegen invalidates stale normalization/function-carrier caches after
+    compileability probing
+  - imported semantic `Result` aliases over shadowed callable members now
+    stay native under outer `Result` carriers too: raw imported selector
+    aliases nested inside function type expressions no longer reuse stale
+    recorded foreign package context during normalization, so typed patterns
+    like `(() -> RemoteThing)` resolve back onto the foreign native callable
+    carrier instead of widening to `__able_fn_*_to_runtime_Value`
+  - imported generic struct members with shadowed nominal arguments now stay
+    on specialized native carriers inside result / nested-result /
+    nested-union-result families too: selector-imported nominal arguments now
+    count as fully bound in the caller package, and foreign generic struct
+    specialization keeps that caller-side package context through field
+    substitution and field-type inference
+  - generic specialization already keeps those native interface carriers too:
+    direct `T -> T` specializations on interface actuals stay on the native
+    interface signature, and fully bound duplicate generic unions like
+    `T | RemoteIface<i32>` at `T = RemoteIface<i32>` collapse to that same
+    foreign native interface carrier instead of widening through
+    `runtime.Value`, `any`, or a synthetic union wrapper; the follow-on fix
+    here was making no-op type substitution preserve the bound expression
+    node so imported selector source-package context survives into the
+    specialized helper signature too
+  - representable nested union/result members now flatten during carrier
+    synthesis too, so outer unions like `(!T) | U` and `(A | B) | U`, plus
+    direct nested result families like `!!T` and `!(A | B)`, lower to one
+    native union family instead of nesting a native union carrier inside
+    another, including imported shadowed-interface `Result` members
+  - join carrier selection is now nominal for interfaces, so unrelated
+    same-shape interface joins like `Reader<i32> | Source<i32>` stay on a
+    native union instead of silently collapsing to one interface carrier
+  - propagated `rescue { case value => ... }` identifier joins now reuse those
+    native carriers when the monitored call already has a statically known
+    native return type, so callable plus imported shadowed nominal/interface
+    failures no longer widen back through `runtime.Value`, native-error
+    unions, or member access fallback
+  - higher-order / unknown rescue call failures no longer reuse the callback
+    return type as a fake failure carrier; statically known callees still
+    recover native rescue carriers from their bodies, while unresolved
+    callback failures stay on the dynamic error path so handlers like
+    `err.value match { ... }` compile without collapsing `err` to `String`
+  - static nullable typed matches on nil-capable native carriers now guard
+    both the non-nil typed branch and the `case nil` branch directly too, so
+    whole-carrier native interface/result matches no longer emit dead
+    unconditional/false conditions ahead of the actual nil arm
+  - representable outer unions built from native nullable/result members now
+    keep direct inner-member literals and clause-ordered typed matches on
+    native carriers too: nested wrapping no longer rejects `"ok"` / `Box {}`
+    against `?T | U` or `!T | U`, and native-union narrowing now only removes
+    a member when the pattern exhausts that whole v12 member type instead of
+    treating a non-nil subcase like `String` as if it also consumed `nil`
+  - fully bound duplicate union/result members now collapse to their single
+    native carrier during mapping too, so generic specializations no longer
+    keep synthetic `runtime.Value | ...` / duplicate-result carrier shapes
+    once all type parameters have been concretized
   - representative static pattern/control bodies are audited against
     `__able_try_cast(...)`, `bridge.MatchType(...)`, panic/recover, and
     IIFE-style scaffolding
@@ -762,8 +877,15 @@ not `panic` / `recover`.
     - native-interface default-method dispatch preserving concrete wrapped
       receiver overrides
     - all-numeric union operator typing through pairwise numeric promotion
-  - the compiler completion program is now closed and the next active project
-    priority is bytecode performance
+  - release validation is closed, but the stronger compiler-native completion
+    program remains active
+  - the array-native lowering tranche is complete on 2026-04-01; remaining
+    `runtime.ArrayValue` / `ArrayStore*` use is now limited to explicit
+    dynamic or ABI edges plus the unspecialized wildcard-array ABI
+  - the next active compiler-native queue is:
+    - union/result/interface carrier cleanup
+    - mono-array transition/runtime-store cleanup
+    - alias/constraint revalidation policy closure
 
 ## Relationship To Other Design Notes
 

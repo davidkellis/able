@@ -91,12 +91,12 @@ func TestCompilerParameterizedStructUnionMembersUseConcreteStructHelpers(t *test
 		"",
 	}, "\n"))
 
-	fromBody, ok := findCompiledFunction(result, "__able_union__Box_i32_or_string_from_value")
+	tryFromBody, ok := findCompiledFunction(result, "__able_union__Box_i32_or_string_try_from_value")
 	if !ok {
-		t.Fatalf("could not find native union from-value helper")
+		t.Fatalf("could not find native union try-from-value helper")
 	}
-	if !strings.Contains(fromBody, "__able_struct_Box_i32_from(coerced)") {
-		t.Fatalf("expected native union conversion to use the concrete struct helper for Box i32:\n%s", fromBody)
+	if !strings.Contains(tryFromBody, "__able_struct_Box_i32_from(coerced)") {
+		t.Fatalf("expected native union conversion to use the concrete struct helper for Box i32:\n%s", tryFromBody)
 	}
 
 	toBody, ok := findCompiledFunction(result, "__able_union__Box_i32_or_string_to_value")
@@ -106,8 +106,8 @@ func TestCompilerParameterizedStructUnionMembersUseConcreteStructHelpers(t *test
 	if !strings.Contains(toBody, "__able_struct_Box_i32_to(rt, raw.Value)") {
 		t.Fatalf("expected native union conversion to use the concrete struct runtime helper for Box i32:\n%s", toBody)
 	}
-	if strings.Contains(fromBody, "__able_struct_Box_from(coerced)") || strings.Contains(toBody, "__able_struct_Box_to(rt, raw.Value)") {
-		t.Fatalf("expected native union conversion to avoid base generic struct helpers for Box i32:\nfrom:\n%s\n\nto:\n%s", fromBody, toBody)
+	if strings.Contains(tryFromBody, "__able_struct_Box_from(coerced)") || strings.Contains(toBody, "__able_struct_Box_to(rt, raw.Value)") {
+		t.Fatalf("expected native union conversion to avoid base generic struct helpers for Box i32:\ntry_from:\n%s\n\nto:\n%s", tryFromBody, toBody)
 	}
 }
 
@@ -141,6 +141,45 @@ func TestCompilerOrElseOnErrorUnionUsesNativeCarrierDetection(t *testing.T) {
 	}
 	if strings.Contains(body, "__able_is_error(") {
 		t.Fatalf("expected native union or-else to avoid runtime-value error probing:\n%s", body)
+	}
+}
+
+func TestCompilerOrElseOnErrorUnionBindingStaysNativeCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct MyError { message: String }",
+		"",
+		"impl Error for MyError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"fn value(ok: bool) -> String | MyError {",
+		"  if ok { \"ok\" } else { MyError { message: \"bad\" } }",
+		"}",
+		"",
+		"fn main() -> String {",
+		"  value(false) or { err => err.message() }",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(body, "var err runtime.ErrorValue") && !strings.Contains(body, "var err *MyError") {
+		t.Fatalf("expected native union or-else binding to stay on a native carrier:\n%s", body)
+	}
+	for _, fragment := range []string{
+		"var err runtime.Value",
+		"__able_method_call_node(",
+		"__able_any_to_value(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected native union or-else binding to avoid %q:\n%s", fragment, body)
+		}
 	}
 }
 
