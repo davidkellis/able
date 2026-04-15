@@ -1,5 +1,1514 @@
 # Able Project Log
 
+# 2026-04-15 — Bytecode inline-call coercion-metadata tranche complete (v12)
+- Closed the next bytecode call-path slice by moving per-parameter coercion
+  shape checks out of the hot inline-call loop and into cached frame-layout
+  metadata.
+- What landed:
+  - slot-enabled frame layouts now cache declared parameter types plus
+    per-parameter “may need runtime coercion” flags derived at lowering time
+  - the hot bytecode inline-call setup path now uses that cached metadata
+    instead of recomputing generic/no-op coercion guards on every recursive
+    call
+  - bound receiver inline calls now skip the ordinary receiver-argument loop
+    shape and only apply coercion logic to explicit arguments, which keeps the
+    already-bound receiver off the common path
+  - added focused slot-analysis coverage for the new coercion metadata cache
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis.go`
+  - `v12/interpreters/go/pkg/interpreter/definitions.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(AnalyzeFrameLayoutCachesParam(SimpleTypes|CoercionMetadata)|BytecodeVM_InlineBound(MethodCallStats|GenericMethodCallStats)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop)' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+      - observed `11745790 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-inlinecachemeta.cpu.out`
+      - observed `10992046 ns/op`
+  - profiled targeted comparison:
+    - before: `tryInlineCallFromStack(...)` still showed about `30ms` flat /
+      `70ms` cumulative in the hot profile
+    - after: `tryInlineCallFromStack(...)` dropped to about `10ms` flat /
+      `10ms` cumulative and no longer sits in the hotspot tier
+
+# 2026-04-15 — Bytecode cast/coercion fast-path tranche complete (v12)
+- Closed the next bytecode call/cast slice by removing no-op runtime coercion
+  from inline parameter binding and by shortening the hot primitive cast path.
+- What landed:
+  - inline call setup now skips `coerceValueToType(...)` entirely when the
+    declared parameter type is a guaranteed no-op coercion shape under current
+    interpreter semantics, which removes repeated useless work on paths like
+    recursive `Array i32` calls
+  - `coerceValueToType(...)` now returns immediately for those no-op shapes
+    instead of reparsing generic non-interface type expressions on the cold
+    path too
+  - `castValueToType(...)` now short-circuits canonical simple primitive casts
+    before alias/type-metadata checks, and same-type primitive casts now return
+    immediately on the hot `as i32` path
+  - added focused unit coverage for no-op generic coercion detection and the
+    primitive cast helper
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_type_coercion_fast.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_type_coercion.go`
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_type_coercion_fast_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(InterpreterCoerceValueToTypeWouldBeNoOp|InterpreterCastValueToCanonicalSimpleTypeFast|BytecodeVM_(BinaryFastPath(IntegerParity|GeneralIntegerComparisonParity|OverflowParity|TypeErrorParity|FloatFallbackParity)|DirectIntegerComparisonFastPath|MemberMethodCacheTracksStructDefinition|NonMethodMemberAccessSkipsMemberMethodCacheCounters|StatsMemberMethodCacheCounters|CallNameDotFallbackUsesMemberMethodCache|InlineBoundMethodCallStats|InlineBoundGenericMethodCallStats|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|SelfCallWithArrayParamKeepsInlineFastPath|MemberAccess)|ApplyBinaryOperatorFast_StringComparison|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+      - observed `12375358 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `11804150 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-castfast3.cpu.out`
+      - observed `11679856 ns/op`
+  - profiled targeted comparison:
+    - before: `castValueToType(...)` still showed around `40ms` cumulative and
+      inline call setup still routed through the no-op coercion gate for
+      generic non-interface params
+    - after: `castValueToType(...)` dropped to about `10ms` flat / `10ms`
+      cumulative in the hot profile, and `coerceValueToType(...)` no longer
+      shows as a meaningful hotspot
+  - `git diff --check`
+- Result:
+  - the hot loop stayed in the high-11ms band on this machine
+  - the remaining visible bytecode cost is now more about ordinary call/name
+    scaffolding, slot/frame management, and residual array/index work than
+    about cast/coercion dispatch
+
+# 2026-04-15 — Bytecode direct integer comparison tranche complete (v12)
+- Closed the next bytecode arithmetic/comparison slice by removing generic
+  comparison dispatch from the common integer path.
+- What landed:
+  - general bytecode comparison sites now try a direct integer compare in
+    `execBinary(...)` before they fall back to the shared operator fast path
+  - the shared `ApplyBinaryOperatorFast(...)` path now also short-circuits exact
+    integer and exact string comparisons instead of routing those cases through
+    `evaluateComparison(...)`
+  - the comparison helpers now share a direct integer-result path rather than
+    rebuilding the same compare/cmp layering at each call site
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_operations_fast.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_operations_compare.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_(BinaryFastPath(IntegerParity|GeneralIntegerComparisonParity|OverflowParity|TypeErrorParity|FloatFallbackParity)|DirectIntegerComparisonFastPath|MemberMethodCacheTracksStructDefinition|NonMethodMemberAccessSkipsMemberMethodCacheCounters|StatsMemberMethodCacheCounters|CallNameDotFallbackUsesMemberMethodCache|InlineBoundMethodCallStats|InlineBoundGenericMethodCallStats|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|SelfCallWithArrayParamKeepsInlineFastPath|MemberAccess)|ApplyBinaryOperatorFast_StringComparison|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+      - observed `12343735 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-binarycmp2.cpu.out`
+      - observed `12249230 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `11886722 ns/op`
+  - `git diff --check`
+- Result:
+  - the quicksort hot loop moved from the prior low-13ms band into the low-12ms
+    band on this machine
+  - comparison dispatch is no longer the main remaining bytecode cost; the next
+    visible work is mostly slot coercion / cast traffic and the residual named
+    call path
+
+# 2026-04-15 — Bytecode inline coercion fast-path tranche complete (v12)
+- Closed the next bytecode hot-call slice by shrinking the coercion work inside
+  successful inline bytecode calls rather than changing dispatch semantics.
+- What landed:
+  - slot-layout analysis now caches simple type names for every parameter, not
+    just the first self-call parameter
+  - inline call setup now reuses those cached simple type names for the
+    primitive no-op check instead of reparsing simple type expressions on every
+    hot parameter bind
+  - added a primitive-only inline coercion fast path for simple integer
+    widening plus integer/float coercions before falling back to the full
+    `coerceValueToType(...)` path
+  - the fast no-op coercion check now also recognizes boxed primitive pointers
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_inline_coercion.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(AnalyzeFrameLayoutCachesParamSimpleTypes|InlineCoercionUnnecessaryAcceptsBoxedPrimitivePointers|InlineCoerceValueBySimpleType(IntegerWidening|IntegerToFloat)|BytecodeVM_(MemberMethodCacheTracksStructDefinition|NonMethodMemberAccessSkipsMemberMethodCacheCounters|StatsMemberMethodCacheCounters|CallNameDotFallbackUsesMemberMethodCache|InlineBoundMethodCallStats|InlineBoundGenericMethodCallStats|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|SelfCallWithArrayParamKeepsInlineFastPath|MemberAccess)|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - profiled targeted comparison:
+    - before: `tryInlineCallFromStack(...)` was `90ms` cumulative with `60ms`
+      still falling through the general coercion path
+    - after: `tryInlineCallFromStack(...)` dropped to `40ms` cumulative with
+      `30ms` still falling through the general coercion path
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+      - observed `13193000 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-inlinecoerce2.cpu.out`
+      - observed `13043931 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `12971510 ns/op`
+  - `git diff --check`
+- Result:
+  - the targeted inline-call coercion path is materially cheaper in profile
+  - overall benchmark timing stays in the same noisy low-13ms band, so the
+    stronger signal here is the profile shift rather than a dramatic wall-clock
+    drop
+
+# 2026-04-15 — Bytecode ordinary/member dispatch tranche complete (v12)
+- Closed the remaining ordinary/member dispatch cleanup slice by tightening the
+  bytecode member-access path instead of chasing lower-value cache noise.
+- What landed:
+  - bytecode member-access instructions now carry identifier member names
+    directly from lowering, so the VM no longer has to rediscover that name
+    from the AST on hot identifier member sites
+  - `execMemberAccess` now only probes and stores the member-method cache when
+    a site can actually use that cache, instead of paying futile cache-store
+    work after plain field/property accesses
+  - added focused stats coverage to pin that non-method member access does not
+    touch member-method cache counters
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_members.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_member_cache_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_(MemberMethodCacheTracksStructDefinition|NonMethodMemberAccessSkipsMemberMethodCacheCounters|StatsMemberMethodCacheCounters|CallNameDotFallbackUsesMemberMethodCache|InlineBoundMethodCallStats|InlineBoundGenericMethodCallStats|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|SelfCallWithArrayParamKeepsInlineFastPath|MemberAccess)|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - same-session clean baseline before the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+    - observed `13282606 ns/op`
+  - after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `13095437 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-ordmember-final.cpu.out`
+      - observed `12984595 ns/op`
+  - `git diff --check`
+- Result:
+  - `execMemberAccess` is no longer a top-tier benchmark hotspot
+  - the residual `execCallName` cost is now dominated by inline-call
+    `coerceValueToType(...)`, so the remaining hot work has shifted from
+    ordinary/member dispatch scaffolding to value-coercion and arithmetic paths
+
+# 2026-04-15 — Bytecode simple-name lookup tranche complete (v12)
+- Closed the next bytecode milestone-1 named lookup slice by moving simple
+  `LoadName` / `CallName` cacheability decisions out of the VM hot path and
+  into bytecode lowering.
+- What landed:
+  - bytecode instructions now record whether a name is a plain identifier
+    without dots, so hot named loads/calls can skip repeated
+    `strings.Contains(...)` / lexical-cacheability checks at runtime
+  - the VM now has a direct identifier lookup path for those sites, reusing the
+    existing hot/global/scope caches and invalidation semantics without routing
+    through the generic name-shape branch
+  - `execCallName` now uses that direct identifier path for simple named calls,
+    while dotted-name fallback stays on the old generic path unchanged
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_lookup_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_(InlineBoundMethodCallStats|InlineBoundGenericMethodCallStats|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameDotFallbackUsesMemberMethodCache|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|SelfCallWithArrayParamKeepsInlineFastPath|MemberAccess)|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - same-session clean baseline before the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-current.cpu.out`
+    - observed `13627666 ns/op`
+  - after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+      - observed `13386264 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-namesimple.cpu.out`
+      - observed `13453252 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `13282606 ns/op`
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - cut the still-visible ordinary/member dispatch cost around `execCall` and
+    `execMemberAccess`
+  - keep trimming residual index/call scaffolding only where the profile still
+    proves it matters
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-15 — Bytecode bound generic-method inline tranche complete (v12)
+- Closed the next bytecode milestone-1 hot call-path slice by allowing
+  already-bound generic methods to use the existing inline bytecode call path.
+- What landed:
+  - the stack-based inline call helper no longer rejects a generic method-set
+    function solely because its receiver-side generics still exist on the
+    method metadata when the receiver has already been concretely injected by a
+    bound-method call
+  - plain generic function values still keep the old conservative guard, so the
+    change only affects already-bound receiver calls rather than arbitrary
+    generic calls
+  - added focused stats coverage to pin that concrete bound generic method
+    calls now produce inline-call hits
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_bound_method_inline_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_(InlineBoundMethodCallStats|InlineBoundGenericMethodCallStats|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameDotFallbackUsesMemberMethodCache|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|SelfCallWithArrayParamKeepsInlineFastPath|MemberAccess)|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - same-session clean baseline before the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+    - observed `17631827 ns/op`
+  - after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+      - observed `14023697 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `13856551 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `13433577 ns/op`
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - tighten the remaining ordinary named call path around `execCallName`
+  - cut the still-visible member dispatch cost around `execMemberAccess`
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-15 — Bytecode lazy call-context tranche complete (v12)
+- Closed the next bytecode milestone-1 hot call-path slice by removing eager
+  eval-state/runtime-context construction from successful bytecode call
+  completion.
+- What landed:
+  - `finishCompletedCall(...)` now accepts a nil eval-state and resolves
+    `stateFromEnv(...)` only when an actual error needs runtime-context
+    attachment
+  - `execCall`, `execCallSelf`, `execCallName`, and the fused self-call helper
+    now keep the success path on that lazy route instead of paying
+    `stateFromEnv(...)` up front
+  - bytecode call-site error attachment still goes through the same interpreter
+    runtime-context machinery, but only on the error path
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_native_fast.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_(IndexGetFastPathInvalidatesWhenImplAppears|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameDotFallbackUsesMemberMethodCache|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|SelfCallWithArrayParamKeepsInlineFastPath)|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+    - observed `16329466 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+    - observed `16453279 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-lazystate.cpu.out`
+    - observed `16215513 ns/op`
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - tighten the remaining ordinary VM call scaffolding around `execCall` /
+    `execCallName`
+  - cut the still-visible member dispatch cost around `execMemberAccess`
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-15 — Bytecode no-array-impl direct index tranche complete (v12)
+- Closed the next bytecode milestone-1 hot index-dispatch slice by removing
+  the entire index-method cache path for raw arrays when no `Array` `Index` /
+  `IndexMut` impls exist at all.
+- What landed:
+  - the interpreter now tracks whether any registered impl could affect
+    `Array` `Index` / `IndexMut` dispatch
+  - when that answer is “no”, bytecode `resolveIndexGet` / `resolveIndexSet`
+    jump straight to the direct raw-array helpers instead of paying the
+    receiver-identity, element-type, global-revision, and method-version cache
+    checks on every access
+  - once an applicable impl is registered, the direct bypass is disabled for
+    subsequent execution, so the existing mutation/invalidation story still
+    holds
+  - added focused get-side invalidation coverage to prove the fast path shuts
+    off once an `Array i32 : Index` impl appears after earlier direct reads
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_array_index_impls.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter.go`
+  - `v12/interpreters/go/pkg/interpreter/definitions.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_(IndexGetFastPathInvalidatesWhenImplAppears|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameDotFallbackUsesMemberMethodCache|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|SelfCallWithArrayParamKeepsInlineFastPath)|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+    - observed `15877733 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-array-fast.cpu.out`
+    - observed `15943289 ns/op`
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - tighten the remaining ordinary VM call scaffolding around `execCall` /
+    `execCallName`
+  - cut the still-visible member dispatch cost around `execMemberAccess`
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-15 — Bytecode raw-array no-method direct-site bypass tranche complete (v12)
+- Closed the next bytecode milestone-1 hot index-dispatch slice by removing
+  the remaining cached-method resolution stack from already-proven raw-array
+  no-method sites.
+- What landed:
+  - when the inline index cache already proves “same program/IP, raw array
+    receiver, no `Index`/`IndexMut` impl, matching element type, matching
+    global + method-cache revisions”, `resolveIndexGet` / `resolveIndexSet`
+    now jump straight to the direct array access helpers instead of re-entering
+    `resolveCachedIndexMethod(...)`
+  - the cache invalidation rules are unchanged; the bypass still checks the
+    same revision/version and element-type guards before taking the direct path
+  - added focused recursive array-parameter self-call coverage so the
+    bytecode inline self-call path stays pinned on a real `Array i32` carrier
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_self_call_slot_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_(SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeExactCallsSkipInlineProbeStats|CallNameCacheInvalidatesOnRebind|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameDotFallbackUsesMemberMethodCache|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop|InterfaceDynamicDispatch|ApplyInterfaceCalls)$' -count=1 -timeout 300s`
+  - same-session 5-sample quicksort comparison:
+    - with bypass: `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=5`
+      - observed `20362251`, `20367687`, `19893694`, `19790770`, `19776652 ns/op`
+    - without bypass: same command after temporarily removing only the direct-site helper/probes
+      - observed `24262148`, `21495852`, `23660317`, `20141490`, `20031638 ns/op`
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - tighten the remaining ordinary VM call scaffolding around `execCall` /
+    `execCallName`
+  - cut the remaining index identity / call-dispatch work that still shows up
+    after the raw-array no-method site bypass
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode revision-hint cache probe tranche complete (v12)
+- Closed the next bytecode milestone-1 hot lookup/dispatch slice by removing
+  repeated thread-mode/revision checks from VM cache probes.
+- What landed:
+  - bytecode name, member-method, and index-method cache probes now read
+    environment/global revision state through a single-thread runtime hint,
+    instead of reloading thread mode and then re-reading revisions on each hot
+    probe
+  - the VM now also reads the interpreter method-cache version directly on the
+    established single-thread bytecode path, while preserving the locked path
+    for multi-thread execution
+  - this keeps the existing cache invalidation rules intact; it only trims the
+    revision/version bookkeeping around those caches
+- Focused files changed:
+  - `v12/interpreters/go/pkg/runtime/environment.go`
+  - `v12/interpreters/go/pkg/runtime/environment_test.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_runtime_hints.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_lookup_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_member_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+- Verification:
+  - `go test -p 1 ./pkg/runtime -run 'TestEnvironment(RevisionIncrementsOnMutation|RevisionWithHintMatchesRevision)$' -count=1 -timeout 60s`
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_(NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeExactCallsSkipInlineProbeStats|CallNameCacheInvalidatesOnRebind|CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameDotFallbackUsesMemberMethodCache|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|Interpreter(EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|ExecFixtureParity/07_10_bytecode_quicksort_hotloop)$' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+    - local spot-check observed `18363703 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-runtime-hints.cpu.out`
+    - local spot-check observed `17545168 ns/op`
+  - post-change CPU profile shows the named lookup path narrowed further:
+    `lookupCachedName` dropped into the low-single-digit share and
+    `currentMethodCacheVersion()` no longer reappears as a meaningful hotspot
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - tighten the remaining ordinary VM call scaffolding around `execCall` /
+    `execCallName`
+  - cut the remaining `resolveIndexGet` / `lookupCachedIndexMethod` identity
+    overhead
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode tracked-array direct index tranche complete (v12)
+- Closed the next bytecode milestone-1 hot index-dispatch slice by tightening
+  the already-cached raw-array direct path.
+- What landed:
+  - bytecode direct array `get` / `set` now reuse the tracked shared
+    `ArrayState` pointer directly when the receiver already carries a valid
+    tracked handle, instead of re-entering `ensureArrayState(...)` on every hot
+    in-bounds access
+  - direct integer index decoding now stays on the small-int fast path when the
+    index value is already a native small integer, which trims another layer of
+    conversion work from the hot quicksort array path
+  - the earlier experimental name-lookup cache reshape was backed out; this
+    tranche keeps only the measured direct-array/index improvement
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameDotFallbackUsesMemberMethodCache|NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestInterpreterEnsureArrayStateUsesTrackedStateFastPath|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `17848101 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1 -cpuprofile /tmp/able-bytecode-direct-array-state.cpu.out`
+    - local spot-check observed `17883955 ns/op`
+  - longer spot-check:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+    - local spot-check observed `18116086 ns/op`
+  - post-change CPU profile still centers on `execCall`, `execCallName`,
+    `lookupCachedName`, and the residual direct-array dispatch frames, but the
+    hot raw-array path no longer pays the extra `ensureArrayState(...)` call
+    on already-tracked receivers
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - tighten the remaining ordinary VM call scaffolding around `execCall` /
+    `execCallName`
+  - reduce the remaining `lookupCachedName` / `storeCachedScopeValue` overhead
+    on hot named-call sites
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode exact-native-first call-probe tranche complete (v12)
+- Closed the next bytecode milestone-1 hot call-dispatch slice by removing
+  wasted inline-probe work from exact native call sites.
+- What landed:
+  - `execCall` and `execCallName` now resolve exact native call targets before
+    attempting inline bytecode frame setup, so exact native functions and exact
+    native bound methods no longer pay the inline-probe miss path first
+  - focused bytecode stats coverage now pins that exact native call-by-name and
+    member-call sites do not contribute inline hit/miss counters
+  - the change is intentionally narrow: it keeps the existing native-call fast
+    path and only reorders the probe sequence for already-resolved exact native
+    targets
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_native_fastpath_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(NativeExactCallsSkipInlineProbeStats|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestInterpreterEnsureArrayStateUsesTrackedStateFastPath|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `18291436 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1 -cpuprofile /tmp/able-bytecode-exact-native-first.cpu.out`
+    - local spot-check observed `19149908 ns/op`
+  - post-change CPU profile shows the exact-native-first reorder landed, but
+    the dominant bytecode cost is still the ordinary call/index path around
+    `execCall`, `execCallName`, `resolveIndexGet`, and residual cache identity
+    checks
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - reduce the remaining ordinary VM call scaffolding around `execCall` /
+    `execCallName`
+  - cut the remaining `execIndexGet` / `resolveIndexGet` dispatch cost
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode array-identity and method-version fast path tranche complete (v12)
+- Closed the next bytecode milestone-1 hot dispatch/cache slice by shrinking
+  the remaining array receiver-identity work and removing lock traffic from
+  single-threaded method-cache version probes.
+- What landed:
+  - shared `ArrayState` now carries a cached element-type token, and
+    `syncArrayValues(...)` refreshes it when array contents change, so hot
+    index-cache probes no longer need to re-derive array element type from the
+    first element on every read
+  - `currentMethodCacheVersion()` now uses the same single-thread fast-path
+    rule as the environment revision path, so bytecode cache probes stop
+    taking the method-cache read lock when the interpreter is still in
+    single-thread mode
+  - focused regression coverage now pins cached array element-type refresh when
+    the first element changes type
+- Focused files changed:
+  - `v12/interpreters/go/pkg/runtime/array_store.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_array_tracking_test.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestInterpreter(TrackArrayValueUsesSingleFastPath|TrackArrayValuePromotesAndDemotesAliases|EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken)|TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `18051399 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1 -cpuprofile /tmp/able-bytecode-methodver.cpu.out`
+    - local spot-check observed `17708762 ns/op`
+  - post-change CPU profile no longer shows `currentMethodCacheVersion()`;
+    the remaining bytecode hotspot set is now centered on
+    `execCall`, `execCallName`, `execIndexGet`, and the smaller residual
+    array/member dispatch frames
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - tighten the remaining VM call scaffolding around `execCall` /
+    `execCallName`
+  - reduce the remaining `execIndexGet` / `resolveIndexGet` dispatch cost
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode per-site index-method cache tranche complete (v12)
+- Closed the next bytecode milestone-1 hot index-dispatch slice by removing
+  composite-key hashing from hot cached index lookups.
+- What landed:
+  - index-method caching now stores per-program / per-IP cache slots for
+    `get` and `set` instead of routing hot array index sites back through a
+    `map[bytecodeIndexMethodCacheKey]...` path
+  - receiver identity and array element-type validation still gate cache hits,
+    so impl-sensitive invalidation and element-type-sensitive dispatch remain
+    correct
+  - this keeps the cache semantics from the earlier tranche, but drops the
+    remaining `bytecodeIndexMethodCacheKey` hashing overhead from the hotloop
+    benchmark path
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable)|TestInterpreterEnsureArrayStateUsesTrackedStateFastPath|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `18353427 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1 -cpuprofile /tmp/able-bytecode-indexcache2.cpu.out`
+    - local spot-check observed `18113740 ns/op`
+  - post-change CPU profile no longer shows `bytecodeIndexMethodCacheKey`
+    hashing; the remaining bytecode hotspot set is now centered on
+    `resolveCachedIndexMethod` identity work, `execCall`, `execMemberAccess`,
+    `storeCachedMemberMethod`, and smaller array/member dispatch frames
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - reduce the remaining receiver-identity / element-type work in
+    `resolveCachedIndexMethod`
+  - tighten the remaining VM call/member scaffolding around
+    `execCall`, `execMemberAccess`, and nearby member-cache updates
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode exact native-call fast path tranche complete (v12)
+- Closed the next bytecode milestone-1 hot call-dispatch slice by keeping
+  exact native calls on a VM-side fast path.
+- What landed:
+  - exact-arity `NativeFunctionValue` and `NativeBoundMethodValue` calls now
+    execute directly from the bytecode VM instead of always routing through
+    `Interpreter.callCallableValueMutable(...)`
+  - the new fast path is intentionally narrow: partial application, overloads,
+    bound non-native callables, and other dynamic shapes still use the existing
+    generic call dispatcher unchanged
+  - native bound-method calls now avoid the usual receiver-plus-args slice
+    allocation on the borrowing fast path by using small stack-backed arg
+    buffers for the common arities
+  - non-borrowing native calls still receive stable arg slices, and focused
+    bytecode regressions now pin both stable-slice and receiver-injection
+    behavior
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_native_fast.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_native_fastpath_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeCallArgsSliceStaysStable|IndexGet|IndexAssign|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestInterpreterEnsureArrayStateUsesTrackedStateFastPath|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `19377963 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1 -cpuprofile /tmp/able-bytecode-callnative.cpu.out`
+    - local spot-check observed `19218069 ns/op`
+  - post-change CPU profile shows the exact-native fast path in place and the
+    remaining bytecode hotspot set narrowed further toward
+    `lookupCachedIndexMethod`, `resolveCachedIndexMethod`, `execCall`,
+    `execCallName`, `resolveIndexGet`, and smaller dispatch scaffolding
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - reduce the remaining index-cache identity/map cost in
+    `lookupCachedIndexMethod` / `resolveCachedIndexMethod`
+  - tighten the remaining VM call/member scaffolding around
+    `execCall`, `execCallName`, and nearby dispatch frames
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode raw-array index no-method fast path tranche complete (v12)
+- Closed the next bytecode milestone-1 hot index-dispatch slice by keeping
+  cached plain-array accesses on a bytecode-native raw-array path.
+- What landed:
+  - when the existing bytecode index-method cache proves “cacheable array site
+    with no `Index` / `IndexMut` impl”, raw `*runtime.ArrayValue` receivers now
+    stay on a bytecode direct array get/set path instead of bouncing through
+    `Interpreter.indexGetWithoutMethod(...)` /
+    `Interpreter.assignIndexWithoutMethods(...)`
+  - the direct path is intentionally narrow: it only handles raw array
+    receivers and integer indexes; all other shapes still fall back to the
+    existing interpreter semantics
+  - impl-backed array invalidation behavior is unchanged because the fast path
+    still sits behind the same index-method cache/version checks
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(IndexGet|IndexAssign|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestInterpreterEnsureArrayStateUsesTrackedStateFastPath|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `20165814 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1 -cpuprofile /tmp/able-bytecode-directindex.cpu.out`
+    - local spot-check observed `18778609 ns/op`
+  - post-change CPU profile shows the quicksort hotspot set narrowed further:
+    `ensureArrayState` is down to noise, `resolveDirectArrayIndexGet` is small,
+    and the remaining bytecode cost is now concentrated in
+    `execCall`, `execCallName`, `lookupCachedIndexMethod`,
+    `resolveCachedIndexMethod`, and the remaining VM dispatch scaffolding
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - reduce the remaining index-cache identity/map cost in
+    `lookupCachedIndexMethod` / `resolveCachedIndexMethod`
+  - tighten the remaining call dispatch path around
+    `execCall` / `execCallName`
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode tracked-array state fast path tranche complete (v12)
+- Closed the next bytecode milestone-1 hot dispatch/state slice by reusing
+  tracked array state on hot array reads and writes.
+- What landed:
+  - already-tracked `ArrayValue` wrappers now retain the current shared
+    `ArrayState` pointer plus tracked-handle metadata
+  - `ensureArrayState(...)` now reuses that tracked state directly when the
+    wrapper is already synchronized, instead of re-entering
+    `runtime.ArrayStoreEnsure(...)` on every hot array access
+  - tracked alias synchronization now updates the shared state pointer on all
+    wrappers, so the fast path stays alias-correct
+- Focused files changed:
+  - `v12/interpreters/go/pkg/runtime/values.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_array_tracking_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestInterpreterTrackArrayValue(UsesSingleFastPath|PromotesAndDemotesAliases)|TestInterpreterEnsureArrayStateUsesTrackedStateFastPath|TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `21521230 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1 -cpuprofile /tmp/able-bytecode-arraystate.cpu.out`
+    - local spot-check observed `20818714 ns/op`
+  - post-change CPU profile no longer shows `ensureArrayState`,
+    `ArrayStoreEnsure`, `ArrayStoreEnsureHandle`, or `arrayHandleKind` as
+    meaningful runtime hotspots; the remaining cost is now concentrated around
+    `execCall`, `execCallName`, `execIndexGet`, `resolveIndexGet`,
+    `lookupCachedIndexMethod`, and narrower member/set dispatch paths
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - reduce the remaining index-dispatch cost in
+    `resolveIndexGet` / `lookupCachedIndexMethod`
+  - tighten the remaining call/member VM dispatch path around
+    `execCall`, `execCallName`, and `execMemberAccess`
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode lexical name owner-cache tranche complete (v12)
+- Closed the next bytecode milestone-1 hot lookup/dispatch slice by tightening
+  repeated non-local name resolution in bytecode execution.
+- What landed:
+  - repeated non-local `LoadName` / `CallName` sites now cache the lexical
+    environment that actually owns the binding, instead of rewalking the
+    parent/global scope chain on each hit
+  - the VM now keeps a single-entry inline hot cache for repeated cached name
+    lookups before the broader per-VM scope/global maps
+  - parent-scope and captured-scope invalidation is pinned explicitly, so
+    rebinding a captured outer `x` or `f` invalidates correctly
+  - `runtime.Environment` now exposes `LookupWithOwner(...)` for this hot-path
+    owner-aware lookup
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_lookup_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_scope_lookup_cache_test.go`
+  - `v12/interpreters/go/pkg/runtime/environment.go`
+  - `v12/interpreters/go/pkg/runtime/environment_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(CallNameScopeCacheInvalidatesOnLocalRebind|LoadNameScopeCacheInvalidatesOnLocalAssign|LoadNameScopeCacheInvalidatesOnCapturedParentAssign|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind|CallNameDotFallbackUsesMemberMethodCache|MemberMethodCacheTracksStructDefinition|MemberMethodCacheInvalidatesOnImplChange|StatsMemberMethodCacheCounters|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test -p 1 ./pkg/runtime -run 'TestEnvironment(LookupRespectsLexicalScope|LookupWithOwnerRespectsLexicalScope|LookupInCurrentScopeDoesNotWalkParent|RevisionIncrementsOnMutation)' -count=1 -timeout 120s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `27933342 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1 -cpuprofile /tmp/able-bytecode-namelookup.cpu.out`
+    - local spot-check observed `27113245 ns/op`
+  - post-change CPU profile no longer shows `runtime.Environment.Lookup` as a
+    meaningful runtime hotspot; the remaining cost is concentrated in
+    `execIndexGet`, `resolveIndexGet`, `lookupCachedIndexMethod`,
+    `execCall`, `execMemberAccess`, `memberAccessOnValueWithOptions`, and the
+    array store/state path
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - reduce the remaining array/index dispatch cost now dominating the
+    quicksort profile
+  - tighten the remaining member/call dispatch path around
+    `execCall` / `execMemberAccess` / `memberAccessOnValueWithOptions`
+  - keep inline caches precise and cheap under mutation and concurrency
+
+# 2026-04-14 — Bytecode member-method inline hot cache tranche complete (v12)
+- Closed the next bytecode milestone-1 hot dispatch/lookup slice by tightening
+  repeated call-position member lookup.
+- What landed:
+  - repeated bytecode call-position/member-access method lookups now hit a
+    single-entry inline member-method cache before the broader per-VM map
+    cache
+  - the inline cache preserves the existing invalidation rules against global
+    revision and method-cache version changes
+  - receiver identity is pinned through the inline cache too, so same-name
+    methods on different struct definitions cannot cross-hit at the same
+    bytecode call site
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_member_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_member_cache_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(MemberMethodCacheTracksStructDefinition|MemberMethodCacheInvalidatesOnImplChange|StatsMemberMethodCacheCounters)|TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache' -count=1 -timeout 300s`
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(MemberMethodCacheTracksStructDefinition|MemberMethodCacheInvalidatesOnImplChange|StatsMemberMethodCacheCounters|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `24387644 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=3x -count=1 -cpuprofile /tmp/able-bytecode-memberhot.cpu.out`
+    - local spot-check observed `23224150 ns/op`
+  - post-change CPU profile still shows the remaining hot bytecode/runtime
+    costs clustered around `execIndexGet`, `execCall`, `execMemberAccess`,
+    `memberAccessOnValueWithOptions`, and `Environment.Lookup`
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - broader high-frequency environment/path lookup removal
+  - more direct-call/slot coverage where it still matters on benchmarked code
+  - inline-cache precision/cheapness under mutation and concurrency
+
+# 2026-04-14 — Bytecode array handle-tracking fast path tranche complete (v12)
+- Closed the next bytecode milestone-1 hot lookup/state-management slice by
+  tightening the common array-handle tracking path.
+- What landed:
+  - interpreter array handle tracking now stores the common one-wrapper-per-
+    handle case directly and only promotes to a tracked alias set when a
+    second `ArrayValue` actually appears for the same handle
+  - alias removal now demotes back to the single-wrapper fast path when the
+    extra alias disappears
+  - hot `syncArrayValues(...)` updates now avoid bucket-map iteration in the
+    common case while preserving multi-alias correctness
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_array_tracking_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestInterpreterTrackArrayValue(UsesSingleFastPath|PromotesAndDemotesAliases)|TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `25049835 ns/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=3x -count=1 -cpuprofile /tmp/able-bytecode-hotdispatch-arrtrack.cpu.out`
+    - local spot-check observed `23159511 ns/op`
+  - post-change CPU profile for the same benchmark no longer showed
+    `syncArrayValues(...)` among the active runtime hotspots
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - broader high-frequency environment/path lookup removal
+  - more direct-call/slot coverage where it still matters on benchmarked code
+  - inline-cache precision/cheapness under mutation and concurrency
+
+# 2026-04-14 — Bytecode array index-method hot cache tranche complete (v12)
+- Closed the first post-compiler bytecode performance slice in milestone 1 by
+  tightening a remaining hot lookup/cache path in bytecode array indexing.
+- What landed:
+  - repeated bytecode array `get` / `set` sites now hit a single-entry inline
+    index-method cache before falling back to the broader per-VM map cache
+  - the existing per-site/per-element-type map cache remains as the general
+    invalidation-safe backing store
+  - this removes the repeated map-key/hash work on hot repeated index sites
+    without changing the existing element-type and method-cache invalidation
+    semantics
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)$' -count=1 -timeout 300s`
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=5x -count=1`
+    - local spot-check observed `32212937 ns/op`
+  - post-change CPU profile for the same benchmark no longer showed
+    `(*bytecodeVM).indexMethodCacheKey` among the active runtime hotspots
+  - `git diff --check`
+- Remaining bytecode milestone-1 queue:
+  - broader high-frequency environment/path lookup removal
+  - more direct-call/slot coverage where it still matters on benchmarked code
+  - inline-cache precision/cheapness under mutation and concurrency
+
+# 2026-04-14 — Generic-interface alias/constraint revalidation closed; compiler-native completion closed (v12)
+- Closed the remaining compiler-native policy and implementation gap for
+  no-interpreter generic interface dispatch.
+- What landed:
+  - generated runtime interface helpers now carry compiler-emitted type,
+    alias, and interface metadata plus runtime-independent
+    alias-expansion/constraint-revalidation helpers
+  - no-bootstrap generic interface dispatch no longer depends on interpreter
+    registries or bridge-backed alias/constraint helpers for
+    revalidation-sensitive paths
+  - the v12 spec now explicitly requires runtime-independent
+    alias/constraint revalidation for compiled generic-interface helpers in
+    no-interpreter static mode
+  - the stronger compiler-native completion program is now closed, and
+    bytecode performance returns as the active queue
+- Focused files changed:
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_interface.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_interface_constraints.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_interface_member.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_runtime_interface_compiled_resolver.go`
+  - `v12/interpreters/go/pkg/compiler/generator_interface_dispatch.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_interface_constraint_revalidation_test.go`
+  - `spec/full_spec_v12.md`
+  - `spec/TODO_v12.md`
+- Verification:
+  - focused generic-interface constraint revalidation tests passed
+  - broader generic-interface / native-interface-shape slices passed
+  - `/usr/bin/time -p ./run_all_tests.sh --compiler`
+    - `real 3171.27`
+    - `user 8612.40`
+    - `sys 525.76`
+  - `/usr/bin/time -p ./run_stdlib_tests.sh`
+    - `real 29.98`
+    - `user 42.44`
+    - `sys 1.60`
+  - `git diff --check`
+- Next active queue:
+  - bytecode milestone 1: hot dispatch and lookup closure
+
+# 2026-04-14 — Mono-array transition/runtime-store scaffolding closed; compiler+stdlib gates green again (v12)
+- Closed the remaining compiler-side mono-array transitional runtime-store
+  scaffolding.
+- What landed:
+  - generated mono-array wrappers now render as pure `Elements []T` carriers
+    with no synthesized `Length` / `Capacity` / `Storage_handle` metadata
+  - mono-array `*_to(...)` helpers no longer write `ArrayStore*` state or
+    preserve wrapper handles; they hand runtime boundaries plain
+    `runtime.ArrayValue{Elements: ...}` payloads
+  - mono-array direct carrier coercions and constructors no longer thread
+    transitional handle metadata or sync helpers through static paths
+  - mono-array field access now synthesizes `length`, `capacity`, and
+    `storage_handle` directly from the specialized wrapper (`len`, `cap`, `0`)
+    so assignment-pattern / rest-binding fixtures stay native
+- Focused files changed:
+  - `v12/interpreters/go/pkg/compiler/generator_mono_array_specs.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_mono_arrays.go`
+  - `v12/interpreters/go/pkg/compiler/generator_collections.go`
+  - `v12/interpreters/go/pkg/compiler/generator_array_carrier_coercions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_array_methods.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_array_field_access_test.go`
+- Verification:
+  - focused mono-array/compiler slices passed, including the previously failing
+    `05_03_bytecode_assignment_patterns` / `06_01_compiler_assignment_patterns`
+    exec fixtures
+  - `go test -p 1 ./pkg/compiler -run 'TestCompiler.*Array' -count=1 -timeout 300s`
+    passed
+  - `/usr/bin/time -p ./run_all_tests.sh --compiler`
+    - `real 2917.14`
+    - `user 7449.82`
+    - `sys 477.94`
+  - `/usr/bin/time -p ./run_stdlib_tests.sh`
+    - `real 26.81`
+    - `user 39.03`
+    - `sys 1.33`
+- Next compiler-native queue:
+  - alias / constraint revalidation policy closure for generic interface
+    dispatch
+
+# 2026-04-14 — Residual carrier-synthesis cleanup closed; compiler+stdlib gates green (v12)
+- Closed the deeper compiler-native residual carrier-synthesis cleanup in the
+  shared mapping / union synthesis pipeline.
+- Landed focused closure coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_residual_carrier_synthesis_test.go`
+- What this closed:
+  - local generic nominal carriers over normalized nullable / union / result
+    members now stay on specialized native carriers too, so shapes like
+    `Box MaybeReader`, `Box Choice`, `Box Outcome`, `Box !(Choice)`, and
+    `Box !(Outcome)` no longer widen late through `runtime.Value` / `any`
+  - builtin `Array` carrier identity is now package-independent during type
+    identity normalization, which collapses duplicate specialized impl bodies
+    like `ContainAllMatcher<String>.matches` back onto one canonical native
+    specialization
+  - compiled go-extern wrappers now accept `any` as a legal post-bridge
+    carrier when the lowered extern result stays on the dynamic carrier, which
+    fixes the `fs_open` stdlib path without reopening the just-closed carrier
+    synthesis work
+  - native interface default generic-method normalization now preserves the
+    interface’s declared receiver-side generic names even when the interface
+    instantiation is already concrete, which keeps iterator default methods on
+    native typed-pattern carriers in the full compiler gate
+- Files changed for the release-path fixes above:
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_defaults.go`
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_cache.go`
+  - `v12/interpreters/go/pkg/compiler/generator_value_conversions.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_container_generic_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_extern_host_test.go`
+- Verification:
+  - focused residual-carrier, iterator generic-method, specialized-impl, and
+    extern-host regression slices all passed locally
+  - `/usr/bin/time -p ./run_all_tests.sh --compiler`
+    - `real 2224.27`
+    - `user 4316.19`
+    - `sys 332.23`
+  - `/usr/bin/time -p ./run_stdlib_tests.sh`
+    - `real 26.69`
+    - `user 38.99`
+    - `sys 1.38`
+  - `git diff --check`
+- Current state:
+  - deeper residual union / result / interface carrier-synthesis cleanup is
+    closed
+  - the next compiler-native work is now the remaining mono-array transitional
+    runtime-store scaffolding, then alias / constraint revalidation policy
+
+# 2026-04-14 — Local joined/nested existential-family proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around the last local
+  analogs of the broader interface/callable existential family.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_local_interface_existential_join_nested_test.go`
+- What this pinned:
+  - joined existential receivers over the local multi-member aliases already
+    stay on native carriers too, so calls like
+    `echo.pass<Choice3>(...)` and `tagger.tagged<Outcome3>(...)` keep joined
+    locals, generic-interface dispatch, and default-method paths off
+    `runtime.Value` / `any`
+  - local outer-result helper synthesis over those same broader aliases
+    already stays native too, so `Keeper<!(Choice3)>` and
+    `Keeper<!(Outcome3)>` keep native union/result/interface param and return
+    carriers instead of widening helper signatures through `runtime.Value` /
+    `any`
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(LocalJoinedGenericInterfaceMultiMemberAliasCallsStayNative|NativeInterfaceShapesRecoverLocalNestedResultMultiMemberCarriers)$' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(LocalJoinedGenericInterfaceMultiMemberAliasCallsStayNative|NativeInterfaceShapesRecoverLocalNestedResultMultiMemberCarriers|LocalInterfaceExistentialMultiMemberFamilyStaysNative|NativeInterfaceShapesRecoverLocalInterfaceExistentialMultiMemberCarriers|InterfaceExistentialUnionFamilyAliasesStayNative|NativeInterfaceShapesRecoverInterfaceExistentialUnionFamilyCarriers|NativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively|RecoverNestedResultMultiMemberAliasCarriers|CompileNestedResultMultiMemberAliasCallsNatively)|ImportedInterfaceGenericShadowedAliasCallsStayNative|ImportedInterfaceGenericShadowedMultiMemberAliasCallsStayNative|ImportedJoinedGenericInterfaceShadowedMultiMemberAliasCallsStayNative)$' -count=1 -timeout 300s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied these stronger invariants once those remaining local surfaces were
+  pinned directly.
+
+# 2026-04-14 — Local multi-member interface existential-family proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around the broader
+  local multi-member interface/callable existential family.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_local_interface_existential_multimember_test.go`
+- What this pinned:
+  - local aliases like `Choice3 = (Reader i32) | Echo | String` already stay
+    on native union/interface carriers in compiled no-fallback paths, with
+    direct native `Reader` / `Echo` dispatch and no `runtime.Value` / `any`,
+    `__able_try_cast(...)`, `bridge.MatchType(...)`, or
+    `__able_method_call_node(...)` fallback
+  - the adjacent local callable/result family
+    `Outcome3 = Error | (() -> Thing) | String` already stays on native
+    result/callable carriers too, with direct callable-result field access,
+    direct `Error` handling, and no hidden `_runtime_Value` helper variants
+  - generic interface dispatch and native interface helper synthesis over
+    those same local families already stay native too, so
+    `Echo.pass<Choice3>(...)`, `Tagger.tagged<Outcome3>(...)`,
+    `Keeper<Choice3>`, and `Keeper<Outcome3>` all keep native
+    union/result/interface/callable param and return carriers instead of
+    widening locals or helper signatures to `runtime.Value` / `any`
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(LocalInterfaceExistentialMultiMemberFamilyStaysNative|NativeInterfaceShapesRecoverLocalInterfaceExistentialMultiMemberCarriers)$' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(LocalInterfaceExistentialMultiMemberFamilyStaysNative|NativeInterfaceShapesRecoverLocalInterfaceExistentialMultiMemberCarriers|InterfaceExistentialUnionFamilyAliasesStayNative|NativeInterfaceShapesRecoverInterfaceExistentialUnionFamilyCarriers|NativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively|RecoverNestedResultMultiMemberAliasCarriers|CompileNestedResultMultiMemberAliasCallsNatively)|ImportedInterfaceGenericShadowedAliasCallsStayNative|ImportedInterfaceGenericShadowedMultiMemberAliasCallsStayNative|ImportedJoinedGenericInterfaceShadowedMultiMemberAliasCallsStayNative)$' -count=1 -timeout 300s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied these stronger invariants once the broader local family was
+  pinned directly.
+
+# 2026-04-14 — Local interface existential union-family proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around the closed local
+  interface existential alias family itself.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_interface_existential_union_family_test.go`
+- What this pinned:
+  - local aliases like `Either = (Reader i32) | Echo` already stay on native
+    union/interface carriers in compiled no-fallback paths, with direct
+    native `Reader` / `Echo` dispatch and no `runtime.Value` / `any`,
+    `__able_try_cast(...)`, `bridge.MatchType(...)`, or
+    `__able_method_call_node(...)` fallback
+  - the adjacent local outer-result family `Outcome = !Either` already stays
+    on the corresponding native result/interface carriers too, with direct
+    `Error` / `Reader` / `Echo` member handling and no hidden
+    `_runtime_Value` helper variants
+  - generic interface helper synthesis over those same local families already
+    stays native too, so `Keeper<Either>` and `Keeper<Outcome>` keep native
+    union/result/interface param and return carriers instead of widening
+    helper signatures to `runtime.Value` / `any`
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(InterfaceExistentialUnionFamilyAliasesStayNative|NativeInterfaceShapesRecoverInterfaceExistentialUnionFamilyCarriers)$' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(InterfaceExistentialUnionFamilyAliasesStayNative|NativeInterfaceShapesRecoverInterfaceExistentialUnionFamilyCarriers|NativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively|RecoverNestedResultMultiMemberAliasCarriers|CompileNestedResultMultiMemberAliasCallsNatively)|ImportedInterfaceGenericShadowedAliasCallsStayNative|ImportedInterfaceGenericShadowedMultiMemberAliasCallsStayNative|ImportedJoinedGenericInterfaceShadowedMultiMemberAliasCallsStayNative)$' -count=1 -timeout 300s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied these stronger invariants once the focused proof test used the
+  compiler's resolved local package context instead of the short loader name.
+
+# 2026-04-13 — Native interface shape nested-result carrier proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around generic
+  interface-shape recovery when the type argument is itself a broader
+  outer-result family over interface/callable carriers.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_shape_nested_result_test.go`
+- What this pinned:
+  - parameterized native interface shapes like
+    `Keeper(!(Choice3(RemoteReader i32)))` already synthesize native
+    union/result/interface carriers for both param and return positions
+    instead of widening helper signatures through `runtime.Value` / `any`
+  - the adjacent callable path like
+    `Keeper(!(Outcome3(() -> RemoteThing)))` already keeps the same native
+    carrier shape too, including direct callable result field access after the
+    interface call with no hidden `_runtime_Value` helper variants
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerNativeInterfaceMethodShapes(RecoverNestedResultMultiMemberAliasCarriers|CompileNestedResultMultiMemberAliasCallsNatively)$' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(NativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively|RecoverNestedResultMultiMemberAliasCarriers|CompileNestedResultMultiMemberAliasCallsNatively)|ImportedNestedResult(MultiMember(Interface|Callable)AliasStaysNative|InterfaceUnionFlattensRepresentableMembers)|ImportedSemantic(ResultAliasNestedResultWithShadowedInterfaceStaysNative|OptionAliasNestedResultWithShadowedInterfaceStaysNative)|ImportedGenericUnionAliasNestedResultWithShadowedInterfaceStaysNative)$' -count=1 -timeout 300s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied these stronger invariants.
+
+# 2026-04-13 — Imported nested-result multi-member carrier proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around broader
+  result/error shapes over the imported shadowed three-member alias families.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_multimember_nested_result_native_test.go`
+- What this pinned:
+  - imported outer-result carriers like `!(Choice3(RemoteReader i32))` already
+    flatten to one native union family and keep direct native interface
+    dispatch instead of widening through `runtime.Value` / `any`
+  - imported outer-result carriers like `!(Outcome3(() -> RemoteThing))`
+    already collapse duplicate `Error` membership and keep the callable/result
+    path on native carriers too, with direct field access on the callable
+    result and no hidden `_runtime_Value` helper variants
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerImportedNestedResultMultiMember(Interface|Callable)AliasStaysNative$' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(ImportedNestedResult(MultiMember(Interface|Callable)AliasStaysNative|InterfaceUnionFlattensRepresentableMembers)|ImportedSemantic(ResultAliasNestedResultWithShadowedInterfaceStaysNative|OptionAliasNestedResultWithShadowedInterfaceStaysNative)|ImportedGenericUnionAliasNestedResultWithShadowedInterfaceStaysNative|ImportedShadowed(InterfaceMultiMemberUnionAliasStaysNative|CallableMultiMemberResultAliasStaysNative))$' -count=1 -timeout 300s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied these stronger invariants.
+
+# 2026-04-13 — Imported joined generic-interface shadowed alias proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around imported generic
+  interface dispatch and imported default generic methods when the receiver is
+  itself a join-produced existential and the generic actual is one of the
+  broader shadowed three-member alias families.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_imported_interface_generic_join_shadowed_alias_test.go`
+- What this pinned:
+  - joined imported generic-interface calls like
+    `echo.pass<Choice3(RemoteReader i32)>(...)` already stay on native
+    union/interface carriers even when `echo` comes from an `if` join across
+    concrete implementers, instead of widening locals or helper signatures
+    through `runtime.Value` / `any`
+  - joined imported default generic method calls like
+    `tagger.tagged<Outcome3(() -> RemoteThing)>(...)` already stay on the
+    concrete native `Tagged<...>` carrier too when `tagger` comes from that
+    same kind of existential join, with no hidden `_runtime_Value` helper
+    variants or `__able_method_call_node(...)`
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerImportedJoinedGenericInterfaceShadowedMultiMemberAliasCallsStayNative$' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(ImportedJoinedGenericInterfaceShadowedMultiMemberAliasCallsStayNative|ImportedInterfaceGenericShadowed(MultiMemberAliasCallsStayNative|AliasCallsStayNative)|GenericInterfaceMethodImportedShadowedAliasActualsStayNative|JoinExpressionConcreteGenericImplementersInferNativeInterface|CommonExistentialJoinsExecuteWithoutDynamicFallback|ParameterizedInterfaceJoinsExecuteWithoutDynamicFallback)$' -count=1 -timeout 300s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied these stronger invariants.
+
+# 2026-04-13 — Imported generic-interface multi-member shadowed alias proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around imported generic
+  interface dispatch and imported default generic methods over the broader
+  shadowed three-member alias families.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_imported_interface_generic_multimember_shadowed_alias_test.go`
+- What this pinned:
+  - imported generic-interface calls like
+    `echo.pass<Choice3(RemoteReader i32)>(...)` already stay on native
+    union/interface carriers instead of widening helper signatures or locals
+    through `runtime.Value` / `any`
+  - imported default generic method calls like
+    `tagged.tagged<Outcome3(() -> RemoteThing)>(...)` already stay on the
+    concrete native `Tagged<...>` carrier too, with the tagged value field on
+    a native result/callable union carrier and no hidden `_runtime_Value`
+    helper variants
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerImportedInterfaceGenericShadowedMultiMemberAliasCallsStayNative$' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(ImportedInterfaceGenericShadowed(MultiMemberAliasCallsStayNative|AliasCallsStayNative)|ImportedShadowed(InterfaceMultiMemberUnionAliasStaysNative|CallableMultiMemberResultAliasStaysNative)|Imported.*Shadowed(Interface|Callable).*)$' -count=1 -timeout 300s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied these stronger invariants.
+
+# 2026-04-13 — Imported shadowed multi-member union carrier proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around broader imported
+  shadowed multi-member union/result aliases.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_multimember_union_native_test.go`
+- What this pinned:
+  - imported three-member union aliases like
+    `Choice3 (RemoteReader i32) = (RemoteReader i32) | String | i32` already
+    stay on native union/interface carriers instead of widening through
+    `runtime.Value` / `any`
+  - imported three-member result-style aliases like
+    `Outcome3 (() -> RemoteThing) = Error | (() -> RemoteThing) | String`
+    already stay on native union/callable carriers too, with direct field
+    access on the callable result and no hidden `_runtime_Value` helper
+    variants
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(ImportedShadowed(InterfaceMultiMemberUnionAliasStaysNative|CallableMultiMemberResultAliasStaysNative)|Parameterized(UnionAliasLocalWithImportedShadowedInterfaceStaysNative|ResultAliasLocalWithImportedShadowedCallableStaysNative)|Imported.*Shadowed(Interface|Callable).*|MultiMemberUnionMatchStaysNative|GenericUnionAliasesStayNative|InterfaceBranchUnionStaysOnNativeCarrier)$' -count=1 -timeout 300s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied these stronger invariants.
+
+# 2026-04-13 — Imported generic-interface default-method carrier specialization complete (v12)
+- Closed the next compiler-native implementation tranche for imported generic
+  interface default methods over shadowed selector-imported carrier families.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_defaults.go`
+- What this changed:
+  - generic interface-method shape inference now normalizes explicit type
+    arguments in the lexical caller package before rewriting them into the
+    interface package, so nested selector-imported members like
+    `fn() -> RemoteThing` stop stranding imported default generic methods on
+    broad `*Tagged` carriers
+  - imported default generic interface calls such as
+    `tagged.tagged<Outcome (() -> RemoteThing)>(...)` now synthesize the
+    concrete specialized `Tagged<...>` carrier and call the compiled native
+    default helper instead of falling back through `__able_method_call_node`
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(ImportedInterfaceGenericShadowedAliasCallsStayNative|DefaultGenericInterfaceMethodUsesNativeReceiverBoundary|GenericInterfaceMethodImportedShadowedAliasActualsStayNative|NativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively)|Imported.*Shadowed(Interface|Callable).*)$' -count=1 -timeout 300s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Imported shadowed nullable specialization + residual native-union broad-member gate tightening complete (v12)
+- Closed the next compiler-native implementation tranche for imported
+  shadowed nullable interface/callable specialization plus the adjacent
+  residual native-union broad-member gate.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_functions.go`
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_impl_calls.go`
+  - `v12/interpreters/go/pkg/compiler/generator_type_normalize_context.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_nullable_specialization_test.go`
+- What this changed:
+  - imported shadowed nullable interface/callable aliases now stay on native
+    carriers through generic specialization too, because the specialization
+    concrete-argument path now accepts representable imported alias actuals
+    based on recovered native carriers instead of rejecting them behind an
+    overly conservative whole-expression concreteness check
+  - imported shadowed callable union aliases like
+    `Choice (() -> RemoteThing)` now specialize through `id<T>` onto native
+    union helpers instead of falling back through `runtime.Value`
+  - native union synthesis no longer materializes partially native helper
+    families when any member still only maps to `runtime.Value` / `any`, so
+    hidden `_runtime_Value` union variants stop leaking into adjacent
+    imported-shadowed specialization slices
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(SpecializedGenericImportedShadowed(Nullable(Interface|Callable)AliasReturn|CallableUnionAliasReturn|InterfaceResultAliasReturn|InterfaceAliasReturn|CallableAliasReturn)StaysNative|ImportedShadowedNullableCallablePatternBindingStaysNative)$' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported.*Shadowed(Interface|Callable).*|SpecializedGenericImportedShadowed.*|ImportedShadowedNullableCallablePatternBindingStaysNative)$' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Imported generic-struct interface/callable argument carrier recovery complete (v12)
+- Closed the next compiler-native implementation tranche for imported generic
+  struct carrier specialization when the generic argument is a native
+  interface or native callable.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_structs.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_generic_struct_interface_callable_test.go`
+- What this changed:
+  - foreign generic-struct specialization no longer re-runs an overly strict
+    whole-expression concreteness gate after the already-validated fully bound
+    argument check, so imported selector arguments like `RemoteReader i32`
+    keep their caller-visible native carrier when specializing `Box T`
+  - imported generic-struct result/union aliases such as
+    `Outcome (RemoteReader i32)` and `Choice (() -> RemoteThing)` now keep
+    specialized native `Box<...>` carriers instead of falling back to base
+    `*Box` plus dynamic method/member calls on `runtime.Value`
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerImportedGenericStruct(ResultAliasWithShadowedInterfaceArgument|UnionAliasWithShadowedCallableArgument)StaysNative$' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(ImportedGenericStruct(ResultAliasWithShadowed(Nominal|InterfaceArgument)StaysNative|NestedResultAliasWithShadowedNominalStaysNative|NestedUnionAliasWithShadowedNominalStaysNative|UnionAliasWithShadowedCallableArgumentStaysNative|ShadowedNominalSpecializesCarrier)|SpecializedGenericImportedShadowedGenericStruct(ResultAliasReturn|UnionAliasReturn)StaysNative)$' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Imported shadowed generic-struct specialization proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around imported
+  shadowed generic-struct alias actuals under generic specialization.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_generic_struct_specialization_test.go`
+- What this pinned:
+  - generic specialization already keeps imported shadowed generic-struct
+    result aliases like `Outcome RemoteThing` on native union signatures
+    instead of widening helper signatures or locals through `runtime.Value`
+    / `any`
+  - generic specialization already keeps imported shadowed generic-struct
+    union aliases like `Choice RemoteThing` on native union signatures too,
+    with direct specialized field access on the boxed nominal payload and no
+    residual `_runtime_Value` union variants
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerSpecializedGenericImportedShadowedGenericStruct(ResultAliasReturn|UnionAliasReturn)StaysNative$' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(ImportedGenericStruct(ResultAliasWithShadowedNominalStaysNative|NestedResultAliasWithShadowedNominalStaysNative|NestedUnionAliasWithShadowedNominalStaysNative|ShadowedNominalSpecializesCarrier)|SpecializedGenericImportedShadowedGenericStruct(ResultAliasReturn|UnionAliasReturn)StaysNative)$' -count=1 -timeout 180s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the compiler already
+  satisfied the stronger native-carrier invariant.
+
+# 2026-04-13 — Imported generic-interface shadowed-alias carrier recovery complete (v12)
+- Closed the next compiler-native implementation tranche for imported generic
+  interface-method calls over shadowed alias actuals.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_generic_methods.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_imported_interface_generic_shadowed_alias_test.go`
+- What this changed:
+  - imported generic interface-method calls now normalize explicit type
+    arguments in the lexical caller package instead of the interface package,
+    so imported selector aliases like `Choice(RemoteReader i32)` and
+    `Outcome(() -> RemoteThing)` stay on their caller-visible native carriers
+  - generic interface-method shape matching now also retries
+    `recoverRepresentableCarrierType(...)` after raw mapping when it computes
+    concrete param/return carriers, so imported `Echo.pass<T>(...)` and
+    imported default generic method calls keep native union/result/interface/
+    callable helper signatures instead of widening to `runtime.Value` / `any`
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerImportedInterfaceGenericShadowedAliasCallsStayNative$' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(Imported.*Shadowed(Interface|Callable).*|ImportedInterfaceGenericShadowedAliasCallsStayNative|GenericInterfaceMethodImportedShadowedAliasActualsStayNative|NativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively)|SharedMapperRecoversImportedShadowed(Interface|Callable)AliasCarriers)$' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Shared-mapper and generic-interface shadowed-alias proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche around imported
+  shadowed interface/callable alias actuals.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shared_mapper_recovery_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_shadowed_alias_test.go`
+- What this pinned:
+  - the shared carrier mapper already keeps fully bound imported shadowed
+    interface/callable alias families native when called with the real caller
+    package context, so direct `lowerCarrierTypeInPackage(...)` lookups on
+    `RemoteReader<i32>`, `Choice(RemoteReader i32)`, `Outcome(RemoteReader
+    i32)`, `() -> RemoteThing`, and the callable `Choice` / `Outcome` alias
+    families do not widen through `runtime.Value` / `any`
+  - generic interface-method dispatch already keeps those imported shadowed
+    alias actuals native too, so existential calls like
+    `echo.pass<Choice(RemoteReader i32)>(...)` and
+    `echo.pass<Outcome(() -> RemoteThing)>(...)` stay on native
+    union/interface/callable carriers instead of broadening helper
+    signatures or dispatch locals
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(SharedMapperRecoversImportedShadowed(Interface|Callable)AliasCarriers|GenericInterfaceMethodImportedShadowedAliasActualsStayNative|NativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively))$' -count=1 -timeout 180s`
+  - `git diff --check`
+- No generator rewrite was needed in this tranche; the new tests pin
+  stronger invariants already satisfied by the current compiler-native
+  lowering.
+
+# 2026-04-13 — Native interface/callable signature-recovery tightening complete (v12)
+- Closed the next compiler-native implementation tranche for native
+  interface/callable signature synthesis.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_interface_shapes.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_interfaces.go`
+  - `v12/interpreters/go/pkg/compiler/generator_native_callables.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_shape_recovery_test.go`
+- What this changed:
+  - native interface method-shape collection now retries
+    `recoverRepresentableCarrierType(...)` after raw package-scoped mapping
+    when substituted generic params expand to representable alias families
+  - native interface impl-signature synthesis now runs the same recovery pass
+    before treating method params/returns as broad
+  - native callable signature materialization now also retries that recovery
+    path for param and return carriers, keeping callable-bearing interface
+    actuals aligned with the rest of compiler-native lowering
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerNativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively)$' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(NativeInterfaceMethodShapes(RecoverImportedShadowedAliasCarriers|CompileImportedShadowedAliasCallsNatively)|PureGenericInterfaceAssignmentUsesNativeCarrier|CallableReturnCoercionInterfaceAdapterStaysNative|Imported(NullableAliasWithShadowedInterfaceStaysNative|UnionAliasWithShadowedInterfaceStaysNative|ResultAliasWithShadowedInterfaceStaysNative|GenericUnionAliasWithShadowedInterfaceStaysNative|GenericResultAliasWithShadowedInterfaceStaysNative|SemanticResultAliasWithShadowedInterfaceStaysNative|SemanticOptionAliasWithShadowedInterfaceStaysNative|SemanticOptionAliasWithShadowedCallableStaysNative|UnionAliasWithShadowedCallableStaysNative|SemanticResultAliasWithShadowedCallableStaysNative)|SpecializedGenericImportedShadowed(InterfaceAliasReturn|CallableAliasReturn|InterfaceResultAliasReturn|CallableUnionAliasReturn)StaysNative)$' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Generic specialization carrier-recovery tightening complete (v12)
+- Closed the next compiler-native implementation tranche for specialization
+  carrier recovery on fully bound alias actuals.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_specialized_functions.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_generic_function_native_test.go`
+- What this changed:
+  - generic specialization now retries `recoverRepresentableCarrierType(...)`
+    after the first package-scoped carrier mapping pass when deciding whether
+    a fully bound actual type expression is concrete enough to specialize
+  - imported shadowed `Result` aliases over native interface actuals and
+    imported shadowed generic union aliases over native callable actuals now
+    have explicit regression coverage alongside the earlier imported-shadowed
+    alias specialization slices
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerSpecializedGenericImportedShadowed(InterfaceAliasReturn|CallableAliasReturn|InterfaceResultAliasReturn|CallableUnionAliasReturn)StaysNative|TestCompilerSpecializedGeneric(UnionReturnStaysNative|InterfaceReturnStaysNative|UnionInterfaceMemberStaysNative)|TestCompilerSpecializedDuplicate(UnionReturnCollapsesToNativeCarrier|ResultReturnCollapsesToNativeErrorCarrier)' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Native-union residual runtime-member gate tightening complete (v12)
+- Closed the next compiler-native implementation tranche for residual
+  `runtime.Value` union-member gating.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_native_unions.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_generic_function_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+- What this changed:
+  - native union synthesis now tries representable-carrier recovery in the
+    member's resolved package before accepting a residual `runtime.Value`
+    member
+  - fully representable imported shadowed interface/callable alias families
+    now have explicit regression coverage that their generated union helpers
+    do not retain hidden `_runtime_Value` variants even when reached through
+    local generic aliases or generic specialization
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(Parameterized(UnionAliasLocalWithImportedShadowedInterfaceStaysNative|ResultAliasLocalWithImportedShadowedCallableStaysNative)|SpecializedGenericImportedShadowed(InterfaceAliasReturn|CallableAliasReturn)StaysNative)' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(SpecializedGeneric(ImportedShadowed(InterfaceAliasReturn|CallableAliasReturn)StaysNative|UnionReturnStaysNative|InterfaceReturnStaysNative|UnionInterfaceMemberStaysNative)|Parameterized(UnionAliasLocalStaysNative|ResultAliasLocalStaysNative|UnionAliasLocalWithImportedShadowedInterfaceStaysNative|ResultAliasLocalWithImportedShadowedCallableStaysNative)|Imported.*Shadowed(Nominal|Callable|Interface).*(StaysNative|CollapsesToNativeCarrier))' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Generic specialization imported-shadowed alias proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche for generic
+  specialization over imported shadowed alias actuals.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_generic_function_native_test.go`
+- What this pinned:
+  - specialized generic helpers already keep imported shadowed interface alias
+    actuals like `Choice (RemoteReader i32)` on native union/interface
+    carriers instead of widening helper signatures to `runtime.Value` / `any`
+  - specialized generic helpers already keep imported shadowed callable alias
+    actuals like `Outcome (() -> RemoteThing)` on native result/callable
+    carriers instead of widening through dynamic callable fallback
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerSpecializedGenericImportedShadowed(InterfaceAliasReturn|CallableAliasReturn)StaysNative' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(SpecializedGeneric(ImportedShadowed(InterfaceAliasReturn|CallableAliasReturn)StaysNative|UnionReturnStaysNative|InterfaceReturnStaysNative|UnionInterfaceMemberStaysNative)|SpecializedDuplicate(UnionReturnCollapsesToNativeCarrier|ResultReturnCollapsesToNativeErrorCarrier))' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Parameterized alias local native-carrier proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche for parameterized local
+  union/result aliases with imported shadowed interface/callable actuals.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_native_carrier_completeness_test.go`
+- What this pinned:
+  - local generic union aliases like `Choice (RemoteReader i32)` already keep
+    the imported shadowed interface actual on a native union carrier instead
+    of widening the local to `runtime.Value` / `any`
+  - local generic result aliases like `Outcome (() -> RemoteThing)` already
+    keep the imported shadowed callable actual on a native result carrier
+    instead of widening through dynamic callable fallback
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerParameterized(UnionAliasLocalWithImportedShadowedInterfaceStaysNative|ResultAliasLocalWithImportedShadowedCallableStaysNative)' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Nested shadowed-callable carrier proof tranche complete (v12)
+- Closed the next compiler-native audit/proof tranche for nested imported
+  callable aliases under outer `Result` carriers.
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_shadowed_callable_alias_native_test.go`
+- What this pinned:
+  - imported semantic `Option` aliases over shadowed callable members now stay
+    native under an outer `Result` carrier too
+  - imported generic union aliases over shadowed callable members now stay
+    native under an outer `Result` carrier too
+  - both cases flatten to a single native callable/result family instead of
+    widening to `runtime.Value` / `any` or nesting one native union carrier
+    inside another
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerImportedSemantic(Option|Result)AliasNestedResultWithShadowedCallableStaysNative|TestCompilerImportedGenericUnionAliasNestedResultWithShadowedCallableStaysNative' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerImported.*ShadowedCallable.*|TestCompilerImported.*ShadowedInterface.*NestedResult.*|TestCompilerNested(ResultCarrierFlattensRepresentableMembers|ResultImportedInterfaceCarrierFlattensRepresentableMembers|ResultUnionCarrierFlattensRepresentableMembers|ImportedNestedResultInterfaceUnionFlattensRepresentableMembers)' -count=1 -timeout 180s`
+  - `git diff --check`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Compiler release-path rescue/fixture/audit tranche complete (v12)
+- Closed the next compiler-native release-path tranche for propagated rescue
+  carrier recovery, no-bootstrap raised-value bridging, persistent collection
+  helper pattern bindings, and iterator-end typed-pattern temp hygiene.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge.go`
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_stringify_fallback.go`
+  - `v12/interpreters/go/pkg/compiler/generator_assignments_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_dynamic_typed_patterns.go`
+  - `v12/interpreters/go/pkg/compiler/generator_failure_type_inference.go`
+  - `v12/interpreters/go/pkg/compiler/generator_match.go`
+  - `v12/interpreters/go/pkg/compiler/generator_pattern_type_exprs.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_failure_type_inference_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_iterator_end_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_persistent_set_native_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_raise_non_error_rescue_test.go`
+- What this fixed:
+  - no-bootstrap compiler rescue/string paths now stringify raised non-`Error`
+    values consistently with interpreter-visible behavior instead of falling
+    back to raw Go `%v` formatting like `{boom}`
+  - nested struct-pattern field bindings no longer inherit the outer nominal
+    `expectedTypeExpr`, so persistent map/set helper patterns bind inner
+    fields on the correct native carriers instead of forcing
+    `HamtAssocResult`-shaped conversions onto `key` / `value` subpatterns
+  - dynamic typed-pattern casts now allocate temps on the caller stream, so
+    iterator-end / generator-yield matches stop shadowing surrounding temps
+    and producing invalid `runtime.Value` assignments in generated Go
+  - raised imported shadowed nominal struct literals now prefer the
+    compiler's syntax-aware struct-literal type reconstruction during failure
+    inference, so propagated rescue joins keep the foreign native struct
+    carrier instead of collapsing to a same-named local nominal union
+  - the old `TestCompilerExecFixtureFallbacks` timeout is gone from the
+    release path, and the compiler release gate is green again in the current
+    dirty tree
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(RaisedImportedShadowedNominalFailureTypePreservesRemotePackage|PropagatedImportedShadowedNominalFailureTypePreservesRemotePackage|RescueIdentifierJoinRecoversPropagatedImportedShadowedNominalCarrier|RescueIdentifierBindingFromRaisedString(StaysNativeErrorCarrier|Executes)|RescueIdentifierJoinRecoversPropagated(CallableCarrier|ImportedShadowedInterfaceCarrier)|GeneratorYieldIteratorEndExecutes)$' -count=1 -timeout 180s`
+  - `GOCACHE=/home/david/sync/projects/able/v12/interpreters/go/.gocache ABLE_COMPILER_EXEC_GOCACHE=/home/david/sync/projects/able/v12/interpreters/go/.gocache /usr/bin/time -p ./run_all_tests.sh --compiler` (completed through boundary audit batch `7/24`)
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_GOCACHE=$(pwd)/.gocache /usr/bin/time -p bash -lc 'set -euo pipefail; for i in $(seq 7 23); do ABLE_TYPECHECK_FIXTURES=strict GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_GOCACHE=$(pwd)/.gocache ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES=all ABLE_COMPILER_BOUNDARY_AUDIT_BATCH_INDEX=$i ABLE_COMPILER_BOUNDARY_AUDIT_BATCH_COUNT=24 go test -timeout 30m ./pkg/compiler -run "^TestCompilerBoundaryFallbackMarkerForStaticFixtures$" -count=1; done'`
+  - `/usr/bin/time -p ./run_stdlib_tests.sh`
+  - `git diff --check`
+- Runtime note:
+  - the completed timed compiler-gate rerun is green again; aggregating the
+    observed batch/outlier timings from the full run plus resumed boundary
+    tail gives about `51m34s` wall clock
+  - the dominant remaining runtime outliers in this pass were compiler core
+    batch 3 (`100.954s`), compiler core batch 13 (`60.431s`), boundary audit
+    batch 7 (`61.639s`), and `TestCompilerExecFixtureFallbacks` (`157.799s`)
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`, then mono-array transition cleanup, then
+  alias/constraint revalidation.
+
+# 2026-04-13 — Compiler rescue clause-context + struct-boundary helper slice complete (v12)
+- Closed the next compiler-native release-path slice for rescue clause binding
+  context and generated struct boundary helper cleanup.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator_rescue.go`
+  - `v12/interpreters/go/pkg/compiler/generator_render_structs.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_rescue_dynamic_error_value_test.go`
+- What this fixed:
+  - rescue clause pattern compilation no longer inherits the enclosing return
+    `expectedTypeExpr` when failure inference cannot recover a more specific
+    rescue subject type, so higher-order/unknown rescue handlers like
+    `case err => err.value match { ... }` stay on the dynamic error path
+    instead of silently binding `err` as the surrounding return type
+  - generated struct `*_from(...)` helpers now mark their raw `fieldValue`
+    locals as used before handing them to the residual conversion switch, so
+    boundary-only unsupported branches stop tripping Go build failures on
+    otherwise-valid compiled programs
+  - the full compiler gate now clears compiler bridge tests, all `23/23`
+    compiler core batches, and `TestCompilerConcurrencyParityFixtures`; the
+    old higher-order rescue blocker is gone from the release path
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerRescueHigherOrderCallKeepsDynamicErrorValueBinding$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerRescueIdentifierJoinRecoversPropagated(CallableCarrier|ImportedShadowedNominalCarrier|ImportedShadowedInterfaceCarrier)$|TestCompilerRescueHigherOrderCallKeepsDynamicErrorValueBinding$' -count=1 -timeout 120s`
+  - `GOCACHE=/home/david/sync/projects/able/v12/interpreters/go/.gocache /usr/bin/time -p ./run_all_tests.sh --compiler`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerConcurrencyParityFixtures$' -count=1 -timeout 600s`
+  - `git diff --check`
+- Runtime note:
+  - the timed compiler release gate now reaches the next outlier,
+    `TestCompilerExecFixtureFallbacks`, after clearing bridge/core/concurrency
+    parity work; that outlier currently times out at `10m0s`, so the measured
+    wall clock to the next blocker is about `34m20s`
+  - the slowest confirmed compiler-core batches in this rerun were
+    `348.195s`, `178.664s`, `132.911s`, `123.058s`, `106.387s`,
+    `100.138s`, `69.903s`, and `62.045s`, all of which violate the
+    sub-minute test budget rule
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup in `types.go` /
+  `generator_native_unions.go`; the next release-path blocker after this
+  tranche is the separate `TestCompilerExecFixtureFallbacks` timeout in native
+  interface impl-candidate selection.
+
+# 2026-04-12 — Compiler nullable return-context + typed-match nil-guard slice complete (v12)
+- Closed the next compiler-native typed-carrier slice for declared nullable
+  returns and concrete nullable typed-match guarding.
+- Landed the implementation in:
+  - `v12/interpreters/go/pkg/compiler/generator.go`
+  - `v12/interpreters/go/pkg/compiler/generator_typed_pattern_nil_guards.go`
+- Landed the focused coverage in:
+  - `v12/interpreters/go/pkg/compiler/compiler_extern_host_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_stdlib_io_temp_test.go`
+- What this fixed:
+  - implicit and explicit returns now preserve the declared Able return
+    `TypeExpr` while compiling the returned expression, so generic calls like
+    `unwrap(io_read(...))` keep `T = ?Array<u8>` instead of collapsing onto
+    the carrier-only `Array<u8>` view when the Go carrier is nil-capable
+  - the stdlib `io.read` / `io.read_all` / `fs.read_text` path now stays
+    exhaustive on EOF under no-fallback compilation instead of tripping the
+    old `Non-exhaustive match` through `unwrap`
+  - nullable interface/result typed matches now restore their required
+    non-nil guard for concrete typed arms, and the nil-guard relaxation only
+    applies to actual in-scope generic type variables instead of broadly
+    suppressing guards on concrete native interface/result patterns
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(GoExternGenericUnwrap(ExecutesForNativeSuccessMembers|PreservesNullableReturnTypeExprs)|StdlibIoWriteAllTempExecutes|StdlibFsReadTextAfterWriteExecutes)$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache ABLE_COMPILER_EXEC_FIXTURES=06_12_22_stdlib_io_temp go test -p 1 ./pkg/compiler -run '^TestCompilerExecFixtures$' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerNullable(InterfaceTypedMatch(RequiresNonNil|Executes)|ResultTypedMatchRequiresNonNil)$' -count=1 -timeout 120s`
+  - `GOCACHE=/home/david/sync/projects/able/v12/interpreters/go/.gocache /usr/bin/time -p ./run_all_tests.sh --compiler`
+  - `git diff --check`
+- Runtime note:
+  - the timed compiler gate now clears the repaired stdlib `io` and nullable
+    typed-match blockers, reaches compiler core batch `18/23`, and the next
+    surfaced failure is `TestCompilerRescueHigherOrderCallKeepsDynamicErrorValueBinding`
+    at `real 393.78`
+- Remaining active compiler-native work stays on the broader residual
+  union/result/interface carrier cleanup plus the newly re-surfaced
+  higher-order rescue dynamic-error binding blocker exposed by the full gate.
+
 # 2026-04-12 — Compiler rescue higher-order failure inference slice complete (v12)
 - Closed the next compiler-native failure-inference slice for rescue handlers
   around higher-order calls and propagated-call carrier recovery.

@@ -69,9 +69,11 @@ func (g *generator) compileArrayLiteral(ctx *compileContext, lit *ast.ArrayLiter
 		lines := append([]string{}, elementLines...)
 		arrTemp := ctx.newTemp()
 		sliceExpr := fmt.Sprintf("[]%s{%s}", monoSpec.ElemGoType, strings.Join(elementExprs, ", "))
-		arrExpr := fmt.Sprintf("&%s{Length: int32(%d), Capacity: int32(%d), Storage_handle: int64(0), Elements: %s}", monoSpec.GoName, len(elementExprs), len(elementExprs), sliceExpr)
+		arrExpr := fmt.Sprintf("&%s{Elements: %s}", monoSpec.GoName, sliceExpr)
 		lines = append(lines, fmt.Sprintf("%s := %s", arrTemp, arrExpr))
-		lines = append(lines, g.staticArraySyncCall(returnType, arrTemp))
+		if syncCall := g.staticArraySyncCall(returnType, arrTemp); syncCall != "" {
+			lines = append(lines, syncCall)
+		}
 		return lines, arrTemp, returnType, true
 	}
 	// Build []runtime.Value slice directly — no interpreter array store.
@@ -567,6 +569,11 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 			return allLines, fieldExpr, fieldType, true
 		}
 	}
+	if g.isMonoArrayType(objectType) && memberName != "" {
+		if lines, fieldExpr, fieldType, ok := g.compileMonoArrayFieldAccess(ctx, objLines, objectExpr, objectType, memberName, expected, expr.Safe); ok {
+			return lines, fieldExpr, fieldType, true
+		}
+	}
 	if !expr.Safe && memberName != "" {
 		if ifaceMethod, ok := g.nativeInterfaceMethodForGoType(objectType, memberName); ok {
 			lines, callableExpr, callableType, ok := g.compileNativeInterfaceBoundMethodValue(ctx, objectExpr, objectType, ifaceMethod)
@@ -691,6 +698,89 @@ func (g *generator) compileMemberAccess(ctx *compileContext, expr *ast.MemberAcc
 	}
 	lines = append(lines, convLines...)
 	return lines, converted, expected, true
+}
+
+func (g *generator) compileMonoArrayFieldAccess(
+	ctx *compileContext,
+	objLines []string,
+	objectExpr string,
+	objectType string,
+	memberName string,
+	expected string,
+	safe bool,
+) ([]string, string, string, bool) {
+	if g == nil || ctx == nil || objectExpr == "" || !g.isMonoArrayType(objectType) {
+		return nil, "", "", false
+	}
+	fieldExpr, fieldType, ok := g.monoArrayFieldAccessExpr(objectExpr, objectType, memberName)
+	if !ok {
+		return nil, "", "", false
+	}
+	if !safe {
+		if !g.typeMatches(expected, fieldType) {
+			coerceLines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, append([]string{}, objLines...), fieldExpr, fieldType, expected)
+			if ok && (expected == "" || g.typeMatches(expected, coercedType)) {
+				return coerceLines, coercedExpr, coercedType, true
+			}
+			ctx.setReason(memberAccessMismatchReason(objectExpr, objectType, memberName, fieldType, expected))
+			return nil, "", "", false
+		}
+		return objLines, fieldExpr, fieldType, true
+	}
+
+	objTemp := ctx.newTemp()
+	resultType := expected
+	if resultType == "" {
+		if inferredType, ok := g.safeNavigationCarrierType(fieldType); ok {
+			resultType = inferredType
+		} else {
+			resultType = "any"
+		}
+	}
+	resultTemp := ctx.newTemp()
+	nilExpr := safeNilReturnExpr(resultType)
+	if wrapped, ok := g.nativeUnionNilExpr(resultType); ok {
+		nilExpr = wrapped
+	}
+	lines := append([]string{}, objLines...)
+	lines = append(lines,
+		fmt.Sprintf("%s := %s", objTemp, objectExpr),
+		fmt.Sprintf("var %s %s", resultTemp, resultType),
+		fmt.Sprintf("if %s == nil {", objTemp),
+		fmt.Sprintf("\t%s = %s", resultTemp, nilExpr),
+		"} else {",
+	)
+	fieldExpr, fieldType, ok = g.monoArrayFieldAccessExpr(objTemp, objectType, memberName)
+	if !ok {
+		return nil, "", "", false
+	}
+	coerceLines, coercedExpr, ok := g.safeNavigationCoerceSuccessExpr(ctx, fieldExpr, fieldType, resultType)
+	if !ok {
+		ctx.setReason(memberAccessMismatchReason(objectExpr, objectType, memberName, fieldType, resultType))
+		return nil, "", "", false
+	}
+	lines = append(lines, indentLines(coerceLines, 1)...)
+	lines = append(lines,
+		fmt.Sprintf("\t%s = %s", resultTemp, coercedExpr),
+		"}",
+	)
+	return lines, resultTemp, resultType, true
+}
+
+func (g *generator) monoArrayFieldAccessExpr(objectExpr string, objectType string, memberName string) (string, string, bool) {
+	if g == nil || objectExpr == "" || !g.isMonoArrayType(objectType) {
+		return "", "", false
+	}
+	switch memberName {
+	case "length":
+		return fmt.Sprintf("int32(%s)", g.staticArrayLengthExpr(objectExpr)), "int32", true
+	case "capacity":
+		return fmt.Sprintf("int32(%s)", g.staticArrayCapacityExpr(objectExpr)), "int32", true
+	case "storage_handle":
+		return "int64(0)", "int64", true
+	default:
+		return "", "", false
+	}
 }
 
 // compileOriginStructFieldAccess resolves a field access on a runtime.Value variable

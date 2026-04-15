@@ -97,20 +97,33 @@ func (g *generator) failureTypeExprFromRaisedExpr(ctx *compileContext, expr ast.
 	if g == nil || ctx == nil || expr == nil {
 		return nil
 	}
-	if lit, ok := expr.(*ast.StructLiteral); ok {
-		if inferred := g.staticStructLiteralTypeExpr(ctx, lit, ""); inferred != nil {
-			return g.lowerNormalizedTypeExpr(ctx, inferred)
+	exprType := ast.TypeExpression(nil)
+	if lit, ok := expr.(*ast.StructLiteral); ok && lit != nil {
+		// Prefer the compiler's syntax-aware struct-literal reconstruction here.
+		// Typechecker-side nominal inference is intentionally package-agnostic and
+		// can collapse imported selector aliases onto shadowing local names.
+		exprType = g.lowerNormalizedTypeExpr(ctx, g.staticStructLiteralTypeExpr(ctx, lit, ""))
+	}
+	if exprType == nil {
+		if inferred, ok := g.inferExpressionTypeExpr(ctx, expr, ""); ok && inferred != nil {
+			exprType = g.lowerNormalizedTypeExpr(ctx, inferred)
 		}
 	}
-	inferred, ok := g.inferExpressionTypeExpr(ctx, expr, "")
-	if !ok || inferred == nil {
-		return nil
+	if exprType != nil {
+		if goType, ok := g.lowerCarrierType(ctx, exprType); ok && goType != "" {
+			switch g.typeCategory(goType) {
+			case "struct", "interface", "union", "callable", "monoarray":
+				return exprType
+			}
+			if innerType, nullable := g.nativeNullableValueInnerType(goType); nullable {
+				switch g.typeCategory(innerType) {
+				case "struct", "interface", "union", "callable", "monoarray":
+					return exprType
+				}
+			}
+		}
 	}
-	inferred = g.lowerNormalizedTypeExpr(ctx, inferred)
-	if recovered, ok := g.joinCarrierTypeFromTypeExpr(ctx, inferred); ok && recovered != "" && g.isNativeErrorCarrierType(recovered) {
-		return g.lowerNormalizedTypeExpr(ctx, ast.Ty("Error"))
-	}
-	return inferred
+	return g.lowerNormalizedTypeExpr(ctx, ast.Ty("Error"))
 }
 
 func (g *generator) failureTypeExprFromFunctionCallSeen(ctx *compileContext, call *ast.FunctionCall, functionSeen map[string]struct{}) ast.TypeExpression {

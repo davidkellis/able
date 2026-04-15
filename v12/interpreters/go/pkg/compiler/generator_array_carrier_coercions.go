@@ -272,7 +272,7 @@ func (g *generator) directMonoArrayToGenericArrayLines(ctx *compileContext, expr
 	lines = append(lines, fmt.Sprintf("\t\t%s[%s] = %s", valuesTemp, indexTemp, valueExpr))
 	lines = append(lines,
 		"\t}",
-		fmt.Sprintf("\t%s = &Array{Storage_handle: %s.Storage_handle, Elements: %s}", resultTemp, sourceTemp, valuesTemp),
+		fmt.Sprintf("\t%s = &Array{Elements: %s}", resultTemp, valuesTemp),
 		fmt.Sprintf("\t__able_struct_Array_sync(%s)", resultTemp),
 		"}",
 	)
@@ -307,8 +307,7 @@ func (g *generator) directGenericArrayToMonoArrayLines(ctx *compileContext, expr
 	lines = append(lines, fmt.Sprintf("\t\t%s[%s] = %s", valuesTemp, indexTemp, valueExpr))
 	lines = append(lines,
 		"\t}",
-		fmt.Sprintf("\t%s = &%s{Storage_handle: %s.Storage_handle, Elements: %s}", resultTemp, spec.GoName, sourceTemp, valuesTemp),
-		fmt.Sprintf("\t%s(%s)", spec.SyncHelper, resultTemp),
+		fmt.Sprintf("\t%s = &%s{Elements: %s}", resultTemp, spec.GoName, valuesTemp),
 		"}",
 	)
 	return lines, resultTemp, true

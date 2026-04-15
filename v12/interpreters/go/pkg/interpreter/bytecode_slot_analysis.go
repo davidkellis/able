@@ -9,8 +9,12 @@ import (
 // function body. When non-nil on a bytecodeProgram, the VM uses a flat
 // []Value array instead of map-based Environment lookups for locals.
 type bytecodeFrameLayout struct {
-	slotCount          int                // total slots needed (params + locals); set after lowering
-	paramSlots         int                // number of param slots (always indices 0..paramSlots-1)
+	slotCount          int // total slots needed (params + locals); set after lowering
+	paramSlots         int // number of param slots (always indices 0..paramSlots-1)
+	paramTypes         []ast.TypeExpression
+	paramSimpleTypes   []string           // cached simple type names for params (empty = non-simple)
+	paramNeedsCoercion []bool             // cached "may need runtime coercion" flags for inline arg setup
+	methodShorthand    bool               // true when the declaration used implicit self shorthand
 	selfCallSlot       int                // reserved slot for recursive self-call fast path; -1 when disabled
 	returnType         ast.TypeExpression // declared return type (for coercion on inline return)
 	usesImplicitMember bool               // true if body references #member syntax
@@ -24,7 +28,7 @@ type bytecodeFrameLayout struct {
 // bytecodeFrameLayout if the function body is eligible for slot-indexed
 // locals. Returns nil if any bail-out condition is detected, in which
 // case the function falls back to map-based Environment storage.
-func analyzeFrameLayout(def *ast.FunctionDefinition) *bytecodeFrameLayout {
+func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFrameLayout {
 	if def == nil || def.Body == nil {
 		return nil
 	}
@@ -43,12 +47,32 @@ func analyzeFrameLayout(def *ast.FunctionDefinition) *bytecodeFrameLayout {
 	}
 	var firstParamType ast.TypeExpression
 	firstParamSimple := ""
+	generics := functionGenericNameSet(nil, def)
+	paramTypes := make([]ast.TypeExpression, len(def.Params))
+	paramSimpleTypes := make([]string, len(def.Params))
+	paramNeedsCoercion := make([]bool, len(def.Params))
+	for idx, param := range def.Params {
+		if param == nil {
+			continue
+		}
+		paramTypes[idx] = param.ParamType
+		paramSimpleTypes[idx] = cachedSimpleTypeName(param.ParamType)
+		noOpCoercion := false
+		if i != nil {
+			noOpCoercion = i.coerceValueToTypeWouldBeNoOp(param.ParamType)
+		}
+		paramNeedsCoercion[idx] = param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !noOpCoercion
+	}
 	if len(def.Params) > 0 && def.Params[0] != nil {
-		firstParamType = def.Params[0].ParamType
-		firstParamSimple = cachedSimpleTypeName(firstParamType)
+		firstParamType = paramTypes[0]
+		firstParamSimple = paramSimpleTypes[0]
 	}
 	return &bytecodeFrameLayout{
 		paramSlots:         len(def.Params),
+		paramTypes:         paramTypes,
+		paramSimpleTypes:   paramSimpleTypes,
+		paramNeedsCoercion: paramNeedsCoercion,
+		methodShorthand:    def.IsMethodShorthand,
 		selfCallSlot:       -1,
 		returnType:         def.ReturnType,
 		usesImplicitMember: blockUsesImplicitMember(def.Body),
@@ -188,6 +212,26 @@ func inlineCoercionUnnecessary(typeExpr ast.TypeExpression, val runtime.Value) b
 		return name == "String"
 	case runtime.BoolValue:
 		return name == "Bool"
+	case *runtime.IntegerValue:
+		if v == nil {
+			return false
+		}
+		if name == "Int" {
+			return true
+		}
+		return string(v.TypeSuffix) == name
+	case *runtime.FloatValue:
+		if v == nil {
+			return false
+		}
+		if name == "Float" {
+			return true
+		}
+		return string(v.TypeSuffix) == name
+	case *runtime.StringValue:
+		return v != nil && name == "String"
+	case *runtime.BoolValue:
+		return v != nil && name == "Bool"
 	}
 	return false
 }

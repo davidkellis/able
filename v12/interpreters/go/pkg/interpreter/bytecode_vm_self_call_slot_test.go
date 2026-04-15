@@ -135,3 +135,68 @@ func TestBytecodeVM_SelfCallSlotDisabledWhenFunctionNameAssigned(t *testing.T) {
 		t.Fatalf("expected CallName lookups when function self name is assigned")
 	}
 }
+
+func TestBytecodeVM_SelfCallWithArrayParamKeepsInlineFastPath(t *testing.T) {
+	t.Setenv("ABLE_BYTECODE_STATS", "1")
+
+	walk := ast.Fn(
+		"walk",
+		[]*ast.FunctionParameter{
+			ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+			ast.Param("i", ast.Ty("i32")),
+			ast.Param("acc", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.IfExpr(
+				ast.Bin(">=", ast.ID("i"), ast.Member(ast.ID("arr"), "length")),
+				ast.Block(ast.Ret(ast.ID("acc"))),
+			),
+			ast.Call(
+				"walk",
+				ast.ID("arr"),
+				ast.Bin("+", ast.ID("i"), ast.Int(1)),
+				ast.Bin("+", ast.ID("acc"), ast.NewTypeCastExpression(ast.Index(ast.ID("arr"), ast.ID("i")), ast.Ty("i32"))),
+			),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod([]ast.Statement{walk}, nil, nil)
+
+	byteInterp := NewBytecode()
+	runBytecodeModuleWithInterpreter(t, byteInterp, module)
+	byteInterp.ResetBytecodeStats()
+	walkValue, err := byteInterp.GlobalEnvironment().Get("walk")
+	if err != nil {
+		t.Fatalf("lookup walk: %v", err)
+	}
+	arr := byteInterp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(3, runtime.IntegerI32),
+		runtime.NewSmallInt(4, runtime.IntegerI32),
+		runtime.NewSmallInt(5, runtime.IntegerI32),
+	}, 3)
+	got, err := byteInterp.CallFunction(walkValue, []runtime.Value{
+		arr,
+		runtime.NewSmallInt(0, runtime.IntegerI32),
+		runtime.NewSmallInt(0, runtime.IntegerI32),
+	})
+	if err != nil {
+		t.Fatalf("bytecode walk call failed: %v", err)
+	}
+	want := runtime.NewSmallInt(12, runtime.IntegerI32)
+	if !valuesEqual(got, want) {
+		t.Fatalf("walk result mismatch: got=%#v want=%#v", got, want)
+	}
+
+	stats := byteInterp.BytecodeStats()
+	callSelfOps := stats.OpCounts[int(bytecodeOpCallSelf)] + stats.OpCounts[int(bytecodeOpCallSelfIntSubSlotConst)]
+	if callSelfOps == 0 {
+		t.Fatalf("expected recursive array walk to execute self-call opcodes")
+	}
+	if stats.InlineCallHits == 0 {
+		t.Fatalf("expected recursive array walk to keep inline self-call fast path")
+	}
+}

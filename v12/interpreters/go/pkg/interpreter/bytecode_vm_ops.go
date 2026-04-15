@@ -40,6 +40,23 @@ func bytecodeDirectIntegerValue(val runtime.Value) (runtime.IntegerValue, bool) 
 	return runtime.IntegerValue{}, false
 }
 
+func execBinaryDirectIntegerComparisonFast(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool) {
+	switch op {
+	case "<", "<=", ">", ">=", "==", "!=":
+	default:
+		return nil, false
+	}
+	leftInt, ok := bytecodeDirectIntegerValue(left)
+	if !ok {
+		return nil, false
+	}
+	rightInt, ok := bytecodeDirectIntegerValue(right)
+	if !ok {
+		return nil, false
+	}
+	return runtime.BoolValue{Val: integerComparisonResult(op, leftInt, rightInt)}, true
+}
+
 func (vm *bytecodeVM) execBinarySpecializedOpcode(instr *bytecodeInstruction, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
 	switch instr.op {
 	case bytecodeOpBinaryIntAdd:
@@ -346,6 +363,11 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 			}
 			return false, err
 		}
+	}
+	if fast, handled := execBinaryDirectIntegerComparisonFast(instr.operator, left, right); handled {
+		vm.stack = append(vm.stack, fast)
+		vm.ip++
+		return false, nil
 	}
 	if isBytecodeBinaryFastPathCandidate(instr.operator) {
 		if fast, handled, err := ApplyBinaryOperatorFast(instr.operator, left, right); handled {

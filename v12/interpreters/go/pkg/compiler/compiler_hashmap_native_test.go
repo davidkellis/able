@@ -122,7 +122,7 @@ func TestCompilerHashMapCarrierArrayStaysSpecialized(t *testing.T) {
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_HashMap_String_i32 struct {",
-		"Elements       []*HashMap_String_i32",
+		"Elements []*HashMap_String_i32",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
 			t.Fatalf("expected Array(HashMap) carrier lowering to contain %q", fragment)
@@ -322,7 +322,7 @@ func TestCompilerHashSetCarrierArrayStaysSpecialized(t *testing.T) {
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_HashSet_i32 struct {",
-		"Elements       []*HashSet_i32",
+		"Elements []*HashSet_i32",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
 			t.Fatalf("expected Array(HashSet) carrier lowering to contain %q", fragment)

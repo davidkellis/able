@@ -686,7 +686,6 @@ func (g *generator) nativeArrayFromElementsLines(ctx *compileContext, arrayType 
 		lines := []string{
 			fmt.Sprintf("%s := append([]%s(nil), %s...)", valuesTemp, spec.ElemGoType, elementsExpr),
 			fmt.Sprintf("%s := &%s{Elements: %s}", arrayTemp, spec.GoName, valuesTemp),
-			fmt.Sprintf("%s(%s)", spec.SyncHelper, arrayTemp),
 		}
 		return lines, arrayTemp, true
 	}

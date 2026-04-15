@@ -6,7 +6,7 @@ This list tracks the remaining v12 items after audit; completed work should be r
 - None currently tracked (cast `as` line breaks fixed 2026-02-06).
 
 ## Compiler AOT gaps
-- Evaluate whether no-interpreter static runtimes should add runtime-independent alias/constraint revalidation for generic interface dispatch, or keep this permanently compile-time-only and document it as final.
+- None currently tracked.
 
 ## Stdlib externalization gaps
 - Confirm and document canonical stdlib resolution contract end-to-end (`able setup`, cache layout, lockfile pins, and `able override` precedence).
@@ -130,84 +130,27 @@ This list tracks the remaining v12 items after audit; completed work should be r
   joins are now closed too: when a branch/local still reports `runtime.Value`
   or `any` but retains a concrete normalized Able `TypeExpr`, the compiler now
   recovers the native carrier instead of widening the whole join back to
-  `runtime.Value`. Remaining ordered backlog in this category:
-  Nested representable outer unions now stay native across direct inner-member
-  literal/struct-literal assignment and typed-match clause ordering too:
-  nested nullable/result members accept the inner native carrier directly, and
-  match narrowing now only removes a union member when the pattern exhausts
-  that whole v12 member type instead of a non-nil subcase such as `String`
-  inside `?String`.
-  - close the remaining `types.go` / `generator_native_unions.go`
-    carrier-synthesis fallbacks beyond the now-direct imported-alias
-    source-package recovery, imported shadowed-pattern nominal rebinding,
-    imported shadowed-interface selector-alias generic normalization,
-    the now-direct imported selector-alias typed-pattern normalization slice
-    for generic `Result` / semantic-result carriers, the now-direct imported
-    semantic nested-result carrier slice where alias expansion preserves the
-    alias source package and builtin `Error` identities collapse across
-    package contexts during result flattening,
-    the now-direct local/imported generic interface specialization slice
-    (including imported shadowed-interface duplicate-member collapse plus
-    specialization-time package preservation across no-op type
-    substitution), the now-direct nominal same-shape interface join slice,
-    mixed shadowed-nominal join-identity slices, and the now-direct
-    shadowed-callable join slice for imported/local nominal returns plus the
-    now-direct callable-literal / placeholder narrowing slice for imported
-    semantic callable aliases built from shadowed nominal returns, the now-
-    direct package-aware semantic-result callable carrier synthesis for those
-    placeholder cases, plus the now-direct nested callable-result alias slice
-    where raw imported selector aliases inside function type expressions stay
-    anchored to lexical caller-package normalization, plus the now-direct
-    imported generic-struct carrier slice where fully bound selector-imported
-    nominal arguments count as concrete during foreign specialization, plus
-    the now-direct duplicate-member collapse for fully bound union/result
-    specializations, plus the now-direct flattening of representable nested
-    union/result members into one carrier family across both outer unions and
-    direct nested result families, for
-    nullable/union/result members that still map fully bound normalized
-    union/result/nullable
-    `TypeExpr`s to `runtime.Value` / `any`;
-  - remove the remaining `generator_match.go` /
-    `generator_match_runtime_types.go` /
-    `generator_native_union_patterns.go` typed-pattern fallback to
-    `__able_try_cast(...)` for representable subjects beyond the now-direct
-    native nullable scalar/error, native scalar, native nominal struct,
-    native union/result, nested native-union member, native interface, native
-    callable, and `Error` carrier slices;
-  - continue shrinking `generator_or_else.go` / `generator_rescue.go` /
-    `generator_join_types.go` join/binding locals that still default to
-    `runtime.Value` when the whole branch set is genuinely mixed or the
-    failure surface is not recoverably inferred, beyond the now-direct native
-    `or { err => ... }` failure-binding slice and the now-direct block-wrapped
-    / non-tail propagated rescue-or-else failure-binding slice plus the now-
-    direct propagated-call rescue identifier join slice for native callable
-    and imported shadowed nominal/interface carriers, plus the now-direct
-    higher-order unknown-call rescue slice where `err.value` handlers stay on
-    the dynamic error path instead of misinferring from the callback return
-    type;
-  - tighten `generator_native_unions.go` residual runtime-member gates so
-    `runtime.Value` union members remain only for true dynamic payloads.
-- Current staged compiler limit: the whole-union fallback to `any` is no
-  longer true for the first native nullable/error/result family, multi-member
-  nominal unions, generic alias unions that normalize to those carrier
-  families, or interface/open unions that can keep non-native payloads in
-  explicit residual `runtime.Value` union members. It still applies to result
-  and union shapes that require deeper interface/existential lowering than the
-  current residual-carrier strategy provides.
-- Narrowing note: the nullable fallback statement above is no longer true for
-  the compiler-native scalar family listed above; it still applies to the
-  broader remaining union/result surface and to nullable/value-union shapes not
-  yet moved onto native carriers.
-- Narrowing note: the union fallback statement above is no longer true for the
-  first landed closed two-member native union slice; it now also excludes the
-  broader carrier-widening tranche for multi-member nominal unions, generic
-  alias unions that normalize to native carrier families, and interface/open
-  unions with explicit residual `runtime.Value` members. It also no longer
-  applies to fully bound duplicate union/result specializations that collapse
-  to one native member after alias substitution. It still applies to
-  broader interface/existential lowering beyond that residual-carrier strategy,
-  broader result/error shapes beyond the current `runtime.ErrorValue | T`
-  slice, and other union surfaces not yet moved onto native carriers.
+  `runtime.Value`. Nested representable outer unions now stay native across
+  direct inner-member literal/struct-literal assignment and typed-match clause
+  ordering too: nested nullable/result members accept the inner native carrier
+  directly, and match narrowing now only removes a union member when the
+  pattern exhausts that whole v12 member type instead of a non-nil subcase such
+  as `String` inside `?String`.
+- The deeper residual carrier-synthesis cleanup in `types.go` /
+  `generator_native_unions.go` is now complete too: representable member
+  recovery retries in the member's resolved package before residual
+  `runtime.Value` admission, fully bound specialization retries the same
+  recovery before treating actuals as broad, representable nested
+  union/result members flatten to one native family, and proof coverage now
+  pins both imported and local interface/callable existential families plus
+  local generic nominal carriers over normalized nullable/union/result members
+  (`Box MaybeReader`, `Box Choice`, `Box Outcome`, `Box !(Choice)`,
+  `Box !(Outcome)`) on specialized native carriers instead of base generic
+  carriers, `runtime.Value`, or `any`.
+- Current staged compiler limit: the old whole-union fallback to `any` is no
+  longer the active representable static-path blocker. Residual
+  `runtime.Value` / `any` union members now remain only for explicit dynamic /
+  open members, ABI edges, or genuinely mixed non-representable cases.
 - Current progress note: compiled static control flow plus explicit dynamic
   call boundaries now propagate explicit control-result signals instead of raw
   panic on the common path. Generated `call_value` / `call_named` helpers now
@@ -304,6 +247,12 @@ This list tracks the remaining v12 items after audit; completed work should be r
   mono-array work must target compiler-generated specialized wrappers over
   native Go slices; `runtime.ArrayValue`, `ArrayStore*`, and runtime typed
   stores are boundary/residual machinery only.
+- The compiler-side mono-array transition/runtime-store cleanup is now closed
+  on 2026-04-14: generated `Array<T>` wrappers no longer carry synthesized
+  `length` / `capacity` / `storage_handle` metadata or sync helpers, and the
+  mono-array `*_to(...)` helpers now hand runtime boundaries plain
+  `runtime.ArrayValue{Elements: ...}` payloads while `*_from(...)` helpers only
+  read `ArrayStore*` state at explicit dynamic / ABI edges.
 - Historical stage-1 partial remains in-tree behind the flag: Go runtime typed
   stores (`i32`, `i64`, `bool`, `u8`) and some compiler lowering for typed
   literals/index plus `push/len/get/set` intrinsics when static element type
@@ -472,10 +421,11 @@ This list tracks the remaining v12 items after audit; completed work should be r
   row carriers are specialized too, and broader native carrier-array families
   now stay compiler-owned as well, and the text scalar family now stays on
   specialized wrappers too. The remaining mono-array work is now primarily
-  performance work plus broader container lowering: `HashMap`, `TreeMap`, and
-  `PersistentMap` families now stay on native compiler carriers on static
-  compiled paths, but broader container families and deeper generic container
-  paths still need the same treatment and measurement.
+  performance work plus broader container lowering rather than transition
+  scaffolding: `HashMap`, `TreeMap`, and `PersistentMap` families now stay on
+  native compiler carriers on static compiled paths, but broader container
+  families and deeper generic container paths still need the same treatment and
+  measurement.
 - Staged Go compiler note: callable/function-type existential surfaces no
   longer default to dynamic carrier values on static compiled paths; residual
   dynamic carrier use should now be limited to explicit dynamic boundaries,

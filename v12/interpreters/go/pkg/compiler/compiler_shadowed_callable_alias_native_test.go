@@ -175,6 +175,60 @@ func shadowedImportedNestedCallableResultAliasPackageFiles() map[string]string {
 	}
 }
 
+func shadowedImportedNestedOptionCallableAliasPackageFiles() map[string]string {
+	return map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, MaybeBuilder}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn read_nested(value: !(MaybeBuilder)) -> i32 {",
+			"  value match {",
+			"    case build: (() -> RemoteThing) => build().remote,",
+			"    case nil => -1,",
+			"    case _: Error => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type MaybeBuilder = Option (() -> Thing)",
+			"",
+		}, "\n"),
+	}
+}
+
+func shadowedImportedNestedUnionCallableAliasPackageFiles() map[string]string {
+	return map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, Choice}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn read_nested(value: !(Choice)) -> i32 {",
+			"  value match {",
+			"    case build: (() -> RemoteThing) => build().remote,",
+			"    case _: String => -1,",
+			"    case _: Error => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type Choice = (() -> Thing) | String",
+			"",
+		}, "\n"),
+	}
+}
+
 func TestCompilerImportedUnionAliasWithShadowedCallablePlaceholderStaysNative(t *testing.T) {
 	result := compileNoFallbackPackage(t, "demo", shadowedImportedCallablePlaceholderAliasPackageFiles())
 	assertShadowedImportedCallableAliasFunctionStaysNative(t, result, "__able_compiled_fn_read_choice")
@@ -213,6 +267,42 @@ func TestCompilerImportedSemanticResultAliasWithShadowedCallablePlaceholderStays
 
 func TestCompilerImportedSemanticResultAliasNestedResultWithShadowedCallableStaysNative(t *testing.T) {
 	result := compileNoFallbackPackage(t, "demo", shadowedImportedNestedCallableResultAliasPackageFiles())
+	assertShadowedImportedCallableAliasFunctionStaysNative(t, result, "__able_compiled_fn_read_nested")
+}
+
+func TestCompilerImportedSemanticOptionAliasNestedResultWithShadowedCallableStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", shadowedImportedNestedOptionCallableAliasPackageFiles())
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read_nested")
+	if !ok {
+		t.Fatalf("could not find compiled read_nested function")
+	}
+	for _, fragment := range []string{
+		"value __able_union___able_union_",
+		"_as___able_union_",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected nested imported semantic Option callable alias to flatten native carriers and avoid %q:\n%s", fragment, body)
+		}
+	}
+	assertShadowedImportedCallableAliasFunctionStaysNative(t, result, "__able_compiled_fn_read_nested")
+}
+
+func TestCompilerImportedGenericUnionAliasNestedResultWithShadowedCallableStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", shadowedImportedNestedUnionCallableAliasPackageFiles())
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read_nested")
+	if !ok {
+		t.Fatalf("could not find compiled read_nested function")
+	}
+	for _, fragment := range []string{
+		"value __able_union___able_union_",
+		"_as___able_union_",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected nested imported generic callable union alias to flatten native carriers and avoid %q:\n%s", fragment, body)
+		}
+	}
 	assertShadowedImportedCallableAliasFunctionStaysNative(t, result, "__able_compiled_fn_read_nested")
 }
 

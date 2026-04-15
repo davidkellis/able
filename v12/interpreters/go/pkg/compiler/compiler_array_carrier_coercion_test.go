@@ -24,7 +24,7 @@ func TestCompilerStaticArrayCarrierCoercionMonoToGenericStaysDirect(t *testing.T
 	for _, fragment := range []string{
 		"make([]runtime.Value,",
 		"bridge.ToInt(int64(",
-		"&Array{Storage_handle:",
+		"&Array{Elements:",
 		"__able_struct_Array_sync(",
 	} {
 		if !strings.Contains(joined, fragment) {
@@ -63,8 +63,7 @@ func TestCompilerStaticArrayCarrierCoercionGenericToMonoStaysDirect(t *testing.T
 	for _, fragment := range []string{
 		"make([]int32,",
 		"bridge.AsInt(",
-		"&__able_array_i32{Storage_handle:",
-		"__able_array_i32_sync(",
+		"&__able_array_i32{Elements:",
 	} {
 		if !strings.Contains(joined, fragment) {
 			t.Fatalf("expected generic-to-mono coercion to contain %q:\n%s", fragment, joined)

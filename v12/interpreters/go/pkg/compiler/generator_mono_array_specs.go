@@ -16,7 +16,6 @@ type monoArraySpec struct {
 	ElemGoType        string
 	FromRuntimeHelper string
 	ToRuntimeHelper   string
-	SyncHelper        string
 }
 
 var stagedMonoArraySpecs = []monoArraySpec{
@@ -28,7 +27,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "int8",
 		FromRuntimeHelper: "__able_array_i8_from",
 		ToRuntimeHelper:   "__able_array_i8_to",
-		SyncHelper:        "__able_array_i8_sync",
 	},
 	{
 		Kind:              monoArrayElemKindI16,
@@ -38,7 +36,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "int16",
 		FromRuntimeHelper: "__able_array_i16_from",
 		ToRuntimeHelper:   "__able_array_i16_to",
-		SyncHelper:        "__able_array_i16_sync",
 	},
 	{
 		Kind:              monoArrayElemKindI32,
@@ -48,7 +45,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "int32",
 		FromRuntimeHelper: "__able_array_i32_from",
 		ToRuntimeHelper:   "__able_array_i32_to",
-		SyncHelper:        "__able_array_i32_sync",
 	},
 	{
 		Kind:              monoArrayElemKindI64,
@@ -58,7 +54,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "int64",
 		FromRuntimeHelper: "__able_array_i64_from",
 		ToRuntimeHelper:   "__able_array_i64_to",
-		SyncHelper:        "__able_array_i64_sync",
 	},
 	{
 		Kind:              monoArrayElemKindU16,
@@ -68,7 +63,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "uint16",
 		FromRuntimeHelper: "__able_array_u16_from",
 		ToRuntimeHelper:   "__able_array_u16_to",
-		SyncHelper:        "__able_array_u16_sync",
 	},
 	{
 		Kind:              monoArrayElemKindU32,
@@ -78,7 +72,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "uint32",
 		FromRuntimeHelper: "__able_array_u32_from",
 		ToRuntimeHelper:   "__able_array_u32_to",
-		SyncHelper:        "__able_array_u32_sync",
 	},
 	{
 		Kind:              monoArrayElemKindU64,
@@ -88,7 +81,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "uint64",
 		FromRuntimeHelper: "__able_array_u64_from",
 		ToRuntimeHelper:   "__able_array_u64_to",
-		SyncHelper:        "__able_array_u64_sync",
 	},
 	{
 		Kind:              monoArrayElemKindISize,
@@ -98,7 +90,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "int",
 		FromRuntimeHelper: "__able_array_isize_from",
 		ToRuntimeHelper:   "__able_array_isize_to",
-		SyncHelper:        "__able_array_isize_sync",
 	},
 	{
 		Kind:              monoArrayElemKindUSize,
@@ -108,7 +99,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "uint",
 		FromRuntimeHelper: "__able_array_usize_from",
 		ToRuntimeHelper:   "__able_array_usize_to",
-		SyncHelper:        "__able_array_usize_sync",
 	},
 	{
 		Kind:              monoArrayElemKindF32,
@@ -118,7 +108,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "float32",
 		FromRuntimeHelper: "__able_array_f32_from",
 		ToRuntimeHelper:   "__able_array_f32_to",
-		SyncHelper:        "__able_array_f32_sync",
 	},
 	{
 		Kind:              monoArrayElemKindF64,
@@ -128,7 +117,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "float64",
 		FromRuntimeHelper: "__able_array_f64_from",
 		ToRuntimeHelper:   "__able_array_f64_to",
-		SyncHelper:        "__able_array_f64_sync",
 	},
 	{
 		Kind:              monoArrayElemKindBool,
@@ -138,7 +126,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "bool",
 		FromRuntimeHelper: "__able_array_bool_from",
 		ToRuntimeHelper:   "__able_array_bool_to",
-		SyncHelper:        "__able_array_bool_sync",
 	},
 	{
 		Kind:              monoArrayElemKindU8,
@@ -148,7 +135,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "uint8",
 		FromRuntimeHelper: "__able_array_u8_from",
 		ToRuntimeHelper:   "__able_array_u8_to",
-		SyncHelper:        "__able_array_u8_sync",
 	},
 	{
 		Kind:              monoArrayElemKindChar,
@@ -158,7 +144,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "rune",
 		FromRuntimeHelper: "__able_array_char_from",
 		ToRuntimeHelper:   "__able_array_char_to",
-		SyncHelper:        "__able_array_char_sync",
 	},
 	{
 		Kind:              monoArrayElemKindString,
@@ -168,7 +153,6 @@ var stagedMonoArraySpecs = []monoArraySpec{
 		ElemGoType:        "string",
 		FromRuntimeHelper: "__able_array_String_from",
 		ToRuntimeHelper:   "__able_array_String_to",
-		SyncHelper:        "__able_array_String_sync",
 	},
 }
 
@@ -294,7 +278,6 @@ func (g *generator) ensureCarrierMonoArraySpec(elemGoType string) (*monoArraySpe
 		ElemGoType:        elemGoType,
 		FromRuntimeHelper: goName + "_from",
 		ToRuntimeHelper:   goName + "_to",
-		SyncHelper:        goName + "_sync",
 	}
 	g.monoArraySpecs[spec.GoType] = spec
 	return spec, true
@@ -339,8 +322,8 @@ func (g *generator) staticArrayElemGoType(goType string) string {
 }
 
 func (g *generator) staticArraySyncCall(goType string, valueExpr string) string {
-	if spec, ok := g.monoArraySpecForGoType(goType); ok {
-		return fmt.Sprintf("%s(%s)", spec.SyncHelper, valueExpr)
+	if _, ok := g.monoArraySpecForGoType(goType); ok {
+		return ""
 	}
 	return fmt.Sprintf("__able_struct_Array_sync(%s)", valueExpr)
 }

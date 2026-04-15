@@ -46,7 +46,7 @@ func (g *generator) compileDirectRuntimeTypeCheckedDynamicTypedPatternCast(ctx *
 	if !ok {
 		return nil, "", "", "", false
 	}
-	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx.probeChild(), runtimeExpr, narrowedType)
+	convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, runtimeExpr, narrowedType)
 	if !ok {
 		return nil, "", "", "", false
 	}
@@ -202,7 +202,7 @@ func (g *generator) compileDirectDynamicTypedPatternCast(ctx *compileContext, ru
 			fmt.Sprintf("%s := __able_is_error(%s)", okTemp, runtimeExpr),
 			fmt.Sprintf("if %s {", okTemp),
 		}
-		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx.probeChild(), runtimeExpr, narrowedType)
+		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, runtimeExpr, narrowedType)
 		if !ok {
 			return nil, "", "", "", false
 		}

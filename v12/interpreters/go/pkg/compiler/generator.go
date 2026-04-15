@@ -753,7 +753,10 @@ func (g *generator) compileReturnStatement(ctx *compileContext, returnType strin
 		}
 		return lines, "struct{}{}", true
 	}
+	previousExpectedTypeExpr := ctx.expectedTypeExpr
+	ctx.expectedTypeExpr = g.concretizedExpectedTypeExpr(ctx, returnType, ctx.returnTypeExpr)
 	exprLines, expr, exprType, ok := g.compileTailExpression(ctx, returnType, ret.Argument)
+	ctx.expectedTypeExpr = previousExpectedTypeExpr
 	if !ok {
 		return nil, "", false
 	}
@@ -796,7 +799,10 @@ func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string
 		}
 		return lines, "struct{}{}", true
 	}
+	previousExpectedTypeExpr := ctx.expectedTypeExpr
+	ctx.expectedTypeExpr = g.concretizedExpectedTypeExpr(ctx, returnType, ctx.returnTypeExpr)
 	stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, returnType, expr)
+	ctx.expectedTypeExpr = previousExpectedTypeExpr
 	if !ok {
 		return nil, "", false
 	}

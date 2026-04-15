@@ -195,6 +195,30 @@ func structInstancesEqual(a *runtime.StructInstanceValue, b *runtime.StructInsta
 	return true
 }
 
+func integerComparisonResult(op string, leftInt runtime.IntegerValue, rightInt runtime.IntegerValue) bool {
+	// Int64 fast path: avoid big.Int.Cmp allocation overhead when both values fit.
+	if l, lok := leftInt.ToInt64(); lok {
+		if r, rok := rightInt.ToInt64(); rok {
+			switch op {
+			case "<":
+				return l < r
+			case "<=":
+				return l <= r
+			case ">":
+				return l > r
+			case ">=":
+				return l >= r
+			case "==":
+				return l == r
+			case "!=":
+				return l != r
+			}
+			return false
+		}
+	}
+	return comparisonOp(op, leftInt.BigInt().Cmp(rightInt.BigInt()))
+}
+
 func evaluateComparison(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
 	if ls, ok := stringFromValue(left); ok {
 		if rs, ok := stringFromValue(right); ok {
@@ -221,20 +245,7 @@ func evaluateComparison(op string, left runtime.Value, right runtime.Value) (run
 	}
 	if li, ok := left.(runtime.IntegerValue); ok {
 		if ri, ok := right.(runtime.IntegerValue); ok {
-			// Int64 fast path: avoid big.Int.Cmp allocation overhead.
-			if l, lok := li.ToInt64(); lok {
-				if r, rok := ri.ToInt64(); rok {
-					cmp := 0
-					if l < r {
-						cmp = -1
-					} else if l > r {
-						cmp = 1
-					}
-					return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil
-				}
-			}
-			cmp := li.BigInt().Cmp(ri.BigInt())
-			return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil
+			return runtime.BoolValue{Val: integerComparisonResult(op, li, ri)}, nil
 		}
 	}
 	leftFloat, err := numericToFloat(left)

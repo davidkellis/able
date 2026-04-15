@@ -71,8 +71,11 @@ func (vm *bytecodeVM) resetForRun(interp *Interpreter, env *runtime.Environment)
 
 	vm.globalLookupCache = nil
 	vm.scopeLookupCache = nil
+	vm.nameLookupHot = bytecodeInlineNameLookupCacheEntry{}
 	vm.memberMethodCache = nil
+	vm.memberMethodHot = bytecodeInlineMemberMethodCacheEntry{}
 	vm.indexMethodCache = nil
+	vm.indexMethodHot = bytecodeInlineIndexMethodCacheEntry{}
 	// Keep immutable per-program decode/validation caches across pooled runs.
 	// They are keyed by bytecodeProgram pointers and refreshed on length mismatch.
 }

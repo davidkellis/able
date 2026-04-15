@@ -33,7 +33,6 @@ func TestCompilerExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrie
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
 		"append(__able_tmp_1.Elements",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected experimental mono-array static lowering to contain %q:\n%s", fragment, mainBody)
@@ -47,6 +46,8 @@ func TestCompilerExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrie
 		"__able_index(",
 		"__able_index_set(",
 		"__able_array_values(",
+		"__able_array_i32_sync(",
+		"Storage_handle",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected experimental mono-array static lowering to avoid %q:\n%s", fragment, mainBody)

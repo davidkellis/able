@@ -253,6 +253,31 @@ func (e *Environment) Lookup(name string) (Value, bool) {
 	return nil, false
 }
 
+// LookupWithOwner retrieves a binding plus the lexical scope that currently
+// owns it. It avoids constructing an error on misses and is preferred in hot
+// paths that want to cache parent/global hits without rewalking the chain.
+func (e *Environment) LookupWithOwner(name string) (Value, *Environment, bool) {
+	singleThread := e.isSingleThread()
+	for cur := e; cur != nil; {
+		if singleThread {
+			if v, ok := cur.values[name]; ok {
+				return v, cur, true
+			}
+			cur = cur.parent
+		} else {
+			cur.mu.RLock()
+			v, ok := cur.values[name]
+			parent := cur.parent
+			cur.mu.RUnlock()
+			if ok {
+				return v, cur, true
+			}
+			cur = parent
+		}
+	}
+	return nil, nil, false
+}
+
 // LookupInCurrentScope retrieves a binding only from the current scope.
 // It avoids constructing an error on misses and does not walk lexical parents.
 func (e *Environment) LookupInCurrentScope(name string) (Value, bool) {
@@ -383,6 +408,23 @@ func (e *Environment) AssignExisting(name string, value Value) bool {
 // Revision returns the mutation revision for this scope.
 func (e *Environment) Revision() uint64 {
 	if e.isSingleThread() {
+		return e.version
+	}
+	e.mu.RLock()
+	version := e.version
+	e.mu.RUnlock()
+	return version
+}
+
+// RevisionWithHint returns the mutation revision for this scope while letting
+// the caller supply the already-known thread mode. This avoids repeating the
+// shared thread-mode load on hot paths that already know execution is
+// single-threaded.
+func (e *Environment) RevisionWithHint(singleThread bool) uint64 {
+	if e == nil {
+		return 0
+	}
+	if singleThread {
 		return e.version
 	}
 	e.mu.RLock()

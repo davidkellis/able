@@ -10,6 +10,9 @@ import (
 )
 
 func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	if i.coerceValueToTypeWouldBeNoOp(typeExpr) {
+		return value, nil
+	}
 	switch t := typeExpr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name != nil {
@@ -116,6 +119,15 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 		}
 	}
 	if simple, ok := typeExpr.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
+		if casted, ok, err := castValueToCanonicalSimpleTypeFast(simple.Name.Name, rawValue); ok {
+			if err != nil {
+				return nil, err
+			}
+			if casted == nil {
+				return nil, fmt.Errorf("cannot cast <nil> to %s", normalizeKernelAliasName(simple.Name.Name))
+			}
+			return casted, nil
+		}
 		target := normalizeKernelAliasName(simple.Name.Name)
 		if _, aliased := i.typeAliases[target]; !aliased {
 			switch val := rawValue.(type) {

@@ -188,3 +188,85 @@ func TestCompilerGoExternGenericUnwrapExecutesForNativeSuccessMembers(t *testing
 		t.Fatalf("expected extern generic unwrap output 5/true, got %q", stdout)
 	}
 }
+
+func TestCompilerGoExternGenericUnwrapPreservesNullableReturnTypeExprs(t *testing.T) {
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-go-extern-generic-unwrap-nullable-return-", strings.Join([]string{
+		"package demo",
+		"",
+		"struct IOError {",
+		"  message: String,",
+		"}",
+		"",
+		"impl Error for IOError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"extern go fn read_none() -> IOError | ?Array u8 {",
+		"  return nil",
+		"}",
+		"",
+		"fn unwrap<T>(value: IOError | T) -> T {",
+		"  value match {",
+		"    case err: IOError => { raise err },",
+		"    case ok: T => ok",
+		"  }",
+		"}",
+		"",
+		"fn read_implicit() -> ?Array u8 {",
+		"  unwrap(read_none())",
+		"}",
+		"",
+		"fn read_explicit() -> ?Array u8 {",
+		"  return unwrap(read_none())",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  print(read_implicit() == nil)",
+		"  print(read_explicit() == nil)",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+	if strings.TrimSpace(stdout) != "true\ntrue" {
+		t.Fatalf("expected nullable unwrap return output true/true, got %q", stdout)
+	}
+}
+
+func TestCompilerGoExternUnionReturnExecutesThroughAnyCarrier(t *testing.T) {
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-go-extern-union-any-return-", strings.Join([]string{
+		"package demo",
+		"",
+		"struct IOError {",
+		"  message: String,",
+		"}",
+		"",
+		"impl Error for IOError {",
+		"  fn message(self: Self) -> String { self.message }",
+		"  fn cause(self: Self) -> ?Error { nil }",
+		"}",
+		"",
+		"extern go fn maybe_name(ok: bool) -> IOError | String {",
+		"  if ok {",
+		"    return \"open\"",
+		"  }",
+		"  return map[string]any{ \"message\": \"closed\" }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  maybe_name(true) match {",
+		"    case name: String => print(name),",
+		"    case err: IOError => print(err.message)",
+		"  }",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+	if strings.TrimSpace(stdout) != "open" {
+		t.Fatalf("expected extern union return output open, got %q", stdout)
+	}
+}

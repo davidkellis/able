@@ -10,11 +10,12 @@ func (g *generator) specializationConcreteArgTypeExpr(pkgName string, expr ast.T
 	if g == nil || expr == nil {
 		return nil, false
 	}
-	expr = normalizeTypeExprForPackage(g, pkgName, expr)
-	if expr == nil || !g.typeExprFullyBound(pkgName, expr) {
+	resolvedPkg, expr := g.normalizeTypeExprContextForPackage(pkgName, expr)
+	if expr == nil {
 		return nil, false
 	}
-	goType, ok := g.lowerCarrierTypeInPackage(pkgName, expr)
+	goType, ok := g.lowerCarrierTypeInPackage(resolvedPkg, expr)
+	goType, ok = g.recoverRepresentableCarrierType(resolvedPkg, expr, goType)
 	if !ok || goType == "" || goType == "runtime.Value" || goType == "any" {
 		return nil, false
 	}
@@ -26,14 +27,16 @@ func (g *generator) specializationConcreteArgTypeExprForParam(pkgName string, pa
 		return nil, false
 	}
 	paramExpr = normalizeTypeExprForPackage(g, pkgName, paramExpr)
-	actualExpr = normalizeTypeExprForPackage(g, pkgName, actualExpr)
+	actualPkg := g.resolvedTypeExprPackage(pkgName, actualExpr)
+	actualExpr = normalizeTypeExprForPackage(g, actualPkg, actualExpr)
 	concreteExpr, ok := g.specializationConcreteArgTypeExpr(pkgName, actualExpr)
 	if !ok || concreteExpr == nil {
 		return nil, false
 	}
 	if actualGoType != "" && actualGoType != "runtime.Value" && actualGoType != "any" {
-		mapped, ok := g.lowerCarrierTypeInPackage(pkgName, concreteExpr)
-		mapped, ok = g.recoverRepresentableCarrierType(pkgName, concreteExpr, mapped)
+		concretePkg := g.resolvedTypeExprPackage(pkgName, concreteExpr)
+		mapped, ok := g.lowerCarrierTypeInPackage(concretePkg, concreteExpr)
+		mapped, ok = g.recoverRepresentableCarrierType(concretePkg, concreteExpr, mapped)
 		if !ok || mapped == "" || mapped == "runtime.Value" || mapped == "any" {
 			return nil, false
 		}
@@ -228,7 +231,14 @@ func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.F
 			continue
 		}
 		_ = g.bindSpecializedCallArgument(info.Package, paramType, actualExpr, genericNames, bindings)
+		// When the concrete ABI carrier is already known, bind again through that
+		// carrier expression so shadowed imported nominals do not get stuck on a
+		// same-spelling local type expression during specialization.
+		if concreteExpr := g.preferConcreteTypeExprForGoType(ctx, actualExpr, actualGoType); concreteExpr != nil {
+			_ = g.bindSpecializedCallArgument(info.Package, paramType, concreteExpr, genericNames, bindings)
+		}
 	}
+	g.repairConcreteSpecializedCallBindings(ctx, call, info, genericNames, bindings)
 	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil {
 		if _, _, _, _, ok := interfaceExprInfo(g, info.Package, expectedExpr); ok {
 			returnBindings := cloneTypeBindings(bindings)
@@ -250,6 +260,43 @@ func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.F
 		return nil, false
 	}
 	return bindings, true
+}
+
+func (g *generator) repairConcreteSpecializedCallBindings(ctx *compileContext, call *ast.FunctionCall, info *functionInfo, genericNames map[string]struct{}, bindings map[string]ast.TypeExpression) {
+	if g == nil || ctx == nil || call == nil || info == nil || len(genericNames) == 0 || len(call.Arguments) == 0 || bindings == nil {
+		return
+	}
+	rebound := g.concreteCompileContextBindings(info, genericNames)
+	if rebound == nil {
+		rebound = make(map[string]ast.TypeExpression)
+	}
+	for idx, arg := range call.Arguments {
+		if idx >= len(info.Params) {
+			break
+		}
+		paramType := g.functionParamTypeExpr(info, idx)
+		if paramType == nil {
+			paramType = info.Params[idx].TypeExpr
+		}
+		if paramType == nil {
+			continue
+		}
+		actualExpr, actualGoType, ok := g.specializedCallActualTypeExpr(ctx, info.Package, arg, paramType, rebound)
+		actualExpr, ok = g.specializationConcreteArgTypeExprForParam(info.Package, paramType, actualExpr, actualGoType)
+		if !ok || actualExpr == nil {
+			continue
+		}
+		_ = g.bindSpecializedCallArgument(info.Package, paramType, actualExpr, genericNames, rebound)
+		if concreteExpr := g.preferConcreteTypeExprForGoType(ctx, actualExpr, actualGoType); concreteExpr != nil {
+			_ = g.bindSpecializedCallArgument(info.Package, paramType, concreteExpr, genericNames, rebound)
+		}
+	}
+	rebound = g.normalizeConcreteTypeBindings(info.Package, rebound, genericNames)
+	for name, expr := range rebound {
+		if expr != nil {
+			bindings[name] = expr
+		}
+	}
 }
 
 func (g *generator) bindSpecializedConcreteInterfaceReturn(pkgName string, returnTypeExpr ast.TypeExpression, expectedExpr ast.TypeExpression, genericNames map[string]struct{}, bindings map[string]ast.TypeExpression) bool {
@@ -347,11 +394,11 @@ func (g *generator) ensureSpecializedFunctionInfo(info *functionInfo, bindings m
 			}
 			targetName, _ := typeExprBaseName(impl.TargetType)
 			method := &methodInfo{
-				TargetName:   targetName,
-				TargetType:   impl.TargetType,
-				MethodName:   impl.MethodName,
-				ExpectsSelf:  methodDefinitionExpectsSelf(baseInfo.Definition),
-				Info:         baseInfo,
+				TargetName:  targetName,
+				TargetType:  impl.TargetType,
+				MethodName:  impl.MethodName,
+				ExpectsSelf: methodDefinitionExpectsSelf(baseInfo.Definition),
+				Info:        baseInfo,
 			}
 			if method.ExpectsSelf && len(baseInfo.Params) > 0 {
 				method.ReceiverType = baseInfo.Params[0].GoType

@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestCompilerRescueHigherOrderCallKeepsDynamicErrorValueBinding(t *testing.T) {
-	result := compileNoFallbackSource(t, strings.Join([]string{
+func rescueHigherOrderDynamicErrorValueSource() string {
+	return strings.Join([]string{
 		"package demo",
 		"",
 		"struct ChannelNil {}",
@@ -26,7 +26,11 @@ func TestCompilerRescueHigherOrderCallKeepsDynamicErrorValueBinding(t *testing.T
 		"  capture({ => do { __able_channel_close(0); \"ok\" } })",
 		"}",
 		"",
-	}, "\n"))
+	}, "\n")
+}
+
+func TestCompilerRescueHigherOrderCallKeepsDynamicErrorValueBinding(t *testing.T) {
+	result := compileNoFallbackSource(t, rescueHigherOrderDynamicErrorValueSource())
 
 	body, ok := findCompiledFunction(result, "__able_compiled_fn_capture")
 	if !ok {

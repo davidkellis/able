@@ -574,15 +574,20 @@ func (g *generator) ensureNativeUnionInfo(pkgName string, members []ast.TypeExpr
 		if memberExpr == nil {
 			return nil, false
 		}
+		memberPkg := g.resolvedTypeExprPackage(pkgName, memberExpr)
 		memberType, ok := mapper.Map(memberExpr)
 		if !ok || memberType == "" {
 			return nil, false
 		}
 		if memberType == "any" || memberType == "runtime.Value" {
-			if g.typeExprIsConcreteInPackage(pkgName, memberExpr) {
+			if recovered, ok := g.recoverRepresentableCarrierType(memberPkg, memberExpr, memberType); ok && recovered != "" && recovered != "runtime.Value" && recovered != "any" {
+				memberType = recovered
+			} else {
+				// Do not materialize partially native unions that still need a
+				// broad runtime member. Those carriers should stay on the dynamic
+				// path until every member is representable.
 				return nil, false
 			}
-			memberType = "runtime.Value"
 		}
 		if _, exists := seen[memberType]; exists {
 			return nil, false

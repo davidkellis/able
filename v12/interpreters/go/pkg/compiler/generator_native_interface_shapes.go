@@ -136,6 +136,7 @@ func (g *generator) collectNativeInterfaceMethods(pkgName string, expr ast.TypeE
 				break
 			}
 			goType, ok := mapper.Map(substituted)
+			goType, ok = g.recoverRepresentableCarrierType(ifacePkg, substituted, goType)
 			if !ok || goType == "" {
 				paramTypes = nil
 				paramGoTypes = nil
@@ -157,6 +158,7 @@ func (g *generator) collectNativeInterfaceMethods(pkgName string, expr ast.TypeE
 			continue
 		}
 		returnGoType, ok := mapper.Map(returnExpr)
+		returnGoType, ok = g.recoverRepresentableCarrierType(ifacePkg, returnExpr, returnGoType)
 		if !ok || returnGoType == "" {
 			continue
 		}

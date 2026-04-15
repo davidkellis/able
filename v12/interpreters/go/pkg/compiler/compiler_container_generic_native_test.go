@@ -350,6 +350,85 @@ func TestCompilerConcreteIteratorGenericMethodsStayNative(t *testing.T) {
 	}
 }
 
+func TestCompilerConcreteIteratorGenericMethodMatchCarriersStayNative(t *testing.T) {
+	result := compileNoFallbackExecSource(t, "ablec-linked-list-iterator-generic-match-native", strings.Join([]string{
+		"package demo",
+		"",
+		"import able.collections.linked_list.{LinkedList}",
+		"",
+		"fn main() -> i64 {",
+		"  values: LinkedList i32 = LinkedList.new()",
+		"  values.push_back(1)",
+		"  values.push_back(2)",
+		"  values.push_back(3)",
+		"  iter := values.lazy().map<i64>({ value => (value as i64) * 3_i64 }).filter({ value => value >= 6_i64 })",
+		"  iter.collect<Array i64>().reduce<i64>(0_i64, { acc, value => acc + value })",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	for _, fragment := range []string{
+		"__able_union__IteratorEnd_or_runtime_Value",
+		"__able_union__IteratorEnd_or_any",
+		"_variant_runtime_Value",
+		"_wrap_runtime_Value",
+		"_as_runtime_Value",
+	} {
+		if strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected concrete Iterator generic helper family to avoid residual broad union member %q:\n%s", fragment, compiledSrc)
+		}
+	}
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main")
+	}
+	mapName, ok := calledFunctionNameFromBody(mainBody, "__able_compiled_iface_Iterator__map_default")
+	if !ok {
+		t.Fatalf("could not find concrete Iterator.map helper call in main body")
+	}
+	filterName, ok := calledFunctionNameFromBody(mainBody, "__able_compiled_iface_Iterator_filter_default")
+	if !ok {
+		t.Fatalf("could not find concrete Iterator.filter helper call in main body")
+	}
+	collectName, ok := calledFunctionNameFromBody(mainBody, "__able_compiled_iface_Iterator_collect_default")
+	if !ok {
+		t.Fatalf("could not find concrete Iterator.collect helper call in main body")
+	}
+	helpers := []string{mapName, filterName, collectName}
+	for _, helperName := range helpers {
+		helperBody, ok := findCompiledFunction(result, helperName)
+		if !ok {
+			t.Fatalf("could not find compiled helper %s", helperName)
+		}
+		for _, fragment := range []string{
+			"&& false",
+			"__able_try_cast(",
+			"bridge.MatchType(",
+		} {
+			if strings.Contains(helperBody, fragment) {
+				t.Fatalf("expected %s to avoid %q:\n%s", helperName, fragment, helperBody)
+			}
+		}
+	}
+
+	mapBody, ok := findCompiledFunction(result, mapName)
+	if !ok {
+		t.Fatalf("could not find compiled Iterator.map helper %s", mapName)
+	}
+	if !strings.Contains(mapBody, "__able_union__IteratorEnd_or_int32_as_int32(") {
+		t.Fatalf("expected Iterator.map helper to extract the concrete int32 branch directly:\n%s", mapBody)
+	}
+	filterBody, ok := findCompiledFunction(result, filterName)
+	if !ok {
+		t.Fatalf("could not find compiled Iterator.filter helper %s", filterName)
+	}
+	if !strings.Contains(filterBody, "__able_union__IteratorEnd_or_int64_as_int64(") {
+		t.Fatalf("expected Iterator.filter helper to extract the concrete int64 branch directly:\n%s", filterBody)
+	}
+}
+
 func TestCompilerConcreteIteratorGenericMethodsExecute(t *testing.T) {
 	source := strings.Join([]string{
 		"package main",

@@ -121,9 +121,6 @@ func (g *generator) ensureSpecializedStructInfo(pkgName string, expr ast.TypeExp
 	if !g.structSpecializationArgsConcrete(pkgName, generic.Arguments, baseInfo.Node.GenericParams) {
 		return nil, false
 	}
-	if !g.typeExprIsConcreteInPackage(baseInfo.Package, expr) {
-		return nil, false
-	}
 	key := specializedStructKey(g, baseInfo.Package, expr)
 	if key == "" {
 		return nil, false

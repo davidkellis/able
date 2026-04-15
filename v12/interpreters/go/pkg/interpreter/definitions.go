@@ -97,7 +97,7 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 	if def == nil || def.Body == nil {
 		return nil, nil
 	}
-	layout := analyzeFrameLayout(def)
+	layout := analyzeFrameLayout(i, def)
 	if layout == nil {
 		return i.lowerBlockExpressionToBytecode(def.Body, true)
 	}
@@ -368,9 +368,11 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			if isGenericTarget {
 				i.genericImpls = append(i.genericImpls, entry)
 				i.invalidateMethodCache()
+				i.noteIndexImplementation(ifaceName, variant.typeName, true)
 			} else {
 				i.implMethods[variant.typeName] = append(i.implMethods[variant.typeName], entry)
 				i.invalidateMethodCache()
+				i.noteIndexImplementation(ifaceName, variant.typeName, false)
 				if ifaceName == "Range" {
 					i.registerRangeImplementation(entry, canonicalDef.InterfaceArgs)
 				}

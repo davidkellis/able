@@ -59,6 +59,7 @@ func (g *generator) ensureSpecializedNativeInterfaceGenericDefaultMethod(method 
 	if !ok || receiverTypeExpr == nil || concreteReceiverGoType == "" {
 		return nil, false
 	}
+	mergedBindings = g.normalizeNativeInterfaceDefaultMethodBindings(method, mergedBindings)
 	key := g.specializedNativeInterfaceGenericMethodKey(method, concreteReceiverGoType, mergedBindings)
 	if existing, ok := g.specializedFunctionIndex[key]; ok && existing != nil {
 		if _, building := g.nativeInterfaceSpecializing[key]; building {
@@ -143,6 +144,22 @@ func (g *generator) nativeInterfaceGenericDefaultMethodBindings(method *nativeIn
 		}
 	}
 	return merged
+}
+
+func (g *generator) normalizeNativeInterfaceDefaultMethodBindings(method *nativeInterfaceGenericMethod, bindings map[string]ast.TypeExpression) map[string]ast.TypeExpression {
+	if g == nil || method == nil || len(bindings) == 0 {
+		return cloneTypeBindings(bindings)
+	}
+	genericNames := nativeInterfaceGenericNameSet(method.GenericParams)
+	if iface, _, ok := g.interfaceDefinitionForPackage(method.InterfacePackage, method.InterfaceName); ok && iface != nil {
+		genericNames = mergeGenericNameSets(genericNames, genericParamNameSet(iface.GenericParams))
+	}
+	genericNames = mergeGenericNameSets(genericNames, g.typeExprVariableNames(nativeInterfaceInstantiationExpr(method.InterfaceName, method.InterfaceArgs)))
+	normalized := g.normalizeConcreteTypeBindings(method.InterfacePackage, bindings, genericNames)
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 func (g *generator) fillNativeInterfaceGenericDefaultMethodInfo(info *functionInfo, receiverType string, receiverTypeExpr ast.TypeExpression, method *nativeInterfaceGenericMethod, paramTypeExprs []ast.TypeExpression, paramGoTypes []string, returnTypeExpr ast.TypeExpression, returnGoType string) bool {

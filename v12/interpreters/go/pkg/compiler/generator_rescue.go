@@ -85,6 +85,7 @@ func (g *generator) compileRescueExpression(ctx *compileContext, expr *ast.Rescu
 			continue
 		}
 		clauseCtx := ctx.child()
+		clauseCtx.expectedTypeExpr = nil
 		clauseCtx.rethrowVar = subjectTemp
 		clauseCtx.rethrowControlVar = controlTemp
 		if rescueSubjectTypeExpr != nil {

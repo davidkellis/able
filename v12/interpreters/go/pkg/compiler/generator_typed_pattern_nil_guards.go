@@ -30,7 +30,8 @@ func (g *generator) staticTypedPatternUsesContextGeneric(ctx *compileContext, ex
 	if g == nil || ctx == nil || expr == nil {
 		return false
 	}
-	return !g.typeExprIsConcreteInPackage(ctx.packageName, expr)
+	expr = g.lowerNormalizedTypeExpr(ctx, expr)
+	return g.typeExprHasGeneric(expr, ctx.genericNames)
 }
 
 func (g *generator) staticTypedPatternSubjectAllowsNil(ctx *compileContext, subjectType string) bool {

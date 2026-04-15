@@ -26,6 +26,19 @@ type bytecodeMemberMethodCacheEntry struct {
 	methodTemplate     runtime.Value
 }
 
+type bytecodeInlineMemberMethodCacheEntry struct {
+	valid              bool
+	program            *bytecodeProgram
+	ip                 int
+	member             string
+	preferMethods      bool
+	receiverKind       bytecodeMemberReceiverKind
+	structDef          *runtime.StructDefinitionValue
+	globalRevision     uint64
+	methodCacheVersion uint64
+	methodTemplate     runtime.Value
+}
+
 func (vm *bytecodeVM) canUseMemberMethodCache(memberName string, preferMethods bool) bool {
 	if vm == nil || vm.interp == nil || vm.interp.global == nil || vm.env != vm.interp.global {
 		return false
@@ -33,39 +46,46 @@ func (vm *bytecodeVM) canUseMemberMethodCache(memberName string, preferMethods b
 	return preferMethods && memberName != ""
 }
 
-func (vm *bytecodeVM) memberMethodCacheKey(program *bytecodeProgram, ip int, memberName string, preferMethods bool, receiver runtime.Value) (bytecodeMemberMethodCacheKey, bool) {
+func (vm *bytecodeVM) memberMethodCacheIdentity(memberName string, preferMethods bool, receiver runtime.Value) (bytecodeMemberReceiverKind, *runtime.StructDefinitionValue, bool) {
 	if !vm.canUseMemberMethodCache(memberName, preferMethods) {
-		return bytecodeMemberMethodCacheKey{}, false
-	}
-	key := bytecodeMemberMethodCacheKey{
-		program:       program,
-		ip:            ip,
-		member:        memberName,
-		preferMethods: preferMethods,
+		return bytecodeMemberReceiverUnknown, nil, false
 	}
 	switch v := receiver.(type) {
 	case *runtime.ArrayValue:
 		if v == nil {
-			return bytecodeMemberMethodCacheKey{}, false
+			return bytecodeMemberReceiverUnknown, nil, false
 		}
-		key.receiverKind = bytecodeMemberReceiverArray
+		return bytecodeMemberReceiverArray, nil, true
 	case runtime.StringValue:
-		key.receiverKind = bytecodeMemberReceiverString
+		return bytecodeMemberReceiverString, nil, true
 	case *runtime.StringValue:
 		if v == nil {
-			return bytecodeMemberMethodCacheKey{}, false
+			return bytecodeMemberReceiverUnknown, nil, false
 		}
-		key.receiverKind = bytecodeMemberReceiverString
+		return bytecodeMemberReceiverString, nil, true
 	case *runtime.StructInstanceValue:
 		if v == nil || v.Definition == nil {
-			return bytecodeMemberMethodCacheKey{}, false
+			return bytecodeMemberReceiverUnknown, nil, false
 		}
-		key.receiverKind = bytecodeMemberReceiverStruct
-		key.structDef = v.Definition
+		return bytecodeMemberReceiverStruct, v.Definition, true
 	default:
+		return bytecodeMemberReceiverUnknown, nil, false
+	}
+}
+
+func (vm *bytecodeVM) memberMethodCacheKey(program *bytecodeProgram, ip int, memberName string, preferMethods bool, receiver runtime.Value) (bytecodeMemberMethodCacheKey, bool) {
+	receiverKind, structDef, ok := vm.memberMethodCacheIdentity(memberName, preferMethods, receiver)
+	if !ok {
 		return bytecodeMemberMethodCacheKey{}, false
 	}
-	return key, true
+	return bytecodeMemberMethodCacheKey{
+		program:       program,
+		ip:            ip,
+		member:        memberName,
+		preferMethods: preferMethods,
+		receiverKind:  receiverKind,
+		structDef:     structDef,
+	}, true
 }
 
 func extractMemberMethodTemplate(resolved runtime.Value) (runtime.Value, bool) {
@@ -109,26 +129,62 @@ func (vm *bytecodeVM) lookupCachedMemberMethod(program *bytecodeProgram, ip int,
 	if vm == nil || vm.interp == nil || vm.interp.global == nil {
 		return nil, false
 	}
-	key, ok := vm.memberMethodCacheKey(program, ip, memberName, preferMethods, receiver)
+	receiverKind, structDef, ok := vm.memberMethodCacheIdentity(memberName, preferMethods, receiver)
 	if !ok {
+		return nil, false
+	}
+	if hot := vm.memberMethodHot; hot.valid &&
+		hot.program == program &&
+		hot.ip == ip &&
+		hot.member == memberName &&
+		hot.preferMethods == preferMethods &&
+		hot.receiverKind == receiverKind &&
+		hot.structDef == structDef &&
+		hot.globalRevision == vm.bytecodeGlobalRevision() &&
+		hot.methodCacheVersion == vm.bytecodeMethodCacheVersion() {
+		if bound, ok := bindMemberMethodTemplate(receiver, hot.methodTemplate); ok {
+			vm.interp.recordBytecodeMemberMethodCacheHit()
+			return bound, true
+		}
+		vm.interp.recordBytecodeMemberMethodCacheMiss()
 		return nil, false
 	}
 	if vm.memberMethodCache == nil {
 		vm.interp.recordBytecodeMemberMethodCacheMiss()
 		return nil, false
 	}
+	key := bytecodeMemberMethodCacheKey{
+		program:       program,
+		ip:            ip,
+		member:        memberName,
+		preferMethods: preferMethods,
+		receiverKind:  receiverKind,
+		structDef:     structDef,
+	}
 	entry, ok := vm.memberMethodCache[key]
 	if !ok {
 		vm.interp.recordBytecodeMemberMethodCacheMiss()
 		return nil, false
 	}
-	if entry.globalRevision != vm.interp.global.Revision() {
+	if entry.globalRevision != vm.bytecodeGlobalRevision() {
 		vm.interp.recordBytecodeMemberMethodCacheMiss()
 		return nil, false
 	}
-	if entry.methodCacheVersion != vm.interp.currentMethodCacheVersion() {
+	if entry.methodCacheVersion != vm.bytecodeMethodCacheVersion() {
 		vm.interp.recordBytecodeMemberMethodCacheMiss()
 		return nil, false
+	}
+	vm.memberMethodHot = bytecodeInlineMemberMethodCacheEntry{
+		valid:              true,
+		program:            program,
+		ip:                 ip,
+		member:             memberName,
+		preferMethods:      preferMethods,
+		receiverKind:       receiverKind,
+		structDef:          structDef,
+		globalRevision:     entry.globalRevision,
+		methodCacheVersion: entry.methodCacheVersion,
+		methodTemplate:     entry.methodTemplate,
 	}
 	bound, ok := bindMemberMethodTemplate(receiver, entry.methodTemplate)
 	if !ok {
@@ -154,9 +210,22 @@ func (vm *bytecodeVM) storeCachedMemberMethod(program *bytecodeProgram, ip int, 
 	if vm.memberMethodCache == nil {
 		vm.memberMethodCache = make(map[bytecodeMemberMethodCacheKey]bytecodeMemberMethodCacheEntry, 16)
 	}
-	vm.memberMethodCache[key] = bytecodeMemberMethodCacheEntry{
-		globalRevision:     vm.interp.global.Revision(),
-		methodCacheVersion: vm.interp.currentMethodCacheVersion(),
+	entry := bytecodeMemberMethodCacheEntry{
+		globalRevision:     vm.bytecodeGlobalRevision(),
+		methodCacheVersion: vm.bytecodeMethodCacheVersion(),
 		methodTemplate:     template,
+	}
+	vm.memberMethodCache[key] = entry
+	vm.memberMethodHot = bytecodeInlineMemberMethodCacheEntry{
+		valid:              true,
+		program:            program,
+		ip:                 ip,
+		member:             memberName,
+		preferMethods:      preferMethods,
+		receiverKind:       key.receiverKind,
+		structDef:          key.structDef,
+		globalRevision:     entry.globalRevision,
+		methodCacheVersion: entry.methodCacheVersion,
+		methodTemplate:     entry.methodTemplate,
 	}
 }

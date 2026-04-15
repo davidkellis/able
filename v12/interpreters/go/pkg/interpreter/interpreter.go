@@ -195,6 +195,8 @@ type Interpreter struct {
 	typeAliases           map[string]*ast.TypeAliasDefinition
 	implMethods           map[string][]implEntry
 	genericImpls          []implEntry
+	arrayIndexImpls       bool
+	arrayIndexMutImpls    bool
 	rangeImplementations  []rangeImplementation
 	unnamedImpls          map[string]map[string]map[string]bool
 	packageRegistry       map[string]map[string]runtime.Value
@@ -244,7 +246,7 @@ type Interpreter struct {
 	ratioStruct     *runtime.StructDefinitionValue
 
 	arrayReady     bool
-	arraysByHandle map[int64]map[*runtime.ArrayValue]struct{}
+	arraysByHandle map[int64]arrayHandleTracking
 	hashMapReady   bool
 
 	errorNativeMethods map[string]runtime.NativeFunctionValue
@@ -287,6 +289,11 @@ type Interpreter struct {
 	// compiledInterfaceMemberFn searches all compiled interface dispatch tables
 	// for a method by name, regardless of interface. Maps to __able_interface_dispatch_member.
 	compiledInterfaceMemberFn func(receiver runtime.Value, methodName string) (runtime.Value, bool)
+}
+
+type arrayHandleTracking struct {
+	single *runtime.ArrayValue
+	many   map[*runtime.ArrayValue]struct{}
 }
 
 func identifiersToStrings(ids []*ast.Identifier) []string {
@@ -402,7 +409,7 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
 		standardErrorStructs:    make(map[string]*runtime.StructDefinitionValue),
 		orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
-		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
+		arraysByHandle:          make(map[int64]arrayHandleTracking),
 		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
 		methodCache:             make(map[methodCacheKey]methodCacheEntry),
 		boundMethodCache:        make(map[boundMethodCacheKey]runtime.Value),

@@ -82,7 +82,7 @@ func (g *generator) interfaceDispatchEntries() []*interfaceDispatchEntry {
 		if !ok {
 			continue
 		}
-		constraintsExpr, constraintKey, ok := g.renderConstraintSpecs(impl.ImplGenerics, impl.WhereClause)
+		constraintsExpr, constraintKey, ok := g.renderConstraintSpecs(impl.Info.Package, impl.ImplGenerics, impl.WhereClause)
 		if !ok {
 			continue
 		}
@@ -159,7 +159,7 @@ func (g *generator) interfaceDispatchGroups() []*interfaceDispatchGroup {
 		if !ok {
 			continue
 		}
-		constraintsExpr, constraintKey, ok := g.renderConstraintSpecs(impl.ImplGenerics, impl.WhereClause)
+		constraintsExpr, constraintKey, ok := g.renderConstraintSpecs(impl.Info.Package, impl.ImplGenerics, impl.WhereClause)
 		if !ok {
 			continue
 		}
@@ -288,24 +288,34 @@ func constraintSignature(specs []constraintSpec) string {
 	return strings.Join(parts, "&")
 }
 
-func (g *generator) renderConstraintSpecs(generics []*ast.GenericParameter, whereClause []*ast.WhereClauseConstraint) (string, string, bool) {
+func (g *generator) renderConstraintSpecs(pkgName string, generics []*ast.GenericParameter, whereClause []*ast.WhereClauseConstraint) (string, string, bool) {
 	specs := collectConstraintSpecs(generics, whereClause)
 	if len(specs) == 0 {
 		return "nil", "<none>", true
 	}
+	normalized := make([]constraintSpec, 0, len(specs))
 	entries := make([]string, 0, len(specs))
 	for _, spec := range specs {
-		subjectExpr, ok := g.renderTypeExpression(spec.subject)
+		subject := spec.subject
+		if subject != nil {
+			subject = normalizeTypeExprForPackage(g, pkgName, subject)
+		}
+		iface := spec.iface
+		if iface != nil {
+			iface = normalizeTypeExprForPackage(g, pkgName, iface)
+		}
+		subjectExpr, ok := g.renderTypeExpression(subject)
 		if !ok {
 			return "", "", false
 		}
-		ifaceExpr, ok := g.renderTypeExpression(spec.iface)
+		ifaceExpr, ok := g.renderTypeExpression(iface)
 		if !ok {
 			return "", "", false
 		}
+		normalized = append(normalized, constraintSpec{subject: subject, iface: iface})
 		entries = append(entries, fmt.Sprintf("{subject: %s, iface: %s}", subjectExpr, ifaceExpr))
 	}
-	return fmt.Sprintf("[]__able_interface_constraint_spec{%s}", strings.Join(entries, ", ")), constraintSignature(specs), true
+	return fmt.Sprintf("[]__able_interface_constraint_spec{%s}", strings.Join(entries, ", ")), constraintSignature(normalized), true
 }
 
 func (g *generator) interfaceSearchMap() map[string][]string {

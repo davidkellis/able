@@ -5,8 +5,10 @@ import (
 )
 
 type ArrayState struct {
-	Values   []Value
-	Capacity int
+	Values                []Value
+	Capacity              int
+	ElementTypeToken      uint16
+	ElementTypeTokenKnown bool
 }
 
 type monoArrayKind uint8

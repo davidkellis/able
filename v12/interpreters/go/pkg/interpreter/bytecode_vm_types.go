@@ -8,6 +8,7 @@ import (
 type bytecodeInstruction struct {
 	op            bytecodeOp
 	name          string
+	nameSimple    bool
 	operator      string
 	value         runtime.Value
 	target        int
@@ -52,8 +53,11 @@ type bytecodeVM struct {
 	currentProgram     *bytecodeProgram // tracks the active program for resume after yield
 	globalLookupCache  map[bytecodeGlobalLookupCacheKey]bytecodeGlobalLookupCacheEntry
 	scopeLookupCache   map[bytecodeGlobalLookupCacheKey]bytecodeScopeLookupCacheEntry
+	nameLookupHot      bytecodeInlineNameLookupCacheEntry
 	memberMethodCache  map[bytecodeMemberMethodCacheKey]bytecodeMemberMethodCacheEntry
-	indexMethodCache   map[bytecodeIndexMethodCacheKey]bytecodeIndexMethodCacheEntry
+	memberMethodHot    bytecodeInlineMemberMethodCacheEntry
+	indexMethodCache   map[*bytecodeProgram]*bytecodeIndexMethodCacheTable
+	indexMethodHot     bytecodeInlineIndexMethodCacheEntry
 	validatedIntConsts map[*bytecodeProgram][]bool
 	slotConstIntImm    map[*bytecodeProgram]*bytecodeSlotConstIntImmediateTable
 	stringInterpParts  []runtime.Value

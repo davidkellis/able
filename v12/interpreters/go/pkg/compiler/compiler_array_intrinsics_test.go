@@ -293,7 +293,7 @@ func TestCompilerArrayStructKeepsSpecFieldsAndNativeStorage(t *testing.T) {
 		"Storage_handle int64",
 		"Elements       []runtime.Value",
 		"func __able_struct_Array_sync(value *Array) {",
-		"&__able_array_i32{Length: int32(2), Capacity: int32(2), Storage_handle: int64(0), Elements: []int32{",
+		"&__able_array_i32{Elements: []int32{",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
 			t.Fatalf("expected compiled array lowering to contain %q", fragment)
@@ -411,8 +411,8 @@ func TestCompilerArrayMutationsSyncMetadata(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not find compiled main function")
 	}
-	if count := strings.Count(mainBody, "__able_array_i32_sync("); count < 4 {
-		t.Fatalf("expected static array mutations to sync metadata, found %d sync calls in main", count)
+	if strings.Contains(mainBody, "__able_array_i32_sync(") {
+		t.Fatalf("expected static array mutations to stay on slice-backed mono arrays without sync helpers:\n%s", mainBody)
 	}
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
@@ -458,7 +458,6 @@ func TestCompilerUntypedArrayPushInfersSpecializedReceiverCarrier(t *testing.T) 
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
 		"append(__able_tmp_",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected untyped Array.push lowering to contain %q:\n%s", fragment, mainBody)
@@ -469,6 +468,7 @@ func TestCompilerUntypedArrayPushInfersSpecializedReceiverCarrier(t *testing.T) 
 		"__able_method_call_node(",
 		"var arr *Array =",
 		"__able_struct_Array_sync(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected untyped Array.push lowering to avoid %q:\n%s", fragment, mainBody)
@@ -517,7 +517,6 @@ func TestCompilerUntypedArrayWithCapacityInfersSpecializedCarrierFromWriteSlot(t
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
 		"&__able_array_i32{Elements: make([]int32, 0, ",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected untyped Array.with_capacity lowering to contain %q:\n%s", fragment, mainBody)
@@ -529,6 +528,7 @@ func TestCompilerUntypedArrayWithCapacityInfersSpecializedCarrierFromWriteSlot(t
 		"runtime.Value",
 		"__able_compiled_method_Array_with_capacity(",
 		"__able_method_call_node(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected untyped Array.with_capacity lowering to avoid %q:\n%s", fragment, mainBody)
@@ -556,7 +556,6 @@ func TestCompilerEmptyArrayLiteralPushInfersSpecializedCarrier(t *testing.T) {
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
 		"append(__able_tmp_",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected empty array literal push lowering to contain %q:\n%s", fragment, mainBody)
@@ -567,6 +566,7 @@ func TestCompilerEmptyArrayLiteralPushInfersSpecializedCarrier(t *testing.T) {
 		"[]runtime.Value",
 		"runtime.ArrayValue",
 		"__able_struct_Array_sync(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected empty array literal push lowering to avoid %q:\n%s", fragment, mainBody)
@@ -592,7 +592,6 @@ func TestCompilerEmptyArrayLiteralWriteSlotInfersSpecializedCarrier(t *testing.T
 	}
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
-		"__able_array_i32_sync(",
 		"Elements = append(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
@@ -604,6 +603,7 @@ func TestCompilerEmptyArrayLiteralWriteSlotInfersSpecializedCarrier(t *testing.T
 		"[]runtime.Value",
 		"runtime.ArrayValue",
 		"__able_struct_Array_sync(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected empty array literal write_slot lowering to avoid %q:\n%s", fragment, mainBody)
@@ -634,7 +634,6 @@ func TestCompilerUntypedArrayCallArgInfersSpecializedCarrier(t *testing.T) {
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
 		"__able_compiled_fn_seed_spec(arr, int32(1))",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected untyped Array.new call-arg inference to contain %q:\n%s", fragment, mainBody)
@@ -644,6 +643,7 @@ func TestCompilerUntypedArrayCallArgInfersSpecializedCarrier(t *testing.T) {
 		"var arr *Array =",
 		"__able_struct_Array_sync(",
 		"__able_array_i32_from(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected untyped Array.new call-arg inference to avoid %q:\n%s", fragment, mainBody)
@@ -679,7 +679,6 @@ func TestCompilerEmptyArrayLiteralMethodArgInfersSpecializedCarrier(t *testing.T
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
 		"__able_compiled_method_Sink_seed_spec(",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected empty array literal method-arg inference to contain %q:\n%s", fragment, mainBody)
@@ -690,6 +689,7 @@ func TestCompilerEmptyArrayLiteralMethodArgInfersSpecializedCarrier(t *testing.T
 		"[]runtime.Value",
 		"runtime.ArrayValue",
 		"__able_struct_Array_sync(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected empty array literal method-arg inference to avoid %q:\n%s", fragment, mainBody)
@@ -715,7 +715,6 @@ func TestCompilerIfFreshArrayBranchesInferSpecializedCarrier(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
-		"__able_array_i32_sync(",
 		"append(__able_tmp_",
 	} {
 		if !strings.Contains(mainBody, fragment) {
@@ -727,6 +726,7 @@ func TestCompilerIfFreshArrayBranchesInferSpecializedCarrier(t *testing.T) {
 		"[]runtime.Value",
 		"runtime.ArrayValue",
 		"__able_struct_Array_sync(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected if-fresh-array specialization to avoid %q:\n%s", fragment, mainBody)
@@ -756,7 +756,6 @@ func TestCompilerMatchFreshArrayClausesInferSpecializedCarrier(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var arr *__able_array_i32 =",
-		"__able_array_i32_sync(",
 		"append(__able_tmp_",
 	} {
 		if !strings.Contains(mainBody, fragment) {
@@ -768,6 +767,7 @@ func TestCompilerMatchFreshArrayClausesInferSpecializedCarrier(t *testing.T) {
 		"[]runtime.Value",
 		"runtime.ArrayValue",
 		"__able_struct_Array_sync(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected match-fresh-array specialization to avoid %q:\n%s", fragment, mainBody)
@@ -826,7 +826,6 @@ func TestCompilerMatchArrayRestBindingStaysNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var tail *__able_array_i32",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native array rest lowering to contain %q:\n%s", fragment, mainBody)
@@ -836,6 +835,7 @@ func TestCompilerMatchArrayRestBindingStaysNative(t *testing.T) {
 		"&runtime.ArrayValue{Elements: append([]runtime.Value(nil),",
 		"__able_array_values(",
 		"var tail runtime.Value =",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native array rest lowering to avoid %q:\n%s", fragment, mainBody)
@@ -861,7 +861,6 @@ func TestCompilerPatternAssignmentArrayRestBindingStaysNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var tail *__able_array_i32",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native pattern assignment rest lowering to contain %q:\n%s", fragment, mainBody)
@@ -871,6 +870,7 @@ func TestCompilerPatternAssignmentArrayRestBindingStaysNative(t *testing.T) {
 		"&runtime.ArrayValue{Elements: append([]runtime.Value(nil),",
 		"__able_array_values(",
 		"var tail runtime.Value =",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native pattern assignment rest lowering to avoid %q:\n%s", fragment, mainBody)
