@@ -36,21 +36,21 @@ func TestCompilerExperimentalMonoArraysRemainingNumericFamilyUsesSpecializedWrap
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_i8 struct {",
-		"Elements       []int8",
+		"Elements []int8",
 		"type __able_array_i16 struct {",
-		"Elements       []int16",
+		"Elements []int16",
 		"type __able_array_u16 struct {",
-		"Elements       []uint16",
+		"Elements []uint16",
 		"type __able_array_u32 struct {",
-		"Elements       []uint32",
+		"Elements []uint32",
 		"type __able_array_u64 struct {",
-		"Elements       []uint64",
+		"Elements []uint64",
 		"type __able_array_isize struct {",
-		"Elements       []int",
+		"Elements []int",
 		"type __able_array_usize struct {",
-		"Elements       []uint",
+		"Elements []uint",
 		"type __able_array_f32 struct {",
-		"Elements       []float32",
+		"Elements []float32",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
 			t.Fatalf("expected remaining numeric mono-array lowering to contain %q", fragment)

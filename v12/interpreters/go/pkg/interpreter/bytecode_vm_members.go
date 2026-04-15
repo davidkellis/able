@@ -76,23 +76,32 @@ func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
 		vm.ip++
 		return nil
 	}
+	memberName := instr.name
 	memberExpr := ast.Expression(nil)
 	if instr.node != nil {
 		if member, ok := instr.node.(*ast.MemberAccessExpression); ok && member != nil {
 			memberExpr = member.Member
+			if memberName == "" {
+				if ident, ok := memberExpr.(*ast.Identifier); ok && ident != nil {
+					memberName = ident.Name
+				}
+			}
 		}
+	}
+	if memberExpr == nil && memberName != "" {
+		ident := ast.Identifier{Name: memberName}
+		memberExpr = &ident
 	}
 	if memberExpr == nil {
 		return fmt.Errorf("bytecode member access requires member expression")
 	}
-	memberName := ""
-	if ident, ok := memberExpr.(*ast.Identifier); ok && ident != nil {
-		memberName = ident.Name
-	}
-	if cached, ok := vm.lookupCachedMemberMethod(vm.currentProgram, vm.ip, memberName, instr.preferMethods, obj); ok {
-		vm.stack = append(vm.stack, cached)
-		vm.ip++
-		return nil
+	useMethodCache := vm.canUseMemberMethodCache(memberName, instr.preferMethods)
+	if useMethodCache {
+		if cached, ok := vm.lookupCachedMemberMethod(vm.currentProgram, vm.ip, memberName, instr.preferMethods, obj); ok {
+			vm.stack = append(vm.stack, cached)
+			vm.ip++
+			return nil
+		}
 	}
 	val, err := vm.interp.memberAccessOnValueWithOptions(obj, memberExpr, vm.env, instr.preferMethods)
 	if err != nil {
@@ -102,7 +111,9 @@ func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
 		}
 		return err
 	}
-	vm.storeCachedMemberMethod(vm.currentProgram, vm.ip, memberName, instr.preferMethods, obj, val)
+	if useMethodCache {
+		vm.storeCachedMemberMethod(vm.currentProgram, vm.ip, memberName, instr.preferMethods, obj, val)
+	}
 	if val == nil {
 		val = runtime.NilValue{}
 	}

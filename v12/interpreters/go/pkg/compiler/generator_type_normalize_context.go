@@ -139,11 +139,13 @@ func normalizeNestedTypeExprChildrenForPackage(g *generator, pkgName string, exp
 		if t == nil {
 			return expr
 		}
-		base := normalizeTypeExprForPackage(g, pkgName, t.Base)
+		basePkg := g.resolvedTypeExprPackage(pkgName, t.Base)
+		base := normalizeTypeExprForPackage(g, basePkg, t.Base)
 		changed := base != t.Base
 		args := make([]ast.TypeExpression, 0, len(t.Arguments))
 		for _, arg := range t.Arguments {
-			next := normalizeTypeExprForPackage(g, pkgName, arg)
+			argPkg := g.resolvedTypeExprPackage(pkgName, arg)
+			next := normalizeTypeExprForPackage(g, argPkg, arg)
 			args = append(args, next)
 			if next != arg {
 				changed = true
@@ -157,7 +159,8 @@ func normalizeNestedTypeExprChildrenForPackage(g *generator, pkgName string, exp
 		if t == nil {
 			return expr
 		}
-		inner := normalizeTypeExprForPackage(g, pkgName, t.InnerType)
+		innerPkg := g.resolvedTypeExprPackage(pkgName, t.InnerType)
+		inner := normalizeTypeExprForPackage(g, innerPkg, t.InnerType)
 		if inner == t.InnerType {
 			return expr
 		}
@@ -166,7 +169,8 @@ func normalizeNestedTypeExprChildrenForPackage(g *generator, pkgName string, exp
 		if t == nil {
 			return expr
 		}
-		inner := normalizeTypeExprForPackage(g, pkgName, t.InnerType)
+		innerPkg := g.resolvedTypeExprPackage(pkgName, t.InnerType)
+		inner := normalizeTypeExprForPackage(g, innerPkg, t.InnerType)
 		if inner == t.InnerType {
 			return expr
 		}
@@ -178,7 +182,8 @@ func normalizeNestedTypeExprChildrenForPackage(g *generator, pkgName string, exp
 		changed := false
 		members := make([]ast.TypeExpression, 0, len(t.Members))
 		for _, member := range t.Members {
-			next := normalizeTypeExprForPackage(g, pkgName, member)
+			memberPkg := g.resolvedTypeExprPackage(pkgName, member)
+			next := normalizeTypeExprForPackage(g, memberPkg, member)
 			members = append(members, next)
 			if next != member {
 				changed = true
@@ -192,11 +197,13 @@ func normalizeNestedTypeExprChildrenForPackage(g *generator, pkgName string, exp
 		if t == nil {
 			return expr
 		}
-		ret := normalizeTypeExprForPackage(g, pkgName, t.ReturnType)
+		retPkg := g.resolvedTypeExprPackage(pkgName, t.ReturnType)
+		ret := normalizeTypeExprForPackage(g, retPkg, t.ReturnType)
 		changed := ret != t.ReturnType
 		params := make([]ast.TypeExpression, 0, len(t.ParamTypes))
 		for _, param := range t.ParamTypes {
-			next := normalizeTypeExprForPackage(g, pkgName, param)
+			paramPkg := g.resolvedTypeExprPackage(pkgName, param)
+			next := normalizeTypeExprForPackage(g, paramPkg, param)
 			params = append(params, next)
 			if next != param {
 				changed = true
@@ -212,15 +219,16 @@ func normalizeNestedTypeExprChildrenForPackage(g *generator, pkgName string, exp
 }
 
 func (g *generator) resolvedTypeExprPackage(pkgName string, expr ast.TypeExpression) string {
+	resolvedPkg := strings.TrimSpace(pkgName)
 	if g == nil || expr == nil {
-		return strings.TrimSpace(pkgName)
+		return resolvedPkg
 	}
-	if g.normalizedTypeExprPackagesByExpr != nil {
+	if g.normalizedTypeExprPackagesByExpr != nil && !g.importedSelectorAliasAppearsInTypeExpr(resolvedPkg, expr) {
 		if recorded := strings.TrimSpace(g.normalizedTypeExprPackagesByExpr[expr]); recorded != "" {
 			return recorded
 		}
 	}
-	resolvedPkg, normalized := g.normalizeTypeExprContextForPackage(pkgName, expr)
+	resolvedPkg, normalized := g.normalizeTypeExprContextForPackage(resolvedPkg, expr)
 	if normalized != nil && g.normalizedTypeExprPackagesByExpr != nil {
 		if recorded := strings.TrimSpace(g.normalizedTypeExprPackagesByExpr[normalized]); recorded != "" {
 			return recorded

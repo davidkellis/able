@@ -429,3 +429,287 @@ func TestCompilerSpecializedGenericUnionInterfaceMemberStaysNative(t *testing.T)
 		}
 	}
 }
+
+func TestCompilerSpecializedGenericImportedShadowedInterfaceAliasReturnStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Reader::RemoteReader, First, Choice}",
+			"",
+			"interface Reader <T> for Self {",
+			"  fn read(self: Self) -> T",
+			"}",
+			"",
+			"fn id<T>(value: T) -> T { value }",
+			"",
+			"fn main() -> i32 {",
+			"  choice: Choice (RemoteReader i32) = First {}",
+			"  picked := id(choice)",
+			"  picked match {",
+			"    case reader: RemoteReader i32 => reader.read(),",
+			"    case _: String => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"interface Reader <T> for Self {",
+			"  fn read(self: Self) -> T",
+			"}",
+			"",
+			"struct First {}",
+			"",
+			"impl Reader i32 for First {",
+			"  fn read(self: Self) -> i32 { 7 }",
+			"}",
+			"",
+			"type Choice T = T | String",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var picked runtime.Value",
+		"var picked any",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_method_call_node(",
+		"__able_call_value(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected specialized generic imported shadowed interface alias return to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "var picked __able_union_") || !strings.Contains(body, "reader.read()") {
+		t.Fatalf("expected specialized generic imported shadowed interface alias return to stay native:\n%s", body)
+	}
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_id_spec(value __able_union_") {
+		t.Fatalf("expected specialized generic imported shadowed interface alias helper to use a native union signature:\n%s", compiledSrc)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_id_spec(value runtime.Value) (runtime.Value, *__ableControl)",
+		"func __able_compiled_fn_id_spec(value any) (any, *__ableControl)",
+		"_variant_runtime_Value",
+		"_wrap_runtime_Value",
+		"_as_runtime_Value",
+	} {
+		if strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected specialized generic imported shadowed interface alias helper to avoid %q:\n%s", fragment, compiledSrc)
+		}
+	}
+}
+
+func TestCompilerSpecializedGenericImportedShadowedCallableAliasReturnStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, Outcome}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn id<T>(value: T) -> T { value }",
+			"",
+			"fn main() -> i32 {",
+			"  outcome: Outcome (() -> RemoteThing) = fn() -> RemoteThing { RemoteThing { remote: 7 } }",
+			"  picked := id(outcome)",
+			"  picked match {",
+			"    case build: (() -> RemoteThing) => build().remote,",
+			"    case _: Error => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type Outcome T = Result T",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var picked runtime.Value",
+		"var picked any",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_call_value(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected specialized generic imported shadowed callable alias return to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "var picked __able_union_") || !strings.Contains(body, ".Remote") {
+		t.Fatalf("expected specialized generic imported shadowed callable alias return to stay native:\n%s", body)
+	}
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_id_spec(value __able_union_") {
+		t.Fatalf("expected specialized generic imported shadowed callable alias helper to use a native union signature:\n%s", compiledSrc)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_id_spec(value runtime.Value) (runtime.Value, *__ableControl)",
+		"func __able_compiled_fn_id_spec(value any) (any, *__ableControl)",
+		"_variant_runtime_Value",
+		"_wrap_runtime_Value",
+		"_as_runtime_Value",
+	} {
+		if strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected specialized generic imported shadowed callable alias helper to avoid %q:\n%s", fragment, compiledSrc)
+		}
+	}
+}
+
+func TestCompilerSpecializedGenericImportedShadowedInterfaceResultAliasReturnStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Reader::RemoteReader, First, Outcome}",
+			"",
+			"interface Reader <T> for Self {",
+			"  fn read(self: Self) -> T",
+			"}",
+			"",
+			"fn id<T>(value: T) -> T { value }",
+			"",
+			"fn main() -> i32 {",
+			"  outcome: Outcome (RemoteReader i32) = First {}",
+			"  picked := id(outcome)",
+			"  picked match {",
+			"    case reader: RemoteReader i32 => reader.read(),",
+			"    case _: Error => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"interface Reader <T> for Self {",
+			"  fn read(self: Self) -> T",
+			"}",
+			"",
+			"struct First {}",
+			"",
+			"impl Reader i32 for First {",
+			"  fn read(self: Self) -> i32 { 7 }",
+			"}",
+			"",
+			"type Outcome T = Result T",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var picked runtime.Value",
+		"var picked any",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_method_call_node(",
+		"__able_call_value(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected specialized generic imported shadowed interface result alias return to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "var picked __able_union_") || !strings.Contains(body, "reader.read()") {
+		t.Fatalf("expected specialized generic imported shadowed interface result alias return to stay native:\n%s", body)
+	}
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_id_spec(value __able_union_") {
+		t.Fatalf("expected specialized generic imported shadowed interface result alias helper to use a native union signature:\n%s", compiledSrc)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_id_spec(value runtime.Value) (runtime.Value, *__ableControl)",
+		"func __able_compiled_fn_id_spec(value any) (any, *__ableControl)",
+		"_variant_runtime_Value",
+		"_wrap_runtime_Value",
+		"_as_runtime_Value",
+	} {
+		if strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected specialized generic imported shadowed interface result alias helper to avoid %q:\n%s", fragment, compiledSrc)
+		}
+	}
+}
+
+func TestCompilerSpecializedGenericImportedShadowedCallableUnionAliasReturnStaysNative(t *testing.T) {
+	result := compileNoFallbackPackage(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{Thing::RemoteThing, Choice}",
+			"",
+			"struct Thing { local: i32 }",
+			"",
+			"fn id<T>(value: T) -> T { value }",
+			"",
+			"fn main() -> i32 {",
+			"  choice: Choice (() -> RemoteThing) = fn() -> RemoteThing { RemoteThing { remote: 7 } }",
+			"  picked := id(choice)",
+			"  picked match {",
+			"    case build: (() -> RemoteThing) => build().remote,",
+			"    case _: String => 0",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+		"remote/module.able": strings.Join([]string{
+			"struct Thing { remote: i32 }",
+			"",
+			"type Choice T = T | String",
+			"",
+		}, "\n"),
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"var picked runtime.Value",
+		"var picked any",
+		"__able_try_cast(",
+		"bridge.MatchType(",
+		"__able_call_value(",
+		"__able_member_get(",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected specialized generic imported shadowed callable union alias return to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "var picked __able_union_") || !strings.Contains(body, ".Remote") {
+		t.Fatalf("expected specialized generic imported shadowed callable union alias return to stay native:\n%s", body)
+	}
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_id_spec(value __able_union_") {
+		t.Fatalf("expected specialized generic imported shadowed callable union alias helper to use a native union signature:\n%s", compiledSrc)
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_fn_id_spec(value runtime.Value) (runtime.Value, *__ableControl)",
+		"func __able_compiled_fn_id_spec(value any) (any, *__ableControl)",
+		"_variant_runtime_Value",
+		"_wrap_runtime_Value",
+		"_as_runtime_Value",
+	} {
+		if strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected specialized generic imported shadowed callable union alias helper to avoid %q:\n%s", fragment, compiledSrc)
+		}
+	}
+}

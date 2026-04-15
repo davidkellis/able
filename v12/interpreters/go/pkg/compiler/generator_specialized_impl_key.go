@@ -69,6 +69,11 @@ func (g *generator) canonicalImplSpecializationBindings(info *functionInfo, impl
 			if expr == nil {
 				continue
 			}
+			if len(allowed) > 0 {
+				if _, ok := allowed[name]; !ok {
+					continue
+				}
+			}
 			out[name] = normalizeTypeExprForPackage(g, info.Package, expr)
 		}
 	}

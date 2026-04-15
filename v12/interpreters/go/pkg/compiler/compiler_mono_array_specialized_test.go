@@ -33,7 +33,7 @@ func TestCompilerExperimentalMonoArraysTypedArrayUsesSpecializedWrapper(t *testi
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_i32 struct {",
-		"Elements       []int32",
+		"Elements []int32",
 		"func __able_array_i32_from(value runtime.Value) (*__able_array_i32, error) {",
 		"func __able_array_i32_to(rt *bridge.Runtime, value *__able_array_i32) (runtime.Value, error) {",
 		"func __able_compiled_fn_sum(values *__able_array_i32) (int32, *__ableControl) {",
@@ -51,7 +51,7 @@ func TestCompilerExperimentalMonoArraysTypedArrayUsesSpecializedWrapper(t *testi
 	}
 	for _, fragment := range []string{
 		"var values *__able_array_i32 =",
-		"&__able_array_i32{Length: int32(2), Capacity: int32(2), Storage_handle: int64(0), Elements: []int32{int32(1), int32(2)}}",
+		"&__able_array_i32{Elements: []int32{int32(1), int32(2)}}",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected mono-array main body to contain %q:\n%s", fragment, mainBody)
@@ -73,7 +73,6 @@ func TestCompilerExperimentalMonoArraysTypedArrayUsesSpecializedWrapper(t *testi
 	}
 	for _, fragment := range []string{
 		"Elements = append(",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(sumBody, fragment) {
 			t.Fatalf("expected mono-array sum body to contain %q:\n%s", fragment, sumBody)
@@ -82,6 +81,7 @@ func TestCompilerExperimentalMonoArraysTypedArrayUsesSpecializedWrapper(t *testi
 	for _, fragment := range []string{
 		"__able_ptr(",
 		"__able_nullable_i32_to_value(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(sumBody, fragment) {
 			t.Fatalf("expected mono-array sum body to avoid obsolete nullable-pointer boxing %q:\n%s", fragment, sumBody)
@@ -111,7 +111,7 @@ func TestCompilerExperimentalMonoArraysF64TypedArrayUsesSpecializedWrapper(t *te
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_f64 struct {",
-		"Elements       []float64",
+		"Elements []float64",
 		"func __able_array_f64_from(value runtime.Value) (*__able_array_f64, error) {",
 		"func __able_array_f64_to(rt *bridge.Runtime, value *__able_array_f64) (runtime.Value, error) {",
 		"func __able_compiled_fn_sum(values *__able_array_f64) (float64, *__ableControl) {",
@@ -129,7 +129,7 @@ func TestCompilerExperimentalMonoArraysF64TypedArrayUsesSpecializedWrapper(t *te
 	}
 	for _, fragment := range []string{
 		"var values *__able_array_f64 =",
-		"&__able_array_f64{Length: int32(2), Capacity: int32(2), Storage_handle: int64(0), Elements: []float64{float64(1.25), float64(2.75)}}",
+		"&__able_array_f64{Elements: []float64{float64(1.25), float64(2.75)}}",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected f64 mono-array main body to contain %q:\n%s", fragment, mainBody)
@@ -168,7 +168,7 @@ func TestCompilerExperimentalMonoArraysCharTypedArrayUsesSpecializedWrapper(t *t
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_char struct {",
-		"Elements       []rune",
+		"Elements []rune",
 		"func __able_array_char_from(value runtime.Value) (*__able_array_char, error) {",
 		"func __able_array_char_to(rt *bridge.Runtime, value *__able_array_char) (runtime.Value, error) {",
 		"func __able_compiled_fn_tail(values *__able_array_char) (rune, *__ableControl) {",
@@ -186,7 +186,7 @@ func TestCompilerExperimentalMonoArraysCharTypedArrayUsesSpecializedWrapper(t *t
 	}
 	for _, fragment := range []string{
 		"var values *__able_array_char =",
-		"&__able_array_char{Length: int32(2), Capacity: int32(2), Storage_handle: int64(0), Elements: []rune{rune('a'), rune('b')}}",
+		"&__able_array_char{Elements: []rune{rune('a'), rune('b')}}",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected char mono-array main body to contain %q:\n%s", fragment, mainBody)
@@ -225,7 +225,7 @@ func TestCompilerExperimentalMonoArraysStringTypedArrayUsesSpecializedWrapper(t 
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_String struct {",
-		"Elements       []string",
+		"Elements []string",
 		"func __able_array_String_from(value runtime.Value) (*__able_array_String, error) {",
 		"func __able_array_String_to(rt *bridge.Runtime, value *__able_array_String) (runtime.Value, error) {",
 		"func __able_compiled_fn_head(values *__able_array_String) (string, *__ableControl) {",
@@ -243,7 +243,7 @@ func TestCompilerExperimentalMonoArraysStringTypedArrayUsesSpecializedWrapper(t 
 	}
 	for _, fragment := range []string{
 		"var values *__able_array_String =",
-		"&__able_array_String{Length: int32(2), Capacity: int32(2), Storage_handle: int64(0), Elements: []string{\"alpha\", \"beta\"}}",
+		"&__able_array_String{Elements: []string{\"alpha\", \"beta\"}}",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected String mono-array main body to contain %q:\n%s", fragment, mainBody)

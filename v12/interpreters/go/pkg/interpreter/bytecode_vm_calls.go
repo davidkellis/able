@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -43,6 +42,42 @@ func bytecodeCanUseSelfFastFrame(currentProgram *bytecodeProgram, calleeProgram 
 	return currentProgram != nil && currentProgram == calleeProgram && currentEnv != nil && currentEnv == calleeEnv
 }
 
+func inlineParamCoercionUnnecessary(layout *bytecodeFrameLayout, idx int, typeExpr ast.TypeExpression, val runtime.Value) bool {
+	if layout != nil && idx >= 0 && idx < len(layout.paramSimpleTypes) {
+		if typeName := layout.paramSimpleTypes[idx]; typeName != "" {
+			return inlineCoercionUnnecessaryBySimpleType(typeName, val)
+		}
+	}
+	return inlineCoercionUnnecessary(typeExpr, val)
+}
+
+func inlineParamSimpleType(layout *bytecodeFrameLayout, idx int) string {
+	if layout == nil || idx < 0 || idx >= len(layout.paramSimpleTypes) {
+		return ""
+	}
+	return layout.paramSimpleTypes[idx]
+}
+
+func inlineParamType(layout *bytecodeFrameLayout, idx int) ast.TypeExpression {
+	if layout == nil || idx < 0 || idx >= len(layout.paramTypes) {
+		return nil
+	}
+	return layout.paramTypes[idx]
+}
+
+func inlineParamNeedsRuntimeCoercion(layout *bytecodeFrameLayout, idx int, fn *runtime.FunctionValue) bool {
+	if layout == nil || idx < 0 || idx >= len(layout.paramNeedsCoercion) {
+		return false
+	}
+	if !layout.paramNeedsCoercion[idx] {
+		return false
+	}
+	if fn != nil && fn.MethodSet != nil && len(fn.MethodSet.GenericParams) > 0 {
+		return !paramUsesGeneric(inlineParamType(layout, idx), fn.GenericNameSet(nil))
+	}
+	return true
+}
+
 // tryInlineCall attempts to set up an inline call frame for a slot-enabled
 // function value. Returns the new program to switch to, or nil if the
 // function cannot be inlined (the caller should fall back to callCallableValue).
@@ -55,16 +90,13 @@ func (vm *bytecodeVM) tryInlineCall(callee runtime.Value, args []runtime.Value, 
 	if !ok || prog == nil || prog.frameLayout == nil {
 		return nil, nil
 	}
-	decl, ok := fn.Declaration.(*ast.FunctionDefinition)
-	if !ok || decl == nil || decl.Body == nil {
-		return nil, nil
-	}
+	layout := prog.frameLayout
 	// Method shorthand requires implicit receiver adjustment and extra arg.
-	if decl.IsMethodShorthand {
+	if layout.methodShorthand {
 		return nil, nil
 	}
 	// Require exact arity match (skip optional params).
-	paramCount := len(decl.Params)
+	paramCount := layout.paramSlots
 	if len(args) != paramCount {
 		return nil, nil
 	}
@@ -77,25 +109,27 @@ func (vm *bytecodeVM) tryInlineCall(callee runtime.Value, args []runtime.Value, 
 		return nil, nil
 	}
 
-	layout := prog.frameLayout
 	slots := vm.acquireSlotFrame(layout.slotCount)
 
-	// Coerce parameters (skip for params that use generic type names,
-	// matching the behavior in invokeFunction). Use fast path when the
-	// value already trivially matches the declared type.
-	var generics map[string]struct{}
-	if len(decl.GenericParams) > 0 {
-		generics = functionGenericNameSet(fn, decl)
-	}
-	for idx, param := range decl.Params {
+	// Coerce parameters when the cached layout metadata says the declared type
+	// can actually require runtime coercion.
+	for idx := 0; idx < paramCount; idx++ {
 		arg := args[idx]
-		if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !inlineCoercionUnnecessary(param.ParamType, arg) {
-			coerced, err := vm.interp.coerceValueToType(param.ParamType, arg)
-			if err != nil {
+		paramType := inlineParamType(layout, idx)
+		if inlineParamNeedsRuntimeCoercion(layout, idx, fn) && !inlineParamCoercionUnnecessary(layout, idx, paramType, arg) {
+			if coerced, ok, err := inlineCoerceValueBySimpleType(inlineParamSimpleType(layout, idx), arg); err != nil {
 				vm.releaseSlotFrame(slots)
 				return nil, err
+			} else if ok {
+				arg = coerced
+			} else {
+				coerced, err := vm.interp.coerceValueToType(paramType, arg)
+				if err != nil {
+					vm.releaseSlotFrame(slots)
+					return nil, err
+				}
+				arg = coerced
 			}
-			arg = coerced
 		}
 		slots[idx] = arg
 	}
@@ -140,14 +174,11 @@ func (vm *bytecodeVM) tryInlineCallFromStack(callee runtime.Value, argBase int, 
 	if !ok || prog == nil || prog.frameLayout == nil {
 		return nil, nil
 	}
-	decl, ok := fn.Declaration.(*ast.FunctionDefinition)
-	if !ok || decl == nil || decl.Body == nil {
+	layout := prog.frameLayout
+	if layout.methodShorthand {
 		return nil, nil
 	}
-	if decl.IsMethodShorthand {
-		return nil, nil
-	}
-	paramCount := len(decl.Params)
+	paramCount := layout.paramSlots
 	expectedArgs := paramCount
 	if hasInjectedReceiver {
 		expectedArgs--
@@ -158,36 +189,56 @@ func (vm *bytecodeVM) tryInlineCallFromStack(callee runtime.Value, argBase int, 
 	if callNode != nil && len(callNode.TypeArguments) > 0 {
 		return nil, nil
 	}
-	if fn.MethodSet != nil && len(fn.MethodSet.GenericParams) > 0 {
+	if fn.MethodSet != nil && len(fn.MethodSet.GenericParams) > 0 && !hasInjectedReceiver {
 		return nil, nil
 	}
-
-	layout := prog.frameLayout
 	slots := vm.acquireSlotFrame(layout.slotCount)
-	var generics map[string]struct{}
-	if len(decl.GenericParams) > 0 {
-		generics = functionGenericNameSet(fn, decl)
-	}
-	for idx, param := range decl.Params {
-		var arg runtime.Value
-		if hasInjectedReceiver {
-			if idx == 0 {
-				arg = injectedReceiver
-			} else {
-				arg = vm.stack[argBase+idx-1]
+
+	if hasInjectedReceiver {
+		// Bound receivers already passed member resolution for this callable,
+		// so only the explicit arguments need inline coercion work here.
+		slots[0] = injectedReceiver
+		for idx := 1; idx < paramCount; idx++ {
+			arg := vm.stack[argBase+idx-1]
+			paramType := inlineParamType(layout, idx)
+			if inlineParamNeedsRuntimeCoercion(layout, idx, fn) && !inlineParamCoercionUnnecessary(layout, idx, paramType, arg) {
+				if coerced, ok, err := inlineCoerceValueBySimpleType(inlineParamSimpleType(layout, idx), arg); err != nil {
+					vm.releaseSlotFrame(slots)
+					return nil, err
+				} else if ok {
+					arg = coerced
+				} else {
+					coerced, err := vm.interp.coerceValueToType(paramType, arg)
+					if err != nil {
+						vm.releaseSlotFrame(slots)
+						return nil, err
+					}
+					arg = coerced
+				}
 			}
-		} else {
-			arg = vm.stack[argBase+idx]
+			slots[idx] = arg
 		}
-		if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !inlineCoercionUnnecessary(param.ParamType, arg) {
-			coerced, err := vm.interp.coerceValueToType(param.ParamType, arg)
-			if err != nil {
-				vm.releaseSlotFrame(slots)
-				return nil, err
+	} else {
+		for idx := 0; idx < paramCount; idx++ {
+			arg := vm.stack[argBase+idx]
+			paramType := inlineParamType(layout, idx)
+			if inlineParamNeedsRuntimeCoercion(layout, idx, fn) && !inlineParamCoercionUnnecessary(layout, idx, paramType, arg) {
+				if coerced, ok, err := inlineCoerceValueBySimpleType(inlineParamSimpleType(layout, idx), arg); err != nil {
+					vm.releaseSlotFrame(slots)
+					return nil, err
+				} else if ok {
+					arg = coerced
+				} else {
+					coerced, err := vm.interp.coerceValueToType(paramType, arg)
+					if err != nil {
+						vm.releaseSlotFrame(slots)
+						return nil, err
+					}
+					arg = coerced
+				}
 			}
-			arg = coerced
+			slots[idx] = arg
 		}
-		slots[idx] = arg
 	}
 	if layout.selfCallSlot >= 0 && layout.selfCallSlot < len(slots) {
 		slots[layout.selfCallSlot] = fn
@@ -228,14 +279,11 @@ func (vm *bytecodeVM) tryInlineSelfCallFromStack(fn *runtime.FunctionValue, argB
 	if !ok || prog == nil || prog.frameLayout == nil {
 		return nil, nil
 	}
-	decl, ok := fn.Declaration.(*ast.FunctionDefinition)
-	if !ok || decl == nil || decl.Body == nil {
+	layout := prog.frameLayout
+	if layout.methodShorthand {
 		return nil, nil
 	}
-	if decl.IsMethodShorthand {
-		return nil, nil
-	}
-	if argCount != len(decl.Params) {
+	if argCount != layout.paramSlots {
 		return nil, nil
 	}
 	if callNode != nil && len(callNode.TypeArguments) > 0 {
@@ -244,12 +292,10 @@ func (vm *bytecodeVM) tryInlineSelfCallFromStack(fn *runtime.FunctionValue, argB
 	if fn.MethodSet != nil && len(fn.MethodSet.GenericParams) > 0 {
 		return nil, nil
 	}
-
-	layout := prog.frameLayout
-	if len(decl.Params) == 1 && len(decl.GenericParams) == 0 && !layout.usesImplicitMember {
-		param := decl.Params[0]
+	if layout.paramSlots == 1 && !layout.usesImplicitMember {
 		arg := vm.stack[argBase]
-		if param != nil && (param.ParamType == nil || inlineCoercionUnnecessary(param.ParamType, arg)) {
+		paramType := inlineParamType(layout, 0)
+		if !inlineParamNeedsRuntimeCoercion(layout, 0, fn) || inlineParamCoercionUnnecessary(layout, 0, paramType, arg) {
 			slots := vm.acquireSlotFrame(layout.slotCount)
 			slots[0] = arg
 			if layout.selfCallSlot >= 0 && layout.selfCallSlot < len(slots) {
@@ -264,19 +310,23 @@ func (vm *bytecodeVM) tryInlineSelfCallFromStack(fn *runtime.FunctionValue, argB
 		}
 	}
 	slots := vm.acquireSlotFrame(layout.slotCount)
-	var generics map[string]struct{}
-	if len(decl.GenericParams) > 0 {
-		generics = functionGenericNameSet(fn, decl)
-	}
-	for idx, param := range decl.Params {
+	for idx := 0; idx < layout.paramSlots; idx++ {
 		arg := vm.stack[argBase+idx]
-		if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !inlineCoercionUnnecessary(param.ParamType, arg) {
-			coerced, err := vm.interp.coerceValueToType(param.ParamType, arg)
-			if err != nil {
+		paramType := inlineParamType(layout, idx)
+		if inlineParamNeedsRuntimeCoercion(layout, idx, fn) && !inlineParamCoercionUnnecessary(layout, idx, paramType, arg) {
+			if coerced, ok, err := inlineCoerceValueBySimpleType(inlineParamSimpleType(layout, idx), arg); err != nil {
 				vm.releaseSlotFrame(slots)
 				return nil, err
+			} else if ok {
+				arg = coerced
+			} else {
+				coerced, err := vm.interp.coerceValueToType(paramType, arg)
+				if err != nil {
+					vm.releaseSlotFrame(slots)
+					return nil, err
+				}
+				arg = coerced
 			}
-			arg = coerced
 		}
 		slots[idx] = arg
 	}
@@ -284,7 +334,7 @@ func (vm *bytecodeVM) tryInlineSelfCallFromStack(fn *runtime.FunctionValue, argB
 		slots[layout.selfCallSlot] = fn
 	}
 
-	hasImplicit := len(decl.Params) > 0 && layout.usesImplicitMember
+	hasImplicit := layout.paramSlots > 0 && layout.usesImplicitMember
 	if hasImplicit {
 		state := vm.interp.stateFromEnv(fn.Closure)
 		state.pushImplicitReceiver(vm.stack[argBase])
@@ -319,19 +369,26 @@ func (vm *bytecodeVM) tryInlineSelfCallWithArg(fn *runtime.FunctionValue, arg ru
 		return nil, nil
 	}
 
-	if layout.firstParamType != nil {
+	paramType := inlineParamType(layout, 0)
+	if inlineParamNeedsRuntimeCoercion(layout, 0, fn) {
 		noCoercion := false
 		if layout.firstParamSimple != "" {
 			noCoercion = inlineCoercionUnnecessaryBySimpleType(layout.firstParamSimple, arg)
 		} else {
-			noCoercion = inlineCoercionUnnecessary(layout.firstParamType, arg)
+			noCoercion = inlineCoercionUnnecessary(paramType, arg)
 		}
 		if !noCoercion {
-			coerced, err := vm.interp.coerceValueToType(layout.firstParamType, arg)
-			if err != nil {
+			if coerced, ok, err := inlineCoerceValueBySimpleType(layout.firstParamSimple, arg); err != nil {
 				return nil, err
+			} else if ok {
+				arg = coerced
+			} else {
+				coerced, err := vm.interp.coerceValueToType(paramType, arg)
+				if err != nil {
+					return nil, err
+				}
+				arg = coerced
 			}
-			arg = coerced
 		}
 	}
 
@@ -533,6 +590,12 @@ func (vm *bytecodeVM) execCall(instr bytecodeInstruction, currentProgram *byteco
 		}
 	}
 	statsEnabled := vm.interp != nil && vm.interp.bytecodeStatsEnabled
+	if target, ok := bytecodeResolveExactNativeCallTarget(callee, instr.argCount); ok {
+		args := vm.stack[argBase:]
+		vm.stack = vm.stack[:calleeIndex]
+		result, _, err := vm.execExactNativeCall(target, args, callNode)
+		return vm.finishCompletedCall(result, err, callNode, nil)
+	}
 	// Fast path: inline without allocating an argument slice.
 	if newProg, err := vm.tryInlineCallFromStack(callee, argBase, instr.argCount, calleeIndex, callNode, currentProgram); err != nil {
 		return nil, err
@@ -545,37 +608,13 @@ func (vm *bytecodeVM) execCall(instr bytecodeInstruction, currentProgram *byteco
 		vm.interp.recordBytecodeInlineCallMiss()
 	}
 	args := vm.stack[argBase:]
-	vm.stack = vm.stack[:argBase]
-	callee, err := vm.pop()
-	if err != nil {
-		return nil, err
-	}
+	vm.stack = vm.stack[:calleeIndex]
 	if bytecodeCallTargetNeedsStableArgs(callee) {
 		args = copyCallArgs(args)
 	}
 	// Normal call.
 	result, err := vm.interp.callCallableValueMutable(callee, args, vm.env, callNode)
-	if err != nil {
-		if errors.Is(err, errSerialYield) {
-			payload := payloadFromState(vm.env.RuntimeData())
-			if payload == nil || !payload.awaitBlocked {
-				vm.stack = append(vm.stack, runtime.NilValue{})
-				vm.ip++
-			}
-			return nil, err
-		}
-		err = vm.interp.attachRuntimeContext(err, callNode, vm.interp.stateFromEnv(vm.env))
-		if vm.handleLoopSignal(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if result == nil {
-		result = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, result)
-	vm.ip++
-	return nil, nil
+	return vm.finishCompletedCall(result, err, callNode, nil)
 }
 
 // execCallSelf handles bytecodeOpCallSelf for self-recursive slot calls.
@@ -619,31 +658,14 @@ func (vm *bytecodeVM) execCallSelf(instr bytecodeInstruction, currentProgram *by
 	}
 	args := vm.stack[argBase:]
 	vm.stack = vm.stack[:argBase]
+	if result, handled, err := vm.tryExecExactNativeCall(callee, args, callNode); handled {
+		return vm.finishCompletedCall(result, err, callNode, nil)
+	}
 	if bytecodeCallTargetNeedsStableArgs(callee) {
 		args = copyCallArgs(args)
 	}
 	result, err := vm.interp.callCallableValueMutable(callee, args, vm.env, callNode)
-	if err != nil {
-		if errors.Is(err, errSerialYield) {
-			payload := payloadFromState(vm.env.RuntimeData())
-			if payload == nil || !payload.awaitBlocked {
-				vm.stack = append(vm.stack, runtime.NilValue{})
-				vm.ip++
-			}
-			return nil, err
-		}
-		err = vm.interp.attachRuntimeContext(err, callNode, vm.interp.stateFromEnv(vm.env))
-		if vm.handleLoopSignal(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if result == nil {
-		result = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, result)
-	vm.ip++
-	return nil, nil
+	return vm.finishCompletedCall(result, err, callNode, nil)
 }
 
 // execCallSelfIntSubSlotConst handles fused recursive calls of the form
@@ -687,7 +709,7 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 						if argErr != nil {
 							argErr = vm.interp.wrapStandardRuntimeError(argErr)
 							if instr.node != nil {
-								argErr = vm.interp.attachRuntimeContext(argErr, instr.node, vm.interp.stateFromEnv(vm.env))
+								argErr = vm.attachBytecodeRuntimeContext(argErr, instr.node, nil)
 							}
 							return nil, argErr
 						}
@@ -719,7 +741,7 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 		if argErr != nil {
 			argErr = vm.interp.wrapStandardRuntimeError(argErr)
 			if instr.node != nil {
-				argErr = vm.interp.attachRuntimeContext(argErr, instr.node, vm.interp.stateFromEnv(vm.env))
+				argErr = vm.attachBytecodeRuntimeContext(argErr, instr.node, nil)
 			}
 			return nil, argErr
 		}
@@ -734,28 +756,11 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 			vm.interp.recordBytecodeInlineCallMiss()
 		}
 		args := [1]runtime.Value{arg}
+		if result, handled, err := vm.tryExecExactNativeCall(callee, args[:], callNode); handled {
+			return vm.finishCompletedCall(result, err, callNode, nil)
+		}
 		result, err := vm.interp.callCallableValueMutable(callee, args[:], vm.env, callNode)
-		if err != nil {
-			if errors.Is(err, errSerialYield) {
-				payload := payloadFromState(vm.env.RuntimeData())
-				if payload == nil || !payload.awaitBlocked {
-					vm.stack = append(vm.stack, runtime.NilValue{})
-					vm.ip++
-				}
-				return nil, err
-			}
-			err = vm.interp.attachRuntimeContext(err, callNode, vm.interp.stateFromEnv(vm.env))
-			if vm.handleLoopSignal(err) {
-				return nil, nil
-			}
-			return nil, err
-		}
-		if result == nil {
-			result = runtime.NilValue{}
-		}
-		vm.stack = append(vm.stack, result)
-		vm.ip++
-		return nil, nil
+		return vm.finishCompletedCall(result, err, callNode, nil)
 	default:
 		if statsEnabled {
 			vm.interp.recordBytecodeInlineCallMiss()
@@ -766,34 +771,17 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 	if argErr != nil {
 		argErr = vm.interp.wrapStandardRuntimeError(argErr)
 		if instr.node != nil {
-			argErr = vm.interp.attachRuntimeContext(argErr, instr.node, vm.interp.stateFromEnv(vm.env))
+			argErr = vm.attachBytecodeRuntimeContext(argErr, instr.node, nil)
 		}
 		return nil, argErr
 	}
 
 	args := [1]runtime.Value{arg}
+	if result, handled, err := vm.tryExecExactNativeCall(callee, args[:], callNode); handled {
+		return vm.finishCompletedCall(result, err, callNode, nil)
+	}
 	result, err := vm.interp.callCallableValueMutable(callee, args[:], vm.env, callNode)
-	if err != nil {
-		if errors.Is(err, errSerialYield) {
-			payload := payloadFromState(vm.env.RuntimeData())
-			if payload == nil || !payload.awaitBlocked {
-				vm.stack = append(vm.stack, runtime.NilValue{})
-				vm.ip++
-			}
-			return nil, err
-		}
-		err = vm.interp.attachRuntimeContext(err, callNode, vm.interp.stateFromEnv(vm.env))
-		if vm.handleLoopSignal(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if result == nil {
-		result = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, result)
-	vm.ip++
-	return nil, nil
+	return vm.finishCompletedCall(result, err, callNode, nil)
 }
 
 // execCallName handles bytecodeOpCallName. It returns a non-nil program when
@@ -816,13 +804,25 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction, currentProgram *by
 		}
 	}
 	statsEnabled := vm.interp != nil && vm.interp.bytecodeStatsEnabled
-	state := vm.interp.stateFromEnv(vm.env)
 	if statsEnabled {
 		vm.interp.recordBytecodeCallNameLookup()
 	}
-	calleeVal, found := vm.lookupCachedName(currentProgram, vm.ip, instr.name)
+	var (
+		calleeVal runtime.Value
+		found     bool
+	)
+	if instr.nameSimple {
+		calleeVal, found = vm.lookupCachedIdentifierName(currentProgram, vm.ip, instr.name)
+	} else {
+		calleeVal, found = vm.lookupCachedName(currentProgram, vm.ip, instr.name)
+	}
 	if !found {
-		if dotIdx := strings.Index(instr.name, "."); dotIdx > 0 && dotIdx < len(instr.name)-1 {
+		if !instr.nameSimple {
+			dotIdx := strings.Index(instr.name, ".")
+			if dotIdx <= 0 || dotIdx >= len(instr.name)-1 {
+				err := fmt.Errorf("Undefined variable '%s'", instr.name)
+				return nil, vm.attachBytecodeRuntimeContext(err, callNode, nil)
+			}
 			if statsEnabled {
 				vm.interp.recordBytecodeCallNameDotFallback()
 			}
@@ -842,17 +842,23 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction, currentProgram *by
 				member := ast.ID(tail)
 				candidate, err := vm.interp.memberAccessOnValueWithOptions(receiver, member, vm.env, true)
 				if err != nil {
-					return nil, vm.interp.attachRuntimeContext(err, callNode, state)
+					return nil, vm.attachBytecodeRuntimeContext(err, callNode, nil)
 				}
 				calleeVal = candidate
 				vm.storeCachedMemberMethod(currentProgram, vm.ip, tail, true, receiver, candidate)
 			}
 		} else {
 			err := fmt.Errorf("Undefined variable '%s'", instr.name)
-			return nil, vm.interp.attachRuntimeContext(err, callNode, state)
+			return nil, vm.attachBytecodeRuntimeContext(err, callNode, nil)
 		}
 	}
 	argBase := len(vm.stack) - instr.argCount
+	if target, ok := bytecodeResolveExactNativeCallTarget(calleeVal, instr.argCount); ok {
+		args := vm.stack[argBase:]
+		vm.stack = vm.stack[:argBase]
+		result, _, err := vm.execExactNativeCall(target, args, callNode)
+		return vm.finishCompletedCall(result, err, callNode, nil)
+	}
 	// Fast path: inline without allocating an argument slice.
 	if newProg, err := vm.tryInlineCallFromStack(calleeVal, argBase, instr.argCount, argBase, callNode, currentProgram); err != nil {
 		return nil, err
@@ -871,25 +877,5 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction, currentProgram *by
 	}
 	// Normal call.
 	result, err := vm.interp.callCallableValueMutable(calleeVal, args, vm.env, callNode)
-	if err != nil {
-		if errors.Is(err, errSerialYield) {
-			payload := payloadFromState(vm.env.RuntimeData())
-			if payload == nil || !payload.awaitBlocked {
-				vm.stack = append(vm.stack, runtime.NilValue{})
-				vm.ip++
-			}
-			return nil, err
-		}
-		err = vm.interp.attachRuntimeContext(err, callNode, state)
-		if vm.handleLoopSignal(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if result == nil {
-		result = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, result)
-	vm.ip++
-	return nil, nil
+	return vm.finishCompletedCall(result, err, callNode, nil)
 }

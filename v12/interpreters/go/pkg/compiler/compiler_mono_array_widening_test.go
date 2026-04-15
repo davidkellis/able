@@ -38,7 +38,6 @@ func TestCompilerExperimentalMonoArraysInferredLiteralLoopAndPatternStaySpeciali
 		"var nums *__able_array_i32 =",
 		"var value int32",
 		"var tail *__able_array_i32 =",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(summaryBody, fragment) {
 			t.Fatalf("expected widened mono-array lowering to contain %q:\n%s", fragment, summaryBody)
@@ -50,6 +49,7 @@ func TestCompilerExperimentalMonoArraysInferredLiteralLoopAndPatternStaySpeciali
 		"[]runtime.Value{",
 		"__able_call_value(",
 		"__able_method_call_node(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(summaryBody, fragment) {
 			t.Fatalf("expected widened mono-array lowering to avoid %q:\n%s", fragment, summaryBody)
@@ -85,7 +85,6 @@ func TestCompilerExperimentalMonoArraysFactoryCloneAndReserveStaySpecialized(t *
 		"make([]int32, 0, ",
 		"make([]int32, len(",
 		"var copy *__able_array_i32 =",
-		"__able_array_i32_sync(",
 	} {
 		if !strings.Contains(compiledSrc, fragment) && !strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected widened mono-array factory lowering to contain %q", fragment)
@@ -95,6 +94,7 @@ func TestCompilerExperimentalMonoArraysFactoryCloneAndReserveStaySpecialized(t *
 		"runtime.ArrayValue",
 		"[]runtime.Value{",
 		"__able_struct_Array_clone_elements(",
+		"__able_array_i32_sync(",
 	} {
 		if strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected widened mono-array factory lowering to avoid %q:\n%s", fragment, buildBody)
@@ -211,7 +211,7 @@ func TestCompilerExperimentalMonoArraysNestedF64RowsStaySpecialized(t *testing.T
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_array_f64 struct {",
-		"Elements       []*__able_array_f64",
+		"Elements []*__able_array_f64",
 		"func __able_array_array_f64_from(value runtime.Value) (*__able_array_array_f64, error) {",
 		"func __able_array_array_f64_to(rt *bridge.Runtime, value *__able_array_array_f64) (runtime.Value, error) {",
 	} {
@@ -229,8 +229,6 @@ func TestCompilerExperimentalMonoArraysNestedF64RowsStaySpecialized(t *testing.T
 		"var row *__able_array_f64 =",
 		"&__able_array_array_f64{}",
 		"&__able_array_f64{}",
-		"__able_array_array_f64_sync(",
-		"__able_array_f64_sync(",
 		".Elements = append(",
 		"float64(i)",
 	} {
@@ -246,6 +244,8 @@ func TestCompilerExperimentalMonoArraysNestedF64RowsStaySpecialized(t *testing.T
 		"__able_array_f64_from(",
 		"__able_cast(",
 		"bridge.AsFloat(",
+		"__able_array_array_f64_sync(",
+		"__able_array_f64_sync(",
 	} {
 		if strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected nested f64 row lowering to avoid %q in build body:\n%s", fragment, buildBody)
@@ -600,9 +600,9 @@ func TestCompilerExperimentalMonoArraysNestedCharRowsStaySpecialized(t *testing.
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_char struct {",
-		"Elements       []rune",
+		"Elements []rune",
 		"type __able_array_array_char struct {",
-		"Elements       []*__able_array_char",
+		"Elements []*__able_array_char",
 		"func __able_array_array_char_from(value runtime.Value) (*__able_array_array_char, error) {",
 		"func __able_array_array_char_to(rt *bridge.Runtime, value *__able_array_array_char) (runtime.Value, error) {",
 	} {
@@ -619,8 +619,6 @@ func TestCompilerExperimentalMonoArraysNestedCharRowsStaySpecialized(t *testing.
 		"var rows *__able_array_array_char =",
 		"var row *__able_array_char =",
 		".Elements = append(",
-		"__able_array_array_char_sync(",
-		"__able_array_char_sync(",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected nested char row build body to contain %q:\n%s", fragment, body)
@@ -630,6 +628,8 @@ func TestCompilerExperimentalMonoArraysNestedCharRowsStaySpecialized(t *testing.
 		"runtime.ArrayValue",
 		"__able_struct_Array_to(__able_runtime, row)",
 		"[]runtime.Value{",
+		"__able_array_array_char_sync(",
+		"__able_array_char_sync(",
 	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected nested char row build body to avoid %q:\n%s", fragment, body)
@@ -655,7 +655,7 @@ func TestCompilerNestedCarrierArraysDefaultToNativeWrappers(t *testing.T) {
 	for _, fragment := range []string{
 		"const __able_experimental_mono_arrays = true",
 		"type __able_array_array_char struct {",
-		"Elements       []*__able_array_char",
+		"Elements []*__able_array_char",
 		"func __able_array_array_char_from(value runtime.Value) (*__able_array_array_char, error) {",
 		"func __able_array_array_char_to(rt *bridge.Runtime, value *__able_array_array_char) (runtime.Value, error) {",
 	} {
@@ -672,8 +672,6 @@ func TestCompilerNestedCarrierArraysDefaultToNativeWrappers(t *testing.T) {
 		"var rows *__able_array_array_char =",
 		"var row *__able_array_char =",
 		".Elements = append(",
-		"__able_array_array_char_sync(",
-		"__able_array_char_sync(",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected default nested carrier-array build body to contain %q:\n%s", fragment, body)
@@ -683,6 +681,8 @@ func TestCompilerNestedCarrierArraysDefaultToNativeWrappers(t *testing.T) {
 		"__able_any_to_value(row)",
 		"runtime.ArrayValue",
 		"__able_struct_Array_from(__able_tmp_",
+		"__able_array_array_char_sync(",
+		"__able_array_char_sync(",
 	} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected default nested carrier-array build body to avoid %q:\n%s", fragment, body)
@@ -749,7 +749,7 @@ func TestCompilerExperimentalMonoArraysInterfaceCarrierArrayStaysSpecialized(t *
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_iface_Greeter struct {",
-		"Elements       []__able_iface_Greeter",
+		"Elements []__able_iface_Greeter",
 		"func __able_array_iface_Greeter_from(value runtime.Value) (*__able_array_iface_Greeter, error) {",
 		"func __able_array_iface_Greeter_to(rt *bridge.Runtime, value *__able_array_iface_Greeter) (runtime.Value, error) {",
 	} {
@@ -823,7 +823,7 @@ func TestCompilerExperimentalMonoArraysCallableCarrierArrayStaysSpecialized(t *t
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_array_fn_int32_to_int32 struct {",
-		"Elements       []__able_fn_int32_to_int32",
+		"Elements []__able_fn_int32_to_int32",
 		"func __able_array_fn_int32_to_int32_from(value runtime.Value) (*__able_array_fn_int32_to_int32, error) {",
 		"func __able_array_fn_int32_to_int32_to(rt *bridge.Runtime, value *__able_array_fn_int32_to_int32) (runtime.Value, error) {",
 	} {

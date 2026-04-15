@@ -263,15 +263,25 @@ func (g *generator) inferNativeInterfaceGenericMethodShape(ctx *compileContext, 
 			ctx.setReason("generic call arity mismatch")
 			return nil, nil, nil, "", nil, false
 		}
+		typeArgPkg := method.InterfacePackage
+		if ctx.packageName != "" {
+			typeArgPkg = ctx.packageName
+		}
 		for idx, arg := range call.TypeArguments {
 			if method.GenericParams[idx] == nil || method.GenericParams[idx].Name == nil || method.GenericParams[idx].Name.Name == "" || arg == nil {
 				ctx.setReason("generic call type mismatch")
 				return nil, nil, nil, "", nil, false
 			}
-			concreteArg, ok := g.specializationConcreteArgTypeExpr(method.InterfacePackage, arg)
+			concreteArg, ok := g.specializationConcreteArgTypeExpr(typeArgPkg, arg)
 			if !ok || concreteArg == nil {
 				continue
 			}
+			// First normalize in the lexical caller package so nested imported
+			// selector aliases like `fn() -> RemoteThing` resolve before the outer
+			// alias records a foreign package. Then rewrite the fully normalized
+			// expression into the interface package for default-body specialization.
+			concreteArg = normalizeTypeExprForPackage(g, typeArgPkg, concreteArg)
+			concreteArg = normalizeTypeExprForPackage(g, method.InterfacePackage, concreteArg)
 			bindings[method.GenericParams[idx].Name.Name] = concreteArg
 		}
 	}
@@ -302,6 +312,7 @@ func (g *generator) inferNativeInterfaceGenericMethodShape(ctx *compileContext, 
 	for _, paramExpr := range method.ParamTypeExprs {
 		inst := normalizeTypeExprForPackage(g, method.InterfacePackage, substituteTypeParams(paramExpr, bindings))
 		goType, ok := mapper.Map(inst)
+		goType, ok = g.recoverRepresentableCarrierType(method.InterfacePackage, inst, goType)
 		if !ok || goType == "" {
 			return nil, nil, nil, "", nil, false
 		}
@@ -310,6 +321,7 @@ func (g *generator) inferNativeInterfaceGenericMethodShape(ctx *compileContext, 
 	}
 	returnExpr := normalizeTypeExprForPackage(g, method.InterfacePackage, substituteTypeParams(method.ReturnTypeExpr, bindings))
 	returnGoType, ok := mapper.Map(returnExpr)
+	returnGoType, ok = g.recoverRepresentableCarrierType(method.InterfacePackage, returnExpr, returnGoType)
 	if !ok || returnGoType == "" {
 		return nil, nil, nil, "", nil, false
 	}
@@ -457,6 +469,7 @@ func (g *generator) nativeInterfaceGenericMethodImpl(goType string, method *nati
 			for _, expr := range expectedParamTypeExprs {
 				inst := normalizeTypeExprForPackage(g, method.InterfacePackage, substituteTypeParams(expr, bindings))
 				goType, ok := mapper.Map(inst)
+				goType, ok = g.recoverRepresentableCarrierType(method.InterfacePackage, inst, goType)
 				if !ok || goType == "" {
 					expectedParamGoTypes = nil
 					break
@@ -468,6 +481,7 @@ func (g *generator) nativeInterfaceGenericMethodImpl(goType string, method *nati
 		if expectedReturnGoType == "" && expectedReturnTypeExpr != nil {
 			mapper := NewTypeMapper(g, method.InterfacePackage)
 			expectedReturnGoType, _ = mapper.Map(expectedReturnTypeExpr)
+			expectedReturnGoType, _ = g.recoverRepresentableCarrierType(method.InterfacePackage, expectedReturnTypeExpr, expectedReturnGoType)
 		}
 		if len(implParamGoTypes) != len(expectedParamTypeExprs) || (len(expectedParamGoTypes) > 0 && len(expectedParamGoTypes) != len(implParamGoTypes)) {
 			continue

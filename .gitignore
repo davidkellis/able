@@ -1,11 +1,26 @@
-.gocache
-.gomodcache
-.cache
-.examples
-.tmp
+# Local workspace state
+.bin/
+.cache/
+.examples/
+.gocache*/
+.gomodcache/
+.tmp*
 tmp/
 tmp*/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+
+# Go build and profiling artifacts
+_obj/
+*.coverprofile
+*.prof
+*.test
+coverage.out
+/v10/interpreter10-go/able
+/v*/interpreters/go/able
+
+# Local build sandboxes
 target/
-v12/interpreters/go/able
-v12/interpreters/go/able.test
-v12/interpreters/go/.gocache-test/

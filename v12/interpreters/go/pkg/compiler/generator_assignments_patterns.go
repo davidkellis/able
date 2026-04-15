@@ -172,13 +172,16 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 				}
 				fieldInfo := info.Fields[idx]
 				fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+				bindTypeExpr := g.patternBindingTypeExpr(ctx, fieldInfo.GoType, fieldInfo.TypeExpr)
+				previousExpected := ctx.expectedTypeExpr
+				ctx.expectedTypeExpr = bindTypeExpr
 				fieldLines, ok := g.compileAssignmentPatternBindings(ctx, fieldPattern, fieldExpr, fieldInfo.GoType, mode)
+				ctx.expectedTypeExpr = previousExpected
 				if !ok {
 					return nil, false
 				}
 				lines = append(lines, fieldLines...)
 				if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
-					bindTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
 					bindLines, ok := g.bindPatternIdentifier(ctx, field.Binding.Name, fieldExpr, fieldInfo.GoType, bindTypeExpr, mode)
 					if !ok {
 						return nil, false
@@ -208,13 +211,16 @@ func (g *generator) compileAssignmentPatternBindings(ctx *compileContext, patter
 				return nil, false
 			}
 			fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+			bindTypeExpr := g.patternBindingTypeExpr(ctx, fieldInfo.GoType, fieldInfo.TypeExpr)
+			previousExpected := ctx.expectedTypeExpr
+			ctx.expectedTypeExpr = bindTypeExpr
 			fieldLines, ok := g.compileAssignmentPatternBindings(ctx, fieldPattern, fieldExpr, fieldInfo.GoType, mode)
+			ctx.expectedTypeExpr = previousExpected
 			if !ok {
 				return nil, false
 			}
 			lines = append(lines, fieldLines...)
 			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
-				bindTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
 				bindLines, ok := g.bindPatternIdentifier(ctx, field.Binding.Name, fieldExpr, fieldInfo.GoType, bindTypeExpr, mode)
 				if !ok {
 					return nil, false

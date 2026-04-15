@@ -1023,14 +1023,16 @@ func (g *generator) preferConcreteTypeExprForGoType(ctx *compileContext, inferre
 	if ctx != nil {
 		pkgName = ctx.packageName
 	}
-	concrete = normalizeTypeExprForPackage(g, pkgName, concrete)
-	if concrete == nil || !g.typeExprFullyBound(pkgName, concrete) {
+	concretePkg := g.resolvedTypeExprPackage(pkgName, concrete)
+	concrete = normalizeTypeExprForPackage(g, concretePkg, concrete)
+	if concrete == nil || (!g.typeExprFullyBound(pkgName, concrete) && !g.typeExprFullyBound(concretePkg, concrete)) {
 		return inferred
 	}
 	if inferred == nil {
 		return concrete
 	}
-	if !g.typeExprFullyBound(pkgName, inferred) {
+	inferredPkg := g.resolvedTypeExprPackage(pkgName, inferred)
+	if !g.typeExprFullyBound(pkgName, inferred) && !g.typeExprFullyBound(inferredPkg, inferred) {
 		return concrete
 	}
 	if ctx != nil && g.typeExprHasGeneric(inferred, ctx.genericNames) {
@@ -1142,8 +1144,13 @@ func (g *generator) normalizeConcreteTypeBindings(pkgName string, bindings map[s
 		if expr == nil {
 			continue
 		}
-		normalized := normalizeTypeExprForPackage(g, pkgName, expr)
-		if !g.typeExprFullyBound(pkgName, normalized) {
+		resolvedPkg := g.resolvedTypeExprPackage(pkgName, expr)
+		normalized := normalizeTypeExprForPackage(g, resolvedPkg, expr)
+		normalized = g.recordResolvedTypeExprPackage(normalized, resolvedPkg)
+		mapped, ok := g.lowerCarrierTypeInPackage(resolvedPkg, normalized)
+		mapped, ok = g.recoverRepresentableCarrierType(resolvedPkg, normalized, mapped)
+		if !g.typeExprFullyBound(pkgName, normalized) && !g.typeExprFullyBound(resolvedPkg, normalized) &&
+			(!ok || mapped == "" || mapped == "runtime.Value" || mapped == "any") {
 			continue
 		}
 		if simple, ok := normalized.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == name {
@@ -1223,6 +1230,14 @@ func (g *generator) specializedBindTemplateArg(pkgName string, template ast.Type
 		if _, ok := genericNames[tt.Name.Name]; ok {
 			if bound, exists := bindings[tt.Name.Name]; exists {
 				if normalizeTypeExprString(g, pkgName, bound) == tt.Name.Name && normalizeTypeExprString(g, pkgName, actual) != tt.Name.Name {
+					bindings[tt.Name.Name] = actual
+					return true
+				}
+				boundKey := normalizeTypeExprIdentityKey(g, pkgName, bound)
+				actualKey := normalizeTypeExprIdentityKey(g, pkgName, actual)
+				if boundKey != "" && actualKey != "" && boundKey != actualKey &&
+					normalizeTypeExprString(g, pkgName, bound) == normalizeTypeExprString(g, pkgName, actual) &&
+					g.typeExprFullyBound(pkgName, actual) {
 					bindings[tt.Name.Name] = actual
 					return true
 				}
@@ -1332,6 +1347,14 @@ func (g *generator) specializedTypeTemplateMatchesNormalized(pkgName string, tem
 					bindings[tt.Name.Name] = actual
 					return true
 				}
+				boundKey := normalizeTypeExprIdentityKey(g, pkgName, bound)
+				actualKey := normalizeTypeExprIdentityKey(g, pkgName, actual)
+				if boundKey != "" && actualKey != "" && boundKey != actualKey &&
+					normalizeTypeExprString(g, pkgName, bound) == normalizeTypeExprString(g, pkgName, actual) &&
+					g.typeExprFullyBound(pkgName, actual) {
+					bindings[tt.Name.Name] = actual
+					return true
+				}
 				return normalizeTypeExprString(g, pkgName, bound) == normalizeTypeExprString(g, pkgName, actual)
 			}
 			bindings[tt.Name.Name] = actual
@@ -1408,6 +1431,7 @@ func (g *generator) normalizeTypeExprForSpecialization(pkgName string, expr ast.
 	if g == nil || expr == nil {
 		return expr
 	}
+	pkgName = g.resolvedTypeExprPackage(pkgName, expr)
 	if seen == nil {
 		seen = make(map[string]struct{})
 	}
@@ -1447,11 +1471,13 @@ func (g *generator) normalizeTypeExprForSpecialization(pkgName string, expr ast.
 				return g.normalizeTypeExprForSpecialization(pkgName, expanded, nextSeen)
 			}
 		}
-		base := g.normalizeTypeExprForSpecialization(pkgName, t.Base, seen)
+		basePkg := g.resolvedTypeExprPackage(pkgName, t.Base)
+		base := g.normalizeTypeExprForSpecialization(basePkg, t.Base, seen)
 		changed := base != t.Base
 		args := make([]ast.TypeExpression, 0, len(t.Arguments))
 		for _, arg := range t.Arguments {
-			next := g.normalizeTypeExprForSpecialization(pkgName, arg, seen)
+			argPkg := g.resolvedTypeExprPackage(pkgName, arg)
+			next := g.normalizeTypeExprForSpecialization(argPkg, arg, seen)
 			args = append(args, next)
 			if next != arg {
 				changed = true
@@ -1460,25 +1486,27 @@ func (g *generator) normalizeTypeExprForSpecialization(pkgName string, expr ast.
 		if !changed {
 			return expr
 		}
-		return ast.NewGenericTypeExpression(base, args)
+		return g.recordResolvedTypeExprPackage(ast.NewGenericTypeExpression(base, args), pkgName)
 	case *ast.NullableTypeExpression:
 		if t == nil {
 			return expr
 		}
-		inner := g.normalizeTypeExprForSpecialization(pkgName, t.InnerType, seen)
+		innerPkg := g.resolvedTypeExprPackage(pkgName, t.InnerType)
+		inner := g.normalizeTypeExprForSpecialization(innerPkg, t.InnerType, seen)
 		if inner == t.InnerType {
 			return expr
 		}
-		return ast.NewNullableTypeExpression(inner)
+		return g.recordResolvedTypeExprPackage(ast.NewNullableTypeExpression(inner), pkgName)
 	case *ast.ResultTypeExpression:
 		if t == nil {
 			return expr
 		}
-		inner := g.normalizeTypeExprForSpecialization(pkgName, t.InnerType, seen)
+		innerPkg := g.resolvedTypeExprPackage(pkgName, t.InnerType)
+		inner := g.normalizeTypeExprForSpecialization(innerPkg, t.InnerType, seen)
 		if inner == t.InnerType {
 			return expr
 		}
-		return ast.NewResultTypeExpression(inner)
+		return g.recordResolvedTypeExprPackage(ast.NewResultTypeExpression(inner), pkgName)
 	case *ast.UnionTypeExpression:
 		if t == nil {
 			return expr
@@ -1486,7 +1514,8 @@ func (g *generator) normalizeTypeExprForSpecialization(pkgName string, expr ast.
 		changed := false
 		members := make([]ast.TypeExpression, 0, len(t.Members))
 		for _, member := range t.Members {
-			next := g.normalizeTypeExprForSpecialization(pkgName, member, seen)
+			memberPkg := g.resolvedTypeExprPackage(pkgName, member)
+			next := g.normalizeTypeExprForSpecialization(memberPkg, member, seen)
 			members = append(members, next)
 			if next != member {
 				changed = true
@@ -1495,7 +1524,7 @@ func (g *generator) normalizeTypeExprForSpecialization(pkgName string, expr ast.
 		if !changed {
 			return expr
 		}
-		return ast.NewUnionTypeExpression(members)
+		return g.recordResolvedTypeExprPackage(ast.NewUnionTypeExpression(members), pkgName)
 	case *ast.FunctionTypeExpression:
 		if t == nil {
 			return expr
@@ -1503,20 +1532,22 @@ func (g *generator) normalizeTypeExprForSpecialization(pkgName string, expr ast.
 		changed := false
 		params := make([]ast.TypeExpression, 0, len(t.ParamTypes))
 		for _, param := range t.ParamTypes {
-			next := g.normalizeTypeExprForSpecialization(pkgName, param, seen)
+			paramPkg := g.resolvedTypeExprPackage(pkgName, param)
+			next := g.normalizeTypeExprForSpecialization(paramPkg, param, seen)
 			params = append(params, next)
 			if next != param {
 				changed = true
 			}
 		}
-		ret := g.normalizeTypeExprForSpecialization(pkgName, t.ReturnType, seen)
+		retPkg := g.resolvedTypeExprPackage(pkgName, t.ReturnType)
+		ret := g.normalizeTypeExprForSpecialization(retPkg, t.ReturnType, seen)
 		if ret != t.ReturnType {
 			changed = true
 		}
 		if !changed {
-			return normalizeCallableSyntaxTypeExpr(expr)
+			return g.recordResolvedTypeExprPackage(normalizeCallableSyntaxTypeExpr(expr), pkgName)
 		}
-		return normalizeCallableSyntaxTypeExpr(ast.NewFunctionTypeExpression(params, ret))
+		return g.recordResolvedTypeExprPackage(normalizeCallableSyntaxTypeExpr(ast.NewFunctionTypeExpression(params, ret)), pkgName)
 	default:
 		return normalizeTypeExprForPackage(g, pkgName, expr)
 	}
@@ -1575,7 +1606,11 @@ func (g *generator) specializedImplFunctionKey(info *functionInfo, bindings map[
 	parts := make([]string, 0, len(names)+1)
 	parts = append(parts, base)
 	for _, name := range names {
-		parts = append(parts, name+"="+normalizeTypeExprString(g, info.Package, bindings[name]))
+		bindingKey := normalizeTypeExprIdentityKey(g, info.Package, bindings[name])
+		if bindingKey == "" {
+			bindingKey = normalizeTypeExprString(g, info.Package, bindings[name])
+		}
+		parts = append(parts, name+"="+bindingKey)
 	}
 	return strings.Join(parts, "|")
 }

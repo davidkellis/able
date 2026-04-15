@@ -830,7 +830,7 @@ func ErrorValue(rt *Runtime, value runtime.Value) runtime.ErrorValue {
 		if value != nil {
 			payload["value"] = value
 		}
-		return runtime.ErrorValue{Message: fmt.Sprintf("%v", value), Payload: payload}
+		return runtime.ErrorValue{Message: fallbackValueToString(value), Payload: payload}
 	}
 	env := rt.currentEnv()
 	return rt.interp.MakeErrorValue(value, env)

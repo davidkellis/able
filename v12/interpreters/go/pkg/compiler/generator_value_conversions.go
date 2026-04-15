@@ -8,6 +8,9 @@ import (
 )
 
 func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (string, bool) {
+	if expected == "any" {
+		return valueExpr, true
+	}
 	if spec, ok := g.monoArraySpecForGoType(expected); ok && spec != nil {
 		return fmt.Sprintf("func() %s { v, err := %s(%s); if err != nil { panic(err) }; return v }()", expected, spec.FromRuntimeHelper, valueExpr), true
 	}

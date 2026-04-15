@@ -41,7 +41,6 @@ func (g *generator) staticArrayCloneLines(ctx *compileContext, arrayType string,
 			fmt.Sprintf("%s := make([]%s, %s, %s)", valuesTemp, spec.ElemGoType, g.staticSliceLenExpr(valuesExpr), capacityExpr),
 			fmt.Sprintf("copy(%s, %s)", valuesTemp, valuesExpr),
 			fmt.Sprintf("%s := &%s{Elements: %s}", arrayTemp, spec.GoName, valuesTemp),
-			fmt.Sprintf("%s(%s)", spec.SyncHelper, arrayTemp),
 		}
 		return lines, arrayTemp, true
 	}

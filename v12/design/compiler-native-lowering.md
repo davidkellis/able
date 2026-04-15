@@ -777,13 +777,131 @@ not `panic` / `recover`.
     aliases nested inside function type expressions no longer reuse stale
     recorded foreign package context during normalization, so typed patterns
     like `(() -> RemoteThing)` resolve back onto the foreign native callable
-    carrier instead of widening to `__able_fn_*_to_runtime_Value`
+    carrier instead of widening to `__able_fn_*_to_runtime_Value`; proof
+    coverage now pins the same outer-result path for imported semantic
+    `Option` aliases and imported generic union aliases over those shadowed
+    callable members too
+  - proof coverage now also pins local parameterized union/result aliases
+    with imported shadowed interface/callable actuals, so locals like
+    `Choice (RemoteReader i32)` and `Outcome (() -> RemoteThing)` stay on
+    native carriers instead of widening through `runtime.Value` / `any`
+  - proof coverage now also pins generic specialization over those same
+    imported shadowed alias actuals, so specialized helper signatures stay
+    on native union/result/interface/callable carriers instead of widening to
+    `runtime.Value` / `any`
+  - proof coverage now also pins direct shared-mapper lookups and generic
+    interface-method dispatch over those same imported shadowed alias
+    actuals, so `lowerCarrierTypeInPackage(...)` plus existential
+    `pass<T>(...)`-style calls stay on native
+    union/result/interface/callable carriers too
+  - imported generic interface-method calls now keep caller-side explicit
+    type arguments on those same native carriers too: generic-method shape
+    inference normalizes explicit type arguments in the lexical caller
+    package and retries representable-carrier recovery while computing
+    concrete param/return helper signatures, so imported `Echo.pass<T>(...)`
+    and imported default generic method calls stop widening to
+    `runtime.Value` / `any`
+  - imported generic interface default methods now also resolve nested
+    selector-imported members inside those explicit type arguments before
+    specializing the interface-package body, so
+    `tagged.tagged<Outcome(() -> RemoteThing)>(...)` keeps the concrete
+    native `Tagged<...>` carrier and avoids `__able_method_call_node(...)`
+  - native union synthesis now retries representable-carrier recovery in the
+    member's resolved package before accepting a residual `runtime.Value`
+    member, and the imported shadowed interface/callable alias families above
+    are now pinned against hidden `_runtime_Value` union variants inside the
+    generated helper family too
+- generic specialization now retries the same representable-carrier
+  recovery path before rejecting a fully bound actual as broad, and the
+  imported shadowed specialization matrix is now pinned across result /
+  union alias families for both native interface and native callable
+  actuals
+- imported shadowed nullable interface/callable aliases now stay on those
+  native carriers through generic specialization too, and imported shadowed
+  callable union aliases like `Choice (() -> RemoteThing)` now specialize
+  through native union helpers instead of falling back through
+  `runtime.Value`
+- proof coverage now also pins the adjacent broader imported-shadowed
+  three-member alias surface, so `Choice3(RemoteReader i32)` and
+  `Outcome3(() -> RemoteThing)` already stay on native
+  union/interface/callable carriers too with no hidden `_runtime_Value`
+  helper variants
+- proof coverage now also pins those same broader imported-shadowed
+  three-member alias families through imported generic-interface dispatch and
+  imported default generic methods, so
+  `echo.pass<Choice3(RemoteReader i32)>(...)` and
+  `tagged.tagged<Outcome3(() -> RemoteThing)>(...)` stay on native
+  union/result/interface/callable carriers too instead of widening helper
+  signatures or falling back through `__able_method_call_node(...)`
+- proof coverage now also pins those same broader imported-shadowed
+  three-member alias families when the generic-interface receiver itself is a
+  join-produced existential across concrete implementers, so joined
+  `echo.pass<Choice3(RemoteReader i32)>(...)` and joined
+  `tagger.tagged<Outcome3(() -> RemoteThing)>(...)` stay on native
+  union/result/interface/callable carriers too instead of widening the join
+  local or falling back through runtime helpers
+- proof coverage now also pins broader outer-result shapes over those same
+  imported-shadowed three-member alias families, so
+  `!(Choice3(RemoteReader i32))` and `!(Outcome3(() -> RemoteThing))`
+  already flatten/collapse to native union/result/interface/callable
+  carriers too instead of regressing broader result/error families to
+  `runtime.Value` / `any`
+- proof coverage now also pins those same broader outer-result families
+  through generic interface shape synthesis itself, so parameterized carriers
+  like `Keeper(!(Choice3(RemoteReader i32)))` and
+  `Keeper(!(Outcome3(() -> RemoteThing)))` keep native
+  union/result/interface helper signatures too instead of widening interface
+  params/returns to `runtime.Value` / `any`
+- proof coverage now also pins the closed local interface existential family
+  itself, so local aliases like `Either = (Reader i32) | Echo`,
+  `Outcome = !Either`, and `Keeper<Either>` / `Keeper<Outcome>` helper
+  synthesis stay on native union/result/interface carriers too instead of
+  broadening those local helper params/returns to `runtime.Value` / `any`
+- proof coverage now also pins the broader local multi-member
+  interface/callable existential family, so local aliases like
+  `Choice3 = (Reader i32) | Echo | String`,
+  `Outcome3 = Error | (() -> Thing) | String`, generic interface dispatch
+  over those same local families, and `Keeper<Choice3>` /
+  `Keeper<Outcome3>` helper synthesis stay on native
+  union/result/interface/callable carriers too instead of broadening local
+  params, locals, or helper signatures to `runtime.Value` / `any`
+- proof coverage now also pins the last local analogs of that broader
+  family, so joined existential receivers calling
+  `Echo.pass<Choice3>(...)` / `Tagger.tagged<Outcome3>(...)` stay on native
+  carriers too, and local outer-result helper synthesis like
+  `Keeper<!(Choice3)>` / `Keeper<!(Outcome3)>` keeps native
+  union/result/interface signatures too instead of widening joined locals or
+  helper params/returns to `runtime.Value` / `any`
+- native union synthesis now refuses partially native helper families when
+  any member still only maps to `runtime.Value` / `any`, so hidden
+  `_runtime_Value` variants stop leaking into adjacent imported-shadowed
+  specialization slices
+- native interface method-shape collection, native interface impl-signature
+  synthesis, and native callable signature materialization now retry that
+  same representable-carrier recovery pass after raw package-scoped
+    mapping too, so substituted imported shadowed alias families stay on
+    native union/result/interface/callable carriers instead of broadening
+    internally to `runtime.Value` / `any`
   - imported generic struct members with shadowed nominal arguments now stay
     on specialized native carriers inside result / nested-result /
     nested-union-result families too: selector-imported nominal arguments now
     count as fully bound in the caller package, and foreign generic struct
     specialization keeps that caller-side package context through field
-    substitution and field-type inference
+    substitution and field-type inference; proof coverage now also pins the
+    same native-carrier behavior through generic specialization over
+    imported shadowed generic-struct result/union aliases, and foreign
+    generic structs no longer re-run an overly strict whole-expression
+    concreteness gate after that fully bound argument check either, so
+    imported interface/callable arguments such as `RemoteReader i32` and
+    `() -> RemoteThing` keep specialized native `Box<...>` carriers instead
+    of falling back to base `*Box` plus dynamic member calls
+  - local generic nominal carriers over normalized nullable/union/result
+    members now stay on those same specialized native carriers too:
+    `Box MaybeReader`, `Box Choice`, `Box Outcome`, `Box !(Choice)`, and
+    `Box !(Outcome)` all keep specialized native `Box<...>` carriers instead
+    of falling back to base `*Box`, `runtime.Value`, or `any`; this closes
+    the deeper `types.go` / `generator_native_unions.go`
+    carrier-synthesis cleanup
   - generic specialization already keeps those native interface carriers too:
     direct `T -> T` specializations on interface actuals stay on the native
     interface signature, and fully bound duplicate generic unions like
@@ -811,10 +929,40 @@ not `panic` / `recover`.
     recover native rescue carriers from their bodies, while unresolved
     callback failures stay on the dynamic error path so handlers like
     `err.value match { ... }` compile without collapsing `err` to `String`
+  - rescue clause pattern compilation now also clears unrelated outer
+    `expectedTypeExpr` context before binding the failure subject, so the
+    unresolved higher-order rescue path stays on dynamic error carriers
+    instead of inheriting the enclosing return type by accident
+  - no-bootstrap bridge fallback stringification for raised non-`Error`
+    values now stays aligned with interpreter-visible string output, so
+    compiled rescue/string paths no longer diverge under compiler-only runs
+  - nested struct-pattern field bindings now rebind recursive expected type
+    context to the matched field type instead of leaking the outer nominal
+    expectation inward, which keeps persistent-collection helper patterns on
+    the correct native carriers
+  - dynamic typed-pattern casts now allocate temps on the caller context
+    instead of a cloned probe context, so iterator-end / generator-yield
+    matches stop colliding with surrounding temps during codegen
+  - raised imported shadowed nominal struct literals now prefer the
+    compiler's syntax-aware struct-literal type reconstruction during failure
+    inference, so propagated rescue joins keep the foreign native struct
+    carrier instead of degrading into a same-named local nominal union
+  - generated struct boundary `*_from(...)` helpers now keep raw `fieldValue`
+    temporaries compile-clean even when a residual unsupported conversion
+    branch does not consume them, which cleared the released compiled
+    concurrency parity slice after the rescue fix
+  - implicit and explicit return expressions now preserve the declared Able
+    return `TypeExpr` while compiling the returned expression too, so generic
+    return paths like `unwrap(io_read(...))` keep nullable success carriers
+    instead of degrading to the bare nil-capable Go carrier
   - static nullable typed matches on nil-capable native carriers now guard
     both the non-nil typed branch and the `case nil` branch directly too, so
     whole-carrier native interface/result matches no longer emit dead
     unconditional/false conditions ahead of the actual nil arm
+  - the nullable typed-match nil-guard relaxation is now limited to actual
+    in-scope generic type variables, so concrete `?Interface<T>` /
+    `?Result<T>` typed arms regain the required non-nil guard instead of
+    compiling as unconditional typed branches
   - representable outer unions built from native nullable/result members now
     keep direct inner-member literals and clause-ordered typed matches on
     native carriers too: nested wrapping no longer rejects `"ok"` / `Box {}`
@@ -882,10 +1030,15 @@ not `panic` / `recover`.
   - the array-native lowering tranche is complete on 2026-04-01; remaining
     `runtime.ArrayValue` / `ArrayStore*` use is now limited to explicit
     dynamic or ABI edges plus the unspecialized wildcard-array ABI
-  - the next active compiler-native queue is:
-    - union/result/interface carrier cleanup
-    - mono-array transition/runtime-store cleanup
-    - alias/constraint revalidation policy closure
+  - the mono-array transition/runtime-store cleanup is complete on 2026-04-14;
+    compiler-generated mono-array wrappers are now pure slice carriers and
+    explicit boundary helpers are the only remaining mono-array touchpoints for
+    `runtime.ArrayValue` / `ArrayStore*`
+  - no-interpreter generic-interface dispatch now revalidates aliases and
+    interface constraints from compiler-emitted runtime metadata/helpers
+    instead of interpreter registries
+  - the stronger compiler-native completion program is closed on 2026-04-14,
+    and the next active project queue is bytecode performance
 
 ## Relationship To Other Design Notes
 

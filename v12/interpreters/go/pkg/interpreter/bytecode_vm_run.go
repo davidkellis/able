@@ -75,7 +75,15 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			if statsEnabled {
 				vm.interp.recordBytecodeLoadNameLookup()
 			}
-			val, err := vm.resolveCachedName(program, vm.ip, instr.name)
+			var (
+				val runtime.Value
+				err error
+			)
+			if instr.nameSimple {
+				val, err = vm.resolveCachedIdentifierName(program, vm.ip, instr.name)
+			} else {
+				val, err = vm.resolveCachedName(program, vm.ip, instr.name)
+			}
 			if err != nil {
 				if instr.node != nil {
 					err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))

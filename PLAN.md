@@ -73,8 +73,7 @@ Canonical architecture docs:
 
 #### Current state snapshot
 
-Compiler release validation is closed, but compiler-native encoding completion
-is still open:
+Compiler-native encoding completion is closed on 2026-04-14:
 - large static slices of arrays, structs, interfaces, callables, joins, and
   control-flow now stay native;
 - explicit dynamic-boundary audits exist;
@@ -102,12 +101,124 @@ is still open:
   native under outer `Result` carriers too, because raw imported selector
   aliases nested inside function type expressions keep lexical caller-package
   normalization instead of being re-normalized under stale foreign package
-  context and collapsing to `__able_fn_*_to_runtime_Value`;
+  context and collapsing to `__able_fn_*_to_runtime_Value`; the same outer-
+  result native-carrier path is now pinned for imported semantic `Option`
+  aliases and imported generic union aliases over those shadowed callable
+  members too;
+- local parameterized union/result aliases now also have proof coverage for
+  imported shadowed interface/callable actuals, so `Choice (RemoteReader i32)`
+  and `Outcome (() -> RemoteThing)` style locals are pinned to native carriers
+  instead of widening through `runtime.Value` / `any`;
+- generic specialization now also has proof coverage for those imported
+  shadowed alias actuals, so specialized helpers over `Choice (RemoteReader
+  i32)` and `Outcome (() -> RemoteThing)` stay on native signatures instead
+  of widening to `runtime.Value` / `any`;
+- the shared carrier mapper and generic interface-method dispatch now also
+  have proof coverage for those same imported shadowed alias actuals, so
+  direct `lowerCarrierTypeInPackage(...)` lookups and existential
+  `pass<T>(...)` style calls stay on native union/result/interface/callable
+  carriers instead of broadening locals or helper signatures;
+- imported generic interface-method calls now also normalize explicit type
+  arguments in the lexical caller package and retry representable-carrier
+  recovery while computing concrete param/return helper signatures, so
+  imported `Echo.pass<Choice(RemoteReader i32)>(...)` and imported default
+  generic method calls stay on native union/result/interface/callable
+  carriers instead of widening through `runtime.Value` / `any`;
+- imported generic interface default methods now also resolve nested
+  selector-imported members inside those explicit type arguments before
+  specializing the interface-package body, so calls like
+  `tagged.tagged<Outcome(() -> RemoteThing)>(...)` synthesize the concrete
+  native `Tagged<...>` carrier and avoid `__able_method_call_node(...)`;
+- native union synthesis now also retries representable-carrier recovery in
+  the member's resolved package before accepting a residual `runtime.Value`
+  member, and the imported shadowed interface/callable alias families above
+  are now pinned against hidden `_runtime_Value` union variants too;
+- generic specialization now also retries representable-carrier recovery
+  before rejecting a fully bound actual as broad, and the remaining imported
+  shadowed result/interface plus union/callable specialization quadrants are
+  pinned to native helper signatures too;
+- imported shadowed nullable interface/callable aliases now stay on those
+  native carriers through generic specialization too, and imported shadowed
+  callable union aliases like `Choice (() -> RemoteThing)` now specialize
+  through native union helpers instead of falling back through
+  `runtime.Value`;
+- proof coverage now also pins the adjacent broader imported-shadowed
+  three-member alias surface, so `Choice3(RemoteReader i32)` and
+  `Outcome3(() -> RemoteThing)` already stay on native
+  union/interface/callable carriers too, with no hidden `_runtime_Value`
+  helper variants;
+- proof coverage now also pins those same broader imported-shadowed
+  three-member alias families through imported generic-interface dispatch and
+  imported default generic methods, so
+  `echo.pass<Choice3(RemoteReader i32)>(...)` and
+  `tagged.tagged<Outcome3(() -> RemoteThing)>(...)` stay on native
+  union/result/interface/callable carriers too instead of widening helper
+  signatures or falling back through `__able_method_call_node(...)`;
+- proof coverage now also pins those same broader imported-shadowed
+  three-member alias families when the generic-interface receiver itself is a
+  join-produced existential across concrete implementers, so joined
+  `echo.pass<Choice3(RemoteReader i32)>(...)` and joined
+  `tagger.tagged<Outcome3(() -> RemoteThing)>(...)` stay on native
+  union/result/interface/callable carriers too instead of widening the join
+  local or defaulting the call back through runtime helpers;
+- proof coverage now also pins broader outer-result shapes over those same
+  imported-shadowed three-member alias families, so
+  `!(Choice3(RemoteReader i32))` and `!(Outcome3(() -> RemoteThing))`
+  already flatten/collapse to native union/result/interface/callable carriers
+  too instead of regressing broader result/error families to
+  `runtime.Value` / `any`;
+- proof coverage now also pins the same broader outer-result families through
+  generic interface shape synthesis itself, so parameterized carriers like
+  `Keeper(!(Choice3(RemoteReader i32)))` and
+  `Keeper(!(Outcome3(() -> RemoteThing)))` keep native union/result/interface
+  signatures too instead of widening interface helper params/returns to
+  `runtime.Value` / `any`;
+- proof coverage now also pins the closed local interface existential family
+  itself, so local aliases like `Either = (Reader i32) | Echo`,
+  `Outcome = !Either`, and `Keeper<Either>` / `Keeper<Outcome>` helper
+  synthesis stay on native union/result/interface carriers too instead of
+  broadening local helper params/returns to `runtime.Value` / `any`;
+- proof coverage now also pins the broader local multi-member
+  interface/callable existential family, so local aliases like
+  `Choice3 = (Reader i32) | Echo | String`,
+  `Outcome3 = Error | (() -> Thing) | String`, generic interface dispatch
+  over those same local families, and `Keeper<Choice3>` /
+  `Keeper<Outcome3>` helper synthesis all stay on native
+  union/result/interface/callable carriers too instead of broadening local
+  params, locals, or helper signatures to `runtime.Value` / `any`;
+- proof coverage now also pins the last local analogs of that broader family,
+  so joined existential receivers calling `Echo.pass<Choice3>(...)` /
+  `Tagger.tagged<Outcome3>(...)` stay on native carriers too, and local
+  outer-result helper synthesis like `Keeper<!(Choice3)>` /
+  `Keeper<!(Outcome3)>` also keeps native union/result/interface signatures
+  instead of widening joined locals or helper params/returns to
+  `runtime.Value` / `any`;
+- native union synthesis no longer materializes partially native helper
+  families when any member still only maps to `runtime.Value` / `any`, so
+  hidden `_runtime_Value` variants stop leaking into adjacent imported-
+  shadowed specialization slices;
+- native interface method-shape collection, native interface impl-signature
+  synthesis, and native callable signature materialization now also retry
+  representable-carrier recovery after raw package-scoped mapping, so
+  substituted imported shadowed alias families stay on native
+  union/result/interface/callable carriers instead of broadening internally
+  to `runtime.Value` / `any`;
 - imported generic struct members with shadowed nominal type arguments now
   stay on specialized native carriers inside result and nested union/result
   families too, because fully bound imported selector arguments count as
   concrete in the caller package and foreign generic-struct specialization
-  keeps that caller-side package context through field substitution;
+  keeps that caller-side package context through field substitution; proof
+  coverage now also pins that same native-carrier behavior through generic
+  specialization over imported shadowed generic-struct result/union aliases,
+  and imported generic-struct result/union aliases now also keep specialized
+  native carriers when the generic argument is a native interface or native
+  callable instead of falling back to base `*Box` plus dynamic member calls;
+- local generic nominal carriers over normalized nullable/union/result members
+  are now pinned too, so `Box MaybeReader`, `Box Choice`, `Box Outcome`,
+  `Box !(Choice)`, and `Box !(Outcome)` all stay on specialized native
+  `Box<...>` carriers instead of falling back to base `*Box`,
+  `runtime.Value`, or `any`; this closes the deeper `types.go` /
+  `generator_native_unions.go` carrier-synthesis cleanup;
 - error-wrapped nominal struct typed matches now stay on those native struct
   carriers too, because generated `__able_struct_*_try_from(...)` /
   `__able_struct_*_from(...)` helpers unwrap through the shared
@@ -145,10 +256,30 @@ is still open:
   failures no longer misinfer from the callable return type so `err.value`
   style handlers stay on the dynamic error path instead of collapsing to
   arbitrary static return carriers;
+- raised imported shadowed nominal struct literals now prefer the compiler's
+  syntax-aware struct-literal type reconstruction during failure inference, so
+  propagated rescue joins keep the foreign native struct carrier instead of
+  collapsing onto same-named local nominals, while no-bootstrap raised
+  non-`Error` bridge fallback stringification now stays aligned with
+  interpreter-visible output for compiled rescue/string paths;
+- nested struct-pattern field bindings now restore field-local expected type
+  context before recursing into subpatterns, which keeps persistent map/set
+  helper patterns on the correct native carriers, and dynamic typed-pattern
+  casts now allocate temps on the caller stream so iterator-end /
+  generator-yield matches stop colliding with surrounding temps during
+  codegen;
+- implicit and explicit return expressions now preserve the declared Able
+  return `TypeExpr` while compiling the returned expression too, so generic
+  return paths like `unwrap(io_read(...))` keep nullable success carriers
+  instead of collapsing to their nil-capable Go carrier only;
 - static nullable typed matches on nil-capable native carriers now guard both
   the non-nil typed branch and the `case nil` branch directly, so native
   interface and result-family whole-carrier matches no longer compile to dead
   `true`/`false` conditions ahead of the real nil arm;
+- the concrete nullable typed-match nil-guard path is now narrowed to actual
+  in-scope generics only, so `?Interface<T>` / `?Result<T>` typed arms regain
+  their required non-nil guard instead of compiling as unconditional typed
+  branches;
 - nested native nullable/result outer unions now keep representable literals,
   struct literals, and typed-match clause ordering on native carriers too,
   because nested member wrapping is direct and match narrowing only removes a
@@ -167,15 +298,19 @@ is still open:
 - the compiler release gates currently pass:
   - `GOFLAGS='-p=1' ./run_all_tests.sh --compiler`
   - `./run_stdlib_tests.sh`
-- however, the stronger finish line is not yet met because staged hybrid
-  carriers and transitional compiler-native limits are still documented in
-  `spec/TODO_v12.md`, especially around:
-  - residual union/result/interface lowering paths that still permit
-    `runtime.Value` / `any` members for cases that should eventually become
-    host-native compiled carriers;
-  - the remaining mono-array transition still carrying historical
-    runtime-typed-store scaffolding in-tree even though native array carriers
-    are now the default static lowering path.
+- the current dirty-tree compiler release rerun is green end-to-end again:
+  bridge tests, all compiler core batches, outliers, the compiled exec-fixture
+  matrix, strict-dispatch audit, interface-lookup audit, boundary audit, and
+  `./run_stdlib_tests.sh` all pass after the latest rescue/failure-inference,
+  persistent-collection, iterator-end, and bridge-fallback fixes;
+- no-interpreter generic-interface dispatch now performs alias expansion and
+  interface-constraint revalidation through compiler-emitted runtime metadata
+  and generated helpers instead of interpreter registries or bridge fallback;
+- the aggregated observed wall clock for the latest green compiler release
+  rerun is now `52m51s` (`real 3171.27`), so the dominant remaining release-
+  path issue is test runtime pressure rather than a known correctness blocker;
+- the stronger compiler-native completion program is now closed, and bytecode
+  performance is the next active priority.
 
 #### Production definition of done
 
@@ -525,18 +660,26 @@ Status:
 - array-native lowering tranche complete on 2026-04-01; remaining
   `runtime.ArrayValue` / `ArrayStore*` use is limited to explicit dynamic or
   ABI edges plus the unspecialized wildcard-array ABI.
+- residual representable union/result/interface carrier-synthesis cleanup
+  complete on 2026-04-14; representable static carrier families now only
+  admit `runtime.Value` / `any` at explicit dynamic/open or ABI edges.
+- mono-array transitional runtime-store scaffolding cleanup complete on
+  2026-04-14; compiler-generated mono-array wrappers are now pure slice
+  carriers, mono-array field access (`length`, `capacity`, `storage_handle`)
+  stays native on those wrappers, and `runtime.ArrayValue` / `ArrayStore*`
+  remain only explicit dynamic or ABI boundary machinery.
 
 Required work:
-- [ ] finish eliminating residual representable union/result/interface lowering
+- [x] finish eliminating residual representable union/result/interface lowering
       paths that still rely on `runtime.Value` / `any` members outside explicit
       dynamic or ABI boundaries;
-- [ ] retire the remaining transitional mono-array/runtime-typed-store
+- [x] retire the remaining transitional mono-array/runtime-typed-store
       scaffolding now that static compiled arrays use compiler-native carriers
       by default;
-- [ ] decide and document the final no-interpreter policy for alias /
+- [x] decide and document the final no-interpreter policy for alias /
       constraint revalidation in generic interface dispatch, then make the
       implementation match that policy;
-- [ ] rerun the compiled release gates after each material native-encoding
+- [x] rerun the compiled release gates after each material native-encoding
       closure so the stronger finish line is enforced, not just the milestone-8
       release gate.
 
@@ -547,6 +690,10 @@ Proof required:
   patterns, and dispatch stay on final native carriers;
 - top-level release gates still green after each closure step.
 
+Status:
+- compiler-native completion is closed on 2026-04-14;
+- bytecode performance is now the active work queue.
+
 ### Bytecode Performance Program (second priority; start after compiler-native completion work is closed or paused explicitly)
 
 Goal:
@@ -556,6 +703,128 @@ Goal:
 Current state snapshot:
 - a large amount of call-dispatch, lookup-cache, frame-pool, integer-op, and
   hotspot work is already landed;
+- the first post-compiler bytecode tranche is now landed too: repeated array
+  index-method sites use a single-entry hot inline cache before the broader
+  map cache, and the quicksort hotloop CPU profile no longer shows
+  `indexMethodCacheKey(...)` among the active runtime hotspots;
+- the next bytecode tranche is landed too: array-handle tracking now keeps a
+  single tracked `ArrayValue` fast path and only promotes to an alias set when
+  multiple wrappers share a handle, so `syncArrayValues(...)` dropped out of
+  the same quicksort hotspot profile;
+- the next bytecode tranche is landed too: repeated call-position member
+  lookups now hit a single-entry inline member-method cache before the broader
+  per-VM map cache, and receiver identity is pinned so same-name methods on
+  different struct definitions cannot cross-hit;
+- the next bytecode tranche is landed too: repeated non-local `LoadName` /
+  `CallName` sites now cache lexical-owner hits (including captured parent and
+  global bindings) with a single-entry inline hot path, so runtime
+  `Environment.Lookup` is no longer a meaningful quicksort hotspot;
+- the next bytecode tranche is landed too: already-tracked array wrappers now
+  reuse their tracked array state directly instead of re-entering
+  `ArrayStoreEnsure(...)` on hot reads, which moved array-state/store work out
+  of the quicksort hotspot set;
+- the next bytecode tranche is landed too: cached plain-array index sites now
+  stay on a bytecode raw-array fast path instead of bouncing through the
+  generic interpreter index dispatcher, which materially cut the quicksort
+  index hot path again;
+- the next bytecode tranche is landed too: exact-arity native calls and
+  native bound-method calls now stay on a VM-side fast path instead of always
+  routing through the generic callable dispatcher, which cut the remaining
+  quicksort call-dispatch path again and keeps receiver injection plus
+  non-borrowing arg stability pinned under bytecode;
+- the next bytecode tranche is landed too: index-method caching now stores
+  per-program / per-IP cache slots instead of routing hot array index sites
+  back through a composite-key hash map, which removes the remaining
+  `bytecodeIndexMethodCacheKey` hashing cost from the quicksort profile;
+- the next bytecode tranche is landed too: array receiver identity now reuses
+  a cached element-type token on shared array state, and single-threaded
+  bytecode cache probes now read the method-cache version without taking the
+  method-cache lock, which removed `currentMethodCacheVersion()` from the
+  quicksort hotspot set and shrank the remaining index-identity path again;
+- the next bytecode tranche is landed too: `execCall` and `execCallName` now
+  resolve exact native call targets before attempting inline bytecode frame
+  setup, so exact native call sites stop paying the inline-probe miss path and
+  focused stats coverage now pins that those sites no longer contribute inline
+  hit/miss counters;
+- the next bytecode tranche is landed too: direct raw-array index `get` / `set`
+  now reuse the tracked shared `ArrayState` pointer when the receiver already
+  carries a valid tracked handle, and direct integer index decoding now stays
+  on the small-int fast path, which moved the quicksort hot loop back into the
+  high-17ms band without changing cache or invalidation semantics;
+- the next bytecode tranche is landed too: name, member-method, and
+  index-method VM cache probes now read environment/global revision state
+  through a single-thread runtime hint, and bytecode method-cache probes read
+  the interpreter method-cache version directly on the same single-thread path,
+  which cut the remaining revision/version bookkeeping around hot cache checks
+  and pushed the quicksort hot loop back down to roughly `17.5ms/op` on the
+  longer local spot-check;
+- the next bytecode tranche is landed too: already-cached raw-array no-method
+  index sites now bypass `resolveCachedIndexMethod(...)` entirely and jump
+  straight to direct array access under the same inline cache guards, and a
+  same-session 5x50x local A/B check moved the quicksort hotloop distribution
+  from roughly `20.0-24.3ms/op` without the bypass to `19.8-20.4ms/op` with
+  the bypass while keeping recursive array-parameter self-call coverage pinned;
+- the next bytecode tranche is landed too: when no `Array` `Index` /
+  `IndexMut` impls exist at all, raw-array bytecode indexing now skips the
+  index-method cache layer completely and jumps straight to direct array
+  access, while focused “impl appears later” coverage stays green; this pushed
+  the quicksort hot loop down again to roughly `15.9ms/op` on the 50x local
+  spot-check;
+- the next bytecode tranche is landed too: successful bytecode call paths no
+  longer eagerly materialize eval-state/runtime-context data just to complete a
+  call; `execCall`, `execCallName`, and related exact-native paths now resolve
+  `stateFromEnv(...)` only if an actual error needs runtime-context attachment,
+  which moved the quicksort hot loop to roughly `16.2ms/op` on a fresh 50x
+  local spot-check while leaving error semantics unchanged;
+- the next bytecode tranche is landed too: bound generic method calls whose
+  receiver is already concretely injected may now use the existing bytecode
+  inline call fast path instead of being conservatively forced through full
+  `invokeFunction(...)` dispatch; that specifically unlocked concrete generic
+  receiver calls like the hot `Array.push(...)` path and moved the quicksort
+  hot loop to roughly `13.4ms/op` on a fresh 50x local spot-check;
+- the next bytecode tranche is landed too: simple `LoadName` / `CallName`
+  sites now record at lowering time that they are plain identifier lookups, so
+  the VM can skip repeated runtime dotted-name/cacheability checks and go
+  straight to the hot lexical/global/scope cache path; that cut the remaining
+  named-call overhead again and moved the quicksort hot loop to roughly
+  `13.3ms/op` on a clean 50x local rerun while pushing `execCallName` out of
+  the top-tier hotspot set;
+- the next bytecode tranche is landed too: identifier member-access sites now
+  carry their member name directly in bytecode, and `execMemberAccess` only
+  probes/stores the member-method cache when a site can actually use it; that
+  removes the remaining futile member-cache work from plain field/property
+  accesses and drops `execMemberAccess` out of the hotspot tier, while the
+  residual named-call cost is now dominated by inline-call value coercion
+  rather than by ordinary/member dispatch scaffolding;
+- the next bytecode tranche is landed too: slot-layout analysis now caches
+  simple parameter type names for all inlineable parameters, and inline bytecode
+  calls now use a primitive-only fast coercion path for simple integer widening
+  plus integer/float coercions before falling back to the general type
+  coercion machinery; that cuts the targeted `tryInlineCallFromStack(...)`
+  coercion profile materially even though whole-benchmark wall-clock remains in
+  the same noisy low-13ms band on this machine;
+- the next bytecode tranche is landed too: ordinary general integer
+  comparisons now bypass the shared fast-operator dispatcher in the bytecode VM
+  and stay on a direct integer compare path, while the shared fast evaluator
+  also shortcuts exact integer/string comparisons before it falls back to the
+  generic comparison machinery; that moved the quicksort hot loop down again
+  into the low-12ms band on local 20x/50x spot-checks and pushed the remaining
+  visible cost toward slot coercion / cast work rather than comparison
+  dispatch;
+- the next bytecode tranche is landed too: inline bytecode calls now skip
+  `coerceValueToType(...)` entirely when the declared parameter type is a
+  guaranteed no-op coercion shape (for example `Array i32`), and simple
+  primitive casts now short-circuit before alias/type-metadata checks on hot
+  same-type paths such as `as i32`; that kept the quicksort hot loop in the
+  high-11ms band on local 50x runs and pushed `castValueToType(...)` out of
+  the hotspot tier;
+- the next bytecode tranche is landed too: slot layouts now cache per-parameter
+  inline-call coercion metadata, and the VM’s hot inline call path now uses
+  that cached data instead of recomputing generic/no-op coercion guards on
+  every recursive call while also separating the already-bound receiver path;
+  this pushed the quicksort hot loop down again to roughly `11.0ms/op` on the
+  50x profiled local run and dropped `tryInlineCallFromStack(...)` out of the
+  hotspot tier;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.

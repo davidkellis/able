@@ -256,7 +256,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				return nil, fmt.Errorf("function parameter %d is nil", idx)
 			}
 			arg := bindArgs[idx]
-			if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !inlineCoercionUnnecessary(param.ParamType, arg) {
+			if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !i.coerceValueToTypeWouldBeNoOp(param.ParamType) && !inlineCoercionUnnecessary(param.ParamType, arg) {
 				coerced, err := i.coerceValueToType(param.ParamType, arg)
 				if err != nil {
 					return nil, err

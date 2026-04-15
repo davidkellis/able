@@ -69,3 +69,68 @@ func TestBytecodeVM_InlineBoundMethodCallStats(t *testing.T) {
 		t.Fatalf("expected inline call hits > 0 for bound method call sites")
 	}
 }
+
+func TestBytecodeVM_InlineBoundGenericMethodCallStats(t *testing.T) {
+	t.Setenv("ABLE_BYTECODE_STATS", "1")
+
+	boxDef := ast.StructDef(
+		"Box",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("T"), "value"),
+		},
+		ast.StructKindNamed,
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+	)
+
+	setFn := ast.Fn(
+		"set",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Self")),
+			ast.Param("value", ast.Ty("T")),
+		},
+		[]ast.Statement{
+			ast.AssignOp(ast.AssignmentAssign, ast.Member(ast.ID("self"), "value"), ast.ID("value")),
+			ast.Ret(ast.Member(ast.ID("self"), "value")),
+		},
+		ast.Ty("T"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	methods := ast.Methods(
+		ast.Gen(ast.Ty("Box"), ast.Ty("T")),
+		[]*ast.FunctionDefinition{setFn},
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+	)
+
+	module := ast.Mod([]ast.Statement{
+		boxDef,
+		methods,
+		ast.Assign(
+			ast.ID("box"),
+			ast.StructLit([]*ast.StructFieldInitializer{
+				ast.FieldInit(ast.Int(0), "value"),
+			}, false, "Box", nil, []ast.TypeExpression{ast.Ty("i32")}),
+		),
+		ast.Assign(ast.ID("a"), ast.CallExpr(ast.Member(ast.ID("box"), "set"), ast.Int(3))),
+		ast.Assign(ast.ID("b"), ast.CallExpr(ast.Member(ast.ID("box"), "set"), ast.Int(4))),
+		ast.Bin("+", ast.ID("a"), ast.ID("b")),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	interp := NewBytecode()
+	got := runBytecodeModuleWithInterpreter(t, interp, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode bound-generic-method inline mismatch: got=%#v want=%#v", got, want)
+	}
+
+	stats := interp.BytecodeStats()
+	if stats.InlineCallHits == 0 {
+		t.Fatalf("expected inline call hits > 0 for bound generic method call sites")
+	}
+}

@@ -70,6 +70,31 @@ func TestEnvironmentLookupRespectsLexicalScope(t *testing.T) {
 	}
 }
 
+func TestEnvironmentLookupWithOwnerRespectsLexicalScope(t *testing.T) {
+	parent := NewEnvironment(nil)
+	parent.Define("outer", StringValue{Val: "p"})
+	child := NewEnvironment(parent)
+	child.Define("inner", StringValue{Val: "c"})
+
+	if got, owner, ok := child.LookupWithOwner("inner"); !ok {
+		t.Fatalf("expected inner lookup with owner to succeed")
+	} else if owner != child {
+		t.Fatalf("expected inner owner to be child env")
+	} else if sv, ok := got.(StringValue); !ok || sv.Val != "c" {
+		t.Fatalf("unexpected inner value: %#v", got)
+	}
+	if got, owner, ok := child.LookupWithOwner("outer"); !ok {
+		t.Fatalf("expected outer lookup with owner to succeed")
+	} else if owner != parent {
+		t.Fatalf("expected outer owner to be parent env")
+	} else if sv, ok := got.(StringValue); !ok || sv.Val != "p" {
+		t.Fatalf("unexpected outer value: %#v", got)
+	}
+	if got, owner, ok := child.LookupWithOwner("missing"); ok || got != nil || owner != nil {
+		t.Fatalf("expected missing lookup with owner to fail, got (%#v, %p, %t)", got, owner, ok)
+	}
+}
+
 func TestEnvironmentLookupInCurrentScopeDoesNotWalkParent(t *testing.T) {
 	parent := NewEnvironment(nil)
 	parent.Define("outer", StringValue{Val: "p"})
@@ -128,6 +153,27 @@ func TestEnvironmentRevisionIncrementsOnMutation(t *testing.T) {
 	}
 	if got := env.Revision(); got != 3 {
 		t.Fatalf("failed assign should not change revision, got %d", got)
+	}
+}
+
+func TestEnvironmentRevisionWithHintMatchesRevision(t *testing.T) {
+	env := NewEnvironment(nil)
+	env.Define("x", IntegerValue{Val: bigInt(1), TypeSuffix: IntegerI32})
+
+	if got, want := env.RevisionWithHint(false), env.Revision(); got != want {
+		t.Fatalf("RevisionWithHint(false) = %d, want %d", got, want)
+	}
+
+	env.SetSingleThread()
+	if got, want := env.RevisionWithHint(true), env.Revision(); got != want {
+		t.Fatalf("RevisionWithHint(true) = %d, want %d", got, want)
+	}
+
+	if err := env.Assign("x", IntegerValue{Val: bigInt(2), TypeSuffix: IntegerI32}); err != nil {
+		t.Fatalf("assign failed: %v", err)
+	}
+	if got, want := env.RevisionWithHint(true), env.Revision(); got != want {
+		t.Fatalf("RevisionWithHint(true) after assign = %d, want %d", got, want)
 	}
 }
 

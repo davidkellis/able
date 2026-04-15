@@ -38,36 +38,87 @@ func (i *Interpreter) trackArrayValue(handle int64, arr *runtime.ArrayValue) {
 	if arr == nil || handle == 0 {
 		return
 	}
-	if arr.Handle != 0 && arr.Handle != handle && i.arraysByHandle != nil {
-		if bucket, ok := i.arraysByHandle[arr.Handle]; ok {
-			delete(bucket, arr)
-		}
+	if arr.Handle != 0 && arr.Handle != handle {
+		i.untrackArrayValue(arr.Handle, arr)
 	}
 	if i.arraysByHandle == nil {
-		i.arraysByHandle = make(map[int64]map[*runtime.ArrayValue]struct{})
-	}
-	bucket, ok := i.arraysByHandle[handle]
-	if !ok {
-		bucket = make(map[*runtime.ArrayValue]struct{})
-		i.arraysByHandle[handle] = bucket
+		i.arraysByHandle = make(map[int64]arrayHandleTracking)
 	}
 	arr.Handle = handle
-	bucket[arr] = struct{}{}
+	arr.TrackedHandle = handle
+	tracking := i.arraysByHandle[handle]
+	switch {
+	case tracking.single == arr:
+	case tracking.many != nil:
+		tracking.many[arr] = struct{}{}
+	case tracking.single == nil:
+		tracking.single = arr
+	default:
+		tracking.many = map[*runtime.ArrayValue]struct{}{
+			tracking.single: {},
+			arr:             {},
+		}
+		tracking.single = nil
+	}
+	i.arraysByHandle[handle] = tracking
+}
+
+func (i *Interpreter) untrackArrayValue(handle int64, arr *runtime.ArrayValue) {
+	if i == nil || arr == nil || handle == 0 || i.arraysByHandle == nil {
+		return
+	}
+	tracking, ok := i.arraysByHandle[handle]
+	if !ok {
+		return
+	}
+	switch {
+	case tracking.single == arr:
+		tracking.single = nil
+	case tracking.many != nil:
+		delete(tracking.many, arr)
+		if len(tracking.many) == 1 {
+			for only := range tracking.many {
+				tracking.single = only
+			}
+			tracking.many = nil
+		}
+	}
+	if tracking.single == nil && len(tracking.many) == 0 {
+		if arr.TrackedHandle == handle {
+			arr.TrackedHandle = 0
+		}
+		delete(i.arraysByHandle, handle)
+		return
+	}
+	i.arraysByHandle[handle] = tracking
 }
 
 func (i *Interpreter) syncArrayValues(handle int64, state *arrayState) {
 	if state == nil || i.arraysByHandle == nil {
 		return
 	}
-	bucket, ok := i.arraysByHandle[handle]
+	token, ok := bytecodeArrayElementTypeTokenFromValues(state.Values)
+	state.ElementTypeToken = token
+	state.ElementTypeTokenKnown = ok
+	tracking, ok := i.arraysByHandle[handle]
 	if !ok {
 		return
 	}
-	for arr := range bucket {
-		if arr != nil {
-			arr.Handle = handle
-			arr.Elements = state.Values
+	if tracking.single != nil {
+		tracking.single.Handle = handle
+		tracking.single.TrackedHandle = handle
+		tracking.single.State = state
+		tracking.single.Elements = state.Values
+		return
+	}
+	for arr := range tracking.many {
+		if arr == nil {
+			continue
 		}
+		arr.Handle = handle
+		arr.TrackedHandle = handle
+		arr.State = state
+		arr.Elements = state.Values
 	}
 }
 
@@ -95,10 +146,14 @@ func (i *Interpreter) ensureArrayState(arr *runtime.ArrayValue, capacityHint int
 		return nil, fmt.Errorf("array receiver is nil")
 	}
 	i.ensureArrayBuiltins()
+	if arr.State != nil && arr.Handle != 0 && arr.TrackedHandle == arr.Handle && capacityHint <= arr.State.Capacity {
+		return arr.State, nil
+	}
 	state, handle, err := runtime.ArrayStoreEnsure(arr, capacityHint)
 	if err != nil {
 		return nil, err
 	}
+	arr.State = state
 	i.trackArrayValue(handle, arr)
 	i.syncArrayValues(handle, state)
 	return state, nil
@@ -125,6 +180,7 @@ func (i *Interpreter) arrayValueFromHandle(handle int64, lengthHint int, capacit
 	if err != nil {
 		return nil, err
 	}
+	arr.State = state
 	i.syncArrayValues(handle, state)
 	i.trackArrayValue(handle, arr)
 	return arr, nil
@@ -178,7 +234,7 @@ func (i *Interpreter) initArrayBuiltins() {
 		return
 	}
 	if i.arraysByHandle == nil {
-		i.arraysByHandle = make(map[int64]map[*runtime.ArrayValue]struct{})
+		i.arraysByHandle = make(map[int64]arrayHandleTracking)
 	}
 
 	parseArrayHandle := func(val runtime.Value) (int64, error) {

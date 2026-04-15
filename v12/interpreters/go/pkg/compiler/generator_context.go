@@ -150,6 +150,16 @@ func (c *compileContext) substituteTypeBindings(expr ast.TypeExpression) ast.Typ
 	return substituteTypeParams(expr, c.typeBindings)
 }
 
+func (g *generator) typeExprContextInContext(ctx *compileContext, expr ast.TypeExpression) (string, ast.TypeExpression) {
+	if g == nil || expr == nil {
+		return "", expr
+	}
+	if ctx == nil {
+		return "", expr
+	}
+	return g.normalizeTypeExprContextForPackage(ctx.packageName, ctx.substituteTypeBindings(expr))
+}
+
 func (g *generator) typeExprInContext(ctx *compileContext, expr ast.TypeExpression) ast.TypeExpression {
 	if g == nil || expr == nil {
 		return expr
@@ -157,7 +167,8 @@ func (g *generator) typeExprInContext(ctx *compileContext, expr ast.TypeExpressi
 	if ctx == nil {
 		return expr
 	}
-	return normalizeTypeExprForPackage(g, ctx.packageName, ctx.substituteTypeBindings(expr))
+	_, normalized := g.typeExprContextInContext(ctx, expr)
+	return normalized
 }
 
 func (g *generator) mapTypeExpressionInContext(ctx *compileContext, expr ast.TypeExpression) (string, bool) {
@@ -167,7 +178,8 @@ func (g *generator) mapTypeExpressionInContext(ctx *compileContext, expr ast.Typ
 	if ctx == nil {
 		return g.mapTypeExpressionInPackage("", expr)
 	}
-	return g.mapTypeExpressionInPackage(ctx.packageName, g.typeExprInContext(ctx, expr))
+	resolvedPkg, normalized := g.typeExprContextInContext(ctx, expr)
+	return g.mapTypeExpressionInPackage(resolvedPkg, normalized)
 }
 
 func (c *compileContext) pushBreakpoint(label string) {

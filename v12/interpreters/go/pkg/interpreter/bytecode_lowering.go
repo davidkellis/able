@@ -3,12 +3,24 @@ package interpreter
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
 
 var errBytecodeUnsupported = errors.New("bytecode lowering unsupported")
+
+func bytecodeSimpleLookupName(name string) bool {
+	return name != "" && !strings.Contains(name, ".")
+}
+
+func bytecodeIdentifierMemberName(expr ast.Expression) string {
+	if ident, ok := expr.(*ast.Identifier); ok && ident != nil {
+		return ident.Name
+	}
+	return ""
+}
 
 type bytecodeLoweringContext struct {
 	instructions           []bytecodeInstruction
@@ -259,7 +271,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if slot, ok := ctx.lookupSlot(n.Name); ok {
 			ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: slot, name: n.Name, node: n})
 		} else {
-			ctx.emit(bytecodeInstruction{op: bytecodeOpLoadName, name: n.Name, node: n})
+			ctx.emit(bytecodeInstruction{op: bytecodeOpLoadName, name: n.Name, nameSimple: bytecodeSimpleLookupName(n.Name), node: n})
 		}
 		return nil
 	case *ast.MemberAccessExpression:
@@ -268,6 +280,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		}
 		ctx.emit(bytecodeInstruction{
 			op:            bytecodeOpMemberAccess,
+			name:          bytecodeIdentifierMemberName(n.Member),
 			node:          n,
 			safe:          n.Safe,
 			preferMethods: false,
@@ -292,6 +305,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				jumpToNil := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfNil, target: -1})
 				ctx.emit(bytecodeInstruction{
 					op:            bytecodeOpMemberAccess,
+					name:          bytecodeIdentifierMemberName(member.Member),
 					node:          member,
 					preferMethods: true,
 				})
@@ -310,6 +324,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			}
 			ctx.emit(bytecodeInstruction{
 				op:            bytecodeOpMemberAccess,
+				name:          bytecodeIdentifierMemberName(member.Member),
 				node:          member,
 				preferMethods: true,
 			})
@@ -350,7 +365,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 					return err
 				}
 			}
-			ctx.emit(bytecodeInstruction{op: bytecodeOpCallName, name: ident.Name, argCount: len(n.Arguments), node: n})
+			ctx.emit(bytecodeInstruction{op: bytecodeOpCallName, name: ident.Name, nameSimple: bytecodeSimpleLookupName(ident.Name), argCount: len(n.Arguments), node: n})
 			return nil
 		}
 		if err := emitExpression(ctx, i, n.Callee); err != nil {

@@ -1870,7 +1870,7 @@ Special-form block sugar:
 
 -   `able build` defaults to static no-fallback policy for non-dynamic programs. Statically unresolved call/member/dispatch paths are compile-time errors unless an explicit implementation override flag is used for migration/debug.
 -   Static generated `main.go` uses no-bootstrap execution (`RegisterIn(nil, entryEnv)` then compiled `RunRegisteredMain`) and must not call interpreter program evaluation for non-dynamic entry modules.
--   In no-interpreter static runtime mode, alias expansion and interface-constraint revalidation that would require interpreter registries are treated as compile-time responsibilities of lowering/typechecking. Dynamic features still require explicit boundary entry and interpreter presence.
+-   In no-interpreter static runtime mode, compiled helpers must not consult interpreter registries. Alias expansion and interface-constraint revalidation for generic interface dispatch must instead be satisfied either during lowering/typechecking or through compiler-emitted runtime-independent metadata/helpers. Dynamic features still require explicit boundary entry and interpreter presence.
 
 #### `runtime.Value` Usage Categories (Staged AOT Policy)
 

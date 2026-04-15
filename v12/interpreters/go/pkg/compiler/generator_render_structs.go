@@ -222,6 +222,7 @@ func (g *generator) renderFieldFromNamed(buf *bytes.Buffer, field fieldInfo) {
 	fmt.Fprintf(buf, "\t\tif !ok {\n")
 	fmt.Fprintf(buf, "\t\t\treturn out, fmt.Errorf(\"missing field %s\")\n", field.Name)
 	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\t_ = fieldValue\n")
 	g.renderValueConversion(buf, "\t\t", "fieldValue", field.GoType, "out."+field.GoName, "out")
 	fmt.Fprintf(buf, "\t}\n")
 }
@@ -229,6 +230,7 @@ func (g *generator) renderFieldFromNamed(buf *bytes.Buffer, field fieldInfo) {
 func (g *generator) renderFieldFromPositional(buf *bytes.Buffer, field fieldInfo, idx int) {
 	fmt.Fprintf(buf, "\t{\n")
 	fmt.Fprintf(buf, "\t\tfieldValue := inst.Positional[%d]\n", idx)
+	fmt.Fprintf(buf, "\t\t_ = fieldValue\n")
 	g.renderValueConversion(buf, "\t\t", "fieldValue", field.GoType, "out."+field.GoName, "out")
 	fmt.Fprintf(buf, "\t}\n")
 }

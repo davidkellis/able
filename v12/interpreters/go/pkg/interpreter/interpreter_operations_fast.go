@@ -63,6 +63,16 @@ func ApplyBinaryOperatorFast(op string, left runtime.Value, right runtime.Value)
 	case "/%":
 		return nil, false, nil
 	case "<", "<=", ">", ">=", "==", "!=":
+		if li, ok := rawLeft.(runtime.IntegerValue); ok {
+			if ri, ok := rawRight.(runtime.IntegerValue); ok {
+				return runtime.BoolValue{Val: integerComparisonResult(op, li, ri)}, true, nil
+			}
+		}
+		if ls, ok := rawLeft.(runtime.StringValue); ok {
+			if rs, ok := rawRight.(runtime.StringValue); ok {
+				return runtime.BoolValue{Val: comparisonOp(op, strings.Compare(ls.Val, rs.Val))}, true, nil
+			}
+		}
 		_, leftIsString := stringFromValue(rawLeft)
 		_, rightIsString := stringFromValue(rawRight)
 		if (isNumericValue(rawLeft) && isNumericValue(rawRight)) || (leftIsString && rightIsString) {

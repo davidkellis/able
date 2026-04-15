@@ -84,6 +84,40 @@ func TestBytecodeVM_LoadNameScopeCacheInvalidatesOnLocalAssign(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_LoadNameScopeCacheInvalidatesOnCapturedParentAssign(t *testing.T) {
+	mainFn := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("x"), ast.Int(1)),
+			ast.Assign(ast.ID("read"), ast.Lam(nil, ast.ID("x"))),
+			ast.Assign(ast.ID("first"), ast.Call("read")),
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.Int(2)),
+			ast.Assign(ast.ID("second"), ast.Call("read")),
+			ast.ID("second"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	module := ast.Mod([]ast.Statement{
+		mainFn,
+		ast.Call("main"),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode captured-parent loadname cache invalidation mismatch: got=%#v want=%#v", got, want)
+	}
+	if intVal, ok := got.(runtime.IntegerValue); !ok || intVal.BigInt().Int64() != 2 {
+		t.Fatalf("expected captured load result 2 after parent assign, got %#v", got)
+	}
+}
+
 func TestBytecodeVM_CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind(t *testing.T) {
 	structDef := ast.StructDef(
 		"S",
@@ -160,6 +194,50 @@ func TestBytecodeVM_CallNameDotFallbackScopeCacheInvalidatesOnHeadRebind(t *test
 	}
 	if intVal, ok := got.(runtime.IntegerValue); !ok || intVal.BigInt().Int64() != 2 {
 		t.Fatalf("expected rebound dotted callname result 2, got %#v", got)
+	}
+}
+
+func TestBytecodeVM_CallNameScopeCacheInvalidatesOnCapturedParentRebind(t *testing.T) {
+	mainFn := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{
+			ast.Assign(
+				ast.ID("f"),
+				ast.Lam([]*ast.FunctionParameter{ast.Param("x", nil)}, ast.ID("x")),
+			),
+			ast.Assign(ast.ID("invoke"), ast.Lam(nil, ast.Call("f", ast.Int(1)))),
+			ast.Assign(ast.ID("first"), ast.Call("invoke")),
+			ast.AssignOp(
+				ast.AssignmentAssign,
+				ast.ID("f"),
+				ast.Lam(
+					[]*ast.FunctionParameter{ast.Param("x", nil)},
+					ast.Bin("+", ast.ID("x"), ast.Int(10)),
+				),
+			),
+			ast.Assign(ast.ID("second"), ast.Call("invoke")),
+			ast.ID("second"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	module := ast.Mod([]ast.Statement{
+		mainFn,
+		ast.Call("main"),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode captured-parent callname cache invalidation mismatch: got=%#v want=%#v", got, want)
+	}
+	if intVal, ok := got.(runtime.IntegerValue); !ok || intVal.BigInt().Int64() != 11 {
+		t.Fatalf("expected captured call result 11 after parent rebind, got %#v", got)
 	}
 }
 

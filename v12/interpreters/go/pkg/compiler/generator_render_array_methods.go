@@ -251,7 +251,6 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 			fmt.Fprintf(buf, "\telems := make([]%s, len(%s.Elements), cap(%s.Elements))\n", arraySpec.ElemGoType, self, self)
 			fmt.Fprintf(buf, "\tcopy(elems, %s.Elements)\n", self)
 			fmt.Fprintf(buf, "\tcloned := &%s{Elements: elems}\n", arraySpec.GoName)
-			fmt.Fprintf(buf, "\t%s(cloned)\n", arraySpec.SyncHelper)
 		} else {
 			fmt.Fprintf(buf, "\tcloned := &Array{Elements: __able_struct_Array_clone_elements(%s.Elements, __able_struct_Array_capacity_hint(%s))}\n", self, self)
 			fmt.Fprintf(buf, "\t__able_struct_Array_sync(cloned)\n")

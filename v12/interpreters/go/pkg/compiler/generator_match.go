@@ -603,18 +603,17 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 				}
 				fieldInfo := info.Fields[idx]
 				fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+				bindingTypeExpr := g.patternBindingTypeExpr(ctx, fieldInfo.GoType, fieldInfo.TypeExpr)
+				previousExpected := ctx.expectedTypeExpr
+				ctx.expectedTypeExpr = bindingTypeExpr
 				fieldLines, ok := g.compileMatchPatternBindings(ctx, pattern, fieldExpr, fieldInfo.GoType)
+				ctx.expectedTypeExpr = previousExpected
 				if !ok {
 					return nil, false
 				}
 				lines = append(lines, fieldLines...)
 				if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 					bindName := sanitizeIdent(field.Binding.Name)
-					bindingTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
-					if bindingTypeExpr == nil {
-						bindingTypeExpr, _ = g.typeExprForGoType(fieldInfo.GoType)
-						bindingTypeExpr = g.lowerNormalizedTypeExpr(ctx, bindingTypeExpr)
-					}
 					ctx.setLocalBinding(field.Binding.Name, paramInfo{
 						Name:     field.Binding.Name,
 						GoName:   bindName,
@@ -650,18 +649,17 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 				return nil, false
 			}
 			fieldExpr := fmt.Sprintf("%s.%s", subjectTemp, fieldInfo.GoName)
+			bindingTypeExpr := g.patternBindingTypeExpr(ctx, fieldInfo.GoType, fieldInfo.TypeExpr)
+			previousExpected := ctx.expectedTypeExpr
+			ctx.expectedTypeExpr = bindingTypeExpr
 			fieldLines, ok := g.compileMatchPatternBindings(ctx, fieldPattern, fieldExpr, fieldInfo.GoType)
+			ctx.expectedTypeExpr = previousExpected
 			if !ok {
 				return nil, false
 			}
 			lines = append(lines, fieldLines...)
 			if field.Binding != nil && field.Binding.Name != "" && field.Binding.Name != "_" {
 				bindName := sanitizeIdent(field.Binding.Name)
-				bindingTypeExpr := g.lowerNormalizedTypeExpr(ctx, fieldInfo.TypeExpr)
-				if bindingTypeExpr == nil {
-					bindingTypeExpr, _ = g.typeExprForGoType(fieldInfo.GoType)
-					bindingTypeExpr = g.lowerNormalizedTypeExpr(ctx, bindingTypeExpr)
-				}
 				ctx.setLocalBinding(field.Binding.Name, paramInfo{
 					Name:     field.Binding.Name,
 					GoName:   bindName,

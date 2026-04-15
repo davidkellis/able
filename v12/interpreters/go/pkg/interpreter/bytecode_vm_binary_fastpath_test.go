@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func TestBytecodeVM_BinaryFastPathIntegerParity(t *testing.T) {
@@ -18,6 +19,73 @@ func TestBytecodeVM_BinaryFastPathIntegerParity(t *testing.T) {
 	got := runBytecodeModule(t, module)
 	if !valuesEqual(got, want) {
 		t.Fatalf("bytecode integer fast-path mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_DirectIntegerComparisonFastPath(t *testing.T) {
+	lessLeft := runtime.NewSmallInt(4, runtime.IntegerI32)
+	lessRight := runtime.NewSmallInt(9, runtime.IntegerI32)
+	greaterLeft := runtime.NewSmallInt(9, runtime.IntegerI32)
+	greaterRight := runtime.NewSmallInt(4, runtime.IntegerI32)
+	equalLeft := runtime.NewSmallInt(7, runtime.IntegerI32)
+	equalRight := runtime.NewSmallInt(7, runtime.IntegerI32)
+	cases := []struct {
+		name  string
+		op    string
+		left  runtime.Value
+		right runtime.Value
+		want  bool
+	}{
+		{name: "less", op: "<", left: lessLeft, right: lessRight, want: true},
+		{name: "less_equal", op: "<=", left: lessLeft, right: lessRight, want: true},
+		{name: "greater", op: ">", left: greaterLeft, right: greaterRight, want: true},
+		{name: "greater_equal", op: ">=", left: greaterLeft, right: greaterRight, want: true},
+		{name: "equal", op: "==", left: equalLeft, right: equalRight, want: true},
+		{name: "not_equal", op: "!=", left: greaterLeft, right: greaterRight, want: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, handled := execBinaryDirectIntegerComparisonFast(tc.op, tc.left, tc.right)
+			if !handled {
+				t.Fatalf("expected fast path to handle %s", tc.op)
+			}
+			boolVal, ok := got.(runtime.BoolValue)
+			if !ok {
+				t.Fatalf("expected bool result, got %#v", got)
+			}
+			if boolVal.Val != tc.want {
+				t.Fatalf("unexpected comparison result for %s: got=%v want=%v", tc.op, boolVal.Val, tc.want)
+			}
+		})
+	}
+}
+
+func TestBytecodeVM_BinaryFastPathGeneralIntegerComparisonParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Bin(">", ast.Int(9), ast.Int(4)),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode general integer comparison fast-path mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestApplyBinaryOperatorFast_StringComparison(t *testing.T) {
+	got, handled, err := ApplyBinaryOperatorFast("<", runtime.StringValue{Val: "alpha"}, runtime.StringValue{Val: "beta"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected string comparison fast path to handle operands")
+	}
+	boolVal, ok := got.(runtime.BoolValue)
+	if !ok {
+		t.Fatalf("expected bool result, got %#v", got)
+	}
+	if !boolVal.Val {
+		t.Fatalf("expected alpha < beta to be true")
 	}
 }
 

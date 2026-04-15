@@ -72,7 +72,6 @@ func (g *generator) ensureNativeCallableInfo(pkgName string, expr *ast.FunctionT
 	if g == nil || expr == nil {
 		return nil, false
 	}
-	mapper := NewTypeMapper(g, pkgName)
 	paramExprs := make([]ast.TypeExpression, 0, len(expr.ParamTypes))
 	paramGoTypes := make([]string, 0, len(expr.ParamTypes))
 	for _, paramExpr := range expr.ParamTypes {
@@ -80,7 +79,9 @@ func (g *generator) ensureNativeCallableInfo(pkgName string, expr *ast.FunctionT
 			return nil, false
 		}
 		normalized := normalizeTypeExprForPackage(g, pkgName, paramExpr)
-		goType, ok := mapper.Map(normalized)
+		paramPkg := g.resolvedTypeExprPackage(pkgName, normalized)
+		goType, ok := NewTypeMapper(g, paramPkg).Map(normalized)
+		goType, ok = g.recoverRepresentableCarrierType(paramPkg, normalized, goType)
 		if !ok || goType == "" {
 			return nil, false
 		}
@@ -91,7 +92,9 @@ func (g *generator) ensureNativeCallableInfo(pkgName string, expr *ast.FunctionT
 		return nil, false
 	}
 	returnExpr := normalizeTypeExprForPackage(g, pkgName, expr.ReturnType)
-	returnGoType, ok := mapper.Map(returnExpr)
+	returnPkg := g.resolvedTypeExprPackage(pkgName, returnExpr)
+	returnGoType, ok := NewTypeMapper(g, returnPkg).Map(returnExpr)
+	returnGoType, ok = g.recoverRepresentableCarrierType(returnPkg, returnExpr, returnGoType)
 	if !ok || returnGoType == "" {
 		return nil, false
 	}

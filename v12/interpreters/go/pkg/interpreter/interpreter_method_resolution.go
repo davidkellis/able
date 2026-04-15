@@ -28,6 +28,12 @@ func (i *Interpreter) invalidateMethodCache() {
 }
 
 func (i *Interpreter) currentMethodCacheVersion() uint64 {
+	if i == nil {
+		return 0
+	}
+	if i.envSingleThread {
+		return i.methodCacheVersion
+	}
 	i.methodCacheMu.RLock()
 	defer i.methodCacheMu.RUnlock()
 	return i.methodCacheVersion
