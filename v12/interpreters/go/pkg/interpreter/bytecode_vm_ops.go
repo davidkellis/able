@@ -40,40 +40,6 @@ func bytecodeDirectIntegerValue(val runtime.Value) (runtime.IntegerValue, bool) 
 	return runtime.IntegerValue{}, false
 }
 
-func bytecodeDirectSmallIntPair(left runtime.Value, right runtime.Value) (int64, int64, bool) {
-	switch lv := left.(type) {
-	case runtime.IntegerValue:
-		if !lv.IsSmall() {
-			return 0, 0, false
-		}
-		switch rv := right.(type) {
-		case runtime.IntegerValue:
-			if rv.IsSmall() {
-				return lv.Int64Fast(), rv.Int64Fast(), true
-			}
-		case *runtime.IntegerValue:
-			if rv != nil && rv.IsSmall() {
-				return lv.Int64Fast(), rv.Int64Fast(), true
-			}
-		}
-	case *runtime.IntegerValue:
-		if lv == nil || !lv.IsSmall() {
-			return 0, 0, false
-		}
-		switch rv := right.(type) {
-		case runtime.IntegerValue:
-			if rv.IsSmall() {
-				return lv.Int64Fast(), rv.Int64Fast(), true
-			}
-		case *runtime.IntegerValue:
-			if rv != nil && rv.IsSmall() {
-				return lv.Int64Fast(), rv.Int64Fast(), true
-			}
-		}
-	}
-	return 0, 0, false
-}
-
 func bytecodeDirectSameTypeSmallIntPair(left runtime.Value, right runtime.Value) (runtime.IntegerType, int64, int64, bool) {
 	switch lv := left.(type) {
 	case runtime.IntegerValue:
@@ -109,7 +75,7 @@ func bytecodeDirectSameTypeSmallIntPair(left runtime.Value, right runtime.Value)
 }
 
 func bytecodeDirectIntegerCompare(op string, left runtime.Value, right runtime.Value) (runtime.BoolValue, bool) {
-	if l, r, ok := bytecodeDirectSmallIntPair(left, right); ok {
+	compare := func(l int64, r int64) (runtime.BoolValue, bool) {
 		switch op {
 		case "<":
 			return runtime.BoolValue{Val: l < r}, true
@@ -123,6 +89,39 @@ func bytecodeDirectIntegerCompare(op string, left runtime.Value, right runtime.V
 			return runtime.BoolValue{Val: l == r}, true
 		case "!=":
 			return runtime.BoolValue{Val: l != r}, true
+		default:
+			return runtime.BoolValue{}, false
+		}
+	}
+
+	switch lv := left.(type) {
+	case runtime.IntegerValue:
+		if !lv.IsSmall() {
+			return runtime.BoolValue{}, false
+		}
+		switch rv := right.(type) {
+		case runtime.IntegerValue:
+			if rv.IsSmall() {
+				return compare(lv.Int64Fast(), rv.Int64Fast())
+			}
+		case *runtime.IntegerValue:
+			if rv != nil && rv.IsSmall() {
+				return compare(lv.Int64Fast(), rv.Int64Fast())
+			}
+		}
+	case *runtime.IntegerValue:
+		if lv == nil || !lv.IsSmall() {
+			return runtime.BoolValue{}, false
+		}
+		switch rv := right.(type) {
+		case runtime.IntegerValue:
+			if rv.IsSmall() {
+				return compare(lv.Int64Fast(), rv.Int64Fast())
+			}
+		case *runtime.IntegerValue:
+			if rv != nil && rv.IsSmall() {
+				return compare(lv.Int64Fast(), rv.Int64Fast())
+			}
 		}
 	}
 	return runtime.BoolValue{}, false
