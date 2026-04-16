@@ -26,6 +26,9 @@ func TestInterpreterTrackArrayValueUsesSingleFastPath(t *testing.T) {
 	if tracking.many != nil {
 		t.Fatalf("expected no promoted tracking set for single array")
 	}
+	if arr.TrackedAliases {
+		t.Fatalf("expected single tracked array to remain exclusive")
+	}
 
 	interp.syncArrayValues(handle, state)
 	if arr.Handle != handle {
@@ -56,6 +59,9 @@ func TestInterpreterTrackArrayValuePromotesAndDemotesAliases(t *testing.T) {
 	if len(tracking.many) != 2 {
 		t.Fatalf("expected 2 tracked aliases after promotion, got %d", len(tracking.many))
 	}
+	if !first.TrackedAliases || !second.TrackedAliases {
+		t.Fatalf("expected both aliases to be marked shared after promotion")
+	}
 
 	state.Values = append(state.Values, runtime.NewSmallInt(7, runtime.IntegerI32))
 	interp.syncArrayValues(handle, state)
@@ -70,6 +76,9 @@ func TestInterpreterTrackArrayValuePromotesAndDemotesAliases(t *testing.T) {
 	}
 	if tracking.many != nil {
 		t.Fatalf("expected promoted tracking set to collapse after untracking second alias")
+	}
+	if first.TrackedAliases {
+		t.Fatalf("expected remaining alias to return to exclusive tracking")
 	}
 }
 
@@ -124,5 +133,38 @@ func TestInterpreterSyncArrayValuesUpdatesCachedElementTypeToken(t *testing.T) {
 
 	if !state.ElementTypeTokenKnown || state.ElementTypeToken != bytecodeIndexTypeString {
 		t.Fatalf("expected cached element token string after sync, got known=%v token=%d", state.ElementTypeTokenKnown, state.ElementTypeToken)
+	}
+}
+
+func TestInterpreterSyncTrackedArrayWriteUpdatesSharedAliasesAndToken(t *testing.T) {
+	interp := New()
+	first := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+	}, 1)
+
+	state, err := interp.ensureArrayState(first, 0)
+	if err != nil {
+		t.Fatalf("ensure first array state: %v", err)
+	}
+	second, err := interp.arrayValueFromHandle(first.Handle, 0, 0)
+	if err != nil {
+		t.Fatalf("arrayValueFromHandle: %v", err)
+	}
+	if !first.TrackedAliases || !second.TrackedAliases {
+		t.Fatalf("expected alias pair to be marked shared before write sync")
+	}
+
+	written := runtime.StringValue{Val: "x"}
+	state.Values[0] = written
+	interp.syncTrackedArrayWrite(first, state, 0, written)
+
+	if !state.ElementTypeTokenKnown || state.ElementTypeToken != bytecodeIndexTypeString {
+		t.Fatalf("expected tracked write to refresh element token, got known=%v token=%d", state.ElementTypeTokenKnown, state.ElementTypeToken)
+	}
+	if got, ok := first.Elements[0].(runtime.StringValue); !ok || got.Val != "x" {
+		t.Fatalf("expected first alias to observe synced write, got %#v", first.Elements[0])
+	}
+	if got, ok := second.Elements[0].(runtime.StringValue); !ok || got.Val != "x" {
+		t.Fatalf("expected second alias to observe synced write, got %#v", second.Elements[0])
 	}
 }

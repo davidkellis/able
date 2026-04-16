@@ -72,6 +72,8 @@ func (vm *bytecodeVM) resetForRun(interp *Interpreter, env *runtime.Environment)
 	vm.globalLookupCache = nil
 	vm.scopeLookupCache = nil
 	vm.nameLookupHot = bytecodeInlineNameLookupCacheEntry{}
+	vm.callNameCache = nil
+	vm.callNameHot = bytecodeInlineCallNameCacheEntry{}
 	vm.memberMethodCache = nil
 	vm.memberMethodHot = bytecodeInlineMemberMethodCacheEntry{}
 	vm.indexMethodCache = nil

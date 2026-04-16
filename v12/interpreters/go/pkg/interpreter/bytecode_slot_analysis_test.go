@@ -82,6 +82,45 @@ func TestAnalyzeFrameLayoutCachesParamCoercionMetadata(t *testing.T) {
 	if layout.paramNeedsCoercion[2] {
 		t.Fatalf("expected generic param to skip runtime coercion metadata")
 	}
+	if !layout.anyParamCoercion {
+		t.Fatalf("expected layout to record at least one coercion-bearing parameter")
+	}
+	if layout.anyExplicitCoercion {
+		t.Fatalf("expected only the first parameter to require coercion in this layout")
+	}
+}
+
+func TestAnalyzeFrameLayoutCachesNoCoercionSummaryFlags(t *testing.T) {
+	interp := New()
+	def := ast.Fn(
+		"f",
+		[]*ast.FunctionParameter{
+			ast.Param("a", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+			ast.Param("b", ast.Ty("T")),
+		},
+		[]ast.Statement{
+			ast.ID("a"),
+		},
+		ast.Ty("void"),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+		false,
+	)
+
+	layout := analyzeFrameLayout(interp, def)
+	if layout == nil {
+		t.Fatalf("expected frame layout")
+	}
+	if layout.paramNeedsCoercion[0] || layout.paramNeedsCoercion[1] {
+		t.Fatalf("expected both parameters to skip runtime coercion metadata")
+	}
+	if layout.anyParamCoercion {
+		t.Fatalf("expected layout to record no coercion-bearing parameters")
+	}
+	if layout.anyExplicitCoercion {
+		t.Fatalf("expected layout to record no explicit coercion-bearing parameters")
+	}
 }
 
 func TestInlineCoercionUnnecessaryAcceptsBoxedPrimitivePointers(t *testing.T) {

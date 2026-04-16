@@ -6,19 +6,23 @@ import (
 )
 
 type bytecodeInstruction struct {
-	op            bytecodeOp
-	name          string
-	nameSimple    bool
-	operator      string
-	value         runtime.Value
-	target        int
-	argCount      int
-	loopBreak     int
-	loopContinue  int
-	node          ast.Node
-	program       *bytecodeProgram
-	safe          bool
-	preferMethods bool
+	op              bytecodeOp
+	name            string
+	nameSimple      bool
+	storeTyped      bool
+	operator        string
+	value           runtime.Value
+	intImmediate    runtime.IntegerValue
+	typeExpr        ast.TypeExpression
+	target          int
+	argCount        int
+	loopBreak       int
+	loopContinue    int
+	node            ast.Node
+	program         *bytecodeProgram
+	hasIntImmediate bool
+	safe            bool
+	preferMethods   bool
 }
 
 type bytecodeProgram struct {
@@ -54,6 +58,8 @@ type bytecodeVM struct {
 	globalLookupCache  map[bytecodeGlobalLookupCacheKey]bytecodeGlobalLookupCacheEntry
 	scopeLookupCache   map[bytecodeGlobalLookupCacheKey]bytecodeScopeLookupCacheEntry
 	nameLookupHot      bytecodeInlineNameLookupCacheEntry
+	callNameCache      map[bytecodeGlobalLookupCacheKey]*bytecodeCallNameCacheEntry
+	callNameHot        bytecodeInlineCallNameCacheEntry
 	memberMethodCache  map[bytecodeMemberMethodCacheKey]bytecodeMemberMethodCacheEntry
 	memberMethodHot    bytecodeInlineMemberMethodCacheEntry
 	indexMethodCache   map[*bytecodeProgram]*bytecodeIndexMethodCacheTable

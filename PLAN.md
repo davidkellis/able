@@ -789,6 +789,52 @@ Current state snapshot:
   named-call overhead again and moved the quicksort hot loop to roughly
   `13.3ms/op` on a clean 50x local rerun while pushing `execCallName` out of
   the top-tier hotspot set;
+- the next bytecode tranche is landed too: simple named-call cache entries now
+  live behind stable pointers, so hot `CallName` hits stop copying full
+  dispatch records back and forth through the inline cache and map cache; the
+  focused call-name invalidation slice stayed green, repeated 50x quicksort
+  reruns landed around `10.6-11.2ms/op`, and `lookupCachedCallName(...)`
+  dropped out of the top hotspot set on the next profiled run;
+- the next bytecode tranche is landed too: direct small-int pair helpers now
+  sit in front of the bytecode integer compare/add/sub hot paths, so common
+  small-int pairs stop paying the older repeated `IntegerValue` extraction work
+  before comparison and same-type arithmetic; repeated 50x quicksort reruns
+  landed around `10.4-10.8ms/op`, and the old direct integer-compare hotspot
+  no longer shows up as a top flat frame on the next profiled run;
+- the next bytecode tranche is landed too: small slot-frame layouts now batch
+  prefill the bytecode hot frame pool, so recursive inline calls can draw
+  several same-size frames from the pool on the way down instead of allocating
+  one frame per depth step; focused slot-frame/call coverage stayed green,
+  repeated 50x quicksort reruns stayed in the same `10.5-11.2ms/op` band, and
+  the profile cut `acquireSlotFrame(...)`, `tryInlineResolvedCallFromStack(...)`,
+  and `execCallName(...)` materially on the next run;
+- the next bytecode tranche is landed too: untyped `StoreSlot` sites now take
+  a direct VM fast path instead of always routing through the typed-assignment
+  helper, so ordinary local slot stores stop paying the typed pattern/coercion
+  helper call on every write; focused slot-store coverage stayed green,
+  repeated 50x quicksort reruns stayed roughly in the `10.2-11.3ms/op` band,
+  and `execStoreSlot(...)` dropped out of the hotspot tier on the next profile;
+- the next bytecode tranche is landed too: direct array index decoding now
+  inlines the 64-bit small-int case at the outer value switch, so common value
+  and pointer-backed integer indexes stop bouncing through the extra
+  `IntegerValue -> int` helper on hot array `get` / `set` sites; repeated 50x
+  quicksort reruns stayed roughly in the `10.2-11.0ms/op` band, and the old
+  `bytecodeDirectArrayIndexFromInteger(...)` hotspot dropped out of the top set
+  on the next profile;
+- the next bytecode tranche is landed too: slot-const integer bytecode
+  instructions now carry typed integer-immediate metadata directly, so hot
+  `x +/- const` and `x <= const` loops stop re-decoding `instr.value` through
+  the generic runtime-value path on every iteration; the focused lowering and
+  cache slice stayed green, the profiled 50x quicksort run reached
+  `9917425 ns/op`, and the old slot-const immediate decode hotspot dropped out
+  of the top tier on the next profile;
+- the next bytecode tranche is landed too: direct bytecode array writes now
+  use an alias-aware tracked-array write sync path, so exclusive wrappers skip
+  the old post-write alias-broadcast walk while shared aliases still stay
+  coherent and element-type tokens stay current; the focused tracking/index
+  slice stayed green, repeated 50x quicksort reruns landed around
+  `9.90-10.00ms/op`, and the old `syncArrayValues(...)` / `resolveIndexSet(...)`
+  hotspot pair dropped out of the top tier on the next profile;
 - the next bytecode tranche is landed too: identifier member-access sites now
   carry their member name directly in bytecode, and `execMemberAccess` only
   probes/stores the member-method cache when a site can actually use it; that
@@ -825,6 +871,61 @@ Current state snapshot:
   this pushed the quicksort hot loop down again to roughly `11.0ms/op` on the
   50x profiled local run and dropped `tryInlineCallFromStack(...)` out of the
   hotspot tier;
+- the next bytecode tranche is landed too: slot store instructions now carry
+  typed-identifier assignment metadata directly in bytecode, and the VM’s
+  store-slot path uses that metadata instead of reopening assignment AST nodes
+  and pattern helpers on every store just to discover most stores are untyped;
+  this removed `execStoreSlot(...)` / `typedSlotAssignmentValues(...)` from the
+  hotspot tier and kept the quicksort hot loop in the mid-11ms band on local
+  50x reruns;
+- the next bytecode tranche is landed too: simple `CallName` sites now keep a
+  revision-guarded call-site cache for the resolved callee plus its dispatch
+  shape (`exact native`, `inline bytecode`, or `generic`), so repeated named
+  calls no longer redo lexical lookup validation and call-target
+  classification on every hit; focused invalidation and dispatch-kind rebinding
+  coverage is green, the profiled 50x quicksort run reached roughly
+  `10.7ms/op`, and repeated clean 50x reruns stayed around `11.1-11.4ms/op`
+  with one noisy outlier;
+- the next bytecode tranche is landed too: the direct integer-comparison fast
+  path and the shared comparison helper now short-circuit small-int pairs
+  before they fall through the general `ToInt64()` / big-int comparison route,
+  which trims the remaining generic comparison helper overhead without widening
+  the bytecode opcode surface; focused parity coverage is green,
+  `execBinaryDirectIntegerComparisonFast(...)` dropped from roughly `100ms`
+  cumulative to roughly `80ms` on the profiled quicksort run, and repeated
+  local 50x reruns stayed in the same low-11ms band;
+- the next bytecode tranche is landed too: hot `x + const` integer sites now
+  lower onto the existing slot-const immediate path instead of reloading and
+  unboxing the constant operand through the ordinary specialized binary route;
+  focused lowering/parity coverage is green, the profiled quicksort run moved
+  `execBinarySpecializedOpcode(...)` from roughly `70ms` cumulative down to
+  roughly `30ms`, and repeated local 50x reruns stayed in the low-11ms band
+  with the best reruns landing around `10.8ms/op`;
+- the next bytecode tranche is landed too: primitive-receiver method
+  resolution now checks the existing bound-method cache before paying
+  `env.Lookup(...)`, and single-threaded bytecode runs now read/write that
+  bound-method cache without taking the interpreter method-cache lock; this
+  removed `resolveMethodFromPool(...)` / array member dispatch from the
+  hotspot tier on the next profiled quicksort run, while repeated local 50x
+  reruns landed in the roughly `10.4-11.2ms/op` band;
+- the next bytecode tranche is landed too: direct array index decoding now
+  keeps concrete integer receivers on a narrower small-int/int64 path and
+  skips the old extra generic integer extraction on already-concrete index
+  values; on 64-bit builds that also removes the redundant int-range guard for
+  small ints. Focused index-cache coverage is green, the profiled quicksort
+  run moved `bytecodeDirectArrayIndex(...)` from roughly `70ms` flat down to
+  roughly `40ms` cumulative, and repeated local 50x reruns stayed in the
+  roughly `10.6-11.1ms/op` band;
+- the next bytecode tranche is landed too: slot-enabled frame layouts now
+  cache summary `any runtime coercion needed?` flags, and the hot inline-call
+  setup paths bulk-copy arguments straight into slot frames whenever the
+  layout proves no runtime coercion is possible; bound-receiver inline calls
+  now do the same for explicit arguments after seeding the injected receiver.
+  Focused slot-analysis/quicksort coverage is green, the profiled 50x
+  quicksort run reached `9778187 ns/op`, repeated clean 50x reruns landed at
+  `9930751`, `9916588`, and `10300807 ns/op`, and
+  `tryInlineResolvedCallFromStack(...)` is down to roughly `30ms` cumulative
+  instead of sitting in the top hotspot tier;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.

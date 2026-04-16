@@ -241,6 +241,55 @@ func TestBytecodeVM_CallNameScopeCacheInvalidatesOnCapturedParentRebind(t *testi
 	}
 }
 
+func TestBytecodeVM_CallNameScopeCacheInvalidatesAcrossDispatchKinds(t *testing.T) {
+	byteInterp := NewBytecode()
+	byteInterp.GlobalEnvironment().Define("add_one", runtime.NativeFunctionValue{
+		Name:       "add_one",
+		Arity:      1,
+		BorrowArgs: true,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				t.Fatalf("expected one arg, got %d", len(args))
+			}
+			intVal, ok := args[0].(runtime.IntegerValue)
+			if !ok {
+				t.Fatalf("expected integer arg, got %#v", args[0])
+			}
+			return runtime.NewSmallInt(intVal.BigInt().Int64()+1, runtime.IntegerI32), nil
+		},
+	})
+
+	mainFn := ast.Fn(
+		"main",
+		nil,
+		[]ast.Statement{
+			ast.Assign(
+				ast.ID("f"),
+				ast.Lam([]*ast.FunctionParameter{ast.Param("x", nil)}, ast.ID("x")),
+			),
+			ast.Assign(ast.ID("first"), ast.Call("f", ast.Int(1))),
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("f"), ast.ID("add_one")),
+			ast.Assign(ast.ID("second"), ast.Call("f", ast.Int(1))),
+			ast.ID("second"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	module := ast.Mod([]ast.Statement{
+		mainFn,
+		ast.Call("main"),
+	}, nil, nil)
+
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, module)
+	if intVal, ok := got.(runtime.IntegerValue); !ok || intVal.BigInt().Int64() != 2 {
+		t.Fatalf("expected callname rebind across dispatch kinds to produce 2, got %#v", got)
+	}
+}
+
 func TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache(t *testing.T) {
 	t.Setenv("ABLE_BYTECODE_STATS", "1")
 

@@ -148,6 +148,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			bytecodeOpBinaryIntSub,
 			bytecodeOpBinaryIntLessEqual,
 			bytecodeOpBinaryIntDivCast,
+			bytecodeOpBinaryIntAddSlotConst,
 			bytecodeOpBinaryIntSubSlotConst,
 			bytecodeOpBinaryIntLessEqualSlotConst:
 			{

@@ -60,8 +60,68 @@ func TestBytecodeVM_DirectIntegerComparisonFastPath(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_DirectSmallIntegerComparisonFastPath(t *testing.T) {
+	leftVal := runtime.NewSmallInt(4, runtime.IntegerI32)
+	rightVal := runtime.NewSmallInt(9, runtime.IntegerI32)
+	leftPtr := runtime.NewSmallInt(9, runtime.IntegerI32)
+	rightPtr := runtime.NewSmallInt(4, runtime.IntegerI32)
+
+	cases := []struct {
+		name  string
+		op    string
+		left  runtime.Value
+		right runtime.Value
+		want  bool
+	}{
+		{name: "value_pair", op: "<", left: leftVal, right: rightVal, want: true},
+		{name: "pointer_pair", op: ">", left: &leftPtr, right: &rightPtr, want: true},
+		{name: "mixed_pair", op: ">=", left: &leftPtr, right: rightVal, want: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := bytecodeDirectIntegerCompare(tc.op, tc.left, tc.right)
+			if !ok {
+				t.Fatalf("expected direct small-int comparison to handle %s", tc.name)
+			}
+			if got.Val != tc.want {
+				t.Fatalf("unexpected result for %s: got=%v want=%v", tc.name, got.Val, tc.want)
+			}
+		})
+	}
+}
+
+func TestBytecodeVM_DirectSameTypeSmallIntPair(t *testing.T) {
+	leftVal := runtime.NewSmallInt(6, runtime.IntegerI32)
+	rightVal := runtime.NewSmallInt(3, runtime.IntegerI32)
+	rightPtr := runtime.NewSmallInt(2, runtime.IntegerI32)
+	otherType := runtime.NewSmallInt(2, runtime.IntegerI64)
+
+	kind, left, right, ok := bytecodeDirectSameTypeSmallIntPair(leftVal, rightVal)
+	if !ok {
+		t.Fatalf("expected exact same-type small-int value pair to succeed")
+	}
+	if kind != runtime.IntegerI32 || left != 6 || right != 3 {
+		t.Fatalf("unexpected exact same-type small-int pair: kind=%v left=%d right=%d", kind, left, right)
+	}
+
+	kind, left, right, ok = bytecodeDirectSameTypeSmallIntPair(leftVal, &rightPtr)
+	if !ok {
+		t.Fatalf("expected same-type small-int pair to succeed")
+	}
+	if kind != runtime.IntegerI32 || left != 6 || right != 2 {
+		t.Fatalf("unexpected same-type small-int pair: kind=%v left=%d right=%d", kind, left, right)
+	}
+
+	if _, _, _, ok := bytecodeDirectSameTypeSmallIntPair(leftVal, otherType); ok {
+		t.Fatalf("expected mismatched integer kinds to miss fast pair path")
+	}
+}
+
 func TestBytecodeVM_BinaryFastPathGeneralIntegerComparisonParity(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
+		ast.Bin("<", ast.Int(4), ast.Int(9)),
+		ast.Bin(">=", ast.Int(9), ast.Int(4)),
 		ast.Bin(">", ast.Int(9), ast.Int(4)),
 	}, nil, nil)
 
@@ -212,6 +272,7 @@ func TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes(t *testing.T) {
 		"f",
 		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
 		[]ast.Statement{
+			ast.Bin("+", ast.ID("n"), ast.Int(1)),
 			ast.Bin("<=", ast.ID("n"), ast.Int(2)),
 			ast.Bin("-", ast.ID("n"), ast.Int(1)),
 		},
@@ -226,10 +287,22 @@ func TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
+	sawAddSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntAddSlotConst)
 	sawSubSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntSubSlotConst)
 	sawLESlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntLessEqualSlotConst)
-	if !sawSubSlotConst || !sawLESlotConst {
-		t.Fatalf("expected lowering to emit slot-const opcodes: sub=%v le=%v", sawSubSlotConst, sawLESlotConst)
+	if !sawAddSlotConst || !sawSubSlotConst || !sawLESlotConst {
+		t.Fatalf("expected lowering to emit slot-const opcodes: add=%v sub=%v le=%v", sawAddSlotConst, sawSubSlotConst, sawLESlotConst)
+	}
+	for _, instr := range program.instructions {
+		switch instr.op {
+		case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst:
+			if !instr.hasIntImmediate {
+				t.Fatalf("expected slot-const opcode %v to carry typed integer-immediate metadata", instr.op)
+			}
+			if got, ok := instr.intImmediate.ToInt64(); !ok || got <= 0 {
+				t.Fatalf("expected slot-const opcode %v to keep positive integer immediate, got=%v ok=%v", instr.op, got, ok)
+			}
+		}
 	}
 }
 
@@ -263,6 +336,16 @@ func TestBytecodeVM_LoweringEmitsFusedSelfCallSlotConstOpcode(t *testing.T) {
 	if !bytecodeProgramContainsOpcode(program, bytecodeOpCallSelfIntSubSlotConst) {
 		t.Fatalf("expected lowering to emit fused self-call slot-const opcode")
 	}
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpCallSelfIntSubSlotConst {
+			if !instr.hasIntImmediate {
+				t.Fatalf("expected fused self-call slot-const opcode to carry typed integer-immediate metadata")
+			}
+			if got, ok := instr.intImmediate.ToInt64(); !ok || got <= 0 {
+				t.Fatalf("expected fused self-call slot-const immediate, got=%v ok=%v", got, ok)
+			}
+		}
+	}
 }
 
 func TestBytecodeVM_BinarySlotConstTypeErrorParity(t *testing.T) {
@@ -289,6 +372,19 @@ func TestBytecodeVM_BinarySlotConstTypeErrorParity(t *testing.T) {
 	byteErr := runBytecodeModuleError(t, NewBytecode(), module)
 	if byteErr == nil || !strings.Contains(byteErr.Error(), "Arithmetic requires numeric operands") {
 		t.Fatalf("expected bytecode arithmetic type error, got: %v", byteErr)
+	}
+}
+
+func TestBytecodeVM_BinaryAddSlotConstParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("x"), ast.Int(9)),
+		ast.Bin("+", ast.ID("x"), ast.Int(1)),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode add slot-const mismatch: got=%#v want=%#v", got, want)
 	}
 }
 

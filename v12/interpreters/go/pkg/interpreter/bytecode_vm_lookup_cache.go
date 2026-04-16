@@ -39,6 +39,14 @@ type bytecodeInlineNameLookupCacheEntry struct {
 	value        runtime.Value
 }
 
+type bytecodeResolvedIdentifierLookup struct {
+	value        runtime.Value
+	env          *runtime.Environment
+	envVersion   uint64
+	owner        *runtime.Environment
+	ownerVersion uint64
+}
+
 func (vm *bytecodeVM) canUseLexicalLookupCache(name string) bool {
 	if vm == nil || vm.env == nil || vm.interp == nil {
 		return false
@@ -182,30 +190,71 @@ func (vm *bytecodeVM) storeHotGlobalName(program *bytecodeProgram, ip int, name 
 }
 
 func (vm *bytecodeVM) lookupCachedIdentifierName(program *bytecodeProgram, ip int, name string) (runtime.Value, bool) {
+	if entry, ok := vm.lookupCachedIdentifierNameEntry(program, ip, name); ok {
+		return entry.value, true
+	}
+	return nil, false
+}
+
+func (vm *bytecodeVM) lookupCachedIdentifierNameEntry(program *bytecodeProgram, ip int, name string) (bytecodeResolvedIdentifierLookup, bool) {
 	if cached, ok := vm.lookupHotName(program, ip, name); ok {
-		return cached, true
+		hot := vm.nameLookupHot
+		return bytecodeResolvedIdentifierLookup{
+			value:        cached,
+			env:          hot.env,
+			envVersion:   hot.envVersion,
+			owner:        hot.owner,
+			ownerVersion: hot.ownerVersion,
+		}, true
 	}
 	if vm != nil && vm.interp != nil && vm.interp.global != nil && vm.env == vm.interp.global {
 		if cached, ok := vm.lookupCachedGlobalValue(program, ip, name); ok {
-			vm.storeHotGlobalName(program, ip, name, cached, vm.interp.global)
-			return cached, true
+			owner := vm.interp.global
+			vm.storeHotGlobalName(program, ip, name, cached, owner)
+			return bytecodeResolvedIdentifierLookup{
+				value:        cached,
+				env:          vm.env,
+				envVersion:   vm.bytecodeEnvRevision(vm.env),
+				owner:        owner,
+				ownerVersion: vm.bytecodeEnvRevision(owner),
+			}, true
 		}
 		if val, owner, ok := vm.env.LookupWithOwner(name); ok {
 			vm.storeCachedGlobalValue(program, ip, name, val)
 			vm.storeHotGlobalName(program, ip, name, val, owner)
-			return val, true
+			return bytecodeResolvedIdentifierLookup{
+				value:        val,
+				env:          vm.env,
+				envVersion:   vm.bytecodeEnvRevision(vm.env),
+				owner:        owner,
+				ownerVersion: vm.bytecodeEnvRevision(owner),
+			}, true
 		}
-		return nil, false
+		return bytecodeResolvedIdentifierLookup{}, false
 	}
 
 	if cached, ok := vm.lookupCachedScopeValue(program, ip, name); ok {
-		return cached, true
+		key := bytecodeGlobalLookupCacheKey{program: program, ip: ip}
+		entry := vm.scopeLookupCache[key]
+		return bytecodeResolvedIdentifierLookup{
+			value:        cached,
+			env:          entry.env,
+			envVersion:   entry.envVersion,
+			owner:        entry.owner,
+			ownerVersion: entry.ownerVersion,
+		}, true
 	}
 	if val, owner, ok := vm.env.LookupWithOwner(name); ok {
 		vm.storeCachedScopeValue(program, ip, name, owner, val)
-		return val, true
+		return bytecodeResolvedIdentifierLookup{
+			value:        val,
+			env:          vm.env,
+			envVersion:   vm.bytecodeEnvRevision(vm.env),
+			owner:        owner,
+			ownerVersion: vm.bytecodeEnvRevision(owner),
+		}, true
 	}
-	return vm.env.Lookup(name)
+	return bytecodeResolvedIdentifierLookup{}, false
 }
 
 func (vm *bytecodeVM) lookupCachedName(program *bytecodeProgram, ip int, name string) (runtime.Value, bool) {

@@ -29,21 +29,35 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 	}
 	imm := runtime.NewSmallInt(litVal, runtime.IntegerI32)
 	switch expr.Operator {
+	case "+":
+		return bytecodeInstruction{
+			op:              bytecodeOpBinaryIntAddSlotConst,
+			target:          slot,
+			value:           imm,
+			intImmediate:    imm,
+			hasIntImmediate: true,
+			operator:        expr.Operator,
+			node:            expr,
+		}, true
 	case "-":
 		return bytecodeInstruction{
-			op:       bytecodeOpBinaryIntSubSlotConst,
-			target:   slot,
-			value:    imm,
-			operator: expr.Operator,
-			node:     expr,
+			op:              bytecodeOpBinaryIntSubSlotConst,
+			target:          slot,
+			value:           imm,
+			intImmediate:    imm,
+			hasIntImmediate: true,
+			operator:        expr.Operator,
+			node:            expr,
 		}, true
 	case "<=":
 		return bytecodeInstruction{
-			op:       bytecodeOpBinaryIntLessEqualSlotConst,
-			target:   slot,
-			value:    imm,
-			operator: expr.Operator,
-			node:     expr,
+			op:              bytecodeOpBinaryIntLessEqualSlotConst,
+			target:          slot,
+			value:           imm,
+			intImmediate:    imm,
+			hasIntImmediate: true,
+			operator:        expr.Operator,
+			node:            expr,
 		}, true
 	default:
 		return bytecodeInstruction{}, false

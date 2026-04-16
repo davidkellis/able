@@ -540,12 +540,23 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if err := emitExpression(ctx, i, n.Right); err != nil {
 			return err
 		}
+		typedPattern, hasTypedStore := typedIdentifierPatternFromTarget(n.Left)
 		if ctx.frameLayout != nil && ok {
 			if n.Operator == ast.AssignmentDeclare {
 				slot := ctx.declareSlot(name)
-				ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotNew, target: slot, name: name, node: n})
+				instr := bytecodeInstruction{op: bytecodeOpStoreSlotNew, target: slot, name: name, node: n}
+				if hasTypedStore {
+					instr.storeTyped = true
+					instr.typeExpr = typedPattern.TypeAnnotation
+				}
+				ctx.emit(instr)
 			} else if slot, found := ctx.lookupSlot(name); found {
-				ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlot, target: slot, name: name, node: n})
+				instr := bytecodeInstruction{op: bytecodeOpStoreSlot, target: slot, name: name, node: n}
+				if hasTypedStore {
+					instr.storeTyped = true
+					instr.typeExpr = typedPattern.TypeAnnotation
+				}
+				ctx.emit(instr)
 			} else {
 				ctx.emit(bytecodeInstruction{op: bytecodeOpAssignName, name: name, node: n})
 			}

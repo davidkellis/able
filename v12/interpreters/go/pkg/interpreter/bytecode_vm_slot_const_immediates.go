@@ -27,8 +27,8 @@ func (vm *bytecodeVM) slotConstImmediateTable(program *bytecodeProgram) *bytecod
 	}
 	for idx, instr := range program.instructions {
 		switch instr.op {
-		case bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpCallSelfIntSubSlotConst:
-			if imm, ok := bytecodeImmediateIntegerValue(instr.value); ok {
+		case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpCallSelfIntSubSlotConst:
+			if imm, ok := bytecodeInstructionImmediateInteger(instr); ok {
 				if !table.hasSingle && table.index == nil {
 					table.hasSingle = true
 					table.singleIP = idx
@@ -49,16 +49,23 @@ func (vm *bytecodeVM) slotConstImmediateTable(program *bytecodeProgram) *bytecod
 	return table
 }
 
+func bytecodeInstructionImmediateInteger(instr bytecodeInstruction) (runtime.IntegerValue, bool) {
+	if instr.hasIntImmediate {
+		return instr.intImmediate, true
+	}
+	return bytecodeImmediateIntegerValue(instr.value)
+}
+
 func bytecodeSlotConstImmediateAt(instr bytecodeInstruction, ip int, table *bytecodeSlotConstIntImmediateTable) (runtime.IntegerValue, bool) {
 	switch instr.op {
-	case bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpCallSelfIntSubSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpCallSelfIntSubSlotConst:
 	default:
 		return runtime.IntegerValue{}, false
 	}
 	if value, ok := bytecodeSlotConstImmediateAtIP(ip, table); ok {
 		return value, true
 	}
-	imm, ok := bytecodeImmediateIntegerValue(instr.value)
+	imm, ok := bytecodeInstructionImmediateInteger(instr)
 	return imm, ok
 }
 

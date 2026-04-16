@@ -107,6 +107,13 @@ func boundMethodReceiverKey(receiver runtime.Value) (any, bool) {
 }
 
 func (i *Interpreter) lookupBoundMethodCache(key boundMethodCacheKey) (runtime.Value, bool) {
+	if i == nil {
+		return nil, false
+	}
+	if i.envSingleThread {
+		method, ok := i.boundMethodCache[key]
+		return method, ok
+	}
 	i.methodCacheMu.RLock()
 	defer i.methodCacheMu.RUnlock()
 	method, ok := i.boundMethodCache[key]
@@ -114,7 +121,20 @@ func (i *Interpreter) lookupBoundMethodCache(key boundMethodCacheKey) (runtime.V
 }
 
 func (i *Interpreter) storeBoundMethodCache(key boundMethodCacheKey, method runtime.Value) {
+	if i == nil {
+		return
+	}
 	if method == nil {
+		return
+	}
+	if i.envSingleThread {
+		if i.boundMethodCache == nil {
+			i.boundMethodCache = make(map[boundMethodCacheKey]runtime.Value)
+		}
+		if len(i.boundMethodCache) >= boundMethodCacheMaxEntries {
+			i.boundMethodCache = make(map[boundMethodCacheKey]runtime.Value, boundMethodCacheMaxEntries/2)
+		}
+		i.boundMethodCache[key] = method
 		return
 	}
 	i.methodCacheMu.Lock()
@@ -313,16 +333,6 @@ func (a *methodResolutionAccumulator) addCallable(funcName string, receiver runt
 
 func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName string, receiver runtime.Value, ifaceFilter string) (runtime.Value, error) {
 	acc := methodResolutionAccumulator{}
-	var scopeCallable runtime.Value
-	var scopeFilter functionScopeFilter
-	nameInScope := false
-	if env != nil {
-		if val, ok := env.Lookup(funcName); ok && isCallableRuntimeValue(val) {
-			nameInScope = true
-			scopeCallable = val
-			scopeFilter = functionScopeFilterFromValue(val)
-		}
-	}
 	cacheReceiver, cacheableReceiver := boundMethodReceiverKey(receiver)
 	var implCtx *implMethodContext
 	if env != nil {
@@ -342,6 +352,16 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 		}
 		if cached, ok := i.lookupBoundMethodCache(earlyCacheKey); ok {
 			return cached, nil
+		}
+	}
+	var scopeCallable runtime.Value
+	var scopeFilter functionScopeFilter
+	nameInScope := false
+	if env != nil {
+		if val, ok := env.Lookup(funcName); ok && isCallableRuntimeValue(val) {
+			nameInScope = true
+			scopeCallable = val
+			scopeFilter = functionScopeFilterFromValue(val)
 		}
 	}
 	var info typeInfo

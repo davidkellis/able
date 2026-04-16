@@ -1,5 +1,464 @@
 # Able Project Log
 
+# 2026-04-15 — Bytecode inline-call bulk-copy tranche complete (v12)
+- Closed the next bytecode inline-call slice by moving the final
+  “is any runtime coercion possible here at all?” decision into cached
+  frame-layout metadata and using direct bulk copies on the proven no-coercion
+  path.
+- What landed:
+  - slot-enabled frame layouts now cache summary `anyParamCoercion` and
+    `anyExplicitCoercion` flags alongside the existing per-parameter coercion
+    metadata
+  - `tryInlineCall(...)`, `tryInlineResolvedCallFromStack(...)`, and
+    `tryInlineSelfCallFromStack(...)` now bulk-copy argument ranges straight
+    into slot frames when the layout proves runtime coercion cannot be needed
+  - bound-receiver inline calls now bulk-copy explicit arguments after
+    injecting the receiver instead of iterating the ordinary coercion loop
+  - added focused slot-analysis coverage for the all-no-coercion layout case
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'Test(BytecodeVM_|AnalyzeFrameLayout|InlineCoercionUnnecessary|ExecFixtureParity/07_10_bytecode_quicksort_hotloop)' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-inlinecopy-clean.cpu.out`
+      - observed `9778187 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `9930751 ns/op`, `9916588 ns/op`, and `10300807 ns/op`
+  - profiled targeted comparison:
+    - before: inline-call setup still paid the per-argument coercion loop even
+      when the cached layout metadata already proved no coercion was possible
+    - after: `tryInlineResolvedCallFromStack(...)` dropped to roughly `30ms`
+      cumulative on the next profile and no longer sits in the top hotspot
+      tier
+  - `git diff --check`
+
+# 2026-04-15 — Bytecode tracked array-write sync tranche complete (v12)
+- Closed the next bytecode array-write slice by splitting the common exclusive
+  tracked-wrapper case away from the older full alias-broadcast sync path.
+- What landed:
+  - `ArrayValue` tracking now records whether a wrapper is exclusive or shared
+    for its handle, so hot direct bytecode writes can tell when alias broadcast
+    is actually needed
+  - direct bytecode array writes now use a tracked-array write helper that
+    refreshes the cached element-type token cheaply and updates only the
+    current wrapper on the exclusive path
+  - shared aliases still stay coherent, and the new focused bytecode regression
+    pins that direct bytecode index writes update sibling aliases correctly
+- Focused files changed:
+  - `v12/interpreters/go/pkg/runtime/values.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_array_tracking_test.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestInterpreter(TrackArrayValueUsesSingleFastPath|TrackArrayValuePromotesAndDemotesAliases|EnsureArrayStateUsesTrackedStateFastPath|SyncArrayValuesUpdatesCachedElementTypeToken|SyncTrackedArrayWriteUpdatesSharedAliasesAndToken)|TestBytecodeVM_(DirectArrayIndexFastPath|DirectArrayIndexSetSyncsSharedAliases|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|IndexGetFastPathInvalidatesWhenImplAppears)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-array-sync-fast.cpu.out`
+      - observed `9853446 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `9895586 ns/op`, `9975545 ns/op`, and `9998483 ns/op`
+  - profiled targeted comparison:
+    - before: the old direct array-set path still showed `syncArrayValues(...)`
+      at about `20ms` flat / `60ms` cumulative, with `resolveDirectArrayIndexSet(...)`
+      and `resolveIndexSet(...)` still visible around it
+    - after: that hotspot pair dropped out of the top tier on the next profile,
+      and the remaining dominant bytecode work shifted back to integer compare
+      and inline-call frames
+
+# 2026-04-15 — Bytecode slot-const immediate metadata tranche complete (v12)
+- Closed the next bytecode binary-op slice by moving slot-const integer
+  immediates out of repeated runtime-value decoding and into typed bytecode
+  instruction metadata.
+- What landed:
+  - slot-const lowering now records typed integer-immediate metadata directly
+    on `bytecodeInstruction` for hot `+`, `-`, `<=`, and fused self-call
+    slot-const opcodes
+  - hot `execBinary(...)` and `execCallSelfIntSubSlotConst(...)` paths now read
+    that typed metadata directly and only fall back to the older runtime-value
+    decode path for manually-constructed or older instruction shapes
+  - slot-const immediate cache construction now prefers the typed instruction
+    metadata too, and focused regressions now pin both the lowering metadata
+    and the metadata-only cache path
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_binary_slot_const.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_callself_slot_const.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmits(IntegerSlotConstHotOpcodes|FusedSelfCallSlotConstOpcode)|SlotConstImmediateCacheBuildsAndRefreshes|Binary(AddSlotConstParity|FastPathIntegerParity|BinarySlotConstTypeErrorParity)|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-slot-imm-inline.cpu.out`
+      - observed `9917425 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `10631302 ns/op`, `10342439 ns/op`, and `10269351 ns/op`
+  - profiled targeted comparison:
+    - before: slot-const immediate decode still showed up as a top hot frame in
+      `execBinary(...)`, with the old `bytecodeImmediateIntegerValue(...)` /
+      instruction-immediate path accounting for roughly `30-40ms` flat on the
+      prior profile
+    - after: the slot-const immediate decode hotspot dropped out of the top
+      tier entirely on the next profile, while the profiled 50x quicksort run
+      moved under `10ms/op`
+
+# 2026-04-15 — Bytecode direct array-index outer fast-path tranche complete (v12)
+- Closed the next bytecode array-index slice by inlining the common 64-bit
+  small-int decode case at the outer direct index value switch.
+- What landed:
+  - `bytecodeDirectArrayIndex(...)` now handles value and pointer-backed
+    small-int indexes directly on 64-bit builds before calling the slower
+    shared `IntegerValue -> int` helper
+  - the existing direct-array index tests already covered the hot value/pointer
+    cases, so no behavior expansion was needed
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(DirectArrayIndexFastPath|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|IndexGetFastPathInvalidatesWhenImplAppears)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-index-inline64.cpu.out`
+      - observed `10983834 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `10800407 ns/op`, `10976736 ns/op`, and `10159095 ns/op`
+  - profiled targeted comparison:
+    - before: `bytecodeDirectArrayIndexFromInteger(...)` still showed about
+      `80ms` flat on the prior profile
+    - after: that helper dropped out of the top set, with the residual direct
+      index cost reduced to the outer `bytecodeDirectArrayIndex(...)` frame and
+      the surrounding get/set path
+
+# 2026-04-15 — Bytecode untyped slot-store fast-path tranche complete (v12)
+- Closed the next bytecode slot-store slice by splitting the common untyped
+  `StoreSlot` path away from the typed-assignment helper.
+- What landed:
+  - `execStoreSlot(...)` now updates the target slot directly and advances the
+    instruction pointer immediately when the store does not carry typed-pattern
+    metadata
+  - typed slot stores still use the existing mismatch/coercion path unchanged
+  - added a direct VM-level regression covering the untyped slot-store fast
+    path so this does not rely only on higher-level fixture behavior
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_store.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_typed_pattern_slot_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(ExecStoreSlotUntypedFastPath|TypedIdentifierDeclarationUsesSlotLowering|UntypedSlotStoreDoesNotCacheTypedMetadata|TypedIdentifierMismatchReturnsErrorValue)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-storeslot-fast.cpu.out`
+      - observed `11269680 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `10733424 ns/op`, `10870355 ns/op`, and `10184627 ns/op`
+  - profiled targeted comparison:
+    - before: `execStoreSlot(...)` still showed about `20ms` flat on the prior
+      profiled run
+    - after: `execStoreSlot(...)` dropped out of the hotspot tier on the next
+      profile, with the remaining visible work shifting back toward array index
+      decoding and direct integer compare helpers
+
+# 2026-04-15 — Bytecode slot-frame batch prefill tranche complete (v12)
+- Closed the next bytecode call/frame slice by batching hot small slot-frame
+  allocation, so recursive inline calls can reuse several same-size frames
+  immediately instead of allocating one frame at a time on the way down.
+- What landed:
+  - small slot-frame layouts now batch-prefill the hot slot-frame pool from one
+    contiguous backing allocation the first time a given hot size is needed
+  - switching hot slot-frame sizes now spills the old hot batch into the
+    general pool before the new batch is installed, so frame isolation stays
+    correct across mixed call shapes
+  - added focused unit coverage for hot-batch prefill and size-change spill
+    behavior
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames_finalize_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM(AcquireSlotFramePrefillsHotBatchForSmallLayouts|AcquireSlotFrameSpillsOldHotBatchOnSizeChange|ReleaseCompletedRunFramesReleasesActiveSlots|FinishRunResumableReleasesUnwoundCallFrames|_CallNameCacheInvalidatesOnRebind|_CallNameScopeCacheInvalidatesOnLocalRebind)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-slotframe-batch.cpu.out`
+      - observed `10876533 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `11172984 ns/op`, `10487301 ns/op`, and `10676889 ns/op`
+  - profiled targeted comparison:
+    - before: `acquireSlotFrame(...)` still showed about `40ms` flat and
+      `tryInlineResolvedCallFromStack(...)` about `50ms` cumulative on the
+      prior profiled run
+    - after: `acquireSlotFrame(...)` dropped to about `20ms` cumulative,
+      `tryInlineResolvedCallFromStack(...)` to about `30ms` cumulative, and
+      `execCallName(...)` also shrank on the next profiled run
+
+# 2026-04-15 — Bytecode direct small-int pair hot-path tranche complete (v12)
+- Closed the next bytecode integer-op slice by moving direct small-int pair
+  handling ahead of the older repeated `IntegerValue` extraction path for hot
+  compare/add/sub sites.
+- What landed:
+  - added direct small-int pair helpers for bytecode integer hot paths, so
+    common value/pointer-backed small-int pairs stay on a narrower direct
+    `int64` route before the generic `IntegerValue` helpers are touched
+  - `execBinaryDirectIntegerComparisonFast(...)` now uses that direct pair path
+    first, which removes the earlier repeated small-int extraction work from
+    the common compare case
+  - specialized bytecode integer add/sub and `<=` now reuse the same direct
+    small-int pair path before falling back to the existing same-type and
+    generic arithmetic helpers
+  - added focused unit coverage for direct small-int compare and same-type pair
+    handling
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(DirectIntegerComparisonFastPath|DirectSmallIntegerComparisonFastPath|DirectSameTypeSmallIntPair|BinaryFastPathIntegerParity|BinaryFastPathGeneralIntegerComparisonParity)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-smallint-pair.cpu.out`
+      - observed `10807610 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `10425823 ns/op`, `10625194 ns/op`, and `10497405 ns/op`
+  - profiled targeted comparison:
+    - before: the previous profiled run still showed the direct integer-compare
+      path as a top flat hotspot, with the work concentrated in repeated
+      small-int extraction
+    - after: that hotspot dropped out of the top flat set, and the narrowed
+      direct same-type small-int pair helper showed only about `10ms` flat on
+      the next profiled run
+
+# 2026-04-15 — Bytecode named-call cache pointer fast-path tranche complete (v12)
+- Closed the next bytecode named-call slice by making cached `CallName` sites
+  reuse stable pointer-backed dispatch records instead of copying full cache
+  entries on hot hits.
+- What landed:
+  - `callNameCache` now stores `*bytecodeCallNameCacheEntry`, and the inline
+    `callNameHot` cache keeps the same pointer instead of embedding a second
+    copy of the dispatch record
+  - `lookupCachedCallName(...)` now validates and returns those stable entries
+    directly, so hot hits stop paying the old full-struct copy on the inline
+    cache path and the map-cache path
+  - `execCachedCallName(...)` now consumes the cached pointer directly, and the
+    store path keeps the same pointer-backed entry through the first dispatch
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_name_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(CallNameCacheInvalidatesOnRebind|CallNameScopeCacheInvalidatesOnLocalRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameScopeCacheInvalidatesAcrossDispatchKinds|NativeExactCallsSkipInlineProbeStats)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-callname-pointer.cpu.out`
+      - observed `11165550 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `10697789 ns/op`, `10552910 ns/op`, and `10851509 ns/op`
+  - profiled targeted comparison:
+    - before: `lookupCachedCallName(...)` still showed about `50ms` flat on the
+      profiled quicksort run
+    - after: `lookupCachedCallName(...)` dropped out of the top hotspot set on
+      the next profiled run, and the visible cost shifted back toward
+      `execBinary`, inline-call setup, and direct array index work
+
+# 2026-04-15 — Bytecode direct array-index decode tightening tranche complete (v12)
+- Closed the next bytecode array-index slice by narrowing the concrete integer
+  decode path used by direct raw-array `get` / `set`.
+- What landed:
+  - `bytecodeDirectArrayIndex(...)` now handles concrete `runtime.IntegerValue`
+    and `*runtime.IntegerValue` receivers directly instead of routing them back
+    through the broader generic integer extraction helper
+  - the shared direct index helper now centralizes the small-int / int64 path,
+    and on 64-bit builds it skips the redundant int-range guard for small-int
+    indexes because every small-int payload already fits the native `int`
+  - added focused unit coverage for concrete small-int, pointer, and boxed
+    big-int index decoding
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_index_cache_test.go`
+- Verification:
+  - `go test -v -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(DirectArrayIndexFastPath|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|IndexGetFastPathInvalidatesWhenImplAppears)$|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop$' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-arrayindex-fast.cpu.out`
+      - observed `11164312 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `10635845 ns/op`, `11117042 ns/op`, and `10804503 ns/op`
+  - profiled targeted comparison:
+    - before: `bytecodeDirectArrayIndex(...)` still showed about `70ms` flat on
+      the profiled quicksort run
+    - after: that dropped to about `40ms` cumulative, with the remaining direct
+      index cost split between the narrower integer decode helper and the
+      surrounding get/set path
+
+# 2026-04-15 — Bytecode primitive bound-method cache fast-path tranche complete (v12)
+- Closed the next bytecode member-resolution slice by moving primitive receiver
+  bound-method cache hits ahead of lexical scope lookup and by removing the
+  bound-method cache lock from single-thread bytecode execution.
+- What landed:
+  - `resolveMethodFromPool(...)` now checks the existing primitive receiver
+    bound-method cache before it pays `env.Lookup(funcName)` when there is no
+    impl-method runtime context, matching the env-independent behavior that
+    cache hits already had semantically
+  - `lookupBoundMethodCache(...)` and `storeBoundMethodCache(...)` now use the
+    existing single-thread execution mode to bypass the interpreter
+    `methodCacheMu` lock on bytecode hot paths
+  - this specifically shortens hot array method accesses like `values.push(...)`
+    inside ordinary function environments, which previously still paid local
+    lexical lookup work even when the primitive bound-method cache already had
+    the answer
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+- Verification:
+  - `go test -v -p 1 ./pkg/interpreter -run 'TestResolveMethodFromPool_BoundMethodCacheInvalidatesWithMethodCache$|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop$' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-boundmethod-fast.cpu.out`
+      - observed `11001361 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `11235351 ns/op`, `10392562 ns/op`, and `10508727 ns/op`
+  - profiled targeted comparison:
+    - before: `resolveMethodFromPool(...)`, `arrayMemberWithOverrides(...)`,
+      and `execMemberAccess(...)` still sat in the hot quicksort path because
+      primitive receiver cache hits were reached only after `env.Lookup(...)`
+    - after: those frames dropped out of the hotspot tier on the next
+      profiled run, and the visible cost shifted back toward integer ops,
+      direct array index work, and residual named-call execution
+
+# 2026-04-15 — Bytecode integer add slot-const tranche complete (v12)
+- Closed the next bytecode integer-op slice by moving hot `x + const` sites
+  onto the existing slot-const immediate machinery instead of treating them as
+  ordinary two-operand specialized integer ops.
+- What landed:
+  - lowering now emits `bytecodeOpBinaryIntAddSlotConst` for identifier-plus-
+    integer-literal sites that satisfy the same slot/immediate constraints
+    already used by the existing subtraction/comparison slot-const path
+  - the VM slot-const dispatcher and immediate table now recognize that new
+    add opcode, so hot increment-style sites reuse the cached immediate value
+    instead of reloading and unboxing the right operand every iteration
+  - added focused lowering/parity coverage for the new add slot-const path
+    while keeping the existing subtraction/comparison slot-const coverage
+    intact
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_binary_slot_const.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+- Verification:
+  - `go test -v -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsIntegerSlotConstHotOpcodes|BinaryAddSlotConstParity|BinarySlotConstTypeErrorParity|SlotConstImmediateCacheBuildsAndRefreshes)$|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop$' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-addslotconst.cpu.out`
+      - observed `11314962 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `11687750 ns/op`, `10771688 ns/op`, and `10843360 ns/op`
+  - profiled targeted comparison:
+    - before: `execBinarySpecializedOpcode(...)` still showed about `70ms`
+      cumulative on the quicksort profile, with visible time on the ordinary
+      integer add path
+    - after: that dropped to about `30ms` cumulative, and the residual
+      arithmetic hotspot shifted back toward direct comparison, named call,
+      member access, and array index work
+
+# 2026-04-15 — Bytecode integer-comparison helper tightening tranche complete (v12)
+- Closed the next bytecode ops slice by tightening the shared integer
+  comparison helpers instead of widening the bytecode opcode surface.
+- What landed:
+  - `execBinaryDirectIntegerComparisonFast(...)` now compares small-int pairs
+    directly from their inline `int64` representation before it falls through
+    to the broader integer comparison helper
+  - `integerComparisonResult(...)` now has the same small-int fast path, which
+    keeps shared non-bytecode integer comparisons off the old `ToInt64()` /
+    big-int route when both values are already small integers
+  - widened the existing general integer-comparison parity regression to pin
+    `<`, `>`, and `>=` alongside the earlier hot comparison coverage
+  - explicitly did not keep the broader compare-opcode expansion experiment,
+    because it increased bytecode surface area without paying for itself in
+    benchmarked wall-clock time
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_operations_compare.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(BinaryFastPathIntegerParity|DirectIntegerComparisonFastPath|BinaryFastPathGeneralIntegerComparisonParity|LoweringEmitsIntegerBinaryHotOpcodes|LoweringEmitsIntegerSlotConstHotOpcodes|SlotConstImmediateCacheBuildsAndRefreshes|ExecFixtureParity/07_10_bytecode_quicksort_hotloop)' -count=1 -timeout 300s`
+  - `git diff --check`
+  - benchmark spot-checks after the kept helper-tightening change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `11463879 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `11264158 ns/op`, `11361788 ns/op`, and `11339865 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-compare-tight.cpu.out`
+      - observed `11301847 ns/op`
+  - profiled targeted comparison:
+    - before: `execBinaryDirectIntegerComparisonFast(...)` still showed about
+      `100ms` cumulative in the quicksort profile
+    - after: that dropped to about `80ms` cumulative, with the remaining cost
+      concentrated in repeated integer unboxing rather than in the comparison
+      helper itself
+
+# 2026-04-15 — Bytecode simple CallName dispatch-cache tranche complete (v12)
+- Closed the next bytecode named-call slice by caching the resolved simple
+  `CallName` target and its dispatch shape at the bytecode call site under the
+  same env/owner revision guards already used by lexical lookup caching.
+- What landed:
+  - simple identifier `CallName` sites now keep a per-site cache entry with
+    the resolved callee, owning lexical scope revisions, and the preclassified
+    dispatch kind (`exact native`, `inline bytecode`, or `generic`)
+  - the VM now executes cached named calls directly from that entry instead of
+    redoing lexical lookup validation plus native-vs-inline-vs-generic
+    classification on every hot hit
+  - simple-name misses now classify once, store once, and immediately execute
+    through the cached dispatch path instead of paying that classification cost
+    twice in `execCallName(...)`
+  - added focused rebinding coverage to pin invalidation across dispatch kinds
+    (plain function -> native function) in addition to the existing local and
+    captured-parent call-name invalidation tests
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_lookup_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_name_cache.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_scope_lookup_cache_test.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(CallNameScopeCacheInvalidatesOnLocalRebind|CallNameScopeCacheInvalidatesOnCapturedParentRebind|CallNameScopeCacheInvalidatesAcrossDispatchKinds|NativeExactCallsSkipInlineProbeStats|LoadNameScopeCacheInvalidatesOnCapturedParentAssign)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `git diff --check`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-callname-cache.cpu.out`
+      - observed `10736486 ns/op`
+    - repeated clean `50x` reruns stayed in the rough `11.1-11.4ms/op` band
+      on this machine, with one noisy outlier at `16.4ms/op`
+  - profiled comparison:
+    - `execCallName(...)` no longer spends time in the old simple-name lookup
+      plus dispatch-classification path on hot hits; the profile now shows the
+      named-call work concentrated in the cached execution path itself
+
+# 2026-04-15 — Bytecode typed slot-store metadata tranche complete (v12)
+- Closed the next bytecode store-path slice by moving typed identifier slot
+  assignment metadata into lowered bytecode instructions instead of rediscovering
+  it from AST nodes at runtime.
+- What landed:
+  - `StoreSlot` / `StoreSlotNew` instructions now record whether the source
+    assignment target was a typed identifier plus its declared type expression
+  - the VM slot-store path now uses that cached metadata directly, so ordinary
+    untyped slot stores return on the first branch without reopening the
+    assignment AST or pattern helpers
+  - typed identifier slot stores now execute their match/coercion path
+    directly from bytecode metadata while preserving the same mismatch error
+    behavior
+  - added focused lowering coverage to pin both the typed metadata path and
+    the untyped fast path
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_store.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_typed_pattern_slot_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(TypedIdentifierDeclarationUsesSlotLowering|TypedIdentifierMismatchReturnsErrorValue|UntypedSlotStoreDoesNotCacheTypedMetadata|ExecFixtureParity/07_10_bytecode_quicksort_hotloop)' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=20x -count=1`
+      - observed `12356614 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-slotmeta.cpu.out`
+      - observed `11493369 ns/op`
+  - profiled targeted comparison:
+    - before: `execStoreSlot(...)` still showed about `20ms` flat / `30ms`
+      cumulative and `typedSlotAssignmentValues(...)` still appeared in the
+      profile because every slot store reopened the assignment AST path
+    - after: both dropped out of the hotspot tier, with the remaining visible
+      bytecode work shifted back toward `execCallName(...)`, `execBinary(...)`,
+      and inline call setup
+
 # 2026-04-15 — Bytecode inline-call coercion-metadata tranche complete (v12)
 - Closed the next bytecode call-path slice by moving per-parameter coercion
   shape checks out of the hot inline-call loop and into cached frame-layout

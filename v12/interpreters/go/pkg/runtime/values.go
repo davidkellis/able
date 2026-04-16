@@ -294,10 +294,11 @@ func (v FloatValue) Kind() Kind { return KindFloat }
 //-----------------------------------------------------------------------------
 
 type ArrayValue struct {
-	Elements      []Value
-	Handle        int64
-	State         *ArrayState
-	TrackedHandle int64
+	Elements       []Value
+	Handle         int64
+	State          *ArrayState
+	TrackedHandle  int64
+	TrackedAliases bool
 }
 
 func (v *ArrayValue) Kind() Kind { return KindArray }

@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
@@ -456,40 +457,53 @@ func (vm *bytecodeVM) resolveCachedIndexMethod(program *bytecodeProgram, ip int,
 	return nil, false, true, nil
 }
 
-func bytecodeDirectArrayIndex(idxVal runtime.Value) (int, bool, error) {
-	switch idx := idxVal.(type) {
-	case runtime.IntegerValue:
-		if idx.IsSmall() {
-			raw := idx.Int64Fast()
-			if raw < math.MinInt || raw > math.MaxInt {
-				return 0, true, fmt.Errorf("Array index must be within int range")
-			}
-			return int(raw), true, nil
+func bytecodeInt64ToArrayIndex(raw int64) (int, error) {
+	if strconv.IntSize == 64 {
+		return int(raw), nil
+	}
+	if raw < math.MinInt || raw > math.MaxInt {
+		return 0, fmt.Errorf("Array index must be within int range")
+	}
+	return int(raw), nil
+}
+
+func bytecodeDirectArrayIndexFromInteger(idx runtime.IntegerValue) (int, bool, error) {
+	if idx.IsSmall() {
+		if strconv.IntSize == 64 {
+			return int(idx.Int64Fast()), true, nil
 		}
-	case *runtime.IntegerValue:
-		if idx != nil && idx.IsSmall() {
-			raw := idx.Int64Fast()
-			if raw < math.MinInt || raw > math.MaxInt {
-				return 0, true, fmt.Errorf("Array index must be within int range")
-			}
-			return int(raw), true, nil
-		}
+		value, err := bytecodeInt64ToArrayIndex(idx.Int64Fast())
+		return value, true, err
 	}
-	idxInt, ok := bytecodeDirectIntegerValue(idxVal)
-	if !ok {
-		idxInt, ok = bytecodeIntegerValue(idxVal)
-	}
-	if !ok {
-		return 0, false, nil
-	}
-	raw, fits := idxInt.ToInt64()
+	raw, fits := idx.ToInt64()
 	if !fits {
 		return 0, true, fmt.Errorf("Array index must be within int range")
 	}
-	if raw < math.MinInt || raw > math.MaxInt {
-		return 0, true, fmt.Errorf("Array index must be within int range")
+	value, err := bytecodeInt64ToArrayIndex(raw)
+	return value, true, err
+}
+
+func bytecodeDirectArrayIndex(idxVal runtime.Value) (int, bool, error) {
+	switch idx := idxVal.(type) {
+	case runtime.IntegerValue:
+		if idx.IsSmall() && strconv.IntSize == 64 {
+			return int(idx.Int64Fast()), true, nil
+		}
+		return bytecodeDirectArrayIndexFromInteger(idx)
+	case *runtime.IntegerValue:
+		if idx == nil {
+			return 0, false, nil
+		}
+		if idx.IsSmall() && strconv.IntSize == 64 {
+			return int(idx.Int64Fast()), true, nil
+		}
+		return bytecodeDirectArrayIndexFromInteger(*idx)
 	}
-	return int(raw), true, nil
+	idxInt, ok := bytecodeIntegerValue(idxVal)
+	if !ok {
+		return 0, false, nil
+	}
+	return bytecodeDirectArrayIndexFromInteger(idxInt)
 }
 
 func bytecodeTrackedArrayState(arr *runtime.ArrayValue) (*runtime.ArrayState, bool) {
@@ -549,7 +563,7 @@ func (vm *bytecodeVM) resolveDirectArrayIndexSet(arr *runtime.ArrayValue, idxVal
 	}
 	if op == ast.AssignmentAssign {
 		state.Values[idx] = value
-		vm.interp.syncArrayValues(arr.Handle, state)
+		vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
 		return value, true, nil
 	}
 	if !isCompound {
@@ -561,6 +575,6 @@ func (vm *bytecodeVM) resolveDirectArrayIndexSet(arr *runtime.ArrayValue, idxVal
 		return nil, true, err
 	}
 	state.Values[idx] = computed
-	vm.interp.syncArrayValues(arr.Handle, state)
+	vm.interp.syncTrackedArrayWrite(arr, state, idx, computed)
 	return computed, true, nil
 }

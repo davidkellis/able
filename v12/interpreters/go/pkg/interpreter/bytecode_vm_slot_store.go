@@ -18,6 +18,11 @@ func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 		return fmt.Errorf("bytecode stack underflow")
 	}
 	val := vm.stack[len(vm.stack)-1]
+	if !instr.storeTyped || instr.typeExpr == nil {
+		vm.slots[instr.target] = val
+		vm.ip++
+		return nil
+	}
 	storeVal, stackVal, shouldStore, err := vm.typedSlotAssignmentValues(*instr, val)
 	if err != nil {
 		if instr.node != nil {
@@ -37,25 +42,25 @@ func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 }
 
 func (vm *bytecodeVM) typedSlotAssignmentValues(instr bytecodeInstruction, value runtime.Value) (runtime.Value, runtime.Value, bool, error) {
-	assignExpr, ok := instr.node.(*ast.AssignmentExpression)
-	if !ok || assignExpr == nil {
+	if !instr.storeTyped || instr.typeExpr == nil {
 		return value, value, true, nil
 	}
-	typedPattern, ok := typedIdentifierPatternFromTarget(assignExpr.Left)
-	if !ok {
-		return value, value, true, nil
-	}
-	bindings := make([]patternBinding, 0, 1)
-	if err := vm.interp.collectPatternBindings(typedPattern, value, vm.env, &bindings); err != nil {
-		if msg, ok := asPatternMismatch(err); ok {
-			return nil, runtime.ErrorValue{Message: msg}, false, nil
+	if !vm.interp.matchesType(instr.typeExpr, value) {
+		expected := typeExpressionToString(instr.typeExpr)
+		actualExpr := vm.interp.typeExpressionFromValue(value)
+		actual := value.Kind().String()
+		if actualExpr != nil {
+			actual = typeExpressionToString(actualExpr)
 		}
+		return nil, runtime.ErrorValue{
+			Message: fmt.Sprintf("Typed pattern mismatch in assignment: expected %s, got %s", expected, actual),
+		}, false, nil
+	}
+	coerced, err := vm.interp.coerceValueToType(instr.typeExpr, value)
+	if err != nil {
 		return nil, nil, false, err
 	}
-	if len(bindings) == 1 {
-		return bindings[0].value, value, true, nil
-	}
-	return value, value, true, nil
+	return coerced, value, true, nil
 }
 
 func typedIdentifierPatternFromTarget(target ast.AssignmentTarget) (*ast.TypedPattern, bool) {

@@ -10,7 +10,12 @@ func TestBytecodeVM_SlotConstImmediateCacheBuildsAndRefreshes(t *testing.T) {
 	vm := &bytecodeVM{}
 	program := &bytecodeProgram{
 		instructions: []bytecodeInstruction{
-			{op: bytecodeOpBinaryIntSubSlotConst, value: runtime.NewSmallInt(3, runtime.IntegerI32)},
+			{
+				op:              bytecodeOpBinaryIntSubSlotConst,
+				value:           runtime.StringValue{Val: "ignore-me"},
+				intImmediate:    runtime.NewSmallInt(3, runtime.IntegerI32),
+				hasIntImmediate: true,
+			},
 			{op: bytecodeOpCallSelfIntSubSlotConst, value: runtime.StringValue{Val: "oops"}},
 		},
 	}
@@ -32,8 +37,10 @@ func TestBytecodeVM_SlotConstImmediateCacheBuildsAndRefreshes(t *testing.T) {
 	}
 
 	program.instructions = append(program.instructions, bytecodeInstruction{
-		op:    bytecodeOpBinaryIntLessEqualSlotConst,
-		value: runtime.NewSmallInt(9, runtime.IntegerI32),
+		op:              bytecodeOpBinaryIntLessEqualSlotConst,
+		value:           runtime.StringValue{Val: "ignore-me-too"},
+		intImmediate:    runtime.NewSmallInt(9, runtime.IntegerI32),
+		hasIntImmediate: true,
 	})
 
 	table = vm.slotConstImmediateTable(program)

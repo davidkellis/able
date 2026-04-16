@@ -1,11 +1,76 @@
 package interpreter
 
 import (
+	"math/big"
 	"testing"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
+
+func TestBytecodeVM_DirectArrayIndexFastPath(t *testing.T) {
+	cases := []struct {
+		name  string
+		value runtime.Value
+		want  int
+	}{
+		{name: "small_value", value: runtime.NewSmallInt(7, runtime.IntegerI32), want: 7},
+		{name: "small_pointer", value: func() runtime.Value {
+			v := runtime.NewSmallInt(11, runtime.IntegerI32)
+			return &v
+		}(), want: 11},
+		{name: "boxed_big_value", value: runtime.NewBigIntValue(big.NewInt(19), runtime.IntegerI32), want: 19},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, handled, err := bytecodeDirectArrayIndex(tc.value)
+			if err != nil {
+				t.Fatalf("direct array index returned error: %v", err)
+			}
+			if !handled {
+				t.Fatalf("expected direct array index to handle %T", tc.value)
+			}
+			if got != tc.want {
+				t.Fatalf("unexpected direct array index: got=%d want=%d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestBytecodeVM_DirectArrayIndexSetSyncsSharedAliases(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.global)
+	first := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+	}, 1)
+	_, err := interp.ensureArrayState(first, 0)
+	if err != nil {
+		t.Fatalf("ensure first array state: %v", err)
+	}
+	second, err := interp.arrayValueFromHandle(first.Handle, 0, 0)
+	if err != nil {
+		t.Fatalf("arrayValueFromHandle: %v", err)
+	}
+	if !first.TrackedAliases || !second.TrackedAliases {
+		t.Fatalf("expected both aliases to be marked shared before direct set")
+	}
+
+	written := runtime.StringValue{Val: "x"}
+	got, handled, err := vm.resolveDirectArrayIndexSet(first, runtime.NewSmallInt(0, runtime.IntegerI32), written, ast.AssignmentAssign, "", false)
+	if err != nil {
+		t.Fatalf("direct array index set returned error: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected direct array index set to handle tracked array write")
+	}
+	if !valuesEqual(got, written) {
+		t.Fatalf("unexpected direct array index set result: got=%#v want=%#v", got, written)
+	}
+	if observed, ok := second.Elements[0].(runtime.StringValue); !ok || observed.Val != "x" {
+		t.Fatalf("expected shared alias to observe direct bytecode set, got %#v", second.Elements[0])
+	}
+}
 
 func TestBytecodeVM_IndexMethodCacheTracksArrayElementType(t *testing.T) {
 	indexIface := ast.Iface(
