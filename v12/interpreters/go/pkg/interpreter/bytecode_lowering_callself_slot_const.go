@@ -36,10 +36,12 @@ func bytecodeSelfCallSlotConstInstruction(ctx *bytecodeLoweringContext, call *as
 		return bytecodeInstruction{}, false
 	}
 	return bytecodeInstruction{
-		op:       bytecodeOpCallSelfIntSubSlotConst,
-		target:   ctx.selfCallSlot,
-		argCount: argInstr.target,
-		value:    argInstr.value,
-		node:     call,
+		op:              bytecodeOpCallSelfIntSubSlotConst,
+		target:          ctx.selfCallSlot,
+		argCount:        argInstr.target,
+		value:           argInstr.value,
+		intImmediate:    argInstr.intImmediate,
+		hasIntImmediate: argInstr.hasIntImmediate,
+		node:            call,
 	}, true
 }

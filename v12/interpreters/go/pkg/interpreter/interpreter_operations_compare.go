@@ -196,6 +196,27 @@ func structInstancesEqual(a *runtime.StructInstanceValue, b *runtime.StructInsta
 }
 
 func integerComparisonResult(op string, leftInt runtime.IntegerValue, rightInt runtime.IntegerValue) bool {
+	// Small-int fast path: stay on the native int64 payload when both values
+	// are already backed by a small integer.
+	if leftInt.IsSmall() && rightInt.IsSmall() {
+		l := leftInt.Int64Fast()
+		r := rightInt.Int64Fast()
+		switch op {
+		case "<":
+			return l < r
+		case "<=":
+			return l <= r
+		case ">":
+			return l > r
+		case ">=":
+			return l >= r
+		case "==":
+			return l == r
+		case "!=":
+			return l != r
+		}
+		return false
+	}
 	// Int64 fast path: avoid big.Int.Cmp allocation overhead when both values fit.
 	if l, lok := leftInt.ToInt64(); lok {
 		if r, rok := rightInt.ToInt64(); rok {

@@ -49,11 +49,16 @@ func (i *Interpreter) trackArrayValue(handle int64, arr *runtime.ArrayValue) {
 	tracking := i.arraysByHandle[handle]
 	switch {
 	case tracking.single == arr:
+		arr.TrackedAliases = false
 	case tracking.many != nil:
+		arr.TrackedAliases = true
 		tracking.many[arr] = struct{}{}
 	case tracking.single == nil:
+		arr.TrackedAliases = false
 		tracking.single = arr
 	default:
+		tracking.single.TrackedAliases = true
+		arr.TrackedAliases = true
 		tracking.many = map[*runtime.ArrayValue]struct{}{
 			tracking.single: {},
 			arr:             {},
@@ -74,11 +79,14 @@ func (i *Interpreter) untrackArrayValue(handle int64, arr *runtime.ArrayValue) {
 	switch {
 	case tracking.single == arr:
 		tracking.single = nil
+		arr.TrackedAliases = false
 	case tracking.many != nil:
 		delete(tracking.many, arr)
+		arr.TrackedAliases = false
 		if len(tracking.many) == 1 {
 			for only := range tracking.many {
 				tracking.single = only
+				only.TrackedAliases = false
 			}
 			tracking.many = nil
 		}
@@ -87,10 +95,73 @@ func (i *Interpreter) untrackArrayValue(handle int64, arr *runtime.ArrayValue) {
 		if arr.TrackedHandle == handle {
 			arr.TrackedHandle = 0
 		}
+		arr.TrackedAliases = false
 		delete(i.arraysByHandle, handle)
 		return
 	}
 	i.arraysByHandle[handle] = tracking
+}
+
+func updateArrayElementTypeTokenForWrite(state *arrayState, idx int, value runtime.Value) {
+	if state == nil {
+		return
+	}
+	if idx == 0 {
+		token, ok := bytecodeIndexValueTypeToken(value)
+		if !ok {
+			token, ok = bytecodeArrayElementTypeTokenFromValues(state.Values)
+		}
+		state.ElementTypeToken = token
+		state.ElementTypeTokenKnown = ok
+		return
+	}
+	if state.ElementTypeTokenKnown {
+		return
+	}
+	token, ok := bytecodeArrayElementTypeTokenFromValues(state.Values)
+	state.ElementTypeToken = token
+	state.ElementTypeTokenKnown = ok
+}
+
+func syncTrackedArrayValue(arr *runtime.ArrayValue, handle int64, state *arrayState) {
+	if arr == nil || state == nil {
+		return
+	}
+	arr.Handle = handle
+	arr.TrackedHandle = handle
+	arr.State = state
+	arr.Elements = state.Values
+}
+
+func (i *Interpreter) syncTrackedArrayWrite(arr *runtime.ArrayValue, state *arrayState, idx int, value runtime.Value) {
+	if i == nil || arr == nil || state == nil {
+		return
+	}
+	handle := arr.Handle
+	if handle == 0 {
+		handle = arr.TrackedHandle
+	}
+	updateArrayElementTypeTokenForWrite(state, idx, value)
+	syncTrackedArrayValue(arr, handle, state)
+	if !arr.TrackedAliases || i.arraysByHandle == nil || handle == 0 {
+		return
+	}
+	tracking, ok := i.arraysByHandle[handle]
+	if !ok {
+		return
+	}
+	if tracking.single != nil {
+		if tracking.single != arr {
+			syncTrackedArrayValue(tracking.single, handle, state)
+		}
+		return
+	}
+	for other := range tracking.many {
+		if other == nil || other == arr {
+			continue
+		}
+		syncTrackedArrayValue(other, handle, state)
+	}
 }
 
 func (i *Interpreter) syncArrayValues(handle int64, state *arrayState) {

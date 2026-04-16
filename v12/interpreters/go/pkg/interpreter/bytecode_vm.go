@@ -20,6 +20,7 @@ const (
 	bytecodeOpBinaryIntSub
 	bytecodeOpBinaryIntLessEqual
 	bytecodeOpBinaryIntDivCast
+	bytecodeOpBinaryIntAddSlotConst
 	bytecodeOpBinaryIntSubSlotConst
 	bytecodeOpBinaryIntLessEqualSlotConst
 	bytecodeOpUnary
