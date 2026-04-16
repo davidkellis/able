@@ -926,6 +926,16 @@ Current state snapshot:
   `9930751`, `9916588`, and `10300807 ns/op`, and
   `tryInlineResolvedCallFromStack(...)` is down to roughly `30ms` cumulative
   instead of sitting in the top hotspot tier;
+- the next bytecode tranche is landed too: the direct small-int comparison
+  path no longer pays an extra tuple-return helper on every hot comparison.
+  `bytecodeDirectIntegerCompare(...)` now decodes and compares concrete
+  small-int pairs directly, which removed `bytecodeDirectSmallIntPair(...)`
+  from the current hot profile entirely. Focused parity/quicksort coverage is
+  green, the profiled 50x quicksort run moved from `10722194` to
+  `10384074 ns/op`, repeated clean 50x reruns landed at `10067934`,
+  `9961095`, and `9989424 ns/op`, and the compare fast path collapsed from
+  the old `80ms` flat / `90ms` cumulative chain to roughly `50ms`
+  cumulative total;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.

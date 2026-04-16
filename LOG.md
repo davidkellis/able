@@ -1,5 +1,33 @@
 # Able Project Log
 
+# 2026-04-16 — Bytecode direct small-int compare flattening tranche complete (v12)
+- Closed the next bytecode integer-op slice by removing the extra
+  tuple-return helper from the direct small-int comparison path.
+- What landed:
+  - `bytecodeDirectIntegerCompare(...)` now decodes and compares concrete
+    small-int value/pointer pairs directly instead of routing through a
+    separate `bytecodeDirectSmallIntPair(...)` helper first
+  - this keeps the direct compare fast path on the same semantics and test
+    surface, but shortens the hottest `execBinaryDirectIntegerComparisonFast`
+    path in the current quicksort profile
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(BinaryFastPathIntegerParity|DirectIntegerComparisonFastPath|DirectSmallIntegerComparisonFastPath|DirectSameTypeSmallIntPair)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-smallint-inlinecompare.cpu.out`
+      - observed `10384074 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `10067934 ns/op`, `9961095 ns/op`, and `9989424 ns/op`
+  - profiled targeted comparison:
+    - before: the current quicksort profile still showed
+      `bytecodeDirectSmallIntPair(...)` at about `80ms` flat with the whole
+      direct compare chain around `90ms` cumulative
+    - after: `bytecodeDirectSmallIntPair(...)` dropped out entirely, and the
+      direct compare path is down to roughly `50ms` cumulative on the next
+      profile
+  - `git diff --check`
+
 # 2026-04-15 — Bytecode inline-call bulk-copy tranche complete (v12)
 - Closed the next bytecode inline-call slice by moving the final
   “is any runtime coercion possible here at all?” decision into cached
