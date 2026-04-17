@@ -14,16 +14,19 @@ const (
 )
 
 var (
-	bytecodeSmallIntBoxOnce sync.Once
-	bytecodeBoxedI32        []runtime.Value
-	bytecodeBoxedI64        []runtime.Value
-	bytecodeBoxedIsize      []runtime.Value
+	bytecodeBoxedI32   []runtime.Value
+	bytecodeBoxedI64   []runtime.Value
+	bytecodeBoxedIsize []runtime.Value
 
 	bytecodeIntBoxDynamicMu   sync.RWMutex
 	bytecodeDynamicBoxedI32   map[int64]runtime.Value
 	bytecodeDynamicBoxedI64   map[int64]runtime.Value
 	bytecodeDynamicBoxedIsize map[int64]runtime.Value
 )
+
+func init() {
+	initBytecodeSmallIntBoxCache()
+}
 
 func initBytecodeSmallIntBoxCache() {
 	size := int(bytecodeSmallIntBoxMax-bytecodeSmallIntBoxMin) + 1
@@ -42,7 +45,6 @@ func boxedSmallIntValue(kind runtime.IntegerType, value int64) (runtime.Value, b
 	if value < bytecodeSmallIntBoxMin || value > bytecodeSmallIntBoxMax {
 		return nil, false
 	}
-	bytecodeSmallIntBoxOnce.Do(initBytecodeSmallIntBoxCache)
 	idx := int(value - bytecodeSmallIntBoxMin)
 	switch kind {
 	case runtime.IntegerI32:

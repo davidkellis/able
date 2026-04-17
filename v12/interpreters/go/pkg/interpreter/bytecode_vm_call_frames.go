@@ -2,7 +2,7 @@ package interpreter
 
 import "able/interpreter-go/pkg/runtime"
 
-func (vm *bytecodeVM) pushCallFrame(returnIP int, program *bytecodeProgram, slots []runtime.Value, env *runtime.Environment, iterBase int, loopBase int, hasImplicitReceiver bool, selfFast bool) {
+func (vm *bytecodeVM) pushCallFrame(returnIP int, program *bytecodeProgram, slots []runtime.Value, env *runtime.Environment, returnGenericNames map[string]struct{}, iterBase int, loopBase int, hasImplicitReceiver bool, selfFast bool) {
 	if vm == nil {
 		return
 	}
@@ -14,6 +14,7 @@ func (vm *bytecodeVM) pushCallFrame(returnIP int, program *bytecodeProgram, slot
 		program:             program,
 		slots:               slots,
 		env:                 env,
+		returnGenericNames:  returnGenericNames,
 		iterBase:            iterBase,
 		loopBase:            loopBase,
 		hasImplicitReceiver: hasImplicitReceiver,
@@ -31,6 +32,7 @@ func (vm *bytecodeVM) popCallFrameFields() (returnIP int, program *bytecodeProgr
 	program = frame.program
 	slots = frame.slots
 	env = frame.env
+	frame.returnGenericNames = nil
 	iterBase = frame.iterBase
 	loopBase = frame.loopBase
 	hasImplicitReceiver = frame.hasImplicitReceiver

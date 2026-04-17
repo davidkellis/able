@@ -7,6 +7,11 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+type dynamicCallArgExpectation struct {
+	goType   string
+	typeExpr ast.TypeExpression
+}
+
 func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionCall, expected string) ([]string, string, string, bool) {
 	if call == nil {
 		ctx.setReason("missing function call")
@@ -545,6 +550,171 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 		resultType = expected
 	}
 	return lines, resultExpr, resultType, true
+}
+
+func (g *generator) dynamicMemberCallReceiverGoType(ctx *compileContext, receiver ast.Expression, receiverGoType string) string {
+	if g == nil {
+		return ""
+	}
+	if receiverGoType != "" && receiverGoType != "runtime.Value" && receiverGoType != "any" {
+		return receiverGoType
+	}
+	if ctx != nil {
+		if receiverTypeExpr, ok := g.staticReceiverTypeExpr(ctx, receiver, receiverGoType); ok && receiverTypeExpr != nil {
+			if recovered, ok := g.recoverRepresentableCarrierType(ctx.packageName, receiverTypeExpr, ""); ok &&
+				recovered != "" &&
+				recovered != "runtime.Value" &&
+				recovered != "any" {
+				return recovered
+			}
+		}
+		if receiverTypeExpr := g.dispatchReceiverTypeExpr(ctx, receiver); receiverTypeExpr != nil {
+			if recovered, ok := g.recoverRepresentableCarrierType(ctx.packageName, receiverTypeExpr, ""); ok &&
+				recovered != "" &&
+				recovered != "runtime.Value" &&
+				recovered != "any" {
+				return recovered
+			}
+		}
+	}
+	return g.inferredDispatchReceiverType(ctx, receiver)
+}
+
+func (g *generator) dynamicMemberCallArgExpectations(ctx *compileContext, call *ast.FunctionCall, receiver ast.Expression, receiverGoType string, methodName string, expected string) []dynamicCallArgExpectation {
+	if g == nil || ctx == nil || call == nil || receiver == nil || methodName == "" {
+		return nil
+	}
+	receiverPkgName := ctx.packageName
+	var receiverTypeExpr ast.TypeExpression
+	if inferred, ok := g.staticReceiverTypeExpr(ctx, receiver, receiverGoType); ok && inferred != nil {
+		receiverPkgName, receiverTypeExpr = g.typeExprContextInContext(ctx, inferred)
+	} else if inferred := g.dispatchReceiverTypeExpr(ctx, receiver); inferred != nil {
+		receiverPkgName, receiverTypeExpr = g.typeExprContextInContext(ctx, inferred)
+	}
+	receiverGoType = g.dynamicMemberCallReceiverGoType(ctx, receiver, receiverGoType)
+	if receiverGoType == "" || receiverGoType == "runtime.Value" || receiverGoType == "any" {
+		if receiverTypeExpr == nil {
+			return nil
+		}
+	}
+	appendMethodExpectations := func(method *methodInfo) []dynamicCallArgExpectation {
+		if method == nil || method.Info == nil {
+			return nil
+		}
+		method = g.concreteMethodCallInfo(ctx, call, method, receiver, receiverGoType, expected)
+		if method == nil || method.Info == nil {
+			return nil
+		}
+		paramOffset := 0
+		if method.ExpectsSelf {
+			paramOffset = 1
+		}
+		if paramOffset > len(method.Info.Params) {
+			return nil
+		}
+		params := method.Info.Params[paramOffset:]
+		optionalLast := g.hasOptionalLastParam(method.Info)
+		if len(call.Arguments) != len(params) && !(optionalLast && len(call.Arguments) == len(params)-1) {
+			return nil
+		}
+		expectations := make([]dynamicCallArgExpectation, 0, len(call.Arguments))
+		for idx := range call.Arguments {
+			if idx >= len(params) {
+				return nil
+			}
+			param := params[idx]
+			expectations = append(expectations, dynamicCallArgExpectation{
+				goType:   g.staticParamCarrierType(ctx, param),
+				typeExpr: param.TypeExpr,
+			})
+		}
+		return expectations
+	}
+	if method := g.methodForReceiver(receiverGoType, methodName); method != nil {
+		if expectations := appendMethodExpectations(method); len(expectations) > 0 {
+			return expectations
+		}
+	}
+	if receiverTypeExpr != nil {
+		if baseName, ok := typeExprBaseName(receiverTypeExpr); ok && baseName != "" {
+			if method := g.methodForTypeNameInPackage(receiverPkgName, baseName, methodName, true); method != nil {
+				if expectations := appendMethodExpectations(method); len(expectations) > 0 {
+					return expectations
+				}
+			}
+		}
+	}
+	if method := g.compileableInterfaceMethodForConcreteReceiverExpr(ctx, receiver, receiverGoType, methodName); method != nil {
+		if expectations := appendMethodExpectations(method); len(expectations) > 0 {
+			return expectations
+		}
+	}
+	if method, ok := g.nativeInterfaceMethodForGoType(receiverGoType, methodName); ok && method != nil {
+		if len(call.Arguments) != len(method.ParamTypeExprs) {
+			return nil
+		}
+		expectations := make([]dynamicCallArgExpectation, 0, len(call.Arguments))
+		for idx := range call.Arguments {
+			goType := ""
+			if idx < len(method.ParamGoTypes) {
+				goType = method.ParamGoTypes[idx]
+			}
+			typeExpr := ast.TypeExpression(nil)
+			if idx < len(method.ParamTypeExprs) {
+				typeExpr = method.ParamTypeExprs[idx]
+			}
+			expectations = append(expectations, dynamicCallArgExpectation{
+				goType:   goType,
+				typeExpr: typeExpr,
+			})
+		}
+		return expectations
+	}
+	return nil
+}
+
+func (g *generator) compileDynamicCallArgumentRuntimeValue(ctx *compileContext, arg ast.Expression, expectation dynamicCallArgExpectation) ([]string, string, bool) {
+	if g == nil || ctx == nil || arg == nil {
+		return nil, "", false
+	}
+	expectedGoType := expectation.goType
+	compileExpectedGoType := expectedGoType
+	if g.nativeUnionInfoForGoType(expectedGoType) != nil {
+		compileExpectedGoType = ""
+	}
+	if ifaceType, ok := g.interfaceTypeExpr(expectation.typeExpr); ok &&
+		(compileExpectedGoType == "" || compileExpectedGoType == "runtime.Value" || compileExpectedGoType == "any") {
+		if ifaceInfo, ok := g.ensureNativeInterfaceInfo(ctx.packageName, ifaceType); ok && ifaceInfo != nil && ifaceInfo.GoType != "" {
+			expectedGoType = ifaceInfo.GoType
+			compileExpectedGoType = ifaceInfo.GoType
+		}
+	}
+	var (
+		lines  []string
+		expr   string
+		goType string
+		ok     bool
+	)
+	if compileExpectedGoType != "" || expectation.typeExpr != nil {
+		lines, expr, goType, ok = g.compileExprLinesWithExpectedTypeExpr(ctx, arg, compileExpectedGoType, expectation.typeExpr)
+	} else {
+		previousExpectedTypeExpr := ctx.expectedTypeExpr
+		ctx.expectedTypeExpr = nil
+		lines, expr, goType, ok = g.compileExprLines(ctx, arg, "")
+		ctx.expectedTypeExpr = previousExpectedTypeExpr
+	}
+	if !ok {
+		return nil, "", false
+	}
+	argConvLines, valueExpr, ok := g.lowerRuntimeValue(ctx, expr, goType)
+	if !ok {
+		ctx.setReason("call argument unsupported")
+		return nil, "", false
+	}
+	lines = append(lines, argConvLines...)
+	temp := ctx.newTemp()
+	lines = append(lines, fmt.Sprintf("%s := %s", temp, valueExpr))
+	return lines, temp, true
 }
 
 func (g *generator) compileStaticCallableFieldCall(ctx *compileContext, call *ast.FunctionCall, expected string, callee *ast.MemberAccessExpression, objExpr string, objType string, callNode string) ([]string, string, string, bool) {

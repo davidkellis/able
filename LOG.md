@@ -1,5 +1,272 @@
 # Able Project Log
 
+# 2026-04-16 — Repo-wide gate recovery after compiled CLI follow-on regressions (v12)
+- Cleared the downstream compiler regressions that surfaced after the earlier
+  compiled CLI blocker set was fixed, and restored a fully green top-level
+  repo gate.
+- What landed:
+  - added
+    `v12/interpreters/go/pkg/compiler/generator_native_interface_boundary_siblings.go`
+    and updated
+    `v12/interpreters/go/pkg/compiler/generator_render_interfaces.go` so
+    native interface boundary helper finalization first materializes any
+    concrete fully bound sibling interface families discovered through impl
+    candidates, then reruns native interface scaffolding/concrete-adapter
+    rendering before emitting boundary helpers; this fixes matcher-style
+    sibling coercions at compiled interface boundaries without restoring the
+    old eager global sweep
+  - added
+    `v12/interpreters/go/pkg/compiler/generator_binding_type_exprs.go` and
+    wired `v12/interpreters/go/pkg/compiler/generator_assignments.go` to
+    reconcile stored binding `TypeExpr` metadata with an already chosen
+    concrete native `GoType`, so rescue/join locals stop retaining stale
+    wrong-package union carriers after imported shadowed nominal recovery
+  - strengthened focused coverage in
+    `v12/interpreters/go/pkg/compiler/compiler_failure_type_inference_test.go`
+    for imported shadowed nominal rescue binding/join recovery
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompiler(JoinExpressionConcreteErrorsInferNativeErrorCarrier|CommonExistentialJoinsExecuteWithoutDynamicFallback|IfJoinRecoversTypeExprBackedErrorCarrier|SpecNullableExpectationBuilds|SiblingMatcherBoundaryHelperProbesConcreteSiblingAdapters)$' -count=1 -timeout 900s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerRescueBindingForImportedShadowedNominalFailureStaysNative$|TestCompilerRescueIdentifierJoinRecoversPropagatedImportedShadowedNominalCarrier$' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test -p 1 ./pkg/compiler -run 'TestCompilerExecFixtures/06_12_21_stdlib_fs_path$' -count=1 -timeout 1200s`
+  - `/usr/bin/time -p ./run_all_tests.sh` (pass, `real 1399.73`)
+  - `git diff --check`
+
+# 2026-04-16 — Compiled CLI matcher/interface boundary and array-pattern recovery slice (v12)
+- Cleared the stale compiled-mode CLI blocker set in the current tree.
+- What landed:
+  - fixed deep package-qualified struct-definition lookup in
+    `v12/interpreters/go/pkg/interpreter/extern_host_coercion.go`, so host
+    coercion no longer mis-splits names like
+    `able.spec.assertions.CustomMatcher`
+  - fixed generated struct-to-runtime lookup names in
+    `v12/interpreters/go/pkg/compiler/generator_render_structs.go`, so
+    imported matcher structs now use package-qualified runtime definition
+    lookup instead of ambiguous bare names
+  - extended native interface boundary helper generation in
+    `v12/interpreters/go/pkg/compiler/generator_render_interface_boundaries.go`
+    so expected interfaces also probe concrete sibling-interface adapters,
+    which fixes compiled matcher coercions like concrete `Matcher<i64>`
+    implementers flowing into `Matcher<i32>` call sites
+  - aligned raw `newGenerator(...)` defaults with `compiler.New(...)` in
+    `v12/interpreters/go/pkg/compiler/generator.go`, so direct-generator
+    recovery tests inherit the mono-array default instead of spuriously
+    falling back to generic `*Array` carriers
+- Added/updated focused regressions:
+  - `v12/interpreters/go/pkg/compiler/compiler_struct_qualified_lookup_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_native_interface_boundary_adapter_test.go`
+  - `v12/interpreters/go/pkg/compiler/compiler_mono_arrays_flag_test.go`
+  - `v12/interpreters/go/pkg/interpreter/extern_host_coercion_lookup_struct_test.go`
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/interpreter -run 'TestLookupStructDefinition(PrefersPackageStructOverSameNameFunction|SupportsDeepQualifiedPackageNames)|TestSeedStructDefinitionsCopiesKnownStructsIntoDestinationEnv' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompiler(ResultMatcherBoundaryHelperReusesNativeMatcherAdapter|SiblingMatcherBoundaryHelperProbesConcreteSiblingAdapters|ImportedMatcherStructConvertersUseQualifiedStructLookup|MatchArrayPatternRecoversNativeCarrierFromRecoverableSubjectType|AssignmentArrayPatternRecoversNativeCarrierFromRecoverableSubjectType|MatchExpressionArrayPatternRecoversNativeCarrierFromInferredSubject|PatternAssignmentArrayRecoversNativeCarrierFromInferredSubject|FeatureFlagMonoArraysDefaultEnabled)|TestNewGeneratorMonoArraysDefaultEnabled' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test -v ./cmd/able -run '^TestTestCommandCompiledRunsStdlibFoundationalSuites$' -count=1 -timeout 900s` (pass, `126.22s`)
+  - `cd v12/interpreters/go && go test -v ./cmd/able -run '^(TestTestCommandCompiledRunsStdlibExtendedNumericSuites|TestTestCommandCompiledRunsStdlibCollectionsPersistentMapPersistentSetSuites|TestTestCommandCompiledRunsStdlibCollectionsPersistentSortedSetAndQueueSuites|TestTestCommandCompiledRunsStdlibCollectionsDequeAndQueueSmokeSuites)$' -count=1 -timeout 1200s` (pass)
+  - `cd v12/interpreters/go && go test ./cmd/able ./cmd/ablec -count=1 -timeout 1800s` (pass, `cmd/able 1166.025s`, `cmd/ablec 9.929s`)
+  - `./run_all_tests.sh` no longer stops at the old compiled CLI blocker set; the latest rerun instead surfaced compiler array-pattern recovery, and the focused recovery slice is now green
+  - `git diff --check`
+
+# 2026-04-16 — Bytecode Milestone 4 closure (v12)
+- Closed Bytecode Milestone 4 and, with it, the remaining bytecode
+  performance-improvement program.
+- What landed:
+  - extended `v12/bench_suite` with a named `bytecode-core` suite and
+    markdown output, so the current cross-mode baseline can be regenerated in
+    one command
+  - the `bytecode-core` suite now tracks three stable cross-mode benchmarks:
+    `quicksort`, `future_yield_i32_small`, and `sum_u32_small`
+  - added `v12/bench_guardrail`, a report-only baseline comparer that reports
+    status, timing, and GC deltas without failing the build
+  - checked in the current baseline at
+    `v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json`
+    and
+    `v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.md`
+- Current checked-in cross-mode baseline:
+  - `quicksort`: compiled `0.20s`, treewalker `2.84s`, bytecode `3.98s`
+  - `future_yield_i32_small`: compiled `0.01s`, treewalker `0.06s`,
+    bytecode `0.05s`
+  - `sum_u32_small`: compiled `0.02s`, treewalker `34.01s`,
+    bytecode `11.28s`
+- Milestone-closure verification:
+  - `./v12/bench_suite --suite bytecode-core --runs 1 --timeout 90 --build-timeout 300 --output-json v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json --output-md v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.md`
+  - `./v12/bench_guardrail --baseline v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json --current v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json --output-md /tmp/able-bytecode-core-guardrail-selfcheck.md`
+  - `git diff --check`
+
+# 2026-04-16 — Bytecode Milestone 3 closure (v12)
+- Closed Bytecode Milestone 3 and moved the active bytecode queue to
+  benchmark baselines / guardrails.
+- What landed:
+  - dynamic array append growth now reserves through the runtime's explicit
+    capacity policy instead of falling back to Go slice growth on hot appends,
+    which cut the quicksort benchmark allocation footprint materially
+  - added a dedicated bytecode future/yield benchmark fixture plus benchmark
+    harness coverage
+  - cached lowered `spawn` bodies directly on bytecode instructions so async
+    tasks no longer re-lower their body on every execution
+  - removed the serial executor's old queue insertion copy churn for
+    not-yet-started tasks
+  - split `bytecode_lowering.go` so the tree stays under the repo's 1000-line
+    file limit after the spawn-program caching work
+- Milestone-closure verification:
+  - `go test -p 1 ./pkg/runtime -run 'TestArrayStore(DynamicCapacityGrowthAmortized|DynamicSparseWritePreservesNilGap|MonoBoolRoundTripAndDynamicFallback|MonoI64RoundTripAndDynamicFallback)' -count=1 -timeout 120s`
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(SpawnExpression|SpawnExpressionCachesLoweredProgram|AwaitExpressionManualWaker)' -count=1 -timeout 120s`
+  - `go test ./pkg/interpreter -run '^$' -bench '^(BenchmarkBytecodeQuicksortHotloopRuntime|BenchmarkBytecodeFutureYieldHotloopRuntime)$' -benchmem -benchtime=100x -count=3`
+    - quicksort observed `9142197`, `9486192`, and `9283444 ns/op` with
+      `~75.6-75.9 KB/op` and `50 allocs/op`
+    - future/yield observed `1382793`, `1239281`, and `1228079 ns/op` with
+      `~279 KB/op` and `2667-2668 allocs/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchmem -benchtime=150x -count=1 -cpuprofile /tmp/able-bytecode-m3-after-array.cpu.out -memprofile /tmp/able-bytecode-m3-after-array.mem.out`
+    - quicksort observed `9570683 ns/op`, `75980 B/op`, `50 allocs/op`
+    - alloc-space leader after the collection fix is `ArrayEnsureCapacity`,
+      not the old `ArrayStoreWrite` append/growth path
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeFutureYieldHotloopRuntime$' -benchmem -benchtime=150x -count=1 -cpuprofile /tmp/able-bytecode-future-after.cpu.out -memprofile /tmp/able-bytecode-future-after.mem.out`
+    - future/yield observed `1433699 ns/op`, `278959 B/op`, `2666 allocs/op`
+    - the old per-spawn lowering hotspot is gone; remaining async allocation
+      cost is dominated by real scheduler/context work such as
+      `runtime.NewEnvironment`, `SerialExecutor.enqueue`, and
+      `context.WithValue`
+  - `go test ./pkg/interpreter -count=1 -timeout 600s`
+  - `./run_stdlib_tests.sh`
+  - `git diff --check`
+
+# 2026-04-16 — Bytecode Milestone 2 closure (v12)
+- Closed Bytecode Milestone 2 and moved the active queue to Milestone 3.
+- Why this is closed:
+  - the remaining hot bytecode costs are no longer generic VM allocation
+    pressure from call-frame metadata, small-int cache setup, or stack-result
+    reshaping
+  - the current quicksort benchmark is now in the low-`9ms/op` band on local
+    50x reruns, and the remaining allocation footprint is dominated by
+    collection-specific work (`runtime.ArrayStoreWrite`) rather than generic
+    dispatch/call scaffolding
+  - that means the next work is accurately classified as collection/container
+    hot-path tuning, not more broad allocation-pressure cleanup
+- Milestone-closure verification:
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchmem -benchtime=100x -count=3`
+    - observed `9561724 ns/op  106414 B/op  51 allocs/op`
+    - observed `9595562 ns/op  106556 B/op  51 allocs/op`
+    - observed `10019163 ns/op  106602 B/op  51 allocs/op`
+  - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=150x -count=1 -cpuprofile /tmp/able-bytecode-closure-pass.cpu.out`
+    - observed `9564517 ns/op`
+  - `go test ./pkg/interpreter -count=1 -timeout 600s`
+  - `./run_stdlib_tests.sh`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-closure-pass.mem.out`
+    - remaining alloc-space leader is `runtime.ArrayStoreWrite`, not generic
+      bytecode frame/call metadata
+
+# 2026-04-16 — Bytecode program generic-cache + eager small-int box-cache tranche complete (v12)
+- Closed the next Milestone 2 allocation-pressure slice by removing two
+  remaining hot-path cache checks from bytecode call/arithmetic execution.
+- What landed:
+  - lowered bytecode programs now cache their resolved return generic-name
+    sets, and hot bytecode frame-push paths now read that cached program
+    metadata instead of calling `FunctionValue.GenericNameSet()` on every
+    inline/named bytecode call
+  - bytecode `FunctionValue` creation/attachment paths now seed that cached
+    generic-name metadata for ordinary functions, impl/default methods, and
+    runtime-created lambda bytecode programs
+  - the bytecode small-int boxing cache is now initialized eagerly at package
+    init, so hot arithmetic paths no longer pay `sync.Once` on every small
+    boxed-integer hit
+  - added a focused unit regression that pins cached program generic-name
+    propagation for method-set generics
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_program_generic_names.go`
+  - `v12/interpreters/go/pkg/interpreter/definitions.go`
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_interface_lookup.go`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_type_coercion.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_small_int_boxing.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_generic_interface_return_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(ImplGenericMethodReturnUsesMethodSetGenerics|ReplaceTopHelpers|BinaryFastPathIntegerParity|DirectIntegerComparisonFastPath|DirectSmallIntegerComparisonFastPath|DirectSameTypeSmallIntPair|DirectArrayIndexFastPath|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|NonMethodMemberAccessSkipsMemberMethodCacheCounters)|TestBytecodeProgramReturnGenericNamesCacheIncludesMethodSetGenerics|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the kept change set:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `9189777 ns/op`, `9094444 ns/op`, and `9161513 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=100x -count=1 -cpuprofile /tmp/able-bytecode-boxcache.cpu.out`
+      - observed `9684151 ns/op`
+  - profiled targeted comparison:
+    - after the program-generic-name caching change, the old
+      `runtime.(*FunctionValue).GenericNameSet` frame dropped out of the top
+      profile entirely on the next bytecode quicksort run
+    - after the eager box-cache init, `boxedSmallIntValue(...)` shrank to a
+      low-noise inline frame instead of paying `sync.Once` in the hot loop
+  - `git diff --check`
+- Notes:
+  - I also tried a further direct-compare helper flattening experiment in this
+    same session, but it did not produce a clean enough signal, so it was
+    reverted and is not part of the kept tranche
+
+# 2026-04-16 — Bytecode stack-result reuse tranche complete (v12)
+- Opened Bytecode Milestone 2 with the first allocation-pressure reduction
+  slice in the hot VM loop.
+- What landed:
+  - hot bytecode member/index/binary result sites now reuse existing stack
+    slots in place instead of repeatedly doing pop/pop/append reshaping
+  - added explicit top-slot replacement helpers for `1 -> 1`, `2 -> 1`, and
+    `3 -> 1` result shapes, then switched the hot VM paths to unchecked
+    inlinable variants after their existing stack-depth guards
+  - added a focused helper regression that pins stack depth/result normalization
+    without depending only on the higher-level quicksort fixture
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_stack.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_members.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_stack_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(ReplaceTopHelpers|BinaryFastPathIntegerParity|DirectIntegerComparisonFastPath|DirectSmallIntegerComparisonFastPath|DirectSameTypeSmallIntPair|DirectArrayIndexFastPath|IndexMethodCacheTracksArrayElementType|IndexSetCompoundCacheInvalidatesWhenImplAppears|NonMethodMemberAccessSkipsMemberMethodCacheCounters)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - benchmark spot-checks after the change:
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=3`
+      - observed `10203423 ns/op`, `10273281 ns/op`, and `9753472 ns/op`
+    - `go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1 -cpuprofile /tmp/able-bytecode-stackreuse-inline.cpu.out`
+      - observed `9886874 ns/op`
+  - profiled targeted comparison:
+    - after the first checked-helper rewrite, `replaceTop2(...)` showed up as a
+      small hot frame, which confirmed the stack-slot reuse was active but that
+      the checked helper form was too visible in the remaining hot loop
+    - after switching the hot paths to unchecked inlinable helpers,
+      `replaceTop2(...)` dropped out of the top tier again while the hot loop
+      stayed in the high-`9ms` / low-`10ms` band
+  - `git diff --check`
+
+# 2026-04-16 — Bytecode Milestone 1 closure + impl-generic bytecode return fix (v12)
+- Closed the last remaining correctness blocker on the bytecode hot
+  dispatch/lookup closure milestone and marked Bytecode Milestone 1 complete.
+- What landed:
+  - bytecode inline call frames now retain the callee's generic-name set, and
+    inline `return` coercion now uses that recorded set instead of validating
+    impl-generic interface returns with `genericNames=nil`
+  - this fixes the bytecode-only `Iterator T` / `Enumerable T` style return
+    mismatch on impl-generic methods like stdlib `HashSet.iterator()`, where
+    the concrete return value is a native iterator struct but the declared
+    return type is a generic interface carrier
+  - added a focused parsed-source regression that pins the exact method-set
+    generic shape locally instead of relying only on the stdlib test suite
+- Focused files changed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_frames.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_run_finalize.go`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_generic_interface_return_test.go`
+- Verification:
+  - `go test -p 1 ./pkg/interpreter -run 'TestBytecodeVM_(ImplGenericMethodReturnUsesMethodSetGenerics|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|InlineBoundGenericMethodCallStats|CallNameScopeCacheInvalidatesAcrossDispatchKinds)' -count=1 -timeout 300s`
+  - `./run_stdlib_tests.sh`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1 -timeout 600s`
+  - post-fix quicksort spot-check:
+    - `cd v12/interpreters/go && go test ./pkg/interpreter -run '^$' -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`
+      - observed `10735729 ns/op`
+  - `git diff --check`
+- Milestone status:
+  - Bytecode Milestone 1 is now closed; the remaining bytecode work shifts to
+    allocation pressure plus collection/async hot paths
+  - `./run_all_tests.sh` is still red outside this milestone because the
+    current tree already has unrelated compiled-mode CLI failures in
+    `cmd/able` / `cmd/ablec`
+
 # 2026-04-16 — Bytecode direct small-int compare flattening tranche complete (v12)
 - Closed the next bytecode integer-op slice by removing the extra
   tuple-return helper from the direct small-int comparison path.

@@ -88,9 +88,10 @@ func runCompiledTests(config TestCliConfig, testFiles []string) int {
 		return 2
 	}
 	result, err := compiler.New(compiler.Options{
-		PackageName:            "main",
-		RequireNoFallbacks:     requireNoFallbacks,
-		ExperimentalMonoArrays: experimentalMonoArrays,
+		PackageName:               "main",
+		RequireNoFallbacks:        requireNoFallbacks,
+		ExperimentalMonoArrays:    experimentalMonoArrays,
+		ExperimentalMonoArraysSet: true,
 	}).Compile(program)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "able test --compiled: compile: %v\n", err)

@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -11,6 +12,18 @@ func qualifiedName(pkg string, name string) string {
 		return name
 	}
 	return pkg + "." + name
+}
+
+func runtimeLookupPackageName(pkg string) string {
+	pkg = strings.TrimSpace(pkg)
+	if pkg == "" {
+		return ""
+	}
+	parts := strings.Split(pkg, ".")
+	if len(parts) >= 2 && parts[len(parts)-1] == parts[len(parts)-2] {
+		return strings.Join(parts[:len(parts)-1], ".")
+	}
+	return pkg
 }
 
 func (c *compileContext) setReason(reason string) {
@@ -127,7 +140,19 @@ func (c *compileContext) child() *compileContext {
 		typeBindings:           c.typeBindings,
 		implSiblings:           c.implSiblings,
 		analysisOnly:           c.analysisOnly,
+		closureScope:           c.closureScope,
 	}
+}
+
+func (c *compileContext) closureChild() *compileContext {
+	if c == nil {
+		return nil
+	}
+	child := c.child()
+	if child != nil {
+		child.closureScope = true
+	}
+	return child
 }
 
 func (c *compileContext) probeChild() *compileContext {

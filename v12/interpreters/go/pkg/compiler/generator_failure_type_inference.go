@@ -229,7 +229,7 @@ func (g *generator) failureTypeExprFromLambdaSeen(ctx *compileContext, expr *ast
 	if g == nil || ctx == nil || expr == nil || expr.Body == nil {
 		return nil
 	}
-	lambdaCtx := ctx.child()
+	lambdaCtx := ctx.closureChild()
 	for idx, param := range expr.Params {
 		if param == nil {
 			continue

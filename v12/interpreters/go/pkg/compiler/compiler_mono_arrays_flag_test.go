@@ -58,6 +58,13 @@ func TestCompilerFeatureFlagMonoArraysDefaultEnabled(t *testing.T) {
 	}
 }
 
+func TestNewGeneratorMonoArraysDefaultEnabled(t *testing.T) {
+	gen := newGenerator(Options{PackageName: "demo"})
+	if !gen.monoArraysEnabled() {
+		t.Fatalf("expected bare newGenerator options to inherit mono-array default")
+	}
+}
+
 func TestCompilerFeatureFlagMonoArraysEnabledViaOptions(t *testing.T) {
 	result := compileNoFallbackSourceWithCompilerOptions(t, strings.Join([]string{
 		"package demo",

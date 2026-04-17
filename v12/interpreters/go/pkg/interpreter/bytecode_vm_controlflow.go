@@ -94,9 +94,13 @@ func (vm *bytecodeVM) execSpawn(instr bytecodeInstruction) error {
 	vm.interp.ensureConcurrencyBuiltins()
 	vm.interp.ensureMultiThread()
 	capturedEnv := runtime.NewEnvironment(vm.env)
-	program, err := vm.interp.lowerExpressionToBytecode(spawnExpr.Expression)
-	if err != nil {
-		return err
+	program := instr.program
+	if program == nil {
+		var err error
+		program, err = vm.interp.lowerExpressionToBytecode(spawnExpr.Expression)
+		if err != nil {
+			return err
+		}
 	}
 	task := func(ctx context.Context) (runtime.Value, error) {
 		payload := payloadFromContext(ctx)

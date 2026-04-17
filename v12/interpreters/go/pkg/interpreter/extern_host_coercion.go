@@ -398,9 +398,7 @@ func (i *Interpreter) lookupStructDefinition(name string) (*runtime.StructDefini
 	if i == nil || i.global == nil {
 		return nil, false
 	}
-	if dot := strings.Index(name, "."); dot > 0 && dot < len(name)-1 {
-		pkgName := name[:dot]
-		structName := name[dot+1:]
+	if pkgName, structName, ok := i.qualifiedStructLookupName(name); ok {
 		if def, ok := i.lookupStructDefinitionInPackage(pkgName, structName); ok {
 			return def, true
 		}
@@ -448,6 +446,89 @@ func (i *Interpreter) lookupStructDefinition(name string) (*runtime.StructDefini
 		}
 	}
 	return nil, false
+}
+
+func (i *Interpreter) qualifiedStructLookupName(name string) (string, string, bool) {
+	if i == nil {
+		return "", "", false
+	}
+	name = strings.TrimSpace(name)
+	if name == "" || !strings.Contains(name, ".") {
+		return "", "", false
+	}
+	bestPkg := ""
+	consider := func(pkgName string) {
+		pkgName = strings.TrimSpace(pkgName)
+		if pkgName == "" {
+			return
+		}
+		candidates := []string{pkgName}
+		parts := strings.Split(pkgName, ".")
+		if len(parts) >= 2 && parts[len(parts)-1] == parts[len(parts)-2] {
+			collapsed := strings.Join(parts[:len(parts)-1], ".")
+			if collapsed != "" && collapsed != pkgName {
+				candidates = append(candidates, collapsed)
+			}
+		}
+		for _, candidate := range candidates {
+			if !strings.HasPrefix(name, candidate+".") {
+				continue
+			}
+			if len(candidate) > len(bestPkg) {
+				bestPkg = candidate
+			}
+		}
+	}
+	consider(i.currentPackage)
+	for pkgName := range i.packageEnvs {
+		consider(pkgName)
+	}
+	for pkgName := range i.dynamicPackageEnvs {
+		consider(pkgName)
+	}
+	for pkgName := range i.packageRegistry {
+		consider(pkgName)
+	}
+	if bestPkg == "" {
+		return "", "", false
+	}
+	pkgName := bestPkg
+	if pkgName != "" {
+		for _, knownPkg := range append([]string{i.currentPackage}, append(append(make([]string, 0, len(i.packageEnvs)), mapKeys(i.packageEnvs)...), append(mapKeys(i.dynamicPackageEnvs), mapKeys(i.packageRegistry)...)...)...) {
+			knownPkg = strings.TrimSpace(knownPkg)
+			if knownPkg == "" {
+				continue
+			}
+			if knownPkg == bestPkg {
+				pkgName = knownPkg
+				break
+			}
+			parts := strings.Split(knownPkg, ".")
+			if len(parts) >= 2 && parts[len(parts)-1] == parts[len(parts)-2] {
+				collapsed := strings.Join(parts[:len(parts)-1], ".")
+				if collapsed == bestPkg {
+					pkgName = knownPkg
+					break
+				}
+			}
+		}
+	}
+	structName := strings.TrimSpace(name[len(bestPkg)+1:])
+	if structName == "" || strings.Contains(structName, ".") {
+		return "", "", false
+	}
+	return pkgName, structName, true
+}
+
+func mapKeys[V any](items map[string]V) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(items))
+	for key := range items {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 // LookupStructDefinition searches all known environments and packages for a struct definition.

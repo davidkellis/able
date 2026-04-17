@@ -575,20 +575,26 @@ func (g *generator) refineStaticReceiverBinding(ctx *compileContext, receiver as
 		return
 	}
 	updated := binding
-	if concreteExpr != "" {
-		updated.GoName = concreteExpr
-	}
-	updated.GoType = concreteType
+	// Keep the original binding storage stable. concreteExpr is often a
+	// call-site-only coercion temp, and concreteType is often a narrower
+	// specialized receiver carrier than the declared binding storage type.
+	// Persist only the refined semantic type expression so later dispatch can
+	// recover the concrete receiver again without leaking an out-of-scope temp
+	// or pretending the declared variable changed its Go storage type.
 	updated.TypeExpr = normalizeTypeExprForPackage(g, ctx.packageName, concreteTypeExpr)
 	if _, ok := ctx.lookupCurrent(ident.Name); ok {
+		_ = ctx.updateBinding(ident.Name, updated)
+		return
+	}
+	if !ctx.closureScope {
 		_ = ctx.updateBinding(ident.Name, updated)
 		return
 	}
 	if ctx.locals == nil {
 		ctx.locals = make(map[string]paramInfo)
 	}
-	// Nested closures must not overwrite captured outer bindings with
-	// closure-local receiver temps. Shadow the refined binding locally instead.
+	// Closure-local refinement must not overwrite captured outer bindings.
+	// Shadow the refined binding locally instead.
 	ctx.locals[ident.Name] = updated
 }
 

@@ -34,7 +34,7 @@ func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnE
 		ctx.setReason("spawn return type mismatch")
 		return nil, "", "", false
 	}
-	child := ctx.child()
+	child := ctx.closureChild()
 	child.loopDepth = 0
 	child.breakpoints = make(map[string]int)
 	child.rethrowVar = ""
@@ -46,7 +46,7 @@ func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnE
 	resultExpr := ""
 	var convLines []string
 	if g.isVoidType(bodyType) {
-		voidChild := ctx.child()
+		voidChild := ctx.closureChild()
 		voidChild.loopDepth = 0
 		voidChild.breakpoints = make(map[string]int)
 		voidChild.rethrowVar = ""

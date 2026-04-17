@@ -7,6 +7,7 @@ GO_DIR="$SCRIPT_DIR/interpreters/go"
 GO_CACHE="$GO_DIR/.gocache"
 
 DEFAULT_BENCHMARKS="fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e"
+BYTECODE_CORE_BENCHMARKS="quicksort,future_yield_i32_small,sum_u32_small"
 DEFAULT_MODES="compiled,treewalker,bytecode"
 
 runs=1
@@ -15,10 +16,13 @@ build_timeout_seconds=300
 modes_csv="$DEFAULT_MODES"
 benchmarks_csv="$DEFAULT_BENCHMARKS"
 output_json=""
+output_md=""
 workdir=""
 keep_artifacts=false
 show_output=false
 skip_setup=false
+suite_name=""
+benchmarks_override=false
 
 usage() {
   cat <<'EOF'
@@ -29,6 +33,7 @@ Examples:
   v12/bench_suite
   v12/bench_suite --runs 3 --timeout 45
   v12/bench_suite --modes compiled,bytecode --benchmarks fib,binarytrees
+  v12/bench_suite --suite bytecode-core --runs 1 --timeout 60
   v12/bench_suite --output-json v12/docs/perf-baselines/2026-03-03-baseline.json
 
 Options:
@@ -36,8 +41,10 @@ Options:
   -t, --timeout SEC       Timeout per run in seconds (default: 60)
       --build-timeout SEC Build timeout per benchmark for compiled mode (default: 300)
   -m, --modes CSV         Modes: compiled,treewalker,bytecode (default: all)
+      --suite NAME        Benchmark suite preset: full,bytecode-core
   -b, --benchmarks CSV    Benchmarks (default: fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e)
       --output-json PATH  JSON output path (default: v12/tmp/perf/bench-suite-<timestamp>.json)
+      --output-md PATH    Markdown summary path (optional)
       --workdir DIR       Working directory for build artifacts
       --keep              Keep working directory after run
       --show-output       Print stdout/stderr for each benchmark run
@@ -89,6 +96,10 @@ resolve_output_json() {
 }
 
 benchmark_dir() {
+  if [[ -d "$SCRIPT_DIR/fixtures/bench/$1" ]]; then
+    printf '%s\n' "$SCRIPT_DIR/fixtures/bench/$1"
+    return
+  fi
   case "$1" in
     fib|binarytrees|matrixmultiply)
       printf '%s\n' "$SCRIPT_DIR/examples/benchmarks"
@@ -109,6 +120,10 @@ benchmark_dir() {
 }
 
 benchmark_entry() {
+  if [[ -d "$SCRIPT_DIR/fixtures/bench/$1" ]]; then
+    printf '%s\n' "main.able"
+    return
+  fi
   case "$1" in
     fib)
       printf '%s\n' "fib.able"
@@ -152,6 +167,22 @@ collect_git_metadata() {
     GIT_DIRTY=false
   fi
   GO_VERSION="$(go version 2>/dev/null || echo unknown)"
+}
+
+apply_suite_preset() {
+  case "$1" in
+    ""|full)
+      suite_name="full"
+      benchmarks_csv="$DEFAULT_BENCHMARKS"
+      ;;
+    bytecode-core)
+      suite_name="bytecode-core"
+      benchmarks_csv="$BYTECODE_CORE_BENCHMARKS"
+      ;;
+    *)
+      die "unknown suite: $1"
+      ;;
+  esac
 }
 
 run_setup() {
@@ -308,6 +339,7 @@ write_results_json() {
     printf '    "able_cli": "%s"\n' "$(json_escape "$ABLE_BIN")"
     printf '  },\n'
     printf '  "config": {\n'
+    printf '    "suite": "%s",\n' "$(json_escape "$suite_name")"
     printf '    "runs": %d,\n' "$runs"
     printf '    "timeout_seconds": %d,\n' "$timeout_seconds"
     printf '    "build_timeout_seconds": %d,\n' "$build_timeout_seconds"
@@ -406,6 +438,48 @@ write_results_json() {
   } >"$out"
 }
 
+write_results_markdown() {
+  local out="$1"
+  mkdir -p "$(dirname "$out")"
+  {
+    printf '# Benchmark Suite Report\n\n'
+    printf -- '- Generated: `%s`\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf -- '- Suite: `%s`\n' "$suite_name"
+    printf -- '- Git: `%s`' "$GIT_COMMIT"
+    if [[ "$GIT_DIRTY" == true ]]; then
+      printf ' (dirty)\n'
+    else
+      printf '\n'
+    fi
+    printf -- '- Machine: `%s %s %s` on `%s`\n' "$MACHINE_OS" "$MACHINE_KERNEL" "$MACHINE_ARCH" "$MACHINE_HOSTNAME"
+    printf -- '- CPU: `%s` (`%s` logical cores)\n' "$MACHINE_CPU_MODEL" "$MACHINE_CPU_COUNT"
+    printf -- '- Go: `%s`\n' "$GO_VERSION"
+    printf -- '- Runs per row: `%d`\n' "$runs"
+    printf -- '- Timeout: `%ds`\n' "$timeout_seconds"
+    printf -- '- Build timeout: `%ds`\n\n' "$build_timeout_seconds"
+    printf '| Benchmark | Mode | OK/Runs | Timeouts | Errors | Real Avg (s) | GC Avg |\n'
+    printf '| --- | --- | --- | --- | --- | --- | --- |\n'
+    local bench mode key ok timeouts errors avg_real avg_gc
+    for bench in "${BENCHMARKS[@]}"; do
+      for mode in "${MODES[@]}"; do
+        key="${bench}|${mode}"
+        ok="${summary_ok["$key"]}"
+        timeouts="${summary_timeout["$key"]}"
+        errors="${summary_error["$key"]}"
+        if [[ "$ok" -gt 0 ]]; then
+          avg_real="$(awk -v a="${summary_real["$key"]}" -v n="$ok" 'BEGIN { printf "%.4f", a / n }')"
+          avg_gc="$(awk -v a="${summary_gc["$key"]}" -v n="$ok" 'BEGIN { printf "%.2f", a / n }')"
+        else
+          avg_real="n/a"
+          avg_gc="n/a"
+        fi
+        printf '| `%s` | `%s` | `%s/%s` | `%s` | `%s` | `%s` | `%s` |\n' \
+          "$bench" "$mode" "$ok" "$runs" "$timeouts" "$errors" "$avg_real" "$avg_gc"
+      done
+    done
+  } >"$out"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help)
@@ -436,11 +510,22 @@ while [[ $# -gt 0 ]]; do
       shift
       [[ $# -gt 0 ]] || die "missing value for --benchmarks"
       benchmarks_csv="$1"
+      benchmarks_override=true
+      ;;
+    --suite)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --suite"
+      suite_name="$1"
       ;;
     --output-json)
       shift
       [[ $# -gt 0 ]] || die "missing value for --output-json"
       output_json="$1"
+      ;;
+    --output-md)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-md"
+      output_md="$1"
       ;;
     --workdir)
       shift
@@ -467,6 +552,16 @@ is_int "$runs" && ((runs > 0)) || die "--runs must be a positive integer"
 is_int "$timeout_seconds" && ((timeout_seconds >= 0)) || die "--timeout must be a non-negative integer"
 is_int "$build_timeout_seconds" && ((build_timeout_seconds >= 0)) || die "--build-timeout must be a non-negative integer"
 command -v /usr/bin/time >/dev/null 2>&1 || die "/usr/bin/time is required"
+
+if [[ "$benchmarks_override" == true ]]; then
+  if [[ -z "$suite_name" ]]; then
+    suite_name="custom"
+  else
+    suite_name="custom"
+  fi
+else
+  apply_suite_preset "${suite_name:-full}"
+fi
 
 IFS=',' read -r -a MODES <<<"$modes_csv"
 IFS=',' read -r -a BENCHMARKS <<<"$benchmarks_csv"
@@ -601,8 +696,15 @@ for bench in "${BENCHMARKS[@]}"; do
 done
 
 write_results_json "$output_json"
+if [[ -n "$output_md" ]]; then
+  output_md="$(realpath -m "$output_md")"
+  write_results_markdown "$output_md"
+fi
 
 echo ">>> Wrote benchmark suite results: $output_json"
+if [[ -n "$output_md" ]]; then
+  echo ">>> Wrote benchmark suite markdown: $output_md"
+fi
 printf '%-14s %-11s %-10s %-12s %-12s %-12s %-10s\n' "benchmark" "mode" "ok/runs" "timeouts" "errors" "real_avg(s)" "gc_avg"
 for bench in "${BENCHMARKS[@]}"; do
   for mode in "${MODES[@]}"; do

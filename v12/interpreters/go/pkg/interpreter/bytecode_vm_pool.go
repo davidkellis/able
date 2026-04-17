@@ -61,6 +61,7 @@ func (vm *bytecodeVM) resetForRun(interp *Interpreter, env *runtime.Environment)
 				frame.slots = nil
 			}
 			frame.env = nil
+			frame.returnGenericNames = nil
 			frame.iterBase = 0
 			frame.loopBase = 0
 			frame.hasImplicitReceiver = false

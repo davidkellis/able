@@ -71,4 +71,5 @@ type compileContext struct {
 	originExtractions      map[string]string // CSE cache: Able variable name → Go extraction temp
 	coercedNominalOrigins  map[string]nominalCoercionOrigin
 	analysisOnly           bool
+	closureScope           bool
 }

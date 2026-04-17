@@ -326,7 +326,9 @@ func (e *SerialExecutor) enqueue(task serialTask) {
 		inserted := false
 		for idx, queued := range e.queue {
 			if queued.handle != nil && queued.handle.Started() {
-				e.queue = append(e.queue[:idx], append([]serialTask{task}, e.queue[idx:]...)...)
+				e.queue = append(e.queue, serialTask{})
+				copy(e.queue[idx+1:], e.queue[idx:])
+				e.queue[idx] = task
 				inserted = true
 				break
 			}

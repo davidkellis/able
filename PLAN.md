@@ -24,11 +24,12 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 ## Active Priorities
 - **Compiler completion**: finish the Go AOT compiler first. This is the top
   priority and the main body of this plan is organized around it.
-- **Bytecode performance**: once the compiler is in release shape, focus on
-  making the Go bytecode interpreter fast.
+- **Bytecode performance**: closed on 2026-04-16. The Go bytecode interpreter
+  now has the checked-in cross-mode baseline plus report-first guardrails
+  described later in this plan.
 - **Everything else**: parser/tooling/WASM/stdlib/testing-framework work stays
-  in backlog unless it is directly required to unblock compiler completion or
-  bytecode performance work.
+  in backlog unless it is directly required to unblock compiler completion, or
+  unless a new post-compiler/post-bytecode priority is selected explicitly.
 
 ## Tracking & Reporting
 - Update this plan as milestones progress; log design and architectural decisions in `v12/design/`.
@@ -309,8 +310,10 @@ Compiler-native encoding completion is closed on 2026-04-14:
 - the aggregated observed wall clock for the latest green compiler release
   rerun is now `52m51s` (`real 3171.27`), so the dominant remaining release-
   path issue is test runtime pressure rather than a known correctness blocker;
-- the stronger compiler-native completion program is now closed, and bytecode
-  performance is the next active priority.
+- the stronger compiler-native completion program and the bytecode performance
+  program are now both closed; the remaining work returns to backlog /
+  tooling-priority selection rather than another compiler or bytecode closure
+  milestone.
 
 #### Production definition of done
 
@@ -692,7 +695,7 @@ Proof required:
 
 Status:
 - compiler-native completion is closed on 2026-04-14;
-- bytecode performance is now the active work queue.
+- bytecode performance is closed on 2026-04-16.
 
 ### Bytecode Performance Program (second priority; start after compiler-native completion work is closed or paused explicitly)
 
@@ -701,6 +704,40 @@ Goal:
   after the compiler is finished.
 
 Current state snapshot:
+- Bytecode Milestone 1 is closed on 2026-04-16:
+  - the remaining high-frequency dispatch/lookup scaffolding work is now
+    closed across name lookup, member/index caches, slot stores, inline-call
+    setup, direct raw-array access, and hot integer compare/add slot-const
+    paths;
+  - the last correctness blocker on that path was a bytecode-only inline
+    return coercion gap for impl-generic interface returns, now fixed by
+    threading the callee's generic-name set through bytecode call frames so
+    return coercion keeps method-set generics instead of validating
+    `Iterator T` / `Enumerable T` style returns as fully concrete;
+  - focused interpreter coverage, the full `pkg/interpreter` Go test run, and
+    `./run_stdlib_tests.sh` are green on this tree;
+  - a fresh local quicksort hotloop spot-check after the fix is
+    `10735729 ns/op` (`go test ./pkg/interpreter -run '^$' -bench
+    '^BenchmarkBytecodeQuicksortHotloopRuntime$' -benchtime=50x -count=1`);
+  - Bytecode Milestones 2, 3, and 4 are now also closed on 2026-04-16:
+    allocation-pressure cleanup is done, collection/async-specific hidden
+    overhead is reduced, the checked-in bytecode-core cross-mode baseline is
+    current, and report-first guardrail tooling now compares fresh runs
+    against that baseline without enforcing premature thresholds;
+- the old compiled-mode CLI blockers in `cmd/able` / `cmd/ablec` are now
+  cleared in this tree, and the downstream compiler follow-on regressions
+  they exposed are now fixed too:
+  - matcher/interface boundary helper finalization now materializes concrete
+    sibling interface families before emitting native boundary helpers, so
+    compiled matcher coercions keep concrete sibling adapters instead of
+    falling back at boundary sites;
+  - assignment binding metadata now reconciles concrete native carriers back
+    into stored type expressions when rescue/join inference had only retained
+    a broader wrong-package union/result wrapper, so imported shadowed nominal
+    rescue joins no longer regress later member dispatch to stale local
+    carrier metadata;
+  - the repo-level `./run_all_tests.sh` gate is green again on this tree
+    after those fixes (`real 1399.73`);
 - a large amount of call-dispatch, lookup-cache, frame-pool, integer-op, and
   hotspot work is already landed;
 - the first post-compiler bytecode tranche is now landed too: repeated array
@@ -936,6 +973,25 @@ Current state snapshot:
   `9961095`, and `9989424 ns/op`, and the compare fast path collapsed from
   the old `80ms` flat / `90ms` cumulative chain to roughly `50ms`
   cumulative total;
+- the first post-Milestone-1 allocation-pressure tranche is landed too: hot
+  bytecode member/index/binary result sites now reuse existing stack slots in
+  place instead of doing repeated pop/pop/append reshaping, and the VM’s hot
+  execution paths use unchecked top-slot replacement helpers after their
+  existing stack-depth guards. Focused stack/quicksort coverage is green, the
+  profiled 50x quicksort run reached `9886874 ns/op`, repeated clean 50x
+  reruns landed at `10203423`, `10273281`, and `9753472 ns/op`, and the
+  temporary `replaceTop2(...)` hotspot introduced by the first helper rewrite
+  dropped back out of the top tier once the hot paths switched to the
+  unchecked inlinable helpers;
+- the next Milestone 2 tranche is landed too: bytecode programs now cache
+  their resolved return generic-name sets, so hot inline/named call paths no
+  longer re-enter `FunctionValue.GenericNameSet()` on every frame push, and
+  the bytecode small-int boxing cache is now eagerly initialized so hot
+  arithmetic no longer pays `sync.Once` on every small boxed integer hit.
+  Focused coverage is green; repeated local 50x quicksort reruns landed at
+  `9189777`, `9094444`, and `9161513 ns/op`, and the kept profile shows the
+  old `FunctionValue.GenericNameSet()` frame gone with small-int boxing
+  reduced to noise;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.
@@ -943,26 +999,64 @@ Current state snapshot:
 Milestones:
 
 #### Bytecode Milestone 1: Hot Dispatch And Lookup Closure
-- [ ] remove remaining high-frequency environment/path lookups in hot loops;
-- [ ] extend slot coverage and direct-call lowering where it still materially
-      affects benchmarked workloads;
-- [ ] keep inline caches precise and cheap under mutation/concurrency.
+Closed on 2026-04-16.
+- high-frequency environment/path lookup churn is removed from the hot-loop
+  dispatch path;
+- slot coverage and direct-call lowering are extended far enough that the
+  remaining top quicksort costs are no longer ordinary dispatch/lookup
+  scaffolding;
+- inline caches stay precise under rebinding/mutation and cheap on the current
+  single-thread bytecode execution path;
+- remaining bytecode optimization work now moves to allocation pressure and
+  collection/async-specific hot paths rather than more dispatch/lookup closure.
 
 #### Bytecode Milestone 2: Allocation Pressure Reduction
-- [ ] cut remaining boxed integer churn, collection allocation churn, iterator
-      churn, and closure scaffolding in hot paths;
-- [ ] reduce transient arg-slice and method-resolution allocations that still
-      survive the first optimization wave.
+Closed on 2026-04-16.
+- hot stack reshaping, repeated generic-name recomputation, and per-hit
+  small-int box-cache initialization are removed from the bytecode VM’s hot
+  path;
+- transient arg-slice and generic/method-call metadata churn are reduced far
+  enough that the remaining benchmark allocation cost is no longer generic VM
+  scaffolding;
+- the remaining visible allocation/throughput work is now dominated by
+  collection-specific paths such as `ArrayStoreWrite`, plus the core integer
+  compare/index loop, so that work moves to Milestone 3.
 
 #### Bytecode Milestone 3: Collections / Containers / Async Hot Paths
-- [ ] optimize remaining array/hash-map/iterator hot paths that still dominate
-      benchmark traces;
-- [ ] audit async/future execution overhead under realistic workloads.
+Closed on 2026-04-16.
+- dynamic array append growth now goes through the bytecode runtime's explicit
+  reserve policy instead of the Go slice heuristic, which cut the quicksort
+  benchmark from roughly `106.6 KB/op / 51 allocs/op` to roughly
+  `75.6-75.9 KB/op / 49-50 allocs/op` while keeping the hot loop in the
+  low-`9ms/op` band;
+- a dedicated bytecode `spawn` / `future_yield` / `future_flush` benchmark is
+  now in-tree, and the accidental per-spawn bytecode re-lowering path is
+  removed by caching lowered spawn bodies in bytecode instructions;
+- serial future scheduling also avoids the old queue-insert copy churn for
+  not-yet-started tasks, and the new async benchmark moved from roughly
+  `1.61-1.71ms/op`, `~1.07 MB/op`, and `3537-3539 allocs/op` down to roughly
+  `1.23-1.43ms/op`, `~279 KB/op`, and `2666-2668 allocs/op`;
+- the remaining bytecode costs are now core compare/call execution plus
+  fundamental scheduler/context creation work, so further work moves to
+  Milestone 4 benchmark gates rather than more hidden collection/async
+  scaffolding cleanup.
 
 #### Bytecode Milestone 4: Benchmark Gates
-- [ ] keep benchmark baselines current for treewalker vs bytecode vs compiled;
-- [ ] add report-first perf guardrails, then optional thresholds once noise is
+Closed on 2026-04-16.
+- [x] keep benchmark baselines current for treewalker vs bytecode vs compiled;
+- [x] add report-first perf guardrails, then optional thresholds once noise is
       characterized.
+- `v12/bench_suite --suite bytecode-core` now records the checked-in
+  cross-mode baseline for:
+  - `quicksort`
+  - `future_yield_i32_small`
+  - `sum_u32_small`
+- the current baseline artifacts are:
+  - `v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json`
+  - `v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.md`
+- `v12/bench_guardrail` now compares a fresh suite JSON against a baseline and
+  reports status/timing/GC deltas without failing the build, so benchmark
+  regressions are visible before any hard thresholds are introduced.
 
 ### Backlog (not active until compiler + bytecode priorities permit)
 

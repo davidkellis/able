@@ -538,7 +538,7 @@ func (i *Interpreter) iteratorInterfaceMethodDictionary(ifaceDef *runtime.Interf
 					return nil, err
 				}
 			} else {
-				defaultVal.Bytecode = program
+				setFunctionBytecodeProgram(defaultVal, program)
 			}
 			methods[name] = defaultVal
 			continue
@@ -576,7 +576,7 @@ func (i *Interpreter) futureInterfaceMethodDictionary(ifaceDef *runtime.Interfac
 					return nil, err
 				}
 			} else {
-				defaultVal.Bytecode = program
+				setFunctionBytecodeProgram(defaultVal, program)
 			}
 			methods[name] = defaultVal
 			continue
@@ -620,7 +620,7 @@ func (i *Interpreter) interfaceMethodDictionaryFromStruct(inst *runtime.StructIn
 					return nil, err
 				}
 			} else {
-				defaultVal.Bytecode = program
+				setFunctionBytecodeProgram(defaultVal, program)
 			}
 			methods[name] = defaultVal
 			continue

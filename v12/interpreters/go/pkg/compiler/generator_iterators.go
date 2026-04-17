@@ -21,7 +21,7 @@ func (g *generator) compileIteratorLiteral(ctx *compileContext, expr *ast.Iterat
 		binding = expr.Binding.Name
 	}
 	genParam := "__able_gen"
-	bodyCtx := ctx.child()
+	bodyCtx := ctx.closureChild()
 	bodyCtx.controlMode = compileControlModeErrorOnly
 	bodyCtx.locals[binding] = paramInfo{Name: binding, GoName: genParam, GoType: "*__able_generator"}
 	if binding != "gen" {

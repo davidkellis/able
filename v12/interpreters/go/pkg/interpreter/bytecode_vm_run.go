@@ -436,7 +436,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					if err != nil {
 						return nil, err
 					}
-					fn.Bytecode = program
+					setFunctionBytecodeProgram(fn, program)
 				}
 				vm.stack = append(vm.stack, fn)
 				vm.ip++
@@ -946,8 +946,9 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			vm.stack = vm.stack[:valIdx]
 			if len(vm.callFrames) > 0 {
 				// Inline return: pop call frame and continue in caller.
+				returnGenericNames := vm.callFrames[len(vm.callFrames)-1].returnGenericNames
 				if program.frameLayout != nil && program.frameLayout.returnType != nil && !inlineCoercionUnnecessary(program.frameLayout.returnType, val) {
-					coerced, coerceErr := vm.interp.coerceReturnValue(program.frameLayout.returnType, val, nil, vm.env)
+					coerced, coerceErr := vm.interp.coerceReturnValue(program.frameLayout.returnType, val, returnGenericNames, vm.env)
 					if coerceErr != nil {
 						if instr.node != nil {
 							coerceErr = vm.interp.attachRuntimeContext(coerceErr, instr.node, vm.interp.stateFromEnv(vm.env))

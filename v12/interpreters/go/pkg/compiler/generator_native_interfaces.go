@@ -311,6 +311,77 @@ func (g *generator) nativeInterfaceKnownAdapters(info *nativeInterfaceInfo) []*n
 	return adapters
 }
 
+func nativeInterfaceMethodNamed(info *nativeInterfaceInfo, name string) *nativeInterfaceMethod {
+	if info == nil || name == "" {
+		return nil
+	}
+	for _, method := range info.Methods {
+		if method != nil && method.Name == name {
+			return method
+		}
+	}
+	return nil
+}
+
+func (g *generator) nativeInterfaceDirectMethodCompatible(actualMethod, expectedMethod *nativeInterfaceMethod) bool {
+	if g == nil || actualMethod == nil || expectedMethod == nil {
+		return false
+	}
+	if actualMethod.OptionalLast != expectedMethod.OptionalLast || len(actualMethod.ParamGoTypes) != len(expectedMethod.ParamGoTypes) {
+		return false
+	}
+	leftVars := make(map[string]string)
+	rightVars := make(map[string]string)
+	for idx := range expectedMethod.ParamGoTypes {
+		if expectedMethod.ParamGoTypes[idx] == actualMethod.ParamGoTypes[idx] {
+			continue
+		}
+		if g.canCoerceStaticExprShallow(expectedMethod.ParamGoTypes[idx], actualMethod.ParamGoTypes[idx]) {
+			continue
+		}
+		if !g.typeExprEquivalentModuloGenerics(expectedMethod.ParamTypeExprs[idx], actualMethod.ParamTypeExprs[idx], leftVars, rightVars) {
+			return false
+		}
+	}
+	if expectedMethod.ReturnGoType == actualMethod.ReturnGoType {
+		return true
+	}
+	if g.canCoerceStaticExprShallow(actualMethod.ReturnGoType, expectedMethod.ReturnGoType) {
+		return true
+	}
+	return g.typeExprEquivalentModuloGenerics(actualMethod.ReturnTypeExpr, expectedMethod.ReturnTypeExpr, leftVars, rightVars)
+}
+
+func (g *generator) nativeInterfaceDirectAdapterPossible(actualInfo, expectedInfo *nativeInterfaceInfo) bool {
+	if g == nil || actualInfo == nil || expectedInfo == nil || actualInfo.GoType == "" || expectedInfo.GoType == "" {
+		return false
+	}
+	checkKey := actualInfo.Key + "->" + expectedInfo.Key
+	if _, checking := g.nativeInterfaceDirectAdapterChecks[checkKey]; checking {
+		return false
+	}
+	g.nativeInterfaceDirectAdapterChecks[checkKey] = struct{}{}
+	defer delete(g.nativeInterfaceDirectAdapterChecks, checkKey)
+	if actualInfo.GoType == expectedInfo.GoType || len(actualInfo.Methods) == 0 || len(expectedInfo.Methods) == 0 {
+		return false
+	}
+	actualBase, actualOK := typeExprBaseName(actualInfo.TypeExpr)
+	expectedBase, expectedOK := typeExprBaseName(expectedInfo.TypeExpr)
+	if !actualOK || !expectedOK || actualBase == "" || expectedBase == "" || actualBase != expectedBase {
+		return false
+	}
+	for _, expectedMethod := range expectedInfo.Methods {
+		if expectedMethod == nil {
+			continue
+		}
+		actualMethod := nativeInterfaceMethodNamed(actualInfo, expectedMethod.Name)
+		if !g.nativeInterfaceDirectMethodCompatible(actualMethod, expectedMethod) {
+			return false
+		}
+	}
+	return true
+}
+
 func (g *generator) sortedNativeInterfaceKeys() []string {
 	if g == nil || len(g.nativeInterfaces) == 0 {
 		return nil
@@ -649,6 +720,7 @@ func (g *generator) ensureNativeInterfaceInfo(pkgName string, expr ast.TypeExpre
 		info.RuntimeIteratorAdapter = baseToken + "_runtime_iterator"
 	}
 	g.nativeInterfaces[key] = info
+	g.touchNativeInterfaceAdapters()
 	g.nativeInterfaceBuilding[key] = struct{}{}
 	defer delete(g.nativeInterfaceBuilding, key)
 	methodMap := make(map[string]*nativeInterfaceMethod)
@@ -736,6 +808,14 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 			if carrier.goType == "" || carrier.typeExpr == nil {
 				continue
 			}
+			// Native interface-to-interface adapters must go through the
+			// compatibility-checked direct-adapter path below. Treating another
+			// interface carrier as a nominal concrete target here can emit empty
+			// adapters for generic-only interfaces that do not satisfy the full
+			// expected method set.
+			if actualInfo := g.nativeInterfaceInfoForGoType(carrier.goType); actualInfo != nil && actualInfo.GoType == carrier.goType {
+				continue
+			}
 			carrierBindings := cloneTypeBindings(fn.TypeBindings)
 			if infoPkg, infoName, infoArgs, _, ok := interfaceExprInfo(g, fn.Package, info.TypeExpr); ok {
 				genericNames := g.callableGenericNames(fn)
@@ -806,6 +886,27 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 			if len(info.Methods) == 0 {
 				g.recordNativeInterfaceExplicitAdapter(info, adapter)
 			}
+		}
+	}
+	for _, actualKey := range g.sortedNativeInterfaceKeys() {
+		actualInfo := g.nativeInterfaces[actualKey]
+		if actualInfo == nil || actualInfo.Key == info.Key || actualInfo.GoType == "" || actualInfo.TypeExpr == nil {
+			continue
+		}
+		if !g.nativeInterfaceDirectAdapterPossible(actualInfo, info) {
+			continue
+		}
+		if _, exists := adapterMap[actualInfo.GoType]; exists {
+			continue
+		}
+		token := g.nativeUnionTypeToken(actualInfo.GoType)
+		adapterMap[actualInfo.GoType] = &nativeInterfaceAdapter{
+			GoType:      actualInfo.GoType,
+			TypeExpr:    actualInfo.TypeExpr,
+			Token:       token,
+			AdapterType: info.GoType + "_adapter_" + token,
+			WrapHelper:  info.GoType + "_wrap_" + token,
+			Methods:     make(map[string]*nativeInterfaceAdapterMethod),
 		}
 	}
 	adapters := make([]*nativeInterfaceAdapter, 0, len(adapterMap))

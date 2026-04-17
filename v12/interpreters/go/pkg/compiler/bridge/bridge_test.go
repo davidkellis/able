@@ -196,6 +196,25 @@ func TestStructDefinitionHydratesFromInterpreterLookupWithoutFallbackCounters(t 
 	}
 }
 
+func TestStructDefinitionFallsBackFromQualifiedVisibleAliasToLocalStruct(t *testing.T) {
+	interp := interpreter.New()
+	def := &runtime.StructDefinitionValue{Node: ast.StructDef("Box", nil, ast.StructKindNamed, nil, nil, false)}
+	env := runtime.NewEnvironment(nil)
+	env.DefineStruct("Box", def)
+
+	rt := New(interp)
+	rt.SetEnv(env)
+	rt.SetGlobalLookupFallbackEnabled(false)
+
+	got, err := rt.StructDefinition("demo.Box")
+	if err != nil {
+		t.Fatalf("StructDefinition qualified visible alias error: %v", err)
+	}
+	if got != def {
+		t.Fatalf("StructDefinition qualified visible alias = %p, want %p", got, def)
+	}
+}
+
 func TestRuntimeCallFallsBackToGlobalEnvironment(t *testing.T) {
 	interp := interpreter.New()
 	interp.GlobalEnvironment().Define("greet", runtime.NativeFunctionValue{

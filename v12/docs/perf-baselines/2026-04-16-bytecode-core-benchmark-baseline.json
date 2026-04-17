@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-04-16T15:53:38Z",
+  "git": {
+    "commit": "c10f85fbad8cc24e326495ac7ee5ef925a78245f",
+    "dirty": true
+  },
+  "machine": {
+    "hostname": "davidlinux",
+    "os": "Linux",
+    "kernel": "6.19.11-200.fc43.x86_64",
+    "arch": "x86_64",
+    "cpu_model": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+    "cpu_count": "16",
+    "mem_total_kb": "65568256"
+  },
+  "toolchain": {
+    "go_version": "go version go1.26.1 linux/amd64",
+    "able_cli": "/home/david/sync/projects/able/v12/tmp/perf/suite.CZcDUE/able"
+  },
+  "config": {
+    "suite": "bytecode-core",
+    "runs": 1,
+    "timeout_seconds": 90,
+    "build_timeout_seconds": 300,
+    "modes": ["compiled", "treewalker", "bytecode"],
+    "benchmarks": ["quicksort", "future_yield_i32_small", "sum_u32_small"]
+  },
+  "results": [
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 0.20,
+      "user_seconds": 0.21,
+      "sys_seconds": 0.02,
+      "gc_count": 10
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 2.84,
+      "user_seconds": 3.62,
+      "sys_seconds": 0.07,
+      "gc_count": 79
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 3.98,
+      "user_seconds": 6.40,
+      "sys_seconds": 0.90,
+      "gc_count": 34
+    },
+    {
+      "benchmark": "future_yield_i32_small",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 0.01,
+      "user_seconds": 0.01,
+      "sys_seconds": 0.00,
+      "gc_count": 1
+    },
+    {
+      "benchmark": "future_yield_i32_small",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 0.06,
+      "user_seconds": 0.05,
+      "sys_seconds": 0.01,
+      "gc_count": 4
+    },
+    {
+      "benchmark": "future_yield_i32_small",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 0.05,
+      "user_seconds": 0.05,
+      "sys_seconds": 0.01,
+      "gc_count": 3
+    },
+    {
+      "benchmark": "sum_u32_small",
+      "mode": "compiled",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 0.02,
+      "user_seconds": 0.02,
+      "sys_seconds": 0.00,
+      "gc_count": 2
+    },
+    {
+      "benchmark": "sum_u32_small",
+      "mode": "treewalker",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 34.01,
+      "user_seconds": 47.92,
+      "sys_seconds": 0.23,
+      "gc_count": 130
+    },
+    {
+      "benchmark": "sum_u32_small",
+      "mode": "bytecode",
+      "run_index": 1,
+      "status": "ok",
+      "exit_code": 0,
+      "real_seconds": 11.28,
+      "user_seconds": 19.41,
+      "sys_seconds": 0.16,
+      "gc_count": 71
+    }
+  ],
+  "summary": [
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 0.200000,
+      "user_seconds_avg": 0.210000,
+      "sys_seconds_avg": 0.020000,
+      "gc_count_avg": 10.00
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "treewalker",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 2.840000,
+      "user_seconds_avg": 3.620000,
+      "sys_seconds_avg": 0.070000,
+      "gc_count_avg": 79.00
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "bytecode",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 3.980000,
+      "user_seconds_avg": 6.400000,
+      "sys_seconds_avg": 0.900000,
+      "gc_count_avg": 34.00
+    },
+    {
+      "benchmark": "future_yield_i32_small",
+      "mode": "compiled",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 0.010000,
+      "user_seconds_avg": 0.010000,
+      "sys_seconds_avg": 0.000000,
+      "gc_count_avg": 1.00
+    },
+    {
+      "benchmark": "future_yield_i32_small",
+      "mode": "treewalker",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 0.060000,
+      "user_seconds_avg": 0.050000,
+      "sys_seconds_avg": 0.010000,
+      "gc_count_avg": 4.00
+    },
+    {
+      "benchmark": "future_yield_i32_small",
+      "mode": "bytecode",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 0.050000,
+      "user_seconds_avg": 0.050000,
+      "sys_seconds_avg": 0.010000,
+      "gc_count_avg": 3.00
+    },
+    {
+      "benchmark": "sum_u32_small",
+      "mode": "compiled",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 0.020000,
+      "user_seconds_avg": 0.020000,
+      "sys_seconds_avg": 0.000000,
+      "gc_count_avg": 2.00
+    },
+    {
+      "benchmark": "sum_u32_small",
+      "mode": "treewalker",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 34.010000,
+      "user_seconds_avg": 47.920000,
+      "sys_seconds_avg": 0.230000,
+      "gc_count_avg": 130.00
+    },
+    {
+      "benchmark": "sum_u32_small",
+      "mode": "bytecode",
+      "ok_runs": 1,
+      "timeout_runs": 0,
+      "error_runs": 0,
+      "real_seconds_avg": 11.280000,
+      "user_seconds_avg": 19.410000,
+      "sys_seconds_avg": 0.160000,
+      "gc_count_avg": 71.00
+    }
+  ]
+}

@@ -26,8 +26,10 @@ type bytecodeInstruction struct {
 }
 
 type bytecodeProgram struct {
-	instructions []bytecodeInstruction
-	frameLayout  *bytecodeFrameLayout // non-nil when slot-indexed locals are used
+	instructions             []bytecodeInstruction
+	frameLayout              *bytecodeFrameLayout // non-nil when slot-indexed locals are used
+	returnGenericNames       map[string]struct{}
+	returnGenericNamesCached bool
 }
 
 type bytecodeCallFrame struct {
@@ -35,6 +37,7 @@ type bytecodeCallFrame struct {
 	program             *bytecodeProgram
 	slots               []runtime.Value
 	env                 *runtime.Environment
+	returnGenericNames  map[string]struct{}
 	iterBase            int
 	loopBase            int
 	hasImplicitReceiver bool

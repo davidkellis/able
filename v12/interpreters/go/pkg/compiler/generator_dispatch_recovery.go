@@ -28,13 +28,13 @@ func (g *generator) dispatchReceiverTypeExpr(ctx *compileContext, expr ast.Expre
 	}
 	if ident, ok := expr.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
 		if binding, ok := ctx.lookup(ident.Name); ok {
+			if inferred := g.inferBindingTypeExpr(ctx, binding); inferred != nil {
+				return g.lowerNormalizedTypeExpr(ctx, inferred)
+			}
 			if binding.GoType != "" && binding.GoType != "runtime.Value" && binding.GoType != "any" && !g.isVoidType(binding.GoType) {
 				if inferred, ok := g.typeExprForGoType(binding.GoType); ok && inferred != nil {
 					return g.lowerNormalizedTypeExpr(ctx, inferred)
 				}
-			}
-			if inferred := g.inferBindingTypeExpr(ctx, binding); inferred != nil {
-				return g.lowerNormalizedTypeExpr(ctx, inferred)
 			}
 		}
 	}
@@ -169,6 +169,30 @@ func (g *generator) compileDispatchReceiverExprWithExpectedTypeExpr(ctx *compile
 func (g *generator) preferredDispatchReceiverTypeExpr(ctx *compileContext, call *ast.FunctionCall, expr ast.Expression, methodName string, expected string) ast.TypeExpression {
 	if g == nil || ctx == nil || call == nil || expr == nil || methodName == "" {
 		return nil
+	}
+	if ident, ok := expr.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
+		if binding, ok := ctx.lookup(ident.Name); ok && binding.GoType != "" && binding.GoType != "runtime.Value" && binding.GoType != "any" {
+			if ifaceInfo := g.nativeInterfaceInfoForGoType(binding.GoType); ifaceInfo != nil {
+				if _, ok := g.nativeInterfaceMethodForGoType(ifaceInfo.GoType, methodName); ok {
+					if carrierExpr, ok := g.typeExprForGoType(binding.GoType); ok && carrierExpr != nil {
+						return g.lowerNormalizedTypeExpr(ctx, carrierExpr)
+					}
+				}
+				if _, ok := g.nativeInterfaceGenericMethodForGoType(ifaceInfo.GoType, methodName); ok {
+					if carrierExpr, ok := g.typeExprForGoType(binding.GoType); ok && carrierExpr != nil {
+						return g.lowerNormalizedTypeExpr(ctx, carrierExpr)
+					}
+				}
+			}
+			if binding.GoType == "runtime.ErrorValue" {
+				switch methodName {
+				case "message", "cause":
+					if carrierExpr, ok := g.typeExprForGoType(binding.GoType); ok && carrierExpr != nil {
+						return g.lowerNormalizedTypeExpr(ctx, carrierExpr)
+					}
+				}
+			}
+		}
 	}
 	receiverTypeExpr := g.dispatchReceiverTypeExpr(ctx, expr)
 	if receiverTypeExpr == nil {
