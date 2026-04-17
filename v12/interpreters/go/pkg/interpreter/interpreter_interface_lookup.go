@@ -146,7 +146,7 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 							return nil, err
 						}
 					} else {
-						defaultVal.Bytecode = program
+						setFunctionBytecodeProgram(defaultVal, program)
 					}
 					method = defaultVal
 					if cand.entry.methods == nil {

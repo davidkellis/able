@@ -21,6 +21,22 @@ benchmarking measures the current compiler path without pulling in unrelated
 `--compiled-build-arg` flags for controlled comparisons such as
 `--no-experimental-mono-arrays`.
 
+`v12/bench_guardrail` is the report-only comparer for suite JSON outputs. It
+compares the checked-in baseline against a fresh run and reports status,
+timing, and GC deltas without failing the build.
+
+The current cross-mode bytecode-core baseline is checked in at:
+
+- `v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json`
+- `v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.md`
+
+That suite is intentionally small and stable enough for routine reruns. It
+tracks:
+
+- `quicksort`
+- `future_yield_i32_small`
+- `sum_u32_small`
+
 For targeted compiler-lowering checks, prefer checked-in fixture targets under
 `v12/fixtures/bench/` so the benchmark package metadata is reproducible from
 the repo. Recent mono-array work uses
@@ -188,10 +204,17 @@ The iterator-pipeline family is now split intentionally:
 
 # reproducible baseline example
 ./v12/bench_suite \
+  --suite bytecode-core \
   --runs 1 \
-  --timeout 30 \
+  --timeout 90 \
   --build-timeout 240 \
-  --output-json v12/docs/perf-baselines/2026-03-03-benchmark-baseline.json
+  --output-json v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json \
+  --output-md v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.md
+
+# report-only comparison against the checked-in baseline
+./v12/bench_guardrail \
+  --baseline v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json \
+  --current v12/tmp/perf/current-bytecode-core.json
 ```
 
 ## JSON Output

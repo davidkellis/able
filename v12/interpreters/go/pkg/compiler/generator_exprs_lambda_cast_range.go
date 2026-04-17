@@ -148,11 +148,16 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		return "", "", false
 	}
 
-	lambdaCtx := ctx.child()
+	lambdaCtx := ctx.closureChild()
 	if lambdaCtx == nil {
 		ctx.setReason("missing lambda context")
 		return "", "", false
 	}
+	// The lambda body's expression context should not inherit the enclosing
+	// callable expectation wholesale. Parameter and return expectations are
+	// applied explicitly below; keeping the outer callable type here lets
+	// nested lambdas mis-infer against the parent callable signature.
+	lambdaCtx.expectedTypeExpr = nil
 	lambdaCtx.loopDepth = 0
 	lambdaCtx.controlMode = ""
 	controlTemp := lambdaCtx.newTemp()

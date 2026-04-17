@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_guardrail --baseline PATH --current PATH [--output-md PATH]
+
+Examples:
+  v12/bench_guardrail \
+    --baseline v12/docs/perf-baselines/2026-04-16-bytecode-core-benchmark-baseline.json \
+    --current v12/tmp/perf/current-bytecode-core.json
+
+Options:
+      --baseline PATH   Baseline benchmark-suite JSON
+      --current PATH    Current benchmark-suite JSON
+      --output-md PATH  Optional markdown report path
+  -h, --help            Show this help
+
+Notes:
+  - This script is report-only and exits 0 unless inputs are invalid.
+  - It reports status changes and timing/GC deltas for matching benchmark/mode
+    summary rows.
+EOF
+}
+
+die() {
+  echo "bench_guardrail: $*" >&2
+  exit 1
+}
+
+baseline_json=""
+current_json=""
+output_md=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --baseline)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --baseline"
+      baseline_json="$1"
+      ;;
+    --current)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --current"
+      current_json="$1"
+      ;;
+    --output-md)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-md"
+      output_md="$1"
+      ;;
+    *)
+      die "unknown option: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$baseline_json" ]] || die "--baseline is required"
+[[ -n "$current_json" ]] || die "--current is required"
+[[ -f "$baseline_json" ]] || die "baseline file not found: $baseline_json"
+[[ -f "$current_json" ]] || die "current file not found: $current_json"
+
+if [[ -n "$output_md" ]]; then
+  output_md="$(realpath -m "$output_md")"
+  mkdir -p "$(dirname "$output_md")"
+fi
+
+python3 - "$baseline_json" "$current_json" "$output_md" <<'PY'
+import json
+import math
+import pathlib
+import sys
+
+baseline_path = pathlib.Path(sys.argv[1])
+current_path = pathlib.Path(sys.argv[2])
+output_md = sys.argv[3]
+
+
+def load(path: pathlib.Path) -> dict:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def summary_status(row: dict) -> str:
+    ok = int(row.get("ok_runs", 0) or 0)
+    timeout = int(row.get("timeout_runs", 0) or 0)
+    error = int(row.get("error_runs", 0) or 0)
+    total = ok + timeout + error
+    if total == 0:
+        return "empty"
+    if ok == total:
+        return "ok"
+    if timeout == total:
+        return "timeout"
+    if error == total:
+        return "error"
+    parts = []
+    if ok:
+        parts.append(f"ok={ok}")
+    if timeout:
+        parts.append(f"timeout={timeout}")
+    if error:
+        parts.append(f"error={error}")
+    return "mixed(" + ",".join(parts) + ")"
+
+
+def fmt_float(value, digits: int = 4) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:.{digits}f}"
+
+
+def fmt_pct(value) -> str:
+    if value is None or math.isnan(value) or math.isinf(value):
+        return "n/a"
+    return f"{value:+.1f}%"
+
+
+def delta_pct(baseline_value, current_value):
+    if baseline_value is None or current_value is None:
+        return None
+    if baseline_value == 0:
+        return None
+    return ((current_value - baseline_value) / baseline_value) * 100.0
+
+
+baseline = load(baseline_path)
+current = load(current_path)
+baseline_summary = {
+    (row["benchmark"], row["mode"]): row for row in baseline.get("summary", [])
+}
+current_summary = {
+    (row["benchmark"], row["mode"]): row for row in current.get("summary", [])
+}
+all_keys = sorted(set(baseline_summary) | set(current_summary))
+
+lines = []
+lines.append("# Benchmark Guardrail Report")
+lines.append("")
+lines.append(f"- Baseline: `{baseline_path}`")
+lines.append(f"- Current: `{current_path}`")
+lines.append(f"- Baseline suite: `{baseline.get('config', {}).get('suite', 'unknown')}`")
+lines.append(f"- Current suite: `{current.get('config', {}).get('suite', 'unknown')}`")
+lines.append("")
+
+baseline_benchmarks = baseline.get("config", {}).get("benchmarks", [])
+current_benchmarks = current.get("config", {}).get("benchmarks", [])
+baseline_modes = baseline.get("config", {}).get("modes", [])
+current_modes = current.get("config", {}).get("modes", [])
+if baseline_benchmarks != current_benchmarks or baseline_modes != current_modes:
+    lines.append("- Note: suite configuration differs between baseline and current runs.")
+    lines.append("")
+
+lines.append("| Benchmark | Mode | Baseline | Current | Baseline Real (s) | Current Real (s) | Delta | Baseline GC | Current GC | Notes |")
+lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+
+for key in all_keys:
+    bench, mode = key
+    base = baseline_summary.get(key)
+    cur = current_summary.get(key)
+    base_status = summary_status(base) if base else "missing"
+    cur_status = summary_status(cur) if cur else "missing"
+    base_real = None if not base else base.get("real_seconds_avg")
+    cur_real = None if not cur else cur.get("real_seconds_avg")
+    base_gc = None if not base else base.get("gc_count_avg")
+    cur_gc = None if not cur else cur.get("gc_count_avg")
+    real_delta = delta_pct(base_real, cur_real)
+
+    notes = []
+    if base is None or cur is None:
+        notes.append("row added/removed")
+    if base_status != cur_status:
+        notes.append("status changed")
+    if real_delta is not None:
+        if real_delta <= -10.0:
+            notes.append("materially faster")
+        elif real_delta >= 10.0:
+            notes.append("materially slower")
+
+    lines.append(
+        "| `{}` | `{}` | `{}` | `{}` | `{}` | `{}` | `{}` | `{}` | `{}` | {} |".format(
+            bench,
+            mode,
+            base_status,
+            cur_status,
+            fmt_float(base_real),
+            fmt_float(cur_real),
+            fmt_pct(real_delta),
+            fmt_float(base_gc, 2),
+            fmt_float(cur_gc, 2),
+            "; ".join(notes) if notes else "",
+        )
+    )
+
+report = "\n".join(lines) + "\n"
+sys.stdout.write(report)
+if output_md:
+    pathlib.Path(output_md).write_text(report, encoding="utf-8")
+PY

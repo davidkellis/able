@@ -25,6 +25,27 @@ func TestBytecodeVM_SpawnExpression(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_SpawnExpressionCachesLoweredProgram(t *testing.T) {
+	interp := NewBytecode()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("handle"), ast.Spawn(ast.Block(ast.Int(1)))),
+	}, nil, nil)
+
+	program, err := interp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("lowerModuleToBytecode: %v", err)
+	}
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpSpawn {
+			if instr.program == nil {
+				t.Fatalf("spawn instruction did not cache lowered program")
+			}
+			return
+		}
+	}
+	t.Fatalf("spawn instruction not found")
+}
+
 func TestBytecodeVM_AwaitExpressionManualWaker(t *testing.T) {
 	manualAwaitableDef := ast.StructDef("ManualAwaitable", []*ast.StructFieldDefinition{
 		ast.FieldDef(ast.Ty("bool"), "ready"),

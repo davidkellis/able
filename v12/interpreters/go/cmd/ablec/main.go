@@ -90,10 +90,11 @@ func run(args []string) int {
 	}
 
 	comp := compiler.New(compiler.Options{
-		PackageName:            *pkgName,
-		EmitMain:               *emitMain,
-		EntryPath:              absEntry,
-		ExperimentalMonoArrays: *experimentalMonoArrays,
+		PackageName:               *pkgName,
+		EmitMain:                  *emitMain,
+		EntryPath:                 absEntry,
+		ExperimentalMonoArrays:    *experimentalMonoArrays,
+		ExperimentalMonoArraysSet: true,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {

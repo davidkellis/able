@@ -1,0 +1,6 @@
+{
+  "description": "spawn/future_yield/future_flush bytecode benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

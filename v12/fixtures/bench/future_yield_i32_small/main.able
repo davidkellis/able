@@ -1,0 +1,38 @@
+package bench_future_yield_i32_small
+
+import able.kernel.{Array}
+
+fn main() {
+  handles = Array.new()
+
+  i := 0
+  loop {
+    if i >= 32 { break }
+    seed := i
+    handles.push(spawn {
+      acc := seed
+      step := 0
+      loop {
+        if step >= 16 { break }
+        acc = ((acc * 17) + step + 3) % 10007
+        future_yield()
+        step = step + 1
+      }
+      acc
+    })
+    i = i + 1
+  }
+
+  future_flush()
+
+  total := 0
+  count := handles.length
+  j := 0
+  loop {
+    if j >= count { break }
+    total = total + (handles[j].value()! as i32)
+    j = j + 1
+  }
+
+  print(total)
+}

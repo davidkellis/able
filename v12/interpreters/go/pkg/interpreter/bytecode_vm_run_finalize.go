@@ -78,6 +78,7 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 			frame.program = nil
 			frame.slots = nil
 			frame.env = nil
+			frame.returnGenericNames = nil
 			frame.iterBase = 0
 			frame.loopBase = 0
 			frame.hasImplicitReceiver = false

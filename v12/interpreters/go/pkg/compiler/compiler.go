@@ -8,12 +8,13 @@ import (
 )
 
 type Options struct {
-	PackageName              string
-	EmitMain                 bool
-	EntryPath                string
-	RequireNoFallbacks       bool
-	RequireStaticNoFallbacks bool
-	ExperimentalMonoArrays   bool
+	PackageName               string
+	EmitMain                  bool
+	EntryPath                 string
+	RequireNoFallbacks        bool
+	RequireStaticNoFallbacks  bool
+	ExperimentalMonoArrays    bool
+	ExperimentalMonoArraysSet bool
 }
 
 type Result struct {
@@ -29,6 +30,9 @@ type Compiler struct {
 func New(opts Options) *Compiler {
 	if opts.PackageName == "" {
 		opts.PackageName = "ablecompiled"
+	}
+	if !opts.ExperimentalMonoArraysSet {
+		opts.ExperimentalMonoArrays = true
 	}
 	return &Compiler{opts: opts}
 }

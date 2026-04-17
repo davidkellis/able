@@ -8,14 +8,12 @@ import (
 )
 
 func (vm *bytecodeVM) execIndexGet(instr bytecodeInstruction) error {
-	idxVal, err := vm.pop()
-	if err != nil {
-		return err
+	if len(vm.stack) < 2 {
+		return fmt.Errorf("bytecode stack underflow")
 	}
-	obj, err := vm.pop()
-	if err != nil {
-		return err
-	}
+	idxVal := vm.stack[len(vm.stack)-1]
+	obj := vm.stack[len(vm.stack)-2]
+	var err error
 	result, err := vm.resolveIndexGet(obj, idxVal)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
@@ -24,32 +22,24 @@ func (vm *bytecodeVM) execIndexGet(instr bytecodeInstruction) error {
 		}
 		return err
 	}
-	if result == nil {
-		result = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, result)
+	vm.replaceTop2Unchecked(result)
 	vm.ip++
 	return nil
 }
 
 func (vm *bytecodeVM) execIndexSet(instr bytecodeInstruction) error {
-	idxVal, err := vm.pop()
-	if err != nil {
-		return err
+	if len(vm.stack) < 3 {
+		return fmt.Errorf("bytecode stack underflow")
 	}
-	obj, err := vm.pop()
-	if err != nil {
-		return err
-	}
-	val, err := vm.pop()
-	if err != nil {
-		return err
-	}
+	idxVal := vm.stack[len(vm.stack)-1]
+	obj := vm.stack[len(vm.stack)-2]
+	val := vm.stack[len(vm.stack)-3]
 	if instr.operator == "" {
 		return fmt.Errorf("bytecode index set missing operator")
 	}
 	op := ast.AssignmentOperator(instr.operator)
 	binaryOp, isCompound := binaryOpForAssignment(op)
+	var err error
 	result, err := vm.resolveIndexSet(obj, idxVal, val, op, binaryOp, isCompound)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
@@ -58,21 +48,18 @@ func (vm *bytecodeVM) execIndexSet(instr bytecodeInstruction) error {
 		}
 		return err
 	}
-	if result == nil {
-		result = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, result)
+	vm.replaceTop3Unchecked(result)
 	vm.ip++
 	return nil
 }
 
 func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
-	obj, err := vm.pop()
-	if err != nil {
-		return err
+	if len(vm.stack) < 1 {
+		return fmt.Errorf("bytecode stack underflow")
 	}
+	obj := vm.stack[len(vm.stack)-1]
 	if instr.safe && isNilRuntimeValue(obj) {
-		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.replaceTop1Unchecked(runtime.NilValue{})
 		vm.ip++
 		return nil
 	}
@@ -98,7 +85,7 @@ func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
 	useMethodCache := vm.canUseMemberMethodCache(memberName, instr.preferMethods)
 	if useMethodCache {
 		if cached, ok := vm.lookupCachedMemberMethod(vm.currentProgram, vm.ip, memberName, instr.preferMethods, obj); ok {
-			vm.stack = append(vm.stack, cached)
+			vm.replaceTop1Unchecked(cached)
 			vm.ip++
 			return nil
 		}
@@ -114,10 +101,7 @@ func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
 	if useMethodCache {
 		vm.storeCachedMemberMethod(vm.currentProgram, vm.ip, memberName, instr.preferMethods, obj, val)
 	}
-	if val == nil {
-		val = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, val)
+	vm.replaceTop1Unchecked(val)
 	vm.ip++
 	return nil
 }
@@ -130,14 +114,11 @@ func (vm *bytecodeVM) execMemberSet(instr bytecodeInstruction) error {
 	if memberExpr.Safe {
 		return fmt.Errorf("Cannot assign through safe navigation")
 	}
-	obj, err := vm.pop()
-	if err != nil {
-		return err
+	if len(vm.stack) < 2 {
+		return fmt.Errorf("bytecode stack underflow")
 	}
-	val, err := vm.pop()
-	if err != nil {
-		return err
-	}
+	obj := vm.stack[len(vm.stack)-1]
+	val := vm.stack[len(vm.stack)-2]
 	if instr.operator == "" {
 		return fmt.Errorf("bytecode member set missing operator")
 	}
@@ -154,10 +135,7 @@ func (vm *bytecodeVM) execMemberSet(instr bytecodeInstruction) error {
 		}
 		return err
 	}
-	if result == nil {
-		result = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, result)
+	vm.replaceTop2Unchecked(result)
 	vm.ip++
 	return nil
 }
@@ -167,10 +145,10 @@ func (vm *bytecodeVM) execImplicitMemberSet(instr bytecodeInstruction) error {
 	if !ok || implicitExpr == nil {
 		return fmt.Errorf("bytecode implicit member set expects node")
 	}
-	val, err := vm.pop()
-	if err != nil {
-		return err
+	if len(vm.stack) < 1 {
+		return fmt.Errorf("bytecode stack underflow")
 	}
+	val := vm.stack[len(vm.stack)-1]
 	if instr.operator == "" {
 		return fmt.Errorf("bytecode implicit member set missing operator")
 	}
@@ -200,10 +178,7 @@ func (vm *bytecodeVM) execImplicitMemberSet(instr bytecodeInstruction) error {
 			}
 			return err
 		}
-		if result == nil {
-			result = runtime.NilValue{}
-		}
-		vm.stack = append(vm.stack, result)
+		vm.replaceTop1Unchecked(result)
 		vm.ip++
 		return nil
 	default:

@@ -73,7 +73,7 @@ func inlineParamNeedsRuntimeCoercion(layout *bytecodeFrameLayout, idx int, fn *r
 		return false
 	}
 	if fn != nil && fn.MethodSet != nil && len(fn.MethodSet.GenericParams) > 0 {
-		return !paramUsesGeneric(inlineParamType(layout, idx), fn.GenericNameSet(nil))
+		return !paramUsesGeneric(inlineParamType(layout, idx), bytecodeFunctionReturnGenericNames(fn))
 	}
 	return true
 }
@@ -157,7 +157,7 @@ func (vm *bytecodeVM) tryInlineCall(callee runtime.Value, args []runtime.Value, 
 
 	// Push call frame.
 	selfFast := bytecodeCanUseSelfFastFrame(currentProgram, prog, vm.env, fn.Closure)
-	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, len(vm.iterStack), len(vm.loopStack), hasImplicit, selfFast)
+	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, bytecodeProgramReturnGenericNames(fn, prog), len(vm.iterStack), len(vm.loopStack), hasImplicit, selfFast)
 
 	// Set up new frame.
 	vm.slots = slots
@@ -286,7 +286,7 @@ func (vm *bytecodeVM) tryInlineResolvedCallFromStack(fn *runtime.FunctionValue, 
 
 	vm.stack = vm.stack[:truncateTo]
 	selfFast := bytecodeCanUseSelfFastFrame(currentProgram, prog, vm.env, fn.Closure)
-	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, len(vm.iterStack), len(vm.loopStack), hasImplicit, selfFast)
+	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, bytecodeProgramReturnGenericNames(fn, prog), len(vm.iterStack), len(vm.loopStack), hasImplicit, selfFast)
 	vm.slots = slots
 	vm.env = fn.Closure
 	vm.ip = 0
@@ -332,7 +332,7 @@ func (vm *bytecodeVM) tryInlineSelfCallFromStack(fn *runtime.FunctionValue, argB
 				slots[layout.selfCallSlot] = fn
 			}
 			vm.stack = vm.stack[:truncateTo]
-			vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, len(vm.iterStack), len(vm.loopStack), false, true)
+			vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, bytecodeProgramReturnGenericNames(fn, prog), len(vm.iterStack), len(vm.loopStack), false, true)
 			vm.slots = slots
 			vm.env = fn.Closure
 			vm.ip = 0
@@ -375,7 +375,7 @@ func (vm *bytecodeVM) tryInlineSelfCallFromStack(fn *runtime.FunctionValue, argB
 	}
 
 	vm.stack = vm.stack[:truncateTo]
-	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, len(vm.iterStack), len(vm.loopStack), hasImplicit, true)
+	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, bytecodeProgramReturnGenericNames(fn, prog), len(vm.iterStack), len(vm.loopStack), hasImplicit, true)
 	vm.slots = slots
 	vm.env = fn.Closure
 	vm.ip = 0
@@ -438,7 +438,7 @@ func (vm *bytecodeVM) tryInlineSelfCallWithArg(fn *runtime.FunctionValue, arg ru
 		state.pushImplicitReceiver(arg)
 	}
 
-	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, len(vm.iterStack), len(vm.loopStack), hasImplicit, true)
+	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, bytecodeProgramReturnGenericNames(fn, prog), len(vm.iterStack), len(vm.loopStack), hasImplicit, true)
 	vm.slots = slots
 	vm.env = fn.Closure
 	vm.ip = 0
@@ -761,7 +761,7 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 							state := vm.interp.stateFromEnv(fn.Closure)
 							state.pushImplicitReceiver(arg)
 						}
-						vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, len(vm.iterStack), len(vm.loopStack), hasImplicit, true)
+						vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, bytecodeProgramReturnGenericNames(fn, calleeProgram), len(vm.iterStack), len(vm.loopStack), hasImplicit, true)
 						vm.slots = slots
 						vm.env = fn.Closure
 						vm.ip = 0

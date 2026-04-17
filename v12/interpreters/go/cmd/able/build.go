@@ -122,12 +122,13 @@ func runBuild(args []string) int {
 	}
 
 	comp := compiler.New(compiler.Options{
-		PackageName:              "main",
-		EmitMain:                 true,
-		EntryPath:                entryAbs,
-		RequireNoFallbacks:       config.RequireNoFallbacks,
-		RequireStaticNoFallbacks: config.RequireNoStaticFallbacks,
-		ExperimentalMonoArrays:   config.ExperimentalMonoArrays,
+		PackageName:               "main",
+		EmitMain:                  true,
+		EntryPath:                 entryAbs,
+		RequireNoFallbacks:        config.RequireNoFallbacks,
+		RequireStaticNoFallbacks:  config.RequireNoStaticFallbacks,
+		ExperimentalMonoArrays:    config.ExperimentalMonoArrays,
+		ExperimentalMonoArraysSet: true,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {

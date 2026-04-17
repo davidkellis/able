@@ -504,7 +504,7 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 		}
 	}
 
-	lambdaCtx := ctx.child()
+	lambdaCtx := ctx.closureChild()
 	lambdaCtx.inPlaceholder = true
 	lambdaCtx.placeholderParams = make(map[int]paramInfo, plan.paramCount)
 	lambdaCtx.controlMode = ""

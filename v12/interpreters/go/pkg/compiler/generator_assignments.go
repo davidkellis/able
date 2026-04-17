@@ -568,6 +568,9 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			expr = refinedExpr
 			goType = refinedType
 		}
+		if reconciledTypeExpr, ok := g.reconcileConcreteBindingTypeExpr(ctx, goType, assignmentTypeExpr); ok {
+			assignmentTypeExpr = reconciledTypeExpr
+		}
 	}
 	if !useEnvSet {
 		if ifaceType, ok := g.interfaceTypeExpr(assignmentTypeExpr); ok && goType == "runtime.Value" {

@@ -35,6 +35,49 @@ func TestLookupStructDefinitionPrefersPackageStructOverSameNameFunction(t *testi
 	}
 }
 
+func TestLookupStructDefinitionSupportsDeepQualifiedPackageNames(t *testing.T) {
+	interp := New()
+
+	parentPkg := "able.spec"
+	parentDef := &runtime.StructDefinitionValue{
+		Node: ast.StructDef("CustomMatcher", nil, ast.StructKindNamed, nil, nil, false),
+	}
+	parentEnv := runtime.NewEnvironment(interp.GlobalEnvironment())
+	parentEnv.DefineStruct("CustomMatcher", parentDef)
+	interp.packageEnvs[parentPkg] = parentEnv
+	interp.packageRegistry[parentPkg] = map[string]runtime.Value{"CustomMatcher": parentDef}
+
+	deepPkg := "able.spec.assertions"
+	deepDef := &runtime.StructDefinitionValue{
+		Node: ast.StructDef("CustomMatcher", nil, ast.StructKindNamed, nil, nil, false),
+	}
+	deepEnv := runtime.NewEnvironment(interp.GlobalEnvironment())
+	deepEnv.DefineStruct("CustomMatcher", deepDef)
+	interp.packageEnvs[deepPkg] = deepEnv
+	interp.packageRegistry[deepPkg] = map[string]runtime.Value{"CustomMatcher": deepDef}
+
+	if got, ok := interp.LookupStructDefinition("able.spec.assertions.CustomMatcher"); !ok || got != deepDef {
+		t.Fatalf("LookupStructDefinition(deep qualified) = (%v, %t), want (%v, true)", got, ok, deepDef)
+	}
+}
+
+func TestLookupStructDefinitionSupportsCollapsedVisiblePackageAlias(t *testing.T) {
+	interp := New()
+	interp.currentPackage = "demo.demo"
+
+	def := &runtime.StructDefinitionValue{
+		Node: ast.StructDef("Box", nil, ast.StructKindNamed, nil, nil, false),
+	}
+	pkgEnv := runtime.NewEnvironment(interp.GlobalEnvironment())
+	pkgEnv.DefineStruct("Box", def)
+	interp.packageEnvs["demo.demo"] = pkgEnv
+	interp.packageRegistry["demo.demo"] = map[string]runtime.Value{"Box": def}
+
+	if got, ok := interp.LookupStructDefinition("demo.Box"); !ok || got != def {
+		t.Fatalf("LookupStructDefinition(collapsed visible package alias) = (%v, %t), want (%v, true)", got, ok, def)
+	}
+}
+
 func TestSeedStructDefinitionsCopiesKnownStructsIntoDestinationEnv(t *testing.T) {
 	interp := New()
 	pkgName := "compiled_tests"

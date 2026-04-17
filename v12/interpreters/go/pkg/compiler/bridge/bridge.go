@@ -317,30 +317,66 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 		return def, nil
 	}
 	r.mu.RUnlock()
+	aliases := []string{name}
+	if idx := strings.LastIndex(strings.TrimSpace(name), "."); idx >= 0 && idx+1 < len(name) {
+		if leaf := strings.TrimSpace(name[idx+1:]); leaf != "" && leaf != name {
+			aliases = append(aliases, leaf)
+		}
+	}
+	var aliasUsed string
 	def, ok := env.StructDefinition(name)
+	if !ok || def == nil {
+		for _, alias := range aliases[1:] {
+			if seeded, found := env.StructDefinition(alias); found && seeded != nil {
+				def, ok = seeded, true
+				aliasUsed = alias
+				break
+			}
+		}
+	}
 	if (!ok || def == nil) && r.interp != nil {
-		if seeded, found := r.interp.LookupStructDefinition(name); found && seeded != nil {
-			def, ok = seeded, true
-			env.DefineStruct(name, seeded)
-			if seeded.Node != nil && seeded.Node.ID != nil {
-				if canonical := strings.TrimSpace(seeded.Node.ID.Name); canonical != "" && canonical != name {
-					env.DefineStruct(canonical, seeded)
+		for _, alias := range aliases {
+			if seeded, found := r.interp.LookupStructDefinition(alias); found && seeded != nil {
+				def, ok = seeded, true
+				aliasUsed = alias
+				env.DefineStruct(name, seeded)
+				if alias != "" && alias != name {
+					env.DefineStruct(alias, seeded)
 				}
+				if seeded.Node != nil && seeded.Node.ID != nil {
+					if canonical := strings.TrimSpace(seeded.Node.ID.Name); canonical != "" {
+						if canonical != name {
+							env.DefineStruct(canonical, seeded)
+						}
+						if alias != "" && alias != canonical {
+							env.DefineStruct(alias, seeded)
+						}
+					}
+				}
+				break
 			}
 		}
 	}
 	if (!ok || def == nil) && r.interp != nil && env != r.interp.GlobalEnvironment() && r.globalLookupFallback() {
 		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
-			if alt, found := fallback.StructDefinition(name); found && alt != nil {
-				recordGlobalLookupFallback("struct_global", name)
-				def, ok = alt, true
+			for _, alias := range aliases {
+				if alt, found := fallback.StructDefinition(alias); found && alt != nil {
+					recordGlobalLookupFallback("struct_global", alias)
+					def, ok = alt, true
+					aliasUsed = alias
+					break
+				}
 			}
 		}
 	}
 	if (!ok || def == nil) && r.interp != nil && r.globalLookupFallback() {
-		if alt, found := r.interp.LookupStructDefinition(name); found && alt != nil {
-			recordGlobalLookupFallback("struct_registry", name)
-			def, ok = alt, true
+		for _, alias := range aliases {
+			if alt, found := r.interp.LookupStructDefinition(alias); found && alt != nil {
+				recordGlobalLookupFallback("struct_registry", alias)
+				def, ok = alt, true
+				aliasUsed = alias
+				break
+			}
 		}
 	}
 	if !ok || def == nil {
@@ -348,6 +384,9 @@ func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue,
 	}
 	r.mu.Lock()
 	r.structs[cacheKey] = def
+	if aliasUsed != "" && aliasUsed != name {
+		r.structs[structCacheKey(env, aliasUsed)] = def
+	}
 	r.mu.Unlock()
 	return def, nil
 }

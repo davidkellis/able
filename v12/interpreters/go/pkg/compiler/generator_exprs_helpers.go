@@ -80,6 +80,57 @@ func (g *generator) canCoerceStaticExpr(expected, actual string) bool {
 	return false
 }
 
+func (g *generator) canCoerceStaticExprShallow(expected, actual string) bool {
+	if expected == "" || expected == "any" || actual == "" {
+		return true
+	}
+	if g.nativeNullableWraps(expected, actual) {
+		return true
+	}
+	if g.staticArrayCarrierCoercible(expected, actual) {
+		return true
+	}
+	if g.typeMatches(expected, actual) {
+		return true
+	}
+	if g != nil && g.nominalStructCarrierCoercible(expected, actual) {
+		return true
+	}
+	if g != nil && g.isIntegerType(expected) && g.isIntegerType(actual) {
+		return true
+	}
+	if expected == "runtime.ErrorValue" && g.isNativeErrorCarrierType(actual) {
+		return true
+	}
+	if innerType, nullable := g.nativeNullableValueInnerType(expected); nullable && innerType == "runtime.ErrorValue" && g.isNativeErrorCarrierType(actual) {
+		return true
+	}
+	if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil {
+		if g.nativeInterfaceAcceptsActualShallow(iface, actual) {
+			return true
+		}
+		switch g.typeCategory(actual) {
+		case "struct", "interface", "union", "callable", "monoarray", "runtime", "runtime_error":
+			return true
+		}
+		return false
+	}
+	if g.nativeCallableInfoForGoType(expected) != nil {
+		if actual == expected || actual == "runtime.Value" || actual == "any" {
+			return true
+		}
+		if g.nativeCallableInfoForGoType(actual) != nil {
+			return true
+		}
+	}
+	if union := g.nativeUnionInfoForGoType(expected); union != nil {
+		if g.nativeUnionAcceptsActual(union, actual) {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *generator) nativeCallableWrapLines(ctx *compileContext, expected string, actual string, expr string) ([]string, string, bool) {
 	info := g.nativeCallableInfoForGoType(expected)
 	if info == nil || ctx == nil || actual == "" || expr == "" {

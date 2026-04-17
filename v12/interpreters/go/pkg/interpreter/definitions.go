@@ -147,7 +147,7 @@ func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, en
 				return nil, err
 			}
 		} else {
-			fnVal.Bytecode = program
+			setFunctionBytecodeProgram(fnVal, program)
 		}
 	}
 	i.defineInEnv(env, def.ID.Name, fnVal)
@@ -305,7 +305,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				return nil, err
 			}
 		} else {
-			fnVal.Bytecode = program
+			setFunctionBytecodeProgram(fnVal, program)
 		}
 		mergeFunctionLike(methods, fn.ID.Name, fnVal)
 		hasExplicit = true
@@ -329,7 +329,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 					return nil, err
 				}
 			} else {
-				defaultVal.Bytecode = program
+				setFunctionBytecodeProgram(defaultVal, program)
 			}
 			mergeFunctionLike(methods, name, defaultVal)
 		}
@@ -473,7 +473,7 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 				return nil, err
 			}
 		} else {
-			fnVal.Bytecode = program
+			setFunctionBytecodeProgram(fnVal, program)
 		}
 		mergeFunctionLike(bucket, fn.ID.Name, fnVal)
 		i.defineInEnv(env, exportedName, fnVal)

@@ -81,7 +81,7 @@ func grownCapacity(current int, minimum int) int {
 		current = 4
 	}
 	for current < minimum {
-		if current < 1024 {
+		if current < 4096 {
 			current *= 2
 		} else {
 			current += current / 2
@@ -722,8 +722,8 @@ func ArrayStoreWrite(handle int64, index int, value Value) error {
 		}
 		length := len(state.Values)
 		if index == length {
-			if length == 0 && state.Capacity < 4 {
-				ArrayEnsureCapacity(state, 4)
+			if length+1 > state.Capacity || length == cap(state.Values) {
+				ArrayEnsureCapacity(state, length+1)
 			}
 			state.Values = append(state.Values, value)
 			if state.Capacity < cap(state.Values) {

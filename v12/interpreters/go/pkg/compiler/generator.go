@@ -35,6 +35,7 @@ type generator struct {
 	monoArraySpecs                      map[string]*monoArraySpec
 	nativeInterfaceBuilding             map[string]struct{}
 	nativeInterfaceRefreshing           map[string]struct{}
+	nativeInterfaceDirectAdapterChecks  map[string]struct{}
 	nativeInterfaceSpecializing         map[string]struct{}
 	nativeInterfaceImplBindingCache     map[string]nativeInterfaceImplBindingCacheEntry
 	normalizedTypeExprCache             map[string]ast.TypeExpression
@@ -94,10 +95,9 @@ type generator struct {
 }
 
 func newGenerator(opts Options) *generator {
-	// Compiler-native array carriers are now the default static lowering path.
-	// Keep the option field for compatibility while older call sites/tests are
-	// updated, but do not let the generic *Array carrier remain the default.
-	opts.ExperimentalMonoArrays = true
+	if !opts.ExperimentalMonoArraysSet {
+		opts.ExperimentalMonoArrays = true
+	}
 	return &generator{
 		opts:                                opts,
 		structs:                             make(map[string]*structInfo),
@@ -120,10 +120,11 @@ func newGenerator(opts Options) *generator {
 		nativeInterfaceRenderedDispatches:   make(map[string]struct{}),
 		nativeInterfaceRenderedApplyHelpers: make(map[string]struct{}),
 		iteratorCollectMonoArrays:           make(map[string]*iteratorCollectMonoArrayInfo),
-		monoArraySpecs:                      make(map[string]*monoArraySpec),
-		nativeInterfaceBuilding:             make(map[string]struct{}),
-		nativeInterfaceRefreshing:           make(map[string]struct{}),
-		nativeInterfaceSpecializing:         make(map[string]struct{}),
+			monoArraySpecs:                      make(map[string]*monoArraySpec),
+			nativeInterfaceBuilding:             make(map[string]struct{}),
+			nativeInterfaceRefreshing:           make(map[string]struct{}),
+			nativeInterfaceDirectAdapterChecks:  make(map[string]struct{}),
+			nativeInterfaceSpecializing:         make(map[string]struct{}),
 		nativeInterfaceImplBindingCache:     make(map[string]nativeInterfaceImplBindingCacheEntry),
 		normalizedTypeExprCache:             make(map[string]ast.TypeExpression),
 		normalizedTypeExprPackageCache:      make(map[string]string),
@@ -179,10 +180,11 @@ func (g *generator) collect(program *driver.Program) error {
 	g.nativeInterfaceRenderedDispatches = make(map[string]struct{})
 	g.nativeInterfaceRenderedApplyHelpers = make(map[string]struct{})
 	g.iteratorCollectMonoArrays = make(map[string]*iteratorCollectMonoArrayInfo)
-	g.monoArraySpecs = make(map[string]*monoArraySpec)
-	g.nativeInterfaceBuilding = make(map[string]struct{})
-	g.nativeInterfaceRefreshing = make(map[string]struct{})
-	g.nativeInterfaceSpecializing = make(map[string]struct{})
+		g.monoArraySpecs = make(map[string]*monoArraySpec)
+		g.nativeInterfaceBuilding = make(map[string]struct{})
+		g.nativeInterfaceRefreshing = make(map[string]struct{})
+		g.nativeInterfaceDirectAdapterChecks = make(map[string]struct{})
+		g.nativeInterfaceSpecializing = make(map[string]struct{})
 	g.nativeInterfaceImplBindingCache = make(map[string]nativeInterfaceImplBindingCacheEntry)
 	g.normalizedTypeExprCache = make(map[string]ast.TypeExpression)
 	g.normalizedTypeExprPackageCache = make(map[string]string)

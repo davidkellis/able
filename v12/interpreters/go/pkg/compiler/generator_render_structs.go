@@ -236,6 +236,10 @@ func (g *generator) renderFieldFromPositional(buf *bytes.Buffer, field fieldInfo
 }
 
 func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
+	lookupName := info.Name
+	if info != nil && strings.TrimSpace(info.Package) != "" && !strings.Contains(lookupName, ".") {
+		lookupName = qualifiedName(runtimeLookupPackageName(info.Package), info.Name)
+	}
 	fmt.Fprintf(buf, "func __able_struct_%s_to(rt *bridge.Runtime, value *%s) (runtime.Value, error) {\n", info.GoName, info.GoName)
 	if info.Name == "Array" {
 		fmt.Fprintf(buf, "\tif rt == nil {\n")
@@ -284,7 +288,7 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "}\n\n")
 		return
 	}
-	fmt.Fprintf(buf, "\tdef, err := rt.StructDefinition(%q)\n", info.Name)
+	fmt.Fprintf(buf, "\tdef, err := rt.StructDefinition(%q)\n", lookupName)
 	fmt.Fprintf(buf, "\tif err != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, err\n")
 	fmt.Fprintf(buf, "\t}\n")

@@ -912,7 +912,7 @@ func (i *Interpreter) evaluateLambdaExpression(expr *ast.LambdaExpression, env *
 				return nil, err
 			}
 		} else {
-			fnVal.Bytecode = program
+			setFunctionBytecodeProgram(fnVal, program)
 		}
 	}
 	return fnVal, nil

@@ -422,10 +422,7 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 				}
 				return false, err
 			}
-			if fast == nil {
-				fast = runtime.NilValue{}
-			}
-			vm.stack = append(vm.stack, fast)
+			vm.stack = append(vm.stack, bytecodeStackResultValue(fast))
 			vm.ip++
 			return false, nil
 		}
@@ -440,7 +437,6 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 		right := vm.stack[rightIdx]
 		leftIdx := rightIdx - 1
 		left := vm.stack[leftIdx]
-		vm.stack = vm.stack[:leftIdx]
 		fast, _, err := vm.execBinarySpecializedOpcode(instr, left, right)
 		if err != nil {
 			err = vm.interp.wrapStandardRuntimeError(err)
@@ -452,10 +448,7 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 			}
 			return false, err
 		}
-		if fast == nil {
-			fast = runtime.NilValue{}
-		}
-		vm.stack = append(vm.stack, fast)
+		vm.replaceTop2Unchecked(fast)
 		vm.ip++
 		return false, nil
 	}
@@ -466,7 +459,6 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 	right := vm.stack[rightIdx]
 	leftIdx := rightIdx - 1
 	left := vm.stack[leftIdx]
-	vm.stack = vm.stack[:leftIdx]
 	if instr.operator == "+" {
 		rawLeft := unwrapInterfaceValue(left)
 		rawRight := unwrapInterfaceValue(right)
@@ -479,7 +471,7 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 				}
 				return false, err
 			}
-			vm.stack = append(vm.stack, runtime.StringValue{Val: ls.Val + rs.Val})
+			vm.replaceTop2Unchecked(runtime.StringValue{Val: ls.Val + rs.Val})
 			vm.ip++
 			return false, nil
 		}
@@ -492,7 +484,7 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 		}
 	}
 	if fast, handled := execBinaryDirectIntegerComparisonFast(instr.operator, left, right); handled {
-		vm.stack = append(vm.stack, fast)
+		vm.replaceTop2Unchecked(fast)
 		vm.ip++
 		return false, nil
 	}
@@ -508,10 +500,7 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 				}
 				return false, err
 			}
-			if fast == nil {
-				fast = runtime.NilValue{}
-			}
-			vm.stack = append(vm.stack, fast)
+			vm.replaceTop2Unchecked(fast)
 			vm.ip++
 			return false, nil
 		}
@@ -527,10 +516,7 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 		}
 		return false, err
 	}
-	if result == nil {
-		result = runtime.NilValue{}
-	}
-	vm.stack = append(vm.stack, result)
+	vm.replaceTop2Unchecked(result)
 	vm.ip++
 	return false, nil
 }

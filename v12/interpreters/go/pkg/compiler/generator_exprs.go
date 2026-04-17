@@ -167,6 +167,9 @@ func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string
 			return lines, errorExpr, expected, true
 		}
 	}
+	if unionLines, unionExpr, unionType, ok := g.coerceExpectedNativeUnionExpr(ctx, lines, expr, actual, expected); ok {
+		return unionLines, unionExpr, unionType, true
+	}
 	if wrapLines, wrapped, ok := g.lowerWrapUnion(ctx, expected, actual, expr); ok {
 		lines = append(lines, wrapLines...)
 		return lines, wrapped, expected, true

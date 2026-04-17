@@ -4,7 +4,13 @@
 .examples/
 .gocache*/
 .gomodcache/
+node_modules/
+spec/google-glr/able-parser-example/node_modules/
+.tmp/
 .tmp*
+.tmp/go-build/
+.tmp/gomod/
+.tmp/iface_test/
 tmp/
 tmp*/
 
