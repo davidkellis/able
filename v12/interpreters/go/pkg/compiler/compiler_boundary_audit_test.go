@@ -95,6 +95,7 @@ func runCompilerBoundaryAuditFixtureList(t *testing.T, root string, fixtures []s
 	for _, rel := range fixtures {
 		rel := rel
 		t.Run(rel, func(t *testing.T) {
+			t.Parallel()
 			runCompilerBoundaryAuditFixture(t, root, rel)
 		})
 	}

@@ -124,6 +124,7 @@ func runCompilerInterfaceLookupAuditFixtureList(t *testing.T, root string, fixtu
 	for _, rel := range fixtures {
 		rel := rel
 		t.Run(rel, func(t *testing.T) {
+			t.Parallel()
 			runCompilerInterfaceLookupAuditFixture(t, root, rel)
 		})
 	}
