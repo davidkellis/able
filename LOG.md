@@ -1,5 +1,26 @@
 # Able Project Log
 
+# 2026-04-17 — Stdlib gate clean-checkout bootstrap slice (v12)
+- Closed one integration/tooling reproducibility gap in the top-level stdlib
+  gate.
+- What landed:
+  - updated `run_stdlib_tests.sh` so stdlib test discovery no longer depends
+    on a sibling `able-stdlib` checkout or a pre-seeded global `$ABLE_HOME`
+    cache
+  - when neither an explicit `ABLE_STDLIB_ROOT`, a sibling checkout, nor a
+    cached stdlib test tree exists, the script now builds the v12 CLI and
+    runs `able setup` into an isolated temporary `ABLE_HOME`, then resolves
+    the stdlib test root from either the cached package tree or the stdlib
+    `path:` source recorded in `setup.lock`
+  - added `ABLE_STDLIB_SKIP_SIBLING=1` support so the clean-checkout/bootstrap
+    path can be exercised directly instead of being masked by a local sibling
+    checkout
+  - updated `v12/README.md` and `PLAN.md` to document the new self-bootstrapping
+    stdlib gate behavior
+- Verification:
+  - `bash -n run_stdlib_tests.sh`
+  - `tmp_home=$(mktemp -d) && ABLE_HOME="$tmp_home" ABLE_STDLIB_SKIP_SIBLING=1 ./run_stdlib_tests.sh; rc=$?; rm -rf "$tmp_home"; exit $rc`
+
 # 2026-04-16 — Repo-wide gate recovery after compiled CLI follow-on regressions (v12)
 - Cleared the downstream compiler regressions that surfaced after the earlier
   compiled CLI blocker set was fixed, and restored a fully green top-level

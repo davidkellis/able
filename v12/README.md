@@ -26,6 +26,7 @@ Able is an experimental programming language. This workspace hosts the actively 
 - **Go interpreters**: install Go ≥ 1.22 and run `go test ./...` inside `interpreters/go/`. Before handing off work, prefer `./v12/run_all_tests.sh` (fixtures/typechecker default to strict).
 - **CLI wrappers**: use `./v12/abletw` for tree-walker runs and `./v12/ablebc` for bytecode runs.
 - **Stdlib bootstrap**: run `./v12/able setup` once to install/cache canonical stdlib + kernel roots under `$ABLE_HOME/pkg/src`.
+- **Stdlib gate**: `./run_stdlib_tests.sh` now self-bootstraps stdlib + kernel into an isolated `ABLE_HOME` when no sibling `able-stdlib` checkout or cached stdlib is present.
 - **Specs**: edit `spec/full_spec_v12.md` for new behaviour; consult archived specs only to understand the baseline.
 - **Perf harness**: use `./v12/bench_suite` for machine-readable benchmark snapshots (`fib`, `binarytrees`, `matrixmultiply`, `quicksort`, `sudoku`, `i_before_e`) across compiled/treewalker/bytecode modes.
 

@@ -1064,6 +1064,10 @@ These items remain important, but they are not active priorities right now.
 
 #### Integration / Tooling backlog
 - staged integration cleanup and clean-checkout reproducibility follow-ups
+  - `run_stdlib_tests.sh` now self-bootstraps stdlib + kernel through
+    `able setup` into an isolated `ABLE_HOME` when no sibling
+    `able-stdlib` checkout or cached stdlib is present, closing one
+    clean-checkout reproducibility gap in the top-level stdlib gate
 - stdlib externalization follow-ups
 - fixture exporter and other tooling cleanup
 - testing CLI / user-facing testing framework work
