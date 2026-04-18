@@ -219,3 +219,31 @@ fn main() -> void {}
 		t.Fatalf("expected mono arrays constant disabled via --no-experimental-mono-arrays")
 	}
 }
+
+func TestCollectStdlibPathsPrefersCachedAbleHome(t *testing.T) {
+	cacheHome := filepath.Join(t.TempDir(), ".able")
+	cacheSrc := filepath.Join(cacheHome, "pkg", "src", "able", "0.1.0", "src")
+	repoRoot := t.TempDir()
+	base := filepath.Join(repoRoot, "workspace")
+	siblingSrc := filepath.Join(repoRoot, "able-stdlib", "src")
+
+	if err := os.MkdirAll(cacheSrc, 0o755); err != nil {
+		t.Fatalf("mkdir cache src: %v", err)
+	}
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		t.Fatalf("mkdir base: %v", err)
+	}
+	if err := os.MkdirAll(siblingSrc, 0o755); err != nil {
+		t.Fatalf("mkdir sibling src: %v", err)
+	}
+
+	t.Setenv("ABLE_STDLIB_ROOT", "")
+	t.Setenv("ABLE_HOME", cacheHome)
+	t.Setenv("ABLE_PATH", "")
+	t.Setenv("ABLE_MODULE_PATHS", "")
+
+	paths := collectStdlibPaths(base)
+	if len(paths) == 0 || paths[0] != cacheSrc {
+		t.Fatalf("collectStdlibPaths() = %v, want first entry %q", paths, cacheSrc)
+	}
+}

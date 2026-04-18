@@ -1,5 +1,37 @@
 # Able Project Log
 
+# 2026-04-17 — Clean-checkout stdlib discovery closure after rebase (v12)
+- Closed the remaining sibling-stdlib tooling/helper assumptions that were
+  still hiding inside the rebased tree.
+- What landed:
+  - added `v12/interpreters/go/pkg/stdlibpath/stdlibpath.go` as the shared
+    explicit-override / cached-install / sibling-layout resolver for stdlib
+    source roots
+  - updated `v12/interpreters/go/cmd/fixture/main.go`,
+    `v12/interpreters/go/pkg/interpreter/fixture_runner.go`,
+    `v12/interpreters/go/cmd/ablec/paths.go`, and
+    `v12/interpreters/go/pkg/compiler/generator_render_main.go` so active
+    tooling/runtime entry paths now prefer `ABLE_STDLIB_ROOT` or cached
+    `$ABLE_HOME/pkg/src/able/*/src` installs before probing sibling
+    `able-stdlib` checkouts
+  - updated the remaining repo fixture/test harnesses that still only walked
+    local layouts:
+    - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+    - `v12/interpreters/go/pkg/interpreter/exec_fixtures_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_string_impl_regression_test.go`
+  - added focused coverage in:
+    - `v12/interpreters/go/pkg/stdlibpath/stdlibpath_test.go`
+    - `v12/interpreters/go/cmd/fixture/main_test.go`
+    - `v12/interpreters/go/pkg/interpreter/fixture_runner_stdlib_root_test.go`
+    - `v12/interpreters/go/cmd/ablec/build_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`
+- Verification:
+  - focused stdlib-path/tooling/compiler/interpreter slices passed
+  - `/usr/bin/time -p ./run_all_tests.sh` (pass, `real 1193.78`)
+  - `/usr/bin/time -p ./run_stdlib_tests.sh` (pass, `real 36.36`)
+  - `git diff --check`
+
 # 2026-04-17 — Compiler fixture harness wall-clock recovery after rebase (v12)
 - Restored the top-level repo gate after the rebase re-exposed compiler
   package timeout pressure.

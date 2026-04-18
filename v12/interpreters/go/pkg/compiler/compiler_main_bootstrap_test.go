@@ -47,6 +47,20 @@ func TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent(t *testing
 	}
 }
 
+func TestCompilerMainUsesInstalledStdlibDiscoveryBeforeSiblingLookup(t *testing.T) {
+	mainSrc := compileMainSource(t, "demo", strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  0",
+		"}",
+		"",
+	}, "\n"))
+	if !strings.Contains(mainSrc, "stdlibpath.ResolveInstalledSrc()") {
+		t.Fatalf("expected emitted main.go to consult installed stdlib discovery")
+	}
+}
+
 func TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers(t *testing.T) {
 	mainSrc := compileMainSource(t, "demo", strings.Join([]string{
 		"package demo",

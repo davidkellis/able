@@ -314,6 +314,14 @@ Compiler-native encoding completion is closed on 2026-04-14:
   program are now both closed; the remaining work returns to backlog /
   tooling-priority selection rather than another compiler or bytecode closure
   milestone.
+- the clean-checkout reproducibility follow-up is now closed on 2026-04-17:
+  `run_stdlib_tests.sh` self-bootstraps through `able setup` when needed, and
+  the remaining active tooling/helper paths (`cmd/fixture`, interpreter
+  fixture loading, `ablec`, generated compiled wrappers, and the repo fixture
+  harnesses) now prefer explicit or cached stdlib installs before sibling
+  `able-stdlib` probing; the rebased tree is green again at the top level with
+  `/usr/bin/time -p ./run_all_tests.sh` = `real 1193.78` and
+  `/usr/bin/time -p ./run_stdlib_tests.sh` = `real 36.36`.
 
 #### Production definition of done
 
@@ -1069,11 +1077,6 @@ Closed on 2026-04-16.
 These items remain important, but they are not active priorities right now.
 
 #### Integration / Tooling backlog
-- staged integration cleanup and clean-checkout reproducibility follow-ups
-  - `run_stdlib_tests.sh` now self-bootstraps stdlib + kernel through
-    `able setup` into an isolated `ABLE_HOME` when no sibling
-    `able-stdlib` checkout or cached stdlib is present, closing one
-    clean-checkout reproducibility gap in the top-level stdlib gate
 - stdlib externalization follow-ups
 - fixture exporter and other tooling cleanup
 - testing CLI / user-facing testing framework work

@@ -15,6 +15,7 @@ import (
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/stdlibpath"
 )
 
 var (
@@ -272,49 +273,10 @@ func fallbackPath(primary string, fallback string) string {
 }
 
 // findTestStdlibRoot locates the stdlib src directory for tests.
-// It probes sibling able-stdlib/src and stdlib/src relative to the repo root
-// (for dev), then checks $ABLE_HOME/pkg/src/able/*/src/ (for CI/installed).
+// It prefers explicit/cached installs so clean-checkout runs do not depend on
+// a sibling able-stdlib checkout.
 func findTestStdlibRoot(root string) string {
-	candidates := []string{
-		filepath.Join(root, "able-stdlib", "src"),
-		filepath.Join(root, "able_stdlib", "src"),
-		filepath.Join(root, "stdlib", "src"),
-	}
-	// Also check sibling directories of the repo root.
-	if parent := filepath.Dir(root); parent != root {
-		candidates = append(candidates,
-			filepath.Join(parent, "able-stdlib", "src"),
-			filepath.Join(parent, "able_stdlib", "src"),
-		)
-	}
-	for _, candidate := range candidates {
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
-		}
-	}
-	// Check $ABLE_HOME cache.
-	home := os.Getenv("ABLE_HOME")
-	if home == "" {
-		if userHome, err := os.UserHomeDir(); err == nil {
-			home = filepath.Join(userHome, ".able")
-		}
-	}
-	if home != "" {
-		cacheBase := filepath.Join(home, "pkg", "src", "able")
-		if entries, err := os.ReadDir(cacheBase); err == nil {
-			for _, entry := range entries {
-				if !entry.IsDir() {
-					continue
-				}
-				src := filepath.Join(cacheBase, entry.Name(), "src")
-				if info, err := os.Stat(src); err == nil && info.IsDir() {
-					return src
-				}
-			}
-		}
-	}
-	// Final fallback — return the relative path used historically.
-	return filepath.Join("..", "..", "stdlib", "src")
+	return stdlibpath.ResolveRepoOrInstalledSrc(root)
 }
 
 func fixtureDriverModule(module *ast.Module, file string) *driver.Module {
