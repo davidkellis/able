@@ -1078,9 +1078,42 @@ These items remain important, but they are not active priorities right now.
 
 #### Integration / Tooling backlog
 - stdlib externalization follow-ups
-  - remaining open slice: collision/error semantics when multiple `name: able`
-    roots are simultaneously visible through lockfiles, overrides, or
-    `ABLE_MODULE_PATHS`
+  - remaining open slice: implement the canonical stdlib-root selection and
+    collision semantics now specified in `spec/full_spec_v12.md` §13.6–§13.7
+  - ordered tranches:
+    - tranche 1: loader/driver canonicalization primitives
+      - classify visible `name: able` roots by source class
+        (`lockfile` / `override` / `env` / `cache` / `workspace`)
+      - canonicalize stdlib candidate roots to one comparable source path
+        (`<root>` vs `<root>/src`, absolute normalization, duplicate collapse)
+      - keep generic non-stdlib package collision behavior unchanged
+    - tranche 2: canonical stdlib selection in CLI/tooling entry paths
+      - make `able run` / `able check` / `able test` and other active entry
+        paths select exactly one canonical `able` root using the spec
+        precedence:
+        `lockfile > override > single env root > cache` for manifest runs,
+        `override > single env root > cache` for ad hoc runs
+      - reject ambiguous multi-root stdlib visibility instead of falling back
+        to search-path order
+    - tranche 3: parity across compiled launchers, fixture harnesses, and
+      dynamic loading
+      - ensure compiled entrypoints, generated launchers, fixture runners, and
+        `dynimport` use the same canonical `able` root and collision rules as
+        the CLI
+      - ensure ambient `ABLE_MODULE_PATHS` cannot silently override a stronger
+        stdlib decision
+    - tranche 4: diagnostics and coverage closure
+      - add focused tests for:
+        - lockfile vs env stdlib collision
+        - override vs env stdlib collision
+        - multiple env-provided `name: able` roots
+        - cache vs env collision
+        - duplicate visibility of the same canonicalized stdlib root
+        - ad hoc no-manifest env-selected stdlib success
+      - make collision diagnostics report selected root, conflicting root(s),
+        and each source class
+      - remove the remaining stdlib externalization TODO once coverage is
+        green
 - fixture exporter and other tooling cleanup
 - testing CLI / user-facing testing framework work
 

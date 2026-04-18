@@ -1,5 +1,30 @@
 # Able Project Log
 
+# 2026-04-18 — Stdlib-root collision semantics formalized and tranche-planned (v12)
+- Formalized the remaining stdlib externalization semantics in
+  `spec/full_spec_v12.md`.
+- What landed:
+  - expanded §13.6 / §13.7 to define:
+    - candidate `name: able` roots
+    - root canonicalization (`<root>` vs `<root>/src`, absolute normalization,
+      duplicate collapse)
+    - source classes (`lockfile`, `override`, `env`, `cache`, `workspace`)
+    - deterministic canonical stdlib-root selection for manifest-based and ad
+      hoc runs
+    - hard collision rules for distinct visible stdlib roots
+    - required collision diagnostics
+    - `dynimport` parity with static `able.*` resolution
+  - replaced the old vague backlog note in `PLAN.md` with an ordered four-
+    tranche implementation sequence:
+    1. loader/driver canonicalization primitives
+    2. canonical stdlib selection in CLI/tooling entry paths
+    3. compiled/fixture/dynimport parity
+    4. diagnostics + coverage closure
+  - updated `spec/TODO_v12.md` so the remaining open item is implementation of
+    the now-specified semantics, not clarification of the semantics
+- Verification:
+  - `git diff --check`
+
 # 2026-04-17 — Canonical stdlib test/input contract cleanup (v12)
 - Closed the first remaining stdlib externalization follow-up.
 - What landed:

@@ -4480,10 +4480,124 @@ Typing and dynamic imports:
 -   Able distributes an Able-authored **kernel** bundle versioned with the toolchain. The kernel lives under `<tool-root>/kernel/src` (or an equivalent embedded extraction cache) and is automatically injected ahead of workspace code to surface host bridges (scheduler/channel/mutex/string/hasher shims).
 -   The standard library is a normal package named `able`, but its canonical source is an external git repository managed by the dependency resolver. Tooling installs/caches it under `$ABLE_HOME/pkg/src/able/<version>/src` (for example via `able setup`) and resolves it through the normal lockfile + search-path model.
 -   When a manifest does not declare an explicit `able` dependency, tooling injects an implicit stdlib dependency pinned to the toolchain stdlib version and resolves the canonical git tag `v<toolchain-stdlib-version>` (not a floating branch). `able setup` and first-run auto-install use the same pin.
--   `import able.*` always resolves against whichever canonical `able` root the loader selects (lockfile pin, override, or cached canonical install). User code MUST NOT publish an `able` namespace; any root whose manifest declares `name: able` is treated as stdlib, and collisions are reported rather than shadowed.
+-   `import able.*` always resolves against whichever canonical `able` root the loader selects. User code MUST NOT publish an `able` namespace; any root whose manifest declares `name: able` is treated as stdlib, not ordinary user code. Distinct visible `able` roots are never silently shadowed and never merged.
 -   Global resolver overrides map canonical git URLs to local package roots (persisted under `$ABLE_HOME/overrides.yml`; CLI surface: `able override add/remove/list`). Overrides are intended for development/testing and apply before remote fetch for matching git dependencies.
 -   Lockfiles record the resolved stdlib version/source. Override-backed stdlib resolutions may intentionally diverge from the toolchain pin and are treated as explicit local-development opt-ins.
 -   Tooling treats resolved kernel/stdlib roots as read-only inputs at runtime. Local edits rely on dependency resolution controls (lockfile pin, global override, or `ABLE_MODULE_PATHS` search roots).
+
+#### 13.6.1. Candidate `able` roots and canonicalization
+
+For stdlib resolution, a **candidate `able` root** is any discovered package root whose `package.yml` declares:
+
+```yaml
+name: able
+```
+
+The implementation MUST canonicalize each candidate before comparing or selecting roots. Canonicalization is path-based and is intended to collapse trivial duplicate spellings of the same physical stdlib checkout.
+
+A candidate root canonicalizes as follows:
+
+1.  Convert the discovered root to an absolute normalized path.
+2.  If the package directory has a `src` subdirectory and the discovered root is the package directory rather than the source directory, canonicalize to `<package-root>/src`.
+3.  If the discovered root is already the source directory, keep that directory.
+4.  If the implementation has a stronger filesystem-identity normalization step available (for example symlink resolution), it MAY apply it, provided it does so consistently across all candidate roots in the invocation.
+
+Two candidate `able` roots are considered the **same root** only if they canonicalize to the same final source directory. Otherwise they are **distinct roots**.
+
+This means the following spellings are treated as the same root when they ultimately refer to the same source directory:
+
+-   relative vs. absolute spellings of the same path
+-   `<stdlib-root>` vs. `<stdlib-root>/src` when that `src` directory is the package source root
+-   duplicate path-list entries that normalize to the same directory
+
+#### 13.6.2. Source classes
+
+Every visible candidate `able` root belongs to one source class for selection and diagnostics:
+
+-   **`lockfile`**: a stdlib root selected by manifest/lockfile dependency resolution
+-   **`override`**: a root selected by the global override entry for the canonical stdlib git URL (persisted under `$ABLE_HOME/overrides.yml`)
+-   **`env`**: a root discovered through `ABLE_MODULE_PATHS` or `ABLE_PATH`
+-   **`cache`**: a canonical installed stdlib under `$ABLE_HOME/pkg/src/able/<version>/src`
+-   **`workspace`**: a workspace/current-directory/explicitly-provided root that declares `name: able`
+
+`workspace` roots are not normal user packages. Because `able` is reserved, they participate only as stdlib candidates and collision sources.
+
+An override entry for the canonical stdlib git URL is an explicit instruction of the form “for the stdlib dependency, use this local package root instead of the fetched or cached canonical install.” It is therefore stronger than generic environment search-path injection.
+
+An `env` candidate from `ABLE_MODULE_PATHS` or `ABLE_PATH` is weaker and more ambient. It means “this root is visible to package discovery.” If such a root declares `name: able`, it is offering a stdlib root, but it is not automatically allowed to replace a stronger stdlib decision.
+
+#### 13.6.3. Canonical stdlib root selection
+
+Each invocation of `able run`, `able check`, `able test`, compiled entrypoints, fixtures, or other tooling that resolves imports MUST select exactly one **canonical `able` root**.
+
+All `import able.*` resolution for that invocation binds to the selected canonical root. Stdlib selection is therefore a single-root choice, not an ordinary path-order shadowing rule.
+
+Selection is deterministic and uses the following precedence.
+
+For **manifest-based** runs (that is, runs whose entry resolution is governed by a manifest/lockfile):
+
+1.  If a lockfile-selected `able` root is present, select it.
+2.  Otherwise, if a global override for the canonical stdlib git URL is present, select that override root.
+3.  Otherwise, if exactly one `env` candidate `able` root is visible through `ABLE_MODULE_PATHS` / `ABLE_PATH`, select it.
+4.  Otherwise, if a cached canonical installed stdlib is present under `$ABLE_HOME/pkg/src/able/<version>/src`, select it.
+5.  Otherwise, report an error: no stdlib root is available.
+
+For **ad hoc / no-manifest** runs:
+
+1.  If a global override for the canonical stdlib git URL is present, select that override root.
+2.  Otherwise, if exactly one `env` candidate `able` root is visible through `ABLE_MODULE_PATHS` / `ABLE_PATH`, select it.
+3.  Otherwise, if a cached canonical installed stdlib is present under `$ABLE_HOME/pkg/src/able/<version>/src`, select it.
+4.  Otherwise, report an error: no stdlib root is available.
+
+This precedence exists to preserve reproducibility:
+
+-   manifest + lockfile selection is project-local and wins for manifest-based runs
+-   override selection is an explicit machine-local stdlib-development opt-in
+-   environment path injection remains available for ad hoc runs, fixtures, and local experiments, but does not silently overturn a stronger stdlib decision
+-   cached canonical installs remain the final fallback when no stronger source has chosen the stdlib
+
+#### 13.6.4. Collision semantics
+
+After selecting the canonical `able` root, the implementation MUST check for other visible candidate `able` roots.
+
+If any other **distinct** candidate `able` root remains visible, the invocation MUST fail with a stdlib collision error.
+
+The implementation MUST NOT:
+
+-   silently shadow one `able` root with another based on search-path order
+-   merge files from multiple distinct `able` roots into a single assembled stdlib
+-   treat ambient `ABLE_MODULE_PATHS` order as authoritative for choosing the stdlib
+
+The implementation MAY allow duplicate visibility of the same canonicalized root. For example, the following are valid if both spellings canonicalize to the same final source directory:
+
+-   an override root visible both through `$ABLE_HOME/overrides.yml` and `ABLE_MODULE_PATHS`
+-   a cached install referenced through different equivalent path spellings
+-   `<stdlib-root>` and `<stdlib-root>/src`
+
+The following are errors:
+
+-   a manifest lockfile selects stdlib root **A**, but `ABLE_MODULE_PATHS` exposes a distinct stdlib root **B**
+-   a global override selects stdlib root **A**, but cache discovery or env discovery exposes a distinct stdlib root **B**
+-   `ABLE_MODULE_PATHS` / `ABLE_PATH` expose two distinct visible `name: able` roots
+-   a workspace or explicit user-supplied package root declares `name: able` while a different canonical stdlib root is also visible
+
+The reason for this strictness is that the stdlib is part of the language contract. Allowing two distinct `able` roots to coexist would make interface availability, package contents, and even core language-backed library behavior depend on accidental path ordering.
+
+#### 13.6.5. Required diagnostics
+
+A stdlib collision diagnostic MUST identify:
+
+-   the selected canonical root
+-   the conflicting distinct root or roots
+-   the source class of each root (`lockfile`, `override`, `env`, `cache`, or `workspace`)
+
+The diagnostic SHOULD make clear whether the conflict arose because:
+
+-   a stronger source selected one root and a weaker source exposed another
+-   multiple environment-provided `name: able` roots were visible simultaneously
+-   a workspace root illegally attempted to claim the reserved `able` namespace
+
+Implementations SHOULD report concrete canonicalized source paths so the user can remove the ambiguity directly.
 
 ### 13.7. Module Search Paths & Environment Overrides
 
@@ -4494,13 +4608,14 @@ Typing and dynamic imports:
 3.  Entries from `ABLE_PATH` (OS path list). This predates `ABLE_MODULE_PATHS` and is kept for backward compatibility.
 4.  Entries from `ABLE_MODULE_PATHS` (also an OS path list). This is the preferred knob for injecting additional package roots—fixtures, local dependency mirrors, dynamic package sandboxes, etc. Both interpreters honor it for static imports *and* `dynimport`.
 5.  Canonical stdlib + kernel roots selected by resolver/tooling:
-    - cached canonical installs under `$ABLE_HOME/pkg/src/...` (including `able`),
+    - the single canonical `able` root selected under §13.6,
+    - cached canonical installs under `$ABLE_HOME/pkg/src/...`,
     - resolver-selected roots from lockfile sources,
     - kernel roots discovered from tool installation paths or embedded-kernel extraction.
 
-Each search root is normalised to an absolute directory, verified to exist, and assigned a root package name. If a `package.yml` is present, its `name` field (after sanitising hyphen → underscore) becomes the root segment; otherwise the directory name is used. All `.able` files under the root participate in package assembly, and `package` statements inside those files may append further segments. If the same package path appears in multiple roots, the loader reports a collision rather than silently shadowing one with another.
+Each search root is normalised to an absolute directory, verified to exist, and assigned a root package name. If a `package.yml` is present, its `name` field (after sanitising hyphen → underscore) becomes the root segment; otherwise the directory name is used. All `.able` files under the root participate in package assembly, and `package` statements inside those files may append further segments. For package paths other than `able.*`, if the same package path appears in multiple roots, the loader reports a collision rather than silently shadowing one with another. `able.*` is resolved through the canonical-root selection rule in §13.6 rather than by generic root-order competition.
 
-`dynimport` uses the same ordered search list. At runtime it scans each root for the requested package path, falling back to later roots when a module is absent. This makes it possible to host production packages under the workspace root while letting tests or REPL sessions inject overrides via `ABLE_MODULE_PATHS=/tmp/able-overrides`.
+`dynimport` uses the same ordered search list. At runtime it scans each root for the requested package path, falling back to later roots when a module is absent. For `able.*`, `dynimport` follows the same canonical stdlib-root rule as static imports and MUST NOT select a distinct stdlib root merely because it appears later or earlier in the generic search list. This makes it possible to host production packages under the workspace root while letting tests or REPL sessions inject overrides via `ABLE_MODULE_PATHS=/tmp/able-overrides` without changing the selected stdlib accidentally.
 
 ## 14. Standard Library Interfaces (Conceptual / TBD)
 
