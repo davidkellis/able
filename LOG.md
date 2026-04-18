@@ -1,5 +1,29 @@
 # Able Project Log
 
+# 2026-04-17 — Compiler fixture harness wall-clock recovery after rebase (v12)
+- Restored the top-level repo gate after the rebase re-exposed compiler
+  package timeout pressure.
+- What landed:
+  - marked the heavy independent compiler fixture/parity/audit subtests as
+    parallel in:
+    - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+    - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_no_bootstrap_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_concurrency_parity_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_dynamic_boundary_parity_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_boundary_audit_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_interface_lookup_audit_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_diagnostics_parity_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_strict_dispatch_test.go`
+  - this keeps the same fixture coverage and per-fixture isolation, but removes
+    the serial wall-clock bottleneck that pushed `pkg/compiler` back over the
+    default 30-minute package timeout on the rebased tree
+- Verification:
+  - `cd v12/interpreters/go && go test -p 1 ./pkg/compiler -run 'TestCompilerConcurrencyParityFixtures$|TestCompilerDiagnosticsParityFixtures$|TestCompilerStrictDispatchVectorFixtureRegression$|TestCompilerBoundaryFallbackMarkerForStaticFixturesBatch1$|TestCompilerInterfaceLookupBypassForStaticFixturesBatch1$' -count=1 -timeout 1800s`
+  - `cd v12/interpreters/go && /usr/bin/time -p go test -p 1 ./pkg/compiler -run 'TestCompilerExecFixtures$' -count=1 -timeout 3600s` (pass, `real 203.36`)
+  - `/usr/bin/time -p ./run_all_tests.sh` (pass, `real 1287.77`)
+  - `/usr/bin/time -p ./run_stdlib_tests.sh` (pass, `real 25.21`)
+  - `git diff --check`
+
 # 2026-04-17 — Stdlib gate clean-checkout bootstrap slice (v12)
 - Closed one integration/tooling reproducibility gap in the top-level stdlib
   gate.

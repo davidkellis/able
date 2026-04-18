@@ -35,6 +35,7 @@ func TestCompilerDynamicBoundaryParityFixtures(t *testing.T) {
 	for _, rel := range fixtures {
 		rel := rel
 		t.Run(rel, func(t *testing.T) {
+			t.Parallel()
 			dir := filepath.Join(root, filepath.FromSlash(rel))
 			manifest, err := interpreter.LoadFixtureManifest(dir)
 			if err != nil {

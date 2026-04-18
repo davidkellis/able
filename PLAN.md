@@ -738,6 +738,12 @@ Current state snapshot:
     carrier metadata;
   - the repo-level `./run_all_tests.sh` gate is green again on this tree
     after those fixes (`real 1399.73`);
+  - after the rebase exposed compiler package timeout pressure again, the
+    heavy independent compiler fixture/parity/audit subtests now run in
+    parallel, which brought `TestCompilerExecFixtures` down to about
+    `real 203.36`, the full `pkg/compiler` package back under the default
+    30-minute timeout (`1230.138s`), and the top-level repo gate back to
+    green on this tree (`real 1287.77`);
 - a large amount of call-dispatch, lookup-cache, frame-pool, integer-op, and
   hotspot work is already landed;
 - the first post-compiler bytecode tranche is now landed too: repeated array

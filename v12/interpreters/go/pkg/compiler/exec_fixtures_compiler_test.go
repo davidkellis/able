@@ -40,6 +40,7 @@ func TestCompilerExecFixtures(t *testing.T) {
 		rel := rel
 		dir := filepath.Join(root, filepath.FromSlash(rel))
 		t.Run(filepath.ToSlash(rel), func(t *testing.T) {
+			t.Parallel()
 			runCompilerExecFixture(t, dir, rel)
 		})
 	}
