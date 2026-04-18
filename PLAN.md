@@ -19,7 +19,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - `spec/full_spec_v10.md` + `spec/full_spec_v11.md`: authoritative semantics for archived toolchains. Keep them untouched unless a maintainer requests errata.
 - `spec/full_spec_v12.md`: active specification for all current work; every behavioral change must be described here.
 - `v10/` + `v11/`: frozen workspaces (read-only unless hotfix required).
-- `v12/`: active development surface for Able v12 (`interpreters/go/`, `parser/`, `fixtures/`, `stdlib-deprecated-do-not-use/`, `design/`, `docs/`). Canonical stdlib source is being moved to the external `able-stdlib` repo and cached via `able setup`.
+- `v12/`: active development surface for Able v12 (`interpreters/go/`, `parser/`, `fixtures/`, `stdlib-deprecated-do-not-use/`, `design/`, `docs/`). Canonical stdlib source lives in the external `able-stdlib` repo and is cached locally via `able setup`.
 
 ## Active Priorities
 - **Compiler completion**: finish the Go AOT compiler first. This is the top
@@ -1078,6 +1078,9 @@ These items remain important, but they are not active priorities right now.
 
 #### Integration / Tooling backlog
 - stdlib externalization follow-ups
+  - remaining open slice: collision/error semantics when multiple `name: able`
+    roots are simultaneously visible through lockfiles, overrides, or
+    `ABLE_MODULE_PATHS`
 - fixture exporter and other tooling cleanup
 - testing CLI / user-facing testing framework work
 

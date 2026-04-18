@@ -27,6 +27,10 @@ Able is an experimental programming language. This workspace hosts the actively 
 - **CLI wrappers**: use `./v12/abletw` for tree-walker runs and `./v12/ablebc` for bytecode runs.
 - **Stdlib bootstrap**: run `./v12/able setup` once to install/cache canonical stdlib + kernel roots under `$ABLE_HOME/pkg/src`.
 - **Stdlib gate**: `./run_stdlib_tests.sh` now self-bootstraps stdlib + kernel into an isolated `ABLE_HOME` when no sibling `able-stdlib` checkout or cached stdlib is present.
+- **Canonical stdlib resolution**:
+  - `able setup` pins the default stdlib version into `$ABLE_HOME/pkg/src/able/<version>/src` and records the resolved stdlib/kernel sources in `$ABLE_HOME/setup.lock`.
+  - `able override add https://github.com/davidkellis/able-stdlib.git <local-path>` redirects the canonical stdlib git dependency to a local checkout for development.
+  - Active tooling now prefers that explicit override/cached install path first; sibling `able-stdlib` discovery is only a fallback for repo-local development helpers.
 - **Specs**: edit `spec/full_spec_v12.md` for new behaviour; consult archived specs only to understand the baseline.
 - **Perf harness**: use `./v12/bench_suite` for machine-readable benchmark snapshots (`fib`, `binarytrees`, `matrixmultiply`, `quicksort`, `sudoku`, `i_before_e`) across compiled/treewalker/bytecode modes.
 

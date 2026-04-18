@@ -37,7 +37,7 @@ func compileSourceWithStdlibPaths(t *testing.T, source string) *Result {
 	}
 	searchPaths := []driver.SearchPath{
 		{Path: root, Kind: driver.RootUser},
-		{Path: filepath.Join(repositoryRoot(), "v12", "stdlib-deprecated-do-not-use", "src"), Kind: driver.RootStdlib},
+		{Path: canonicalStdlibSourcePath(t), Kind: driver.RootStdlib},
 		{Path: filepath.Join(repositoryRoot(), "v12", "kernel", "src"), Kind: driver.RootStdlib},
 	}
 	loader, err := driver.NewLoader(searchPaths)
