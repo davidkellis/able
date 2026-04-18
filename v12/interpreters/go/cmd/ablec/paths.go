@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/stdlibpath"
 )
 
 func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
@@ -177,6 +178,13 @@ func collectStdlibPaths(base string) []string {
 	}
 	for _, entry := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
 		add(entry)
+	}
+
+	if installed := stdlibpath.ResolveInstalledSrc(); installed != "" {
+		add(installed)
+		if len(paths) > 0 {
+			return paths
+		}
 	}
 
 	if base != "" {

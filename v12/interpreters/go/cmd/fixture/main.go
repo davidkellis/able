@@ -12,6 +12,7 @@ import (
 	"able/interpreter-go/pkg/driver"
 	"able/interpreter-go/pkg/interpreter"
 	"able/interpreter-go/pkg/runtime"
+	"able/interpreter-go/pkg/stdlibpath"
 	"able/interpreter-go/pkg/typechecker"
 )
 
@@ -388,44 +389,7 @@ func fixtureDriverModule(module *ast.Module, origin string) *driver.Module {
 }
 
 func findFixtureStdlibRoot(repoRoot string) string {
-	candidates := []string{
-		filepath.Join(repoRoot, "able-stdlib", "src"),
-		filepath.Join(repoRoot, "able_stdlib", "src"),
-		filepath.Join(repoRoot, "stdlib", "src"),
-	}
-	if parent := filepath.Dir(repoRoot); parent != repoRoot {
-		candidates = append(candidates,
-			filepath.Join(parent, "able-stdlib", "src"),
-			filepath.Join(parent, "able_stdlib", "src"),
-		)
-	}
-	for _, candidate := range candidates {
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
-		}
-	}
-	// Check $ABLE_HOME cache.
-	home := os.Getenv("ABLE_HOME")
-	if home == "" {
-		if userHome, err := os.UserHomeDir(); err == nil {
-			home = filepath.Join(userHome, ".able")
-		}
-	}
-	if home != "" {
-		cacheBase := filepath.Join(home, "pkg", "src", "able")
-		if entries, err := os.ReadDir(cacheBase); err == nil {
-			for _, entry := range entries {
-				if !entry.IsDir() {
-					continue
-				}
-				src := filepath.Join(cacheBase, entry.Name(), "src")
-				if info, err := os.Stat(src); err == nil && info.IsDir() {
-					return src
-				}
-			}
-		}
-	}
-	return filepath.Join(repoRoot, "stdlib", "src")
+	return stdlibpath.ResolveRepoOrInstalledSrc(repoRoot)
 }
 
 func registerPrint(interp *interpreter.Interpreter, buffer *[]string) {

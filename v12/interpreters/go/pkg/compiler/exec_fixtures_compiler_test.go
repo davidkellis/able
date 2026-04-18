@@ -18,6 +18,7 @@ import (
 
 	"able/interpreter-go/pkg/driver"
 	"able/interpreter-go/pkg/interpreter"
+	"able/interpreter-go/pkg/stdlibpath"
 	"able/interpreter-go/pkg/typechecker"
 )
 
@@ -737,6 +738,10 @@ func findStdlibRoots(start string) []string {
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 			roots = append(roots, candidate)
 		}
+	}
+	if installed := stdlibpath.ResolveInstalledSrc(); installed != "" {
+		add(installed)
+		return roots
 	}
 	dir := start
 	for {

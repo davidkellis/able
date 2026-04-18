@@ -9,18 +9,17 @@ import (
 	"testing"
 
 	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/stdlibpath"
 )
 
 func canonicalStdlibSourcePath(t *testing.T) string {
 	t.Helper()
 	repoRoot := repositoryRoot()
-	for _, candidate := range []string{
-		filepath.Join(repoRoot, "able-stdlib", "src"),
-		filepath.Join(filepath.Dir(repoRoot), "able-stdlib", "src"),
-	} {
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
-		}
+	if installed := stdlibpath.ResolveInstalledSrc(); installed != "" {
+		return installed
+	}
+	if sibling := stdlibpath.FindSiblingSrc(repoRoot); sibling != "" {
+		return sibling
 	}
 	t.Skip("canonical able-stdlib src directory not available")
 	return ""

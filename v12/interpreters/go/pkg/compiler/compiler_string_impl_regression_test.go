@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/stdlibpath"
 )
 
 func TestCompilerNoFallbacksStringDefaultImplStaticEmpty(t *testing.T) {
@@ -91,7 +92,7 @@ func TestCompilerNoFallbacksStringBuilderIteratorCloneSpecializesArraySelfReturn
 		t.Fatalf("runtime.Caller failed")
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(current), "..", "..", "..", "..", ".."))
-	stdlibRoot := filepath.Join(filepath.Dir(repoRoot), "able-stdlib", "src")
+	stdlibRoot := stdlibpath.ResolveRepoOrInstalledSrc(repoRoot)
 	kernelRoot := filepath.Join(repoRoot, "v12", "kernel", "src")
 	loader, err := driver.NewLoader([]driver.SearchPath{
 		{Path: root, Kind: driver.RootUser},
@@ -208,7 +209,7 @@ func TestCompilerNoFallbacksStringBuilderUsesNativeArrayPushAll(t *testing.T) {
 		t.Fatalf("runtime.Caller failed")
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(current), "..", "..", "..", "..", ".."))
-	stdlibRoot := filepath.Join(filepath.Dir(repoRoot), "able-stdlib", "src")
+	stdlibRoot := stdlibpath.ResolveRepoOrInstalledSrc(repoRoot)
 	kernelRoot := filepath.Join(repoRoot, "v12", "kernel", "src")
 	loader, err := driver.NewLoader([]driver.SearchPath{
 		{Path: root, Kind: driver.RootUser},
