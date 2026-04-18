@@ -9,7 +9,9 @@ This list tracks the remaining v12 items after audit; completed work should be r
 - None currently tracked.
 
 ## Stdlib externalization gaps
-- Clarify collision/error semantics when multiple `name: able` roots are visible through `ABLE_MODULE_PATHS`, lockfile sources, or overrides.
+- Implement the canonical stdlib-root selection/collision semantics now
+  specified in `spec/full_spec_v12.md` §13.6–§13.7 across loader, CLI,
+  compiled entrypoints, fixture/tooling paths, and diagnostics.
 
 ## Compiler AOT performance / dynamic-carrier staged limits
 - `runtime.Value` usage categories are now documented in `spec/full_spec_v12.md` under the AOT boundary section.
