@@ -1,5 +1,31 @@
 # Able Project Log
 
+# 2026-04-17 — Canonical stdlib test/input contract cleanup (v12)
+- Closed the first remaining stdlib externalization follow-up.
+- What landed:
+  - active compiler tests no longer load the archived
+    `v12/stdlib-deprecated-do-not-use` snapshot; the shared
+    `compileSourceWithStdlibPaths(...)` helper in
+    `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_test.go`
+    now resolves the canonical stdlib through the installed/cached or sibling
+    externalized `able-stdlib` path instead
+  - this moves the remaining users in:
+    - `v12/interpreters/go/pkg/compiler/compiler_dispatch_completeness_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_hash_eq_native_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_receiver_binding_refinement_test.go`
+    - `v12/interpreters/go/pkg/compiler/compiler_native_interface_generic_test.go`
+    onto the same canonical stdlib contract as the rest of the toolchain
+  - documented the end-to-end canonical stdlib resolution contract in
+    `v12/README.md` (`able setup`, `$ABLE_HOME/pkg/src/able/<version>/src`,
+    `setup.lock`, and `able override` precedence), updated `PLAN.md` to say the
+    canonical stdlib now lives externally rather than “being moved,” and
+    removed the resolved resolution-contract item from `spec/TODO_v12.md`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/compiler -run 'TestCompiler(KernelHasherInterfaceAdapterKeepsNativeStateCarrier|ReceiverRefinementKeepsDeclaredGenericBindingName|StdlibStaticOverloadedMethodChainStaysNative|SpecializedImplCanonicalKeyPreventsDuplicateContainAllBodies|ContainAllStringMatcherUsesDirectStringSpecialization|IterableDefaultMethodSelfSiblingStaysStaticForStdlibImports)$' -count=1 -timeout 1800s`
+  - `/usr/bin/time -p ./run_all_tests.sh` (pass, `real 1362.61`)
+  - `/usr/bin/time -p ./run_stdlib_tests.sh` (pass, `real 35.39`)
+  - `git diff --check`
+
 # 2026-04-17 — Clean-checkout stdlib discovery closure after rebase (v12)
 - Closed the remaining sibling-stdlib tooling/helper assumptions that were
   still hiding inside the rebased tree.
