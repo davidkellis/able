@@ -13,9 +13,9 @@
 
 > **Note:** As of the latest audit, every feature now has AST fixtures (`TODO` appears only in the “Parser Tests” column). Remaining `TODO` entries indicate missing parser assertions, not fixture gaps.
 
-> **Note:** “Parser Tests” refers to focused assertions in `interpreter-go/pkg/parser/*`. “AST Fixtures” refers to entries under `fixtures/ast` exported via the Go fixture exporter (TODO).
+> **Note:** “Parser Tests” refers to focused assertions in `interpreter-go/pkg/parser/*`. “AST Fixtures” refers to entries under `fixtures/ast` exported via the Go fixture exporter (`v12/export_fixtures.sh`).
 
-> **Note:** Fixtures that include a `source.able` file should be round-tripped by the Go parser harness once the Go exporter + fixture driver are wired for v12.
+> **Note:** Fixtures that include a `source.able` file should be re-exported through the Go fixture exporter; parser harness round-trips can consume those exported modules directly as coverage expands.
 
 ---
 

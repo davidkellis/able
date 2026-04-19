@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"able/interpreter-go/pkg/driver"
@@ -56,20 +55,9 @@ fn main() -> void {
 	t.Setenv("ABLE_REGISTRY", registry)
 	t.Setenv("ABLE_MODULE_PATHS", repoStdlibPath(t)+string(os.PathListSeparator)+repoKernelPath(t))
 
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalWD)
-	}()
-	if err := os.Chdir(project); err != nil {
-		t.Fatalf("Chdir project: %v", err)
-	}
+	enterWorkingDir(t, project)
 
-	if code, _, stderr := captureCLI(t, []string{"deps", "install"}); code != 0 {
-		t.Fatalf("able deps install exited %d (stderr: %q)", code, stderr)
-	}
+	_ = runCLIExpectSuccess(t, "deps", "install")
 
 	lockPath := filepath.Join(project, "package.lock")
 	lock, err := driver.LoadLockfile(lockPath)
@@ -79,31 +67,18 @@ fn main() -> void {
 	if len(lock.Packages) != 3 {
 		t.Fatalf("lock packages unexpected: %#v", lock.Packages)
 	}
-	pkg := findLockedPackage(lock.Packages, "util")
-	if pkg == nil || pkg.Version != "1.0.0" {
+	pkg := requireLockedPackage(t, lock.Packages, "util")
+	if pkg.Version != "1.0.0" {
 		t.Fatalf("lock entry unexpected: %#v", pkg)
 	}
 	expectedSource := fmt.Sprintf("registry:default/%s/%s", pkg.Name, pkg.Version)
 	if pkg.Source != expectedSource {
 		t.Fatalf("pkg.Source = %q, want %q", pkg.Source, expectedSource)
 	}
-	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
-		t.Fatalf("expected stdlib entry in lock: %#v", lock.Packages)
-	}
-	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
-		t.Fatalf("expected kernel entry in lock: %#v", lock.Packages)
-	}
+	requireLockedStdlibAndKernel(t, lock.Packages)
 
-	code, stdout, stderr := captureCLI(t, []string{"run"})
-	if code != 0 {
-		t.Fatalf("able run exited %d (stderr: %q)", code, stderr)
-	}
-	if !strings.Contains(stdout, "util dependency") {
-		t.Fatalf("expected output to include dependency value, got %q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	stdout := runCLIExpectSuccess(t, "run")
+	assertOutputContainsAll(t, stdout, "util dependency")
 
 	cached := filepath.Join(cacheDir, "pkg", "src", "util", "1.0.0")
 	if _, err := os.Stat(cached); err != nil {
@@ -157,18 +132,9 @@ fn main() -> void {
 	t.Setenv("ABLE_REGISTRY", registry)
 	t.Setenv("ABLE_MODULE_PATHS", repoStdlibPath(t)+string(os.PathListSeparator)+repoKernelPath(t))
 
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() { _ = os.Chdir(originalWD) }()
-	if err := os.Chdir(project); err != nil {
-		t.Fatalf("Chdir project: %v", err)
-	}
+	enterWorkingDir(t, project)
 
-	if code, _, stderr := captureCLI(t, []string{"deps", "install"}); code != 0 {
-		t.Fatalf("able deps install exited %d (stderr: %q)", code, stderr)
-	}
+	_ = runCLIExpectSuccess(t, "deps", "install")
 
 	writeFile(t, filepath.Join(project, "src", "main.able"), `
 package main
@@ -180,17 +146,9 @@ fn main() -> void {
 }
 `)
 
-	code, stdout, stderr := captureCLI(t, []string{"run"})
-	if code == 0 {
-		t.Fatalf("expected non-zero exit code for typecheck failure")
-	}
+	_, stdout, stderr := runCLIExpectFailure(t, "run")
 	if stdout != "" {
 		t.Fatalf("expected no stdout when typecheck fails, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "typechecker:") {
-		t.Fatalf("expected stderr to contain typechecker diagnostics, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "package export summary") {
-		t.Fatalf("expected stderr to include package export summary, got %q", stderr)
-	}
+	assertTextContainsAll(t, stderr, "typechecker:", "package export summary")
 }

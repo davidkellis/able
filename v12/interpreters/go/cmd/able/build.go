@@ -59,6 +59,11 @@ func runBuild(args []string) int {
 	}
 	opts := searchPathOptions{skipStdlibDiscovery: lock != nil}
 	searchPaths := collectSearchPaths(filepath.Dir(entryAbs), opts, extras...)
+	searchPaths, err = finalizeSearchPaths(searchPaths, manifest != nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "able build: failed to resolve canonical stdlib root: %v\n", err)
+		return 1
+	}
 
 	loader, err := driver.NewLoader(searchPaths)
 	if err != nil {

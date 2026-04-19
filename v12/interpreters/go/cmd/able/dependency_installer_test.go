@@ -69,12 +69,7 @@ version: 0.2.0
 	if len(depPkg.Dependencies) != 0 {
 		t.Fatalf("expected no transitive dependencies, got %#v", depPkg.Dependencies)
 	}
-	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
-		t.Fatalf("missing stdlib entry: %#v", lock.Packages)
-	}
-	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
-		t.Fatalf("missing kernel entry: %#v", lock.Packages)
-	}
+	requireLockedStdlibAndKernel(t, lock.Packages)
 }
 
 func TestDependencyInstaller_PathDependencyTransitive(t *testing.T) {
@@ -143,12 +138,7 @@ version: 2.0.0
 	} else if len(sub.Dependencies) != 0 {
 		t.Fatalf("sub should have no dependencies, got %#v", sub.Dependencies)
 	}
-	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
-		t.Fatalf("expected stdlib package in lock")
-	}
-	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
-		t.Fatalf("expected kernel package in lock")
-	}
+	requireLockedStdlibAndKernel(t, lock.Packages)
 }
 
 func TestDependencyInstaller_RegistryDependency(t *testing.T) {
@@ -220,13 +210,9 @@ dependencies:
 	if len(lock.Packages) != 4 {
 		t.Fatalf("expected four packages in lockfile, got %#v", lock.Packages)
 	}
-	mathPkg := findLockedPackage(lock.Packages, "math")
-	helperPkg := findLockedPackage(lock.Packages, "helper")
-	stdlibPkg := findLockedPackage(lock.Packages, "able")
-	kernelPkg := findLockedPackage(lock.Packages, "kernel")
-	if mathPkg == nil || helperPkg == nil || stdlibPkg == nil || kernelPkg == nil {
-		t.Fatalf("missing expected lockfile entries: %#v", lock.Packages)
-	}
+	mathPkg := requireLockedPackage(t, lock.Packages, "math")
+	helperPkg := requireLockedPackage(t, lock.Packages, "helper")
+	requireLockedStdlibAndKernel(t, lock.Packages)
 	if len(mathPkg.Dependencies) != 1 || mathPkg.Dependencies[0].Name != "helper" {
 		t.Fatalf("math dependencies incorrect: %#v", mathPkg.Dependencies)
 	}
@@ -301,12 +287,7 @@ dependencies:
 	if len(pkg.Dependencies) != 0 {
 		t.Fatalf("expected no transitive dependencies for git package, got %#v", pkg.Dependencies)
 	}
-	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
-		t.Fatalf("missing stdlib entry: %#v", lock.Packages)
-	}
-	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
-		t.Fatalf("missing kernel entry: %#v", lock.Packages)
-	}
+	requireLockedStdlibAndKernel(t, lock.Packages)
 }
 
 func TestDependencyInstaller_GitDependencyBranch(t *testing.T) {
@@ -373,12 +354,7 @@ dependencies:
 	if _, err := os.Stat(cached); err != nil {
 		t.Fatalf("expected cached git package at %s: %v", cached, err)
 	}
-	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
-		t.Fatalf("missing stdlib entry: %#v", lock.Packages)
-	}
-	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
-		t.Fatalf("missing kernel entry: %#v", lock.Packages)
-	}
+	requireLockedStdlibAndKernel(t, lock.Packages)
 }
 
 func TestDependencyInstaller_PinsBundledStdlib(t *testing.T) {
@@ -418,16 +394,7 @@ version: 0.0.1
 	lock := driver.NewLockfile(manifest.Name, cliToolVersion)
 	installer := newDependencyInstaller(manifest, filepath.Join(root, ".able"))
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(oldWD)
-	}()
-	if err := os.Chdir(root); err != nil {
-		t.Fatalf("chdir root: %v", err)
-	}
+	enterWorkingDir(t, root)
 
 	changed, logs, err := installer.Install(lock)
 	if err != nil {
@@ -439,15 +406,14 @@ version: 0.0.1
 	if len(lock.Packages) != 2 {
 		t.Fatalf("expected stdlib and kernel entries, got %#v", lock.Packages)
 	}
-	stdlib := findLockedPackage(lock.Packages, "able")
-	if stdlib == nil || stdlib.Version != defaultStdlibVersion {
+	stdlib, kernel := requireLockedStdlibAndKernel(t, lock.Packages)
+	if stdlib.Version != defaultStdlibVersion {
 		t.Fatalf("unexpected stdlib lock entry: %#v", stdlib)
 	}
 	if stdlib.Source != fmt.Sprintf("path:%s", stdlibSrc) {
 		t.Fatalf("expected stdlib source %s, got %s", stdlibSrc, stdlib.Source)
 	}
-	kernel := findLockedPackage(lock.Packages, "kernel")
-	if kernel == nil || kernel.Source == "" {
+	if kernel.Source == "" {
 		t.Fatalf("expected kernel entry, got %#v", kernel)
 	}
 	if kernel.Source != fmt.Sprintf("path:%s", kernelSrc) {
@@ -503,16 +469,7 @@ version: 0.0.1
 	lock := driver.NewLockfile(manifest.Name, cliToolVersion)
 	installer := newDependencyInstaller(manifest, cacheDir)
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(oldWD)
-	}()
-	if err := os.Chdir(root); err != nil {
-		t.Fatalf("chdir root: %v", err)
-	}
+	enterWorkingDir(t, root)
 
 	changed, logs, err := installer.Install(lock)
 	if err != nil {
@@ -524,8 +481,8 @@ version: 0.0.1
 	if len(lock.Packages) != 2 {
 		t.Fatalf("expected stdlib and kernel entries, got %#v", lock.Packages)
 	}
-	stdlib := findLockedPackage(lock.Packages, "able")
-	if stdlib == nil || stdlib.Version != defaultStdlibVersion {
+	stdlib, _ := requireLockedStdlibAndKernel(t, lock.Packages)
+	if stdlib.Version != defaultStdlibVersion {
 		t.Fatalf("unexpected stdlib lock entry: %#v", stdlib)
 	}
 	if stdlib.Source != fmt.Sprintf("path:%s", cachedStdlibSrc) {

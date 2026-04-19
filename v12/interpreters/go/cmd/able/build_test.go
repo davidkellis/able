@@ -28,23 +28,9 @@ fn main() -> void {
 }
 `)
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, projectDir)
 
-	code, _, stderr := captureCLI(t, []string{"build", "app"})
-	if code != 0 {
-		t.Fatalf("build returned exit code %d, stderr: %q", code, stderr)
-	}
+	_ = runCLIExpectSuccess(t, "build", "app")
 
 	outDir := filepath.Join(projectDir, "target", "compiled", "app")
 	binPath := filepath.Join(outDir, "app")
@@ -86,10 +72,8 @@ fn main() -> void {
 }
 `)
 
-	code, _, stderr := captureCLI(t, []string{"build", "--out", outDir, "--bin", binPath, entryPath})
-	if code != 0 {
-		t.Fatalf("build returned exit code %d, stderr: %q", code, stderr)
-	}
+	enterTempWorkingDir(t)
+	_ = runCLIExpectSuccess(t, "build", "--out", outDir, "--bin", binPath, entryPath)
 	if _, err := os.Stat(binPath); err != nil {
 		t.Fatalf("expected binary at %s: %v", binPath, err)
 	}
@@ -116,10 +100,13 @@ fn main() -> void {
 	if _, err := os.Stat(parserCopy); err != nil {
 		t.Fatalf("expected parser sources at %s: %v", parserCopy, err)
 	}
-	// Stdlib sources are copied from the cache; just verify the directory exists.
-	stdlibCopyDir := filepath.Join(outDir, "v12", "stdlib", "src")
-	if info, err := os.Stat(stdlibCopyDir); err != nil || !info.IsDir() {
-		t.Fatalf("expected stdlib sources directory at %s: %v", stdlibCopyDir, err)
+	// Stdlib source copying is opportunistic and only happens when a cached
+	// canonical stdlib is available to the build helper.
+	if _, err := ensureCachedStdlib(); err == nil {
+		stdlibCopyDir := filepath.Join(outDir, "v12", "stdlib", "src")
+		if info, err := os.Stat(stdlibCopyDir); err != nil || !info.IsDir() {
+			t.Fatalf("expected stdlib sources directory at %s: %v", stdlibCopyDir, err)
+		}
 	}
 	kernelCopy := filepath.Join(outDir, "v12", "kernel", "src", "kernel.able")
 	if _, err := os.Stat(kernelCopy); err != nil {
@@ -138,14 +125,10 @@ fn main() -> void {
 }
 
 func TestBuildNoFallbacksFlagFailsWhenFallbackRequired(t *testing.T) {
+	enterTempWorkingDir(t)
 	entryPath := writeFallbackBuildEntry(t)
-	code, _, stderr := captureCLI(t, []string{"build", "--no-fallbacks", entryPath})
-	if code == 0 {
-		t.Fatalf("expected non-zero exit code when --no-fallbacks is set")
-	}
-	if !strings.Contains(stderr, "fallback not allowed") {
-		t.Fatalf("expected fallback guard error, got %q", stderr)
-	}
+	_, _, stderr := runCLIExpectFailure(t, "build", "--no-fallbacks", entryPath)
+	assertTextContainsAll(t, stderr, "fallback not allowed")
 }
 
 func TestParseBuildArgumentsDefaultsToStaticNoFallbacks(t *testing.T) {
@@ -225,27 +208,19 @@ func TestParseBuildArgumentsMonoArraysInvalidEnv(t *testing.T) {
 }
 
 func TestBuildNoFallbacksEnvFailsWhenFallbackRequired(t *testing.T) {
+	enterTempWorkingDir(t)
 	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "true")
 	entryPath := writeFallbackBuildEntry(t)
-	code, _, stderr := captureCLI(t, []string{"build", entryPath})
-	if code == 0 {
-		t.Fatalf("expected non-zero exit code when ABLE_COMPILER_REQUIRE_NO_FALLBACKS is set")
-	}
-	if !strings.Contains(stderr, "fallback not allowed") {
-		t.Fatalf("expected fallback guard error, got %q", stderr)
-	}
+	_, _, stderr := runCLIExpectFailure(t, "build", entryPath)
+	assertTextContainsAll(t, stderr, "fallback not allowed")
 }
 
 func TestBuildNoFallbacksInvalidEnvFailsArgumentParsing(t *testing.T) {
+	enterTempWorkingDir(t)
 	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "sometimes")
 	entryPath := writeFallbackBuildEntry(t)
-	code, _, stderr := captureCLI(t, []string{"build", entryPath})
-	if code == 0 {
-		t.Fatalf("expected non-zero exit code for invalid ABLE_COMPILER_REQUIRE_NO_FALLBACKS")
-	}
-	if !strings.Contains(stderr, "invalid ABLE_COMPILER_REQUIRE_NO_FALLBACKS value") {
-		t.Fatalf("expected invalid env parse error, got %q", stderr)
-	}
+	_, _, stderr := runCLIExpectFailure(t, "build", entryPath)
+	assertTextContainsAll(t, stderr, "invalid ABLE_COMPILER_REQUIRE_NO_FALLBACKS value")
 }
 
 func TestBuildAllowFallbacksOverridesEnv(t *testing.T) {
@@ -262,16 +237,15 @@ func TestBuildAllowFallbacksOverridesEnv(t *testing.T) {
 		binPath += ".exe"
 	}
 
-	code, _, stderr := captureCLI(t, []string{
+	enterTempWorkingDir(t)
+	_, stderr := runCLIExpectSuccessAllowingStderr(t,
 		"build",
 		"--allow-fallbacks",
 		"--out", outDir,
 		"--bin", binPath,
 		entryPath,
-	})
-	if code != 0 {
-		t.Fatalf("expected --allow-fallbacks to override env strict mode, got code %d (stderr=%q)", code, stderr)
-	}
+	)
+	assertTextContainsAll(t, stderr, "typechecker:")
 	if _, err := os.Stat(binPath); err != nil {
 		t.Fatalf("expected compiled binary at %s: %v", binPath, err)
 	}
@@ -291,15 +265,14 @@ func TestBuildEnvFalseAllowsFallbacks(t *testing.T) {
 		binPath += ".exe"
 	}
 
-	code, _, stderr := captureCLI(t, []string{
+	enterTempWorkingDir(t)
+	_, stderr := runCLIExpectSuccessAllowingStderr(t,
 		"build",
 		"--out", outDir,
 		"--bin", binPath,
 		entryPath,
-	})
-	if code != 0 {
-		t.Fatalf("expected false env value to disable static fallback guard, got code %d (stderr=%q)", code, stderr)
-	}
+	)
+	assertTextContainsAll(t, stderr, "typechecker:")
 	if _, err := os.Stat(binPath); err != nil {
 		t.Fatalf("expected compiled binary at %s: %v", binPath, err)
 	}

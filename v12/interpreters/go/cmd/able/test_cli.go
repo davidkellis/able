@@ -35,7 +35,7 @@ func runTest(args []string, execMode interpreterMode) int {
 		return 0
 	}
 
-	if config.Compiled {
+	if config.Compiled && !config.ListOnly && !config.DryRun {
 		return runCompiledTests(config, testFiles)
 	}
 

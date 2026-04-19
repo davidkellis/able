@@ -76,6 +76,11 @@ func run(args []string) int {
 	}
 
 	searchPaths := collectSearchPaths(filepath.Dir(absEntry))
+	searchPaths, err = finalizeSearchPaths(searchPaths)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
 	loader, err := driver.NewLoader(searchPaths)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -11,18 +11,7 @@ import (
 
 func TestRunEntryDirectFileNoManifest(t *testing.T) {
 	dir := t.TempDir()
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, dir)
 
 	writeFile(t, filepath.Join(dir, "main.able"), `
 fn main() {
@@ -37,18 +26,7 @@ fn main() {
 
 func TestRunEntryDirectFileWithManifest(t *testing.T) {
 	dir := t.TempDir()
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, dir)
 
 	writeFile(t, filepath.Join(dir, "package.yml"), `
 name: demo
@@ -68,18 +46,7 @@ fn main() {
 
 func TestRunShortcutAcceptsSourceFile(t *testing.T) {
 	dir := t.TempDir()
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, dir)
 
 	writeFile(t, filepath.Join(dir, "solo.able"), `
 fn main() {
@@ -121,20 +88,8 @@ fn stdlib_message() -> string {
 }
 `)
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
 	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
-
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, projectDir)
 
 	paths := collectSearchPaths(tempDir, searchPathOptions{})
 	if !containsSearchPath(paths, stdlibSrc) && !containsSearchPath(paths, stdlibRoot) {
@@ -160,29 +115,13 @@ fn main() {
 }
 `)
 
-	code, stdout, stderr := captureCLI(t, []string{"main.able"})
-	if code != 0 {
-		t.Fatalf("run returned exit code %d, stderr: %q", code, stderr)
-	}
-	if !strings.Contains(stdout, "std") {
-		t.Fatalf("expected stdout to contain std, got %q", stdout)
-	}
+	stdout := runCLIExpectSuccess(t, "main.able")
+	assertOutputContainsAll(t, stdout, "std")
 }
 
 func TestRunIgnoresTestModulesUnlessWithTests(t *testing.T) {
 	dir := t.TempDir()
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, dir)
 
 	writeFile(t, filepath.Join(dir, "package.yml"), `
 name: demo
@@ -198,27 +137,14 @@ fn main() {
 print("test")
 `)
 
-	code, stdout, stderr := captureCLI(t, []string{"run"})
-	if code != 0 {
-		t.Fatalf("run returned exit code %d, stderr: %q", code, stderr)
-	}
+	stdout := runCLIExpectSuccess(t, "run")
 	if strings.Contains(stdout, "test") {
 		t.Fatalf("expected test modules to be skipped, got stdout %q", stdout)
 	}
-	if !strings.Contains(stdout, "main") {
-		t.Fatalf("expected stdout to contain main, got %q", stdout)
-	}
+	assertOutputContainsAll(t, stdout, "main")
 
-	code, stdout, stderr = captureCLI(t, []string{"run", "--with-tests"})
-	if code != 0 {
-		t.Fatalf("run --with-tests returned exit code %d, stderr: %q", code, stderr)
-	}
-	if !strings.Contains(stdout, "test") {
-		t.Fatalf("expected test modules to run with --with-tests, got stdout %q", stdout)
-	}
-	if !strings.Contains(stdout, "main") {
-		t.Fatalf("expected stdout to contain main, got %q", stdout)
-	}
+	stdout = runCLIExpectSuccess(t, "run", "--with-tests")
+	assertOutputContainsAll(t, stdout, "test", "main")
 }
 
 func TestCollectSearchPathsIncludesAbleModulePaths(t *testing.T) {
@@ -344,24 +270,9 @@ fn main() {
 
 	t.Setenv("ABLE_HOME", cacheDir)
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(oldWD)
-	}()
-	if err := os.Chdir(appRoot); err != nil {
-		t.Fatalf("chdir app root: %v", err)
-	}
-
-	code, stdout, stderr := captureCLI(t, []string{"main.able"})
-	if code != 0 {
-		t.Fatalf("run returned %d stderr=%q", code, stderr)
-	}
-	if !strings.Contains(stdout, "hello from cached stdlib") {
-		t.Fatalf("expected stdlib greeting in stdout, got %q", stdout)
-	}
+	enterWorkingDir(t, appRoot)
+	stdout := runCLIExpectSuccess(t, "main.able")
+	assertOutputContainsAll(t, stdout, "hello from cached stdlib")
 }
 
 func TestRunUsesManifestLockForStdlibAndKernel(t *testing.T) {
@@ -426,25 +337,255 @@ fn main() {
 }
 `)
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
-	if err := os.Chdir(appRoot); err != nil {
-		t.Fatalf("Chdir: %v", err)
+	enterWorkingDir(t, appRoot)
+	stdout := runCLIExpectSuccess(t, "run")
+	assertOutputContainsAll(t, stdout, "hello from locked stdlib")
+}
+
+func TestRunRejectsManifestLockStdlibCollisionWithEnvRoot(t *testing.T) {
+	root := t.TempDir()
+	depsRoot := filepath.Join(root, "deps")
+	stdlibSrc := filepath.Join(depsRoot, "stdlib", "src")
+	conflictRoot := filepath.Join(root, "conflict-stdlib")
+	conflictSrc := filepath.Join(conflictRoot, "src")
+	appRoot := filepath.Join(root, "app")
+
+	for _, dir := range []string{
+		stdlibSrc,
+		conflictSrc,
+		filepath.Join(appRoot, "src"),
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
 
-	code, stdout, stderr := captureCLI(t, []string{"run"})
-	if code != 0 {
-		t.Fatalf("able run exited %d (stderr: %q)", code, stderr)
+	writeFile(t, filepath.Join(depsRoot, "stdlib", "package.yml"), "name: able\nversion: 9.9.9\n")
+	writeFile(t, filepath.Join(stdlibSrc, "locktest.able"), `
+package locktest
+
+fn greeting() -> string { "hello from locked stdlib" }
+`)
+
+	writeFile(t, filepath.Join(conflictRoot, "package.yml"), "name: able\nversion: 8.8.8\n")
+	writeFile(t, filepath.Join(conflictSrc, "other.able"), `
+package other
+
+fn greeting() -> string { "hello from env stdlib" }
+`)
+
+	writeFile(t, filepath.Join(appRoot, "package.yml"), `
+name: sample
+version: 0.0.1
+dependencies:
+  able: "9.9.9"
+targets:
+  app: src/main.able
+`)
+	writeFile(t, filepath.Join(appRoot, "package.lock"), `
+root: sample
+packages:
+  - name: able
+    version: 9.9.9
+    source: path:../deps/stdlib/src
+`)
+	writeFile(t, filepath.Join(appRoot, "src", "main.able"), `
+package main
+
+import able.locktest.{greeting}
+
+fn main() {
+  print(greeting())
+}
+`)
+
+	enterWorkingDir(t, appRoot)
+	t.Setenv("ABLE_MODULE_PATHS", conflictSrc)
+
+	_, _, stderr := runCLIExpectFailure(t, "run")
+	assertTextContainsAll(t, stderr,
+		"stdlib collision",
+		"selected canonical stdlib root (lockfile)",
+		stdlibSrc,
+		"distinct visible stdlib root (env)",
+		conflictSrc,
+	)
+}
+
+func TestRunRejectsAdhocStdlibCollisionBetweenOverrideAndEnvRoot(t *testing.T) {
+	root := t.TempDir()
+	appRoot := filepath.Join(root, "app")
+	homeDir := filepath.Join(root, "home")
+	overrideRoot := filepath.Join(root, "override-stdlib")
+	overrideSrc := filepath.Join(overrideRoot, "src")
+	envRoot := filepath.Join(root, "env-stdlib")
+	envSrc := filepath.Join(envRoot, "src")
+
+	for _, dir := range []string{
+		appRoot,
+		overrideSrc,
+		envSrc,
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
-	if !strings.Contains(stdout, "hello from locked stdlib") {
-		t.Fatalf("expected stdlib output, got %q", stdout)
+
+	writeFile(t, filepath.Join(overrideRoot, "package.yml"), "name: able\nversion: 1.0.0\n")
+	writeFile(t, filepath.Join(overrideSrc, "override.able"), `
+package override
+
+fn greeting() -> string { "override" }
+`)
+
+	writeFile(t, filepath.Join(envRoot, "package.yml"), "name: able\nversion: 2.0.0\n")
+	writeFile(t, filepath.Join(envSrc, "env.able"), `
+package env
+
+fn greeting() -> string { "env" }
+`)
+
+	t.Setenv("ABLE_HOME", homeDir)
+	t.Setenv("ABLE_MODULE_PATHS", envSrc)
+
+	if err := saveGlobalOverrides(map[string]string{
+		normalizeGitURL(defaultStdlibGitURL): overrideRoot,
+	}); err != nil {
+		t.Fatalf("save stdlib override: %v", err)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+
+	writeFile(t, filepath.Join(appRoot, "main.able"), `
+package main
+
+fn main() {
+  print("hello")
+}
+`)
+
+	enterWorkingDir(t, appRoot)
+
+	_, _, stderr := runCLIExpectFailure(t, "main.able")
+	assertTextContainsAll(t, stderr,
+		"stdlib collision",
+		"selected canonical stdlib root (override)",
+		overrideSrc,
+		"distinct visible stdlib root (env)",
+		envSrc,
+	)
+}
+
+func TestRunRejectsAdhocStdlibCollisionBetweenEnvAndCache(t *testing.T) {
+	root := t.TempDir()
+	appRoot := filepath.Join(root, "app")
+	cacheDir := filepath.Join(root, "cache")
+	cacheRoot := filepath.Join(cacheDir, "pkg", "src", "able", defaultStdlibVersion)
+	cacheSrc := filepath.Join(cacheRoot, "src")
+	envRoot := filepath.Join(root, "env-stdlib")
+	envSrc := filepath.Join(envRoot, "src")
+
+	for _, dir := range []string{
+		appRoot,
+		cacheSrc,
+		envSrc,
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
+
+	writeFile(t, filepath.Join(cacheRoot, "package.yml"), "name: able\nversion: "+defaultStdlibVersion+"\n")
+	writeFile(t, filepath.Join(cacheSrc, "cached.able"), `
+package cached
+
+fn greeting() -> string { "cached" }
+`)
+
+	writeFile(t, filepath.Join(envRoot, "package.yml"), "name: able\nversion: 2.0.0\n")
+	writeFile(t, filepath.Join(envSrc, "env.able"), `
+package env
+
+fn greeting() -> string { "env" }
+`)
+
+	writeFile(t, filepath.Join(appRoot, "main.able"), `
+package main
+
+fn main() {
+  print("hello")
+}
+`)
+
+	t.Setenv("ABLE_HOME", cacheDir)
+	t.Setenv("ABLE_MODULE_PATHS", envSrc)
+
+	enterWorkingDir(t, appRoot)
+
+	_, _, stderr := runCLIExpectFailure(t, "main.able")
+	assertTextContainsAll(t, stderr,
+		"stdlib collision",
+		"selected canonical stdlib root (env)",
+		envSrc,
+		"distinct visible stdlib root (cache)",
+		cacheSrc,
+	)
+}
+
+func TestRunDynimportRejectsAdhocStdlibCollisionBetweenEnvAndCache(t *testing.T) {
+	root := t.TempDir()
+	appRoot := filepath.Join(root, "app")
+	cacheDir := filepath.Join(root, "cache")
+	cacheRoot := filepath.Join(cacheDir, "pkg", "src", "able", defaultStdlibVersion)
+	cacheSrc := filepath.Join(cacheRoot, "src")
+	envRoot := filepath.Join(root, "env-stdlib")
+	envSrc := filepath.Join(envRoot, "src")
+
+	for _, dir := range []string{
+		appRoot,
+		cacheSrc,
+		envSrc,
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	writeFile(t, filepath.Join(cacheRoot, "package.yml"), "name: able\nversion: "+defaultStdlibVersion+"\n")
+	writeFile(t, filepath.Join(cacheSrc, "custom.able"), `
+package custom
+
+fn greeting() -> string { "cached" }
+`)
+
+	writeFile(t, filepath.Join(envRoot, "package.yml"), "name: able\nversion: 2.0.0\n")
+	writeFile(t, filepath.Join(envSrc, "custom.able"), `
+package custom
+
+fn greeting() -> string { "env" }
+`)
+
+	writeFile(t, filepath.Join(appRoot, "main.able"), `
+package main
+
+dynimport able.custom.{greeting}
+
+fn main() {
+  print(greeting())
+}
+`)
+
+	t.Setenv("ABLE_HOME", cacheDir)
+	t.Setenv("ABLE_MODULE_PATHS", envSrc)
+
+	enterWorkingDir(t, appRoot)
+
+	_, _, stderr := runCLIExpectFailure(t, "main.able")
+	assertTextContainsAll(t, stderr,
+		"stdlib collision",
+		"selected canonical stdlib root (env)",
+		envSrc,
+		"distinct visible stdlib root (cache)",
+		cacheSrc,
+	)
 }
 
 func TestRunFileWithoutManifestMissingDependencyFails(t *testing.T) {
@@ -475,20 +616,8 @@ fn stdlib_message() -> string {
 }
 `)
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
 	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
-
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, projectDir)
 
 	writeFile(t, filepath.Join(projectDir, "main.able"), `
 import helper.core::helper
@@ -498,15 +627,12 @@ fn main() {
 }
 `)
 
-	code, _, stderr := captureCLI(t, []string{"main.able"})
-	if code == 0 {
-		t.Fatalf("expected failure when dependency missing; stderr: %q", stderr)
-	}
-	if !strings.Contains(stderr, "package helper.core not found") &&
-		!strings.Contains(stderr, "loader: package helper.core not found") &&
-		!strings.Contains(stderr, "imports unknown package helper.core") {
-		t.Fatalf("expected missing package error, got %q", stderr)
-	}
+	_, _, stderr := runCLIExpectFailure(t, "main.able")
+	assertTextContainsAny(t, stderr,
+		"package helper.core not found",
+		"loader: package helper.core not found",
+		"imports unknown package helper.core",
+	)
 }
 
 func TestRunFileUsesEntryManifestLock(t *testing.T) {
@@ -536,25 +662,11 @@ fn main() {
 
 	t.Setenv("ABLE_HOME", filepath.Join(root, "cache"))
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(root); err != nil {
-		t.Fatalf("Chdir root: %v", err)
-	}
+	enterWorkingDir(t, root)
 
 	entryArg := filepath.Join("foo", "bar", "baz.able")
-	if code, _, stderr := captureCLI(t, []string{entryArg}); code == 0 {
-		t.Fatalf("expected failure without package.lock, stderr: %q", stderr)
-	} else if !strings.Contains(stderr, "package.lock missing") {
-		t.Fatalf("expected missing lockfile error, got %q", stderr)
-	}
+	_, _, stderr := runCLIExpectFailure(t, entryArg)
+	assertTextContainsAll(t, stderr, "package.lock missing")
 
 	lock := driver.NewLockfile("foo_app", cliToolVersion)
 	lockPath := filepath.Join(manifestDir, "package.lock")
@@ -562,64 +674,26 @@ fn main() {
 		t.Fatalf("WriteLockfile: %v", err)
 	}
 
-	code, stdout, stderr := captureCLI(t, []string{entryArg})
-	if code != 0 {
-		t.Fatalf("expected success after lockfile write, exit %d (stderr: %q)", code, stderr)
-	}
-	if strings.Contains(stderr, "package.lock missing") {
-		t.Fatalf("did not expect lockfile warning, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "ran via manifest") {
-		t.Fatalf("expected program output, got %q", stdout)
-	}
+	stdout := runCLIExpectSuccess(t, entryArg)
+	assertOutputContainsAll(t, stdout, "ran via manifest")
 }
 
 func TestCheckCommandSucceeds(t *testing.T) {
 	dir := t.TempDir()
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, dir)
 
 	writeFile(t, filepath.Join(dir, "main.able"), `
 fn main() {
 }
 `)
 
-	code, stdout, stderr := captureCLI(t, []string{"check", "main.able"})
-	if code != 0 {
-		t.Fatalf("expected able check success, exit %d (stderr: %q)", code, stderr)
-	}
-	if !strings.Contains(stdout, "typecheck: ok") {
-		t.Fatalf("expected typecheck success message, got stdout=%q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected no stderr output, got %q", stderr)
-	}
+	stdout := runCLIExpectSuccess(t, "check", "main.able")
+	assertOutputContainsAll(t, stdout, "typecheck: ok")
 }
 
 func TestCheckCommandReportsDiagnostics(t *testing.T) {
 	dir := t.TempDir()
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, dir)
 
 	writeFile(t, filepath.Join(dir, "broken.able"), `
 fn main() {
@@ -628,14 +702,9 @@ fn main() {
 }
 `)
 
-	code, stdout, stderr := captureCLI(t, []string{"check", "broken.able"})
-	if code == 0 {
-		t.Fatalf("expected able check failure for diagnostics, stdout=%q stderr=%q", stdout, stderr)
-	}
+	_, stdout, stderr := runCLIExpectFailure(t, "check", "broken.able")
 	if stdout != "" {
 		t.Fatalf("expected no stdout on failure, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "requires numeric operands") {
-		t.Fatalf("expected diagnostic in stderr, got %q", stderr)
-	}
+	assertTextContainsAll(t, stderr, "requires numeric operands")
 }

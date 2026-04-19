@@ -23,8 +23,9 @@ const (
 
 // SearchPath describes a module search root.
 type SearchPath struct {
-	Path string
-	Kind RootKind
+	Path         string
+	Kind         RootKind
+	StdlibSource StdlibSourceClass
 }
 
 // Module aggregates the Able source for a fully qualified package.
@@ -57,15 +58,17 @@ type packageLocation struct {
 }
 
 type packageOrigin struct {
-	root     string
-	rootName string
-	kind     RootKind
+	root         string
+	rootName     string
+	kind         RootKind
+	stdlibSource StdlibSourceClass
 }
 
 type rootInfo struct {
-	rootDir  string
-	rootName string
-	kind     RootKind
+	rootDir      string
+	rootName     string
+	kind         RootKind
+	stdlibSource StdlibSourceClass
 }
 
 // Loader wires Able source files into aggregated modules.
@@ -98,7 +101,11 @@ func NewLoader(searchPaths []SearchPath) (*Loader, error) {
 		if kind != RootStdlib {
 			kind = RootUser
 		}
-		unique = append(unique, SearchPath{Path: abs, Kind: kind})
+		unique = append(unique, SearchPath{
+			Path:         abs,
+			Kind:         kind,
+			StdlibSource: normalizeStdlibSourceClass(sp.StdlibSource),
+		})
 	}
 	return &Loader{parser: mp, searchPaths: unique}, nil
 }
@@ -147,17 +154,13 @@ func (l *Loader) LoadWithOptions(entry string, options LoadOptions) (*Program, e
 		return nil, fmt.Errorf("loader: entry file %s is outside package root %s", entryPath, rootDir)
 	}
 
-	entryKind := RootUser
-	if rootName == "able" || looksLikeStdlibPath(rootDir) || looksLikeKernelPath(rootDir) {
-		entryKind = RootStdlib
+	entryKind, entrySource := determineEntryRootMetadata(rootDir, rootName, l.searchPaths)
+	entryRoot := rootInfo{
+		rootDir:      rootDir,
+		rootName:     rootName,
+		kind:         entryKind,
+		stdlibSource: entrySource,
 	}
-	for _, sp := range l.searchPaths {
-		if sp.Kind == RootStdlib && pathsOverlap(sp.Path, rootDir) {
-			entryKind = RootStdlib
-			break
-		}
-	}
-	entryRoot := rootInfo{rootDir: rootDir, rootName: rootName, kind: entryKind}
 	if ok, err := ensureNamespaceAllowed(entryRoot, false); err != nil {
 		return nil, err
 	} else if !ok {
@@ -298,7 +301,7 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 		if err != nil {
 			return err
 		}
-		kind := root.Kind
+		kind, source := determineSearchRootMetadata(root, abs, rootName)
 		clean := filepath.Clean(abs)
 		overlaps := false
 		for _, seen := range usedList {
@@ -317,13 +320,12 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 		}
 		used[clean] = struct{}{}
 		usedList = append(usedList, clean)
-		if kind != RootStdlib &&
-			(rootName == "able" || looksLikeStdlibPath(abs) || looksLikeKernelPath(abs)) {
-			kind = RootStdlib
-		} else if kind != RootStdlib {
-			kind = RootUser
+		info := rootInfo{
+			rootDir:      abs,
+			rootName:     rootName,
+			kind:         kind,
+			stdlibSource: source,
 		}
-		info := rootInfo{rootDir: abs, rootName: rootName, kind: kind}
 		if ok, err := ensureNamespaceAllowed(info, true); err != nil {
 			return err
 		} else if !ok {
@@ -361,7 +363,12 @@ func registerPackages(pkgIndex map[string]*packageLocation, packages map[string]
 		if existing, ok := origins[name]; ok {
 			return fmt.Errorf("loader: package %s found in multiple roots (%s, %s)", name, existing.root, root.rootDir)
 		}
-		origins[name] = packageOrigin{root: root.rootDir, rootName: root.rootName, kind: root.kind}
+		origins[name] = packageOrigin{
+			root:         root.rootDir,
+			rootName:     root.rootName,
+			kind:         root.kind,
+			stdlibSource: root.stdlibSource,
+		}
 		pkgIndex[name] = &packageLocation{
 			rootDir:  root.rootDir,
 			rootName: root.rootName,

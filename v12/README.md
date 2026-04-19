@@ -27,6 +27,19 @@ Able is an experimental programming language. This workspace hosts the actively 
 - **CLI wrappers**: use `./v12/abletw` for tree-walker runs and `./v12/ablebc` for bytecode runs.
 - **Stdlib bootstrap**: run `./v12/able setup` once to install/cache canonical stdlib + kernel roots under `$ABLE_HOME/pkg/src`.
 - **Stdlib gate**: `./run_stdlib_tests.sh` now self-bootstraps stdlib + kernel into an isolated `ABLE_HOME` when no sibling `able-stdlib` checkout or cached stdlib is present.
+- **Fixture export**: `./v12/export_fixtures.sh` still exports the whole AST fixture tree by default, but it now also accepts targeted fixture directories or `source.able` paths for faster focused updates/checks, for example:
+  - `./v12/export_fixtures.sh --check basics/bool_literal`
+  - `./v12/export_fixtures.sh expressions/int_addition`
+- **Fixture replay**: `go run ./cmd/fixture` inside `v12/interpreters/go` now accepts either `--dir <fixture-dir>` or a direct fixture directory / entry-file argument for focused runs, for example:
+  - `go run ./cmd/fixture basics/bool_literal`
+  - `go run ./cmd/fixture basics/bool_literal/source.able`
+  - `go run ./cmd/fixture --list basics`
+  - `go run ./cmd/fixture --list --format json basics`
+  - `go run ./cmd/fixture --describe basics/bool_literal`
+  - `go run ./cmd/fixture --batch basics/bool_literal basics/String_literal`
+  - `go run ./cmd/fixture --describe --format text basics/bool_literal`
+  - `go run ./cmd/fixture --batch --format jsonl basics/bool_literal basics/String_literal`
+  - when no `--executor` override is passed, `cmd/fixture` now uses the fixture manifest executor if one is declared, otherwise `serial`
 - **Canonical stdlib resolution**:
   - `able setup` pins the default stdlib version into `$ABLE_HOME/pkg/src/able/<version>/src` and records the resolved stdlib/kernel sources in `$ABLE_HOME/setup.lock`.
   - `able override add https://github.com/davidkellis/able-stdlib.git <local-path>` redirects the canonical stdlib git dependency to a local checkout for development.

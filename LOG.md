@@ -1,5 +1,760 @@
 # Able Project Log
 
+# 2026-04-18 — compiled reporter started-event order/count coverage (v12)
+- Closed the next `able test` user-facing tooling slice as a proof/coverage
+  tranche.
+- What landed:
+  - `v12/interpreters/go/cmd/able/test_cli_compiled_reporter_test.go` now
+    verifies that compiled JSON output preserves the expected mixed-outcome
+    event order for the focused reporter harness:
+    `case_started`, `case_skipped`, `case_started`, `case_failed`
+  - the same file now also verifies that compiled TAP output still numbers
+    only terminal results, so `case_started` events do not create extra TAP
+    test points or skew numbering under mixed skipped/failed output
+  - no CLI/runtime behavior change was required in this slice; the reporter
+    bridge was already behaving correctly after the earlier JSON/TAP work,
+    but the started-event ordering/count contract was not explicitly pinned
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(JSONReporterEmitsEvents|JSONReporterPreservesDescriptorFields|JSONReporterEmitsSkipAndFailureEvents|JSONReporterPreservesStartedEventOrder|JSONReporterEmitsFrameworkErrorEvent|TapReporterEmitsTAP|TapReporterEmitsSkipAndFailureDiagnostics|TapReporterCountsOnlyTerminalEvents|TapReporterEmitsFrameworkErrorBailOut)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(JSONReporterEmitsEvents|JSONReporterPreservesDescriptorFields|JSONReporterEmitsSkipAndFailureEvents|JSONReporterPreservesStartedEventOrder|JSONReporterEmitsFrameworkErrorEvent|TapReporterEmitsTAP|TapReporterEmitsSkipAndFailureDiagnostics|TapReporterCountsOnlyTerminalEvents|TapReporterEmitsFrameworkErrorBailOut|Runs|DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — compiled non-success reporter parity coverage (v12)
+- Closed the next `able test` user-facing tooling slice as a proof/coverage
+  tranche.
+- What landed:
+  - `v12/interpreters/go/cmd/able/test_cli_compiled_reporter_test.go` now
+    covers compiled JSON/TAP output for skipped cases, failed cases with
+    failure details/location, and framework-error output
+  - `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` now has
+    dedicated local stdlib harness variants for reporter-event fixtures and
+    framework-error fixtures, so those compiled reporter paths are exercised
+    directly without depending on broader repo stdlib behavior
+  - no CLI/runtime behavior change was required in this slice; the reporter
+    parity was already present after the earlier compiled JSON/TAP work, but
+    it was not explicitly pinned
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(JSONReporterEmitsEvents|JSONReporterPreservesDescriptorFields|JSONReporterEmitsSkipAndFailureEvents|JSONReporterEmitsFrameworkErrorEvent|TapReporterEmitsTAP|TapReporterEmitsSkipAndFailureDiagnostics|TapReporterEmitsFrameworkErrorBailOut)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(JSONReporterEmitsEvents|JSONReporterPreservesDescriptorFields|JSONReporterEmitsSkipAndFailureEvents|JSONReporterEmitsFrameworkErrorEvent|TapReporterEmitsTAP|TapReporterEmitsSkipAndFailureDiagnostics|TapReporterEmitsFrameworkErrorBailOut|Runs|DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — compiled JSON reporter descriptor parity (v12)
+- Closed the next `able test` user-facing tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/able/test_cli_compiled.go` now forwards
+    descriptor tags, metadata, and descriptor source location across the
+    compiled reporter boundary instead of only emitting a reduced descriptor
+    identity payload
+  - the compiled reporter bridge now carries `Array String` tags, metadata
+    key/value arrays, and explicit descriptor-location primitives, which the
+    generated Go harness decodes back into the shared `pkg/testcli` event
+    model before emitting JSON/TAP
+  - the focused local test stdlib in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` now exposes
+    a concrete descriptor location so compiled JSON parity can be pinned
+    directly
+  - `v12/interpreters/go/cmd/able/test_cli_compiled_reporter_test.go` now
+    verifies that compiled JSON execution preserves descriptor tags,
+    metadata, and location
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(JSONReporterEmitsEvents|JSONReporterPreservesDescriptorFields|TapReporterEmitsTAP)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(JSONReporterEmitsEvents|JSONReporterPreservesDescriptorFields|TapReporterEmitsTAP|Runs|DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommand(ParsesFiltersAndTargets|CompiledDryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — compiled `able test` JSON/TAP execution reporters (v12)
+- Closed the next `able test` user-facing tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/able/test_cli_compiled.go` no longer rejects
+    `--format json` or `--format tap` for compiled execution
+  - compiled runner generation now uses a dedicated `CliReporter` path for
+    those formats and emits primitive-only extern callback payloads instead
+    of trying to bridge the full `TestEvent` union through a Go extern call
+  - new shared event decoding/formatting helpers now live in
+    `v12/interpreters/go/pkg/testcli/{types,decode,emitter}.go`
+  - interpreted `able test` JSON/TAP event handling now uses that shared
+    decoder-emitter path too, so compiled and interpreted reporter formats
+    share one Go-side formatter implementation
+  - `v12/interpreters/go/cmd/able/test_cli_compiled_reporter_test.go` now
+    covers compiled execution JSON/TAP output directly on the repo-stdlib
+    sample-module path
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(JSONReporterEmitsEvents|TapReporterEmitsTAP)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(JSONReporterEmitsEvents|TapReporterEmitsTAP|Runs|DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommand(ParsesFiltersAndTargets|CompiledDryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/testcli -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — machine-readable fixture discovery via `--list --format json` (v12)
+- Closed the next fixture-workflow tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture/main.go` now supports
+    `--list --format json`
+  - list mode still defaults to the human-readable text form, but it can now
+    emit a JSON array of repo-relative fixture directories for scripts and
+    tooling
+  - `v12/interpreters/go/cmd/fixture/main_test.go` now covers JSON list
+    output plus the updated list-format validation rules
+  - `v12/README.md` and `v12/docs/manual/manual.md` now document the JSON
+    list workflow
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture -count=1`
+  - `cd v12/interpreters/go && go run ./cmd/fixture --list --format json basics`
+
+# 2026-04-18 — fixture output-format options for describe/batch (v12)
+- Closed the next fixture-workflow tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture/main.go` now accepts `--format`
+  - `--describe --format text` now prints a compact human-readable metadata
+    summary instead of JSON
+  - `--batch --format jsonl` now emits one JSON object per line for
+    streaming-friendly multi-target replay output
+  - unsupported mode/format combinations now fail explicitly instead of
+    quietly doing the wrong thing
+  - `v12/interpreters/go/cmd/fixture/main_test.go` now covers output-format
+    validation plus the text/jsonl writers directly
+  - `v12/README.md` and `v12/docs/manual/manual.md` now document the format
+    options
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture -count=1`
+  - `cd v12/interpreters/go && go run ./cmd/fixture --describe --format text basics/bool_literal`
+  - `cd v12/interpreters/go && go run ./cmd/fixture --batch --format jsonl basics/bool_literal basics/String_literal`
+
+# 2026-04-18 — batched fixture replay via `cmd/fixture --batch` (v12)
+- Closed the next fixture-workflow tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture/main.go` now supports `--batch`
+  - batch mode accepts multiple fixture targets and emits a JSON array of
+    per-target results, including resolved fixture directory, entry, and
+    executor metadata alongside the existing replay output
+  - batch mode reuses the same manifest/entry/executor resolution path as the
+    single-target CLI, so manifest executor defaults and skip behavior stay
+    aligned
+  - `v12/interpreters/go/cmd/fixture/main_test.go` now covers batch target
+    resolution, invalid flag combinations, and successful multi-target replay
+  - `v12/README.md` and `v12/docs/manual/manual.md` now document the batch
+    replay workflow
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture -count=1`
+  - `cd v12/interpreters/go && go run ./cmd/fixture --batch basics/bool_literal basics/String_literal`
+
+# 2026-04-18 — fixture metadata describe mode + manifest executor default (v12)
+- Closed the next fixture-workflow tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture/main.go` now supports `--describe`
+  - describe mode prints resolved fixture metadata without evaluating the
+    fixture: directory, entry, setup, skip targets, executor, typecheck mode,
+    and whether the fixture is skipped for Go
+  - the fixture CLI now honors a manifest `executor` by default when no
+    explicit `--executor` override is passed, instead of always defaulting to
+    serial
+  - `v12/interpreters/go/cmd/fixture/main_test.go` now covers manifest
+    executor resolution, override precedence, and describe-mode metadata
+    construction
+  - `v12/README.md` and `v12/docs/manual/manual.md` now document both
+    describe mode and the manifest-executor default rule
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture -count=1`
+  - `cd v12/interpreters/go && go run ./cmd/fixture --describe basics/bool_literal`
+
+# 2026-04-18 — fixture discovery via `cmd/fixture --list` (v12)
+- Closed the next fixture-workflow tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture/main.go` now supports `--list`
+  - list mode prints repo-relative fixture directories under
+    `v12/fixtures/ast` and accepts focused prefix/path filters
+  - focused users can now discover fixtures from `v12/interpreters/go` with
+    commands like `go run ./cmd/fixture --list basics`
+  - `v12/interpreters/go/cmd/fixture/main_test.go` now covers full listing,
+    prefix filtering, and invalid `--list`/`--dir` combinations
+  - `v12/README.md` and `v12/docs/manual/manual.md` now document the new
+    list-mode workflow
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture -count=1`
+  - `cd v12/interpreters/go && go run ./cmd/fixture --list basics`
+
+# 2026-04-18 — repo-relative fixture replay targets (v12)
+- Closed the next fixture-workflow tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture/main.go` now resolves relative fixture
+    targets under `v12/fixtures/ast` when they are not present as local paths
+  - focused replay from `v12/interpreters/go` can now use short forms like
+    `go run ./cmd/fixture basics/bool_literal` and
+    `go run ./cmd/fixture basics/bool_literal/source.able`
+  - `v12/interpreters/go/cmd/fixture/main_test.go` now covers repo-relative
+    directory/file resolution plus the fixture-command repository-root
+    fallback
+  - `v12/README.md` and `v12/docs/manual/manual.md` now show the shorter
+    fixture replay examples
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture -count=1`
+  - `cd v12/interpreters/go && go run ./cmd/fixture basics/bool_literal/source.able`
+
+# 2026-04-18 — direct fixture-target CLI replay support (v12)
+- Closed the next fixture-workflow tooling slice.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture/main.go` no longer requires `--dir` for
+    the common focused-replay case
+  - the fixture CLI now accepts either:
+    - `--dir <fixture-dir>` with optional `--entry`, or
+    - one positional fixture directory / entry-file target
+  - direct file targets infer the containing fixture directory plus entry file
+    automatically, while ambiguous combinations like `--dir` plus a
+    positional target are rejected explicitly
+  - `v12/interpreters/go/cmd/fixture/main_test.go` now covers the new
+    positional directory/file resolution plus the conflict cases
+  - `v12/README.md` and `v12/docs/manual/manual.md` now document the direct
+    fixture replay workflow
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture -count=1`
+  - `cd v12/interpreters/go && go run ./cmd/fixture ../../fixtures/ast/basics/bool_literal/source.able`
+
+# 2026-04-18 — targeted fixture-export/check support (v12)
+- Closed the next tooling backlog slice outside the exhausted `cmd/able`
+  helper-cleanup thread.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture-exporter/main.go` now accepts positional
+    fixture targets in addition to `--root` / `--check`
+  - targets may be fixture directories or `source.able` files under the AST
+    fixture root, and the exporter now limits export/check work to those
+    selections instead of always walking the full tree
+  - `v12/interpreters/go/cmd/fixture-exporter/main_test.go` now covers:
+    - targeted export of a single fixture directory
+    - targeted `--check` against a single `source.able`
+    - rejection of targets outside the fixture root
+  - `v12/README.md` and `v12/docs/manual/manual.md` now document targeted
+    `v12/export_fixtures.sh` usage from the repo root
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture-exporter -count=1`
+  - `cd v12 && ./export_fixtures.sh --check basics/bool_literal`
+
+# 2026-04-18 — remaining `test_cli` / `run_entry` assertion helper cleanup (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - added `assertTextContainsAny(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go`
+  - the remaining output/diagnostic substring checks in
+    `v12/interpreters/go/cmd/able/test_cli_test.go`,
+    `v12/interpreters/go/cmd/able/test_cli_compiled_list_test.go`, and
+    `v12/interpreters/go/cmd/able/run_entry_test.go` now build on the shared
+    text/output assertion helpers instead of repeating open-coded
+    `strings.Contains` chains
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'Test(TestCommandReportsEmptyWorkspaceInListMode|TestCommandParsesFiltersAndTargets|TestCommandCompiledRejectsInvalidRequireNoFallbacksEnv|TestCommandCompiledDryRunMatchesInterpretedListFormat|RunFileWithoutManifestStdlibAvailable|RunIgnoresTestModulesUnlessWithTests|RunFileAutoDetectsCachedStdlib|RunUsesManifestLockForStdlibAndKernel|RunFileWithoutManifestMissingDependencyFails|RunFileUsesEntryManifestLock|CheckCommandSucceeds|CheckCommandReportsDiagnostics)$' -count=1`
+
+# 2026-04-18 — command-test lockfile helper rollout (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - the shared locked-package helpers are now also used in the remaining
+    command tests that inspect stdlib/kernel lock entries:
+    - `v12/interpreters/go/cmd/able/deps_cli_test.go`
+    - `v12/interpreters/go/cmd/able/setup_smoke_test.go`
+    - `v12/interpreters/go/cmd/able/overrides_test.go`
+  - that removes the last repeated open-coded stdlib/kernel lockfile presence
+    checks across those files
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'Test(AbleDepsInstallAndRunWithCachedDependency|SetupInstallsStdlibAndKernelAndRunSupportsBothExecModes|DepsInstallRespectsGlobalOverride|DepsInstallStdlibRespectsGlobalOverride|OverrideDoesNotAffectKernel)$' -count=1`
+
+# 2026-04-18 — `dependency_installer` lockfile assertion helper cleanup (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - added `requireLockedPackage(...)` and
+    `requireLockedStdlibAndKernel(...)` in
+    `v12/interpreters/go/cmd/able/test_helpers_test.go`
+  - `v12/interpreters/go/cmd/able/dependency_installer_test.go` now uses
+    those helpers instead of repeating the same stdlib/kernel lockfile
+    presence checks across the path, registry, git, and bundled-stdlib cases
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDependencyInstaller_(PathDependency|PathDependencyTransitive|RegistryDependency|GitDependency|GitDependencyBranch|PinsBundledStdlib|RejectsBundledStdlibVersionMismatch)$' -count=1`
+
+# 2026-04-18 — `overrides` helper cleanup (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - added `assertAnyTextContainsAll(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` for the
+    repeated pattern where a test needs at least one log line to contain a
+    set of substrings
+  - `v12/interpreters/go/cmd/able/overrides_test.go` now uses that helper for
+    the override-log checks instead of hand-rolled line scans
+  - the relative-path override test there now also uses the shared
+    `enterWorkingDir(...)` helper instead of local `Getwd` / `Chdir` restore
+    code
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'Test(DepsInstallRespectsGlobalOverride|DepsInstallStdlibRespectsGlobalOverride|OverrideAddResolvesRelativePath)$' -count=1`
+
+# 2026-04-18 — `dependency_installer` working-dir helper cleanup (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - the remaining manual working-directory setup blocks in
+    `v12/interpreters/go/cmd/able/dependency_installer_test.go` now use the
+    shared `enterWorkingDir(...)` helper instead of carrying local
+    `Getwd` / `Chdir` / restore code
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestDependencyInstaller_(PinsBundledStdlib|RejectsBundledStdlibVersionMismatch)$' -count=1`
+
+# 2026-04-18 — `setup` smoke helper cleanup (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - `v12/interpreters/go/cmd/able/setup_smoke_test.go` now uses the shared
+    `enterWorkingDir(...)` helper instead of open-coded `Getwd` / `Chdir` /
+    restore logic
+  - the setup success path plus both tree-walker/bytecode run checks there now
+    build on the shared `runCLIExpectSuccess(...)` and
+    `assertOutputContainsAll(...)` helpers instead of hand-rolled
+    `captureCLI` success assertions
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestSetupInstallsStdlibAndKernelAndRunSupportsBothExecModes$' -count=1`
+
+# 2026-04-18 — adjacent `build` / `deps` helper cleanup (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - the remaining touched cases in
+    `v12/interpreters/go/cmd/able/build_test.go` and
+    `v12/interpreters/go/cmd/able/deps_cli_test.go` now use the shared
+    `enterWorkingDir(...)` helper where they were still carrying inline
+    `Getwd` / `Chdir` / restore logic
+  - those same tests now build on the shared text/output assertion helpers
+    (`assertTextContainsAll(...)`, `assertOutputContainsAll(...)`) instead of
+    repeating one-off `strings.Contains` checks
+  - the remaining `deps` typecheck-failure regression now also uses the shared
+    `runCLIExpectFailure(...)` helper instead of open-coded nonzero-exit
+    handling around `captureCLI`
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'Test(BuildTargetFromManifest|BuildNoFallbacksFlagFailsWhenFallbackRequired|BuildNoFallbacksEnvFailsWhenFallbackRequired|BuildNoFallbacksInvalidEnvFailsArgumentParsing|BuildAllowFallbacksOverridesEnv|BuildEnvFalseAllowsFallbacks|AbleDepsInstallAndRunWithCachedDependency|AbleRunFailsOnTypecheckError)$' -count=1`
+
+# 2026-04-18 — `run_entry` failure/collision helper cleanup (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - the remaining failure/collision side of
+    `v12/interpreters/go/cmd/able/run_entry_test.go` now uses the shared
+    `enterWorkingDir(...)` helper instead of repeating inline
+    `Getwd` / `Chdir` / restore blocks
+  - the touched failure cases now also use the shared
+    `runCLIExpectFailure(...)` helper instead of hand-rolling nonzero-exit
+    checks around `captureCLI`
+  - added `assertTextContainsAll(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go`, and the
+    stdlib-collision diagnostics now build on that helper instead of repeating
+    open-coded `strings.Contains` chains
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'Test(RunRejectsManifestLockStdlibCollisionWithEnvRoot|RunRejectsAdhocStdlibCollisionBetweenOverrideAndEnvRoot|RunRejectsAdhocStdlibCollisionBetweenEnvAndCache|RunDynimportRejectsAdhocStdlibCollisionBetweenEnvAndCache|RunFileWithoutManifestMissingDependencyFails|RunFileUsesEntryManifestLock|CheckCommandReportsDiagnostics)$' -count=1`
+
+# 2026-04-18 — `run_entry` success-path helper cleanup (v12)
+- Closed the next adjacent `cmd/able` cleanup slice.
+- What landed:
+  - added `enterWorkingDir(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` and made
+    `enterTempWorkingDir(...)` build on it, so the common working-directory
+    restore logic now lives in one helper
+  - the success-path side of
+    `v12/interpreters/go/cmd/able/run_entry_test.go` now uses that shared
+    helper instead of repeating inline `Getwd` / `Chdir` / restore blocks
+  - the same success-path run/check cluster now also uses the shared
+    `runCLIExpectSuccess(...)` helper where the contract is “exit 0 with empty
+    stderr”, which removes more open-coded `captureCLI` success assertions
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'Test(RunEntryDirectFileNoManifest|RunEntryDirectFileWithManifest|RunShortcutAcceptsSourceFile|RunFileWithoutManifestStdlibAvailable|RunIgnoresTestModulesUnlessWithTests|RunFileAutoDetectsCachedStdlib|RunUsesManifestLockForStdlibAndKernel|RunFileUsesEntryManifestLock|CheckCommandSucceeds)$' -count=1`
+
+# 2026-04-18 — adjacent `cmd/able` build/deps success-helper cleanup (v12)
+- Closed the next `cmd/able` cleanup slice adjacent to the earlier `able test`
+  helper work.
+- What landed:
+  - the adjacent success-path tests in
+    `v12/interpreters/go/cmd/able/build_test.go` and
+    `v12/interpreters/go/cmd/able/deps_cli_test.go` now build on shared CLI
+    success helpers instead of repeating open-coded `captureCLI` success
+    assertions
+  - added `runCLIExpectSuccessAllowingStderr(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` for the
+    narrow set of success cases that intentionally surface fallback/typechecker
+    diagnostics on `stderr`
+  - the fallback-allowed build success tests now use that helper and assert the
+    expected diagnostics explicitly instead of pretending `stderr` should stay
+    empty
+  - `TestBuildOutputOutsideModuleRoot` now treats copied stdlib sources as an
+    opportunistic artifact of cached canonical stdlib availability, which
+    matches the actual `prepareBuildModule(...)` contract
+  - the build success tests that use absolute temp entry paths also run from
+    isolated temp working directories so they stay valid under canonical
+    stdlib-root collision enforcement
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'Test(BuildTargetFromManifest|BuildOutputOutsideModuleRoot|BuildAllowFallbacksOverridesEnv|BuildEnvFalseAllowsFallbacks|AbleDepsInstallAndRunWithCachedDependency|AbleRunFailsOnTypecheckError)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `cmd/able` shared failure-path helper cleanup (v12)
+- Closed the next user-facing `cmd/able` cleanup slice.
+- What landed:
+  - added `runCLIExpectFailure(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go`, while
+    keeping `runCLIExpectFailureCode(...)` for the cases that really care
+    about a specific exit code
+  - `v12/interpreters/go/cmd/able/test_cli_test.go` now uses the shared
+    failure helper for the compiled invalid-env regression instead of
+    hand-rolling the same nonzero exit assertion
+  - the adjacent negative tests in
+    `v12/interpreters/go/cmd/able/build_test.go` now also use that helper,
+    and they run from isolated temp working directories so they do not trip
+    workspace-root stdlib collisions under the canonical stdlib semantics
+  - updated `PLAN.md` to record both the shared failure-path helper and the
+    temp-workdir fix for the adjacent build negatives
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'Test(TestCommandCompiledRejectsInvalidRequireNoFallbacksEnv|BuildNoFallbacksFlagFailsWhenFallbackRequired|BuildNoFallbacksEnvFailsWhenFallbackRequired|BuildNoFallbacksInvalidEnvFailsArgumentParsing)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test` shared env setup helpers (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - added
+    `configureMinimalTestCliEnv(...)` and `configureRepoCompiledEnv(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go`
+  - the focused dry-run and compiled-sample tests now use those helpers
+    instead of reassembling the same `ABLE_MODULE_PATHS`, `ABLE_PATH`, and
+    `ABLE_TYPECHECK_FIXTURES` wiring inline
+  - the compiled stdlib helper path now also builds on the shared repo
+    compiled-env helper, so the repo-stdlib contract is defined in one place
+  - updated `PLAN.md` to record that the focused env-setup duplication is
+    removed
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommand(ReportsEmptyWorkspaceInListMode|ParsesFiltersAndTargets|CompiledRuns|CompiledRejectsInvalidRequireNoFallbacksEnv)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test` shared `captureCLI` success helper (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - added `runCLIExpectSuccess(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go`
+  - the focused CLI success-path tests now use that helper instead of
+    repeating the same `exit code 0` plus empty `stderr` assertions in:
+    - `v12/interpreters/go/cmd/able/test_cli_test.go`
+    - `v12/interpreters/go/cmd/able/test_cli_compiled_list_test.go`
+    - `v12/interpreters/go/cmd/able/test_cli_compiled_discovery_test.go`
+  - the shared compiled stdlib and compiled sample helpers now also build on
+    `runCLIExpectSuccess(...)`, so the remaining success-path assertion logic
+    in `cmd/able` is centralized behind one helper
+  - updated `PLAN.md` to record that this remaining assertion duplication is
+    removed
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommand(ReportsEmptyWorkspaceInListMode|ParsesFiltersAndTargets|CompiledRuns|CompiledRejectsInvalidRequireNoFallbacksEnv)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test` compiled sample-module helper cleanup (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - extended
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` with:
+    - `writeCompiledSampleTestModule(...)`
+    - `runCompiledSampleTests(...)`
+    - `assertCompiledSampleSuccess(...)`
+  - `v12/interpreters/go/cmd/able/test_cli_test.go` now uses those helpers
+    for the compiled non-stdlib sample-module coverage instead of repeating
+    the same inline sample module and success assertions
+  - the success-path compiled sample test now also runs from an isolated temp
+    working directory, which fixes the workspace-root collision it otherwise
+    triggers under the canonical stdlib-root rules
+  - updated `PLAN.md` to record both the helper consolidation and the
+    temp-workspace requirement for these compiled sample tests
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(Runs|RejectsInvalidRequireNoFallbacksEnv)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommand(ReportsEmptyWorkspaceInListMode|ParsesFiltersAndTargets)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test` dedicated compiled stdlib suite file (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - added
+    `v12/interpreters/go/cmd/able/test_cli_compiled_stdlib_suites_test.go`
+    so the compiled stdlib suite inventory no longer lives inside the larger
+    general-purpose `test_cli_test.go`
+  - added `compiledStdlibCase` plus `runCompiledStdlibCase(...)` in
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go`
+  - the compiled stdlib suite declarations now come from one shared case table
+    and one shared named-case runner while preserving the old top-level test
+    names for targeted `go test -run` use
+  - `v12/interpreters/go/cmd/able/test_cli_test.go` is correspondingly
+    smaller and now keeps only the non-stdlib general CLI coverage plus the
+    invalid-env regression
+  - updated `PLAN.md` to record the dedicated helper-driven file split
+- Verification:
+  - `cd v12/interpreters/go && go test -v ./cmd/able -run 'TestTestCommandCompiledRunsStdlib(BigintAndBiguintSuites|CollectionsDequeAndQueueSmokeSuites)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test` compiled stdlib smoke helper cleanup (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - extended
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` with:
+    - `requireGoToolchain(...)`
+    - `runCompiledStdlibTests(...)`
+    - `assertOutputContainsAll(...)`
+  - the repetitive compiled stdlib smoke-suite tests in
+    `v12/interpreters/go/cmd/able/test_cli_test.go` now share one helper for:
+    - Go-toolchain gating
+    - stdlib/kernel env setup
+    - relative stdlib test-path expansion
+    - `able test --compiled` execution
+    - stderr-empty enforcement
+  - the shared compiled-stdlib helper now runs from an isolated temp working
+    directory so these tests no longer inherit the package directory as a
+    `workspace` stdlib root under the canonical stdlib collision semantics
+  - updated `PLAN.md` to record both the helper consolidation and the
+    workspace-isolation fix
+- Verification:
+  - `cd v12/interpreters/go && go test -v ./cmd/able -run 'TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites$' -count=1`
+  - `cd v12/interpreters/go && go test -v ./cmd/able -run 'TestTestCommandCompiledRunsStdlibCollectionsDequeAndQueueSmokeSuites$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test` shared temp workspace helpers (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - extended
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` with:
+    - `enterTempWorkingDir(...)`
+    - `writeMinimalTestCliWorkspace(...)`
+  - the focused CLI tests now use those helpers instead of repeating inline
+    `Getwd` / `Chdir` restore logic and the same `tests/example.test.able`
+    setup in:
+    - `v12/interpreters/go/cmd/able/test_cli_test.go`
+    - `v12/interpreters/go/cmd/able/test_cli_compiled_list_test.go`
+    - `v12/interpreters/go/cmd/able/test_cli_compiled_discovery_test.go`
+  - updated `PLAN.md` to record that this narrow test harness duplication is
+    removed
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommand(ReportsEmptyWorkspaceInListMode|ParsesFiltersAndTargets|CompiledDryRunJSONUsesSharedDiscoveryPath)$|TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test` shared minimal stdlib fixture helper (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - added
+    `v12/interpreters/go/cmd/able/test_cli_test_helpers_test.go` with a
+    shared `writeMinimalTestCliStdlib(...)` helper for the focused CLI tests
+  - `v12/interpreters/go/cmd/able/test_cli_test.go` now uses that shared
+    helper for the filter/dry-run coverage instead of carrying its own
+    inlined minimal `able.test.*` fixture stdlib
+  - `v12/interpreters/go/cmd/able/test_cli_compiled_list_test.go` now uses
+    the same shared helper, so the interpreted and compiled dry-run tests
+    share one fixture contract
+  - updated `PLAN.md` to record that this fixture duplication is removed
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommand(ParsesFiltersAndTargets|CompiledDryRunJSONUsesSharedDiscoveryPath)$|TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test --compiled` dead runner cleanup (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - `v12/interpreters/go/cmd/able/test_cli_compiled.go` no longer carries its
+    old compiled-runner list/dry-run branch after compiled `--list` /
+    `--dry-run` were moved onto the shared interpreted discovery/list path
+  - the generated compiled runner now always builds execution-only discovery
+    requests, so dead descriptor-printing helpers and `request.list_only`
+    handling are gone from the compiled execution source
+  - updated `PLAN.md` to record that this redundant compiled-runner path is
+    removed
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommand(ParsesFiltersAndTargets|CompiledDryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test --compiled` discovery/list short-circuit (v12)
+- Closed the next user-facing `able test` cleanup slice.
+- What landed:
+  - `v12/interpreters/go/cmd/able/test_cli.go` now short-circuits compiled
+    `--list` / `--dry-run` onto the shared interpreted discovery/list path
+    instead of forcing those modes through compiled execution
+  - that means compiled dry-run/list now inherits the same descriptor
+    discovery behavior and formatter options as normal `able test`,
+    including JSON output support
+  - added focused coverage in
+    `v12/interpreters/go/cmd/able/test_cli_compiled_discovery_test.go`
+  - updated `PLAN.md` to record that compiled discovery/list modes now share
+    the interpreted path
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiled(DryRunMatchesInterpretedListFormat|DryRunJSONUsesSharedDiscoveryPath)$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — `able test --compiled` list/dry-run parity cleanup (v12)
+- Closed the first user-facing `able test` cleanup slice.
+- What landed:
+  - `v12/interpreters/go/cmd/able/test_cli_compiled.go` now emits the same
+    list/dry-run descriptor line shape in compiled mode that interpreted
+    `able test` already uses:
+    `framework_id | module_path | test_id | display_name | tags=...`
+    plus `metadata=...` in dry-run mode
+  - added focused compiled CLI coverage in
+    `v12/interpreters/go/cmd/able/test_cli_compiled_list_test.go`
+  - updated `PLAN.md` to record that the first user-facing `able test`
+    cleanup slice is landed
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — Fixture CLI replay deduplication (v12)
+- Closed the next fixture/tooling cleanup slice.
+- What landed:
+  - added a shared replay API in
+    `v12/interpreters/go/pkg/interpreter/fixture_replay.go` so non-test
+    tooling can execute fixture directories through the same core fixture
+    runtime wiring used by the Go interpreter suite
+  - extracted shared fixture-program construction in
+    `v12/interpreters/go/pkg/interpreter/fixture_runner.go`, so stdlib/kernel
+    opportunistic loading no longer has a separate copy in the CLI
+  - simplified `v12/interpreters/go/cmd/fixture/main.go` to delegate to that
+    shared replay helper instead of carrying its own duplicate fixture
+    execution, typechecker, diagnostic, and stdlib-loading flow
+  - added focused coverage in:
+    - `v12/interpreters/go/pkg/interpreter/fixture_replay_test.go`
+    - `v12/interpreters/go/cmd/fixture/main_test.go`
+  - updated `PLAN.md` to record that the fixture CLI now shares the core
+    replay path with the interpreter package
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestReplayFixtureEvaluatesSourceModule|TestBuildExecSearchPathsRejectsDistinctStdlibRoots' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — Fixture exporter verification/check-mode cleanup (v12)
+- Closed the first slice of the fixture exporter/tooling cleanup backlog.
+- What landed:
+  - `v12/interpreters/go/cmd/fixture-exporter/main.go` now supports
+    `--check`, which verifies exported `module.json` files are current without
+    rewriting them and reports stale fixture paths directly
+  - the exporter logic is now directly testable, with focused coverage in
+    `v12/interpreters/go/cmd/fixture-exporter/main_test.go` for:
+    - fixture export output
+    - successful `--check` verification on current fixtures
+    - stale fixture detection
+    - repository-root discovery and fallback behavior
+  - `v12/export_fixtures.sh` now forwards arguments, so repo-root invocations
+    like `v12/export_fixtures.sh --check` work directly
+  - removed stale exporter TODO wording from:
+    - `v12/docs/manual/manual.md`
+    - `v12/design/parser-ast-coverage.md`
+  - updated `PLAN.md` to record that the first tooling-cleanup slice is now
+    landed and that the remaining backlog is broader fixture/tooling/test-CLI
+    cleanup
+- Verification:
+  - `cd v12/interpreters/go && go test ./cmd/fixture-exporter -count=1`
+  - `bash -n v12/export_fixtures.sh`
+  - `cd v12 && ./export_fixtures.sh --check`
+  - `git diff --check`
+
+# 2026-04-18 — Stdlib-root tranche 4: diagnostics and closure coverage (v12)
+- Closed tranche 4 of the remaining stdlib externalization work.
+- What landed:
+  - tightened the shared stdlib collision diagnostics in
+    `v12/interpreters/go/pkg/driver/stdlib_roots.go` so the multi-env error
+    now explicitly points users at `ABLE_MODULE_PATHS / ABLE_PATH`
+  - expanded focused driver coverage in
+    `v12/interpreters/go/pkg/driver/stdlib_roots_test.go` for:
+    - detailed lockfile vs env diagnostics
+    - override vs env collision selection/diagnostics
+    - multiple env-provided `name: able` roots
+  - expanded CLI coverage in
+    `v12/interpreters/go/cmd/able/run_entry_test.go` for:
+    - ad hoc override vs env stdlib collision rejection
+    - concrete selected/conflicting root-path assertions for manifest lockfile
+      vs env and ad hoc env vs cache collisions
+  - removed the now-completed stdlib externalization item from `PLAN.md` and
+    `spec/TODO_v12.md`
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/driver -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestRun(RejectsManifestLockStdlibCollisionWithEnvRoot|RejectsAdhocStdlibCollisionBetweenOverrideAndEnvRoot|RejectsAdhocStdlibCollisionBetweenEnvAndCache|DynimportRejectsAdhocStdlibCollisionBetweenEnvAndCache|FileWithoutManifestStdlibAvailable)' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainUsesInstalledStdlibDiscoveryBeforeSiblingLookup|TestCompilerBuildExecSearchPathsRejectsDistinctStdlibRoots' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBuildExecSearchPathsRejectsDistinctStdlibRoots' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — Stdlib-root tranche 3: compiled launcher, fixture, and dynimport parity (v12)
+- Closed tranche 3 of the remaining stdlib externalization work.
+- What landed:
+  - the generated compiled launcher in
+    `v12/interpreters/go/pkg/compiler/generator_render_main.go` now:
+    - carries stdlib source provenance on generated search paths
+    - finalizes those search paths with
+      `driver.ResolveCanonicalStdlibSearchPaths(...)`
+    - therefore uses the same ad hoc canonical stdlib-root rule as the CLI
+      before any loader/bootstrap evaluation
+  - the interpreter and compiler exec-fixture search-path builders now also run
+    the same canonical stdlib-root filter:
+    - `v12/interpreters/go/pkg/interpreter/exec_fixtures_test.go`
+    - `v12/interpreters/go/pkg/compiler/exec_fixtures_compiler_test.go`
+  - added focused regressions for:
+    - generated `main.go` canonical stdlib-root finalization
+    - fixture search-path rejection when env and cache expose distinct
+      `name: able` roots
+    - `dynimport able.*` rejecting the same env/cache stdlib collision as
+      static imports
+  - marked tranche 3 complete in `PLAN.md`; the remaining open slice is now
+    tranche 4 (diagnostics and broader closure coverage)
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMainUsesInstalledStdlibDiscoveryBeforeSiblingLookup|TestCompilerBuildExecSearchPathsRejectsDistinctStdlibRoots' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBuildExecSearchPathsRejectsDistinctStdlibRoots' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestRun(DynimportRejectsAdhocStdlibCollisionBetweenEnvAndCache|RejectsAdhocStdlibCollisionBetweenEnvAndCache|RejectsManifestLockStdlibCollisionWithEnvRoot)' -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — Stdlib-root tranche 2: canonical selection in active entry paths (v12)
+- Closed tranche 2 of the remaining stdlib externalization work.
+- What landed:
+  - added shared canonical stdlib-root selection in
+    `v12/interpreters/go/pkg/driver/stdlib_roots.go` via
+    `ResolveCanonicalStdlibSearchPaths(...)`
+  - the shared selector now:
+    - discovers visible `name: able` candidates from the built search-path list
+    - canonicalizes them to comparable source roots
+    - applies the spec precedence for manifest-based vs ad hoc runs
+    - rejects distinct visible competing stdlib roots instead of relying on
+      search-path order
+    - collapses duplicate visibility of the same canonicalized stdlib root to
+      one retained search-path entry
+  - wired that selector into the active entry paths:
+    - `v12/interpreters/go/cmd/able/entry.go`
+    - `v12/interpreters/go/cmd/able/build.go`
+    - `v12/interpreters/go/cmd/able/test_cli_loader.go`
+    - `v12/interpreters/go/cmd/ablec/main.go`
+  - added focused coverage for:
+    - manifest lockfile vs env stdlib collision
+    - ad hoc env vs cache stdlib collision
+    - duplicate same-root visibility allowance
+    - ad hoc env-root selection and canonicalization
+  - marked tranche 2 complete in `PLAN.md`; the next active slice is tranche 3
+    (compiled launcher / fixture harness / `dynimport` parity)
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/driver -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestRun(UsesManifestLockForStdlibAndKernel|RejectsManifestLockStdlibCollisionWithEnvRoot|RejectsAdhocStdlibCollisionBetweenEnvAndCache|FileWithoutManifestStdlibAvailable|FileAutoDetectsCachedStdlib)' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/ablec -count=1`
+  - `git diff --check`
+
+# 2026-04-18 — Stdlib-root tranche 1: canonicalization primitives and source classes (v12)
+- Closed tranche 1 of the remaining stdlib externalization work.
+- What landed:
+  - added shared driver primitives in
+    `v12/interpreters/go/pkg/driver/stdlib_roots.go` for:
+    - `StdlibSourceClass` provenance (`lockfile`, `override`, `env`, `cache`,
+      `workspace`)
+    - canonical stdlib-root normalization via
+      `CanonicalizeStdlibCandidateRoot(...)`
+    - entry-root and search-root metadata classification helpers
+  - extended `driver.SearchPath` plus loader root/origin bookkeeping to carry
+    stdlib source provenance without changing existing generic package
+    collision behavior
+  - tagged the active CLI/tooling search-path producers with that provenance
+    in:
+    - `v12/interpreters/go/cmd/able/deps_resolver.go`
+    - `v12/interpreters/go/cmd/able/paths.go`
+    - `v12/interpreters/go/cmd/ablec/paths.go`
+  - added focused driver coverage in
+    `v12/interpreters/go/pkg/driver/stdlib_roots_test.go`
+  - marked tranche 1 complete in `PLAN.md`; the next active slice is tranche 2
+    (canonical stdlib selection in CLI/tooling entry paths)
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/driver -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able ./cmd/ablec -run 'TestRunUsesManifestLockForStdlibAndKernel|TestOverrideAddsDefaultStdlibToSearchPaths' -count=1`
+  - `git diff --check`
+
 # 2026-04-18 — Stdlib-root collision semantics formalized and tranche-planned (v12)
 - Formalized the remaining stdlib externalization semantics in
   `spec/full_spec_v12.md`.

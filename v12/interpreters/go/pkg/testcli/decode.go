@@ -1,28 +1,91 @@
-package main
+package testcli
 
 import (
 	"fmt"
-	"math/big"
+	"strings"
 
 	"able/interpreter-go/pkg/interpreter"
 	"able/interpreter-go/pkg/runtime"
-	testclipkg "able/interpreter-go/pkg/testcli"
 )
 
-func decodeTestEvent(interp *interpreter.Interpreter, value runtime.Value) (*testEvent, error) {
-	return testclipkg.DecodeTestEvent(interp, value)
+func DecodeTestEvent(interp *interpreter.Interpreter, value runtime.Value) (*TestEvent, error) {
+	inst, ok := value.(*runtime.StructInstanceValue)
+	if !ok || inst == nil {
+		return nil, nil
+	}
+	switch structTag(inst) {
+	case "case_started":
+		descriptor, err := decodeDescriptor(interp, structField(inst, "descriptor"))
+		if err != nil {
+			return nil, err
+		}
+		return &TestEvent{Kind: "case_started", Descriptor: descriptor}, nil
+	case "case_passed":
+		descriptor, err := decodeDescriptor(interp, structField(inst, "descriptor"))
+		if err != nil {
+			return nil, err
+		}
+		duration := decodeNumber(structField(inst, "duration_ms"))
+		return &TestEvent{Kind: "case_passed", Descriptor: descriptor, DurationMs: duration}, nil
+	case "case_failed":
+		descriptor, err := decodeDescriptor(interp, structField(inst, "descriptor"))
+		if err != nil {
+			return nil, err
+		}
+		duration := decodeNumber(structField(inst, "duration_ms"))
+		failure, err := decodeFailure(interp, structField(inst, "failure"))
+		if err != nil {
+			return nil, err
+		}
+		return &TestEvent{Kind: "case_failed", Descriptor: descriptor, DurationMs: duration, Failure: failure}, nil
+	case "case_skipped":
+		descriptor, err := decodeDescriptor(interp, structField(inst, "descriptor"))
+		if err != nil {
+			return nil, err
+		}
+		reason := decodeOptionalString(interp, structField(inst, "reason"))
+		return &TestEvent{Kind: "case_skipped", Descriptor: descriptor, Reason: reason}, nil
+	case "framework_error":
+		message := decodeString(interp, structField(inst, "message"))
+		return &TestEvent{Kind: "framework_error", Message: message}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func decodeDescriptorArray(interp *interpreter.Interpreter, value runtime.Value) ([]testDescriptor, error) {
-	return testclipkg.DecodeDescriptorArray(interp, value)
+func DecodeDescriptorArray(interp *interpreter.Interpreter, value runtime.Value) ([]TestDescriptor, error) {
+	arrayVal, err := coerceArrayValue(interp, value, "descriptor array")
+	if err != nil {
+		return nil, err
+	}
+	out := make([]TestDescriptor, 0, len(arrayVal.Elements))
+	for _, entry := range arrayVal.Elements {
+		desc, err := decodeDescriptor(interp, entry)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *desc)
+	}
+	return out, nil
 }
 
-func decodeDescriptor(interp *interpreter.Interpreter, value runtime.Value) (*testDescriptor, error) {
+func FormatMetadata(entries []MetadataEntry) string {
+	if len(entries) == 0 {
+		return "-"
+	}
+	parts := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		parts = append(parts, fmt.Sprintf("%s=%s", entry.Key, entry.Value))
+	}
+	return strings.Join(parts, ",")
+}
+
+func decodeDescriptor(interp *interpreter.Interpreter, value runtime.Value) (*TestDescriptor, error) {
 	inst, ok := value.(*runtime.StructInstanceValue)
 	if !ok || inst == nil {
 		return nil, fmt.Errorf("expected TestDescriptor struct")
 	}
-	return &testDescriptor{
+	return &TestDescriptor{
 		FrameworkID: decodeString(interp, structField(inst, "framework_id")),
 		ModulePath:  decodeString(interp, structField(inst, "module_path")),
 		TestID:      decodeString(interp, structField(inst, "test_id")),
@@ -33,19 +96,19 @@ func decodeDescriptor(interp *interpreter.Interpreter, value runtime.Value) (*te
 	}, nil
 }
 
-func decodeFailure(interp *interpreter.Interpreter, value runtime.Value) (*failureData, error) {
+func decodeFailure(interp *interpreter.Interpreter, value runtime.Value) (*FailureData, error) {
 	inst, ok := value.(*runtime.StructInstanceValue)
 	if !ok || inst == nil {
 		return nil, fmt.Errorf("expected Failure struct")
 	}
-	return &failureData{
+	return &FailureData{
 		Message:  decodeString(interp, structField(inst, "message")),
 		Details:  decodeOptionalString(interp, structField(inst, "details")),
 		Location: decodeLocation(interp, structField(inst, "location")),
 	}, nil
 }
 
-func decodeLocation(interp *interpreter.Interpreter, value runtime.Value) *sourceLocation {
+func decodeLocation(interp *interpreter.Interpreter, value runtime.Value) *SourceLocation {
 	if isNilValue(value) {
 		return nil
 	}
@@ -53,14 +116,14 @@ func decodeLocation(interp *interpreter.Interpreter, value runtime.Value) *sourc
 	if !ok || inst == nil {
 		return nil
 	}
-	return &sourceLocation{
+	return &SourceLocation{
 		ModulePath: decodeString(interp, structField(inst, "module_path")),
 		Line:       int(decodeNumber(structField(inst, "line"))),
 		Column:     int(decodeNumber(structField(inst, "column"))),
 	}
 }
 
-func decodeMetadataArray(interp *interpreter.Interpreter, value runtime.Value) []metadataEntry {
+func decodeMetadataArray(interp *interpreter.Interpreter, value runtime.Value) []MetadataEntry {
 	if isNilValue(value) {
 		return nil
 	}
@@ -68,13 +131,13 @@ func decodeMetadataArray(interp *interpreter.Interpreter, value runtime.Value) [
 	if err != nil {
 		return nil
 	}
-	out := make([]metadataEntry, 0, len(arrayVal.Elements))
+	out := make([]MetadataEntry, 0, len(arrayVal.Elements))
 	for _, entry := range arrayVal.Elements {
 		inst, ok := entry.(*runtime.StructInstanceValue)
 		if !ok || inst == nil {
 			continue
 		}
-		out = append(out, metadataEntry{
+		out = append(out, MetadataEntry{
 			Key:   decodeString(interp, structField(inst, "key")),
 			Value: decodeString(interp, structField(inst, "value")),
 		})
@@ -146,14 +209,6 @@ func coerceArrayValue(interp *interpreter.Interpreter, value runtime.Value, labe
 	}
 }
 
-func arrayLength(interp *interpreter.Interpreter, value runtime.Value) int {
-	arr, err := coerceArrayValue(interp, value, "array")
-	if err != nil || arr == nil {
-		return 0
-	}
-	return len(arr.Elements)
-}
-
 func structField(inst *runtime.StructInstanceValue, name string) runtime.Value {
 	if inst == nil || name == "" {
 		return runtime.NilValue{}
@@ -183,49 +238,6 @@ func structTag(inst *runtime.StructInstanceValue) string {
 	return inst.Definition.Node.ID.Name
 }
 
-func makeStringArray(interp *interpreter.Interpreter, values []string) (runtime.Value, error) {
-	elems := make([]runtime.Value, 0, len(values))
-	for _, val := range values {
-		elems = append(elems, runtime.StringValue{Val: val})
-	}
-	arr := &runtime.ArrayValue{Elements: elems}
-	if interp == nil {
-		return arr, nil
-	}
-	coerced, err := interp.CoerceArrayValue(arr)
-	if err != nil {
-		return arr, nil
-	}
-	return coerced, nil
-}
-
-func makeIntegerValue(suffix runtime.IntegerType, value int64) runtime.IntegerValue {
-	return runtime.IntegerValue{Val: big.NewInt(value), TypeSuffix: suffix}
-}
-
-func extractFailure(interp *interpreter.Interpreter, value runtime.Value) *harnessFailure {
-	inst, ok := value.(*runtime.StructInstanceValue)
-	if !ok || inst == nil {
-		return nil
-	}
-	if structTag(inst) != "Failure" {
-		return nil
-	}
-	message := decodeString(interp, structField(inst, "message"))
-	details := decodeOptionalString(interp, structField(inst, "details"))
-	return &harnessFailure{message: message, details: details}
-}
-
-func formatFailure(failure *harnessFailure) string {
-	if failure == nil {
-		return ""
-	}
-	if failure.details == nil {
-		return failure.message
-	}
-	return fmt.Sprintf("%s (%s)", failure.message, *failure.details)
-}
-
 func isNilValue(value runtime.Value) bool {
 	switch value.(type) {
 	case nil:
@@ -240,12 +252,35 @@ func isNilValue(value runtime.Value) bool {
 }
 
 func runtimeValueToString(value runtime.Value) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case runtime.StringValue:
+		return v.Val
+	case *runtime.StringValue:
+		if v != nil {
+			return v.Val
+		}
+	case runtime.BoolValue:
+		if v.Val {
+			return "true"
+		}
+		return "false"
+	case runtime.IntegerValue:
+		return v.String()
+	case *runtime.IntegerValue:
+		if v != nil {
+			return v.String()
+		}
+	case runtime.FloatValue:
+		return fmt.Sprintf("%g", v.Val)
+	case runtime.CharValue:
+		return string(v.Val)
+	case runtime.NilValue, *runtime.NilValue:
+		return "nil"
+	}
 	if value == nil {
 		return ""
 	}
-	return formatRuntimeValue(nil, value)
-}
-
-func formatMetadata(entries []metadataEntry) string {
-	return testclipkg.FormatMetadata(entries)
+	return fmt.Sprintf("<%s>", value.Kind())
 }
