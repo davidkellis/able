@@ -58,40 +58,17 @@ fn main() {
 		t.Fatalf("save stdlib override: %v", err)
 	}
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
-			t.Fatalf("restore working directory: %v", chdirErr)
-		}
-	}()
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Chdir project: %v", err)
-	}
+	enterWorkingDir(t, projectDir)
 
-	code, stdout, stderr := captureCLI(t, []string{"setup"})
-	if code != 0 {
-		t.Fatalf("able setup returned exit code %d, stderr: %q", code, stderr)
-	}
-	if !strings.Contains(stdout, "setup complete") {
-		t.Fatalf("expected setup completion message, got stdout %q", stdout)
-	}
+	stdout := runCLIExpectSuccess(t, "setup")
+	assertOutputContainsAll(t, stdout, "setup complete")
 
 	lockPath := filepath.Join(homeDir, "setup.lock")
 	lock, err := driver.LoadLockfile(lockPath)
 	if err != nil {
 		t.Fatalf("load setup lockfile %s: %v", lockPath, err)
 	}
-	stdlibPkg := findLockedPackage(lock.Packages, "able")
-	if stdlibPkg == nil {
-		t.Fatalf("setup lock missing stdlib package: %#v", lock.Packages)
-	}
-	kernelPkg := findLockedPackage(lock.Packages, "kernel")
-	if kernelPkg == nil {
-		t.Fatalf("setup lock missing kernel package: %#v", lock.Packages)
-	}
+	stdlibPkg, kernelPkg := requireLockedStdlibAndKernel(t, lock.Packages)
 
 	stdlibPath := strings.TrimPrefix(stdlibPkg.Source, "path:")
 	if stdlibPath == stdlibPkg.Source || stdlibPath == "" {
@@ -109,19 +86,9 @@ fn main() {
 		t.Fatalf("kernel source missing kernel.able at %s: %v", kernelPath, err)
 	}
 
-	code, stdout, stderr = captureCLI(t, []string{"run", "main.able"})
-	if code != 0 {
-		t.Fatalf("treewalker run returned exit code %d, stderr: %q", code, stderr)
-	}
-	if !strings.Contains(stdout, "stdlib-smoke") {
-		t.Fatalf("treewalker run missing stdlib output; stdout=%q stderr=%q", stdout, stderr)
-	}
+	stdout = runCLIExpectSuccess(t, "run", "main.able")
+	assertOutputContainsAll(t, stdout, "stdlib-smoke")
 
-	code, stdout, stderr = captureCLI(t, []string{"--exec-mode", "bytecode", "run", "main.able"})
-	if code != 0 {
-		t.Fatalf("bytecode run returned exit code %d, stderr: %q", code, stderr)
-	}
-	if !strings.Contains(stdout, "stdlib-smoke") {
-		t.Fatalf("bytecode run missing stdlib output; stdout=%q stderr=%q", stdout, stderr)
-	}
+	stdout = runCLIExpectSuccess(t, "--exec-mode", "bytecode", "run", "main.able")
+	assertOutputContainsAll(t, stdout, "stdlib-smoke")
 }

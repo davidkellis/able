@@ -64,6 +64,30 @@ Unified harness (runs Go suites and fixtures):
 
 - Execute fixtures via Go harness: `go test ./pkg/interpreter -run ExecFixtures`
 - Export fixtures after edits: run the Go exporter via `v12/export_fixtures.sh`
+  - for focused updates/checks, pass fixture directories or `source.able`
+    paths relative to `v12/fixtures/ast`, for example
+    `v12/export_fixtures.sh --check basics/bool_literal`
+- Replay one fixture directly via the Go fixture CLI: `go run ./cmd/fixture`
+  - pass `--dir <fixture-dir>` as before, or pass a fixture directory / entry
+    file positionally; relative targets also resolve under `v12/fixtures/ast`,
+    for example
+    `go run ./cmd/fixture basics/bool_literal`
+    or
+    `go run ./cmd/fixture basics/bool_literal/source.able`
+  - discover available fixtures by prefix with
+    `go run ./cmd/fixture --list basics`
+  - `--list` also supports `--format json` for machine-readable fixture
+    discovery output
+  - inspect resolved fixture metadata without evaluating it via
+    `go run ./cmd/fixture --describe basics/bool_literal`
+  - replay several fixtures in one shot and receive a JSON array of per-target
+    results via
+    `go run ./cmd/fixture --batch basics/bool_literal basics/String_literal`
+  - `--describe` also supports `--format text` for a human-readable summary,
+    and `--batch` supports `--format jsonl` for one-JSON-object-per-line
+    streaming output
+  - if no `--executor` override is provided, the fixture CLI now uses the
+    manifest executor when one is declared; otherwise it defaults to `serial`
 - Go parity: `go test ./pkg/interpreter`
 - Add ad-hoc `.able` files under `examples/` or a package and run through the interpreter CLIs.
 
@@ -483,7 +507,10 @@ Embed host-language code via package-scope `prelude <target> { ... }` and `exter
 - `os.args()` provides CLI args; returning from `main` exits 0; unhandled exceptions exit 1; use `os.exit(code)` for custom codes.
 - Background `spawn` tasks are not awaited when `main` returns—join explicitly if needed.
 - Language implementation testing (fixtures/parity): keep tree-walker + bytecode interpreters in sync. Run `go test ./...`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v12` before landing changes.
-- Fixtures: update `v12/fixtures`, export via the Go exporter (TODO), and ensure tree-walker/bytecode parity stays green.
+- Fixtures: update `v12/fixtures`, export via `v12/export_fixtures.sh` (or verify with `v12/export_fixtures.sh --check`), and ensure tree-walker/bytecode parity stays green.
+  - targeted fixture paths are supported too, so focused checks like
+    `v12/export_fixtures.sh --check expressions/int_addition` do not need to
+    walk the whole tree
 - User-facing testing (Able programs): `able test` plus the `able.spec` DSL (backed by `able.test.*`) are planned for end-user test suites and are separate from fixture/parity work.
 
 Able emphasises clarity, parity between interpreters, and spec-first behaviour. When in doubt, check the v12 spec, add fixtures, and validate in both runtimes.

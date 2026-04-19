@@ -26,7 +26,11 @@ func buildExecutionSearchPaths(manifest *driver.Manifest, lock *driver.Lockfile)
 	var manifestRoot string
 	if manifest != nil {
 		manifestRoot = filepath.Dir(manifest.Path)
-		extras = append(extras, driver.SearchPath{Path: manifestRoot, Kind: driver.RootUser})
+		extras = append(extras, driver.SearchPath{
+			Path:         manifestRoot,
+			Kind:         driver.RootUser,
+			StdlibSource: driver.StdlibSourceWorkspace,
+		})
 	}
 	if lock == nil || len(lock.Packages) == 0 {
 		return extras, nil
@@ -42,13 +46,21 @@ func buildExecutionSearchPaths(manifest *driver.Manifest, lock *driver.Lockfile)
 			continue
 		}
 		kind := driver.RootUser
+		stdlibSource := driver.StdlibSourceUnknown
 		name := sanitizeName(pkg.Name)
 		if name == "able" || name == "kernel" {
 			kind = driver.RootStdlib
+			if name == "able" {
+				stdlibSource = driver.StdlibSourceLockfile
+			}
 		}
-		if source := strings.TrimSpace(pkg.Source); source != "" {
-			if resolved, ok := resolvePackageSourcePath(source, manifestRoot, cacheDir); ok {
-				extras = append(extras, driver.SearchPath{Path: resolved, Kind: kind})
+		if sourceSpec := strings.TrimSpace(pkg.Source); sourceSpec != "" {
+			if resolved, ok := resolvePackageSourcePath(sourceSpec, manifestRoot, cacheDir); ok {
+				extras = append(extras, driver.SearchPath{
+					Path:         resolved,
+					Kind:         kind,
+					StdlibSource: stdlibSource,
+				})
 				continue
 			}
 		}
@@ -56,8 +68,9 @@ func buildExecutionSearchPaths(manifest *driver.Manifest, lock *driver.Lockfile)
 			continue
 		}
 		extras = append(extras, driver.SearchPath{
-			Path: filepath.Join(cacheDir, "pkg", "src", pkg.Name, sanitizePathSegment(pkg.Version)),
-			Kind: kind,
+			Path:         filepath.Join(cacheDir, "pkg", "src", pkg.Name, sanitizePathSegment(pkg.Version)),
+			Kind:         kind,
+			StdlibSource: stdlibSource,
 		})
 	}
 	return extras, nil

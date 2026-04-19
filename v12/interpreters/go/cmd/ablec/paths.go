@@ -13,7 +13,7 @@ func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
 	seen := make(map[string]struct{})
 	var paths []driver.SearchPath
 
-	add := func(path string, kind driver.RootKind) {
+	add := func(path string, kind driver.RootKind, source driver.StdlibSourceClass) {
 		if path == "" {
 			return
 		}
@@ -35,38 +35,52 @@ func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
 			return
 		}
 		seen[abs] = struct{}{}
-		paths = append(paths, driver.SearchPath{Path: abs, Kind: kind})
+		paths = append(paths, driver.SearchPath{
+			Path:         abs,
+			Kind:         kind,
+			StdlibSource: source,
+		})
 	}
 
 	for _, path := range extra {
-		add(path, driver.RootUser)
+		add(path, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 
 	if base != "" {
-		add(base, driver.RootUser)
+		add(base, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 
 	if cwd, err := os.Getwd(); err == nil {
-		add(cwd, driver.RootUser)
+		add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 
 	for _, part := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
-		add(part, driver.RootUser)
+		add(part, driver.RootUser, driver.StdlibSourceEnv)
 	}
 
 	for _, part := range splitPathListEnv(os.Getenv("ABLE_MODULE_PATHS")) {
-		add(part, driver.RootUser)
+		add(part, driver.RootUser, driver.StdlibSourceEnv)
 	}
 
 	for _, path := range collectKernelPaths(base) {
-		add(path, driver.RootStdlib)
+		add(path, driver.RootStdlib, driver.StdlibSourceUnknown)
 	}
 
 	for _, path := range collectStdlibPaths(base) {
-		add(path, driver.RootStdlib)
+		source := driver.StdlibSourceUnknown
+		if installed := stdlibpath.ResolveInstalledSrc(); installed != "" {
+			if absInstalled, err := filepath.Abs(installed); err == nil && absInstalled == path {
+				source = driver.StdlibSourceCache
+			}
+		}
+		add(path, driver.RootStdlib, source)
 	}
 
 	return paths
+}
+
+func finalizeSearchPaths(searchPaths []driver.SearchPath) ([]driver.SearchPath, error) {
+	return driver.ResolveCanonicalStdlibSearchPaths(searchPaths, false)
 }
 
 func splitPathListEnv(value string) []string {

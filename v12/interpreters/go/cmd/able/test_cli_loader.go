@@ -54,10 +54,11 @@ func loadTestPrograms(testFiles []string) (*testLoadResult, error) {
 
 func resolveTestSearchPaths(testFiles []string) ([]driver.SearchPath, error) {
 	if len(testFiles) == 0 {
-		return collectSearchPaths("", searchPathOptions{}), nil
+		return finalizeSearchPaths(collectSearchPaths("", searchPathOptions{}), false)
 	}
 	seen := make(map[string]struct{})
 	var merged []driver.SearchPath
+	manifestBased := false
 	for _, file := range testFiles {
 		base := filepath.Dir(file)
 		manifest, err := loadManifestFrom(base)
@@ -66,6 +67,7 @@ func resolveTestSearchPaths(testFiles []string) ([]driver.SearchPath, error) {
 		}
 		var lock *driver.Lockfile
 		if manifest != nil {
+			manifestBased = true
 			lock, err = loadLockfileForManifest(manifest)
 			if err != nil {
 				return nil, err
@@ -86,7 +88,7 @@ func resolveTestSearchPaths(testFiles []string) ([]driver.SearchPath, error) {
 			merged = append(merged, sp)
 		}
 	}
-	return merged, nil
+	return finalizeSearchPaths(merged, manifestBased)
 }
 
 func mergeTestModules(programs []*driver.Program) []*driver.Module {

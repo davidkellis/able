@@ -166,10 +166,7 @@ dependencies:
 		t.Fatalf("expected lockfile change")
 	}
 
-	pkg := findLockedPackage(lock.Packages, "coolpkg")
-	if pkg == nil {
-		t.Fatalf("missing coolpkg in lock: %#v", lock.Packages)
-	}
+	pkg := requireLockedPackage(t, lock.Packages, "coolpkg")
 	if pkg.Version != "0.5.0-dev" {
 		t.Fatalf("expected overridden version 0.5.0-dev, got %q", pkg.Version)
 	}
@@ -178,16 +175,7 @@ dependencies:
 	}
 
 	// Check that logs mention the override.
-	foundLog := false
-	for _, line := range logs {
-		if strings.Contains(line, "using override") && strings.Contains(line, "coolpkg") {
-			foundLog = true
-			break
-		}
-	}
-	if !foundLog {
-		t.Fatalf("expected override log message, got %v", logs)
-	}
+	assertAnyTextContainsAll(t, logs, "using override", "coolpkg")
 }
 
 func TestDepsInstallStdlibRespectsGlobalOverride(t *testing.T) {
@@ -230,10 +218,7 @@ func TestDepsInstallStdlibRespectsGlobalOverride(t *testing.T) {
 		t.Fatalf("expected lockfile change")
 	}
 
-	stdlib := findLockedPackage(lock.Packages, "able")
-	if stdlib == nil {
-		t.Fatalf("missing stdlib in lock: %#v", lock.Packages)
-	}
+	stdlib := requireLockedPackage(t, lock.Packages, "able")
 	if stdlib.Version != "99.0.0-local" {
 		t.Fatalf("expected overridden stdlib version 99.0.0-local, got %q", stdlib.Version)
 	}
@@ -241,16 +226,7 @@ func TestDepsInstallStdlibRespectsGlobalOverride(t *testing.T) {
 		t.Fatalf("expected path source for stdlib override, got %q", stdlib.Source)
 	}
 
-	foundLog := false
-	for _, line := range logs {
-		if strings.Contains(line, "using override") && strings.Contains(line, "stdlib") {
-			foundLog = true
-			break
-		}
-	}
-	if !foundLog {
-		t.Fatalf("expected stdlib override log message, got %v", logs)
-	}
+	assertAnyTextContainsAll(t, logs, "using override", "stdlib")
 }
 
 func TestDepsInstallProjectPathBeatsOverride(t *testing.T) {
@@ -434,14 +410,7 @@ func TestOverrideAddResolvesRelativePath(t *testing.T) {
 	writeFile(t, filepath.Join(pkgDir, "package.yml"), "name: mypkg\nversion: 0.1.0\n")
 
 	// Change to root so relative path works.
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
-	if err := os.Chdir(root); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	enterWorkingDir(t, root)
 
 	// Add with relative path.
 	code := runOverrideAdd("https://github.com/someone/mypkg.git", "mypkg")
@@ -537,10 +506,7 @@ func TestOverrideDoesNotAffectKernel(t *testing.T) {
 	}
 
 	// Kernel should be resolved via filesystem walk or embedded, never via override.
-	kernel := findLockedPackage(lock.Packages, "kernel")
-	if kernel == nil {
-		t.Fatalf("missing kernel in lock: %#v", lock.Packages)
-	}
+	_, kernel := requireLockedStdlibAndKernel(t, lock.Packages)
 	// Kernel source should NOT reference any override path.
 	if strings.Contains(kernel.Source, "override") {
 		t.Fatalf("kernel should not use overrides, got source %q", kernel.Source)

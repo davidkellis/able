@@ -31,6 +31,42 @@ func TestExecFixtures(t *testing.T) {
 	}
 }
 
+func TestBuildExecSearchPathsRejectsDistinctStdlibRoots(t *testing.T) {
+	root := t.TempDir()
+	fixtureDir := filepath.Join(root, "fixture")
+	cacheDir := filepath.Join(root, "cache")
+	cacheRoot := filepath.Join(cacheDir, "pkg", "src", "able", "0.1.0")
+	cacheSrc := filepath.Join(cacheRoot, "src")
+	envRoot := filepath.Join(root, "env-stdlib")
+	envSrc := filepath.Join(envRoot, "src")
+	entryPath := filepath.Join(fixtureDir, "main.able")
+
+	for _, dir := range []string{fixtureDir, cacheSrc, envSrc} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(cacheRoot, "package.yml"), []byte("name: able\nversion: 0.1.0\n"), 0o600); err != nil {
+		t.Fatalf("write cache package.yml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(envRoot, "package.yml"), []byte("name: able\nversion: 9.9.9\n"), 0o600); err != nil {
+		t.Fatalf("write env package.yml: %v", err)
+	}
+
+	t.Setenv("ABLE_HOME", cacheDir)
+	t.Setenv("ABLE_MODULE_PATHS", envSrc)
+
+	_, err := buildExecSearchPaths(entryPath, fixtureDir, fixtureManifest{})
+	if err == nil {
+		t.Fatalf("expected stdlib collision error")
+	}
+	if !strings.Contains(err.Error(), "stdlib collision") ||
+		!strings.Contains(err.Error(), "env") ||
+		!strings.Contains(err.Error(), "cache") {
+		t.Fatalf("unexpected stdlib collision error: %v", err)
+	}
+}
+
 func collectExecFixtures(t *testing.T, root string) []string {
 	t.Helper()
 	if root == "" {
@@ -247,7 +283,7 @@ func buildExecSearchPaths(entryPath string, fixtureDir string, manifest fixtureM
 
 	var paths []driver.SearchPath
 	seen := map[string]struct{}{}
-	add := func(candidate string, kind driver.RootKind) {
+	add := func(candidate string, kind driver.RootKind, source driver.StdlibSourceClass) {
 		if candidate == "" {
 			return
 		}
@@ -263,45 +299,45 @@ func buildExecSearchPaths(entryPath string, fixtureDir string, manifest fixtureM
 			return
 		}
 		seen[abs] = struct{}{}
-		paths = append(paths, driver.SearchPath{Path: abs, Kind: kind})
+		paths = append(paths, driver.SearchPath{Path: abs, Kind: kind, StdlibSource: source})
 	}
 
 	for _, extra := range []string{manifestRoot, entryDir} {
-		add(extra, driver.RootUser)
+		add(extra, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 	if cwd, err := os.Getwd(); err == nil {
-		add(cwd, driver.RootUser)
+		add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 	for _, entry := range resolveFixturePathList(ablePathEnv, fixtureDir) {
-		add(entry, driver.RootUser)
+		add(entry, driver.RootUser, driver.StdlibSourceEnv)
 	}
 	for _, entry := range resolveFixturePathList(ableModulePathsEnv, fixtureDir) {
-		add(entry, driver.RootUser)
+		add(entry, driver.RootUser, driver.StdlibSourceEnv)
 	}
 	for _, entry := range findKernelRoots(entryDir) {
-		add(entry, driver.RootStdlib)
+		add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 	}
 	for _, entry := range findStdlibRoots(entryDir) {
-		add(entry, driver.RootStdlib)
+		add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 	}
 	if cwd, err := os.Getwd(); err == nil {
 		for _, entry := range findKernelRoots(cwd) {
-			add(entry, driver.RootStdlib)
+			add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 		}
 		for _, entry := range findStdlibRoots(cwd) {
-			add(entry, driver.RootStdlib)
+			add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 		}
 	}
 	if exe, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exe)
 		for _, entry := range findKernelRoots(exeDir) {
-			add(entry, driver.RootStdlib)
+			add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 		}
 		for _, entry := range findStdlibRoots(exeDir) {
-			add(entry, driver.RootStdlib)
+			add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 		}
 	}
-	return paths, nil
+	return driver.ResolveCanonicalStdlibSearchPaths(paths, false)
 }
 
 func resolveFixtureEnv(key string, env map[string]string, fallback string) string {

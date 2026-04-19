@@ -59,6 +59,9 @@ func TestCompilerMainUsesInstalledStdlibDiscoveryBeforeSiblingLookup(t *testing.
 	if !strings.Contains(mainSrc, "stdlibpath.ResolveInstalledSrc()") {
 		t.Fatalf("expected emitted main.go to consult installed stdlib discovery")
 	}
+	if !strings.Contains(mainSrc, "driver.ResolveCanonicalStdlibSearchPaths(") {
+		t.Fatalf("expected emitted main.go to finalize canonical stdlib search paths")
+	}
 }
 
 func TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers(t *testing.T) {

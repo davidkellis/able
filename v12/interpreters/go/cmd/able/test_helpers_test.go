@@ -97,6 +97,22 @@ func findLockedPackage(pkgs []*driver.LockedPackage, name string) *driver.Locked
 	return nil
 }
 
+func requireLockedPackage(t *testing.T, pkgs []*driver.LockedPackage, name string) *driver.LockedPackage {
+	t.Helper()
+
+	pkg := findLockedPackage(pkgs, name)
+	if pkg == nil {
+		t.Fatalf("missing %s entry: %#v", name, pkgs)
+	}
+	return pkg
+}
+
+func requireLockedStdlibAndKernel(t *testing.T, pkgs []*driver.LockedPackage) (*driver.LockedPackage, *driver.LockedPackage) {
+	t.Helper()
+
+	return requireLockedPackage(t, pkgs, "able"), requireLockedPackage(t, pkgs, "kernel")
+}
+
 func repoStdlibPath(t *testing.T) string {
 	t.Helper()
 	// Try the cache-based resolution first (same as runtime).

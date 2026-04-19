@@ -1,6 +1,9 @@
 package main
 
-import "able/interpreter-go/pkg/runtime"
+import (
+	"able/interpreter-go/pkg/runtime"
+	testclipkg "able/interpreter-go/pkg/testcli"
+)
 
 type TestReporterFormat string
 
@@ -37,12 +40,7 @@ type TestCliConfig struct {
 	Compiled       bool
 }
 
-type TestEventState struct {
-	Total           int
-	Failed          int
-	Skipped         int
-	FrameworkErrors int
-}
+type TestEventState = testclipkg.EventState
 
 type testCliModule struct {
 	discoverAll      runtime.Value
@@ -74,41 +72,11 @@ type harnessFailure struct {
 	details *string
 }
 
-type testDescriptor struct {
-	FrameworkID string          `json:"framework_id"`
-	ModulePath  string          `json:"module_path"`
-	TestID      string          `json:"test_id"`
-	DisplayName string          `json:"display_name"`
-	Tags        []string        `json:"tags"`
-	Metadata    []metadataEntry `json:"metadata"`
-	Location    *sourceLocation `json:"location"`
-}
-
-type metadataEntry struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-type sourceLocation struct {
-	ModulePath string `json:"module_path"`
-	Line       int    `json:"line"`
-	Column     int    `json:"column"`
-}
-
-type failureData struct {
-	Message  string          `json:"message"`
-	Details  *string         `json:"details"`
-	Location *sourceLocation `json:"location"`
-}
-
-type testEvent struct {
-	Kind       string          `json:"event"`
-	Descriptor *testDescriptor `json:"descriptor,omitempty"`
-	DurationMs int64           `json:"duration_ms,omitempty"`
-	Failure    *failureData    `json:"failure,omitempty"`
-	Reason     *string         `json:"reason,omitempty"`
-	Message    string          `json:"message,omitempty"`
-}
+type testDescriptor = testclipkg.TestDescriptor
+type metadataEntry = testclipkg.MetadataEntry
+type sourceLocation = testclipkg.SourceLocation
+type failureData = testclipkg.FailureData
+type testEvent = testclipkg.TestEvent
 
 const testCliModuleSource = `
 package able_test_cli

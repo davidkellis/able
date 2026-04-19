@@ -35,6 +35,98 @@ var (
 	kernelModuleErr        error
 )
 
+func buildFixtureProgram(setupModules []*driver.Module, entryModule *driver.Module) (*driver.Program, error) {
+	programModules := append([]*driver.Module(nil), setupModules...)
+	added := make(map[string]bool)
+	imports := make(map[string]struct{})
+	for _, mod := range setupModules {
+		if mod == nil {
+			continue
+		}
+		recordImports(imports, mod.Imports)
+		if mod.Package != "" {
+			added[mod.Package] = true
+		}
+	}
+
+	if entryModule != nil {
+		recordImports(imports, entryModule.Imports)
+		if entryModule.Package != "" {
+			added[entryModule.Package] = true
+		}
+	}
+
+	if hasImportWithPrefix(imports, "able.kernel") {
+		kernelModuleOnce.Do(func() {
+			mod, err := parseSourceModule(kernelEntry)
+			if err != nil {
+				kernelModuleErr = err
+				return
+			}
+			mod.Package = ast.Pkg([]interface{}{"able", "kernel"}, false)
+			kernelModule = fixtureDriverModule(mod, kernelEntry)
+		})
+		if kernelModuleErr != nil {
+			return nil, fmt.Errorf("load kernel: %w", kernelModuleErr)
+		}
+		if kernelModule != nil && !added[kernelModule.Package] {
+			programModules = append(programModules, kernelModule)
+			added[kernelModule.Package] = true
+		}
+	}
+	if hasImport(imports, "able.text.string") {
+		if err := appendFixtureStdlibProgram(&programModules, added, stdlibStringEntry); err != nil {
+			return nil, fmt.Errorf("load stdlib string: %w", err)
+		}
+	}
+	if hasImportWithPrefix(imports, "able.concurrency") {
+		if err := appendFixtureStdlibProgram(&programModules, added, stdlibConcurrencyEntry); err != nil {
+			return nil, fmt.Errorf("load stdlib concurrency: %w", err)
+		}
+	}
+	if hasImport(imports, "able.collections.hash_map") {
+		if err := appendFixtureStdlibProgram(&programModules, added, stdlibHashMapEntry); err != nil {
+			return nil, fmt.Errorf("load stdlib hash_map: %w", err)
+		}
+	}
+	if entryModule != nil {
+		programModules = append(programModules, entryModule)
+	}
+	return &driver.Program{
+		Entry:   entryModule,
+		Modules: programModules,
+	}, nil
+}
+
+func appendFixtureStdlibProgram(programModules *[]*driver.Module, added map[string]bool, entryPath string) error {
+	if stdlibLoader == nil {
+		loader, err := driver.NewLoader([]driver.SearchPath{
+			{Path: stdlibRoot, Kind: driver.RootStdlib},
+			{Path: kernelRoot, Kind: driver.RootStdlib},
+		})
+		if err != nil {
+			return fmt.Errorf("stdlib loader init: %w", err)
+		}
+		stdlibLoader = loader
+	}
+	stdlibProgram, err := stdlibLoader.Load(entryPath)
+	if err != nil {
+		return err
+	}
+	for _, mod := range stdlibProgram.Modules {
+		if mod == nil || added[mod.Package] {
+			continue
+		}
+		*programModules = append(*programModules, mod)
+		added[mod.Package] = true
+	}
+	if stdlibProgram.Entry != nil && !added[stdlibProgram.Entry.Package] {
+		*programModules = append(*programModules, stdlibProgram.Entry)
+		added[stdlibProgram.Entry.Package] = true
+	}
+	return nil
+}
+
 // runFixtureWithExecutor replays a fixture directory using the provided executor.
 func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executor) {
 	t.Helper()
@@ -58,136 +150,17 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 	mode := configureFixtureTypechecker(interp)
 	var stdout []string
 	registerPrint(interp, &stdout)
-
-	var programModules []*driver.Module
-	added := make(map[string]bool)
-	imports := make(map[string]struct{})
+	setupModules := make([]*driver.Module, 0, len(manifest.Setup))
 	for _, setup := range manifest.Setup {
 		setupPath := filepath.Join(dir, setup)
 		setupModule, setupOrigin := readModule(underlying, setupPath)
-		setupDriverModule := fixtureDriverModule(setupModule, setupOrigin)
-		programModules = append(programModules, setupDriverModule)
-		recordImports(imports, setupDriverModule.Imports)
-		if setupModule != nil && setupModule.Package != nil {
-			parts := make([]string, 0, len(setupModule.Package.NamePath))
-			for _, id := range setupModule.Package.NamePath {
-				if id == nil || id.Name == "" {
-					continue
-				}
-				parts = append(parts, id.Name)
-			}
-			if len(parts) > 0 {
-				added[strings.Join(parts, ".")] = true
-			}
-		}
+		setupModules = append(setupModules, fixtureDriverModule(setupModule, setupOrigin))
 	}
 
 	entryModule := fixtureDriverModule(module, moduleOrigin)
-	added[entryModule.Package] = true
-	recordImports(imports, entryModule.Imports)
-	if hasImportWithPrefix(imports, "able.kernel") {
-		kernelModuleOnce.Do(func() {
-			mod, err := parseSourceModule(kernelEntry)
-			if err != nil {
-				kernelModuleErr = err
-				return
-			}
-			mod.Package = ast.Pkg([]interface{}{"able", "kernel"}, false)
-			kernelModule = fixtureDriverModule(mod, kernelEntry)
-		})
-		if kernelModuleErr != nil {
-			t.Fatalf("load kernel: %v", kernelModuleErr)
-		}
-		if kernelModule != nil && !added[kernelModule.Package] {
-			programModules = append(programModules, kernelModule)
-			added[kernelModule.Package] = true
-		}
-	}
-	if hasImport(imports, "able.text.string") {
-		if stdlibLoader == nil {
-			loader, err := driver.NewLoader([]driver.SearchPath{
-				{Path: stdlibRoot, Kind: driver.RootStdlib},
-				{Path: kernelRoot, Kind: driver.RootStdlib},
-			})
-			if err != nil {
-				t.Fatalf("stdlib loader init: %v", err)
-			}
-			stdlibLoader = loader
-		}
-		stdlibProgram, err := stdlibLoader.Load(stdlibStringEntry)
-		if err != nil {
-			t.Fatalf("load stdlib string: %v", err)
-		}
-		for _, mod := range stdlibProgram.Modules {
-			if mod == nil || added[mod.Package] {
-				continue
-			}
-			programModules = append(programModules, mod)
-			added[mod.Package] = true
-		}
-		if stdlibProgram.Entry != nil && !added[stdlibProgram.Entry.Package] {
-			programModules = append(programModules, stdlibProgram.Entry)
-			added[stdlibProgram.Entry.Package] = true
-		}
-	}
-	if hasImportWithPrefix(imports, "able.concurrency") {
-		if stdlibLoader == nil {
-			loader, err := driver.NewLoader([]driver.SearchPath{
-				{Path: stdlibRoot, Kind: driver.RootStdlib},
-				{Path: kernelRoot, Kind: driver.RootStdlib},
-			})
-			if err != nil {
-				t.Fatalf("stdlib loader init: %v", err)
-			}
-			stdlibLoader = loader
-		}
-		stdlibProgram, err := stdlibLoader.Load(stdlibConcurrencyEntry)
-		if err != nil {
-			t.Fatalf("load stdlib concurrency: %v", err)
-		}
-		for _, mod := range stdlibProgram.Modules {
-			if mod == nil || added[mod.Package] {
-				continue
-			}
-			programModules = append(programModules, mod)
-			added[mod.Package] = true
-		}
-		if stdlibProgram.Entry != nil && !added[stdlibProgram.Entry.Package] {
-			programModules = append(programModules, stdlibProgram.Entry)
-			added[stdlibProgram.Entry.Package] = true
-		}
-	}
-	if hasImport(imports, "able.collections.hash_map") {
-		if stdlibLoader == nil {
-			loader, err := driver.NewLoader([]driver.SearchPath{
-				{Path: stdlibRoot, Kind: driver.RootStdlib},
-				{Path: kernelRoot, Kind: driver.RootStdlib},
-			})
-			if err != nil {
-				t.Fatalf("stdlib loader init: %v", err)
-			}
-			stdlibLoader = loader
-		}
-		stdlibProgram, err := stdlibLoader.Load(stdlibHashMapEntry)
-		if err != nil {
-			t.Fatalf("load stdlib hash_map: %v", err)
-		}
-		for _, mod := range stdlibProgram.Modules {
-			if mod == nil || added[mod.Package] {
-				continue
-			}
-			programModules = append(programModules, mod)
-			added[mod.Package] = true
-		}
-		if stdlibProgram.Entry != nil && !added[stdlibProgram.Entry.Package] {
-			programModules = append(programModules, stdlibProgram.Entry)
-			added[stdlibProgram.Entry.Package] = true
-		}
-	}
-	programModules = append(programModules, entryModule)
-	program := &driver.Program{
-		Entry:   entryModule,
-		Modules: programModules,
+	program, err := buildFixtureProgram(setupModules, entryModule)
+	if err != nil {
+		t.Fatalf("build fixture program: %v", err)
 	}
 
 	value, _, check, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{

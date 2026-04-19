@@ -9,9 +9,7 @@ This list tracks the remaining v12 items after audit; completed work should be r
 - None currently tracked.
 
 ## Stdlib externalization gaps
-- Implement the canonical stdlib-root selection/collision semantics now
-  specified in `spec/full_spec_v12.md` §13.6–§13.7 across loader, CLI,
-  compiled entrypoints, fixture/tooling paths, and diagnostics.
+- None currently tracked.
 
 ## Compiler AOT performance / dynamic-carrier staged limits
 - `runtime.Value` usage categories are now documented in `spec/full_spec_v12.md` under the AOT boundary section.

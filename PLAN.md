@@ -1077,45 +1077,207 @@ Closed on 2026-04-16.
 These items remain important, but they are not active priorities right now.
 
 #### Integration / Tooling backlog
-- stdlib externalization follow-ups
-  - remaining open slice: implement the canonical stdlib-root selection and
-    collision semantics now specified in `spec/full_spec_v12.md` §13.6–§13.7
-  - ordered tranches:
-    - tranche 1: loader/driver canonicalization primitives
-      - classify visible `name: able` roots by source class
-        (`lockfile` / `override` / `env` / `cache` / `workspace`)
-      - canonicalize stdlib candidate roots to one comparable source path
-        (`<root>` vs `<root>/src`, absolute normalization, duplicate collapse)
-      - keep generic non-stdlib package collision behavior unchanged
-    - tranche 2: canonical stdlib selection in CLI/tooling entry paths
-      - make `able run` / `able check` / `able test` and other active entry
-        paths select exactly one canonical `able` root using the spec
-        precedence:
-        `lockfile > override > single env root > cache` for manifest runs,
-        `override > single env root > cache` for ad hoc runs
-      - reject ambiguous multi-root stdlib visibility instead of falling back
-        to search-path order
-    - tranche 3: parity across compiled launchers, fixture harnesses, and
-      dynamic loading
-      - ensure compiled entrypoints, generated launchers, fixture runners, and
-        `dynimport` use the same canonical `able` root and collision rules as
-        the CLI
-      - ensure ambient `ABLE_MODULE_PATHS` cannot silently override a stronger
-        stdlib decision
-    - tranche 4: diagnostics and coverage closure
-      - add focused tests for:
-        - lockfile vs env stdlib collision
-        - override vs env stdlib collision
-        - multiple env-provided `name: able` roots
-        - cache vs env collision
-        - duplicate visibility of the same canonicalized stdlib root
-        - ad hoc no-manifest env-selected stdlib success
-      - make collision diagnostics report selected root, conflicting root(s),
-        and each source class
-      - remove the remaining stdlib externalization TODO once coverage is
-        green
 - fixture exporter and other tooling cleanup
+  - current state: the first cleanup slice is now landed
+    - `cmd/fixture-exporter` has focused direct test coverage plus a
+      `--check` mode for stale `module.json` detection
+    - `v12/export_fixtures.sh` now forwards arguments so the check mode is
+      usable from the repo root
+    - stale exporter TODO wording has been removed from the active docs
+  - current state: the next cleanup slice is now landed
+    - `cmd/fixture-exporter` now accepts targeted fixture directories or
+      `source.able` paths, so focused export/check runs no longer have to walk
+      the full AST fixture tree
+    - `v12/export_fixtures.sh` and the active docs now describe targeted
+      fixture export/check usage from the repo root
+  - current state: the next cleanup slice is now landed
+    - `cmd/fixture` now delegates fixture replay to a shared
+      `pkg/interpreter` helper instead of carrying its own duplicate fixture
+      execution and stdlib-loading path
+    - focused tests now cover both the shared replay helper and the CLI
+      wrapper path on simple source fixtures
+  - current state: the next cleanup slice is now landed
+    - `cmd/fixture` now accepts either `--dir <fixture-dir>` or a direct
+      fixture directory / entry-file argument, so focused replay no longer
+      requires boilerplate flag wiring for the common case
+    - the active docs now describe that direct fixture replay workflow
+  - current state: the next cleanup slice is now landed
+    - repo-relative fixture targets in `cmd/fixture` now resolve under
+      `v12/fixtures/ast`, so focused replay from `v12/interpreters/go` no
+      longer requires spelling `../../fixtures/ast/...`
+    - the active docs now show the shorter fixture replay path form
+  - current state: the next cleanup slice is now landed
+    - `cmd/fixture --list` now prints repo-relative AST fixture directories
+      and supports focused prefix filters, so fixture discovery no longer
+      requires separate `find`/`rg` shell work
+    - the active docs now show the list-mode workflow too
+  - current state: the next cleanup slice is now landed
+    - `cmd/fixture --describe` now prints resolved fixture metadata
+      (directory, entry, setup, skip targets, executor, typecheck mode)
+      without evaluating the fixture
+    - the fixture CLI now also honors a manifest executor by default when no
+      explicit `--executor` override is provided
+  - current state: the next cleanup slice is now landed
+    - `cmd/fixture --batch` now replays multiple fixture targets and emits a
+      JSON array of per-target results plus resolved metadata
+    - focused fixture batching no longer requires shell loops around repeated
+      single-target invocations
+  - current state: the next cleanup slice is now landed
+    - `cmd/fixture --describe` now also supports `--format text` for
+      human-readable metadata summaries
+    - `cmd/fixture --batch` now also supports `--format jsonl` for
+      one-result-per-line streaming output
+  - current state: the next cleanup slice is now landed
+    - `cmd/fixture --list` now also supports `--format json` for
+      machine-readable fixture discovery output
 - testing CLI / user-facing testing framework work
+  - current state: the first user-facing `able test` cleanup slice is now
+    landed
+    - compiled `--list` / `--dry-run` output now matches the interpreted
+      formatter shape for framework/module/test/tag/metadata display
+    - focused compiled CLI coverage now pins that parity path directly
+  - current state: the next `able test` cleanup slice is now landed
+    - compiled `--list` / `--dry-run` now use the shared interpreted
+      discovery/list pipeline instead of the compiled execution path
+    - compiled dry-run now supports `--format json` through that shared path
+  - current state: the next `able test` cleanup slice is now landed
+    - compiled execution no longer carries dead list/dry-run runner logic
+      after the shared discovery/list short-circuit
+    - focused compiled CLI coverage still pins dry-run formatter and JSON
+      parity after that cleanup
+  - current state: the next `able test` cleanup slice is now landed
+    - compiled `able test` execution now supports `--format json` and
+      `--format tap` instead of rejecting those reporter formats outside
+      list/dry-run mode
+    - compiled and interpreted event formatting now share the same Go-side
+      JSON/TAP decoder-emitter path through `pkg/testcli`, while the
+      compiled runner uses a primitive-only extern callback boundary instead
+      of trying to marshal full `TestEvent` unions through a Go extern call
+  - current state: the next `able test` cleanup slice is now landed
+    - compiled JSON execution now preserves descriptor `tags`, `metadata`,
+      and source `location` instead of emitting a reduced descriptor payload
+    - the compiled runner now forwards those fields across the primitive
+      reporter boundary using `Array String` tags plus metadata key/value
+      arrays and explicit descriptor-location primitives, and focused CLI
+      coverage now pins that richer compiled JSON event shape directly
+  - current state: the next `able test` cleanup slice is now landed
+    - focused compiled reporter coverage now also pins non-success event
+      behavior directly: skipped cases, failed cases with details/location,
+      and framework-error output for both JSON and TAP reporters
+    - the local CLI test stdlib now has dedicated reporter-event and
+      framework-error harness variants so those compiled reporter paths are
+      exercised without depending on larger repo fixtures
+  - current state: the next `able test` cleanup slice is now landed
+    - focused compiled reporter coverage now also pins `case_started`
+      semantics directly: JSON preserves started-before-terminal event order,
+      while TAP still numbers only terminal results and ignores started
+      events in its test-point count
+    - this closes the remaining obvious event-order/count parity gap in the
+      compiled JSON/TAP reporter surface without changing runtime behavior
+  - current state: the next `able test` cleanup slice is now landed
+    - the minimal `able.test.*` fixture stdlib used by focused CLI tests now
+      lives in one shared helper instead of being duplicated across the
+      interpreted and compiled dry-run tests
+    - older filter/dry-run coverage now exercises that shared helper too,
+      reducing test-fixture drift inside `cmd/able`
+  - current state: the next `able test` cleanup slice is now landed
+    - the focused CLI tests now share temp working-directory and minimal
+      workspace helpers instead of repeating `Getwd` / `Chdir` / `tests`
+      setup blocks inline
+    - this keeps the narrow dry-run/list coverage easier to extend without
+      more harness drift inside `cmd/able`
+  - current state: the next `able test` cleanup slice is now landed
+    - the compiled stdlib smoke-suite tests now share one helper for env
+      setup, target-path expansion, execution, and stderr enforcement instead
+      of repeating the same boilerplate in every suite test
+    - that helper also runs those tests from an isolated temp workspace so
+      they stay valid under the canonical stdlib-root collision semantics
+  - current state: the next `able test` cleanup slice is now landed
+    - the compiled stdlib suite inventory now lives in a dedicated
+      helper-driven test file instead of staying embedded in the larger
+      general CLI test file
+    - the old top-level test names are preserved, but their case data now
+      comes from one shared case table plus one shared runner helper
+  - current state: the next `able test` cleanup slice is now landed
+    - the remaining compiled non-stdlib sample-module setup and success
+      assertions now live behind shared helpers instead of repeating the same
+      inline sample module and output checks
+    - both compiled sample-module tests now run from isolated temp working
+      directories so they stay valid under canonical stdlib-root collision
+      enforcement
+  - current state: the next `able test` cleanup slice is now landed
+    - focused CLI success-path tests now share one `captureCLI` success helper
+      instead of repeating the same `exit code 0` and `stderr empty` checks
+      across interpreted dry-run, compiled dry-run, and compiled sample paths
+    - compiled stdlib and compiled sample helpers now build on that shared
+      success path too, reducing the remaining assertion drift in `cmd/able`
+  - current state: the next `able test` cleanup slice is now landed
+    - the focused dry-run and compiled-sample tests now share explicit env
+      setup helpers instead of reassembling `ABLE_MODULE_PATHS`,
+      `ABLE_PATH`, and `ABLE_TYPECHECK_FIXTURES` inline
+    - the repo-stdlib compiled helpers and the minimal local dry-run helpers
+      now each have one place where their env contract is defined
+  - current state: the next `able test` cleanup slice is now landed
+    - the remaining focused failure-path assertions now build on shared
+      nonzero-exit helpers instead of hand-rolling `captureCLI` exit checks
+    - the adjacent `build` negative tests now also run from isolated temp
+      working directories, keeping them valid under canonical stdlib-root
+      collision enforcement
+  - current state: the next `cmd/able` cleanup slice is now landed
+    - the adjacent `build` and `deps` success-path tests now also build on
+      shared CLI success helpers instead of repeating open-coded `captureCLI`
+      success assertions
+    - the small set of build-success cases that intentionally surface
+      fallback/typechecker diagnostics now use a shared
+      success-with-diagnostics helper, and the external-output build test now
+      only requires copied stdlib sources when a cached canonical stdlib is
+      actually available
+  - current state: the next `cmd/able` cleanup slice is now landed
+    - `run_entry_test.go` success-path coverage now shares the common
+      working-directory helper instead of repeating inline `Getwd` / `Chdir`
+      restore blocks
+    - the run/check success-path cluster there now also builds on the shared
+      CLI success helper, keeping empty-`stderr` enforcement in one place
+  - current state: the next `cmd/able` cleanup slice is now landed
+    - the remaining `run_entry_test.go` failure/collision cluster now also
+      shares the common working-directory helper and the shared CLI
+      failure-path helper instead of repeating inline `Getwd` / `Chdir` /
+      nonzero-exit plumbing
+    - shared substring assertions for those diagnostics now build on one
+      generic text-contains helper instead of open-coded `strings.Contains`
+      chains in each collision test
+  - current state: the next `cmd/able` cleanup slice is now landed
+    - the remaining adjacent `build_test.go` and `deps_cli_test.go` cases now
+      also share the common working-directory helper where they were still
+      managing `Getwd` / `Chdir` inline
+    - those tests now also build on the shared text/output assertion helpers
+      and the shared CLI failure helper instead of repeating one-off
+      `strings.Contains` and nonzero-exit checks
+  - current state: the next `cmd/able` cleanup slice is now landed
+    - `setup_smoke_test.go` now also shares the common working-directory
+      helper plus the shared CLI success/output assertion helpers instead of
+      carrying its own `captureCLI` success plumbing
+  - current state: the next adjacent `cmd/able` cleanup slice is now landed
+    - the last manual working-directory setup blocks in
+      `dependency_installer_test.go` now also use the shared
+      `enterWorkingDir(...)` helper instead of carrying local `Getwd` /
+      `Chdir` restore code
+  - current state: the next adjacent `cmd/able` cleanup slice is now landed
+    - `overrides_test.go` now uses the shared working-directory helper for
+      its relative-path override case, and the repeated override-log scans now
+      build on one shared “any entry contains all substrings” helper
+  - current state: the next adjacent `cmd/able` cleanup slice is now landed
+    - `dependency_installer_test.go` now builds repeated lockfile assertions
+      on shared locked-package helpers instead of open-coding the same
+      stdlib/kernel presence checks across multiple installer scenarios
+  - current state: the next adjacent `cmd/able` cleanup slice is now landed
+    - the shared locked-package helpers now also cover the remaining
+      stdlib/kernel lockfile assertions in `deps_cli_test.go`,
+      `setup_smoke_test.go`, and `overrides_test.go`
+  - current state: the next adjacent `cmd/able` cleanup slice is now landed
+    - the remaining `test_cli` and `run_entry` output/diagnostic substring
+      assertions now build on the shared text/output assertion helpers,
+      including a shared “contains any” helper for alternate diagnostic text
 
 #### Language / Runtime backlog
 - WASM runtime work

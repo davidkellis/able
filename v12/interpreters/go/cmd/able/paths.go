@@ -19,7 +19,7 @@ func collectSearchPaths(base string, opts searchPathOptions, extra ...driver.Sea
 	seen := make(map[string]struct{})
 	var paths []driver.SearchPath
 
-	add := func(path string, kind driver.RootKind) {
+	add := func(path string, kind driver.RootKind, source driver.StdlibSourceClass) {
 		if path == "" {
 			return
 		}
@@ -41,43 +41,51 @@ func collectSearchPaths(base string, opts searchPathOptions, extra ...driver.Sea
 			return
 		}
 		seen[abs] = struct{}{}
-		paths = append(paths, driver.SearchPath{Path: abs, Kind: kind})
+		paths = append(paths, driver.SearchPath{
+			Path:         abs,
+			Kind:         kind,
+			StdlibSource: source,
+		})
 	}
 
 	for _, sp := range extra {
-		add(sp.Path, sp.Kind)
+		add(sp.Path, sp.Kind, sp.StdlibSource)
 	}
 
 	if base != "" {
-		add(base, driver.RootUser)
+		add(base, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 
 	if cwd, err := os.Getwd(); err == nil {
-		add(cwd, driver.RootUser)
+		add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 
 	for _, part := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
-		add(part, driver.RootUser)
+		add(part, driver.RootUser, driver.StdlibSourceEnv)
 	}
 
 	for _, part := range splitPathListEnv(os.Getenv("ABLE_MODULE_PATHS")) {
-		add(part, driver.RootUser)
+		add(part, driver.RootUser, driver.StdlibSourceEnv)
 	}
 
 	if !opts.skipStdlibDiscovery {
 		overrides := loadGlobalOverrides()
 		if stdlibPath, ok := overrides[normalizeGitURL(defaultStdlibGitURL)]; ok {
-			add(resolvePackageSrcPath(stdlibPath), driver.RootStdlib)
+			add(resolvePackageSrcPath(stdlibPath), driver.RootStdlib, driver.StdlibSourceOverride)
 		} else if cachedPath, err := ensureCachedStdlib(); err == nil {
-			add(cachedPath, driver.RootStdlib)
+			add(cachedPath, driver.RootStdlib, driver.StdlibSourceCache)
 		}
 		// Kernel: always use filesystem walk / embedded (no overrides).
 		for _, path := range collectKernelPaths(base) {
-			add(path, driver.RootStdlib)
+			add(path, driver.RootStdlib, driver.StdlibSourceUnknown)
 		}
 	}
 
 	return paths
+}
+
+func finalizeSearchPaths(searchPaths []driver.SearchPath, manifestBased bool) ([]driver.SearchPath, error) {
+	return driver.ResolveCanonicalStdlibSearchPaths(searchPaths, manifestBased)
 }
 
 // ensureCachedStdlib returns the path to the stdlib src directory in the

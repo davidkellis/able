@@ -8,6 +8,7 @@ import (
 
 	"able/interpreter-go/pkg/interpreter"
 	"able/interpreter-go/pkg/runtime"
+	testclipkg "able/interpreter-go/pkg/testcli"
 )
 
 func buildDiscoveryRequest(interp *interpreter.Interpreter, cli *testCliModule, config TestCliConfig) (runtime.Value, error) {
@@ -117,13 +118,15 @@ func createTestReporter(
 	if cli == nil {
 		return nil, fmt.Errorf("missing CLI module")
 	}
-	emit := createEventHandler(interp, format, state)
+	emitter := testclipkg.NewEventEmitter(testclipkg.ReporterFormat(format), os.Stdout, state)
 	emitFn := runtime.NativeFunctionValue{
 		Name:  "__able_test_cli_emit",
 		Arity: 1,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) > 0 && args[0] != nil {
-				emit(args[0])
+				if err := emitter.EmitValue(interp, args[0]); err != nil {
+					fmt.Fprintf(os.Stderr, "able test: %v\n", err)
+				}
 			}
 			return runtime.NilValue{}, nil
 		},
@@ -131,7 +134,7 @@ func createTestReporter(
 
 	if format == reporterJSON || format == reporterTap {
 		if format == reporterTap {
-			fmt.Fprintln(os.Stdout, "TAP version 13")
+			emitter.EmitHeader()
 		}
 		reporter, err := interp.CallFunction(cli.cliReporter, []runtime.Value{emitFn})
 		if err != nil {
@@ -194,7 +197,7 @@ func finishProgressReporter(interp *interpreter.Interpreter, reporter runtime.Va
 }
 
 func emitTestPlanList(interp *interpreter.Interpreter, descriptors runtime.Value, config TestCliConfig) {
-	items, err := decodeDescriptorArray(interp, descriptors)
+	items, err := testclipkg.DecodeDescriptorArray(interp, descriptors)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "able test: %v\n", err)
 		return
@@ -229,101 +232,8 @@ func emitTestPlanList(interp *interpreter.Interpreter, descriptors runtime.Value
 			fmt.Sprintf("tags=%s", tags),
 		}
 		if config.DryRun {
-			parts = append(parts, fmt.Sprintf("metadata=%s", formatMetadata(item.Metadata)))
+			parts = append(parts, fmt.Sprintf("metadata=%s", testclipkg.FormatMetadata(item.Metadata)))
 		}
 		fmt.Fprintln(os.Stdout, strings.Join(parts, " | "))
-	}
-}
-
-func createEventHandler(
-	interp *interpreter.Interpreter,
-	format TestReporterFormat,
-	state *TestEventState,
-) func(runtime.Value) {
-	tapIndex := 0
-	return func(event runtime.Value) {
-		decoded, err := decodeTestEvent(interp, event)
-		if err != nil || decoded == nil {
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "able test: %v\n", err)
-			}
-			return
-		}
-		recordTestEvent(state, decoded)
-
-		switch format {
-		case reporterJSON:
-			payload, err := json.Marshal(decoded)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "able test: %v\n", err)
-				return
-			}
-			fmt.Fprintln(os.Stdout, string(payload))
-		case reporterTap:
-			switch decoded.Kind {
-			case "case_passed":
-				tapIndex++
-				fmt.Fprintf(os.Stdout, "ok %d - %s\n", tapIndex, decoded.Descriptor.DisplayName)
-			case "case_failed":
-				tapIndex++
-				fmt.Fprintf(os.Stdout, "not ok %d - %s\n", tapIndex, decoded.Descriptor.DisplayName)
-				emitTapFailure(decoded.Failure)
-			case "case_skipped":
-				tapIndex++
-				reason := "skipped"
-				if decoded.Reason != nil {
-					reason = *decoded.Reason
-				}
-				fmt.Fprintf(os.Stdout, "ok %d - %s # SKIP %s\n", tapIndex, decoded.Descriptor.DisplayName, reason)
-			case "framework_error":
-				fmt.Fprintf(os.Stdout, "Bail out! %s\n", decoded.Message)
-			}
-		default:
-		}
-	}
-}
-
-func emitTapFailure(failure *failureData) {
-	if failure == nil {
-		return
-	}
-	lines := []string{
-		"  ---",
-		fmt.Sprintf("  message: %s", sanitizeTapValue(failure.Message)),
-	}
-	if failure.Details != nil {
-		lines = append(lines, fmt.Sprintf("  details: %s", sanitizeTapValue(*failure.Details)))
-	}
-	if failure.Location != nil {
-		lines = append(lines, fmt.Sprintf(
-			"  location: %s",
-			sanitizeTapValue(fmt.Sprintf("%s:%d:%d", failure.Location.ModulePath, failure.Location.Line, failure.Location.Column)),
-		))
-	}
-	lines = append(lines, "  ...")
-	for _, line := range lines {
-		fmt.Fprintln(os.Stdout, line)
-	}
-}
-
-func sanitizeTapValue(value string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(value, "\r\n", "\\n"), "\n", "\\n")
-}
-
-func recordTestEvent(state *TestEventState, event *testEvent) {
-	if state == nil || event == nil {
-		return
-	}
-	switch event.Kind {
-	case "case_passed":
-		state.Total++
-	case "case_failed":
-		state.Total++
-		state.Failed++
-	case "case_skipped":
-		state.Total++
-		state.Skipped++
-	case "framework_error":
-		state.FrameworkErrors++
 	}
 }
