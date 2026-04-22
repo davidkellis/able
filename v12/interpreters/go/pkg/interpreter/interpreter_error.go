@@ -95,5 +95,5 @@ func (i *Interpreter) IsErrorValue(val runtime.Value) bool {
 	if i == nil {
 		return false
 	}
-	return i.matchesType(ast.Ty("Error"), val)
+	return i.matchesType(cachedSimpleTypeExpression("Error"), val)
 }

@@ -198,8 +198,23 @@ func NewBigIntValue(val *big.Int, suffix IntegerType) IntegerValue {
 // IsSmall reports whether this value is stored as a native int64.
 func (v IntegerValue) IsSmall() bool { return v.isSmall }
 
+// IsSmallRef reports whether this value is stored as a native int64 without
+// copying the receiver again through a value-method call.
+func (v *IntegerValue) IsSmallRef() bool {
+	return v != nil && v.isSmall
+}
+
 // Int64Fast returns the int64 value without checks. Only valid when IsSmall() is true.
 func (v IntegerValue) Int64Fast() int64 { return v.small }
+
+// Int64FastRef returns the int64 value without checks using a pointer receiver
+// so hot callers can avoid repeated IntegerValue copies.
+func (v *IntegerValue) Int64FastRef() int64 {
+	if v == nil {
+		return 0
+	}
+	return v.small
+}
 
 // BigInt returns the *big.Int representation. If the value is small, a new big.Int is allocated.
 func (v IntegerValue) BigInt() *big.Int {
@@ -492,6 +507,9 @@ type NativeFunctionValue struct {
 	// BorrowArgs marks native implementations that do not retain the args
 	// slice after returning, allowing callers to pass borrowed backing storage.
 	BorrowArgs bool
+	// SkipContext marks native implementations that do not observe call context
+	// so callers can bypass NativeCallContext pooling/setup on the hot path.
+	SkipContext bool
 }
 
 func (v NativeFunctionValue) Kind() Kind { return KindNativeFunction }

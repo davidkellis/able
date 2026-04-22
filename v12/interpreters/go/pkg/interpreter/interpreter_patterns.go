@@ -248,7 +248,7 @@ func (i *Interpreter) assignPatternForLoop(pattern ast.Pattern, value runtime.Va
 		return nil, err
 	}
 	for _, binding := range bindings {
-		env.Define(binding.name, binding.value)
+		env.DefineWithoutMerge(binding.name, binding.value)
 	}
 	if value == nil {
 		value = runtime.NilValue{}
@@ -432,33 +432,77 @@ func (i *Interpreter) errorValueToStructInstance(err runtime.ErrorValue) *runtim
 	return inst
 }
 
-func (i *Interpreter) matchPattern(pattern ast.Pattern, value runtime.Value, base *runtime.Environment) (*runtime.Environment, bool) {
-	if pattern == nil {
-		return nil, false
+func (i *Interpreter) matchPatternFast(pattern ast.Pattern, value runtime.Value, base *runtime.Environment) (*runtime.Environment, bool, bool) {
+	if pattern == nil || base == nil {
+		return nil, false, false
 	}
 	if ident, ok := pattern.(*ast.Identifier); ok && ident != nil {
-		if existing, err := base.Get(ident.Name); err == nil {
+		if ident.Name == "" || ident.Name == "_" {
+			return runtime.NewEnvironment(base), true, true
+		}
+		if existing, ok := base.Lookup(ident.Name); ok {
 			switch defVal := existing.(type) {
 			case *runtime.StructDefinitionValue:
 				if isSingletonStructDef(defVal.Node) {
 					if valuesEqual(existing, value) {
-						return runtime.NewEnvironment(base), true
+						return runtime.NewEnvironment(base), true, true
 					}
-					return nil, false
+					return nil, false, true
 				}
 			case runtime.StructDefinitionValue:
 				if isSingletonStructDef(defVal.Node) {
 					if valuesEqual(existing, value) {
-						return runtime.NewEnvironment(base), true
+						return runtime.NewEnvironment(base), true, true
 					}
-					return nil, false
+					return nil, false, true
 				}
 			}
 		}
+		matchEnv := runtime.NewEnvironmentWithValueCapacity(base, 1)
+		matchEnv.DefineWithoutMerge(ident.Name, value)
+		return matchEnv, true, true
 	}
-	matchEnv := runtime.NewEnvironment(base)
-	if err := i.assignPattern(pattern, value, matchEnv, true, nil); err != nil {
+	switch p := pattern.(type) {
+	case *ast.WildcardPattern:
+		return runtime.NewEnvironment(base), true, true
+	case *ast.LiteralPattern:
+		litExpr, ok := p.Literal.(ast.Expression)
+		if !ok {
+			return nil, false, true
+		}
+		litVal, err := i.evaluateExpression(litExpr, base)
+		if err != nil || !valuesEqual(litVal, value) {
+			return nil, false, true
+		}
+		return runtime.NewEnvironment(base), true, true
+	case *ast.TypedPattern:
+		if !i.matchesType(p.TypeAnnotation, value) {
+			return nil, false, true
+		}
+		coerced, err := i.coerceValueToType(p.TypeAnnotation, value)
+		if err != nil {
+			return nil, false, true
+		}
+		return i.matchPatternFast(p.Pattern, coerced, base)
+	default:
+		return nil, false, false
+	}
+}
+
+func (i *Interpreter) matchPattern(pattern ast.Pattern, value runtime.Value, base *runtime.Environment) (*runtime.Environment, bool) {
+	if pattern == nil {
 		return nil, false
+	}
+	if matchEnv, matched, handled := i.matchPatternFast(pattern, value, base); handled {
+		return matchEnv, matched
+	}
+	bindings := make([]patternBinding, 0, 4)
+	if err := i.collectPatternBindings(pattern, value, base, &bindings); err != nil {
+		return nil, false
+	}
+	matchEnv := runtime.NewEnvironmentWithValueCapacity(base, len(bindings))
+	for _, binding := range bindings {
+		matchEnv.DefineWithoutMerge(binding.name, binding.value)
 	}
 	return matchEnv, true
 }

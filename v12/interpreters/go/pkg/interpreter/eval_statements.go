@@ -91,8 +91,9 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 
 func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Environment) (runtime.Value, error) {
 	payload := payloadFromState(env.RuntimeData())
+	scopeCapacity := blockLocalBindingCapacity(block)
 	if payload == nil {
-		scope := runtime.NewEnvironment(env)
+		scope := runtime.NewEnvironmentWithValueCapacity(env, scopeCapacity)
 		var result runtime.Value = runtime.VoidValue{}
 		for _, stmt := range block.Body {
 			val, err := i.evaluateStatement(stmt, scope)
@@ -114,7 +115,7 @@ func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Env
 	frame := state.blockFrames[block]
 	if frame == nil {
 		frame = &blockFrame{
-			env:    runtime.NewEnvironment(env),
+			env:    runtime.NewEnvironmentWithValueCapacity(env, scopeCapacity),
 			index:  0,
 			result: runtime.VoidValue{},
 		}
@@ -122,7 +123,7 @@ func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Env
 	}
 	scope := frame.env
 	if scope == nil {
-		scope = runtime.NewEnvironment(env)
+		scope = runtime.NewEnvironmentWithValueCapacity(env, scopeCapacity)
 		frame.env = scope
 	}
 	result := frame.result
@@ -229,15 +230,7 @@ func (i *Interpreter) evaluateReturnStatement(stmt *ast.ReturnStatement, env *ru
 		}
 		result = val
 	}
-	state := i.stateFromEnv(env)
-	var context *runtimeDiagnosticContext
-	if state != nil {
-		context = &runtimeDiagnosticContext{
-			node:      stmt,
-			callStack: state.snapshotCallStack(),
-		}
-	}
-	return nil, returnSignal{value: result, context: context}
+	return nil, returnSignal{value: result, node: stmt}
 }
 
 func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environment) (runtime.Value, error) {
@@ -301,7 +294,8 @@ func (i *Interpreter) iterateDynamicIterator(loop *ast.ForLoop, baseEnv *runtime
 }
 
 func (i *Interpreter) runForLoopBody(loop *ast.ForLoop, baseEnv *runtime.Environment, element runtime.Value) (runtime.Value, bool, error) {
-	iterEnv := runtime.NewEnvironment(baseEnv)
+	iterCapacity := patternBindingCapacity(loop.Pattern) + blockLocalBindingCapacity(loop.Body)
+	iterEnv := runtime.NewEnvironmentWithValueCapacity(baseEnv, iterCapacity)
 	assigned, err := i.assignPatternForLoop(loop.Pattern, element, iterEnv)
 	if err != nil {
 		return nil, false, err

@@ -207,7 +207,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		reuseClosureEnv := canReuseFunctionClosureEnvForBytecode(slotProgram, decl, call, fn.Closure)
 		localEnv := fn.Closure
 		if !reuseClosureEnv {
-			localEnv = runtime.NewEnvironment(fn.Closure)
+			localEnv = runtime.NewEnvironmentWithValueCapacity(fn.Closure, functionLocalBindingCapacity(decl, call))
 			if call != nil {
 				i.bindTypeArgumentsIfAny(decl, call, localEnv)
 			}
@@ -335,8 +335,8 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 						}
 						coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, generics, localEnv)
 						if err != nil {
-							if ret.context != nil {
-								return nil, runtimeDiagnosticError{err: err, context: ret.context}
+							if ret.node != nil {
+								return nil, i.attachRuntimeContext(err, ret.node, i.stateFromEnv(localEnv))
 							}
 							return nil, err
 						}
@@ -364,8 +364,8 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				}
 				coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, generics, localEnv)
 				if err != nil {
-					if ret.context != nil {
-						return nil, runtimeDiagnosticError{err: err, context: ret.context}
+					if ret.node != nil {
+						return nil, i.attachRuntimeContext(err, ret.node, i.stateFromEnv(localEnv))
 					}
 					return nil, err
 				}
@@ -389,7 +389,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		if len(args) != len(decl.Params) {
 			return nil, fmt.Errorf("Lambda expects %d arguments, got %d", len(decl.Params), len(args))
 		}
-		localEnv := runtime.NewEnvironment(fn.Closure)
+		localEnv := runtime.NewEnvironmentWithValueCapacity(fn.Closure, lambdaLocalBindingCapacity(decl, call))
 		if call != nil {
 			i.bindTypeArgumentsIfAny(decl, call, localEnv)
 		}
@@ -426,8 +426,8 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 						}
 						coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, lambdaGenerics, localEnv)
 						if err != nil {
-							if ret.context != nil {
-								return nil, runtimeDiagnosticError{err: err, context: ret.context}
+							if ret.node != nil {
+								return nil, i.attachRuntimeContext(err, ret.node, i.stateFromEnv(localEnv))
 							}
 							return nil, err
 						}
@@ -451,8 +451,8 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				}
 				coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, lambdaGenerics, localEnv)
 				if err != nil {
-					if ret.context != nil {
-						return nil, runtimeDiagnosticError{err: err, context: ret.context}
+					if ret.node != nil {
+						return nil, i.attachRuntimeContext(err, ret.node, i.stateFromEnv(localEnv))
 					}
 					return nil, err
 				}
@@ -502,19 +502,27 @@ func (i *Interpreter) callCallableValueMutable(callee runtime.Value, args []runt
 }
 
 func (i *Interpreter) callCallableValueWithMutability(callee runtime.Value, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall, argsMutable bool) (runtime.Value, error) {
+	return i.callCallableValueWithOptionalInjectedReceiver(callee, args, env, call, argsMutable, nil, false)
+}
+
+func (i *Interpreter) callCallableValueWithInjectedReceiver(callee runtime.Value, receiver runtime.Value, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall, argsMutable bool) (runtime.Value, error) {
+	return i.callCallableValueWithOptionalInjectedReceiver(callee, args, env, call, argsMutable, receiver, true)
+}
+
+func (i *Interpreter) callCallableValueWithOptionalInjectedReceiver(callee runtime.Value, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall, argsMutable bool, injectedReceiver runtime.Value, hasInjectedReceiver bool) (runtime.Value, error) {
 	if callee == nil {
 		return nil, fmt.Errorf("call target missing function value")
 	}
 	switch fn := callee.(type) {
 	case runtime.PartialFunctionValue:
 		merged := mergePartialCallArgs(fn.BoundArgs, args)
-		return i.callCallableValueWithMutability(fn.Target, merged, env, call, false)
+		return i.callCallableValueWithOptionalInjectedReceiver(fn.Target, merged, env, call, false, injectedReceiver, hasInjectedReceiver)
 	case *runtime.PartialFunctionValue:
 		if fn == nil {
 			return nil, fmt.Errorf("partial function is nil")
 		}
 		merged := mergePartialCallArgs(fn.BoundArgs, args)
-		return i.callCallableValueWithMutability(fn.Target, merged, env, call, false)
+		return i.callCallableValueWithOptionalInjectedReceiver(fn.Target, merged, env, call, false, injectedReceiver, hasInjectedReceiver)
 	}
 	if state := i.stateFromEnv(env); call != nil {
 		state.pushCallFrame(call)
@@ -526,8 +534,6 @@ func (i *Interpreter) callCallableValueWithMutability(callee runtime.Value, args
 	}
 	var native runtime.NativeFunctionValue
 	hasNative := false
-	var injectedReceiver runtime.Value
-	hasInjectedReceiver := false
 	var directFunction *runtime.FunctionValue
 	var overloads []*runtime.FunctionValue
 	partialTarget := callee
@@ -572,7 +578,7 @@ func (i *Interpreter) callCallableValueWithMutability(callee runtime.Value, args
 		if err != nil {
 			return nil, err
 		}
-		return i.callCallableValueWithMutability(resolved, args, env, call, argsMutable)
+		return i.callCallableValueWithOptionalInjectedReceiver(resolved, args, env, call, argsMutable, injectedReceiver, hasInjectedReceiver)
 	case *runtime.DynRefValue:
 		if fn == nil {
 			return nil, fmt.Errorf("dyn ref is nil")
@@ -581,7 +587,7 @@ func (i *Interpreter) callCallableValueWithMutability(callee runtime.Value, args
 		if err != nil {
 			return nil, err
 		}
-		return i.callCallableValueWithMutability(resolved, args, env, call, argsMutable)
+		return i.callCallableValueWithOptionalInjectedReceiver(resolved, args, env, call, argsMutable, injectedReceiver, hasInjectedReceiver)
 	case runtime.BoundMethodValue:
 		injectedReceiver = fn.Receiver
 		hasInjectedReceiver = true
@@ -645,10 +651,7 @@ func (i *Interpreter) callCallableValueWithMutability(callee runtime.Value, args
 				return makePartialFunctionValue(partialTarget, evalArgs, call), nil
 			}
 		}
-		ctx := i.acquireNativeCallContext(env, callState)
-		result, err := native.Impl(ctx, evalArgs)
-		i.releaseNativeCallContext(ctx)
-		return result, err
+		return i.invokeNativeFunctionValue(native, env, callState, evalArgs)
 	}
 	if directFunction != nil {
 		minRequired := minArgsForFunctionValue(directFunction)
@@ -673,7 +676,7 @@ func (i *Interpreter) callCallableValueWithMutability(callee runtime.Value, args
 	if len(overloads) == 0 {
 		if applyMethod, err := i.findApplyMethod(callee); err == nil && applyMethod != nil {
 			bound := runtime.BoundMethodValue{Receiver: callee, Method: applyMethod}
-			return i.callCallableValue(bound, args, env, call)
+			return i.callCallableValueWithOptionalInjectedReceiver(bound, args, env, call, false, nil, false)
 		} else if err != nil {
 			return nil, err
 		}
@@ -884,13 +887,17 @@ func (i *Interpreter) bindTypeArgumentsIfAny(funcNode ast.Node, call *ast.Functi
 }
 
 func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *runtime.Environment) (runtime.Value, error) {
-	iterEnv := runtime.NewEnvironment(env)
-	instance := newGeneratorInstance(i, iterEnv, expr.Body)
-	controller := instance.controllerValue()
+	iterCapacity := 1
 	bindingName := "gen"
 	if expr.Binding != nil && expr.Binding.Name != "" {
 		bindingName = expr.Binding.Name
+		if bindingName != "gen" {
+			iterCapacity = 2
+		}
 	}
+	iterEnv := runtime.NewEnvironmentWithValueCapacity(env, iterCapacity)
+	instance := newGeneratorInstance(i, iterEnv, expr.Body)
+	controller := instance.controllerValue()
 	iterEnv.Define(bindingName, controller)
 	if bindingName != "gen" {
 		iterEnv.Define("gen", controller)

@@ -73,6 +73,56 @@ func TestMatchExpressionStructGuard(t *testing.T) {
 	}
 }
 
+func TestMatchExpressionLiteralClauseKeepsLocalBindingsScoped(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Match(
+			ast.Int(1),
+			ast.Mc(
+				ast.LitP(ast.Int(1)),
+				ast.Block(
+					ast.Assign(ast.ID("inner"), ast.Int(9)),
+					ast.ID("inner"),
+				),
+			),
+		),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.BigInt().Cmp(bigInt(9)) != 0 {
+		t.Fatalf("expected integer 9, got %#v", result)
+	}
+	if _, err := env.Get("inner"); err == nil {
+		t.Fatalf("literal match clause binding leaked into outer scope")
+	}
+}
+
+func TestMatchExpressionTypedIdentifierPatternBindsValue(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Match(
+			ast.Int(4),
+			ast.Mc(
+				ast.TypedP(ast.ID("value"), ast.Ty("i32")),
+				ast.Bin("+", ast.ID("value"), ast.Int(6)),
+			),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.BigInt().Cmp(bigInt(10)) != 0 {
+		t.Fatalf("expected integer 10, got %#v", result)
+	}
+}
+
 func TestDestructuringAssignmentArrayPattern(t *testing.T) {
 	interp := New()
 	patternWithRest := ast.ArrP([]ast.Pattern{ast.PatternFrom("first"), ast.PatternFrom("second")}, ast.PatternFrom("rest"))

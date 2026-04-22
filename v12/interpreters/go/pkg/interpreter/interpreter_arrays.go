@@ -3,36 +3,12 @@ package interpreter
 import (
 	"fmt"
 	"math"
-	"sync"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
 
 type arrayState = runtime.ArrayState
-
-const arrayMetadataBoxU64Max int64 = 16384
-
-var (
-	arrayMetadataBoxU64Once sync.Once
-	arrayMetadataBoxedU64   []runtime.Value
-)
-
-func initArrayMetadataU64BoxCache() {
-	size := int(arrayMetadataBoxU64Max) + 1
-	arrayMetadataBoxedU64 = make([]runtime.Value, size)
-	for idx := range arrayMetadataBoxedU64 {
-		arrayMetadataBoxedU64[idx] = runtime.NewSmallInt(int64(idx), runtime.IntegerU64)
-	}
-}
-
-func boxedArrayMetadataU64Value(value int64) (runtime.Value, bool) {
-	if value < 0 || value > arrayMetadataBoxU64Max {
-		return nil, false
-	}
-	arrayMetadataBoxU64Once.Do(initArrayMetadataU64BoxCache)
-	return arrayMetadataBoxedU64[int(value)], true
-}
 
 func (i *Interpreter) trackArrayValue(handle int64, arr *runtime.ArrayValue) {
 	if arr == nil || handle == 0 {
@@ -370,7 +346,7 @@ func (i *Interpreter) initArrayBuiltins() {
 				return nil, err
 			}
 			sizeVal := int64(size)
-			if boxed, ok := boxedArrayMetadataU64Value(sizeVal); ok {
+			if boxed, ok := runtime.BoxedArrayMetadataU64Value(sizeVal); ok {
 				return boxed, nil
 			}
 			return runtime.NewSmallInt(sizeVal, runtime.IntegerU64), nil
@@ -394,7 +370,7 @@ func (i *Interpreter) initArrayBuiltins() {
 				return nil, err
 			}
 			capacityVal := int64(capacity)
-			if boxed, ok := boxedArrayMetadataU64Value(capacityVal); ok {
+			if boxed, ok := runtime.BoxedArrayMetadataU64Value(capacityVal); ok {
 				return boxed, nil
 			}
 			return runtime.NewSmallInt(capacityVal, runtime.IntegerU64), nil
@@ -590,17 +566,9 @@ func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression
 		}
 		return runtime.NewSmallInt(arr.Handle, runtime.IntegerI64), nil
 	case "length":
-		length := int64(len(state.Values))
-		if boxed, ok := boxedSmallIntValue(runtime.IntegerI32, length); ok {
-			return boxed, nil
-		}
-		return runtime.NewSmallInt(length, runtime.IntegerI32), nil
+		return state.BoxedLengthValue(), nil
 	case "capacity":
-		capacity := int64(state.Capacity)
-		if boxed, ok := boxedSmallIntValue(runtime.IntegerI32, capacity); ok {
-			return boxed, nil
-		}
-		return runtime.NewSmallInt(capacity, runtime.IntegerI32), nil
+		return state.BoxedCapacityValue(), nil
 	case "iterator":
 		fn := runtime.NativeFunctionValue{
 			Name:       "array.iterator",
@@ -636,6 +604,15 @@ func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression
 		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
 	default:
 		return nil, fmt.Errorf("array has no member '%s' (import able.collections.array for stdlib helpers)", ident.Name)
+	}
+}
+
+func isDirectArrayMemberName(name string) bool {
+	switch name {
+	case "storage_handle", "length", "capacity", "iterator":
+		return true
+	default:
+		return false
 	}
 }
 

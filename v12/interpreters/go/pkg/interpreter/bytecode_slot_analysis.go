@@ -19,6 +19,7 @@ type bytecodeFrameLayout struct {
 	methodShorthand     bool               // true when the declaration used implicit self shorthand
 	selfCallSlot        int                // reserved slot for recursive self-call fast path; -1 when disabled
 	returnType          ast.TypeExpression // declared return type (for coercion on inline return)
+	returnSimpleType    string             // cached simple type name for inline return coercion checks
 	usesImplicitMember  bool               // true if body references #member syntax
 	needsEnvScopes      bool               // true if body has definitions needing env registration
 	selfCallOneArgFast  bool               // true when one-arg self-call inline can skip declaration shape checks
@@ -87,6 +88,7 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		methodShorthand:     def.IsMethodShorthand,
 		selfCallSlot:        -1,
 		returnType:          def.ReturnType,
+		returnSimpleType:    cachedSimpleTypeName(def.ReturnType),
 		usesImplicitMember:  blockUsesImplicitMember(def.Body),
 		needsEnvScopes:      blockNeedsEnvScopes(def.Body),
 		selfCallOneArgFast:  !def.IsMethodShorthand && len(def.Params) == 1 && len(def.GenericParams) == 0,

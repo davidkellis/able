@@ -69,18 +69,42 @@ func (vm *bytecodeVM) resetForRun(interp *Interpreter, env *runtime.Environment)
 		}
 		vm.callFrames = vm.callFrames[:0]
 	}
-
-	vm.globalLookupCache = nil
-	vm.scopeLookupCache = nil
-	vm.nameLookupHot = bytecodeInlineNameLookupCacheEntry{}
-	vm.callNameCache = nil
-	vm.callNameHot = bytecodeInlineCallNameCacheEntry{}
-	vm.memberMethodCache = nil
-	vm.memberMethodHot = bytecodeInlineMemberMethodCacheEntry{}
-	vm.indexMethodCache = nil
-	vm.indexMethodHot = bytecodeInlineIndexMethodCacheEntry{}
-	// Keep immutable per-program decode/validation caches across pooled runs.
-	// They are keyed by bytecodeProgram pointers and refreshed on length mismatch.
+	if len(vm.selfFastCallFrames) > 0 {
+		for idx := range vm.selfFastCallFrames {
+			frame := &vm.selfFastCallFrames[idx]
+			frame.returnIP = 0
+			if frame.slots != nil {
+				clear(frame.slots)
+				frame.slots = nil
+			}
+			frame.returnGenericNames = nil
+			frame.iterBase = 0
+			frame.loopBase = 0
+			frame.hasImplicitReceiver = false
+		}
+		vm.selfFastCallFrames = vm.selfFastCallFrames[:0]
+	}
+	if len(vm.selfFastMinimal) > 0 {
+		for idx := range vm.selfFastMinimal {
+			frame := &vm.selfFastMinimal[idx]
+			frame.returnIP = 0
+			if frame.slots != nil {
+				clear(frame.slots)
+				frame.slots = nil
+			}
+		}
+		vm.selfFastMinimal = vm.selfFastMinimal[:0]
+	}
+	vm.selfFastMinimalSuffix = 0
+	if len(vm.callFrameKinds) > 0 {
+		clear(vm.callFrameKinds)
+		vm.callFrameKinds = vm.callFrameKinds[:0]
+	}
+	// Keep validated per-program lookup/method caches across pooled runs. They
+	// are keyed by bytecodeProgram pointers and revalidated against current
+	// environments, revisions, and receiver identities before every hit, so
+	// preserving them avoids rebuilding the same steady-state caches on every
+	// repeated main() call.
 }
 
 func (vm *bytecodeVM) resetForPool() {

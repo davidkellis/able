@@ -53,33 +53,78 @@ func canonicalizeExpandedTypeExpression(expr ast.TypeExpression, env *runtime.En
 		return ast.Ty(name)
 	case *ast.GenericTypeExpression:
 		base := canonicalizeExpandedTypeExpression(t.Base, env)
-		args := make([]ast.TypeExpression, len(t.Arguments))
+		var args []ast.TypeExpression
 		for idx, arg := range t.Arguments {
 			if arg == nil {
 				continue
 			}
-			args[idx] = canonicalizeExpandedTypeExpression(arg, env)
+			canonicalArg := canonicalizeExpandedTypeExpression(arg, env)
+			if canonicalArg == arg {
+				continue
+			}
+			if args == nil {
+				args = append([]ast.TypeExpression(nil), t.Arguments...)
+			}
+			args[idx] = canonicalArg
+		}
+		if base == t.Base && args == nil {
+			return expr
+		}
+		if args == nil {
+			return ast.Gen(base, t.Arguments...)
 		}
 		return ast.Gen(base, args...)
 	case *ast.NullableTypeExpression:
-		return ast.Nullable(canonicalizeExpandedTypeExpression(t.InnerType, env))
+		inner := canonicalizeExpandedTypeExpression(t.InnerType, env)
+		if inner == t.InnerType {
+			return expr
+		}
+		return ast.Nullable(inner)
 	case *ast.ResultTypeExpression:
-		return ast.Result(canonicalizeExpandedTypeExpression(t.InnerType, env))
+		inner := canonicalizeExpandedTypeExpression(t.InnerType, env)
+		if inner == t.InnerType {
+			return expr
+		}
+		return ast.Result(inner)
 	case *ast.UnionTypeExpression:
-		members := make([]ast.TypeExpression, len(t.Members))
+		var members []ast.TypeExpression
 		for idx, member := range t.Members {
 			if member == nil {
 				continue
 			}
-			members[idx] = canonicalizeExpandedTypeExpression(member, env)
+			canonicalMember := canonicalizeExpandedTypeExpression(member, env)
+			if canonicalMember == member {
+				continue
+			}
+			if members == nil {
+				members = append([]ast.TypeExpression(nil), t.Members...)
+			}
+			members[idx] = canonicalMember
+		}
+		if members == nil {
+			return expr
 		}
 		return ast.UnionT(members...)
 	case *ast.FunctionTypeExpression:
-		params := make([]ast.TypeExpression, len(t.ParamTypes))
+		ret := canonicalizeExpandedTypeExpression(t.ReturnType, env)
+		var params []ast.TypeExpression
 		for idx, param := range t.ParamTypes {
-			params[idx] = canonicalizeExpandedTypeExpression(param, env)
+			canonicalParam := canonicalizeExpandedTypeExpression(param, env)
+			if canonicalParam == param {
+				continue
+			}
+			if params == nil {
+				params = append([]ast.TypeExpression(nil), t.ParamTypes...)
+			}
+			params[idx] = canonicalParam
 		}
-		return ast.FnType(params, canonicalizeExpandedTypeExpression(t.ReturnType, env))
+		if params == nil && ret == t.ReturnType {
+			return expr
+		}
+		if params == nil {
+			return ast.FnType(t.ParamTypes, ret)
+		}
+		return ast.FnType(params, ret)
 	default:
 		return expr
 	}
@@ -192,8 +237,10 @@ func (i *Interpreter) makeExternNative(def *ast.ExternFunctionBody, pkgName stri
 		return nil
 	}
 	return &runtime.NativeFunctionValue{
-		Name:  name,
-		Arity: arity,
+		Name:        name,
+		Arity:       arity,
+		BorrowArgs:  true,
+		SkipContext: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			return i.invokeExternHostFunction(pkgName, def, args)
 		},
@@ -626,10 +673,11 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	structName := lit.StructType.Name
 	structDefVal, ok := env.StructDefinition(structName)
 	if !ok {
-		defValue, err := env.Get(structName)
-		if err != nil {
-			return nil, err
+		defValue, found := env.Lookup(structName)
+		if !found {
+			return nil, fmt.Errorf("Undefined variable '%s'", structName)
 		}
+		var err error
 		structDefVal, err = toStructDefinitionValue(defValue, structName)
 		if err != nil {
 			return nil, err
@@ -639,7 +687,10 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	if structDef == nil {
 		return nil, fmt.Errorf("struct definition '%s' unavailable", structName)
 	}
-	explicitTypeArgs := append([]ast.TypeExpression(nil), lit.TypeArguments...)
+	var explicitTypeArgs []ast.TypeExpression
+	if len(lit.TypeArguments) > 0 {
+		explicitTypeArgs = append([]ast.TypeExpression(nil), lit.TypeArguments...)
+	}
 	if lit.IsPositional {
 		if structDef.Kind != ast.StructKindPositional && structDef.Kind != ast.StructKindSingleton {
 			return nil, fmt.Errorf("Positional struct literal not allowed for struct '%s'", structName)
@@ -680,7 +731,11 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	if updateCount > 0 && structDef.Kind == ast.StructKindPositional {
 		return nil, fmt.Errorf("Functional update only supported for named structs")
 	}
-	fields := make(map[string]runtime.Value)
+	fieldCapacity := len(lit.Fields)
+	if fieldCapacity < len(structDef.Fields) {
+		fieldCapacity = len(structDef.Fields)
+	}
+	fields := make(map[string]runtime.Value, fieldCapacity)
 	var baseStruct *runtime.StructInstanceValue
 	for idx, srcExpr := range lit.FunctionalUpdateSources {
 		base, err := i.evaluateExpression(srcExpr, env)
@@ -728,7 +783,11 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 		var val runtime.Value
 		var err error
 		if f.IsShorthand && f.Value == nil {
-			val, err = env.Get(name)
+			var ok bool
+			val, ok = env.Lookup(name)
+			if !ok {
+				err = fmt.Errorf("Undefined variable '%s'", name)
+			}
 		} else {
 			val, err = i.evaluateExpression(f.Value, env)
 		}
@@ -738,17 +797,12 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 		fields[name] = val
 	}
 	if structDef.Kind == ast.StructKindNamed {
-		required := make(map[string]struct{}, len(structDef.Fields))
 		for _, defField := range structDef.Fields {
-			if defField.Name != nil {
-				required[defField.Name.Name] = struct{}{}
+			if defField == nil || defField.Name == nil {
+				continue
 			}
-		}
-		for k := range fields {
-			delete(required, k)
-		}
-		if len(required) > 0 {
-			for missing := range required {
+			if _, ok := fields[defField.Name.Name]; !ok {
+				missing := defField.Name.Name
 				return nil, fmt.Errorf("Missing field '%s' for struct '%s'", missing, structName)
 			}
 		}

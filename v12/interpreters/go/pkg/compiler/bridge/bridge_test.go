@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"math/big"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -125,6 +126,105 @@ func TestSwapEnvIfNeededSwapsDifferentEnvironment(t *testing.T) {
 	}
 }
 
+func TestSwapEnvIfNeededConcurrentUsesGoroutineLocalEnvironment(t *testing.T) {
+	rt := New(interpreter.New())
+	base := runtime.NewEnvironment(nil)
+	next := runtime.NewEnvironment(nil)
+	rt.SetEnv(base)
+	rt.MarkConcurrent()
+
+	prev, swapped := SwapEnvIfNeeded(rt, next)
+	if !swapped {
+		t.Fatalf("SwapEnvIfNeeded did not swap distinct concurrent environment")
+	}
+	if prev != base {
+		t.Fatalf("SwapEnvIfNeeded prev = %p, want %p", prev, base)
+	}
+	if got := rt.Env(); got != next {
+		t.Fatalf("Env() after concurrent swap = %p, want %p", got, next)
+	}
+
+	RestoreEnvIfNeeded(rt, prev, swapped)
+	if got := rt.Env(); got != base {
+		t.Fatalf("Env() after concurrent restore = %p, want %p", got, base)
+	}
+}
+
+func TestBridgeCallFramesSingleThreadSnapshot(t *testing.T) {
+	rt := New(interpreter.New())
+	callA := ast.Call("a")
+	callB := ast.Call("b")
+
+	PushCallFrame(rt, callA)
+	PushCallFrame(rt, callB)
+
+	got := rt.snapshotBridgeCallFrames()
+	if len(got) != 2 || got[0] != callA || got[1] != callB {
+		t.Fatalf("snapshotBridgeCallFrames = %#v, want [%p %p]", got, callA, callB)
+	}
+
+	PopCallFrame(rt)
+	got = rt.snapshotBridgeCallFrames()
+	if len(got) != 1 || got[0] != callA {
+		t.Fatalf("snapshotBridgeCallFrames after pop = %#v, want [%p]", got, callA)
+	}
+}
+
+func TestBridgeCallFramesConcurrentSnapshot(t *testing.T) {
+	rt := New(interpreter.New())
+	rt.MarkConcurrent()
+	call := ast.Call("concurrent")
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		PushCallFrame(rt, call)
+		got := rt.snapshotBridgeCallFrames()
+		if len(got) != 1 || got[0] != call {
+			t.Errorf("snapshotBridgeCallFrames in goroutine = %#v, want [%p]", got, call)
+		}
+		PopCallFrame(rt)
+	}()
+	<-done
+
+	if got := rt.snapshotBridgeCallFrames(); len(got) != 0 {
+		t.Fatalf("main goroutine snapshotBridgeCallFrames = %#v, want empty", got)
+	}
+}
+
+func TestAppendCallFrameError(t *testing.T) {
+	interp := interpreter.New()
+	rt := New(interp)
+	root, err := filepath.Abs("../../../../../..")
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	path := filepath.Join(root, "v12/fixtures/exec/11_03_raise_exit_unhandled/main.able")
+	errorNode := ast.ID("boom")
+	callNode := ast.Call("caller")
+	ast.SetSpan(errorNode, ast.Span{
+		Start: ast.Position{Line: 3, Column: 1},
+		End:   ast.Position{Line: 3, Column: 5},
+	})
+	ast.SetSpan(callNode, ast.Span{
+		Start: ast.Position{Line: 7, Column: 2},
+		End:   ast.Position{Line: 7, Column: 8},
+	})
+	interp.SetNodeOrigins(map[ast.Node]string{
+		errorNode: path,
+		callNode:  path,
+	})
+
+	got := interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(
+		AppendCallFrameError(rt, RaisedError(rt, errorNode, runtime.ErrorValue{Message: "boom"}), callNode),
+	))
+	for _, part := range []string{"boom", "called from here", "main.able:3:1", "main.able:7:2"} {
+		if !strings.Contains(got, part) {
+			t.Fatalf("expected diagnostic %q to contain %q", got, part)
+		}
+	}
+}
+
 func TestExecutorKind(t *testing.T) {
 	if got := ExecutorKind(nil); got != "serial" {
 		t.Fatalf("ExecutorKind(nil) = %q, want serial", got)
@@ -136,6 +236,11 @@ func TestExecutorKind(t *testing.T) {
 	goroutine := New(interpreter.NewWithExecutor(interpreter.NewGoroutineExecutor(nil)))
 	if got := ExecutorKind(goroutine); got != "goroutine" {
 		t.Fatalf("ExecutorKind(goroutine) = %q, want goroutine", got)
+	}
+	override := New(nil)
+	override.SetExecutorKind("goroutine")
+	if got := ExecutorKind(override); got != "goroutine" {
+		t.Fatalf("ExecutorKind(override) = %q, want goroutine", got)
 	}
 }
 

@@ -525,7 +525,7 @@ func (g *generator) renderNativeInterfaceConcreteAdapter(buf *bytes.Buffer, info
 			}
 			args = append(args, argExpr)
 		}
-		fmt.Fprintf(buf, "\tresult, control := __able_compiled_%s(%s)\n", impl.Info.GoName, strings.Join(args, ", "))
+		fmt.Fprintf(buf, "\tresult, control := %s(%s)\n", g.compiledCallTargetName("", impl.Info), strings.Join(args, ", "))
 		fmt.Fprintf(buf, "\tif control != nil {\n")
 		fmt.Fprintf(buf, "\t\treturn %s, control\n", zeroExpr)
 		fmt.Fprintf(buf, "\t}\n")

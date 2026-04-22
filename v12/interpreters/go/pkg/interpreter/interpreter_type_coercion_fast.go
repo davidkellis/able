@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"able/interpreter-go/pkg/ast"
@@ -25,6 +26,46 @@ func (i *Interpreter) coerceValueToTypeWouldBeNoOp(typeExpr ast.TypeExpression) 
 	default:
 		return true
 	}
+}
+
+func castSmallIntToIntegerKindFast(value int64, targetKind runtime.IntegerType, info integerInfo) (runtime.Value, bool) {
+	if info.bits <= 0 {
+		return nil, false
+	}
+	if info.signed {
+		if info.bits >= 64 {
+			return boxedOrSmallIntegerValue(targetKind, value), true
+		}
+		mask := (uint64(1) << uint(info.bits)) - 1
+		bits := uint64(value) & mask
+		signBit := uint64(1) << uint(info.bits-1)
+		if bits&signBit != 0 {
+			bits |= ^mask
+		}
+		return boxedOrSmallIntegerValue(targetKind, int64(bits)), true
+	}
+	if info.bits < 64 {
+		mask := (uint64(1) << uint(info.bits)) - 1
+		return boxedOrSmallIntegerValue(targetKind, int64(uint64(value)&mask)), true
+	}
+	if value >= 0 {
+		return boxedOrSmallIntegerValue(targetKind, value), true
+	}
+	bits := uint64(value)
+	if bits <= math.MaxInt64 {
+		return boxedOrSmallIntegerValue(targetKind, int64(bits)), true
+	}
+	return nil, false
+}
+
+func castIntegerValueToTargetKindFast(val runtime.IntegerValue, targetKind runtime.IntegerType, info integerInfo) (runtime.Value, bool) {
+	if val.TypeSuffix == targetKind {
+		return val, true
+	}
+	if val.IsSmall() {
+		return castSmallIntToIntegerKindFast(val.Int64Fast(), targetKind, info)
+	}
+	return nil, false
 }
 
 func castValueToCanonicalSimpleTypeFast(typeName string, rawValue runtime.Value) (runtime.Value, bool, error) {
@@ -78,8 +119,8 @@ func castValueToCanonicalSimpleTypeFast(typeName string, rawValue runtime.Value)
 	if info, ok := lookupIntegerInfo(targetKind); ok {
 		switch val := rawValue.(type) {
 		case runtime.IntegerValue:
-			if val.TypeSuffix == targetKind {
-				return rawValue, true, nil
+			if casted, ok := castIntegerValueToTargetKindFast(val, targetKind, info); ok {
+				return casted, true, nil
 			}
 			wrapped := patternToInteger(bitPattern(val.BigInt(), info), info)
 			if wrapped.IsInt64() {
@@ -90,8 +131,8 @@ func castValueToCanonicalSimpleTypeFast(typeName string, rawValue runtime.Value)
 			if val == nil {
 				return nil, true, fmt.Errorf("cannot cast <nil> to %s", targetKind)
 			}
-			if val.TypeSuffix == targetKind {
-				return rawValue, true, nil
+			if casted, ok := castIntegerValueToTargetKindFast(*val, targetKind, info); ok {
+				return casted, true, nil
 			}
 			wrapped := patternToInteger(bitPattern(val.BigInt(), info), info)
 			if wrapped.IsInt64() {

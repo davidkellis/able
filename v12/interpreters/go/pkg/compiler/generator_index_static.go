@@ -138,12 +138,8 @@ func (g *generator) compileStaticIndexSet(ctx *compileContext, target *ast.Index
 		controlTemp := ctx.newTemp()
 		lines := append([]string{}, idxLines...)
 		lines = append(lines, valueLines...)
-		lines = append(lines,
-			fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-			fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr),
-			"__able_pop_call_frame()",
-		)
-		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+		lines = append(lines, fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr))
+		controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -163,17 +159,13 @@ func (g *generator) compileStaticIndexSet(ctx *compileContext, target *ast.Index
 	if !ok {
 		return nil, "", "", false
 	}
-	callExpr := fmt.Sprintf("__able_compiled_%s(%s, %s, %s)", info.GoName, receiverExpr, idxExpr, coercedValueExpr)
+	callExpr := fmt.Sprintf("%s(%s, %s, %s)", g.compiledCallTargetName(ctx.packageName, info), receiverExpr, idxExpr, coercedValueExpr)
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines := append([]string{}, idxLines...)
 	lines = append(lines, valueLines...)
-	lines = append(lines,
-		fmt.Sprintf("__able_push_call_frame(%s)", callNode),
-		fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr),
-		"__able_pop_call_frame()",
-	)
-	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	lines = append(lines, fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr))
+	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 	if !ok {
 		return nil, "", "", false
 	}

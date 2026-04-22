@@ -130,10 +130,81 @@ func (i *Interpreter) matchesSingleRuntimeOverload(fn *runtime.FunctionValue, ev
 type overloadCacheKey struct {
 	firstOverload *runtime.FunctionValue // identity of overload set
 	argCount      int
-	argKinds      string // concatenated Kind strings
+	argSignature  overloadArgSignature
 }
 
-func overloadArgKinds(args []runtime.Value) string {
+const overloadArgSignatureInlineLimit = 4
+
+type overloadArgKey struct {
+	kind               runtime.Kind
+	typeName           string
+	underlyingKind     runtime.Kind
+	underlyingTypeName string
+}
+
+type overloadArgSignature struct {
+	inline   [overloadArgSignatureInlineLimit]overloadArgKey
+	overflow string
+}
+
+func overloadArgTypeName(arg runtime.Value) string {
+	switch v := arg.(type) {
+	case runtime.IntegerValue:
+		return string(v.TypeSuffix)
+	case *runtime.IntegerValue:
+		if v == nil {
+			return "nil"
+		}
+		return string(v.TypeSuffix)
+	case runtime.FloatValue:
+		return string(v.TypeSuffix)
+	case *runtime.FloatValue:
+		if v == nil {
+			return "nil"
+		}
+		return string(v.TypeSuffix)
+	case *runtime.StructInstanceValue:
+		if v == nil {
+			return "nil"
+		}
+		if v.Definition != nil && v.Definition.Node != nil && v.Definition.Node.ID != nil {
+			return v.Definition.Node.ID.Name
+		}
+	case *runtime.HostHandleValue:
+		if v == nil {
+			return "nil"
+		}
+		if v.HandleType != "" {
+			return v.HandleType
+		}
+		return "host_handle"
+	case runtime.TypeRefValue:
+		return v.TypeName
+	case *runtime.TypeRefValue:
+		if v == nil {
+			return "nil"
+		}
+		return v.TypeName
+	}
+	return ""
+}
+
+func overloadArgKeyForValue(arg runtime.Value) overloadArgKey {
+	if arg == nil {
+		return overloadArgKey{typeName: "nil"}
+	}
+	key := overloadArgKey{
+		kind:     arg.Kind(),
+		typeName: overloadArgTypeName(arg),
+	}
+	if iface, ok := arg.(*runtime.InterfaceValue); ok && iface != nil && iface.Underlying != nil {
+		key.underlyingKind = iface.Underlying.Kind()
+		key.underlyingTypeName = overloadArgTypeName(iface.Underlying)
+	}
+	return key
+}
+
+func overloadArgKindsSlow(args []runtime.Value) string {
 	if len(args) == 0 {
 		return ""
 	}
@@ -162,8 +233,25 @@ func overloadArgKinds(args []runtime.Value) string {
 			buf = append(buf, ':')
 			buf = append(buf, string(intVal.TypeSuffix)...)
 		}
+		// For float values, include the type suffix as well.
+		if floatVal, ok := arg.(runtime.FloatValue); ok {
+			buf = append(buf, ':')
+			buf = append(buf, string(floatVal.TypeSuffix)...)
+		}
 	}
 	return string(buf)
+}
+
+func overloadArgSignatureForValues(args []runtime.Value) overloadArgSignature {
+	var sig overloadArgSignature
+	if len(args) > overloadArgSignatureInlineLimit {
+		sig.overflow = overloadArgKindsSlow(args)
+		return sig
+	}
+	for idx, arg := range args {
+		sig.inline[idx] = overloadArgKeyForValue(arg)
+	}
+	return sig
 }
 
 func overloadsHaveGenerics(overloads []*runtime.FunctionValue) bool {
@@ -187,7 +275,7 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 		cacheKey = overloadCacheKey{
 			firstOverload: overloads[0],
 			argCount:      len(evalArgs),
-			argKinds:      overloadArgKinds(evalArgs),
+			argSignature:  overloadArgSignatureForValues(evalArgs),
 		}
 		if cached, ok := i.overloadCache[cacheKey]; ok {
 			return cached, nil

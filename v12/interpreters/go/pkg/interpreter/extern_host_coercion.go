@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"sort"
@@ -300,6 +301,11 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 	}
 	switch t := typeExpr.(type) {
 	case *ast.UnionTypeExpression:
+		if preferred := externUnionPreferredMemberForHostValue(t, value); preferred != nil {
+			if converted, err := i.fromHostValue(preferred, value); err == nil {
+				return converted, nil
+			}
+		}
 		memberErrors := make([]string, 0, len(t.Members))
 		for _, member := range t.Members {
 			if member == nil {
@@ -331,6 +337,11 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 			if value.Kind() != reflect.Slice {
 				return nil, fmt.Errorf("extern expected slice result")
 			}
+			if externIsArrayStringType(t) {
+				if result, ok := externReflectStringSliceResult(value); ok {
+					return result, nil
+				}
+			}
 			var elemExpr ast.TypeExpression
 			if len(t.Arguments) > 0 {
 				elemExpr = t.Arguments[0]
@@ -350,6 +361,9 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 		name := normalizeKernelAliasName(t.Name.Name)
 		switch name {
 		case "String":
+			if result, ok := externReflectStringResult(value); ok {
+				return result, nil
+			}
 			return runtime.StringValue{Val: fmt.Sprint(value.Interface())}, nil
 		case "bool":
 			if value.Kind() == reflect.Bool {
@@ -368,11 +382,22 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 			}
 		case "i8", "i16", "i32", "i64":
 			if value.Kind() >= reflect.Int && value.Kind() <= reflect.Int64 {
+				if name == "i32" {
+					return boxedOrSmallIntegerValue(runtime.IntegerI32, value.Int()), nil
+				}
 				return runtime.NewSmallInt(value.Int(), runtime.IntegerType(name)), nil
 			}
-		case "u8", "u16", "u32", "u64":
+		case "u8", "u16", "u32":
 			if value.Kind() >= reflect.Uint && value.Kind() <= reflect.Uint64 {
-				return runtime.NewBigIntValue(bigIntFromUint(value.Uint()), runtime.IntegerType(name)), nil
+				return runtime.NewSmallInt(int64(value.Uint()), runtime.IntegerType(name)), nil
+			}
+		case "u64", "usize":
+			if value.Kind() >= reflect.Uint && value.Kind() <= reflect.Uint64 {
+				uintVal := value.Uint()
+				if uintVal <= math.MaxInt64 {
+					return runtime.NewSmallInt(int64(uintVal), runtime.IntegerType(name)), nil
+				}
+				return runtime.NewBigIntValue(bigIntFromUint(uintVal), runtime.IntegerType(name)), nil
 			}
 		case "i128", "u128":
 			if value.Kind() == reflect.Pointer {

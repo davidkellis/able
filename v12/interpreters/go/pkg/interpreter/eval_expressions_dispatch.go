@@ -282,7 +282,7 @@ func (i *Interpreter) evaluatePropagationExpression(expr *ast.PropagationExpress
 	if errVal, ok := asErrorValue(val); ok {
 		return nil, raiseSignal{value: errVal}
 	}
-	if i.matchesType(ast.Ty("Error"), val) {
+	if i.matchesType(cachedSimpleTypeExpression("Error"), val) {
 		return nil, raiseSignal{value: i.makeErrorValue(val, env)}
 	}
 	return val, nil
@@ -292,7 +292,11 @@ func (i *Interpreter) evaluateOrElseExpression(expr *ast.OrElseExpression, env *
 	val, err := i.evaluateExpression(expr.Expression, env)
 	if err != nil {
 		if rs, ok := err.(raiseSignal); ok {
-			handlerEnv := runtime.NewEnvironment(env)
+			handlerCapacity := blockLocalBindingCapacity(expr.Handler)
+			if expr.ErrorBinding != nil {
+				handlerCapacity++
+			}
+			handlerEnv := runtime.NewEnvironmentWithValueCapacity(env, handlerCapacity)
 			if expr.ErrorBinding != nil {
 				handlerEnv.Define(expr.ErrorBinding.Name, rs.value)
 			}
@@ -316,12 +320,16 @@ func (i *Interpreter) evaluateOrElseExpression(expr *ast.OrElseExpression, env *
 	} else if errVal, ok := asErrorValue(val); ok {
 		failureKind = "error"
 		failureValue = errVal
-	} else if i.matchesType(ast.Ty("Error"), val) {
+	} else if i.matchesType(cachedSimpleTypeExpression("Error"), val) {
 		failureKind = "error"
 		failureValue = val
 	}
 	if failureKind != "" {
-		handlerEnv := runtime.NewEnvironment(env)
+		handlerCapacity := blockLocalBindingCapacity(expr.Handler)
+		if expr.ErrorBinding != nil && failureKind == "error" {
+			handlerCapacity++
+		}
+		handlerEnv := runtime.NewEnvironmentWithValueCapacity(env, handlerCapacity)
 		if expr.ErrorBinding != nil && failureKind == "error" {
 			handlerEnv.Define(expr.ErrorBinding.Name, failureValue)
 		}

@@ -40,10 +40,8 @@ func (g *generator) compileStaticNativeInterfaceGenericDefaultMethodCall(ctx *co
 	}
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
-	lines = append(lines, fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", resultTemp, controlTemp, info.GoName, strings.Join(args, ", ")))
-	lines = append(lines, "__able_pop_call_frame()")
-	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	lines = append(lines, fmt.Sprintf("%s, %s := %s(%s)", resultTemp, controlTemp, g.compiledCallTargetName(ctx.packageName, info), strings.Join(args, ", ")))
+	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 	if !ok {
 		return nil, "", "", false
 	}

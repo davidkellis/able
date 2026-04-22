@@ -442,7 +442,9 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 	if err := g.renderGoExternHostFunction(buf, info); err != nil {
 		panic(err)
 	}
-	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
+	bodyName := g.compiledBodyName(info)
+	entryName := g.compiledEntryName(info)
+	fmt.Fprintf(buf, "func %s(", bodyName)
 	for i, param := range info.Params {
 		if i > 0 {
 			fmt.Fprintf(buf, ", ")
@@ -450,9 +452,6 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
-	if envVar, ok := g.packageEnvVar(info.Package); ok {
-		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
-	}
 	zeroExpr, ok := g.zeroValueExpr(info.ReturnType)
 	if !ok {
 		zeroExpr = "runtime.NilValue{}"
@@ -522,5 +521,22 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		panic(fmt.Errorf("compiler: missing extern conversion for %s", info.Name))
 	}
 	fmt.Fprintf(buf, "\treturn %s, nil\n", converted)
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func %s(", entryName)
+	for i, param := range info.Params {
+		if i > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
+	}
+	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
+	if envVar, ok := g.packageEnvVar(info.Package); ok {
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
+	}
+	args := make([]string, 0, len(info.Params))
+	for _, param := range info.Params {
+		args = append(args, param.GoName)
+	}
+	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, strings.Join(args, ", "))
 	fmt.Fprintf(buf, "}\n\n")
 }

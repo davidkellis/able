@@ -44,32 +44,58 @@ type bytecodeCallFrame struct {
 	selfFast            bool
 }
 
+type bytecodeCallFrameKind uint8
+
+const (
+	bytecodeCallFrameKindFull bytecodeCallFrameKind = iota
+	bytecodeCallFrameKindSelfFast
+	bytecodeCallFrameKindSelfFastMinimal
+)
+
+type bytecodeSelfFastCallFrame struct {
+	returnIP            int
+	slots               []runtime.Value
+	returnGenericNames  map[string]struct{}
+	iterBase            int
+	loopBase            int
+	hasImplicitReceiver bool
+}
+
+type bytecodeSelfFastMinimalCallFrame struct {
+	returnIP int
+	slots    []runtime.Value
+}
+
 type bytecodeVM struct {
-	interp             *Interpreter
-	stack              []runtime.Value
-	env                *runtime.Environment
-	ip                 int
-	iterStack          []forLoopIterator
-	loopStack          []bytecodeLoopFrame
-	ensureStack        []bytecodeEnsureFrame
-	slots              []runtime.Value
-	slotFramePool      map[int][][]runtime.Value
-	slotFrameHotSize   int
-	slotFrameHotPool   [][]runtime.Value
-	callFrames         []bytecodeCallFrame
-	currentProgram     *bytecodeProgram // tracks the active program for resume after yield
-	globalLookupCache  map[bytecodeGlobalLookupCacheKey]bytecodeGlobalLookupCacheEntry
-	scopeLookupCache   map[bytecodeGlobalLookupCacheKey]bytecodeScopeLookupCacheEntry
-	nameLookupHot      bytecodeInlineNameLookupCacheEntry
-	callNameCache      map[bytecodeGlobalLookupCacheKey]*bytecodeCallNameCacheEntry
-	callNameHot        bytecodeInlineCallNameCacheEntry
-	memberMethodCache  map[bytecodeMemberMethodCacheKey]bytecodeMemberMethodCacheEntry
-	memberMethodHot    bytecodeInlineMemberMethodCacheEntry
-	indexMethodCache   map[*bytecodeProgram]*bytecodeIndexMethodCacheTable
-	indexMethodHot     bytecodeInlineIndexMethodCacheEntry
-	validatedIntConsts map[*bytecodeProgram][]bool
-	slotConstIntImm    map[*bytecodeProgram]*bytecodeSlotConstIntImmediateTable
-	stringInterpParts  []runtime.Value
+	interp                *Interpreter
+	stack                 []runtime.Value
+	env                   *runtime.Environment
+	ip                    int
+	iterStack             []forLoopIterator
+	loopStack             []bytecodeLoopFrame
+	ensureStack           []bytecodeEnsureFrame
+	slots                 []runtime.Value
+	slotFramePool         map[int][][]runtime.Value
+	slotFrameHotSize      int
+	slotFrameHotPool      [][]runtime.Value
+	callFrameKinds        []bytecodeCallFrameKind
+	callFrames            []bytecodeCallFrame
+	selfFastCallFrames    []bytecodeSelfFastCallFrame
+	selfFastMinimal       []bytecodeSelfFastMinimalCallFrame
+	selfFastMinimalSuffix int
+	currentProgram        *bytecodeProgram // tracks the active program for resume after yield
+	globalLookupCache     map[bytecodeGlobalLookupCacheKey]bytecodeGlobalLookupCacheEntry
+	scopeLookupCache      map[bytecodeGlobalLookupCacheKey]bytecodeScopeLookupCacheEntry
+	nameLookupHot         bytecodeInlineNameLookupCacheEntry
+	callNameCache         map[bytecodeGlobalLookupCacheKey]*bytecodeCallNameCacheEntry
+	callNameHot           bytecodeInlineCallNameCacheEntry
+	memberMethodCache     map[bytecodeMemberMethodCacheKey]bytecodeMemberMethodCacheEntry
+	memberMethodHot       bytecodeInlineMemberMethodCacheEntry
+	indexMethodCache      map[*bytecodeProgram]*bytecodeIndexMethodCacheTable
+	indexMethodHot        bytecodeInlineIndexMethodCacheEntry
+	validatedIntConsts    map[*bytecodeProgram][]bool
+	slotConstIntImm       map[*bytecodeProgram]*bytecodeSlotConstIntImmediateTable
+	stringInterpParts     []runtime.Value
 }
 
 type bytecodeLoopFrame struct {
@@ -85,12 +111,15 @@ type bytecodeEnsureFrame struct {
 
 func newBytecodeVM(interp *Interpreter, env *runtime.Environment) *bytecodeVM {
 	return &bytecodeVM{
-		interp:      interp,
-		env:         env,
-		stack:       make([]runtime.Value, 0, 8),
-		iterStack:   make([]forLoopIterator, 0, 2),
-		loopStack:   make([]bytecodeLoopFrame, 0, 4),
-		ensureStack: make([]bytecodeEnsureFrame, 0, 2),
-		callFrames:  make([]bytecodeCallFrame, 0),
+		interp:             interp,
+		env:                env,
+		stack:              make([]runtime.Value, 0, 8),
+		iterStack:          make([]forLoopIterator, 0, 2),
+		loopStack:          make([]bytecodeLoopFrame, 0, 4),
+		ensureStack:        make([]bytecodeEnsureFrame, 0, 2),
+		callFrameKinds:     make([]bytecodeCallFrameKind, 0),
+		callFrames:         make([]bytecodeCallFrame, 0),
+		selfFastCallFrames: make([]bytecodeSelfFastCallFrame, 0),
+		selfFastMinimal:    make([]bytecodeSelfFastMinimalCallFrame, 0),
 	}
 }

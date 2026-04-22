@@ -17,11 +17,11 @@ func (vm *bytecodeVM) finishRunResumable(runErr *error) {
 	}
 	// Unwind inline call frames on error, adding "called from here"
 	// context and cleaning up implicit receivers.
-	if *runErr != nil && nonYieldExit && len(vm.callFrames) > 0 {
+	if *runErr != nil && nonYieldExit && vm.hasCallFrames() {
 		if _, ok := (*runErr).(returnSignal); !ok {
 			if _, ok := (*runErr).(breakSignal); !ok {
 				if _, ok := (*runErr).(continueSignal); !ok {
-					for len(vm.callFrames) > 0 {
+					for vm.hasCallFrames() {
 						calleeSlots := vm.slots
 						returnIP, returnProgram, returnSlots, returnEnv, _, _, hasImplicitReceiver, _, ok := vm.popCallFrameFields()
 						if !ok {
@@ -85,5 +85,32 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 			frame.selfFast = false
 		}
 		vm.callFrames = vm.callFrames[:0]
+	}
+	if len(vm.selfFastCallFrames) > 0 {
+		for idx := range vm.selfFastCallFrames {
+			frame := &vm.selfFastCallFrames[idx]
+			vm.releaseSlotFrame(frame.slots)
+			frame.returnIP = 0
+			frame.slots = nil
+			frame.returnGenericNames = nil
+			frame.iterBase = 0
+			frame.loopBase = 0
+			frame.hasImplicitReceiver = false
+		}
+		vm.selfFastCallFrames = vm.selfFastCallFrames[:0]
+	}
+	if len(vm.selfFastMinimal) > 0 {
+		for idx := range vm.selfFastMinimal {
+			frame := &vm.selfFastMinimal[idx]
+			vm.releaseSlotFrame(frame.slots)
+			frame.returnIP = 0
+			frame.slots = nil
+		}
+		vm.selfFastMinimal = vm.selfFastMinimal[:0]
+	}
+	vm.selfFastMinimalSuffix = 0
+	if len(vm.callFrameKinds) > 0 {
+		clear(vm.callFrameKinds)
+		vm.callFrameKinds = vm.callFrameKinds[:0]
 	}
 }

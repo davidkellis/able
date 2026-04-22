@@ -24,6 +24,7 @@ type evalState struct {
 	placeholderStack  []placeholderFrame
 	blockFrames       map[*ast.BlockExpression]*blockFrame
 	callStack         []runtimeCallFrame
+	pendingDiagCtxs   []*runtimeDiagnosticContext
 }
 
 func newEvalState() *evalState {
@@ -34,6 +35,7 @@ func newEvalState() *evalState {
 		placeholderStack:  make([]placeholderFrame, 0),
 		blockFrames:       make(map[*ast.BlockExpression]*blockFrame),
 		callStack:         make([]runtimeCallFrame, 0),
+		pendingDiagCtxs:   make([]*runtimeDiagnosticContext, 0),
 	}
 }
 
@@ -146,6 +148,7 @@ func (s *evalState) pushCallFrame(node *ast.FunctionCall) {
 	if s == nil || node == nil {
 		return
 	}
+	s.freezePendingDiagnosticContexts()
 	s.callStack = append(s.callStack, runtimeCallFrame{node: node})
 }
 
@@ -153,6 +156,7 @@ func (s *evalState) popCallFrame() {
 	if s == nil || len(s.callStack) == 0 {
 		return
 	}
+	s.freezePendingDiagnosticContexts()
 	s.callStack = s.callStack[:len(s.callStack)-1]
 }
 
@@ -163,6 +167,38 @@ func (s *evalState) snapshotCallStack() []runtimeCallFrame {
 	out := make([]runtimeCallFrame, len(s.callStack))
 	copy(out, s.callStack)
 	return out
+}
+
+func (s *evalState) snapshotCallStackPrefix(depth int) []runtimeCallFrame {
+	if s == nil || depth <= 0 || len(s.callStack) == 0 {
+		return nil
+	}
+	if depth > len(s.callStack) {
+		depth = len(s.callStack)
+	}
+	out := make([]runtimeCallFrame, depth)
+	copy(out, s.callStack[:depth])
+	return out
+}
+
+func (s *evalState) registerPendingDiagnosticContext(ctx *runtimeDiagnosticContext) {
+	if s == nil || ctx == nil {
+		return
+	}
+	s.pendingDiagCtxs = append(s.pendingDiagCtxs, ctx)
+}
+
+func (s *evalState) freezePendingDiagnosticContexts() {
+	if s == nil || len(s.pendingDiagCtxs) == 0 {
+		return
+	}
+	for _, ctx := range s.pendingDiagCtxs {
+		if ctx != nil {
+			ctx.freezeCallStack()
+		}
+	}
+	clear(s.pendingDiagCtxs)
+	s.pendingDiagCtxs = s.pendingDiagCtxs[:0]
 }
 
 type placeholderFrame struct {
@@ -257,6 +293,7 @@ type Interpreter struct {
 	envSingleThread        bool
 
 	methodCache           map[methodCacheKey]methodCacheEntry
+	interfaceImplCache    map[interfaceImplCacheKey]interfaceImplCacheEntry
 	boundMethodCache      map[boundMethodCacheKey]runtime.Value
 	methodCacheMu         sync.RWMutex
 	methodCacheVersion    uint64
@@ -267,6 +304,8 @@ type Interpreter struct {
 	typeInfoNameCache     map[typeInfoCacheKey]string
 	bytecodeVMPool        sync.Pool
 	nativeCallContextPool sync.Pool
+	bytecodeExprCacheMu   sync.RWMutex
+	bytecodeExprCache     map[bytecodeExpressionProgramCacheKey]*bytecodeProgram
 
 	bytecodeStatsEnabled            bool
 	bytecodeOpCounts                [bytecodeOpCount]uint64
@@ -277,6 +316,11 @@ type Interpreter struct {
 	bytecodeInlineCallMisses        uint64
 	bytecodeMemberMethodCacheHits   uint64
 	bytecodeMemberMethodCacheMisses uint64
+	bytecodeExprCacheHits           uint64
+	bytecodeExprCacheMisses         uint64
+	bytecodeTraceEnabled            bool
+	bytecodeTraceMu                 sync.Mutex
+	bytecodeTraceCounts             map[bytecodeTraceKey]uint64
 
 	typecheckerEnabled   bool
 	typecheckerStrict    bool
@@ -412,11 +456,14 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		arraysByHandle:          make(map[int64]arrayHandleTracking),
 		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
 		methodCache:             make(map[methodCacheKey]methodCacheEntry),
+		interfaceImplCache:      make(map[interfaceImplCacheKey]interfaceImplCacheEntry),
 		boundMethodCache:        make(map[boundMethodCacheKey]runtime.Value),
 		overloadCache:           make(map[overloadCacheKey]*runtime.FunctionValue),
 		typeAliasBaseCache:      make(map[string][]string),
 		typeInfoNameCache:       make(map[typeInfoCacheKey]string),
+		bytecodeExprCache:       make(map[bytecodeExpressionProgramCacheKey]*bytecodeProgram),
 		bytecodeStatsEnabled:    os.Getenv("ABLE_BYTECODE_STATS") != "",
+		bytecodeTraceEnabled:    os.Getenv("ABLE_BYTECODE_TRACE") != "",
 	}
 	i.nativeCallContextPool.New = func() any {
 		return &runtime.NativeCallContext{}

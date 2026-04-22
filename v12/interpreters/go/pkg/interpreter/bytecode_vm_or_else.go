@@ -33,7 +33,7 @@ func (vm *bytecodeVM) execOrElse(instr bytecodeInstruction) (bool, error) {
 	} else if errVal, ok := asErrorValue(val); ok {
 		failureKind = "error"
 		failureValue = errVal
-	} else if vm.interp.matchesType(ast.Ty("Error"), val) {
+	} else if vm.interp.matchesType(cachedSimpleTypeExpression("Error"), val) {
 		failureKind = "error"
 		failureValue = val
 	}

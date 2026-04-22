@@ -43,31 +43,34 @@ func bytecodeDirectIntegerValue(val runtime.Value) (runtime.IntegerValue, bool) 
 func bytecodeDirectSameTypeSmallIntPair(left runtime.Value, right runtime.Value) (runtime.IntegerType, int64, int64, bool) {
 	switch lv := left.(type) {
 	case runtime.IntegerValue:
-		if !lv.IsSmall() {
+		lvRef := &lv
+		if !lvRef.IsSmallRef() {
 			return runtime.IntegerI32, 0, 0, false
 		}
 		switch rv := right.(type) {
 		case runtime.IntegerValue:
-			if rv.IsSmall() && lv.TypeSuffix == rv.TypeSuffix {
-				return lv.TypeSuffix, lv.Int64Fast(), rv.Int64Fast(), true
+			rvRef := &rv
+			if rvRef.IsSmallRef() && lv.TypeSuffix == rv.TypeSuffix {
+				return lv.TypeSuffix, lvRef.Int64FastRef(), rvRef.Int64FastRef(), true
 			}
 		case *runtime.IntegerValue:
-			if rv != nil && rv.IsSmall() && lv.TypeSuffix == rv.TypeSuffix {
-				return lv.TypeSuffix, lv.Int64Fast(), rv.Int64Fast(), true
+			if rv != nil && rv.IsSmallRef() && lv.TypeSuffix == rv.TypeSuffix {
+				return lv.TypeSuffix, lvRef.Int64FastRef(), rv.Int64FastRef(), true
 			}
 		}
 	case *runtime.IntegerValue:
-		if lv == nil || !lv.IsSmall() {
+		if lv == nil || !lv.IsSmallRef() {
 			return runtime.IntegerI32, 0, 0, false
 		}
 		switch rv := right.(type) {
 		case runtime.IntegerValue:
-			if rv.IsSmall() && lv.TypeSuffix == rv.TypeSuffix {
-				return lv.TypeSuffix, lv.Int64Fast(), rv.Int64Fast(), true
+			rvRef := &rv
+			if rvRef.IsSmallRef() && lv.TypeSuffix == rv.TypeSuffix {
+				return lv.TypeSuffix, lv.Int64FastRef(), rvRef.Int64FastRef(), true
 			}
 		case *runtime.IntegerValue:
-			if rv != nil && rv.IsSmall() && lv.TypeSuffix == rv.TypeSuffix {
-				return lv.TypeSuffix, lv.Int64Fast(), rv.Int64Fast(), true
+			if rv != nil && rv.IsSmallRef() && lv.TypeSuffix == rv.TypeSuffix {
+				return lv.TypeSuffix, lv.Int64FastRef(), rv.Int64FastRef(), true
 			}
 		}
 	}
@@ -96,31 +99,34 @@ func bytecodeDirectIntegerCompare(op string, left runtime.Value, right runtime.V
 
 	switch lv := left.(type) {
 	case runtime.IntegerValue:
-		if !lv.IsSmall() {
+		lvRef := &lv
+		if !lvRef.IsSmallRef() {
 			return runtime.BoolValue{}, false
 		}
 		switch rv := right.(type) {
 		case runtime.IntegerValue:
-			if rv.IsSmall() {
-				return compare(lv.Int64Fast(), rv.Int64Fast())
+			rvRef := &rv
+			if rvRef.IsSmallRef() {
+				return compare(lvRef.Int64FastRef(), rvRef.Int64FastRef())
 			}
 		case *runtime.IntegerValue:
-			if rv != nil && rv.IsSmall() {
-				return compare(lv.Int64Fast(), rv.Int64Fast())
+			if rv != nil && rv.IsSmallRef() {
+				return compare(lvRef.Int64FastRef(), rv.Int64FastRef())
 			}
 		}
 	case *runtime.IntegerValue:
-		if lv == nil || !lv.IsSmall() {
+		if lv == nil || !lv.IsSmallRef() {
 			return runtime.BoolValue{}, false
 		}
 		switch rv := right.(type) {
 		case runtime.IntegerValue:
-			if rv.IsSmall() {
-				return compare(lv.Int64Fast(), rv.Int64Fast())
+			rvRef := &rv
+			if rvRef.IsSmallRef() {
+				return compare(lv.Int64FastRef(), rvRef.Int64FastRef())
 			}
 		case *runtime.IntegerValue:
-			if rv != nil && rv.IsSmall() {
-				return compare(lv.Int64Fast(), rv.Int64Fast())
+			if rv != nil && rv.IsSmallRef() {
+				return compare(lv.Int64FastRef(), rv.Int64FastRef())
 			}
 		}
 	}
@@ -150,6 +156,9 @@ func execBinaryDirectIntegerComparisonFast(op string, left runtime.Value, right 
 func (vm *bytecodeVM) execBinarySpecializedOpcode(instr *bytecodeInstruction, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
 	switch instr.op {
 	case bytecodeOpBinaryIntAdd:
+		if fast, handled, err := bytecodeAddSmallI32PairFast(left, right); handled {
+			return fast, true, err
+		}
 		if kind, l, r, ok := bytecodeDirectSameTypeSmallIntPair(left, right); ok {
 			sum, overflow := addInt64Overflow(l, r)
 			if !overflow {
@@ -179,6 +188,9 @@ func (vm *bytecodeVM) execBinarySpecializedOpcode(instr *bytecodeInstruction, le
 		val, err := applyBinaryOperator(vm.interp, "+", left, right)
 		return val, true, err
 	case bytecodeOpBinaryIntSub:
+		if fast, handled, err := bytecodeSubtractSmallI32PairFast(left, right); handled {
+			return fast, true, err
+		}
 		if kind, l, r, ok := bytecodeDirectSameTypeSmallIntPair(left, right); ok {
 			diff, overflow := subInt64Overflow(l, r)
 			if !overflow {
@@ -341,6 +353,9 @@ func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runt
 		val, err := applyBinaryOperator(vm.interp, "+", left, right)
 		return val, true, err
 	case bytecodeOpBinaryIntSubSlotConst:
+		if fast, handled, err := bytecodeSubtractIntegerImmediateFast(left, right); handled {
+			return fast, true, err
+		}
 		switch lv := left.(type) {
 		case runtime.IntegerValue:
 			if fast, handled, err := subtractIntegerSameTypeFast(lv, right); handled {
@@ -364,23 +379,26 @@ func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runt
 		val, err := applyBinaryOperator(vm.interp, "-", left, right)
 		return val, true, err
 	case bytecodeOpBinaryIntLessEqualSlotConst:
+		rightRef := &right
 		switch lv := left.(type) {
 		case runtime.IntegerValue:
-			if lv.IsSmall() && right.IsSmall() {
-				return runtime.BoolValue{Val: lv.Int64Fast() <= right.Int64Fast()}, true, nil
+			lvRef := &lv
+			if lvRef.IsSmallRef() && rightRef.IsSmallRef() {
+				return runtime.BoolValue{Val: lvRef.Int64FastRef() <= rightRef.Int64FastRef()}, true, nil
 			}
 			return runtime.BoolValue{Val: lv.BigInt().Cmp(right.BigInt()) <= 0}, true, nil
 		case *runtime.IntegerValue:
 			if lv != nil {
-				if lv.IsSmall() && right.IsSmall() {
-					return runtime.BoolValue{Val: lv.Int64Fast() <= right.Int64Fast()}, true, nil
+				if lv.IsSmallRef() && rightRef.IsSmallRef() {
+					return runtime.BoolValue{Val: lv.Int64FastRef() <= rightRef.Int64FastRef()}, true, nil
 				}
 				return runtime.BoolValue{Val: lv.BigInt().Cmp(right.BigInt()) <= 0}, true, nil
 			}
 		}
 		if leftInt, ok := bytecodeIntegerValue(left); ok {
-			if leftInt.IsSmall() && right.IsSmall() {
-				return runtime.BoolValue{Val: leftInt.Int64Fast() <= right.Int64Fast()}, true, nil
+			leftIntRef := &leftInt
+			if leftIntRef.IsSmallRef() && rightRef.IsSmallRef() {
+				return runtime.BoolValue{Val: leftIntRef.Int64FastRef() <= rightRef.Int64FastRef()}, true, nil
 			}
 			return runtime.BoolValue{Val: leftInt.BigInt().Cmp(right.BigInt()) <= 0}, true, nil
 		}

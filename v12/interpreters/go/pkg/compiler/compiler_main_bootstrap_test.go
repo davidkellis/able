@@ -45,6 +45,12 @@ func TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent(t *testing
 	if !strings.Contains(mainSrc, "EvaluateProgram(") {
 		t.Fatalf("expected dynamic launcher to evaluate program through interpreter bootstrap")
 	}
+	if !strings.Contains(mainSrc, "interpreter.NewExecutorFromEnvironment()") {
+		t.Fatalf("expected dynamic launcher to construct bootstrap interpreters from ABLE_EXECUTOR")
+	}
+	if !strings.Contains(mainSrc, "rt.SetExecutorKind(interp.ExecutorKind())") {
+		t.Fatalf("expected dynamic launcher to propagate bootstrap executor kind into the runtime")
+	}
 }
 
 func TestCompilerMainUsesInstalledStdlibDiscoveryBeforeSiblingLookup(t *testing.T) {
@@ -61,6 +67,18 @@ func TestCompilerMainUsesInstalledStdlibDiscoveryBeforeSiblingLookup(t *testing.
 	}
 	if !strings.Contains(mainSrc, "driver.ResolveCanonicalStdlibSearchPaths(") {
 		t.Fatalf("expected emitted main.go to finalize canonical stdlib search paths")
+	}
+	if !strings.Contains(mainSrc, "profilehook.StartFromEnv()") {
+		t.Fatalf("expected emitted main.go to install opt-in profiling hook")
+	}
+	if !strings.Contains(mainSrc, "func runMain() int") {
+		t.Fatalf("expected emitted main.go to route execution through runMain for profile flushing")
+	}
+	if !strings.Contains(mainSrc, "interpreter.ExecutorKindFromEnvironment()") {
+		t.Fatalf("expected emitted main.go to resolve ABLE_EXECUTOR for static launchers")
+	}
+	if !strings.Contains(mainSrc, "rt.SetExecutorKind(executorKind)") {
+		t.Fatalf("expected emitted main.go to propagate static executor kind into the runtime")
 	}
 }
 
@@ -79,6 +97,12 @@ func TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers(t *testing.T) {
 	}, "\n"))
 	if strings.Contains(mainSrc, "EvaluateProgram(") {
 		t.Fatalf("expected static launcher with helpers to skip interpreter program evaluation")
+	}
+	if !strings.Contains(mainSrc, "interpreter.ExecutorKindFromEnvironment()") {
+		t.Fatalf("expected static launcher to resolve ABLE_EXECUTOR without interpreter bootstrap")
+	}
+	if !strings.Contains(mainSrc, "rt.SetExecutorKind(executorKind)") {
+		t.Fatalf("expected static launcher to propagate executor kind into the runtime")
 	}
 }
 

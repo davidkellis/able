@@ -14,6 +14,9 @@ type externTargetState struct {
 	preludes   []string
 	externs    []*ast.ExternFunctionBody
 	externByID map[string]int
+	cachedHash string
+	hashSalt   string
+	hashValid  bool
 }
 
 type externHostPackage struct {
@@ -22,10 +25,13 @@ type externHostPackage struct {
 }
 
 type externHostModule struct {
-	hash    string
-	plugin  *plugin.Plugin
-	symbols map[string]reflect.Value
+	hash     string
+	plugin   *plugin.Plugin
+	symbols  map[string]reflect.Value
+	invokers map[string]externHostInvoker
 }
+
+type externHostInvoker func(i *Interpreter, args []runtime.Value) (runtime.Value, error)
 
 const externCacheVersion = "v2"
 
@@ -62,6 +68,7 @@ func (i *Interpreter) registerExternStatements(module *ast.Module) {
 			}
 			state := ensureExternTarget(pkg, s.Target)
 			state.preludes = append(state.preludes, s.Code)
+			state.hashValid = false
 		case *ast.ExternFunctionBody:
 			if s == nil || s.Signature == nil || s.Signature.ID == nil {
 				continue
@@ -77,6 +84,7 @@ func (i *Interpreter) registerExternStatements(module *ast.Module) {
 				state.externByID[name] = len(state.externs)
 				state.externs = append(state.externs, s)
 			}
+			state.hashValid = false
 		}
 	}
 }
@@ -116,6 +124,11 @@ func (i *Interpreter) invokeExternHostFunction(pkgName string, def *ast.ExternFu
 	if err != nil {
 		return nil, err
 	}
+	if invoker, invokerErr := module.lookupInvoker(def); invokerErr == nil && invoker != nil {
+		return invoker(i, args)
+	} else if invokerErr != nil {
+		return nil, invokerErr
+	}
 	fn, err := module.lookup(def.Signature.ID.Name)
 	if err != nil {
 		return nil, err
@@ -152,7 +165,7 @@ func (i *Interpreter) invokeExternHostFunction(pkgName string, def *ast.ExternFu
 }
 
 func (i *Interpreter) ensureExternHostModule(pkgName string, target ast.HostTarget, state *externTargetState, pkg *externHostPackage) (*externHostModule, error) {
-	hash := hashExternState(target, state, i.externSession)
+	hash := cachedExternStateHash(target, state, i.externSession)
 	if existing := pkg.modules[target]; existing != nil && existing.hash == hash && existing.plugin != nil {
 		return existing, nil
 	}

@@ -205,8 +205,8 @@ func (i *Interpreter) arrayMemberWithOverrides(arr *runtime.ArrayValue, member a
 		}
 		return i.arrayMember(arr, member)
 	}
-	if val, err := i.arrayMember(arr, member); err == nil {
-		return val, nil
+	if isDirectArrayMemberName(ident.Name) {
+		return i.arrayMember(arr, member)
 	}
 	if bound, err := i.resolveMethodFromPool(env, ident.Name, arr, ""); err != nil {
 		return nil, err

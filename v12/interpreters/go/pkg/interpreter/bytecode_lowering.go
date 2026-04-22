@@ -73,6 +73,11 @@ func (i *Interpreter) lowerExpressionToBytecodeWithOptions(expr ast.Expression, 
 	if expr == nil {
 		return nil, fmt.Errorf("bytecode lowering expression is nil")
 	}
+	if cached, ok := i.lookupCachedExpressionBytecode(expr, allowPlaceholderLambda); ok {
+		i.recordBytecodeExpressionCacheHit()
+		return cached, nil
+	}
+	i.recordBytecodeExpressionCacheMiss()
 	ctx := &bytecodeLoweringContext{
 		instructions:           make([]bytecodeInstruction, 0, 4),
 		allowPlaceholderLambda: allowPlaceholderLambda,
@@ -81,7 +86,8 @@ func (i *Interpreter) lowerExpressionToBytecodeWithOptions(expr ast.Expression, 
 		return nil, err
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
-	return &bytecodeProgram{instructions: ctx.instructions}, nil
+	program := &bytecodeProgram{instructions: ctx.instructions}
+	return i.cacheExpressionBytecode(expr, allowPlaceholderLambda, program), nil
 }
 
 func (i *Interpreter) lowerBlockExpressionToBytecode(block *ast.BlockExpression, allowPlaceholderLambda bool) (*bytecodeProgram, error) {
@@ -204,6 +210,11 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 			return err
 		}
 	case ast.Expression:
+		if !isLast {
+			if ifExpr, ok := s.(*ast.IfExpression); ok {
+				return emitIfStatement(ctx, i, ifExpr)
+			}
+		}
 		if err := emitExpression(ctx, i, s); err != nil {
 			return err
 		}
@@ -297,24 +308,29 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		return nil
 	case *ast.FunctionCall:
 		if member, ok := n.Callee.(*ast.MemberAccessExpression); ok && member != nil {
+			memberName := bytecodeIdentifierMemberName(member.Member)
 			if err := emitExpression(ctx, i, member.Object); err != nil {
 				return err
 			}
 			if member.Safe {
 				ctx.emit(bytecodeInstruction{op: bytecodeOpDup})
 				jumpToNil := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfNil, target: -1})
-				ctx.emit(bytecodeInstruction{
-					op:            bytecodeOpMemberAccess,
-					name:          bytecodeIdentifierMemberName(member.Member),
-					node:          member,
-					preferMethods: true,
-				})
 				for _, arg := range n.Arguments {
 					if err := emitExpression(ctx, i, arg); err != nil {
 						return err
 					}
 				}
-				ctx.emit(bytecodeInstruction{op: bytecodeOpCall, argCount: len(n.Arguments), node: n})
+				if memberName != "" {
+					ctx.emit(bytecodeInstruction{op: bytecodeOpCallMember, name: memberName, argCount: len(n.Arguments), node: n, safe: true})
+				} else {
+					ctx.emit(bytecodeInstruction{
+						op:            bytecodeOpMemberAccess,
+						name:          memberName,
+						node:          member,
+						preferMethods: true,
+					})
+					ctx.emit(bytecodeInstruction{op: bytecodeOpCall, argCount: len(n.Arguments), node: n})
+				}
 				jumpToEnd := ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1})
 				ctx.patchJump(jumpToNil, len(ctx.instructions))
 				ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
@@ -322,18 +338,22 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				ctx.patchJump(jumpToEnd, len(ctx.instructions))
 				return nil
 			}
-			ctx.emit(bytecodeInstruction{
-				op:            bytecodeOpMemberAccess,
-				name:          bytecodeIdentifierMemberName(member.Member),
-				node:          member,
-				preferMethods: true,
-			})
 			for _, arg := range n.Arguments {
 				if err := emitExpression(ctx, i, arg); err != nil {
 					return err
 				}
 			}
-			ctx.emit(bytecodeInstruction{op: bytecodeOpCall, argCount: len(n.Arguments), node: n})
+			if memberName != "" {
+				ctx.emit(bytecodeInstruction{op: bytecodeOpCallMember, name: memberName, argCount: len(n.Arguments), node: n})
+			} else {
+				ctx.emit(bytecodeInstruction{
+					op:            bytecodeOpMemberAccess,
+					name:          memberName,
+					node:          member,
+					preferMethods: true,
+				})
+				ctx.emit(bytecodeInstruction{op: bytecodeOpCall, argCount: len(n.Arguments), node: n})
+			}
 			return nil
 		}
 		if ident, ok := n.Callee.(*ast.Identifier); ok && ident != nil {

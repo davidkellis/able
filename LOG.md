@@ -1,5 +1,2149 @@
 # Able Project Log
 
+# 2026-04-21 — reduced bytecode `fib` small-`i32` pair-add specialization tranche (v12)
+- Closed the next bytecode recursion slice after the dedicated self-slot fast
+  branch tranche.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_i32_fast.go` now has a
+    dedicated `bytecodeDirectSmallI32Pair(...)` helper for the hot small-`i32`
+    pair case
+  - `bytecodeAddSmallI32PairFast(...)` now uses that combined extractor
+    directly instead of re-entering `bytecodeDirectSmallI32Value(...)` twice on
+    the recursive-result `+` path
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+    now also pins the mixed value/pointer pair shape on that add fast path
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - prior warmed reduced `BenchmarkFib30Bytecode` band:
+    `176.39-181.90ms/op`
+  - refreshed warmed reduced `BenchmarkFib30Bytecode` reruns:
+    `171.06ms/op`, `175.06ms/op`, `175.27ms/op`
+  - single profiled reduced run: `183.33ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as another narrow reduced-recursion win
+  - the reduced warmed `fib(30)` kernel moved again, taking the stable band
+    from the prior `~176-182ms` range down into the `~171-175ms` range
+  - aligned one-shot bytecode `fib` still times out, so this still is not the
+    real aligned benchmark fix
+  - the remaining reduced recursion wall is now more cleanly the self-call
+    arithmetic and return side: `execCallSelfIntSubSlotConst(...)`,
+    `execBinary(...)`, `execBinarySlotConst(...)`, `finishInlineReturn(...)`,
+    `bytecodeSubtractIntegerImmediateI32Fast(...)`, and the residual direct
+    small-`i32` extraction/boxing helpers
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache|BinaryFastPathIntegerParity|DirectIntegerComparisonFastPath|DirectSmallIntegerComparisonFastPath|DirectSameTypeSmallIntPair)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-addpair.cpu.pprof -memprofile /tmp/fib30-addpair.mem.pprof -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — reduced bytecode `fib` dedicated self-slot fast branch tranche (v12)
+- Closed the next bytecode recursion slice after the tiny slot-clear tranche.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go` now has an
+    early dedicated self-slot fast branch inside
+    `execCallSelfIntSubSlotConst(...)`
+  - on the successful recursive hot path, that branch now bypasses the older
+    generic callee switch, the `*bytecodeProgram` type assertion/equality
+    check, and `callNode` extraction entirely
+  - the branch reads the `*runtime.FunctionValue` directly from the reserved
+    self slot, uses the already-known `currentProgram`, and stays on the
+    existing minimal self-fast frame path
+  - focused self-fast recursion, cleanup, and fixture-parity coverage stayed
+    green on the narrower dispatch path
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - prior warmed reduced `BenchmarkFib30Bytecode` band:
+    `186.37-189.04ms/op`
+  - refreshed warmed reduced `BenchmarkFib30Bytecode` reruns:
+    `181.90ms/op`, `178.13ms/op`, `176.39ms/op`
+  - single reduced rerun: `188.57ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as another narrow recursion-kernel win
+  - the reduced warmed `fib(30)` kernel moved materially again, taking the
+    stable band from the high `~186-189ms` range down into the
+    `~176-182ms` range
+  - aligned one-shot bytecode `fib` still times out, so this still is not the
+    real aligned benchmark fix
+  - the next reduced wall is now more clearly the arithmetic side of the same
+    recursion path: `execBinary(...)`, `execBinarySlotConst(...)`,
+    `bytecodeDirectSmallI32Value(...)`, `bytecodeSubtractIntegerImmediateI32Fast(...)`,
+    and the remaining return-path work in `finishInlineReturn(...)`
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(PushSelfFastMinimalCallFrameUsesMinimalStacks|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-selfcall-next.cpu.pprof -memprofile /tmp/fib30-selfcall-next.mem.pprof -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — reduced bytecode `fib` tiny slot-clear tranche (v12)
+- Closed the next bytecode recursion slice after the minimal self-fast setup
+  tranche.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames.go` now uses
+    direct nil stores for released slot frames of size `1..4` instead of
+    always calling the generic `clear(slots)` path
+  - that keeps the hot reduced-recursion slot-frame release path on straight
+    tiny writes for the common `fib` frame sizes instead of paying the
+    broader slice-clear helper each return
+  - focused slot-frame cleanup, self-fast recursion, and fixture-parity
+    coverage stayed green on the new release path
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - prior warmed reduced `BenchmarkFib30Bytecode` band:
+    `184.96-197.79ms/op`
+  - refreshed warmed reduced `BenchmarkFib30Bytecode` reruns:
+    `186.37ms/op`, `187.04ms/op`, `189.04ms/op`
+  - single profiled reduced run: `212.16ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as another narrow recursion-kernel win
+  - the reduced warmed `fib(30)` kernel did not improve the absolute best
+    sample, but it tightened materially on the slow side, collapsing the
+    prior `~198ms` tail into a stable `~186-189ms` band
+  - the refreshed reduced CPU profile no longer shows
+    `releaseSlotFrame(...)` / `clear(slots)` as a visible top-tier hotspot
+  - the remaining reduced recursion wall is now more cleanly
+    `execCallSelfIntSubSlotConst(...)`, `execBinary(...)`,
+    `execBinarySlotConst(...)`, `finishInlineReturn(...)`,
+    `bytecodeDirectSmallI32Value(...)`, and
+    `bytecodeSubtractIntegerImmediateI32Fast(...)`
+  - aligned one-shot bytecode `fib` still times out, so this still is not the
+    real aligned benchmark fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(PushSelfFastMinimalCallFrameUsesMinimalStacks|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-slotclear.cpu.pprof -memprofile /tmp/fib30-slotclear.mem.pprof -count=1`
+  - `go tool pprof -top /tmp/fib30-slotclear.cpu.pprof`
+  - `go tool pprof -list 'releaseSlotFrame|finishInlineReturn' /tmp/fib30-slotclear.cpu.pprof`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — reduced bytecode `fib` minimal self-fast setup tranche (v12)
+- Closed the next bytecode recursion slice after the slot-frame batch tranche.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_frames.go` now has
+    a dedicated `pushSelfFastMinimalCallFrame(...)` helper so the hot minimal
+    self-fast recursion path can append directly onto the minimal frame stacks
+    without re-entering the broader `pushCallFrame(...)` branching
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go` now uses that
+    direct helper inside `execCallSelfIntSubSlotConst(...)` when the current
+    program already has a cached nil return-generic set and the frame is
+    guaranteed to stay minimal
+  - that same self-fast branch now also skips
+    `bytecodeInlineReturnGenericNames(...)` entirely on the cached-nil path
+    instead of calling it only to rediscover the same nil result
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames_finalize_test.go`
+    now pins the direct minimal helper path explicitly
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - prior restored reduced `BenchmarkFib30Bytecode` band:
+    `188.93-197.98ms/op`
+  - refreshed warmed reduced `BenchmarkFib30Bytecode` reruns:
+    `197.79ms/op`, `185.03ms/op`, `184.96ms/op`
+  - single profiled reduced run: `194.46ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as another narrow recursion-kernel win
+  - the reduced warmed `fib(30)` kernel moved again, and the refreshed CPU
+    profile no longer shows `pushCallFrame(...)` or
+    `bytecodeInlineReturnGenericNames(...)` in the visible top tier for the
+    reduced run
+  - the remaining reduced recursion wall is now more cleanly
+    `finishInlineReturn(...)`, `execCallSelfIntSubSlotConst(...)`,
+    `inlineCoercionUnnecessaryBySimpleType(...)`,
+    `execBinarySlotConst(...)`, `bytecodeDirectSmallI32Value(...)`, and
+    `bytecodeSubtractIntegerImmediateI32Fast(...)`
+  - aligned one-shot bytecode `fib` still times out, so this still is not the
+    real aligned benchmark fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(PushSelfFastMinimalCallFrameUsesMinimalStacks|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-minpush.cpu.pprof -memprofile /tmp/fib30-minpush.mem.pprof -count=1`
+  - `go tool pprof -top /tmp/fib30-minpush.cpu.pprof`
+  - `go tool pprof -list 'execCallSelfIntSubSlotConst' /tmp/fib30-minpush.cpu.pprof`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — reduced bytecode `fib` slot-frame batch tranche (v12)
+- Closed the next bytecode recursion slice after the inline-return tranche.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames.go` now
+    batches small slot-frame allocations at 32 frames instead of 8
+  - that keeps the hot slot-frame pool populated across the common reduced
+    recursion depth instead of rebuilding tiny pools each benchmark run
+  - focused recursion, unwind/release, and fixture-parity coverage stayed
+    green on the larger slot-frame batch
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - prior warmed reduced `BenchmarkFib30Bytecode` band:
+    `189.63-195.72ms/op`
+  - refreshed warmed reduced `BenchmarkFib30Bytecode` reruns:
+    `198.99ms/op`, `183.53ms/op`, `187.89ms/op`
+  - single profiled reduced run: `207.16ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as another narrow recursion-kernel win
+  - the reduced warmed `fib(30)` kernel moved again, and the refreshed CPU
+    profile no longer shows `releaseSlotFrame(...)` as a top-tier hotspot
+  - the remaining reduced recursion wall is now more cleanly
+    `execCallSelfIntSubSlotConst(...)`, `pushCallFrame(...)`,
+    `finishInlineReturn(...)`, `bytecodeDirectSmallI32Value(...)`,
+    `acquireSlotFrame(...)`, and `execBinarySlotConst(...)`
+  - aligned one-shot bytecode `fib` still times out, so this still is not the
+    real aligned benchmark fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-bytecode-slotbatch.cpu.pprof -memprofile /tmp/fib30-bytecode-slotbatch.mem.pprof -count=1`
+  - `go tool pprof -top /home/david/sync/projects/able/v12/interpreters/go/interpreter.test /tmp/fib30-bytecode-slotbatch.cpu.pprof`
+  - `go tool pprof -list 'releaseSlotFrame|acquireSlotFrame|finishInlineReturn|execCallSelfIntSubSlotConst|execBinarySlotConst' /home/david/sync/projects/able/v12/interpreters/go/interpreter.test /tmp/fib30-bytecode-slotbatch.cpu.pprof`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — reduced bytecode `fib` inline-return tranche (v12)
+- Closed the next bytecode recursion slice after the minimal self-fast frame
+  tranche.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_return.go` now owns the
+    bytecode inline-return helper path, which pulls the hot return logic out
+    of `bytecode_vm_run.go` and keeps that file back under the 1000-line
+    guardrail
+  - the inline return path now handles
+    `bytecodeCallFrameKindSelfFastMinimal` directly instead of routing that
+    minimal self-fast case through the broader `popCallFrameFields(...)` path
+  - `v12/interpreters/go/pkg/interpreter/bytecode_program_generic_names.go`
+    now exposes `bytecodeInlineReturnGenericNames(...)`, and the hot inline
+    call sites use that cached return-generic metadata path directly
+  - focused recursion/cleanup coverage kept passing in the existing bytecode
+    fast-path, unwind, and fixture-parity slice while the return-path refactor
+    landed
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - prior warmed reduced `BenchmarkFib30Bytecode` band:
+    `195.06-199.73ms/op`
+  - refreshed warmed reduced `BenchmarkFib30Bytecode` reruns:
+    `189.63ms/op`, `195.72ms/op`, `192.46ms/op`
+  - single profiled reduced run: `202.31ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as another narrow recursion-kernel win
+  - the reduced warmed `fib(30)` kernel moved again, and the refreshed CPU
+    profile no longer shows `pushCallFrame(...)` as a visible top-tier
+    hotspot
+  - the remaining reduced recursion wall is now more cleanly
+    `execCallSelfIntSubSlotConst(...)`, `execBinary(...)`,
+    `execBinarySlotConst(...)`, `finishInlineReturn(...)`,
+    `bytecodeDirectSmallI32Value(...)`, and
+    `bytecodeBoxedIntegerI32Value(...)`
+  - aligned one-shot bytecode `fib` still times out, so this still is not the
+    real aligned benchmark fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-bytecode-returnfast.cpu.pprof -memprofile /tmp/fib30-bytecode-returnfast.mem.pprof -count=1`
+  - `go tool pprof -top /home/david/sync/projects/able/v12/interpreters/go/interpreter.test /tmp/fib30-bytecode-returnfast.cpu.pprof`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — reduced bytecode `fib` minimal self-fast frame tranche (v12)
+- Closed the next bytecode recursion slice after the direct `i32`
+  arithmetic/boxing tranche.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_frames.go` now
+    splits out a minimal self-fast call-frame kind for the pure recursive case
+    where the frame carries no generic-name set, no implicit receiver, and no
+    loop/iterator base state
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go` now carries the
+    corresponding minimal self-fast frame storage
+  - pooled-VM reset and finished-run cleanup in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool.go` and
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_run_finalize.go` now
+    unwind and release that minimal frame shape correctly
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_frames_finalize_test.go`
+    now pins unwind/release behavior for the new minimal self-fast path
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - prior warmed reduced `BenchmarkFib30Bytecode` band:
+    `198.70-201.98ms/op`
+  - refreshed warmed reduced `BenchmarkFib30Bytecode` reruns:
+    `199.73ms/op`, `195.06ms/op`, `196.84ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as another narrow recursion-kernel win
+  - the reduced warmed `fib(30)` kernel moved again, and the refreshed CPU
+    profile no longer shows `pushCallFrame(...)` as a top-tier flat hotspot
+  - aligned one-shot bytecode `fib` still times out, so the remaining wall is
+    still broader recursive VM cost rather than just self-fast frame payload
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-bytecode-minselffast.cpu.pprof -memprofile /tmp/fib30-bytecode-minselffast.mem.pprof -count=1`
+  - `go tool pprof -top /home/david/sync/projects/able/v12/interpreters/go/interpreter.test /tmp/fib30-bytecode-minselffast.cpu.pprof`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — reduced bytecode `fib` i32 fast-path tranche (v12)
+- Closed the next bytecode recursion slice after the benchmark-local
+  `i_before_e` early-guard work.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_i32_fast.go` now carries
+    a dedicated small-`i32` boxing path plus direct small-`i32` add/sub
+    helpers
+  - the fused self-call immediate-subtract path and the specialized bytecode
+    integer add/sub path now use those direct `i32` helpers before falling
+    back to the generic integer machinery
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+    and
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates_test.go`
+    now pins the direct `i32` helper behaviour and cache reuse
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - reduced `BenchmarkFib30Bytecode` prior restored band:
+    `~219-225ms/op`
+  - reduced `BenchmarkFib30Bytecode` warmed reruns on the kept code:
+    `198.70ms/op`, `201.98ms/op`
+  - additional reduced single-run samples on the kept code:
+    `219.53ms/op`, `228.74ms/op`, `221.24ms/op`, `201.95ms/op`,
+    `199.89ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as a narrow recursion-kernel win, not a full aligned
+    benchmark fix
+  - the reduced warmed `fib(30)` kernel is materially better, which says the
+    direct `i32` arithmetic/boxing specialization is real enough to keep
+  - aligned one-shot bytecode `fib` still times out, so the remaining wall is
+    still broader recursive VM cost rather than just generic `i32`
+    boxing/dispatch
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache|BinaryFastPathIntegerParity|DirectIntegerComparisonFastPath|DirectSmallIntegerComparisonFastPath|DirectSameTypeSmallIntPair|BoxedSmallIntValueCache|BoxedIntegerValueDynamicCache|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -count=5`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-bytecode-i32fast.cpu.pprof -memprofile /tmp/fib30-bytecode-i32fast.mem.pprof -count=1`
+  - `go tool pprof -top /home/david/sync/projects/able/v12/interpreters/go/interpreter.test /tmp/fib30-bytecode-i32fast.cpu.pprof`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — `i_before_e` early-guard benchmark tranche (v12)
+- Closed the next aligned `i_before_e` performance slice after the
+  exact-native skip-context runtime work, but this one is benchmark-local
+  rather than VM-internal.
+- What landed:
+  - `v12/examples/benchmarks/i_before_e/i_before_e.able` now short-circuits
+    the hot `is_valid(...)` path:
+    - if a word has no `"ei"`, it returns `true` immediately
+    - if a word has `"ei"` but no `"cei"`, it returns `false` immediately
+    - it only falls back to `replace("cei", "")` on the small remaining
+      subset that actually contains `"cei"`
+  - on the aligned `wordlist.txt` input, that removes pointless `replace(...)`
+    work from 172,695 of 172,823 words; only 128 words still need the replace
+    path
+  - an exhaustive local equivalence check over the aligned wordlist confirmed
+    the new predicate preserves the prior output set (`1628` invalid words)
+- Refreshed aligned `i_before_e` numbers on the kept code:
+  - bytecode-runtime clean rerun A: `0.792s/op`, `2.84 MB/op`,
+    `2,080 allocs/op`
+  - bytecode-runtime clean rerun B: `0.749s/op`, `2.84 MB/op`,
+    `2,078 allocs/op`
+  - bytecode-runtime profiled: `0.779s/op`, `2.87 MB/op`,
+    `2,151 allocs/op`
+  - external compiled compare: `0.290s`
+  - external bytecode compare: `1.020s`
+- Outcome:
+  - this is a keep because the prior benchmark body was doing obviously wasted
+    string work on nearly the entire corpus; the new shape is still the same
+    benchmark semantics, but it is no longer dominated by avoidable
+    `replace(...)` calls
+  - aligned steady-state bytecode `i_before_e` moved from the prior
+    `~0.84-0.87s/op` band down into the `~0.75-0.79s/op` band, while heap
+    dropped from roughly `5.6 MB/op` / `175k allocs/op` into the
+    `~2.84 MB/op` / `2.1k allocs/op` band
+  - one-shot aligned bytecode `i_before_e` is now `1.02s`, so the benchmark is
+    no longer the right place to spend more string micro-optimization time
+    before rechecking the much larger `fib` timeout problem
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestLoadBytecodeProgramRuntimeBenchConfig' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-earlyguards.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-earlyguards.mem.pprof ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-earlyguards --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes compiled --runs 1 --timeout 20`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 1 --timeout 20`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — exact-native skip-context tranche (v12)
+- Closed the next steady-state bytecode text-path tranche after the
+  overload-member inline slice.
+- What landed:
+  - `v12/interpreters/go/pkg/runtime/values.go` now exposes an opt-in
+    `SkipContext` flag on `runtime.NativeFunctionValue`
+  - `v12/interpreters/go/pkg/interpreter/definitions.go` now marks generated
+    extern wrappers as `SkipContext: true` because those host-call closures do
+    not observe `*runtime.NativeCallContext`
+  - both the tree-walker native call path and the bytecode
+    `execExactNativeCall(...)` fast path now bypass native-call-context
+    pooling/setup on that opt-in path instead of always acquiring and
+    releasing a pooled `runtime.NativeCallContext`
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/interpreter_extern_test.go`,
+    `v12/interpreters/go/pkg/interpreter/call_callable_native_bound_partial_test.go`,
+    and
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_native_fastpath_test.go`
+    now pins the opt-in contract and the nil-context call semantics on both
+    interpreter paths
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `0.872s/op`, `5.60 MB/op`,
+    `174,775 allocs/op`
+  - bytecode-runtime clean rerun B: `0.853s/op`, `5.60 MB/op`,
+    `174,774 allocs/op`
+  - bytecode-runtime profiled: `0.837s/op`, `5.63 MB/op`,
+    `174,846 allocs/op`
+- Outcome:
+  - this is a keep as a modest CPU-path win with the same low-heap shape:
+    aligned steady-state bytecode `i_before_e` moved from the prior
+    `~0.89-0.91s/op` band into the `~0.84-0.87s/op` band while holding the
+    prior `~5.6 MB/op` / `175k allocs/op` heap band
+  - the refreshed profile says native-call-context setup is no longer the
+    right exact-native target; the remaining measured wall is the actual
+    fast-string extern body plus residual member/name-call dispatch
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(ExternHandlersRegisterNativeFunctions|CallCallableValue_Native(SkipContextPassesNilContext|BoundMethodPartialDoesNotDoubleInjectReceiver)|BytecodeVM_(NativeExactCallSkipContextPassesNilContext|NativeBoundMethodExactCallInjectsReceiverOnce|NativeBoundMethodArgsStayStableWhenBorrowDisabled|NativeExactCallsSkipInlineProbeStats)|BytecodeResolveExactInjectedNativeCallTargetAcceptsNativeBoundMethod)$' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-skipctx.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-skipctx.mem.pprof ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-skipctx --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-skipctx/interpreter.test /tmp/able-bytecode-runtime-ibe-skipctx.cpu.pprof`
+  - `go tool pprof -list 'execExactNativeCall' /tmp/able-bytecode-runtime-ibe-skipctx/interpreter.test /tmp/able-bytecode-runtime-ibe-skipctx.cpu.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — bytecode overload-member inline tranche (v12)
+- Closed the next trace-driven steady-state bytecode text-path tranche after the
+  runtime trace instrumentation slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_member.go` now
+    concretizes overload-valued member call targets to a selected
+    `*runtime.FunctionValue` before dispatch instead of always falling through
+    the generic bound-method path
+  - the bytecode member-call path now feeds that selected overload directly
+    into the existing injected-receiver inline/generic ladders without
+    materializing a fresh `runtime.BoundMethodValue` per hot call
+  - the overload-selection scratch path now uses a small stack-backed arg
+    buffer for common arities instead of allocating a merged receiver+args
+    slice on every hot call
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_bound_method_inline_test.go`
+    now pins inline hits for overloaded member-call sites in addition to the
+    existing direct and generic bound-method inline proofs
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `0.887s/op`, `5.60 MB/op`,
+    `174,773 allocs/op`
+  - bytecode-runtime clean rerun B: `0.911s/op`, `5.60 MB/op`,
+    `174,775 allocs/op`
+  - bytecode-runtime profiled: `0.905s/op`, `5.63 MB/op`,
+    `174,847 allocs/op`
+- Outcome:
+  - this is a keep as a CPU-path win with the restored low-heap shape:
+    aligned steady-state bytecode `i_before_e` moved from the restored
+    `~1.00-1.01s/op` band down to `~0.89-0.91s/op` while staying in the prior
+    `~5.6 MB/op` / `175k allocs/op` heap band
+  - the traced benchmark confirms the intent:
+    `Array.get` now shows up as `call_member` / `resolved_method` / `inline`
+    instead of remaining on the generic member-call path
+  - the refreshed CPU profile says the old overload-member generic dispatch is
+    no longer the useful next target; the remaining visible wall is now
+    dominated more by exact-native/string extern paths (`buildExternFastInvoker.func8`,
+    `execExactNativeCall`, `externCloneValueSlice`) plus residual inline
+    coercion and name-call execution
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(BytecodeVM_(InlineOverloadedMemberMethodCallStats|InlineBoundMethodCallStats|InlineBoundGenericMethodCallStats|StatsMemberMethodCacheCounters|CallNameDotFallbackUsesMemberMethodCache|CallMemberOpcodeExecutesMethodCall|CallMemberFallsBackToCallableField|CallMemberHandlesOptionalMethodArity|CallMemberHandlesOverloadedMethods)|BytecodeResolveExactInjectedNativeCallTargetAcceptsNativeBoundMethod)$' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-member-overload-inline.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-member-overload-inline.mem.pprof ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-member-overload-inline --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BYTECODE_TRACE_OUT=/tmp/able-bytecode-runtime-ibe-arrayget-overload-inline.json ABLE_BYTECODE_TRACE_LIMIT=12 ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-21 — bytecode runtime trace tranche (v12)
+- Closed the next steady-state bytecode benchmarking tranche after the
+  string-slice template cache slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_bytecode_trace.go` now
+    provides an opt-in sorted bytecode call trace keyed by opcode kind,
+    callee/member name, lookup path, dispatch path, and source location
+  - the bytecode `call_name` / `call_member` execution paths now record actual
+    dispatch outcomes (`exact_native`, `inline`, `generic`) instead of forcing
+    another blind runtime-call optimization pass
+  - `v12/interpreters/go/pkg/interpreter/bytecode_program_runtime_bench_test.go`
+    now resets trace state after warmup and can emit a JSON trace report for
+    `bytecode-runtime` benchmark runs
+  - `v12/bench_perf` now forwards
+    `ABLE_BYTECODE_TRACE_OUT=/tmp/trace.json` and optional
+    `ABLE_BYTECODE_TRACE_LIMIT=N` into that runtime-only benchmark harness
+  - focused coverage now pins the trace snapshot sort/reset behavior, the
+    presence of both `call_name` and `call_member` entries on a real bytecode
+    program, and the new runtime-benchmark config parsing
+- First traced aligned `i_before_e` baseline on the kept code:
+  - traced bytecode-runtime run: `1.11s/op`
+  - traced allocs: `5.61 MB/op`, `174,794 allocs/op`
+  - top measured callsites in the emitted trace:
+    `__able_array_size`, array `len`, array `read_slot`,
+    `__able_array_read`, benchmark-local `replace`, `contains`, `len_bytes`,
+    `is_valid`, and the fast string externs those methods bottom out into
+- Outcome:
+  - this is a keep as instrumentation, not as a performance claim: traced
+    wall-clock is slower because the trace itself adds overhead, but we now
+    have a concrete rank-ordered callsite view for `i_before_e`
+  - the next optimization slices should use that trace to target the array
+    helper path and the remaining benchmark-local string stack instead of
+    continuing blind member/native dispatch experiments
+
+# 2026-04-20 — string-slice template cache tranche (v12)
+- Closed the next aligned bytecode text-path tranche after the atomic
+  `read_lines` hot-cache slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/extern_host_fast.go` now gives each
+    string-slice fast invoker a tiny cached template for `[]string ->
+    []runtime.Value`
+  - repeated hot `Array String` extern results now compare against a cached
+    source snapshot and clone a boxed template slice instead of re-boxing every
+    `StringValue` from scratch on each call
+  - the cache stays semantically safe: every call still returns a fresh Able
+    array backing slice, and a changed source `[]string` rebuilds the template
+    instead of reusing stale boxed values
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/extern_host_result_fast_test.go`
+    now pins both properties:
+    returned arrays do not alias the cached template, and source changes
+    invalidate the cache
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun: `0.87s/op`
+  - bytecode-runtime clean rerun allocs: `5.61 MB/op`,
+    `174,794 allocs/op`
+  - bytecode-runtime profiled: `0.88s/op`
+  - bytecode-runtime profiled allocs: `5.64 MB/op`,
+    `174,867 allocs/op`
+- Outcome:
+  - this is a keep as another material heap collapse with a flat CPU band:
+    aligned steady-state bytecode `i_before_e` stays in the same sub-second
+    range while heap falls from about `8.4 MB/op` / `348k allocs/op` to about
+    `5.6 MB/op` / `175k allocs/op`
+  - the refreshed alloc profile shows the intended shift:
+    `externStringSliceResult(...)` drops out of the top alloc tier and the
+    remaining array-string return cost is now mostly one cloned `[]runtime.Value`
+    slice in `externCloneValueSlice(...)` plus residual member/native dispatch
+
+# 2026-04-20 — atomic `read_lines` hot-cache tranche (v12)
+- Closed the next aligned bytecode text-path tranche after the dynamic
+  boxed-int cache expansion slice.
+- What landed:
+  - `../able-stdlib/src/fs.able` now keeps `fs_read_lines_fast(...)` on a
+    single-entry immutable hot cache keyed by `path + size + modifiedNs`
+    instead of the earlier shared map + `RWMutex` experiment
+  - the cache is stored through `atomic.Pointer`, so the measured hot path is
+    just `os.Stat(...)` plus an atomic load/compare on repeated same-file
+    reads; misses still rebuild from `os.ReadFile(...)` and replace the cached
+    entry
+  - focused correctness proof in
+    `v12/interpreters/go/pkg/compiler/compiler_stdlib_io_temp_test.go` now
+    pins that rewriting the same file invalidates the cached `read_lines(...)`
+    result
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `0.91s/op`
+  - bytecode-runtime clean rerun A allocs: `8.37 MB/op`,
+    `347,617 allocs/op`
+  - bytecode-runtime clean rerun B: `0.89s/op`
+  - bytecode-runtime clean rerun B allocs: `8.37 MB/op`,
+    `347,617 allocs/op`
+  - bytecode-runtime profiled: `0.89s/op`
+  - bytecode-runtime profiled allocs: `8.40 MB/op`,
+    `347,690 allocs/op`
+- Outcome:
+  - this is a keep as both heap work and a CPU-safe cache shape:
+    it preserves the large `read_lines(...)` heap collapse from the earlier
+    cache experiment without carrying the map/lock wall-clock regression
+  - compared with the prior kept dynamic boxed-int tranche, aligned steady-state
+    bytecode `i_before_e` stays in the same sub-second band while heap falls
+    from about `14.6 MB/op` to about `8.4 MB/op`
+  - the refreshed alloc profile shows the intended shift: the old
+    `strings.genSplit` / `os.readFileContents` plugin-body cost drops out of
+    the hot measured path, while the remaining visible wall is now more cleanly
+    `buildExternFastInvoker.func8`, `externStringSliceResult(...)`,
+    `bytecodeBoxedIntegerValue(...)`, and residual member/native dispatch
+
+# 2026-04-20 — dynamic boxed-int cache expansion tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the
+  injected-receiver helper slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_small_int_boxing.go`
+    now raises the lazy dynamic boxed-int cache cap from `32768` to `262144`
+    so a single warmup pass can retain the full large loop-index working set
+    seen by aligned `i_before_e`
+  - the fixed small-int cache stays unchanged; this is not a broader eager
+    preallocation change
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates_test.go`
+    now pins the dynamic cache path with a large out-of-range value
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun: `0.88s/op`
+  - bytecode-runtime clean rerun allocs: `14.63 MB/op`,
+    `347,625 allocs/op`
+  - bytecode-runtime profiled: `0.88s/op`
+  - bytecode-runtime profiled allocs: `14.66 MB/op`,
+    `347,695 allocs/op`
+- Outcome:
+  - this is a keep as heap work with a stable CPU band:
+    aligned steady-state bytecode `i_before_e` stayed in the same
+    sub-second runtime band while heap fell from about
+    `20.6 MB/op` / `471k allocs/op` to about `14.6 MB/op` / `348k allocs/op`
+  - the refreshed alloc profile shows the intended shift:
+    `bytecodeBoxedIntegerValue(...)` dropped from about `5.63 MB` flat
+    alloc-space to about `1.54 MB`, and total profiled alloc-space fell from
+    about `44.37 MB` to about `34.94 MB`
+  - the remaining text-path wall is now more cleanly
+    `externStringSliceResult(...)`, `strings.genSplit`,
+    `buildExternFastInvoker.func8`, the residual plugin-body work in
+    `fs_read_lines_fast(...)`, and the still-visible member/native dispatch
+    CPU around `execCallMember(...)` / `execExactNativeCall(...)`
+
+# 2026-04-20 — injected-receiver helper tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the primitive
+  bound-method cache slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go` now
+    exposes a shared optional injected-receiver helper, so bytecode direct
+    member calls can stay on the existing callable dispatch path without first
+    allocating a fresh merged argument slice
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_member.go` now
+    passes the existing VM stack slice plus receiver into that helper, which
+    lets the prepend step reuse the stack-backed slice when it has spare
+    capacity instead of always materializing a new merged slice
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_member_test.go`
+    now also pins optional-arity and overloaded method-call semantics on the
+    direct member-call opcode path
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun: `0.90s/op`
+  - bytecode-runtime clean rerun allocs: `20.57 MB/op`,
+    `471,293 allocs/op`
+  - bytecode-runtime profiled: `0.90s/op`
+  - bytecode-runtime profiled allocs: `20.60 MB/op`,
+    `471,367 allocs/op`
+- Outcome:
+  - this is a keep as both CPU-path and heap work:
+    aligned steady-state bytecode `i_before_e` moved from the prior
+    `~0.92-0.97s/op` band into the `~0.90s/op` band while heap fell from about
+    `26.1 MB/op` / `644k allocs/op` to about `20.6 MB/op` / `471k allocs/op`
+  - the injected member-call merge fell out of the top alloc set entirely
+  - the remaining text-path wall is now more cleanly
+    `bytecodeBoxedIntegerValue(...)`, `externStringSliceResult(...)`,
+    `strings.genSplit`, and the residual direct plugin-body cost in
+    `fs_read_lines_fast(...)`
+
+# 2026-04-20 — primitive bound-method cache tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the direct
+  member-method cache slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+    now gives primitive receivers stable bound-method cache keys by type token
+    instead of treating value receivers like `String` as uncached
+  - the same tranche keeps the cache semantically safe by only storing
+    primitive receiver entries when resolution actually came from a real method
+    candidate; primitive scope-fallback callables stay uncached
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution_cache_test.go`
+    now pins both sides:
+    primitive `String` methods reuse one cache entry across distinct receiver
+    values, and primitive scope-fallback callables do not get cached across
+    reassignment
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `0.92s/op`
+  - bytecode-runtime clean rerun A allocs: `26.10 MB/op`,
+    `644,118 allocs/op`
+  - bytecode-runtime clean rerun B: `0.97s/op`
+  - bytecode-runtime clean rerun B allocs: `26.10 MB/op`,
+    `644,117 allocs/op`
+  - bytecode-runtime profiled: `1.11s/op`
+  - bytecode-runtime profiled allocs: `26.13 MB/op`,
+    `644,191 allocs/op`
+- Outcome:
+  - this is a CPU-path keep layered on top of the prior cache work:
+    the refreshed profile shows `resolveMethodCallableFromPool(...)`
+    dropping from the older `~250ms` cumulative tier to about `~70ms`
+    while keeping the post-cast heap shape effectively flat
+  - the remaining text-path wall is now more cleanly led by
+    `callResolvedCallableWithInjectedReceiver(...)`,
+    `externStringSliceResult(...)`, `bytecodeBoxedIntegerValue(...)`, and the
+    residual direct plugin-body cost in `fs_read_lines_fast(...)`
+
+# 2026-04-20 — direct member-method cache tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the
+  native-bound-member exact-call slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_member.go` now uses
+    the existing bytecode member-method cache on the `bytecodeOpCallMember`
+    path instead of bypassing it and re-running method resolution on every
+    direct `obj.method(...)` call
+  - that closes a real regression too: the existing
+    `TestBytecodeVM_StatsMemberMethodCacheCounters` proof was red because
+    `execCallMember(...)` never consulted the cache even though member access
+    and dotted call-name fallback already did
+  - on a miss, the VM now stores a rebound template for the same cache surface;
+    on a hit, it executes the cached resolved member callee through the
+    exact-native / inline / generic call ladder without re-running
+    `resolveMethodCallableFromPool(...)`
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `1.00s/op`
+  - bytecode-runtime clean rerun A allocs: `26.09 MB/op`,
+    `644,119 allocs/op`
+  - bytecode-runtime clean rerun B: `1.00s/op`
+  - bytecode-runtime clean rerun B allocs: `26.09 MB/op`,
+    `644,119 allocs/op`
+  - bytecode-runtime profiled: `1.02s/op`
+  - bytecode-runtime profiled allocs: `26.13 MB/op`,
+    `644,191 allocs/op`
+- Outcome:
+  - this is a keep as both correctness and CPU-path work:
+    the cache-counter regression is closed, and aligned steady-state bytecode
+    `i_before_e` moved from the prior `~1.07-1.12s/op` band into the low
+    `~1.00-1.02s/op` band while preserving the post-cast
+    `~26.1 MB/op` / `644k allocs/op` heap shape
+  - the remaining text-path wall is still led by
+    `callResolvedCallableWithInjectedReceiver(...)`,
+    `resolveMethodCallableFromPool(...)`, `externStringSliceResult(...)`,
+    `bytecodeBoxedIntegerValue(...)`, and the residual direct plugin-body cost
+    in `fs_read_lines_fast(...)`
+
+# 2026-04-20 — native-bound-member exact-call tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the small-int
+  cast slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_member.go` now lets
+    the direct member-call exact-native fast path accept
+    `runtime.NativeBoundMethodValue` too, instead of only raw
+    `NativeFunctionValue` templates
+  - that closes a real gap between method resolution and bytecode member
+    execution: the resolver can already return native bound methods for
+    primitive/native receivers, and the VM now routes those straight through
+    `execExactNativeCall(...)` instead of falling back to the generic
+    injected-receiver call path
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_member_test.go`
+    now pins `bytecodeResolveExactInjectedNativeCallTarget(...)` on
+    `NativeBoundMethodValue`
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `1.08s/op`
+  - bytecode-runtime clean rerun A allocs: `26.09 MB/op`,
+    `644,119 allocs/op`
+  - bytecode-runtime clean rerun B: `1.07s/op`
+  - bytecode-runtime clean rerun B allocs: `26.13 MB/op`,
+    `644,192 allocs/op`
+  - bytecode-runtime clean rerun C: `1.12s/op`
+  - bytecode-runtime clean rerun C allocs: `26.09 MB/op`,
+    `644,118 allocs/op`
+  - bytecode-runtime profiled: `1.07s/op`
+  - bytecode-runtime profiled allocs: `26.13 MB/op`,
+    `644,192 allocs/op`
+- Outcome:
+  - this is a CPU-path keep layered on top of the prior heap work:
+    aligned steady-state bytecode `i_before_e` moved back into the low
+    `~1.07-1.12s/op` band while preserving the post-cast
+    `~26.1 MB/op` / `644k allocs/op` heap shape
+  - the remaining text-path wall is still led by
+    `callResolvedCallableWithInjectedReceiver(...)`,
+    `resolveMethodCallableFromPool(...)`, `externStringSliceResult(...)`,
+    `bytecodeBoxedIntegerValue(...)`, and the residual direct plugin-body cost
+    in `fs_read_lines_fast(...)`
+
+# 2026-04-20 — small-int cast tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the wider
+  integer-kind boxing slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_type_coercion_fast.go`
+    now keeps small integer-to-integer suffix casts on a 64-bit arithmetic path
+    instead of always allocating `big.Int` values for
+    `bitPattern(...)` / `patternToInteger(...)`
+  - the same helper is reused from
+    `v12/interpreters/go/pkg/interpreter/interpreter_type_coercion.go`, so the
+    post-alias simple-type cast path also avoids the old small-int `big.Int`
+    churn
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/interpreter_type_coercion_fast_test.go`
+    now pins small signed-to-unsigned wrap behavior, the negative-to-`u64`
+    big-integer fallback boundary, and the bounded allocation behavior on
+    repeated `u8` casts
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `1.35s/op`
+  - bytecode-runtime clean rerun A allocs: `26.10 MB/op`,
+    `644,158 allocs/op`
+  - bytecode-runtime clean rerun B: `1.17s/op`
+  - bytecode-runtime clean rerun B allocs: `26.10 MB/op`,
+    `644,158 allocs/op`
+  - bytecode-runtime profiled: `1.36s/op`
+  - bytecode-runtime profiled allocs: `26.13 MB/op`,
+    `644,192 allocs/op`
+- Outcome:
+  - this is a keep for allocation pressure, not a stable CPU-path win:
+    wall-clock stayed noisy on this machine, but the heap shift is large and
+    repeatable
+  - the refreshed alloc profile shows the intended shift:
+    `castValueToCanonicalSimpleTypeFast(...)`, `castValueToType(...)`,
+    `patternToInteger(...)`, and `bitPattern(...)` dropped out of the top
+    alloc set entirely, and total profiled alloc-space fell again from about
+    `50.83 MB` to about `44.90 MB`
+  - the remaining text-path wall is now more cleanly
+    `bytecodeBoxedIntegerValue(...)`,
+    `callResolvedCallableWithInjectedReceiver(...)`,
+    `resolveMethodCallableFromPool(...)`,
+    `externStringSliceResult(...)`, and the residual direct plugin-body cost
+    in `fs_read_lines_fast(...)`
+
+# 2026-04-20 — integer-kind boxing tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the union
+  extern-invoker slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_small_int_boxing.go` now
+    caches all int64-representable integer suffixes on the bytecode small-int
+    fast path instead of limiting the shared fixed/dynamic boxing caches to
+    `i32`, `i64`, and `isize`
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates_test.go`
+    now pins the unsigned fixed-cache and dynamic-cache paths too
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `1.09s/op`
+  - bytecode-runtime clean rerun A allocs: `34.39 MB/op`,
+    `1,162,592 allocs/op`
+  - bytecode-runtime profiled: `1.08s/op`
+  - bytecode-runtime profiled allocs: `34.43 MB/op`,
+    `1,162,662 allocs/op`
+- Outcome:
+  - this is a keep for allocation pressure, not a clean new CPU-path claim:
+    subsequent clean reruns on this machine were wall-clock noisy, but they
+    held the same `~34.4 MB/op` / `1.16M allocs/op` heap shape
+  - the old unsupported-kind fallback in `boxedOrSmallIntegerValue(...)`
+    disappeared from the hot alloc story, and total profiled alloc-space fell
+    again from about `61.30 MB` to about `50.83 MB`
+  - the remaining text-path wall is now led more clearly by
+    `bytecodeBoxedIntegerValue(...)`, `patternToInteger(...)`,
+    `callResolvedCallableWithInjectedReceiver(...)`,
+    `externStringSliceResult(...)`, and the residual direct plugin-body cost
+    in `fs_read_lines_fast(...)`
+
+# 2026-04-20 — union extern-invoker tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the extern
+  return-conversion slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/extern_host.go` now passes the active
+    interpreter into cached fast invokers, so a direct typed host call can
+    still fall back to the normal host-result coercion path without
+    re-invoking the extern
+  - `v12/interpreters/go/pkg/interpreter/extern_host_fast.go` now fast-paths
+    one-string-arg `func(string) interface{}` host wrappers, which is the
+    shape produced for union-return externs like `fs_read_lines_fast(...)`;
+    hot `[]string` success returns now bypass `reflect.Value.Call` entirely,
+    while non-`[]string` results still flow through `fromHostValue(...)`
+    using the already-computed direct result
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/extern_host_result_fast_test.go`
+    now pins the direct union `Array String` fast-invoker path alongside the
+    earlier `String` / `Array String` host-result helpers
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `0.98s/op`
+  - bytecode-runtime clean rerun A allocs: `42.71 MB/op`,
+    `1,335,497 allocs/op`
+  - bytecode-runtime clean rerun B: `1.01s/op`
+  - bytecode-runtime clean rerun B allocs: `42.70 MB/op`,
+    `1,335,460 allocs/op`
+  - bytecode-runtime profiled: `1.01s/op`
+  - bytecode-runtime profiled allocs: `42.74 MB/op`,
+    `1,335,541 allocs/op`
+- Outcome:
+  - aligned steady-state bytecode `i_before_e` moved down from the prior
+    extern-return-conversion band of about `1.08s/op` into the
+    `0.98-1.01s/op` band while keeping the same collapsed heap profile
+  - the refreshed profile shows the intended shift:
+    `reflect.Value.Call` dropped out of the top CPU and alloc sets for the
+    `fs_read_lines_fast(...)` success path
+  - the remaining text-path VM wall is now led more clearly by
+    `callResolvedCallableWithInjectedReceiver(...)`,
+    `boxedOrSmallIntegerValue(...)`, `externStringSliceResult(...)`, and the
+    residual direct plugin-body cost in `fs_read_lines_fast(...)`
+
+# 2026-04-20 — extern return-conversion fast-path tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the direct
+  member-call slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/extern_host_fast.go` now routes hot
+    `i32` fast-invoker results through `boxedOrSmallIntegerValue(...)`
+    instead of boxing a fresh `runtime.NewSmallInt(...)` on every call
+  - `v12/interpreters/go/pkg/interpreter/extern_host_coercion.go` plus the new
+    `v12/interpreters/go/pkg/interpreter/extern_host_result_fast.go` now
+    fast-path host `String`, `Array String`, and `IOError | Array String`
+    style union results before falling back to the old generic
+    reflect-heavy conversion path
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/extern_host_result_fast_test.go`
+    now pins the direct string-slice conversion helper, the union-member
+    preference logic, the `IOError | Array String` host return path, and the
+    hot `i32` fast-invoker signature
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `1.08s/op`
+  - bytecode-runtime clean rerun A allocs: `42.69 MB/op`,
+    `1,335,429 allocs/op`
+  - bytecode-runtime clean rerun B: `1.08s/op`
+  - bytecode-runtime clean rerun B allocs: `42.70 MB/op`,
+    `1,335,471 allocs/op`
+  - bytecode-runtime profiled: `1.08s/op`
+  - bytecode-runtime profiled allocs: `42.74 MB/op`,
+    `1,335,572 allocs/op`
+- Outcome:
+  - aligned steady-state bytecode `i_before_e` stayed in the same restored
+    `~1.08s/op` wall-clock band while heap and alloc count collapsed again
+    from the prior direct-member-call band of about `55.8 MB/op` and
+    `1.85M allocs/op`
+  - the refreshed alloc profile shows the intended shift:
+    the old generic extern return path through `fmt.Sprint(value.Interface())`
+    / `fromHostValue(...)` collapsed out of the top flat allocators, the hot
+    `buildExternFastInvoker.func1` `runtime.NewSmallInt(...)` slice
+    disappeared, and total profiled alloc-space fell again from about
+    `72.65 MB` to about `50.44 MB`
+  - the remaining text-path VM wall is now led more clearly by
+    `callResolvedCallableWithInjectedReceiver(...)`,
+    `boxedOrSmallIntegerValue(...)`, `externStringSliceResult(...)`, and the
+    residual `reflect.Value.Call` path behind `fs_read_lines_fast(...)`
+
+# 2026-04-20 — bytecode direct member-call tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the overload
+  cache signature slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+    now exposes `resolveMethodCallableFromPool(...)`, which reuses the
+    existing method-resolution machinery but returns the callable template
+    directly instead of always materializing a bound-method wrapper first
+  - bytecode member-call lowering in
+    `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go` now emits a
+    dedicated `bytecodeOpCallMember` for identifier member calls
+  - the new execution path in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_member.go` resolves
+    the callable template, reuses the existing injected-receiver inline-call
+    path when possible, and otherwise calls with an injected receiver without
+    first allocating `runtime.BoundMethodValue`
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_call_member_test.go`
+    now pins both the direct method-call path and the callable-field fallback
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `1.06s/op`
+  - bytecode-runtime clean rerun A allocs: `55.81 MB/op`,
+    `1,853,918 allocs/op`
+  - bytecode-runtime clean rerun B: `1.09s/op`
+  - bytecode-runtime clean rerun B allocs: `55.81 MB/op`,
+    `1,853,917 allocs/op`
+  - bytecode-runtime profiled: `1.09s/op`
+  - bytecode-runtime profiled allocs: `55.85 MB/op`,
+    `1,854,009 allocs/op`
+- Outcome:
+  - aligned steady-state bytecode `i_before_e` improved materially from the
+    prior overload-signature band of about `1.14-1.18s/op`,
+    `75.2 MB/op`, `2.72M allocs/op`
+  - the refreshed alloc profile shows the intended shift:
+    `resolveMethodFromPool(...)` dropped out of the top alloc set entirely,
+    and total profiled alloc-space fell again from about `82.41 MB` to about
+    `72.65 MB`
+  - the remaining text-path VM wall is now led more cleanly by
+    `callResolvedCallableWithInjectedReceiver(...)`,
+    `fromHostValue(...)`, and the residual extern/string conversion path
+
+# 2026-04-20 — overload cache signature tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the extern
+  wrapper borrow-args slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls_overloads.go`
+    now uses an inline comparable overload-cache signature for common small
+    arities instead of building a fresh concatenated kind-string on every hot
+    cached overload lookup; larger arities still fall back to the existing
+    string path
+  - the new key also carries subkind/type detail for floats and host handles,
+    so cache reuse stays correct without rebuilding the old per-call
+    `overloadArgKinds(...)` string
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/eval_expressions_calls_overloads_test.go`
+    now pins that overload signatures distinguish `f32` vs `f64` and distinct
+    host-handle types
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun: `1.18s/op`
+  - bytecode-runtime clean rerun allocs: `75.17 MB/op`,
+    `2,718,071 allocs/op`
+  - bytecode-runtime profiled: `1.14s/op`
+  - bytecode-runtime profiled allocs: `75.21 MB/op`,
+    `2,718,161 allocs/op`
+- Outcome:
+  - aligned steady-state bytecode `i_before_e` improved materially from the
+    prior kept extern-borrow-args band of about `1.11-1.19s/op`,
+    `84.9 MB/op`, `3.06M allocs/op`
+  - the refreshed alloc profile shows the intended collapse:
+    `overloadArgKinds(...)` dropped out of the top alloc set entirely, and
+    total profiled alloc-space fell again from about `90.95 MB` to about
+    `82.41 MB`
+  - the remaining text-path VM wall is now more cleanly
+    `resolveMethodFromPool(...)`, `stringMemberWithOverrides(...)`, and the
+    residual extern-host conversion path through `fromHostValue(...)`
+
+# 2026-04-20 — extern wrapper borrow-args tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the primitive
+  receiver method-resolution slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/definitions.go` now marks the Go
+    extern wrappers created by `makeExternNative(...)` with `BorrowArgs: true`,
+    so the bytecode exact-native path no longer clones argument slices before
+    synchronous extern-host invocation
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/interpreter_extern_test.go` now pins
+    that registered Go extern wrappers borrow their args, while the existing
+    bytecode native-call stability tests continue to pin the non-borrowing
+    safety path
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `1.14s/op`
+  - bytecode-runtime clean rerun A allocs: `84.88 MB/op`,
+    `3,063,799 allocs/op`
+  - bytecode-runtime clean rerun B: `1.19s/op`
+  - bytecode-runtime clean rerun B allocs: `84.89 MB/op`,
+    `3,063,840 allocs/op`
+  - bytecode-runtime profiled: `1.11s/op`
+  - bytecode-runtime profiled allocs: `84.92 MB/op`,
+    `3,063,917 allocs/op`
+- Outcome:
+  - aligned steady-state bytecode `i_before_e` improved materially from the
+    prior kept post-primitive-fast-path band of about `1.24-1.27s/op`,
+    `101.5 MB/op`, `3.58M allocs/op`
+  - the refreshed alloc profile shows the intended collapse:
+    `copyCallArgs(...)` dropped out of the top alloc set entirely, and total
+    profiled alloc-space fell from about `119.85 MB` to about `90.95 MB`
+  - the remaining text-path VM wall is now more clearly
+    `resolveMethodFromPool(...)`, `overloadArgKinds(...)`,
+    `stringMemberWithOverrides(...)`, and residual extern conversion through
+    `fromHostValue(...)`
+
+# 2026-04-20 — primitive receiver method-resolution fast-path tranche (v12)
+- Closed the next aligned bytecode text-path VM tranche after the stdlib
+  `read_lines` fast path.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go`
+    now skips eager scope-callable and type-name probing for primitive
+    receivers until after inherent/interface/native method lookup fails, so
+    hot `String` method calls no longer pay `env.Lookup(...)` / `env.Has(...)`
+    work on the common success path
+  - the rejected concrete string receiver cache experiment was removed and not
+    kept; the kept change preserves the existing pointer-receiver cache path
+    and only shortens the primitive lookup path itself
+  - focused interpreter coverage stays green on the existing method-resolution
+    and string/array helper slice in
+    `v12/interpreters/go/pkg/interpreter`
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun: `1.27s/op`
+  - bytecode-runtime clean rerun allocs: `101.47 MB/op`,
+    `3,582,283 allocs/op`
+  - bytecode-runtime profiled: `1.24s/op`
+  - bytecode-runtime profiled allocs: `101.51 MB/op`,
+    `3,582,351 allocs/op`
+- Outcome:
+  - aligned steady-state bytecode `i_before_e` stayed in the same
+    post-`read_lines` low-`1s/op` band, but the CPU profile shifted in the
+    intended direction without reintroducing the bad receiver-cache churn
+  - `resolveMethodFromPool(...)` dropped from about `210ms` cumulative on the
+    prior kept profile to about `120ms`, and
+    `stringMemberWithOverrides(...)` dropped from about `250ms` cumulative to
+    about `100ms`
+  - the remaining text-path VM wall is now more clearly `copyCallArgs`, the
+    residual `resolveMethodFromPool(...)` flat alloc slice,
+    `overloadArgKinds(...)`, and extern-host conversion
+
+# 2026-04-20 — stdlib read_lines fast-path tranche (v12)
+- Closed the next aligned bytecode/compiled text-path tranche after the lazy
+  environment-mutex slice.
+- What landed:
+  - the canonical external stdlib in `../able-stdlib/src/fs.able` now routes
+    `fs.read_lines(...)` through a direct `fs_read_lines_fast(...)` extern
+    instead of the older layered `open` / `read_all` / `close`,
+    `bytes_to_string(...)`, newline normalization, and line splitting path
+  - focused compiled temp-file coverage now pins the public
+    `fs.read_lines(...)` behavior in
+    `v12/interpreters/go/pkg/compiler/compiler_stdlib_io_temp_test.go`,
+    including CRLF normalization and trimming the trailing empty split
+- Refreshed aligned `i_before_e` results on the kept code:
+  - bytecode-runtime clean rerun A: `1.28s/op`
+  - bytecode-runtime clean rerun A allocs: `101.46 MB/op`,
+    `3,582,266 allocs/op`
+  - bytecode-runtime clean rerun B: `1.40s/op`
+  - bytecode-runtime clean rerun B allocs: `101.47 MB/op`,
+    `3,582,304 allocs/op`
+  - bytecode-runtime profiled: `1.41s/op`
+  - bytecode-runtime profiled allocs: `101.51 MB/op`,
+    `3,582,321 allocs/op`
+  - compiled external compare: `0.38s`
+- Outcome:
+  - aligned steady-state bytecode `i_before_e` moved from the prior kept
+    low-20s / multi-gigabyte band down into the low-`1s/op` band with roughly
+    `101 MB/op`
+  - aligned compiled `i_before_e` moved from the prior `1.07s` to `0.38s`
+  - the refreshed steady-state alloc profile shows the intended shift:
+    the old `runMatchExpression(...)`, `execEnsureStart(...)`,
+    `NewEnvironmentWithValueCapacity(...)`, and `evaluateStructLiteral(...)`
+    wall dropped out of the top allocators entirely for this benchmark, and
+    the remaining text-path VM wall is now `copyCallArgs`,
+    `resolveMethodFromPool`, `stringMemberWithOverrides`, and residual
+    extern-host conversion
+
+# 2026-04-20 — steady-state lazy environment-mutex tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the small
+  unsigned extern-host conversion slice.
+- What landed:
+  - `v12/interpreters/go/pkg/runtime/environment.go` now keeps the
+    per-environment `sync.RWMutex` behind a lazy `atomic.Pointer`, so
+    short-lived single-thread lexical scopes no longer carry an eagerly
+    allocated lock payload
+  - focused runtime coverage now pins both lazy multi-thread lock creation and
+    the single-thread no-lock path in
+    `v12/interpreters/go/pkg/runtime/environment_test.go`
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `21.98s/op`
+  - profiled allocs: `4.25 GB/op`, `69,018,511 allocs/op`
+  - clean rerun A: `21.97s/op`
+  - clean rerun A allocs: `4.25 GB/op`, `69,018,009 allocs/op`
+  - clean rerun B: `21.84s/op`
+  - clean rerun B allocs: `4.25 GB/op`, `69,019,472 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` stayed in the same low-20s wall-clock
+    band while dropping heap pressure from the prior kept `4.50 GB/op` band to
+    about `4.25 GB/op`
+  - alloc count stayed effectively flat in the same `69.02M` band, which is
+    consistent with this being an object-size reduction rather than a scope-
+    count reduction
+  - the refreshed alloc profile shows the intended shift:
+    `NewEnvironmentWithValueCapacity(...)` fell from about `1.71 GB` flat
+    alloc-space to about `1.48 GB`, while the value-map allocation slice
+    stayed small
+
+# 2026-04-20 — steady-state small unsigned extern-host conversion tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the shared
+  array-metadata boxing slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/extern_host_coercion.go` now lowers
+    host `u8` / `u16` / `u32` and in-range `u64` / `usize` results straight to
+    small integers instead of routing them through `big.Int` boxing
+  - focused extern coverage now pins small `u64`, `Array u8`, and large-`u64`
+    fallback behavior in
+    `v12/interpreters/go/pkg/interpreter/interpreter_extern_test.go`
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `22.95s/op`
+  - profiled allocs: `4.50 GB/op`, `69,018,740 allocs/op`
+  - clean rerun A: `20.57s/op`
+  - clean rerun A allocs: `4.50 GB/op`, `69,019,113 allocs/op`
+  - clean rerun B: `21.65s/op`
+  - clean rerun B allocs: `4.50 GB/op`, `69,018,676 allocs/op`
+  - clean rerun C: `19.46s/op`
+  - clean rerun C allocs: `4.50 GB/op`, `69,021,452 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` stayed in the same low-20s wall-clock
+    band while dropping heap pressure from the prior kept `4.57 GB/op` band to
+    about `4.50 GB/op`
+  - alloc count dropped by roughly `3.48M` objects per run from the prior kept
+    `72.50M` band to about `69.02M`
+  - the refreshed alloc profile shows the intended shift:
+    `(*Interpreter).fromHostValue` fell from about `103 MB` flat alloc-space
+    to about `91 MB`, and the old `bigIntFromUint(...)`-driven unsigned-host
+    conversion slice dropped out of the top alloc set
+
+# 2026-04-20 — steady-state shared array-metadata boxing tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the
+  propagation slice.
+- What landed:
+  - `v12/interpreters/go/pkg/runtime/array_store.go` now provides shared boxed
+    metadata values for common dynamic-array `i32` lengths/capacities, so the
+    first metadata read on a fresh array no longer needs to heap-box the same
+    common integer values repeatedly
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go` now reuses the
+    same shared `u64` metadata cache for `__able_array_size` / capacity-style
+    helper reads instead of always materializing a fresh boxed integer on cache
+    hits
+  - focused coverage now pins those first-access shared-boxing paths in
+    `v12/interpreters/go/pkg/runtime/array_store_test.go` and
+    `v12/interpreters/go/pkg/interpreter/interpreter_strings_arrays_test.go`
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `20.24s/op`
+  - profiled allocs: `4.57 GB/op`, `72,504,749 allocs/op`
+  - clean rerun: `19.87s/op`
+  - clean rerun allocs: `4.57 GB/op`, `72,505,049 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` stayed in the existing low-20s wall
+    clock band while dropping heap pressure from the prior kept `4.60 GB/op`
+    band to about `4.57 GB/op`
+  - alloc count dropped by roughly `723k` objects per run from the prior kept
+    `73.23M` band to about `72.50M`
+  - the refreshed alloc profile shows the intended shift:
+    `(*Interpreter).initArrayBuiltins.func4` fell from about `167 MB` flat
+    alloc-space to about `148 MB`, and `(*ArrayState).BoxedLengthValue` fell
+    from about `160 MB` to about `149 MB`
+
+# 2026-04-20 — steady-state bytecode propagation tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the
+  environment-object slice.
+- What landed:
+  - the canonical external stdlib in
+    `../able-stdlib/src/io.able` now uses direct propagation (`!`) in
+    `unwrap(...)`, `unwrap_void(...)`, and `bytes_to_string(...)` instead of
+    nested `match`/`raise` control flow
+  - the Go interpreter now reuses `cachedSimpleTypeExpression("Error")` in the
+    hot bytecode/tree-walker propagation and or-else/runtime-error checks
+    instead of constructing a fresh `ast.Ty("Error")` node every time
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `19.17s/op`
+  - profiled allocs: `4.60 GB/op`, `73,227,937 allocs/op`
+  - clean rerun A: `20.94s/op`
+  - clean rerun A allocs: `4.60 GB/op`, `73,229,445 allocs/op`
+  - clean rerun B: `19.92s/op`
+  - clean rerun B allocs: `4.60 GB/op`, `73,228,693 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` stayed in the existing low-20s wall
+    clock band while dropping heap pressure from the prior kept `4.63 GB/op`
+    band to about `4.60 GB/op`
+  - alloc count dropped by roughly `350k` objects per run from the prior kept
+    `73.58M` band to about `73.23M`
+  - the refreshed alloc profile shows the intended shift:
+    the old `bytecodeOpPropagation` line no longer carries flat alloc-space on
+    the kept profile, so the propagation path is no longer paying per-call AST
+    `Error` type construction on top of the stdlib unwrap/match traffic
+
+# 2026-04-20 — steady-state bytecode environment-object tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the
+  array-metadata slice.
+- What landed:
+  - `v12/interpreters/go/pkg/runtime/environment.go` now moves the cold
+    struct-definition/runtime-data state behind a lazy `environmentMeta`
+    pointer so ordinary lexical scopes only carry value-binding state inline
+    on the hot path
+  - `v12/interpreters/go/pkg/runtime/environment_test.go` now pins runtime-data
+    parent fallback on that lazy metadata path
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `21.33s/op`
+  - profiled allocs: `4.63 GB/op`, `73,577,840 allocs/op`
+  - clean rerun A: `20.51s/op`
+  - clean rerun A allocs: `4.63 GB/op`, `73,577,220 allocs/op`
+  - clean rerun B: `20.09s/op`
+  - clean rerun B allocs: `4.63 GB/op`, `73,577,644 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` stayed in the existing low-20s wall
+    clock band while dropping heap pressure from the prior kept `4.88 GB/op`
+    band to about `4.63 GB/op`
+  - the refreshed alloc profile shows the intended shift:
+    `NewEnvironmentWithValueCapacity(...)` dropped from the old ~`1.95 GB`
+    flat object-allocation tier to about `1.71 GB`, while the value-map slice
+    stayed small
+  - the remaining steady-state wall is now more clearly scope count plus
+    `evaluateStructLiteral(...)`, `setCurrentValueNoLock(...)`,
+    `runMatchExpression(...)`, `execEnsureStart(...)`, and residual
+    host-value conversion
+
+# 2026-04-20 — steady-state bytecode array-metadata tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the
+  interface/member-resolution slice.
+- What landed:
+  - `v12/interpreters/go/pkg/runtime/array_store.go` now caches boxed dynamic
+    array `length` / `capacity` values on `ArrayState`, keyed by the current
+    length/capacity, so repeated metadata reads stop re-boxing the same large
+    integers on every access
+  - `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go` now uses those
+    cached boxed metadata values for direct array member reads
+  - `v12/interpreters/go/pkg/interpreter/definitions.go` now uses
+    `Environment.Lookup(...)` instead of the heavier error-producing
+    `Get(...)` path for struct-literal shorthand bindings and struct-definition
+    fallback on the hot success path
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/interpreter_strings_arrays_test.go`
+    now pins the large-length metadata case so repeated `array.length` reads
+    after the first call allocate effectively zero additional objects
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `23.03s/op`
+  - profiled allocs: `4.88 GB/op`, `73,577,870 allocs/op`
+  - clean rerun A: `20.00s/op`
+  - clean rerun A allocs: `4.88 GB/op`, `73,577,767 allocs/op`
+  - clean rerun B: `19.61s/op`
+  - clean rerun B allocs: `4.88 GB/op`, `73,577,672 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved again from the prior kept
+    baseline of about `20.19s/op`, `5.06 GB/op`, `77.36M allocs/op`
+  - the refreshed alloc profile shows the intended shift:
+    `arrayMember(...)` dropped from the older ~`343 MB` flat alloc tier to
+    about `160 MB`, with the remaining metadata cost now concentrated in the
+    first boxed-length materialization rather than repeated re-boxing
+  - the remaining steady-state wall is now more cleanly
+    `NewEnvironmentWithValueCapacity(...)`,
+    `evaluateStructLiteral(...)`, `setCurrentValueNoLock(...)`,
+    the residual boxed-length/boxed-capacity path,
+    `runMatchExpression(...)`, `execEnsureStart(...)`, and host-value
+    conversion
+  - I did not rerun steady-state `fib` in this tranche
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(StructLiteral(Named|Positional|MissingFieldError|PositionalArityError)|ResolveMethodFromPool_BoundMethodCacheInvalidatesWithMethodCache|TypeImplementsInterface_CachesAndInvalidatesWithMethodCache|ArrayHelpersRequireStdlib|ArrayMemberWithOverrides_PrefersDirectMembers|ArrayMemberWithOverrides_UsesMethodLookupForNonDirectNames|ArrayMemberCachesLargeLengthMetadataBoxing|StringHelpersRequireStdlib|MatchExpression(WithIdentifierAndLiteral|StructGuard|LiteralClauseKeepsLocalBindingsScoped|TypedIdentifierPatternBindsValue)|BytecodeVM_(MatchLiteralPatterns|MatchGuard|ResetForRunPreservesLookupCaches|EvalExpressionReusesLoweredMatchPrograms))' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - repeated clean reruns of the same aligned steady-state benchmark
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-arraymeta.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-arraymeta.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-arraymeta.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe-arraymeta.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-20 — steady-state bytecode interface/member-resolution tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the
+  type-canonicalization slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_members.go` now skips the
+    guaranteed direct-array-member miss for non-field helper names like `len`,
+    `get`, and `push`, while still preserving direct-member precedence for
+    `storage_handle`, `length`, `capacity`, and `iterator`
+  - `v12/interpreters/go/pkg/interpreter/interpreter_interface_lookup.go` now
+    caches `typeImplementsInterface(...)` results by
+    type/interface/arg-signature behind the same invalidation boundary as the
+    existing method cache, so repeated match/ensure/member checks stop
+    rebuilding the same impl-candidate set on the steady-state hot path
+  - `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution.go` and
+    `v12/interpreters/go/pkg/interpreter/interpreter.go` now carry and clear
+    the new interface-implementation cache alongside the existing method cache
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/interpreter_strings_arrays_test.go`
+    now pins both array-member routing behaviors, and
+    `v12/interpreters/go/pkg/interpreter/interpreter_method_resolution_cache_test.go`
+    now pins interface-implementation cache invalidation
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `21.00s/op`
+  - profiled allocs: `5.06 GB/op`, `77,363,744 allocs/op`
+  - clean rerun: `20.19s/op`
+  - clean rerun allocs: `5.06 GB/op`, `77,364,488 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved again from the prior kept
+    baseline of about `20.39s/op`, `5.42 GB/op`, `77.71M allocs/op`
+  - the refreshed alloc profile shows the intended shift:
+    `collectImplCandidates(...)` dropped out of the top alloc-space set
+    entirely on the kept profiled rerun, so the remaining wall is now more
+    cleanly `NewEnvironmentWithValueCapacity(...)`,
+    `evaluateStructLiteral(...)`, `setCurrentValueNoLock(...)`,
+    `arrayMember(...)`, `runMatchExpression(...)`, `execEnsureStart(...)`,
+    and the residual host-value conversion path
+  - this tranche improved the steady-state text-heavy bytecode runtime path; I
+    did not rerun steady-state `fib` in this slice
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(ResolveMethodFromPool_BoundMethodCacheInvalidatesWithMethodCache|TypeImplementsInterface_CachesAndInvalidatesWithMethodCache|ArrayHelpersRequireStdlib|ArrayMemberWithOverrides_PrefersDirectMembers|ArrayMemberWithOverrides_UsesMethodLookupForNonDirectNames|StringHelpersRequireStdlib|MatchExpression(WithIdentifierAndLiteral|StructGuard|LiteralClauseKeepsLocalBindingsScoped|TypedIdentifierPatternBindsValue)|BytecodeVM_(MatchLiteralPatterns|MatchGuard|ResetForRunPreservesLookupCaches|EvalExpressionReusesLoweredMatchPrograms))' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-ifacecache.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-ifacecache.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-ifacecache.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe-ifacecache.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-20 — steady-state bytecode type-canonicalization tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the lazy
+  runtime-context slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/definitions.go` now reuses the
+    original nullable/result/union/function/generic AST nodes in
+    `canonicalizeExpandedTypeExpression(...)` when none of their children
+    change, instead of rebuilding fresh type-expression trees on every no-op
+    canonicalization pass
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/interpreter_type_info_cache_test.go`
+    now pins both behaviors:
+    unchanged nested type expressions preserve identity, while changed nested
+    members still rebuild correctly when canonical names actually shift
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `20.57s/op`
+  - profiled allocs: `5.42 GB/op`, `77,708,818 allocs/op`
+  - clean rerun A: `20.39s/op`
+  - clean rerun A allocs: `5.42 GB/op`, `77,708,480 allocs/op`
+  - clean rerun B: `20.82s/op`
+  - clean rerun B allocs: `5.42 GB/op`, `77,710,637 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved again from the prior kept
+    runtime baseline of about `22.09s/op`, `5.85 GB/op`, `84.86M allocs/op`
+  - the refreshed alloc profile shows the intended shift:
+    `ast.NewNullableTypeExpression(...)` and
+    `ast.NewUnionTypeExpression(...)` dropped out of the alloc-space top set
+    entirely, and `canonicalizeExpandedTypeExpression(...)` itself is now a
+    much smaller slice
+  - the remaining steady-state wall is now more cleanly
+    `NewEnvironmentWithValueCapacity(...)`, `evaluateStructLiteral(...)`,
+    `setCurrentValueNoLock(...)`, `collectImplCandidates(...)`,
+    `arrayMember(...)`, `runMatchExpression(...)`, and `execEnsureStart(...)`
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(CachedSimpleTypeExpressionCachesDynamicNames|TypeExpressionFromValueCachesStructAndHostHandleNames|TypeExpressionFromValueCachesArrayAndIteratorGenerics|CanonicalTypeNamesUsesAliasBaseWithoutASTExpansion|CachedTypeInfoNameAvoidsRepeatedAllocationsForCommonGenericTypes|CanonicalizeExpandedTypeExpression(ReusesUnchangedNodes|RebuildsChangedNestedNodes)|RuntimeDiagnosticsFormatting|AttachRuntimeContextWithExplicitCallStack|AppendRuntimeCallFrame|AttachRuntimeContextPreservesCallStackAcrossUnwind|ReturnCoercionErrorAttachesRuntimeContextLazily|MatchExpression(WithIdentifierAndLiteral|StructGuard|LiteralClauseKeepsLocalBindingsScoped|TypedIdentifierPatternBindsValue)|BytecodeVM_(MatchLiteralPatterns|MatchGuard|ResetForRunPreservesLookupCaches|EvalExpressionReusesLoweredMatchPrograms))' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - repeated clean reruns of the same aligned steady-state benchmark
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-typecanon.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-typecanon.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-typecanon --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-typecanon/interpreter.test /tmp/able-bytecode-runtime-ibe-typecanon.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe-typecanon/interpreter.test /tmp/able-bytecode-runtime-ibe-typecanon.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-20 — steady-state bytecode lazy runtime-context tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the
+  block-scope and miss-lookup slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/runtime_diagnostics.go` now keeps
+    runtime-diagnostic call stacks on a lazy eval-state-backed path instead of
+    eagerly copying them at first attachment; the stack is frozen only when a
+    real diagnostic is built or when the live eval-state stack is about to
+    mutate
+  - `v12/interpreters/go/pkg/interpreter/interpreter.go` now tracks pending
+    lazy diagnostic contexts on `evalState` and flushes them before
+    `pushCallFrame(...)` / `popCallFrame(...)` mutate the active call stack, so
+    escaping errors still preserve the original call chain without paying the
+    eager snapshot cost on locally handled error paths
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/runtime_diagnostics_test.go` now pins
+    the unwind case explicitly, so a lazily attached runtime context still
+    reports the original caller note after the frame has been popped
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `20.51s/op`
+  - profiled allocs: `5.85 GB/op`, `84,856,303 allocs/op`
+  - clean rerun A: `23.19s/op`
+  - clean rerun A allocs: `5.85 GB/op`, `84,856,355 allocs/op`
+  - clean rerun B: `22.09s/op`
+  - clean rerun B allocs: `5.85 GB/op`, `84,856,481 allocs/op`
+  - aligned steady-state `fib` still timed out at `300s`
+- Outcome:
+  - steady-state bytecode `i_before_e` kept roughly the same low-20s wall-clock
+    band with one noisier clean run, but allocation pressure dropped again from
+    the prior kept baseline of about `6.43 GB/op`, `97.06M allocs/op`
+  - the refreshed alloc profile shows the intended shift:
+    `snapshotCallStack(...)` dropped out of the top allocators entirely, so the
+    remaining wall is now more cleanly
+    `NewEnvironmentWithValueCapacity(...)`,
+    `evaluateStructLiteral(...)`, `setCurrentValueNoLock(...)`,
+    `collectImplCandidates(...)`, `arrayMember(...)`,
+    `runMatchExpression(...)`, and `execEnsureStart(...)`
+  - this tranche improved the text-heavy steady-state bytecode runtime path,
+    but it did not change the aligned steady-state `fib` timeout story
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(RuntimeDiagnosticsFormatting|AttachRuntimeContextWithExplicitCallStack|AppendRuntimeCallFrame|AttachRuntimeContextPreservesCallStackAcrossUnwind|ReturnCoercionErrorAttachesRuntimeContextLazily|MatchExpression(WithIdentifierAndLiteral|StructGuard|LiteralClauseKeepsLocalBindingsScoped|TypedIdentifierPatternBindsValue)|BytecodeVM_(MatchLiteralPatterns|MatchGuard|ResetForRunPreservesLookupCaches|EvalExpressionReusesLoweredMatchPrograms))' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 300 --modes bytecode-runtime --run-from ../benchmarks/fib v12/examples/benchmarks/fib.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - repeated clean reruns of the same aligned steady-state benchmark
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-lazyctx.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-lazyctx.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-lazyctx --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-lazyctx/interpreter.test /tmp/able-bytecode-runtime-ibe-lazyctx.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe-lazyctx/interpreter.test /tmp/able-bytecode-runtime-ibe-lazyctx.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-20 — steady-state bytecode block-scope and miss-lookup tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the
+  single-binding environment slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/scope_capacity.go` now computes cheap
+    AST-based scope binding estimates for blocks, assignment patterns, and
+    function/lambda call scopes
+  - `v12/interpreters/go/pkg/interpreter/eval_statements.go`,
+    `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go`, and
+    `v12/interpreters/go/pkg/interpreter/eval_expressions_dispatch.go` now use
+    `NewEnvironmentWithValueCapacity(...)` for hot block, function/lambda,
+    loop-iteration, iterator, and `or {}` handler scopes instead of always
+    starting from an empty child env
+  - `v12/interpreters/go/pkg/interpreter/interpreter_patterns.go` now uses
+    `Environment.Lookup(...)` for the hot singleton-struct probe inside
+    `matchPatternFast(...)`, so ordinary binding-name misses stop allocating
+    `Get(...)` errors on that path
+  - focused coverage now pins the scope estimator in
+    `v12/interpreters/go/pkg/interpreter/scope_capacity_test.go`
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `22.01s/op`
+  - profiled allocs: `6.43 GB/op`, `97,060,888 allocs/op`
+  - clean rerun A: `21.93s/op`
+  - clean rerun A allocs: `6.43 GB/op`, `97,062,815 allocs/op`
+  - clean rerun B: `21.87s/op`
+  - clean rerun B allocs: `6.43 GB/op`, `97,062,593 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` stayed in the same low-21s wall-clock
+    band as the prior kept baseline, but allocation pressure dropped
+    materially from `6.64 GB/op`, `107,523,333 allocs/op`
+  - the refreshed profiles show the intended shift:
+    `Environment.Get(...)` / `fmt.Errorf(...)` miss pressure dropped out of the
+    top tier, and `matchPattern(...)` cumulative allocs narrowed again
+  - the remaining steady-state wall is now more clearly
+    `NewEnvironmentWithValueCapacity(...)` object churn,
+    `setCurrentValueNoLock(...)`, `evaluateStructLiteral(...)`,
+    `snapshotCallStack(...)`, `runMatchExpression(...)`, and
+    `execEnsureStart(...)`
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(BlockLocalBindingCapacityCountsImmediateDeclarations|AssignmentTargetBindingCapacityCountsNestedPatterns|FunctionLocalBindingCapacityIncludesParamsLocalsAndGenerics|StructLiteral(Named|Positional|MissingFieldError)|StructMemberAssignmentMutation|MatchExpression(WithIdentifierAndLiteral|StructGuard|LiteralClauseKeepsLocalBindingsScoped|TypedIdentifierPatternBindsValue)|BytecodeVM_(MatchLiteralPatterns|MatchGuard|ResetForRunPreservesLookupCaches|EvalExpressionReusesLoweredMatchPrograms))' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - repeated clean reruns of the same aligned steady-state benchmark
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-blockmiss.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-blockmiss.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-blockmiss --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-blockmiss/interpreter.test /tmp/able-bytecode-runtime-ibe-blockmiss.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe-blockmiss/interpreter.test /tmp/able-bytecode-runtime-ibe-blockmiss.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-20 — steady-state bytecode environment single-binding tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the extern-host
+  fast-path slice.
+- What landed:
+  - `v12/interpreters/go/pkg/runtime/environment.go` now keeps the first local
+    binding in an inline slot and promotes to a real map only on the second
+    distinct local binding
+  - `NewEnvironmentWithValueCapacity(...)` no longer allocates a map for
+    `valueCapacity == 1`, so the common one-binding child-scope case now stays
+    on the inline path
+  - focused coverage in `v12/interpreters/go/pkg/runtime/environment_test.go`
+    now pins the inline binding path, promotion behavior, parent assignment
+    behavior, and the reduced single-binding allocation count
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `24.40s/op`
+  - profiled allocs: `6.64 GB/op`, `107,523,776 allocs/op`
+  - clean rerun: `21.93s/op`
+  - clean allocs: `6.64 GB/op`, `107,523,333 allocs/op`
+  - aligned steady-state `fib` still timed out at `300s`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved again from the prior kept
+    runtime baseline of `22.24s/op`, `8.23 GB/op`, `121,472,290 allocs/op`
+  - the first-binding environment map allocation is no longer the main story;
+    the refreshed alloc profile now shows the remaining wall more clearly:
+    `NewEnvironmentWithValueCapacity(...)` object churn,
+    `promoteSingleBindingNoLock(...)` on multi-bind scopes,
+    `evaluateStructLiteral(...)`, `snapshotCallStack(...)`,
+    `runMatchExpression(...)`, and `execEnsureStart(...)`
+  - this tranche materially reduced text-heavy steady-state bytecode runtime
+    pressure, but it did not materially move the recursive `fib` timeout path
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/runtime -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(MatchExpression(WithIdentifierAndLiteral|StructGuard|LiteralClauseKeepsLocalBindingsScoped|TypedIdentifierPatternBindsValue)|BytecodeVM_(MatchLiteralPatterns|MatchGuard|ResetForRunPreservesLookupCaches|EvalExpressionReusesLoweredMatchPrograms))' -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-envsingle.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-envsingle.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-envsingle --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-envsingle/interpreter.test /tmp/able-bytecode-runtime-ibe-envsingle.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe-envsingle/interpreter.test /tmp/able-bytecode-runtime-ibe-envsingle.mem.pprof`
+  - `./v12/bench_perf --runs 1 --timeout 300 --modes bytecode-runtime --run-from ../benchmarks/fib v12/examples/benchmarks/fib.able`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-20 — steady-state bytecode extern-host fast-path tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the lazy
+  return-context slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/extern_host.go` and
+    `v12/interpreters/go/pkg/interpreter/extern_host_cache.go` now cache the
+    computed extern target hash on the target state itself and invalidate it
+    only when new host preludes/externs are registered
+  - `v12/interpreters/go/pkg/interpreter/extern_host_module.go` and the new
+    `v12/interpreters/go/pkg/interpreter/extern_host_fast.go` now build and
+    cache direct invokers for the hot primitive string extern signatures used
+    in the aligned stdlib path, bypassing the generic reflection path for:
+    `String -> i32`, `String -> bool`, `String -> String`,
+    `String,String -> bool`, `String,String -> String`,
+    `String,String,String -> String`, and `String -> Array String`
+  - focused coverage now pins both hash invalidation and fast-invoker
+    construction in
+    `v12/interpreters/go/pkg/interpreter/interpreter_extern_test.go`
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - profiled: `23.43s/op`
+  - profiled allocs: `8.23 GB/op`, `121,472,207 allocs/op`
+  - clean rerun: `22.24s/op`
+  - clean allocs: `8.23 GB/op`, `121,472,290 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved again from the prior kept
+    runtime baseline of `23.40s/op`, `8.74 GB/op`, `136,183,494 allocs/op`
+    once the direct extern invokers were combined with cached target hashes
+  - the refreshed alloc profile now shows the intended shift:
+    `hashExternState(...)`, `externSignatureKey(...)`, and the old cumulative
+    extern-host hashing path dropped out of the top allocators
+  - `invokeExternHostFunction(...)` / `fromHostResults(...)` shrank
+    materially, and the remaining runtime pressure is now concentrated in
+    clause-scope environment/binding churn, `runMatchExpression(...)`,
+    `execEnsureStart(...)`, struct literal construction, and the residual
+    host-value conversion path
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(ExternHandlersRegisterNativeFunctions|ExternIgnoresNonGoTargets|ExternPreservesExistingBinding|ExternStructArrayFieldCoercesIntoHostMap|ExternStructNullableArrayFieldCoercesIntoHostMap|ExternTargetHashCacheReusesAndInvalidates|ExternModuleBuildsFastInvokerForHotStringSignatures|RuntimeDiagnosticsFormatting|AttachRuntimeContextWithExplicitCallStack|AppendRuntimeCallFrame|ReturnCoercionErrorAttachesRuntimeContextLazily)$' -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-externfast.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-externfast.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-externfast --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-externfast/interpreter.test /tmp/able-bytecode-runtime-ibe-externfast.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe-externfast/interpreter.test /tmp/able-bytecode-runtime-ibe-externfast.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-20 — steady-state bytecode lazy return-context tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the simple
+  match fast-path slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_signals.go` now keeps
+    `returnSignal` lightweight by recording only the return node instead of a
+    fully materialized runtime diagnostic context
+  - `v12/interpreters/go/pkg/interpreter/eval_statements.go` and
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go` no longer
+    snapshot the call stack on every normal explicit return
+  - `v12/interpreters/go/pkg/interpreter/eval_expressions_calls.go` now
+    attaches runtime diagnostic context lazily only if return-type coercion
+    actually fails while unwinding that return
+  - focused coverage now pins that lazy path and its preserved runtime
+    diagnostic locations in
+    `v12/interpreters/go/pkg/interpreter/runtime_diagnostics_test.go`
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - `23.40s/op`
+  - `8.74 GB/op`
+  - `136,183,494 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved again from the prior kept
+    runtime baseline of `23.84s/op`, `8.89 GB/op`, `139,670,607 allocs/op`
+  - the CPU/alloc profiles now show the intended shift:
+    `snapshotCallStack(...)` dropped materially again, so normal returns are
+    no longer paying a full diagnostic-context allocation tax
+  - the remaining runtime pressure is now concentrated in clause-scope
+    environment/binding churn, `runMatchExpression(...)`,
+    `execEnsureStart(...)`, struct literal construction, extern-host calls,
+    and runtime context attachment on actual error paths
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(RuntimeDiagnosticsFormatting|AttachRuntimeContextWithExplicitCallStack|AppendRuntimeCallFrame|ReturnCoercionErrorAttachesRuntimeContextLazily|MatchExpression(WithIdentifierAndLiteral|StructGuard|LiteralClauseKeepsLocalBindingsScoped|TypedIdentifierPatternBindsValue)|BytecodeVM_(MatchLiteralPatterns|MatchGuard|ResetForRunPreservesLookupCaches|EvalExpressionReusesLoweredMatchPrograms))' -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe-returnlazy.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe-returnlazy.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe-returnlazy --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe-returnlazy/interpreter.test /tmp/able-bytecode-runtime-ibe-returnlazy.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe-returnlazy/interpreter.test /tmp/able-bytecode-runtime-ibe-returnlazy.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-20 — steady-state bytecode match fast-path tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the VM-cache and
+  match-binding slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/interpreter_patterns.go` now has a
+    direct `matchPatternFast(...)` path for the common simple-pattern cases:
+    identifier, wildcard, literal, and typed patterns
+  - those fast paths now bind directly into fresh clause-local environments
+    instead of always allocating through the generic
+    `collectPatternBindings(...)` slice-building path
+  - focused coverage now pins both local-scope preservation and typed-pattern
+    binding behavior in
+    `v12/interpreters/go/pkg/interpreter/interpreter_patterns_test.go`
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - `23.84s/op`
+  - `8.89 GB/op`
+  - `139,670,607 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved again from the prior kept
+    runtime baseline of `24.61s/op`, `9.90 GB/op`, `146,646,034 allocs/op`
+  - the CPU/alloc profiles now show the intended shift:
+    `matchPattern(...)` itself is no longer a top-tier allocator, while
+    `matchPatternFast(...)` now carries much of the hot match work directly
+  - the remaining runtime pressure is now concentrated in clause-scope
+    environment/binding churn, `runMatchExpression(...)`,
+    `execEnsureStart(...)`, struct literal construction, extern-host calls,
+    and runtime context snapshots
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestEnvironment(DefineWithoutMergeReplacesBinding|NewChildAllocationCount)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(MatchExpression(WithIdentifierAndLiteral|StructGuard|LiteralClauseKeepsLocalBindingsScoped|TypedIdentifierPatternBindsValue)|BytecodeVM_(MatchLiteralPatterns|MatchGuard|ResetForRunPreservesLookupCaches|EvalExpressionReusesLoweredMatchPrograms))' -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe/interpreter.test /tmp/able-bytecode-runtime-ibe.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe/interpreter.test /tmp/able-bytecode-runtime-ibe.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-19 — steady-state bytecode VM-cache and match-binding tranche (v12)
+- Closed the next steady-state bytecode-runtime tranche after the
+  expression-bytecode cache/profile correction slice.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool.go` now preserves
+    validated lookup and dispatch caches across pooled VM runs instead of
+    clearing lexical/call/member/index caches on every repeated `main()` call
+  - `v12/interpreters/go/pkg/runtime/environment.go` now exposes
+    `NewEnvironmentWithValueCapacity(...)` plus `DefineWithoutMerge(...)` for
+    cheap local-binding scopes where function-merge semantics are never
+    desired
+  - `v12/interpreters/go/pkg/interpreter/interpreter_patterns.go` now uses
+    `collectPatternBindings(...)` plus pre-sized environments for
+    match-pattern clause scopes, avoiding the older recursive
+    `assignPattern(...)` declaration path in hot steady-state match execution
+  - focused coverage now pins both the environment fast path and VM cache
+    persistence in
+    `v12/interpreters/go/pkg/runtime/environment_test.go` and
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_pool_cache_test.go`
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - `24.61s/op`
+  - `9.90 GB/op`
+  - `146,646,034 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved again from the prior runtime
+    baseline of `27.92s/op`, `16.61 GB/op`, `172,094,647 allocs/op`
+  - the alloc-space profile now shows the intended shift:
+    `storeCachedScopeValue(...)` and `storeCachedCallName(...)` are no longer
+    top-tier allocators after caches started surviving pooled runs
+  - the remaining allocation pressure is now centered on
+    `matchPattern(...)`, `NewEnvironmentWithValueCapacity(...)`,
+    `DefineWithoutMerge(...)`, downstream `Environment.Define(...)`, and the
+    runtime work those clause scopes feed (`runMatchExpression(...)`,
+    `execEnsureStart(...)`, extern-host calls, struct literal construction,
+    and runtime context snapshots)
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestEnvironment(DefineWithoutMergeReplacesBinding|NewChildAllocationCount)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(BytecodeVM_ResetForRunPreservesLookupCaches|BytecodeVM_EvalExpressionReusesLoweredMatchPrograms|BytecodeVM_Match(LiteralPatterns|Guard)|MatchExpression(WithIdentifierAndLiteral|StructGuard))' -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe/interpreter.test /tmp/able-bytecode-runtime-ibe.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe/interpreter.test /tmp/able-bytecode-runtime-ibe.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-19 — steady-state bytecode expression-cache profiling tranche (v12)
+- Closed the next bytecode-runtime tranche after the first steady-state
+  `bytecode-runtime` benchmark path landed.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_program_runtime_bench_test.go`
+    now starts CPU/heap profiling only after program load/lowering plus the
+    explicit warmup `main()` call, using dedicated
+    `ABLE_BENCH_RUNTIME_CPU_PROFILE` /
+    `ABLE_BENCH_RUNTIME_MEM_PROFILE` environment variables inside the
+    benchmark harness
+  - `v12/bench_perf` now forwards `ABLE_GO_CPU_PROFILE` /
+    `ABLE_GO_MEM_PROFILE` into that runtime-only profile path for
+    `bytecode-runtime` runs instead of relying on the broader Go test profile
+    flags
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering.go` now reuses
+    lowered expression bytecode programs through an interpreter-level cache
+    keyed by AST-expression identity plus placeholder-lambda mode
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_expression_cache_test.go`
+    now pins repeated bytecode match evaluation to reuse cached lowered
+    match/guard/body programs
+- Refreshed aligned steady-state `i_before_e` results on the kept code:
+  - `27.92s/op`
+  - `16.61 GB/op`
+  - `172,094,647 allocs/op`
+- Outcome:
+  - steady-state bytecode `i_before_e` improved materially from the prior
+    runtime-only baseline of `52.91s/op`, `107.14 GB/op`,
+    `315,103,439 allocs/op`
+  - the corrected runtime-only CPU profile no longer shows
+    `lowerExpressionToBytecodeWithOptions(...)`,
+    `(*bytecodeLoweringContext).emit(...)`, or `emitExpression(...)` in the
+    hot set, which confirms the remaining cost is actual VM/runtime work
+    rather than repeated AST lowering during the measured call
+  - the new top steady-state hotspots are now `execCallName`, `execCall`,
+    `runMatchExpression`, cached identifier/call-name bookkeeping, and the
+    resulting GC/allocation pressure
+  - alloc-space shifted heavily away from lowering and onto runtime caches
+    and environment churn, especially `storeCachedScopeValue`,
+    `Environment.Define`, `storeCachedCallName`, and `NewEnvironment`
+- Verification:
+  - `bash -n v12/bench_perf`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestLoadBytecodeProgramRuntimeBenchConfig|TestBytecodeVM_(EvalExpressionReusesLoweredMatchPrograms|FinishRunResumableReleasesUnwoundCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|BinaryFastPathIntegerParity|DirectIntegerComparisonFastPath|DirectSmallIntegerComparisonFastPath|DirectSameTypeSmallIntPair|SubtractIntegerImmediateFast)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-bytecode-runtime-ibe.cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-bytecode-runtime-ibe.mem.pprof ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --keep --workdir /tmp/able-bytecode-runtime-ibe --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `go tool pprof -top /tmp/able-bytecode-runtime-ibe/interpreter.test /tmp/able-bytecode-runtime-ibe.cpu.pprof`
+  - `go tool pprof -top -alloc_space /tmp/able-bytecode-runtime-ibe/interpreter.test /tmp/able-bytecode-runtime-ibe.mem.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-19 — steady-state bytecode runtime benchmark path tranche (v12)
+- Closed the next bytecode-performance support tranche after rejecting the
+  regressive self-arg frame reuse experiment.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_program_runtime_bench_test.go`
+    now provides a generic `BenchmarkBytecodeProgramRuntime` harness
+  - the harness loads and lowers the configured Able program once, evaluates
+    it once to bind `main`, performs one warmup call, and then measures
+    repeated `main()` calls under the bytecode interpreter with
+    `ns/op`, `B/op`, and `allocs/op`
+  - `v12/bench_perf` now supports a new `bytecode-runtime` mode that drives
+    that benchmark harness, forwards target/run-from/program-arg config
+    through environment variables, and translates `ABLE_GO_CPU_PROFILE` /
+    `ABLE_GO_MEM_PROFILE` into Go benchmark profile outputs for the
+    steady-state path
+- First aligned steady-state results on the kept code:
+  - `fib`: still timed out with a `300s` timeout even on the steady-state
+    warmup+measure path
+  - `i_before_e`: `62.14s/op`, `107.19 GB/op`, `315,106,815 allocs/op`
+    (`123.61s` wall-clock including warmup plus measured call)
+- Outcome:
+  - the new measurement path closes the old gap where aligned bytecode
+    `i_before_e` mixed one-time lowering/bootstrap noise with VM runtime
+  - the result is clear: the remaining bytecode problem is the VM runtime
+    itself, not CLI/bootstrap setup
+  - steady-state aligned `i_before_e` is actually worse than the earlier
+    one-shot CLI wall-clock number, which means repeated bytecode execution
+    plus retained interpreter state is now the right hotspot surface to
+    profile next
+- Verification:
+  - `bash -n v12/bench_perf`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestLoadBytecodeProgramRuntimeBenchConfig|TestBytecodeVM_(FinishRunResumableReleasesUnwoundCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots)' -count=1`
+  - `./v12/bench_perf --runs 1 --timeout 300 --modes bytecode-runtime --run-from ../benchmarks/fib v12/examples/benchmarks/fib.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-19 — bytecode recursive self-call frame-compaction tranche (v12)
+- Closed the first post-stdlib bytecode-runtime slice after the aligned
+  `i_before_e` text/fs work.
+- What landed:
+  - same-program self-fast recursion now uses a compact bytecode self-fast
+    call-frame stack instead of always appending the full
+    `bytecodeCallFrame` record
+  - inline bytecode returns now use cached simple return-type names when
+    available, avoiding the slower generic `inlineCoercionUnnecessary(...)`
+    probe on hot primitive returns
+  - hot bytecode integer paths now use reference-style runtime integer
+    helpers (`IntegerValue.IsSmallRef()` / `Int64FastRef()`) so the fused
+    recursive subtract path and slot-const integer comparisons stop paying
+    repeated `IntegerValue` value-method copies
+  - focused coverage now pins both the compact self-fast unwind cleanup and
+    the direct immediate-subtract fast path
+- Refreshed aligned bytecode results on the kept code:
+  - `fib`: still timed out at both `90s` and `120s`
+  - `i_before_e`: stayed in the same high-50s band at `57.55-57.74s`
+- Outcome:
+  - the wall-clock result is modest so far, but the `fib` hotspot shape moved
+    materially in the intended direction: `pushCallFrame` dropped from roughly
+    `10s` flat to roughly `3s` flat on the aligned timeout profile
+  - the remaining aligned `fib` cost is now centered on
+    `execCallSelfIntSubSlotConst`, `execBinary`, `releaseSlotFrame`, and the
+    narrowed immediate-subtract path rather than the older general call-frame
+    bookkeeping
+  - aligned `i_before_e` no longer depends on obviously naive stdlib helpers,
+    but its bytecode profile still mixes lowering and runtime cost; that
+    should be separated before more `execCallName` work is attempted
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(FinishRunResumableReleasesUnwoundCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|BinaryFastPathIntegerParity|DirectIntegerComparisonFastPath|DirectSmallIntegerComparisonFastPath|DirectSameTypeSmallIntPair|SubtractIntegerImmediateFast)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 90 --modes bytecode --run-from ../benchmarks/i-before-e --program-arg wordlist.txt --workdir /tmp/able-byte-ibe-tranche/work --keep v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `./v12/bench_perf --runs 1 --timeout 90 --modes bytecode --run-from ../benchmarks/fib --workdir /tmp/able-byte-fib-tranche/work --keep v12/examples/benchmarks/fib.able`
+  - `./v12/bench_perf --runs 1 --timeout 120 --modes bytecode --run-from ../benchmarks/fib --workdir /tmp/able-byte-fib-120/work --keep v12/examples/benchmarks/fib.able`
+  - `go tool pprof -top /tmp/able-byte-fib-tranche/work/able /tmp/able-byte-fib-tranche/cpu.pprof`
+  - `go tool pprof -top /tmp/able-byte-ibe-tranche/work/able /tmp/able-byte-ibe-tranche/cpu.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-19 — aligned `i_before_e` stdlib text/fs fast-path tranche (v12)
+- Closed the next external-benchmark performance tranche after the executor
+  alignment fix.
+- What landed:
+  - the kept changes are in the canonical external stdlib repo
+    `../able-stdlib`, not the compiler core
+  - `../able-stdlib/src/text/string.able` now fast-paths
+    `String.len_bytes`, `String.contains`, and `String.replace` through
+    host-native Go/TypeScript helpers instead of routing the hot benchmark
+    path through `validated_bytes(...)`, UTF-8 validation, and repeated
+    string/array conversions
+  - `../able-stdlib/src/fs.able` now fast-paths newline normalization and
+    line splitting for `read_lines`, which removes another large chunk of
+    `i_before_e` allocation and conversion churn
+- Refreshed aligned `i_before_e` results on the kept code:
+  - compiled: `1.07s` (down from `3.99s`)
+  - bytecode: `56.76s` (down from timing out at `90s`)
+- Outcome:
+  - aligned compiled `i_before_e` is still far from Go / Ruby / Python, but
+    it is no longer dominated by the obviously naive stdlib text/fs path
+  - aligned bytecode `i_before_e` now completes at all, which gives a real
+    VM runtime baseline for the next optimization tranche instead of just a
+    timeout
+  - the rejected sibling-stdlib experiment remains rejected: widening through
+    large `Array String` extern/helper boundaries regressed the real workload
+    instead of improving it
+- Verification:
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes compiled --runs 1 --timeout 30 --output-json /tmp/able-external-i_before_e-fastpaths.json --output-md /tmp/able-external-i_before_e-fastpaths.md`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 90 --modes bytecode --run-from ../benchmarks/i-before-e --program-arg wordlist.txt --output-json /tmp/able-bytecode-i_before_e-faststrlines.json v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - tree-walker / bytecode semantic smoke for `String.replace`, `String.contains`, and `String.len_bytes`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
+# 2026-04-19 — external benchmark executor-alignment tranche (v12)
+- Closed the next benchmark-alignment tranche after the compiled recursion
+  work.
+- What landed:
+  - `v12/bench_perf` now supports `--executor serial|goroutine`
+  - the main `able` CLI plus generated compiled launchers now honor the shared
+    `ABLE_EXECUTOR` environment selection
+  - static compiled launchers now propagate that executor choice into the
+    bridge runtime even when they skip interpreter bootstrap entirely
+  - `v12/bench_compare_external` now auto-runs `binarytrees` with the
+    goroutine executor so the Able workload matches the external parallel
+    reference instead of silently serializing all spawned work
+  - the local `v12/examples/benchmarks/binarytrees.able` benchmark remains on
+    the spawn-based per-depth workload, but that workload is now genuinely
+    parallel under the external comparison harness
+- Refreshed aligned compiled core results on the kept code:
+  - `fib`: `3.16s` vs Go `2.84s` (`1.11x`)
+  - `binarytrees`: `3.65s` vs Go `3.83s` (`0.95x`)
+  - `matrixmultiply`: `1.03s` vs Go `0.88s` (`1.17x`)
+- Outcome:
+  - the earlier compiled `binarytrees` gap was not a remaining compiler-core
+    performance problem; it was a benchmark harness mismatch caused by the
+    serial executor
+  - the compiled core trio (`fib`, `binarytrees`, `matrixmultiply`) is now in
+    the same approximate range as Go on the aligned external corpus
+  - the next real performance work is no longer these compiled static
+    benchmarks; it is aligned bytecode `fib` / `i_before_e`, plus compiled
+    `i_before_e` and its stdlib text/fs path
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(ExecutorKindFromEnvironmentDefaultsToSerial|ExecutorKindFromEnvironmentAcceptsGoroutine|ExecutorKindFromEnvironmentRejectsUnknownValue|NewExecutorFromEnvironment)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerMain(UsesInstalledStdlibDiscoveryBeforeSiblingLookup|SkipsProgramEvaluationWhenStaticUsesHelpers|KeepsProgramEvaluationWhenDynamicFeaturesPresent)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `bash -n v12/bench_perf v12/bench_compare_external`
+  - `./v12/bench_compare_external --benchmarks binarytrees --modes compiled --runs 1 --timeout 90 --output-json /tmp/able-external-bintrees-goroutine.json --output-md /tmp/able-external-bintrees-goroutine.md`
+  - `./v12/bench_compare_external --benchmarks fib,binarytrees,matrixmultiply --modes compiled --runs 1 --timeout 90 --output-json /tmp/able-external-core-compiled.json --output-md /tmp/able-external-core-compiled.md`
+  - `git diff --check`
+
+# 2026-04-19 — compiled lazy call-frame error propagation tranche (v12)
+- Closed the next compiler recursion/perf tranche after the direct
+  bridge-emission pass.
+- What landed:
+  - compiled static call sites no longer push/pop bridge call frames on the
+    success path
+  - instead, the slow error path now appends caller frames directly onto the
+    existing runtime-diagnostic error as `__ableControl` propagates
+  - `v12/interpreters/go/pkg/interpreter/runtime_diagnostics.go` now exposes
+    `AppendRuntimeCallFrame(...)`, and
+    `v12/interpreters/go/pkg/compiler/bridge/bridge_diagnostics.go` now
+    exposes `AppendCallFrameError(...)` for compiled/native callers
+  - generated control helpers now centralize that slow-path append through
+    `__able_append_control_call_frame(...)`
+  - focused interpreter, bridge, and compiler coverage now pins the appended
+    diagnostic-note path plus the absence of direct bridge push/pop traffic in
+    hot recursive compiled bodies
+- Refreshed aligned compiled results on the kept code:
+  - `fib`: `3.33s` (down from `5.09s`, and down from the earlier `34.19s`)
+  - `binarytrees`: `14.26s` (down from `14.76s`, and down from the earlier
+    `30.14s`)
+- Refreshed profiles:
+  - compiled `fib` is now almost entirely the recursive body itself;
+    bridge/env/call-frame scaffolding dropped out of the hotspot set
+  - compiled `binarytrees` remains overwhelmingly allocation/GC-bound, with
+    only a tiny residual compiler slice
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(RuntimeDiagnosticsFormatting|AttachRuntimeContextWithExplicitCallStack|AppendRuntimeCallFrame)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRecursiveFunction(UsesConditionalEnvSwap|Executes)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExperimentalMonoArraysMatrixMultiply(ScalarLoopStaysNative|MainStaysNative|CountedLoopsStayNative)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-fib-lazycallframes/cpu.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/fib --workdir /tmp/able-prof-fib-lazycallframes/work --keep v12/examples/benchmarks/fib.able`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-bintrees-lazycallframes/cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-prof-bintrees-lazycallframes/heap.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/binarytrees --workdir /tmp/able-prof-bintrees-lazycallframes/work --keep v12/examples/benchmarks/binarytrees.able`
+  - `go tool pprof -top /tmp/able-prof-fib-lazycallframes/work/compiled /tmp/able-prof-fib-lazycallframes/cpu.pprof`
+  - `go tool pprof -top /tmp/able-prof-bintrees-lazycallframes/work/compiled /tmp/able-prof-bintrees-lazycallframes/cpu.pprof`
+  - `git diff --check`
+
+# 2026-04-19 — compiled direct call-frame bridge emission tranche (v12)
+- Closed the next compiler recursion/perf tranche after the raw-body /
+  entry-wrapper split.
+- What landed:
+  - compiled static call sites no longer route through generated
+    `__able_push_call_frame` / `__able_pop_call_frame` trampoline functions
+  - the old wrapper helpers were removed from generated output, and the hot
+    compiled call paths now emit direct
+    `bridge.PushCallFrame(__able_runtime, ...)` /
+    `bridge.PopCallFrame(__able_runtime)` calls instead
+  - focused compiler coverage now pins that the obsolete helper functions are
+    absent from generated output, and the existing mono-array matrix tests now
+    assert against direct bridge call-frame emission rather than the removed
+    wrapper names
+- Refreshed aligned compiled results on the kept code:
+  - `fib`: `5.09s` (down from `6.79s`, and down from the earlier `34.19s`)
+  - `binarytrees`: `14.76s` (down from `15.02s`, and down from the earlier
+    `30.14s`)
+- Refreshed profiles:
+  - compiled `fib` is now dominated by the recursive body plus direct inline
+    `bridge.PushCallFrame` / `bridge.PopCallFrame`; the generated trampoline
+    layer is gone from the hotspot set entirely
+  - compiled `binarytrees` remains mostly allocation/GC, with only a smaller
+    residual direct call-frame slice
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRecursiveFunction(UsesConditionalEnvSwap|Executes)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerExperimentalMonoArraysMatrixMultiply(ScalarLoopStaysNative|MainStaysNative|CountedLoopsStayNative)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-fib-callframeinline/cpu.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/fib --workdir /tmp/able-prof-fib-callframeinline/work --keep v12/examples/benchmarks/fib.able`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-bintrees-callframeinline/cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-prof-bintrees-callframeinline/heap.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/binarytrees --workdir /tmp/able-prof-bintrees-callframeinline/work --keep v12/examples/benchmarks/binarytrees.able`
+  - `go tool pprof -top /tmp/able-prof-fib-callframeinline/work/compiled /tmp/able-prof-fib-callframeinline/cpu.pprof`
+  - `go tool pprof -top /tmp/able-prof-bintrees-callframeinline/work/compiled /tmp/able-prof-bintrees-callframeinline/cpu.pprof`
+  - `go tool pprof -top -inuse_space /tmp/able-prof-bintrees-callframeinline/work/compiled /tmp/able-prof-bintrees-callframeinline/heap.pprof`
+  - `git diff --check`
+
+# 2026-04-19 — compiled raw-body / entry-wrapper split tranche (v12)
+- Closed the next compiler recursion/perf tranche after the bridge-local
+  call-stack work.
+- What landed:
+  - compiled function and method emission now splits into raw
+    `__able_compiled_*` bodies plus env-swapping
+    `__able_compiled_entry_*` wrappers
+  - same-package static compiled call sites now target the raw body directly,
+    so direct recursion no longer pays `SwapEnvIfNeeded` on every self-call
+  - cross-package and runtime entrypoints now target the new entry wrappers,
+    which preserves the existing package-env behavior without requiring the raw
+    body to carry the env-swap prologue
+  - focused compiler regression coverage now pins that contract explicitly for
+    recursive `fib`: the raw body is swap-free, the entry wrapper owns the
+    conditional env swap, and the raw body recurses directly through itself
+- Refreshed aligned compiled results on the kept code:
+  - `fib`: `6.79s` (down from `13.40s`, and down from the earlier `34.19s`)
+  - `binarytrees`: `15.02s` (down from `19.84s`, and down from the earlier
+    `30.14s`)
+- Refreshed profiles:
+  - compiled `fib` no longer shows `SwapEnvIfNeeded` as a hotspot; the
+    remaining recursion overhead is now mostly the generated
+    `__able_push_call_frame` / `__able_pop_call_frame` wrappers and the tiny
+    inline bridge append/pop helpers
+  - compiled `binarytrees` is now dominated by allocation/GC, with only a
+    smaller residual call-frame slice
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerRecursiveFunction(UsesConditionalEnvSwap|Executes)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompiler(MatmulStaysOnMonoArraySpecializedOps|RecursiveFunctionUsesConditionalEnvSwap|RecursiveFunctionExecutes)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompiler(MainUsesInstalledStdlibDiscoveryBeforeSiblingLookup|BuildExecSearchPathsRejectsDistinctStdlibRoots|DiagnosticsParityFixtures/06_01_compiler_integer_overflow)$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-fib-entrysplit/cpu.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/fib --workdir /tmp/able-prof-fib-entrysplit/work --keep v12/examples/benchmarks/fib.able`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-bintrees-entrysplit/cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-prof-bintrees-entrysplit/heap.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/binarytrees --workdir /tmp/able-prof-bintrees-entrysplit/work --keep v12/examples/benchmarks/binarytrees.able`
+  - `go tool pprof -top /tmp/able-prof-fib-entrysplit/work/compiled /tmp/able-prof-fib-entrysplit/cpu.pprof`
+  - `go tool pprof -top /tmp/able-prof-bintrees-entrysplit/work/compiled /tmp/able-prof-bintrees-entrysplit/cpu.pprof`
+  - `go tool pprof -top -inuse_space /tmp/able-prof-bintrees-entrysplit/work/compiled /tmp/able-prof-bintrees-entrysplit/heap.pprof`
+  - `git diff --check`
+
+# 2026-04-19 — compiled bridge-local call-stack diagnostics tranche (v12)
+- Closed the next compiler recursion/perf tranche after the lock-free env swap
+  work.
+- What landed:
+  - compiled call-frame diagnostics no longer push/pop through the
+    interpreter's eval-state stack on every compiled call
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_call_frames.go` now keeps
+    a lightweight compiled call-frame stack on the bridge runtime, including a
+    per-goroutine path for marked-concurrent execution
+  - `v12/interpreters/go/pkg/compiler/bridge/bridge_diagnostics.go` and the
+    bridge call helpers now attach runtime context through that bridge-local
+    call stack instead of forcing `stateFromEnv(env)` traffic in the hot path
+  - `v12/interpreters/go/pkg/interpreter/runtime_diagnostics.go` now exposes
+    `AttachRuntimeContextWithCallStack(...)` so compiled/native callers can
+    preserve identical runtime diagnostic notes while supplying their own
+    already-tracked call stack
+  - focused bridge and interpreter diagnostics tests now pin both the bridge
+    call-frame snapshot behavior and the explicit call-stack diagnostic path
+- Refreshed aligned compiled results on the kept code:
+  - `fib`: `13.40s` (down from `15.92s`, and down from the earlier `34.19s`)
+  - `binarytrees`: `19.84s` (down from `21.30s`, and down from the earlier
+    `30.14s`)
+- Refreshed profiles:
+  - compiled `fib` is now dominated by `SwapEnvIfNeeded`, with the remaining
+    call-frame cost narrowed to `__able_push_call_frame`,
+    `__able_pop_call_frame`, and their tiny inline bridge helpers
+  - compiled `binarytrees` still has heavy allocation/GC cost, but the bridge
+    call-frame slice is materially smaller there too
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'Test(RuntimeDiagnosticsFormatting|AttachRuntimeContextWithExplicitCallStack)$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompilerDiagnosticsParityFixtures/06_01_compiler_integer_overflow$' -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/profilehook -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-fib-callstack/cpu.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/fib --workdir /tmp/able-prof-fib-callstack/work --keep v12/examples/benchmarks/fib.able`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-bintrees-callstack/cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-prof-bintrees-callstack/heap.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/binarytrees --workdir /tmp/able-prof-bintrees-callstack/work --keep v12/examples/benchmarks/binarytrees.able`
+  - `go tool pprof -top /tmp/able-prof-fib-callstack/work/compiled /tmp/able-prof-fib-callstack/cpu.pprof`
+  - `go tool pprof -top /tmp/able-prof-bintrees-callstack/work/compiled /tmp/able-prof-bintrees-callstack/cpu.pprof`
+  - `go tool pprof -top /tmp/able-prof-bintrees-callstack/work/compiled /tmp/able-prof-bintrees-callstack/heap.pprof`
+  - `git diff --check`
+
+# 2026-04-19 — aligned profiling hooks and first compiled bridge fast-path tranche (v12)
+- Closed the next benchmark/performance tranche after the external alignment
+  pass.
+- What landed:
+  - new reusable Go-side profiling hook package:
+    `v12/interpreters/go/pkg/profilehook`
+  - `v12/interpreters/go/cmd/able/main.go` now honors
+    `ABLE_GO_CPU_PROFILE` / `ABLE_GO_MEM_PROFILE`
+  - generated compiled launchers now honor the same profiling env vars via
+    `v12/interpreters/go/pkg/compiler/generator_render_main.go`, with focused
+    coverage in
+    `v12/interpreters/go/pkg/compiler/compiler_main_bootstrap_test.go`
+  - `v12/bench_perf` now sends `SIGINT` before `SIGKILL` on timeout so
+    profiled timeouts can still flush pprof output
+  - the first aligned profile pass made the next hotspots concrete:
+    - compiled `fib` was dominated by the compiler bridge environment/call
+      frame path, especially `Runtime.Env`, `SwapEnvIfNeeded`, and the old
+      `RWMutex` traffic
+    - compiled `binarytrees` combined that same bridge overhead with heavy
+      allocation/GC
+    - compiled `i_before_e` is primarily allocation/GC plus
+      `read_lines` / UTF-8 validation / `String.replace` / `contains`
+    - bytecode `fib` is now mostly recursive call-frame and small-int opcode
+      overhead, not name lookup
+  - the first post-profile compiler fix is now landed in
+    `v12/interpreters/go/pkg/compiler/bridge`:
+    - the single-thread env path is now lock-free
+    - `SwapEnvIfNeeded` now performs a direct fast-path compare/swap instead
+      of routing through the old lock-heavy env accessors
+    - focused bridge coverage now also pins the marked-concurrent swap path
+  - refreshed aligned compiled results on the kept code:
+    - `fib`: `15.92s` (down from `34.19s`)
+    - `binarytrees`: `21.30s` (down from `30.14s`)
+  - refreshed compiled `fib` profiling now shows the old `RWMutex` /
+    `Runtime.Env` hotspot removed; the remaining recursion overhead is the
+    narrower `SwapEnvIfNeeded`, `PushCallFrame`, and `PopCallFrame` path
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/profilehook -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler/bridge -count=1`
+  - `cd v12/interpreters/go && go test ./cmd/able -run 'TestTestCommandCompiledDryRunMatchesInterpretedListFormat$' -count=1`
+  - `cd v12/interpreters/go && go test ./pkg/compiler -run 'TestCompiler(MainUsesInstalledStdlibDiscoveryBeforeSiblingLookup|BuildExecSearchPathsRejectsDistinctStdlibRoots)$' -count=1`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-fib-fastenv/cpu.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/fib --workdir /tmp/able-prof-fib-fastenv/work --keep v12/examples/benchmarks/fib.able`
+  - `ABLE_GO_CPU_PROFILE=/tmp/able-prof-bintrees-fastenv/cpu.pprof ABLE_GO_MEM_PROFILE=/tmp/able-prof-bintrees-fastenv/heap.pprof ./v12/bench_perf --runs 1 --timeout 90 --modes compiled --run-from ../benchmarks/binarytrees --workdir /tmp/able-prof-bintrees-fastenv/work --keep v12/examples/benchmarks/binarytrees.able`
+  - `go tool pprof -top /tmp/able-prof-fib-fastenv/work/compiled /tmp/able-prof-fib-fastenv/cpu.pprof`
+  - `go tool pprof -top /tmp/able-prof-bintrees-fastenv/work/compiled /tmp/able-prof-bintrees-fastenv/cpu.pprof`
+  - `go tool pprof -top /tmp/able-prof-bintrees-fastenv/work/compiled /tmp/able-prof-bintrees-fastenv/heap.pprof`
+  - `git diff --check`
+
+# 2026-04-19 — aligned external benchmark baselines and first hotspot ranking (v12)
+- Closed the next benchmark-alignment slice on top of the external comparison
+  harness.
+- What landed:
+  - `v12/bench_perf` now supports repeated `--program-arg ARG` flags so local
+    Able benchmark programs can run against external workload inputs like
+    `wordlist.txt`
+  - `v12/bench_perf` now pins the selected stdlib root from `ABLE_STDLIB_ROOT`
+    or the installed cache during external runs, which fixes the sibling
+    `able-stdlib` collision that previously broke compiled external benchmarks
+  - `v12/bench_compare_external` now uses the canonical local Able benchmark
+    sources under `v12/examples/benchmarks/` instead of the stale
+    `../benchmarks/*/able-v12-*` copies
+  - the aligned baseline now clearly separates the real next work:
+    - compiled `matrixmultiply`: `1.36s` vs Go `0.88s` (`1.55x`)
+    - compiled `fib`: `40.15s` vs Go `2.84s` (`14.14x`)
+    - compiled `binarytrees`: `34.47s` vs Go `3.83s` (`9.00x`)
+    - compiled `i_before_e`: `6.05s` vs Go `0.05s`, Ruby `0.10s`,
+      Python `0.13s` (`121x` Go / `60x` Ruby / `46.62x` Python)
+    - bytecode `fib`: timeout at `60s`
+    - bytecode `i_before_e`: timeout at `90s`
+  - the first sibling-stdlib fast-path experiment was explicitly rejected:
+    routing `String.split` / `replace` / `contains` through extern host helpers
+    made aligned compiled `i_before_e` worse, not better, because the extern
+    bridge cost dominated the workload
+- Verification:
+  - `bash -n v12/bench_perf v12/bench_compare_external`
+  - `./v12/bench_compare_external --benchmarks fib,binarytrees,matrixmultiply --modes compiled --runs 1 --timeout 90 --output-md /tmp/able-external-compiled-core.md --output-json /tmp/able-external-compiled-core.json`
+  - `./v12/bench_compare_external --benchmarks i_before_e --modes compiled --runs 1 --timeout 20 --output-md /tmp/able-external-i_before_e-compiled.md --output-json /tmp/able-external-i_before_e-compiled.json`
+  - `./v12/bench_perf --runs 1 --timeout 20 --modes compiled --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes bytecode --run-from ../benchmarks/fib v12/examples/benchmarks/fib.able`
+  - `./v12/bench_perf --runs 1 --timeout 90 --modes compiled,bytecode --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able`
+  - `git diff --check`
+
+# 2026-04-18 — external benchmark alignment/comparison harness (v12)
+- Closed the first post-bytecode benchmark-alignment slice.
+- What landed:
+  - `v12/bench_perf` now supports `--run-from DIR` so benchmarks can execute
+    from suite-local working directories with relative inputs like
+    `numbers.txt`, `wordlist.txt`, or `sudoku.txt`
+  - `v12/bench_perf` now also supports `--output-json PATH`, which writes a
+    machine-readable per-mode summary for downstream comparison tooling
+  - `v12/bench_perf` compiled-mode builds now happen from the requested
+    benchmark working directory too, which fixes the external-target stdlib
+    collision caused by compiling from the Able repo workspace instead of the
+    external suite root
+  - new tool: `v12/bench_compare_external`
+    - runs Able against the real sibling `../benchmarks` workloads
+    - runs suite-local `setup.rb` hooks when present
+    - joins the Able timings against `../benchmarks/results.json`
+    - emits Markdown and JSON comparison reports keyed by benchmark/mode and
+      reference language family
+  - `v12/docs/performance-benchmarks.md` now documents the new external
+    comparison workflow and the new `bench_perf` options
+- Verification:
+  - `bash -n v12/bench_perf v12/bench_compare_external`
+  - `./v12/bench_perf --runs 1 --timeout 60 --modes compiled --run-from ../benchmarks/fib --output-json /tmp/able-bench-perf-fib.json ../benchmarks/fib/able-v12-treewalker/run.able`
+  - `./v12/bench_compare_external --benchmarks fib --modes compiled --runs 1 --timeout 60 --output-json /tmp/able-external-fib.json --output-md /tmp/able-external-fib.md`
+  - `git diff --check`
+
 # 2026-04-18 — compiled reporter started-event order/count coverage (v12)
 - Closed the next `able test` user-facing tooling slice as a proof/coverage
   tranche.
@@ -11134,3 +13278,18 @@
 - Implemented literal-only regex compile/match/find_all using byte-span search and stored literal bytes in the regex handle.
 - Updated the stdlib matcher test to exercise substring matches and refreshed docs to reflect partial regex support.
 - Tests: `cd v11/interpreters/ts && ABLE_TYPECHECK_FIXTURES=off bun run scripts/run-module.ts test ../../stdlib/tests`.
+
+# 2026-04-22 — Bytecode fib minimal-self-fast suffix materialization (v12)
+- Bytecode VM: top contiguous minimal self-fast frames now stay out of `callFrameKinds` and are tracked by an explicit suffix counter until a broader frame kind needs to be pushed above them.
+- Runtime bookkeeping: inline return, pooled reset, and completed-run cleanup now understand that unmaterialized minimal suffix directly, while mixed stacks still materialize the suffix back into `callFrameKinds` before pushing a full or metadata-bearing self-fast frame.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(PushSelfFastMinimalCallFrameUsesMinimalStacks|PushCallFrameMaterializesMinimalSelfFastSuffix|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`.
+- Benchmarks: `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3` produced a kept warmed band of `173.91ms/op`, `171.32ms/op`, and `172.12ms/op`; `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-minsuffix.cpu.pprof -memprofile /tmp/fib30-minsuffix.mem.pprof -count=1` produced `170.23ms/op`.
+- External compare: `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90` still times out.
+
+# 2026-04-22 — Bytecode fib statement-if dead-result lowering (v12)
+- Lowering: non-last `if` expressions now use a statement-only lowering path, so missing-`else` statement-position `if` no longer synthesizes a dead `Nil` result just to have the enclosing statement immediately `Pop` it.
+- Reduced `fib`: that trims one dead `bytecodeOpConst Nil` plus one dead `bytecodeOpPop` from every non-base recursive step in the reduced `fib(30)` kernel.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsIntegerSlotConstHotOpcodes|LoweringEmitsFusedSelfCallSlotConstOpcode|LoweringSkipsDeadNilForStatementIfWithoutElse|StatementIfWithoutElseParity|PushSelfFastMinimalCallFrameUsesMinimalStacks|PushCallFrameMaterializesMinimalSelfFastSuffix|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`.
+- Benchmarks: `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3` produced a kept warmed band of `163.53ms/op`, `159.41ms/op`, and `160.61ms/op`; `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-ifstmt.cpu.pprof -memprofile /tmp/fib30-ifstmt.mem.pprof -count=1` produced `169.55ms/op`.
+- Profile shift: the refreshed reduced CPU profile no longer shows the earlier dead statement-result const/pop overhead as a visible top-tier slice; the remaining wall is back on self-call setup and arithmetic.
+- External compare: `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90` still times out.

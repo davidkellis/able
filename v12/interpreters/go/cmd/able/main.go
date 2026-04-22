@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"able/interpreter-go/pkg/profilehook"
 )
 
 const cliToolVersion = "able-cli 0.0.0-dev"
@@ -18,7 +20,22 @@ const (
 )
 
 func main() {
-	os.Exit(run(os.Args[1:]))
+	stopProfile, err := profilehook.StartFromEnv()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	exitCode := run(os.Args[1:])
+	if stopProfile != nil {
+		if err := stopProfile(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			if exitCode == 0 {
+				exitCode = 1
+			}
+		}
+	}
+	os.Exit(exitCode)
 }
 
 func run(args []string) int {

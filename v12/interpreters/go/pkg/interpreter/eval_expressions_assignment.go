@@ -325,5 +325,5 @@ func isErrorResult(i *Interpreter, value runtime.Value) bool {
 	if _, ok := asErrorValue(value); ok {
 		return true
 	}
-	return i.matchesType(ast.Ty("Error"), value)
+	return i.matchesType(cachedSimpleTypeExpression("Error"), value)
 }

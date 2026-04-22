@@ -8,10 +8,24 @@ func SwapEnvIfNeeded(r *Runtime, env *runtime.Environment) (*runtime.Environment
 	if r == nil || env == nil {
 		return nil, false
 	}
-	if r.Env() == env {
+	if !r.isConcurrent() {
+		prev := r.env.Load()
+		if prev == env {
+			return nil, false
+		}
+		r.env.Store(env)
+		return prev, true
+	}
+	gid := currentGID()
+	prev := r.goroutineEnv(gid)
+	if prev == nil {
+		prev = r.env.Load()
+	}
+	if prev == env {
 		return nil, false
 	}
-	return r.SwapEnv(env), true
+	r.envByGID.Store(gid, env)
+	return prev, true
 }
 
 func RestoreEnvIfNeeded(r *Runtime, prev *runtime.Environment, swapped bool) {
