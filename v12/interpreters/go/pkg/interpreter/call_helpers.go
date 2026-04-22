@@ -260,3 +260,13 @@ func (i *Interpreter) releaseNativeCallContext(ctx *runtime.NativeCallContext) {
 	ctx.State = nil
 	i.nativeCallContextPool.Put(ctx)
 }
+
+func (i *Interpreter) invokeNativeFunctionValue(native runtime.NativeFunctionValue, env *runtime.Environment, state any, args []runtime.Value) (runtime.Value, error) {
+	if native.SkipContext {
+		return native.Impl(nil, args)
+	}
+	ctx := i.acquireNativeCallContext(env, state)
+	result, err := native.Impl(ctx, args)
+	i.releaseNativeCallContext(ctx)
+	return result, err
+}

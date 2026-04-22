@@ -3,6 +3,7 @@ package compiler
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 func isNativeArrayCoreMethod(method *methodInfo) bool {
@@ -18,7 +19,9 @@ func isNativeArrayCoreMethod(method *methodInfo) bool {
 }
 
 func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *methodInfo, info *functionInfo) {
-	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
+	bodyName := g.compiledBodyName(info)
+	entryName := g.compiledEntryName(info)
+	fmt.Fprintf(buf, "func %s(", bodyName)
 	for i, param := range info.Params {
 		if i > 0 {
 			fmt.Fprintf(buf, ", ")
@@ -26,9 +29,6 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
-	if envVar, ok := g.packageEnvVar(info.Package); ok {
-		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
-	}
 	arrayType := info.ReturnType
 	if method.ExpectsSelf && len(info.Params) > 0 {
 		arrayType = info.Params[0].GoType
@@ -266,5 +266,22 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 	default:
 		fmt.Fprintf(buf, "\tpanic(fmt.Errorf(\"compiler: unsupported native Array method %s\"))\n", method.MethodName)
 	}
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func %s(", entryName)
+	for i, param := range info.Params {
+		if i > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
+	}
+	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
+	if envVar, ok := g.packageEnvVar(info.Package); ok {
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
+	}
+	args := make([]string, 0, len(info.Params))
+	for _, param := range info.Params {
+		args = append(args, param.GoName)
+	}
+	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, strings.Join(args, ", "))
 	fmt.Fprintf(buf, "}\n\n")
 }

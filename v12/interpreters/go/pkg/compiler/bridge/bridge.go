@@ -33,8 +33,11 @@ type Runtime struct {
 	mu                          sync.RWMutex
 	originals                   map[string]runtime.Value
 	structs                     map[string]*runtime.StructDefinitionValue
-	env                         *runtime.Environment
+	executorKind                string
+	env                         atomic.Pointer[runtime.Environment]
 	envByGID                    sync.Map
+	callFrames                  []*ast.FunctionCall
+	callFramesByGID             sync.Map
 	concurrent                  int32 // atomic: 0 = single goroutine (fast path), 1 = concurrent
 	resolver                    QualifiedCallableResolver
 	globalLookupFallbackEnabled bool
@@ -71,10 +74,29 @@ func (r *Runtime) globalLookupFallback() bool {
 }
 
 func ExecutorKind(r *Runtime) string {
-	if r == nil || r.interp == nil {
+	if r == nil {
 		return "serial"
 	}
-	return r.interp.ExecutorKind()
+	r.mu.RLock()
+	kind := r.executorKind
+	interp := r.interp
+	r.mu.RUnlock()
+	if kind != "" {
+		return kind
+	}
+	if interp == nil {
+		return "serial"
+	}
+	return interp.ExecutorKind()
+}
+
+func (r *Runtime) SetExecutorKind(kind string) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.executorKind = kind
+	r.mu.Unlock()
 }
 
 // HasInterpreter reports whether runtime bridge helpers can delegate to interpreter semantics.
@@ -99,9 +121,7 @@ func (r *Runtime) SetEnv(env *runtime.Environment) {
 	if r == nil || env == nil {
 		return
 	}
-	r.mu.Lock()
-	r.env = env
-	r.mu.Unlock()
+	r.env.Store(env)
 	if r.isConcurrent() {
 		r.envByGID.Store(currentGID(), env)
 	}
@@ -112,16 +132,11 @@ func (r *Runtime) Env() *runtime.Environment {
 		return nil
 	}
 	if r.isConcurrent() {
-		if env, ok := r.envByGID.Load(currentGID()); ok {
-			if typed, ok := env.(*runtime.Environment); ok && typed != nil {
-				return typed
-			}
+		if env := r.goroutineEnv(currentGID()); env != nil {
+			return env
 		}
 	}
-	r.mu.RLock()
-	env := r.env
-	r.mu.RUnlock()
-	return env
+	return r.env.Load()
 }
 
 func (r *Runtime) SwapEnv(env *runtime.Environment) *runtime.Environment {
@@ -129,25 +144,16 @@ func (r *Runtime) SwapEnv(env *runtime.Environment) *runtime.Environment {
 		return nil
 	}
 	if !r.isConcurrent() {
-		// Fast path: single goroutine, simple swap
-		r.mu.Lock()
-		prev := r.env
+		prev := r.env.Load()
 		if env != nil {
-			r.env = env
+			r.env.Store(env)
 		}
-		r.mu.Unlock()
 		return prev
 	}
 	gid := currentGID()
-	var prev *runtime.Environment
-	if existing, ok := r.envByGID.Load(gid); ok {
-		if typed, ok := existing.(*runtime.Environment); ok {
-			prev = typed
-		}
-	} else {
-		r.mu.RLock()
-		prev = r.env
-		r.mu.RUnlock()
+	prev := r.goroutineEnv(gid)
+	if prev == nil {
+		prev = r.env.Load()
 	}
 	if env == nil {
 		r.envByGID.Delete(gid)
@@ -162,19 +168,27 @@ func (r *Runtime) currentEnv() *runtime.Environment {
 		return nil
 	}
 	if r.isConcurrent() {
-		if env, ok := r.envByGID.Load(currentGID()); ok {
-			if typed, ok := env.(*runtime.Environment); ok && typed != nil {
-				return typed
-			}
+		if env := r.goroutineEnv(currentGID()); env != nil {
+			return env
 		}
 	}
-	r.mu.RLock()
-	env := r.env
-	r.mu.RUnlock()
+	env := r.env.Load()
 	if env == nil && r.interp != nil {
 		env = r.interp.GlobalEnvironment()
 	}
 	return env
+}
+
+func (r *Runtime) goroutineEnv(gid uint64) *runtime.Environment {
+	if r == nil {
+		return nil
+	}
+	if env, ok := r.envByGID.Load(gid); ok {
+		if typed, ok := env.(*runtime.Environment); ok && typed != nil {
+			return typed
+		}
+	}
+	return nil
 }
 
 func currentGID() uint64 {
@@ -716,7 +730,7 @@ func CallValueWithNode(rt *Runtime, fn runtime.Value, args []runtime.Value, call
 	env := rt.currentEnv()
 	val, err := rt.interp.CallFunctionInWithCallNode(fn, args, env, call)
 	if err != nil && call != nil {
-		err = rt.interp.AttachRuntimeContext(err, call, env)
+		err = attachRuntimeContext(rt, err, call, env)
 	}
 	return val, err
 }
@@ -745,7 +759,7 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 	if err == nil {
 		val, callErr := rt.interp.CallFunctionInWithCallNode(value, args, env, call)
 		if callErr != nil && call != nil {
-			callErr = rt.interp.AttachRuntimeContext(callErr, call, env)
+			callErr = attachRuntimeContext(rt, callErr, call, env)
 		}
 		return val, callErr
 	}
@@ -755,7 +769,7 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 		} else if ok && resolved != nil {
 			val, callErr := rt.interp.CallFunctionInWithCallNode(resolved, args, env, call)
 			if callErr != nil && call != nil {
-				callErr = rt.interp.AttachRuntimeContext(callErr, call, env)
+				callErr = attachRuntimeContext(rt, callErr, call, env)
 			}
 			return val, callErr
 		}
@@ -797,7 +811,7 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 		}
 		val, callErr := rt.interp.CallFunctionInWithCallNode(candidate, args, env, call)
 		if callErr != nil && call != nil {
-			callErr = rt.interp.AttachRuntimeContext(callErr, call, env)
+			callErr = attachRuntimeContext(rt, callErr, call, env)
 		}
 		return val, callErr
 	}

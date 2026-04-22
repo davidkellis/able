@@ -14,6 +14,8 @@ type BytecodeStatsSnapshot struct {
 	InlineCallMisses      uint64
 	MemberMethodCacheHits uint64
 	MemberMethodCacheMiss uint64
+	ExprCacheHits         uint64
+	ExprCacheMisses       uint64
 }
 
 func (i *Interpreter) recordBytecodeOp(op bytecodeOp) {
@@ -76,6 +78,20 @@ func (i *Interpreter) recordBytecodeMemberMethodCacheMiss() {
 	atomic.AddUint64(&i.bytecodeMemberMethodCacheMisses, 1)
 }
 
+func (i *Interpreter) recordBytecodeExpressionCacheHit() {
+	if i == nil || !i.bytecodeStatsEnabled {
+		return
+	}
+	atomic.AddUint64(&i.bytecodeExprCacheHits, 1)
+}
+
+func (i *Interpreter) recordBytecodeExpressionCacheMiss() {
+	if i == nil || !i.bytecodeStatsEnabled {
+		return
+	}
+	atomic.AddUint64(&i.bytecodeExprCacheMisses, 1)
+}
+
 // BytecodeStats returns a snapshot of bytecode counters.
 func (i *Interpreter) BytecodeStats() BytecodeStatsSnapshot {
 	snapshot := BytecodeStatsSnapshot{}
@@ -94,6 +110,8 @@ func (i *Interpreter) BytecodeStats() BytecodeStatsSnapshot {
 	snapshot.InlineCallMisses = atomic.LoadUint64(&i.bytecodeInlineCallMisses)
 	snapshot.MemberMethodCacheHits = atomic.LoadUint64(&i.bytecodeMemberMethodCacheHits)
 	snapshot.MemberMethodCacheMiss = atomic.LoadUint64(&i.bytecodeMemberMethodCacheMisses)
+	snapshot.ExprCacheHits = atomic.LoadUint64(&i.bytecodeExprCacheHits)
+	snapshot.ExprCacheMisses = atomic.LoadUint64(&i.bytecodeExprCacheMisses)
 	return snapshot
 }
 
@@ -112,4 +130,6 @@ func (i *Interpreter) ResetBytecodeStats() {
 	atomic.StoreUint64(&i.bytecodeInlineCallMisses, 0)
 	atomic.StoreUint64(&i.bytecodeMemberMethodCacheHits, 0)
 	atomic.StoreUint64(&i.bytecodeMemberMethodCacheMisses, 0)
+	atomic.StoreUint64(&i.bytecodeExprCacheHits, 0)
+	atomic.StoreUint64(&i.bytecodeExprCacheMisses, 0)
 }

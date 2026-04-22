@@ -1,8 +1,16 @@
 package binarytrees
 
+import able.kernel.{Array}
+
 struct Node {
   left: ?Node,
   right: ?Node
+}
+
+struct DepthResult {
+  iterations: i32,
+  depth: i32,
+  check: i32
 }
 
 fn make_tree(depth: i32) -> Node {
@@ -40,19 +48,39 @@ fn main() {
 
   long_lived_tree := make_tree(max_depth)
 
+  handles := Array.new()
+
   depth := min_depth
   loop {
     if depth > max_depth { break }
-    iterations := 1 .<< (max_depth - depth + min_depth)
-    check = 0
-    i := 1
-    loop {
-      if i > iterations { break }
-      check = check + check_tree(make_tree(depth))
-      i = i + 1
-    }
-    print(`${iterations}\t trees of depth ${depth}\t check: ${check}`)
+    worker_depth := depth
+    handles.push(spawn {
+      iterations := 1 .<< (max_depth - worker_depth + min_depth)
+      batch_check := 0
+      i := 1
+      loop {
+        if i > iterations { break }
+        batch_check = batch_check + check_tree(make_tree(worker_depth))
+        i = i + 1
+      }
+      DepthResult {
+        iterations: iterations,
+        depth: worker_depth,
+        check: batch_check
+      }
+    })
     depth = depth + 2
+  }
+
+  future_flush()
+
+  i := 0
+  count := handles.length
+  loop {
+    if i >= count { break }
+    result := handles[i].value()! as DepthResult
+    print(`${result.iterations}\t trees of depth ${result.depth}\t check: ${result.check}`)
+    i = i + 1
   }
 
   print(`long lived tree of depth ${max_depth}\t check: ${check_tree(long_lived_tree)}`)

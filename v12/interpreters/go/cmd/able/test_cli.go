@@ -50,7 +50,11 @@ func runTest(args []string, execMode interpreterMode) int {
 		return code
 	}
 
-	interp := newInterpreter(execMode)
+	interp, err := newInterpreter(execMode)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "able test: %v\n", err)
+		return 2
+	}
 	registerPrint(interp)
 
 	if ok, code := evaluateTestModules(interp, loadResult.modules); !ok {

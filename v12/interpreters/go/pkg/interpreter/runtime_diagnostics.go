@@ -23,6 +23,8 @@ type runtimeCallFrame struct {
 type runtimeDiagnosticContext struct {
 	node      ast.Node
 	callStack []runtimeCallFrame
+	state     *evalState
+	callDepth int
 }
 
 type runtimeDiagnosticError struct {
@@ -56,6 +58,9 @@ type RuntimeDiagnostic struct {
 func (i *Interpreter) BuildRuntimeDiagnostic(err error) RuntimeDiagnostic {
 	message := runtimeMessageFromError(err)
 	ctx := runtimeContextFromError(err)
+	if ctx != nil {
+		ctx.freezeCallStack()
+	}
 
 	location := runtimeLocationFromNode(i, nil)
 	if ctx != nil && ctx.node != nil {
@@ -108,6 +113,41 @@ func (i *Interpreter) AttachRuntimeContext(err error, node ast.Node, env *runtim
 	return i.attachRuntimeContext(err, node, state)
 }
 
+// AttachRuntimeContextWithCallStack attaches diagnostic context using an
+// explicit compiled/native call stack instead of the current eval state.
+func (i *Interpreter) AttachRuntimeContextWithCallStack(err error, node ast.Node, env *runtime.Environment, callNodes []*ast.FunctionCall) error {
+	if i == nil {
+		return err
+	}
+	if len(callNodes) == 0 {
+		state := i.stateFromEnv(env)
+		return i.attachRuntimeContext(err, node, state)
+	}
+	callStack := make([]runtimeCallFrame, 0, len(callNodes))
+	for _, call := range callNodes {
+		if call == nil {
+			continue
+		}
+		callStack = append(callStack, runtimeCallFrame{node: call})
+	}
+	return i.attachRuntimeContextWithCallStack(err, node, callStack)
+}
+
+// AppendRuntimeCallFrame appends a compiled/native caller frame onto an error's
+// existing runtime diagnostic context without rebuilding the full context.
+func (i *Interpreter) AppendRuntimeCallFrame(err error, call *ast.FunctionCall) error {
+	if i == nil || err == nil || call == nil {
+		return err
+	}
+	ctx := runtimeContextFromError(err)
+	if ctx == nil {
+		return err
+	}
+	ctx.freezeCallStack()
+	ctx.callStack = append([]runtimeCallFrame{{node: call}}, ctx.callStack...)
+	return err
+}
+
 func DescribeRuntimeDiagnostic(diag RuntimeDiagnostic) string {
 	message := strings.TrimSpace(diag.Message)
 	if strings.HasPrefix(message, "runtime:") {
@@ -136,6 +176,13 @@ func DescribeRuntimeDiagnostic(diag RuntimeDiagnostic) string {
 }
 
 func (i *Interpreter) attachRuntimeContext(err error, node ast.Node, state *evalState) error {
+	if state == nil {
+		return i.attachRuntimeContextWithCallStack(err, node, nil)
+	}
+	return i.attachRuntimeContextWithLazyState(err, node, state)
+}
+
+func (i *Interpreter) attachRuntimeContextWithCallStack(err error, node ast.Node, callStack []runtimeCallFrame) error {
 	if err == nil || node == nil {
 		return err
 	}
@@ -148,7 +195,36 @@ func (i *Interpreter) attachRuntimeContext(err error, node ast.Node, state *eval
 	}
 	context := &runtimeDiagnosticContext{
 		node:      node,
-		callStack: state.snapshotCallStack(),
+		callStack: callStack,
+	}
+	context.freezeCallStack()
+	if sig, ok := err.(raiseSignal); ok {
+		sig.context = context
+		return sig
+	}
+	if diagErr, ok := err.(runtimeDiagnosticError); ok {
+		diagErr.context = context
+		return diagErr
+	}
+	return runtimeDiagnosticError{err: err, context: context}
+}
+
+func (i *Interpreter) attachRuntimeContextWithLazyState(err error, node ast.Node, state *evalState) error {
+	if err == nil || node == nil {
+		return err
+	}
+	switch err.(type) {
+	case returnSignal, breakSignal, continueSignal, generatorStopSignal:
+		return err
+	}
+	if runtimeContextFromError(err) != nil {
+		return err
+	}
+	context := &runtimeDiagnosticContext{node: node}
+	if state != nil && len(state.callStack) > 0 {
+		context.state = state
+		context.callDepth = len(state.callStack)
+		state.registerPendingDiagnosticContext(context)
 	}
 	if sig, ok := err.(raiseSignal); ok {
 		sig.context = context
@@ -159,6 +235,15 @@ func (i *Interpreter) attachRuntimeContext(err error, node ast.Node, state *eval
 		return diagErr
 	}
 	return runtimeDiagnosticError{err: err, context: context}
+}
+
+func (ctx *runtimeDiagnosticContext) freezeCallStack() {
+	if ctx == nil || ctx.state == nil {
+		return
+	}
+	ctx.callStack = ctx.state.snapshotCallStackPrefix(ctx.callDepth)
+	ctx.state = nil
+	ctx.callDepth = 0
 }
 
 func runtimeContextFromError(err error) *runtimeDiagnosticContext {

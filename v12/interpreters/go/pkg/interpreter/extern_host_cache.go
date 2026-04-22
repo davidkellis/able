@@ -39,6 +39,20 @@ func hashExternState(target ast.HostTarget, state *externTargetState, salt strin
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+func cachedExternStateHash(target ast.HostTarget, state *externTargetState, salt string) string {
+	if state == nil {
+		return ""
+	}
+	if state.hashValid && state.hashSalt == salt {
+		return state.cachedHash
+	}
+	hash := hashExternState(target, state, salt)
+	state.cachedHash = hash
+	state.hashSalt = salt
+	state.hashValid = true
+	return hash
+}
+
 func externSignatureKey(extern *ast.ExternFunctionBody) string {
 	if extern == nil || extern.Signature == nil || extern.Signature.ID == nil {
 		return "<missing>"

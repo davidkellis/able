@@ -103,6 +103,51 @@ func emitIf(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfExpression
 	return nil
 }
 
+func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfExpression) error {
+	if expr == nil {
+		return bytecodeUnsupported("nil if expression")
+	}
+	if err := emitExpression(ctx, i, expr.IfCondition); err != nil {
+		return err
+	}
+	jumpToElse := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
+	if err := emitBlock(ctx, i, expr.IfBody); err != nil {
+		return err
+	}
+	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	jumpToEnd := []int{ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1})}
+	ctx.patchJump(jumpToElse, len(ctx.instructions))
+
+	for _, clause := range expr.ElseIfClauses {
+		if clause == nil {
+			return bytecodeUnsupported("nil elsif clause")
+		}
+		if err := emitExpression(ctx, i, clause.Condition); err != nil {
+			return err
+		}
+		jumpToNext := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
+		if err := emitBlock(ctx, i, clause.Body); err != nil {
+			return err
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+		jumpToEnd = append(jumpToEnd, ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1}))
+		ctx.patchJump(jumpToNext, len(ctx.instructions))
+	}
+
+	if expr.ElseBody != nil {
+		if err := emitBlock(ctx, i, expr.ElseBody); err != nil {
+			return err
+		}
+		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	}
+
+	end := len(ctx.instructions)
+	for _, idx := range jumpToEnd {
+		ctx.patchJump(idx, end)
+	}
+	return nil
+}
+
 func emitLoopExpression(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.LoopExpression) error {
 	if loop == nil {
 		return bytecodeUnsupported("nil loop expression")

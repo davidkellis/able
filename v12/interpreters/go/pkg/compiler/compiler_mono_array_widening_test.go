@@ -382,8 +382,8 @@ func TestCompilerExperimentalMonoArraysMatrixMultiplyScalarLoopStaysNative(t *te
 		"__able_binary_op(\"*\",",
 		"__able_call_value(",
 		"__able_method_call_node(",
-		"__able_push_call_frame(",
-		"__able_pop_call_frame()",
+		"bridge.PushCallFrame(__able_runtime,",
+		"bridge.PopCallFrame(__able_runtime)",
 		"__able_ptr(",
 	} {
 		if strings.Contains(body, fragment) {
@@ -438,8 +438,8 @@ func TestCompilerExperimentalMonoArraysMatrixMultiplyMainStaysNative(t *testing.
 			"__able_binary_op(\"+\",",
 			"__able_call_value(",
 			"__able_method_call_node(",
-			"__able_push_call_frame(",
-			"__able_pop_call_frame()",
+			"bridge.PushCallFrame(__able_runtime,",
+			"bridge.PopCallFrame(__able_runtime)",
 			"__able_ptr(",
 		} {
 			if strings.Contains(body, fragment) {

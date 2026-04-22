@@ -43,8 +43,8 @@ func (r raiseSignal) Error() string {
 }
 
 type returnSignal struct {
-	value   runtime.Value
-	context *runtimeDiagnosticContext
+	value runtime.Value
+	node  ast.Node
 }
 
 func (r returnSignal) Error() string {

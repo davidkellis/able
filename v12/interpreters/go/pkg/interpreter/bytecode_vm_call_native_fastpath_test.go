@@ -145,3 +145,37 @@ func TestBytecodeVM_NativeExactCallsSkipInlineProbeStats(t *testing.T) {
 		t.Fatalf("expected exact native call sites to skip inline probe stats, got hits=%d misses=%d", stats.InlineCallHits, stats.InlineCallMisses)
 	}
 }
+
+func TestBytecodeVM_NativeExactCallSkipContextPassesNilContext(t *testing.T) {
+	interp := NewBytecode()
+	called := false
+
+	interp.GlobalEnvironment().Define("capture_ctx", runtime.NativeFunctionValue{
+		Name:        "capture_ctx",
+		Arity:       0,
+		SkipContext: true,
+		Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			called = true
+			if ctx != nil {
+				t.Fatalf("expected nil context, got %#v", ctx)
+			}
+			if len(args) != 0 {
+				t.Fatalf("expected no args, got %d", len(args))
+			}
+			return runtime.NewSmallInt(9, runtime.IntegerI32), nil
+		},
+	})
+
+	module := ast.Mod([]ast.Statement{
+		ast.Call("capture_ctx"),
+	}, nil, nil)
+
+	got := runBytecodeModuleWithInterpreter(t, interp, module)
+	if !called {
+		t.Fatalf("expected native impl to be called")
+	}
+	want := runtime.NewSmallInt(9, runtime.IntegerI32)
+	if !valuesEqual(got, want) {
+		t.Fatalf("unexpected result: got=%#v want=%#v", got, want)
+	}
+}

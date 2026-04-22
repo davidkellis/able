@@ -183,8 +183,8 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 		if info, ok := lookupIntegerInfo(targetKind); ok {
 			switch val := rawValue.(type) {
 			case runtime.IntegerValue:
-				if val.TypeSuffix == targetKind {
-					return rawValue, nil
+				if casted, ok := castIntegerValueToTargetKindFast(val, targetKind, info); ok {
+					return casted, nil
 				}
 				wrapped := patternToInteger(bitPattern(val.BigInt(), info), info)
 				if wrapped.IsInt64() {
@@ -195,8 +195,8 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 				if val == nil {
 					return nil, fmt.Errorf("cannot cast <nil> to %s", targetKind)
 				}
-				if val.TypeSuffix == targetKind {
-					return rawValue, nil
+				if casted, ok := castIntegerValueToTargetKindFast(*val, targetKind, info); ok {
+					return casted, nil
 				}
 				wrapped := patternToInteger(bitPattern(val.BigInt(), info), info)
 				if wrapped.IsInt64() {

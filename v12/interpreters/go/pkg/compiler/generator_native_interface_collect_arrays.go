@@ -37,10 +37,8 @@ func (g *generator) compileStaticIteratorCollectMonoArrayCall(ctx *compileContex
 	lines = append(lines, receiverLines...)
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
-	lines = append(lines, fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", resultTemp, controlTemp, info.GoName, coercedReceiverExpr))
-	lines = append(lines, "__able_pop_call_frame()")
-	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	lines = append(lines, fmt.Sprintf("%s, %s := %s(%s)", resultTemp, controlTemp, g.compiledCallTargetNameForPackage(ctx.packageName, info.Package, info.GoName), coercedReceiverExpr))
+	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -145,11 +143,11 @@ func (g *generator) specializedBuiltinArrayInterfaceMethod(interfaceName string,
 		}
 		baseInfo := impl.Info
 		method := &methodInfo{
-			TargetName:   baseName,
-			TargetType:   impl.TargetType,
-			MethodName:   methodName,
-			ExpectsSelf:  methodDefinitionExpectsSelf(baseInfo.Definition),
-			Info:         baseInfo,
+			TargetName:  baseName,
+			TargetType:  impl.TargetType,
+			MethodName:  methodName,
+			ExpectsSelf: methodDefinitionExpectsSelf(baseInfo.Definition),
+			Info:        baseInfo,
 		}
 		if method.ExpectsSelf && len(baseInfo.Params) > 0 {
 			method.ReceiverType = baseInfo.Params[0].GoType
@@ -338,17 +336,13 @@ func (g *generator) renderIteratorCollectMonoArrayHelper(buf *bytes.Buffer, info
 	} else {
 		fmt.Fprintf(buf, "func __able_compiled_%s(self %s) (%s, *__ableControl) {\n", info.GoName, info.ReceiverType, info.ReturnType)
 	}
-	fmt.Fprintf(buf, "\t__able_push_call_frame(nil)\n")
-	fmt.Fprintf(buf, "\tacc, control := __able_compiled_%s()\n", info.DefaultGoName)
-	fmt.Fprintf(buf, "\t__able_pop_call_frame()\n")
+	fmt.Fprintf(buf, "\tacc, control := %s()\n", g.compiledCallTargetNameForPackage(info.Package, info.Package, info.DefaultGoName))
 	fmt.Fprintf(buf, "\tif control != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn %s, control\n", zeroExpr)
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\titer := self\n")
 	fmt.Fprintf(buf, "\tfor {\n")
-	fmt.Fprintf(buf, "\t\t__able_push_call_frame(nil)\n")
 	fmt.Fprintf(buf, "\t\tnext, control := iter.next()\n")
-	fmt.Fprintf(buf, "\t\t__able_pop_call_frame()\n")
 	fmt.Fprintf(buf, "\t\tif control != nil {\n")
 	fmt.Fprintf(buf, "\t\t\treturn %s, control\n", zeroExpr)
 	fmt.Fprintf(buf, "\t\t}\n")
@@ -362,9 +356,7 @@ func (g *generator) renderIteratorCollectMonoArrayHelper(buf *bytes.Buffer, info
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\tvalue, valueOK := %s(next)\n", info.ValueUnwrap)
 	fmt.Fprintf(buf, "\t\tif valueOK {\n")
-	fmt.Fprintf(buf, "\t\t\t__able_push_call_frame(nil)\n")
-	fmt.Fprintf(buf, "\t\t\tnextAcc, control := __able_compiled_%s(acc, value)\n", info.ExtendGoName)
-	fmt.Fprintf(buf, "\t\t\t__able_pop_call_frame()\n")
+	fmt.Fprintf(buf, "\t\t\tnextAcc, control := %s(acc, value)\n", g.compiledCallTargetNameForPackage(info.Package, info.Package, info.ExtendGoName))
 	fmt.Fprintf(buf, "\t\t\tif control != nil {\n")
 	fmt.Fprintf(buf, "\t\t\t\treturn %s, control\n", zeroExpr)
 	fmt.Fprintf(buf, "\t\t\t}\n")

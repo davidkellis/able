@@ -210,7 +210,11 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		return 0
 	}
 
-	interp := newInterpreter(execMode)
+	interp, err := newInterpreter(execMode)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize interpreter: %v\n", err)
+		return 1
+	}
 	interp.SetArgs(programArgs)
 	registerPrint(interp)
 

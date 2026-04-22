@@ -103,10 +103,9 @@ func (g *generator) renderNativeInterfaceGenericDispatchHelper(buf *bytes.Buffer
 			}
 			args = append(args, argExpr)
 		}
-		fmt.Fprintf(buf, "\t\t__able_push_call_frame(call)\n")
-		fmt.Fprintf(buf, "\t\tresult, control := __able_compiled_%s(%s)\n", impl.Info.GoName, strings.Join(args, ", "))
-		fmt.Fprintf(buf, "\t\t__able_pop_call_frame()\n")
+		fmt.Fprintf(buf, "\t\tresult, control := %s(%s)\n", g.compiledCallTargetName(dispatch.Package, impl.Info), strings.Join(args, ", "))
 		fmt.Fprintf(buf, "\t\tif control != nil {\n")
+		fmt.Fprintf(buf, "\t\t\t%s\n", g.compiledAppendControlCallFrameLine("control", "call"))
 		fmt.Fprintf(buf, "\t\t\treturn %s, control\n", zeroExpr)
 		fmt.Fprintf(buf, "\t\t}\n")
 		if impl.CompiledReturnGoType == dispatch.ReturnGoType {
@@ -133,10 +132,9 @@ func (g *generator) renderNativeInterfaceGenericDispatchHelper(buf *bytes.Buffer
 		for idx := range dispatch.ParamGoTypes {
 			args = append(args, fmt.Sprintf("arg%d", idx))
 		}
-		fmt.Fprintf(buf, "\t\t__able_push_call_frame(call)\n")
-		fmt.Fprintf(buf, "\t\tresult, control := __able_compiled_%s(%s)\n", dispatch.RuntimeDefault.GoName, strings.Join(args, ", "))
-		fmt.Fprintf(buf, "\t\t__able_pop_call_frame()\n")
+		fmt.Fprintf(buf, "\t\tresult, control := %s(%s)\n", g.compiledCallTargetName(dispatch.Package, dispatch.RuntimeDefault), strings.Join(args, ", "))
 		fmt.Fprintf(buf, "\t\tif control != nil {\n")
+		fmt.Fprintf(buf, "\t\t\t%s\n", g.compiledAppendControlCallFrameLine("control", "call"))
 		fmt.Fprintf(buf, "\t\t\treturn %s, control\n", zeroExpr)
 		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\treturn result, nil\n")

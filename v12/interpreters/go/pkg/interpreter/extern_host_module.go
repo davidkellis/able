@@ -3,6 +3,8 @@ package interpreter
 import (
 	"fmt"
 	"reflect"
+
+	"able/interpreter-go/pkg/ast"
 )
 
 func (m *externHostModule) lookup(name string) (reflect.Value, error) {
@@ -29,4 +31,28 @@ func (m *externHostModule) lookup(name string) (reflect.Value, error) {
 	}
 	m.symbols[name] = fn
 	return fn, nil
+}
+
+func (m *externHostModule) lookupInvoker(def *ast.ExternFunctionBody) (externHostInvoker, error) {
+	if m == nil || def == nil || def.Signature == nil || def.Signature.ID == nil {
+		return nil, fmt.Errorf("extern invoker missing signature")
+	}
+	name := def.Signature.ID.Name
+	if name == "" {
+		return nil, fmt.Errorf("extern function name is empty")
+	}
+	if m.invokers == nil {
+		m.invokers = make(map[string]externHostInvoker)
+	}
+	if invoker, ok := m.invokers[name]; ok {
+		return invoker, nil
+	}
+	fn, err := m.lookup(name)
+	if err != nil {
+		return nil, err
+	}
+	raw := fn.Interface()
+	invoker := buildExternFastInvoker(def, raw)
+	m.invokers[name] = invoker
+	return invoker, nil
 }

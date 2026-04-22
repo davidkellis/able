@@ -61,6 +61,7 @@ const (
 	bytecodeOpForLoop
 	bytecodeOpCall
 	bytecodeOpCallName
+	bytecodeOpCallMember
 	bytecodeOpMemberAccess
 	bytecodeOpMemberSet
 	bytecodeOpMatch

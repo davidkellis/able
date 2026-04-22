@@ -27,7 +27,7 @@ func RaisedError(rt *Runtime, node ast.Node, value runtime.Value) error {
 	env := rt.currentEnv()
 	err := interpreter.Raise(rt.interp, value, env)
 	if node != nil {
-		err = rt.interp.AttachRuntimeContext(err, node, env)
+		err = attachRuntimeContext(rt, err, node, env)
 	}
 	return err
 }
@@ -73,7 +73,7 @@ func RuntimeErrorWithContext(rt *Runtime, node ast.Node, err error) error {
 		return err
 	}
 	env := rt.currentEnv()
-	return rt.interp.AttachRuntimeContext(err, node, env)
+	return attachRuntimeContext(rt, err, node, env)
 }
 
 // RegisterNodeOrigin wires a node origin path for compiled diagnostics.
@@ -84,22 +84,36 @@ func RegisterNodeOrigin(rt *Runtime, node ast.Node, origin string) {
 	rt.interp.AddNodeOrigin(node, origin)
 }
 
-// PushCallFrame records a call expression in the interpreter's runtime state.
+// PushCallFrame records a compiled call expression for later diagnostics.
 func PushCallFrame(rt *Runtime, call *ast.FunctionCall) {
 	if rt == nil || rt.interp == nil || call == nil {
 		return
 	}
-	env := rt.currentEnv()
-	rt.interp.PushCallFrame(env, call)
+	rt.pushBridgeCallFrame(call)
 }
 
-// PopCallFrame removes the most recent call expression frame.
+// PopCallFrame removes the most recent compiled call expression frame.
 func PopCallFrame(rt *Runtime) {
 	if rt == nil || rt.interp == nil {
 		return
 	}
-	env := rt.currentEnv()
-	rt.interp.PopCallFrame(env)
+	rt.popBridgeCallFrame()
+}
+
+// AppendCallFrameError appends a compiled caller frame onto an existing
+// runtime-diagnostic error on the slow error path.
+func AppendCallFrameError(rt *Runtime, err error, call *ast.FunctionCall) error {
+	if err == nil || rt == nil || rt.interp == nil || call == nil {
+		return err
+	}
+	return rt.interp.AppendRuntimeCallFrame(err, call)
+}
+
+func attachRuntimeContext(rt *Runtime, err error, node ast.Node, env *runtime.Environment) error {
+	if err == nil || rt == nil || rt.interp == nil {
+		return err
+	}
+	return rt.interp.AttachRuntimeContextWithCallStack(err, node, env, rt.snapshotBridgeCallFrames())
 }
 
 // Recover converts a recovered panic into a runtime error compatible with the interpreter.

@@ -141,3 +141,57 @@ func TestCachedTypeInfoNameAvoidsRepeatedAllocationsForCommonGenericTypes(t *tes
 		t.Fatalf("expected cachedTypeInfoName hot path allocations to be zero, got %.2f", allocs)
 	}
 }
+
+func TestCanonicalizeExpandedTypeExpressionReusesUnchangedNodes(t *testing.T) {
+	env := runtime.NewEnvironment(nil)
+
+	generic := ast.Gen(ast.Ty("Array"), ast.Ty("String"))
+	if got := canonicalizeExpandedTypeExpression(generic, env); got != generic {
+		t.Fatalf("expected generic type expression identity reuse")
+	}
+
+	nullable := ast.Nullable(ast.Ty("String"))
+	if got := canonicalizeExpandedTypeExpression(nullable, env); got != nullable {
+		t.Fatalf("expected nullable type expression identity reuse")
+	}
+
+	result := ast.Result(ast.Ty("String"))
+	if got := canonicalizeExpandedTypeExpression(result, env); got != result {
+		t.Fatalf("expected result type expression identity reuse")
+	}
+
+	union := ast.UnionT(ast.Ty("String"), ast.Ty("bool"))
+	if got := canonicalizeExpandedTypeExpression(union, env); got != union {
+		t.Fatalf("expected union type expression identity reuse")
+	}
+
+	fn := ast.FnType([]ast.TypeExpression{ast.Ty("String"), ast.Ty("bool")}, ast.Ty("String"))
+	if got := canonicalizeExpandedTypeExpression(fn, env); got != fn {
+		t.Fatalf("expected function type expression identity reuse")
+	}
+}
+
+func TestCanonicalizeExpandedTypeExpressionRebuildsChangedNestedNodes(t *testing.T) {
+	env := runtime.NewEnvironment(nil)
+	env.Define("Alias", &runtime.StructDefinitionValue{
+		Node: ast.StructDef("Target", nil, ast.StructKindNamed, nil, nil, false),
+	})
+
+	nullable := ast.Nullable(ast.Ty("Alias"))
+	gotNullable := canonicalizeExpandedTypeExpression(nullable, env)
+	if gotNullable == nullable {
+		t.Fatalf("expected nullable type expression rebuild when inner name changes")
+	}
+	if gotInner, ok := gotNullable.(*ast.NullableTypeExpression); !ok || gotInner.InnerType == nullable.InnerType {
+		t.Fatalf("expected canonicalized nullable inner type to change, got %#v", gotNullable)
+	}
+
+	union := ast.UnionT(ast.Ty("Alias"), ast.Ty("String"))
+	gotUnion := canonicalizeExpandedTypeExpression(union, env)
+	if gotUnion == union {
+		t.Fatalf("expected union type expression rebuild when member changes")
+	}
+	if gotTyped, ok := gotUnion.(*ast.UnionTypeExpression); !ok || len(gotTyped.Members) != 2 || gotTyped.Members[0] == union.Members[0] {
+		t.Fatalf("expected canonicalized union member to change, got %#v", gotUnion)
+	}
+}

@@ -15,6 +15,51 @@ type typeInfoCacheKey struct {
 	arg1     ast.TypeExpression
 }
 
+func interfaceImplArgSignature(ifaceArgs []ast.TypeExpression) string {
+	if len(ifaceArgs) == 0 {
+		return "<none>"
+	}
+	parts := make([]string, 0, len(ifaceArgs))
+	for _, arg := range ifaceArgs {
+		parts = append(parts, typeExpressionToString(arg))
+	}
+	return strings.Join(parts, "|")
+}
+
+func (i *Interpreter) lookupInterfaceImplCache(key interfaceImplCacheKey) (interfaceImplCacheEntry, bool) {
+	if i == nil {
+		return interfaceImplCacheEntry{}, false
+	}
+	if i.envSingleThread {
+		entry, ok := i.interfaceImplCache[key]
+		return entry, ok
+	}
+	i.methodCacheMu.RLock()
+	defer i.methodCacheMu.RUnlock()
+	entry, ok := i.interfaceImplCache[key]
+	return entry, ok
+}
+
+func (i *Interpreter) storeInterfaceImplCache(key interfaceImplCacheKey, okImpl bool, err error) {
+	if i == nil {
+		return
+	}
+	entry := interfaceImplCacheEntry{ok: okImpl, err: err}
+	if i.envSingleThread {
+		if i.interfaceImplCache == nil {
+			i.interfaceImplCache = make(map[interfaceImplCacheKey]interfaceImplCacheEntry)
+		}
+		i.interfaceImplCache[key] = entry
+		return
+	}
+	i.methodCacheMu.Lock()
+	defer i.methodCacheMu.Unlock()
+	if i.interfaceImplCache == nil {
+		i.interfaceImplCache = make(map[interfaceImplCacheKey]interfaceImplCacheEntry)
+	}
+	i.interfaceImplCache[key] = entry
+}
+
 func (i *Interpreter) cachedTypeInfoName(info typeInfo) string {
 	if len(info.typeArgs) == 0 {
 		return info.name
@@ -248,15 +293,17 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 	if interfaceName == "Error" && info.name == "Error" {
 		return true, nil
 	}
-	argSig := "<none>"
-	if len(ifaceArgs) > 0 {
-		parts := make([]string, 0, len(ifaceArgs))
-		for _, arg := range ifaceArgs {
-			parts = append(parts, typeExpressionToString(arg))
-		}
-		argSig = strings.Join(parts, "|")
+	typeName := i.cachedTypeInfoName(info)
+	argSig := interfaceImplArgSignature(ifaceArgs)
+	cacheKey := interfaceImplCacheKey{
+		typeName:      typeName,
+		interfaceName: interfaceName,
+		argSignature:  argSig,
 	}
-	key := interfaceName + "::" + typeInfoToString(info) + "::" + argSig
+	if cached, ok := i.lookupInterfaceImplCache(cacheKey); ok {
+		return cached.ok, cached.err
+	}
+	key := interfaceName + "::" + typeName + "::" + argSig
 	if _, seen := visited[key]; seen {
 		return true, nil
 	}
@@ -266,14 +313,17 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 		for _, base := range ifaceDef.Node.BaseInterfaces {
 			baseInfo, ok := parseTypeExpression(base)
 			if !ok || baseInfo.name == "" {
+				i.storeInterfaceImplCache(cacheKey, false, nil)
 				return false, nil
 			}
 			okImpl, err := i.typeImplementsInterface(info, baseInfo.name, baseInfo.typeArgs, visited)
 			if err != nil || !okImpl {
+				i.storeInterfaceImplCache(cacheKey, okImpl, err)
 				return okImpl, err
 			}
 		}
 		if len(ifaceDef.Node.Signatures) == 0 {
+			i.storeInterfaceImplCache(cacheKey, true, nil)
 			return true, nil
 		}
 	}
@@ -281,14 +331,19 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 	if err != nil {
 		// In compiled no-bootstrap mode, trust the compiled dispatch table.
 		if i.compiledImplChecker != nil && i.compiledImplChecker(info.name, interfaceName) {
+			i.storeInterfaceImplCache(cacheKey, true, nil)
 			return true, nil
 		}
+		i.storeInterfaceImplCache(cacheKey, false, err)
 		return false, err
 	}
 	if entry == nil && i.compiledImplChecker != nil && i.compiledImplChecker(info.name, interfaceName) {
+		i.storeInterfaceImplCache(cacheKey, true, nil)
 		return true, nil
 	}
-	return entry != nil, nil
+	okImpl := entry != nil
+	i.storeInterfaceImplCache(cacheKey, okImpl, nil)
+	return okImpl, nil
 }
 
 func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceName string, ifaceArgs []ast.TypeExpression) bool {

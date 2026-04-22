@@ -75,13 +75,13 @@ func (g *generator) staticReceiverBestEffortCloseDefer(receiverExpr string, rece
 		return fmt.Sprintf("defer func() { _, _ = %s.%s() }()", receiverExpr, method.GoName), true
 	}
 	if method := g.methodForReceiver(receiverType, "close"); method != nil && method.Info != nil && method.Info.Compileable {
-		return fmt.Sprintf("defer func() { _, _ = __able_compiled_%s(%s) }()", method.Info.GoName, receiverExpr), true
+		return fmt.Sprintf("defer func() { _, _ = %s(%s) }()", g.compiledEntryName(method.Info), receiverExpr), true
 	}
 	if method := g.compileableInterfaceMethodForConcreteReceiver(receiverType, "close"); method != nil && method.Info != nil && method.Info.Compileable {
-		return fmt.Sprintf("defer func() { _, _ = __able_compiled_%s(%s) }()", method.Info.GoName, receiverExpr), true
+		return fmt.Sprintf("defer func() { _, _ = %s(%s) }()", g.compiledEntryName(method.Info), receiverExpr), true
 	}
 	if candidate, ok := g.concreteNativeInterfaceMethodForReceiver(receiverType, "close", 0); ok && candidate != nil && candidate.impl != nil && candidate.impl.Info != nil {
-		return fmt.Sprintf("defer func() { _, _ = __able_compiled_%s(%s) }()", candidate.impl.Info.GoName, receiverExpr), true
+		return fmt.Sprintf("defer func() { _, _ = %s(%s) }()", g.compiledEntryName(candidate.impl.Info), receiverExpr), true
 	}
 	return "", false
 }

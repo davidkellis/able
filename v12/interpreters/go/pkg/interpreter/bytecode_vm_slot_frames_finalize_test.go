@@ -36,11 +36,7 @@ func TestBytecodeVMFinishRunResumableReleasesUnwoundCallFrames(t *testing.T) {
 	callerSlots := vm.acquireSlotFrame(2)
 	calleeSlots := vm.acquireSlotFrame(1)
 	vm.slots = calleeSlots
-	vm.callFrames = append(vm.callFrames, bytecodeCallFrame{
-		returnIP: 0,
-		slots:    callerSlots,
-		env:      env,
-	})
+	vm.pushCallFrame(0, nil, callerSlots, env, nil, 0, 0, false, false)
 
 	runErr := errors.New("boom")
 	vm.finishRunResumable(&runErr)
@@ -50,6 +46,9 @@ func TestBytecodeVMFinishRunResumableReleasesUnwoundCallFrames(t *testing.T) {
 	}
 	if len(vm.callFrames) != 0 {
 		t.Fatalf("expected inline call frames to be cleared, got %d", len(vm.callFrames))
+	}
+	if len(vm.callFrameKinds) != 0 {
+		t.Fatalf("expected inline call frame kinds to be cleared, got %d", len(vm.callFrameKinds))
 	}
 
 	reacquiredCallee := vm.acquireSlotFrame(1)
@@ -97,5 +96,137 @@ func TestBytecodeVMAcquireSlotFrameSpillsOldHotBatchOnSizeChange(t *testing.T) {
 	}
 	if vm.slotFramePool == nil || len(vm.slotFramePool[2]) == 0 {
 		t.Fatalf("expected prior size-2 hot frames to spill into general pool")
+	}
+}
+
+func TestBytecodeVMFinishRunResumableReleasesUnwoundSelfFastCallFrames(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+
+	callerSlots := vm.acquireSlotFrame(2)
+	calleeSlots := vm.acquireSlotFrame(1)
+	vm.slots = calleeSlots
+	vm.currentProgram = &bytecodeProgram{}
+	vm.pushCallFrame(0, vm.currentProgram, callerSlots, env, nil, 0, 0, false, true)
+
+	runErr := errors.New("boom")
+	vm.finishRunResumable(&runErr)
+
+	if vm.slots != nil {
+		t.Fatalf("expected top-level slots to be released after non-yield run exit")
+	}
+	if len(vm.selfFastCallFrames) != 0 {
+		t.Fatalf("expected self-fast call frames to be cleared, got %d", len(vm.selfFastCallFrames))
+	}
+	if len(vm.callFrameKinds) != 0 {
+		t.Fatalf("expected inline call frame kinds to be cleared, got %d", len(vm.callFrameKinds))
+	}
+
+	reacquiredCallee := vm.acquireSlotFrame(1)
+	if len(reacquiredCallee) == 0 || &reacquiredCallee[0] != &calleeSlots[0] {
+		t.Fatalf("expected callee slot frame to be returned to pool during self-fast unwind")
+	}
+
+	reacquiredCaller := vm.acquireSlotFrame(2)
+	if len(reacquiredCaller) == 0 || &reacquiredCaller[0] != &callerSlots[0] {
+		t.Fatalf("expected caller slot frame to be returned to pool after self-fast unwind")
+	}
+}
+
+func TestBytecodeVMFinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+
+	callerSlots := vm.acquireSlotFrame(2)
+	calleeSlots := vm.acquireSlotFrame(1)
+	vm.slots = calleeSlots
+	vm.currentProgram = &bytecodeProgram{}
+	vm.pushCallFrame(0, vm.currentProgram, callerSlots, env, nil, 0, 0, false, true)
+
+	if len(vm.selfFastMinimal) != 1 {
+		t.Fatalf("expected minimal self-fast frame to be used, got %d", len(vm.selfFastMinimal))
+	}
+	if len(vm.selfFastCallFrames) != 0 {
+		t.Fatalf("expected full self-fast frame stack to remain empty, got %d", len(vm.selfFastCallFrames))
+	}
+
+	runErr := errors.New("boom")
+	vm.finishRunResumable(&runErr)
+
+	if vm.slots != nil {
+		t.Fatalf("expected top-level slots to be released after non-yield run exit")
+	}
+	if len(vm.selfFastMinimal) != 0 {
+		t.Fatalf("expected minimal self-fast call frames to be cleared, got %d", len(vm.selfFastMinimal))
+	}
+	if len(vm.callFrameKinds) != 0 {
+		t.Fatalf("expected inline call frame kinds to be cleared, got %d", len(vm.callFrameKinds))
+	}
+
+	reacquiredCallee := vm.acquireSlotFrame(1)
+	if len(reacquiredCallee) == 0 || &reacquiredCallee[0] != &calleeSlots[0] {
+		t.Fatalf("expected callee slot frame to be returned to pool during minimal self-fast unwind")
+	}
+
+	reacquiredCaller := vm.acquireSlotFrame(2)
+	if len(reacquiredCaller) == 0 || &reacquiredCaller[0] != &callerSlots[0] {
+		t.Fatalf("expected caller slot frame to be returned to pool after minimal self-fast unwind")
+	}
+}
+
+func TestBytecodeVMPushSelfFastMinimalCallFrameUsesMinimalStacks(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+
+	callerSlots := vm.acquireSlotFrame(2)
+	vm.pushSelfFastMinimalCallFrame(7, callerSlots)
+
+	if len(vm.callFrameKinds) != 0 {
+		t.Fatalf("expected minimal self-fast frame to stay out of callFrameKinds, got %#v", vm.callFrameKinds)
+	}
+	if len(vm.selfFastMinimal) != 1 {
+		t.Fatalf("expected one minimal self-fast frame, got %d", len(vm.selfFastMinimal))
+	}
+	if vm.selfFastMinimalSuffix != 1 {
+		t.Fatalf("expected one unmaterialized minimal self-fast frame, got %d", vm.selfFastMinimalSuffix)
+	}
+	if len(vm.selfFastCallFrames) != 0 {
+		t.Fatalf("expected full self-fast frame stack to remain empty, got %d", len(vm.selfFastCallFrames))
+	}
+	if vm.selfFastMinimal[0].returnIP != 7 {
+		t.Fatalf("expected returnIP=7, got %d", vm.selfFastMinimal[0].returnIP)
+	}
+	if len(vm.selfFastMinimal[0].slots) == 0 || &vm.selfFastMinimal[0].slots[0] != &callerSlots[0] {
+		t.Fatalf("expected minimal self-fast frame to keep caller slot slice")
+	}
+}
+
+func TestBytecodeVMPushCallFrameMaterializesMinimalSelfFastSuffix(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+
+	callerSlots := vm.acquireSlotFrame(2)
+	fullCallerSlots := vm.acquireSlotFrame(3)
+	vm.pushSelfFastMinimalCallFrame(7, callerSlots)
+	vm.pushCallFrame(9, nil, fullCallerSlots, env, nil, 0, 0, false, false)
+
+	if vm.selfFastMinimalSuffix != 0 {
+		t.Fatalf("expected minimal self-fast suffix to materialize before full frame push, got %d", vm.selfFastMinimalSuffix)
+	}
+	if len(vm.callFrameKinds) != 2 {
+		t.Fatalf("expected materialized minimal kind plus full kind, got %d", len(vm.callFrameKinds))
+	}
+	if vm.callFrameKinds[0] != bytecodeCallFrameKindSelfFastMinimal || vm.callFrameKinds[1] != bytecodeCallFrameKindFull {
+		t.Fatalf("unexpected materialized call frame kinds: %#v", vm.callFrameKinds)
+	}
+	if len(vm.selfFastMinimal) != 1 {
+		t.Fatalf("expected minimal self-fast frame payload to remain available, got %d", len(vm.selfFastMinimal))
+	}
+	if len(vm.callFrames) != 1 {
+		t.Fatalf("expected one full call frame, got %d", len(vm.callFrames))
 	}
 }

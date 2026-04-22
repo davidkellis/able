@@ -86,10 +86,8 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines := append([]string{}, argLines...)
-	lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
 	lines = append(lines, fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr))
-	lines = append(lines, "__able_pop_call_frame()")
-	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 	if !ok {
 		return nil, "", "", false
 	}
@@ -192,10 +190,8 @@ func (g *generator) compileConcreteNativeInterfaceMethodCall(ctx *compileContext
 	}
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
-	lines = append(lines, fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", resultTemp, controlTemp, impl.Info.GoName, strings.Join(args, ", ")))
-	lines = append(lines, "__able_pop_call_frame()")
-	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	lines = append(lines, fmt.Sprintf("%s, %s := %s(%s)", resultTemp, controlTemp, g.compiledCallTargetName(ctx.packageName, impl.Info), strings.Join(args, ", ")))
+	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 	if !ok {
 		return nil, "", "", false
 	}

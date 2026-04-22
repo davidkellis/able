@@ -68,7 +68,7 @@ func (g *generator) compileNativeBoundMethodValue(ctx *compileContext, objectExp
 		if method.ExpectsSelf {
 			args = append([]string{receiverTemp}, args...)
 		}
-		callExpr = fmt.Sprintf("__able_compiled_%s(%s)", method.Info.GoName, strings.Join(args, ", "))
+		callExpr = fmt.Sprintf("%s(%s)", g.compiledCallTargetName(ctx.packageName, method.Info), strings.Join(args, ", "))
 	}
 	bodyParts := append([]string{}, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
 	bodyParts = append(bodyParts, fmt.Sprintf("return %s", callExpr))

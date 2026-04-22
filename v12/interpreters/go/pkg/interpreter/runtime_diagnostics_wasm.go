@@ -73,6 +73,21 @@ func (i *Interpreter) AttachRuntimeContext(err error, node ast.Node, env *runtim
 	return i.attachRuntimeContext(err, node, state)
 }
 
+// AttachRuntimeContextWithCallStack mirrors the non-wasm API for compiled
+// callers that already track their own call stack.
+func (i *Interpreter) AttachRuntimeContextWithCallStack(err error, node ast.Node, env *runtime.Environment, callNodes []*ast.FunctionCall) error {
+	if i == nil {
+		return err
+	}
+	state := i.stateFromEnv(env)
+	return i.attachRuntimeContext(err, node, state)
+}
+
+// AppendRuntimeCallFrame mirrors the non-wasm API for compiled/native callers.
+func (i *Interpreter) AppendRuntimeCallFrame(err error, call *ast.FunctionCall) error {
+	return err
+}
+
 func DescribeRuntimeDiagnostic(diag RuntimeDiagnostic) string {
 	message := strings.TrimSpace(diag.Message)
 	if strings.HasPrefix(message, "runtime:") {

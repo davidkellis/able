@@ -10,10 +10,15 @@ runs=3
 timeout_seconds=30
 target="v12/fixtures/bench/sieve_count/main.able"
 modes_csv="compiled,treewalker,bytecode"
+executor=""
 workdir=""
 keep_artifacts=false
 show_output=false
+run_from=""
+output_json=""
+program_args=()
 compiled_build_args=()
+program_args_json="[]"
 
 usage() {
   cat <<'EOF'
@@ -24,15 +29,30 @@ Examples:
   v12/bench_perf
   v12/bench_perf v12/fixtures/bench/sieve_full/main.able
   v12/bench_perf --runs 5 --timeout 20 --modes compiled,treewalker
+  v12/bench_perf --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks/fib v12/examples/benchmarks/fib.able
+  ABLE_BYTECODE_TRACE_OUT=/tmp/trace.json v12/bench_perf --runs 1 --timeout 180 --modes bytecode-runtime --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able
+  v12/bench_perf --executor goroutine v12/examples/benchmarks/binarytrees.able
   v12/bench_perf --modes compiled --compiled-build-arg=--no-experimental-mono-arrays
+  v12/bench_perf --run-from ../benchmarks/i-before-e --program-arg wordlist.txt v12/examples/benchmarks/i_before_e/i_before_e.able
+  v12/bench_perf --run-from ../benchmarks/fib fib/able-v12-treewalker/run.able
 
 Options:
   -r, --runs N        Number of runs per mode (default: 3)
   -t, --timeout SEC   Timeout per run in seconds (default: 30)
-  -m, --modes CSV     Modes: compiled,treewalker,bytecode (default: all)
+  -m, --modes CSV     Modes: compiled,treewalker,bytecode,bytecode-runtime
+                      (default: compiled,treewalker,bytecode)
+      --executor NAME Executor selection for the benchmark runtime:
+                      serial or goroutine (default: benchmark/runtime default)
       --compiled-build-arg ARG
                        Extra arg forwarded to `able build` for compiled mode.
                        May be repeated.
+      --run-from DIR  Working directory used when executing the benchmark
+                      program (default: current shell directory)
+      --output-json PATH
+                      Write machine-readable summary JSON to PATH
+      --program-arg ARG
+                      Extra positional argument passed to the benchmark program.
+                      May be repeated.
       --workdir DIR   Keep build artifacts in DIR
       --keep          Keep temporary workdir when done
       --show-output   Print program stdout/stderr for each run
@@ -41,6 +61,12 @@ Options:
 Notes:
   - This script is report-only and never fails the build for perf regressions.
   - Metrics reported: average real/user/sys time and GC count per run.
+  - `bytecode-runtime` is a steady-state benchmark mode: it loads/lower the
+    program once, warms it once, and then measures repeated `main()` calls
+    via the Go benchmark harness (`ns/op`, `B/op`, `allocs/op`).
+  - Set `ABLE_BYTECODE_TRACE_OUT=/tmp/trace.json` to emit a sorted bytecode
+    call trace for `bytecode-runtime`. `ABLE_BYTECODE_TRACE_LIMIT=N` trims the
+    written trace to the top `N` entries.
 EOF
 }
 
@@ -64,6 +90,59 @@ resolve_target() {
     return
   fi
   die "target not found: $candidate"
+}
+
+normalize_src_dir() {
+  local candidate="$1"
+  [[ -n "$candidate" ]] || return 1
+  candidate="$(realpath -m "$candidate")"
+  if [[ -d "$candidate/src" ]]; then
+    realpath "$candidate/src"
+    return 0
+  fi
+  if [[ -d "$candidate" ]]; then
+    realpath "$candidate"
+    return 0
+  fi
+  return 1
+}
+
+resolve_able_home() {
+  if [[ -n "${ABLE_HOME:-}" ]]; then
+    printf '%s\n' "$ABLE_HOME"
+    return 0
+  fi
+  printf '%s\n' "$HOME/.able"
+}
+
+resolve_cached_stdlib_src() {
+  local base
+  base="$(resolve_able_home)/pkg/src/able"
+  [[ -d "$base" ]] || return 1
+
+  local entries=()
+  local entry
+  while IFS= read -r entry; do
+    entries+=("$entry")
+  done < <(find "$base" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+
+  local idx
+  for ((idx = ${#entries[@]} - 1; idx >= 0; idx--)); do
+    if normalize_src_dir "$base/${entries[$idx]}/src"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+resolve_installed_stdlib_src() {
+  if normalize_src_dir "${ABLE_STDLIB_ROOT:-}"; then
+    return 0
+  fi
+  if resolve_cached_stdlib_src; then
+    return 0
+  fi
+  return 1
 }
 
 shell_join() {
@@ -96,6 +175,11 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 ]] || die "missing value for --modes"
       modes_csv="$1"
       ;;
+    --executor)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --executor"
+      executor="$1"
+      ;;
     --compiled-build-arg)
       shift
       [[ $# -gt 0 ]] || die "missing value for --compiled-build-arg"
@@ -103,6 +187,24 @@ while [[ $# -gt 0 ]]; do
       ;;
     --compiled-build-arg=*)
       compiled_build_args+=("${1#*=}")
+      ;;
+    --run-from)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --run-from"
+      run_from="$1"
+      ;;
+    --output-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-json"
+      output_json="$1"
+      ;;
+    --program-arg)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --program-arg"
+      program_args+=("$1")
+      ;;
+    --program-arg=*)
+      program_args+=("${1#*=}")
       ;;
     --workdir)
       shift
@@ -127,6 +229,13 @@ done
 
 is_int "$runs" && ((runs > 0)) || die "--runs must be a positive integer"
 is_int "$timeout_seconds" && ((timeout_seconds >= 0)) || die "--timeout must be a non-negative integer"
+case "$executor" in
+  ""|serial|goroutine)
+    ;;
+  *)
+    die "--executor must be serial or goroutine"
+    ;;
+esac
 
 if ! command -v /usr/bin/time >/dev/null 2>&1; then
   die "/usr/bin/time is required"
@@ -146,12 +255,33 @@ fi
 
 able_bin="$workdir/able"
 ablec_bin="$workdir/ablec"
+bytecode_runtime_bench_bin="$workdir/interpreter.test"
 compiled_bin="$workdir/compiled"
 compiled_out_dir="$workdir/compiled-src"
 target_arg="$(resolve_target "$target")"
+run_from_arg="${run_from:-$PWD}"
+[[ -d "$run_from_arg" ]] || die "--run-from directory not found: $run_from_arg"
+run_from_arg="$(realpath "$run_from_arg")"
+result_rows_file="$workdir/results.tsv"
+: > "$result_rows_file"
+
+installed_stdlib_src=""
+if installed_stdlib_src="$(resolve_installed_stdlib_src)"; then
+  :
+else
+  installed_stdlib_src=""
+fi
+
+if [[ -n "$output_json" ]]; then
+  output_json="$(realpath -m "$output_json")"
+  mkdir -p "$(dirname "$output_json")"
+fi
+
+program_args_json="$(python -c 'import json, sys; print(json.dumps(sys.argv[1:]))' "${program_args[@]}")"
 
 need_able=false
 need_ablec=false
+need_bytecode_runtime_bench=false
 IFS=',' read -r -a requested_modes <<<"$modes_csv"
 for mode in "${requested_modes[@]}"; do
   case "$mode" in
@@ -160,6 +290,9 @@ for mode in "${requested_modes[@]}"; do
       ;;
     treewalker|bytecode)
       need_able=true
+      ;;
+    bytecode-runtime)
+      need_bytecode_runtime_bench=true
       ;;
     "")
       ;;
@@ -178,23 +311,49 @@ if [[ "$need_ablec" == true ]]; then
   echo ">>> Building Able compiler CLI"
   env GOCACHE="$GO_CACHE" go build -C "$GO_DIR" -o "$ablec_bin" ./cmd/ablec
 fi
+if [[ "$need_bytecode_runtime_bench" == true ]]; then
+  echo ">>> Building bytecode runtime benchmark binary"
+  env GOCACHE="$GO_CACHE" go test -C "$GO_DIR" -c -o "$bytecode_runtime_bench_bin" ./pkg/interpreter
+fi
 
 if [[ "$need_ablec" == true ]]; then
   echo ">>> Building compiled binary"
   if ((${#compiled_build_args[@]} > 0)); then
     echo ">>> Compiled build args: $(shell_join "${compiled_build_args[@]}")"
   fi
-  "$ablec_bin" -build -o "$compiled_out_dir" "${compiled_build_args[@]}" -bin "$compiled_bin" "$target_arg" >/dev/null
-  compiled_cmd="$(shell_join "$compiled_bin")"
+  build_env=(ABLE_PATH= ABLE_MODULE_PATHS=)
+  if [[ -n "$installed_stdlib_src" ]]; then
+    build_env+=(ABLE_STDLIB_ROOT="$installed_stdlib_src")
+  fi
+  (
+    cd "$run_from_arg"
+    env \
+      "${build_env[@]}" \
+      "$ablec_bin" -build -o "$compiled_out_dir" "${compiled_build_args[@]}" -bin "$compiled_bin" "$target_arg"
+  ) >/dev/null
+  compiled_cmd="$(shell_join "$compiled_bin" "${program_args[@]}")"
 else
   compiled_cmd=""
 fi
 if [[ "$need_able" == true ]]; then
-  tree_cmd="$(shell_join "$able_bin" --exec-mode=treewalker "$target_arg")"
-  byte_cmd="$(shell_join "$able_bin" --exec-mode=bytecode "$target_arg")"
+  tree_cmd="$(shell_join "$able_bin" --exec-mode=treewalker "$target_arg" "${program_args[@]}")"
+  byte_cmd="$(shell_join "$able_bin" --exec-mode=bytecode "$target_arg" "${program_args[@]}")"
 else
   tree_cmd=""
   byte_cmd=""
+fi
+if [[ "$need_bytecode_runtime_bench" == true ]]; then
+  bytecode_runtime_bench_cmd=(
+    "$bytecode_runtime_bench_bin"
+    -test.run '^$'
+    -test.bench '^BenchmarkBytecodeProgramRuntime$'
+    -test.benchmem
+    -test.benchtime=1x
+    -test.count=1
+  )
+  bytecode_runtime_cmd="$(shell_join "${bytecode_runtime_bench_cmd[@]}")"
+else
+  bytecode_runtime_cmd=""
 fi
 
 has_timeout=false
@@ -203,6 +362,16 @@ if command -v timeout >/dev/null 2>&1 && ((timeout_seconds > 0)); then
 fi
 
 echo ">>> Target: $target_arg"
+echo ">>> Run from: $run_from_arg"
+if [[ -n "$installed_stdlib_src" ]]; then
+  echo ">>> Stdlib root: $installed_stdlib_src"
+fi
+if [[ -n "$executor" ]]; then
+  echo ">>> Executor: $executor"
+fi
+if [[ -n "${ABLE_BYTECODE_TRACE_OUT:-}" ]]; then
+  echo ">>> Bytecode trace output: ${ABLE_BYTECODE_TRACE_OUT}"
+fi
 printf "%-12s %-10s %-8s %-7s %-12s %-12s %-12s %-10s\n" \
   "mode" "ok/total" "timeout" "fail" "real_avg(s)" "user_avg(s)" "sys_avg(s)" "gc_avg"
 
@@ -216,6 +385,13 @@ run_mode() {
   local total_user="0"
   local total_sys="0"
   local total_gc=0
+  local runtime_env=(GODEBUG=gctrace=1 ABLE_PATH= ABLE_MODULE_PATHS=)
+  if [[ -n "$installed_stdlib_src" ]]; then
+    runtime_env+=(ABLE_STDLIB_ROOT="$installed_stdlib_src")
+  fi
+  if [[ -n "$executor" ]]; then
+    runtime_env+=(ABLE_EXECUTOR="$executor")
+  fi
 
   local run_idx
   for ((run_idx = 1; run_idx <= runs; run_idx++)); do
@@ -225,9 +401,15 @@ run_mode() {
 
     set +e
     if [[ "$has_timeout" == true ]]; then
-      env GODEBUG=gctrace=1 /usr/bin/time -p timeout "$timeout_seconds" bash -lc "$cmd" >"$stdout_file" 2>"$stderr_file"
+      (
+        cd "$run_from_arg"
+        env "${runtime_env[@]}" /usr/bin/time -p timeout --signal=INT --kill-after=5 "$timeout_seconds" bash -lc "$cmd"
+      ) >"$stdout_file" 2>"$stderr_file"
     else
-      env GODEBUG=gctrace=1 /usr/bin/time -p bash -lc "$cmd" >"$stdout_file" 2>"$stderr_file"
+      (
+        cd "$run_from_arg"
+        env "${runtime_env[@]}" /usr/bin/time -p bash -lc "$cmd"
+      ) >"$stdout_file" 2>"$stderr_file"
     fi
     local rc=$?
     set -e
@@ -279,6 +461,143 @@ run_mode() {
 
   printf "%-12s %-10s %-8s %-7s %-12s %-12s %-12s %-10s\n" \
     "$mode" "$ok/$runs" "$timed_out" "$failed" "$avg_real" "$avg_user" "$avg_sys" "$avg_gc"
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+    "$mode" "$ok" "$timed_out" "$failed" "$avg_real" "$avg_user" "$avg_sys" "$avg_gc" >> "$result_rows_file"
+}
+
+run_benchmark_mode() {
+  local mode="$1"
+  local cmd="$2"
+  local ok=0
+  local timed_out=0
+  local failed=0
+  local total_real="0"
+  local total_user="0"
+  local total_sys="0"
+  local total_gc=0
+  local total_ns="0"
+  local total_bytes="0"
+  local total_allocs="0"
+  local trace_out_base="${ABLE_BYTECODE_TRACE_OUT:-}"
+  local trace_top="${ABLE_BYTECODE_TRACE_LIMIT:-}"
+  local runtime_env=(
+    GODEBUG=gctrace=1
+    ABLE_PATH=
+    ABLE_MODULE_PATHS=
+    ABLE_BENCH_RUNTIME_TARGET="$target_arg"
+    ABLE_BENCH_RUNTIME_RUN_FROM="$run_from_arg"
+    ABLE_BENCH_RUNTIME_ARGS_JSON="$program_args_json"
+  )
+  if [[ -n "${ABLE_GO_CPU_PROFILE:-}" ]]; then
+    runtime_env+=(ABLE_BENCH_RUNTIME_CPU_PROFILE="$ABLE_GO_CPU_PROFILE")
+  fi
+  if [[ -n "${ABLE_GO_MEM_PROFILE:-}" ]]; then
+    runtime_env+=(ABLE_BENCH_RUNTIME_MEM_PROFILE="$ABLE_GO_MEM_PROFILE")
+  fi
+  if [[ -n "$installed_stdlib_src" ]]; then
+    runtime_env+=(ABLE_STDLIB_ROOT="$installed_stdlib_src")
+  fi
+  if [[ -n "$executor" ]]; then
+    runtime_env+=(ABLE_EXECUTOR="$executor")
+  fi
+
+  local run_idx
+  for ((run_idx = 1; run_idx <= runs; run_idx++)); do
+    local stdout_file stderr_file
+    stdout_file="$(mktemp "$workdir/${mode}.stdout.XXXXXX")"
+    stderr_file="$(mktemp "$workdir/${mode}.stderr.XXXXXX")"
+    local -a run_env=("${runtime_env[@]}")
+    if [[ -n "$trace_out_base" ]]; then
+      local trace_out_run="$trace_out_base"
+      if ((runs > 1)); then
+        case "$trace_out_run" in
+          *.json) trace_out_run="${trace_out_run%.json}.run${run_idx}.json" ;;
+          *) trace_out_run="${trace_out_run}.run${run_idx}.json" ;;
+        esac
+      fi
+      run_env+=(ABLE_BYTECODE_TRACE=1 ABLE_BENCH_RUNTIME_TRACE_OUT="$trace_out_run")
+      if [[ -n "$trace_top" ]]; then
+        run_env+=(ABLE_BENCH_RUNTIME_TRACE_TOP="$trace_top")
+      fi
+    fi
+
+    set +e
+    if [[ "$has_timeout" == true ]]; then
+      (
+        cd "$run_from_arg"
+        env "${run_env[@]}" /usr/bin/time -p timeout --signal=INT --kill-after=5 "$timeout_seconds" bash -lc "$cmd"
+      ) >"$stdout_file" 2>"$stderr_file"
+    else
+      (
+        cd "$run_from_arg"
+        env "${run_env[@]}" /usr/bin/time -p bash -lc "$cmd"
+      ) >"$stdout_file" 2>"$stderr_file"
+    fi
+    local rc=$?
+    set -e
+
+    if [[ "$show_output" == true ]]; then
+      echo "--- $mode run $run_idx stdout ---"
+      cat "$stdout_file"
+      echo "--- $mode run $run_idx stderr ---"
+      cat "$stderr_file"
+    fi
+
+    if [[ "$has_timeout" == true && ( "$rc" -eq 124 || "$rc" -eq 137 || "$rc" -eq 143 ) ]]; then
+      timed_out=$((timed_out + 1))
+      continue
+    fi
+    if [[ "$rc" -ne 0 ]]; then
+      failed=$((failed + 1))
+      continue
+    fi
+
+    local real user sys gc_count bench_line ns_per_op bytes_per_op allocs_per_op
+    real="$(awk '$1 == "real" { print $2; exit }' "$stderr_file")"
+    user="$(awk '$1 == "user" { print $2; exit }' "$stderr_file")"
+    sys="$(awk '$1 == "sys" { print $2; exit }' "$stderr_file")"
+    gc_count="$(grep -cE '(^|[^[:alpha:]])gc [0-9]+ @' "$stderr_file" || true)"
+    bench_line="$(grep -E '^BenchmarkBytecodeProgramRuntime' "$stdout_file" | tail -n 1 || true)"
+    ns_per_op="$(awk '{for (i = 1; i <= NF; i++) if ($i == "ns/op") { print $(i-1); exit }}' <<<"$bench_line")"
+    bytes_per_op="$(awk '{for (i = 1; i <= NF; i++) if ($i == "B/op") { print $(i-1); exit }}' <<<"$bench_line")"
+    allocs_per_op="$(awk '{for (i = 1; i <= NF; i++) if ($i == "allocs/op") { print $(i-1); exit }}' <<<"$bench_line")"
+
+    if [[ -z "$real" || -z "$user" || -z "$sys" || -z "$ns_per_op" || -z "$bytes_per_op" || -z "$allocs_per_op" ]]; then
+      failed=$((failed + 1))
+      continue
+    fi
+
+    total_real="$(awk -v a="$total_real" -v b="$real" 'BEGIN { printf "%.9f", a + b }')"
+    total_user="$(awk -v a="$total_user" -v b="$user" 'BEGIN { printf "%.9f", a + b }')"
+    total_sys="$(awk -v a="$total_sys" -v b="$sys" 'BEGIN { printf "%.9f", a + b }')"
+    total_gc=$((total_gc + gc_count))
+    total_ns="$(awk -v a="$total_ns" -v b="$ns_per_op" 'BEGIN { printf "%.9f", a + b }')"
+    total_bytes="$(awk -v a="$total_bytes" -v b="$bytes_per_op" 'BEGIN { printf "%.9f", a + b }')"
+    total_allocs="$(awk -v a="$total_allocs" -v b="$allocs_per_op" 'BEGIN { printf "%.9f", a + b }')"
+    ok=$((ok + 1))
+  done
+
+  local avg_real="n/a"
+  local avg_user="n/a"
+  local avg_sys="n/a"
+  local avg_gc="n/a"
+  local avg_ns="n/a"
+  local avg_bytes="n/a"
+  local avg_allocs="n/a"
+  if ((ok > 0)); then
+    avg_real="$(awk -v a="$total_real" -v n="$ok" 'BEGIN { printf "%.4f", a / n }')"
+    avg_user="$(awk -v a="$total_user" -v n="$ok" 'BEGIN { printf "%.4f", a / n }')"
+    avg_sys="$(awk -v a="$total_sys" -v n="$ok" 'BEGIN { printf "%.4f", a / n }')"
+    avg_gc="$(awk -v a="$total_gc" -v n="$ok" 'BEGIN { printf "%.2f", a / n }')"
+    avg_ns="$(awk -v a="$total_ns" -v n="$ok" 'BEGIN { printf "%.0f", a / n }')"
+    avg_bytes="$(awk -v a="$total_bytes" -v n="$ok" 'BEGIN { printf "%.0f", a / n }')"
+    avg_allocs="$(awk -v a="$total_allocs" -v n="$ok" 'BEGIN { printf "%.0f", a / n }')"
+  fi
+
+  printf "%-12s %-10s %-8s %-7s %-12s %-12s %-12s %-10s  ns/op=%s B/op=%s allocs/op=%s\n" \
+    "$mode" "$ok/$runs" "$timed_out" "$failed" "$avg_real" "$avg_user" "$avg_sys" "$avg_gc" "$avg_ns" "$avg_bytes" "$avg_allocs"
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+    "$mode" "$ok" "$timed_out" "$failed" "$avg_real" "$avg_user" "$avg_sys" "$avg_gc" "$avg_ns" "$avg_bytes" "$avg_allocs" >> "$result_rows_file"
 }
 
 for mode in "${requested_modes[@]}"; do
@@ -292,6 +611,9 @@ for mode in "${requested_modes[@]}"; do
     bytecode)
       run_mode "bytecode" "$byte_cmd"
       ;;
+    bytecode-runtime)
+      run_benchmark_mode "bytecode-runtime" "$bytecode_runtime_cmd"
+      ;;
     "")
       ;;
     *)
@@ -300,12 +622,70 @@ for mode in "${requested_modes[@]}"; do
   esac
 done
 
-if [[ "$has_timeout" == false && ((timeout_seconds > 0)) ]]; then
+if [[ "$has_timeout" == false ]] && ((timeout_seconds > 0)); then
   echo ">>> timeout command unavailable; runs were not time-limited."
 fi
 
 if [[ "$keep_artifacts" == true ]]; then
   echo ">>> Kept artifacts in: $workdir"
+fi
+
+if [[ -n "$output_json" ]]; then
+  python - "$result_rows_file" "$output_json" "$target_arg" "$run_from_arg" "$runs" "$timeout_seconds" "$modes_csv" "${compiled_build_args[*]-}" "${program_args[*]-}" "${installed_stdlib_src}" "$executor" <<'PY'
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+rows_path, output_path, target, run_from, runs, timeout_seconds, modes_csv, compiled_build_args, program_args, stdlib_root, executor = sys.argv[1:]
+results = []
+with open(rows_path, "r", encoding="utf-8") as f:
+    for line in f:
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        cols = line.split("\t")
+        if len(cols) == 8:
+            mode, ok, timeouts, failed, avg_real, avg_user, avg_sys, avg_gc = cols
+            avg_ns = avg_bytes = avg_allocs = "n/a"
+        elif len(cols) == 11:
+            mode, ok, timeouts, failed, avg_real, avg_user, avg_sys, avg_gc, avg_ns, avg_bytes, avg_allocs = cols
+        else:
+            raise SystemExit(f"unexpected row shape: {cols!r}")
+        def decode_metric(value):
+            return None if value == "n/a" else float(value)
+        results.append({
+            "mode": mode,
+            "ok_runs": int(ok),
+            "timeouts": int(timeouts),
+            "failures": int(failed),
+            "avg_real_seconds": decode_metric(avg_real),
+            "avg_user_seconds": decode_metric(avg_user),
+            "avg_sys_seconds": decode_metric(avg_sys),
+            "avg_gc": decode_metric(avg_gc),
+            "avg_ns_per_op": decode_metric(avg_ns),
+            "avg_bytes_per_op": decode_metric(avg_bytes),
+            "avg_allocs_per_op": decode_metric(avg_allocs),
+        })
+
+payload = {
+    "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "target": target,
+    "run_from": run_from,
+    "runs": int(runs),
+    "timeout_seconds": int(timeout_seconds),
+    "modes": [m for m in modes_csv.split(",") if m],
+    "compiled_build_args": [arg for arg in compiled_build_args.split(" ") if arg],
+    "program_args": [arg for arg in program_args.split(" ") if arg],
+    "stdlib_root": stdlib_root or None,
+    "executor": executor or None,
+    "results": results,
+}
+with open(output_path, "w", encoding="utf-8") as f:
+    json.dump(payload, f, indent=2)
+    f.write("\n")
+PY
+  echo ">>> Wrote JSON summary: $output_json"
 fi
 
 exit 0

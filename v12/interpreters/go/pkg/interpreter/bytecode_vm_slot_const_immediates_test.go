@@ -70,13 +70,24 @@ func TestBytecodeVM_BoxedSmallIntValueCache(t *testing.T) {
 	if _, ok := bytecodeBoxedSmallIntValue(runtime.IntegerI32, bytecodeSmallIntBoxMax+1); ok {
 		t.Fatalf("expected out-of-range i32 value to bypass boxed cache")
 	}
-	if _, ok := bytecodeBoxedSmallIntValue(runtime.IntegerU32, 12); ok {
-		t.Fatalf("expected unsupported integer kind to bypass boxed cache")
+	unsignedFirst, ok := bytecodeBoxedSmallIntValue(runtime.IntegerU32, 12)
+	if !ok {
+		t.Fatalf("expected boxed u32 small int")
+	}
+	unsignedSecond, ok := bytecodeBoxedSmallIntValue(runtime.IntegerU32, 12)
+	if !ok {
+		t.Fatalf("expected boxed u32 small int on second lookup")
+	}
+	if unsignedFirst != unsignedSecond {
+		t.Fatalf("expected stable boxed cache identity for u32 small int")
+	}
+	if _, ok := bytecodeBoxedSmallIntValue(runtime.IntegerU32, -1); ok {
+		t.Fatalf("expected negative u32 value to bypass boxed cache")
 	}
 }
 
 func TestBytecodeVM_BoxedIntegerValueDynamicCache(t *testing.T) {
-	value := bytecodeSmallIntBoxMax + 512
+	value := int64(200000)
 	if _, ok := bytecodeBoxedSmallIntValue(runtime.IntegerI32, value); ok {
 		t.Fatalf("expected value outside fixed small-int cache")
 	}
@@ -99,7 +110,35 @@ func TestBytecodeVM_BoxedIntegerValueDynamicCache(t *testing.T) {
 	if allocs != 0 {
 		t.Fatalf("expected zero allocations for cached dynamic boxed value, got %.2f", allocs)
 	}
-	if _, ok := bytecodeBoxedIntegerValue(runtime.IntegerU32, 42); ok {
-		t.Fatalf("expected unsupported integer kind to bypass dynamic boxed cache")
+	firstUnsigned, ok := bytecodeBoxedIntegerValue(runtime.IntegerU32, value)
+	if !ok {
+		t.Fatalf("expected dynamic boxed u32 value")
+	}
+	secondUnsigned, ok := bytecodeBoxedIntegerValue(runtime.IntegerU32, value)
+	if !ok {
+		t.Fatalf("expected cached dynamic boxed u32 value")
+	}
+	if firstUnsigned != secondUnsigned {
+		t.Fatalf("expected stable boxed value for dynamic u32 cache lookup")
+	}
+	if _, ok := bytecodeBoxedIntegerValue(runtime.IntegerU32, -1); ok {
+		t.Fatalf("expected negative u32 value to bypass dynamic boxed cache")
+	}
+}
+
+func TestBytecodeVM_BoxedIntegerI32ValueDynamicCache(t *testing.T) {
+	value := int64(200000)
+	first := bytecodeBoxedIntegerI32Value(value)
+	second := bytecodeBoxedIntegerI32Value(value)
+	if first != second {
+		t.Fatalf("expected stable boxed value for direct i32 dynamic cache lookup")
+	}
+	allocs := testing.AllocsPerRun(1000, func() {
+		if got := bytecodeBoxedIntegerI32Value(value); got != first {
+			t.Fatalf("expected cached direct i32 boxed value")
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("expected zero allocations for cached direct i32 boxed value, got %.2f", allocs)
 	}
 }

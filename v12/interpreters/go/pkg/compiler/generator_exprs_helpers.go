@@ -464,7 +464,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 		payloadTemp := ctx.newTemp()
 		messageControlTemp := ctx.newTemp()
 		lines = append(lines,
-			fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", messageTemp, messageControlTemp, messageInfo.GoName, expr),
+			fmt.Sprintf("%s, %s := %s(%s)", messageTemp, messageControlTemp, g.compiledCallTargetName(ctx.packageName, messageInfo), expr),
 			fmt.Sprintf("%s := map[string]runtime.Value{\"value\": %s}", payloadTemp, runtimeExpr),
 		)
 		controlLines, ok := g.lowerControlCheck(ctx, messageControlTemp)
@@ -476,7 +476,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 			causeTemp := ctx.newTemp()
 			causeControlTemp := ctx.newTemp()
 			lines = append(lines,
-				fmt.Sprintf("%s, %s := __able_compiled_%s(%s)", causeTemp, causeControlTemp, causeInfo.GoName, expr),
+				fmt.Sprintf("%s, %s := %s(%s)", causeTemp, causeControlTemp, g.compiledCallTargetName(ctx.packageName, causeInfo), expr),
 				fmt.Sprintf("if %s != nil { %s[\"cause\"] = __able_nullable_error_to_value(%s) }", causeTemp, payloadTemp, causeTemp),
 			)
 			controlLines, ok = g.lowerControlCheck(ctx, causeControlTemp)

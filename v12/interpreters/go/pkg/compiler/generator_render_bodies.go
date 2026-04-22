@@ -3,6 +3,7 @@ package compiler
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 func (g *generator) renderCompiledBodies(buf *bytes.Buffer) (map[*methodInfo]struct{}, map[*functionInfo]struct{}) {
@@ -89,7 +90,22 @@ func (g *generator) renderPendingCompiledFunctionFallbacks(buf *bytes.Buffer, re
 }
 
 func (g *generator) renderCompiledFunctionBody(buf *bytes.Buffer, info *functionInfo, lines []string, retExpr string) {
-	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
+	bodyName := g.compiledBodyName(info)
+	entryName := g.compiledEntryName(info)
+	fmt.Fprintf(buf, "func %s(", bodyName)
+	for i, param := range info.Params {
+		if i > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
+	}
+	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
+	for _, line := range lines {
+		fmt.Fprintf(buf, "\t%s\n", line)
+	}
+	fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func %s(", entryName)
 	for i, param := range info.Params {
 		if i > 0 {
 			fmt.Fprintf(buf, ", ")
@@ -100,10 +116,11 @@ func (g *generator) renderCompiledFunctionBody(buf *bytes.Buffer, info *function
 	if envVar, ok := g.packageEnvVar(info.Package); ok {
 		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	}
-	for _, line := range lines {
-		fmt.Fprintf(buf, "\t%s\n", line)
+	args := make([]string, 0, len(info.Params))
+	for _, param := range info.Params {
+		args = append(args, param.GoName)
 	}
-	fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
+	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, strings.Join(args, ", "))
 	fmt.Fprintf(buf, "}\n\n")
 }
 
@@ -169,7 +186,22 @@ func (g *generator) renderPendingCompiledMethodFallbacks(buf *bytes.Buffer, rend
 }
 
 func (g *generator) renderCompiledMethodBody(buf *bytes.Buffer, info *functionInfo, lines []string, retExpr string) {
-	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
+	bodyName := g.compiledBodyName(info)
+	entryName := g.compiledEntryName(info)
+	fmt.Fprintf(buf, "func %s(", bodyName)
+	for i, param := range info.Params {
+		if i > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
+	}
+	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
+	for _, line := range lines {
+		fmt.Fprintf(buf, "\t%s\n", line)
+	}
+	fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func %s(", entryName)
 	for i, param := range info.Params {
 		if i > 0 {
 			fmt.Fprintf(buf, ", ")
@@ -180,9 +212,10 @@ func (g *generator) renderCompiledMethodBody(buf *bytes.Buffer, info *functionIn
 	if envVar, ok := g.packageEnvVar(info.Package); ok {
 		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	}
-	for _, line := range lines {
-		fmt.Fprintf(buf, "\t%s\n", line)
+	args := make([]string, 0, len(info.Params))
+	for _, param := range info.Params {
+		args = append(args, param.GoName)
 	}
-	fmt.Fprintf(buf, "\treturn %s, nil\n", retExpr)
+	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, strings.Join(args, ", "))
 	fmt.Fprintf(buf, "}\n\n")
 }

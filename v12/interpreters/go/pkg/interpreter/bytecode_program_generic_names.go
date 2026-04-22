@@ -61,6 +61,16 @@ func bytecodeProgramReturnGenericNames(fn *runtime.FunctionValue, program *bytec
 	return fn.GenericNameSet(nil)
 }
 
+func bytecodeInlineReturnGenericNames(fn *runtime.FunctionValue, program *bytecodeProgram) map[string]struct{} {
+	if program != nil && program.returnGenericNamesCached {
+		return program.returnGenericNames
+	}
+	if fn == nil {
+		return nil
+	}
+	return fn.GenericNameSet(nil)
+}
+
 func bytecodeFunctionReturnGenericNames(fn *runtime.FunctionValue) map[string]struct{} {
 	if fn == nil {
 		return nil

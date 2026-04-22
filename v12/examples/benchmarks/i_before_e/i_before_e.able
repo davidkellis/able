@@ -4,6 +4,8 @@ import able.fs
 import able.os
 
 fn is_valid(word: String) -> bool {
+  if !word.contains("ei") { return true }
+  if !word.contains("cei") { return false }
   cleaned := word.replace("cei", "")
   !cleaned.contains("ei")
 }

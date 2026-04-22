@@ -134,8 +134,15 @@ func (vm *bytecodeVM) execCachedCallName(entry *bytecodeCallNameCacheEntry, argB
 	if entry == nil {
 		return nil, fmt.Errorf("bytecode cached call entry missing")
 	}
+	var traceNode ast.Node
+	if callNode != nil {
+		traceNode = callNode
+	}
 	switch entry.dispatch {
 	case bytecodeCallNameDispatchExactNative:
+		if vm.interp != nil {
+			vm.interp.recordBytecodeCallTrace("call_name", entry.name, "name", "exact_native", traceNode)
+		}
 		args := vm.stack[argBase:]
 		vm.stack = vm.stack[:argBase]
 		result, _, err := vm.execExactNativeCall(entry.exactTarget, args, callNode)
@@ -144,6 +151,9 @@ func (vm *bytecodeVM) execCachedCallName(entry *bytecodeCallNameCacheEntry, argB
 		if newProg, err := vm.tryInlineResolvedCallFromStack(entry.inlineFn, entry.injectedReceiver, entry.hasInjectedReceiver, argBase, argCount, argBase, callNode, currentProgram); err != nil {
 			return nil, err
 		} else if newProg != nil {
+			if vm.interp != nil {
+				vm.interp.recordBytecodeCallTrace("call_name", entry.name, "name", "inline", traceNode)
+			}
 			if vm.interp != nil && vm.interp.bytecodeStatsEnabled {
 				vm.interp.recordBytecodeInlineCallHit()
 			}
@@ -157,6 +167,9 @@ func (vm *bytecodeVM) execCachedCallName(entry *bytecodeCallNameCacheEntry, argB
 	vm.stack = vm.stack[:argBase]
 	if entry.needsStableArgsCopy {
 		args = copyCallArgs(args)
+	}
+	if vm.interp != nil {
+		vm.interp.recordBytecodeCallTrace("call_name", entry.name, "name", "generic", traceNode)
 	}
 	result, err := vm.interp.callCallableValueMutable(entry.callee, args, vm.env, callNode)
 	return vm.finishCompletedCall(result, err, callNode, nil)

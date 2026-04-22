@@ -130,15 +130,13 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 			}
 			args = append(args, zeroExpr)
 		}
-		callExpr := fmt.Sprintf("__able_compiled_%s(%s)", info.GoName, strings.Join(args, ", "))
+		callExpr := fmt.Sprintf("%s(%s)", g.compiledCallTargetName(ctx.packageName, info), strings.Join(args, ", "))
 		resultTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
 		lines := make([]string, 0, len(preLines)+len(postLines)+4)
-		lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNode))
 		lines = append(lines, preLines...)
 		lines = append(lines, fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr))
-		lines = append(lines, "__able_pop_call_frame()")
-		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+		controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 		if !ok {
 			return nil, "", "", false
 		}

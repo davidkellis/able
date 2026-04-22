@@ -126,6 +126,25 @@ func TestEnvironmentStructSnapshotCopiesCurrentStructBindings(t *testing.T) {
 	}
 }
 
+func TestEnvironmentRuntimeDataFallsBackToParent(t *testing.T) {
+	parent := NewEnvironment(nil)
+	child := NewEnvironment(parent)
+
+	parent.SetRuntimeData("root-data")
+
+	if got := child.RuntimeData(); got != "root-data" {
+		t.Fatalf("RuntimeData() = %#v, want root-data", got)
+	}
+
+	child.SetRuntimeData("child-data")
+	if got := child.RuntimeData(); got != "child-data" {
+		t.Fatalf("child RuntimeData() = %#v, want child-data", got)
+	}
+	if got := parent.RuntimeData(); got != "root-data" {
+		t.Fatalf("parent RuntimeData() = %#v, want root-data", got)
+	}
+}
+
 func TestEnvironmentRevisionIncrementsOnMutation(t *testing.T) {
 	env := NewEnvironment(nil)
 	if got := env.Revision(); got != 0 {
@@ -203,6 +222,34 @@ func TestEnvironmentChildReusesParentThreadModePointer(t *testing.T) {
 	}
 }
 
+func TestEnvironmentMutexAllocatesLazilyInMultiThreadMode(t *testing.T) {
+	env := NewEnvironment(nil)
+	if env.mu.Load() != nil {
+		t.Fatalf("new environment should not allocate mutex eagerly")
+	}
+
+	env.DefineWithoutMerge("value", NilValue{})
+
+	if env.mu.Load() == nil {
+		t.Fatalf("slow-path mutation should allocate mutex lazily")
+	}
+}
+
+func TestEnvironmentSingleThreadMutationKeepsMutexNil(t *testing.T) {
+	parent := NewEnvironment(nil)
+	parent.SetSingleThread()
+	child := NewEnvironment(parent)
+	if child.mu.Load() != nil {
+		t.Fatalf("single-thread child should start without mutex allocation")
+	}
+
+	child.DefineWithoutMerge("value", NilValue{})
+
+	if child.mu.Load() != nil {
+		t.Fatalf("single-thread mutation should not allocate mutex")
+	}
+}
+
 func TestEnvironmentNewChildAllocationCount(t *testing.T) {
 	parent := NewEnvironment(nil)
 	allocs := testing.AllocsPerRun(1000, func() {
@@ -210,6 +257,101 @@ func TestEnvironmentNewChildAllocationCount(t *testing.T) {
 	})
 	if allocs > 1.1 {
 		t.Fatalf("unexpected child environment allocations: got %.2f want <= 1.1", allocs)
+	}
+}
+
+func TestEnvironmentDefineWithoutMergeReplacesBinding(t *testing.T) {
+	env := NewEnvironment(nil)
+	first := StringValue{Val: "first"}
+	second := StringValue{Val: "second"}
+
+	env.Define("value", first)
+	env.DefineWithoutMerge("value", second)
+
+	got, err := env.Get("value")
+	if err != nil {
+		t.Fatalf("Get(value): %v", err)
+	}
+	if got != second {
+		t.Fatalf("DefineWithoutMerge should replace binding directly, got %#v want %#v", got, second)
+	}
+	if gotRevision := env.Revision(); gotRevision != 2 {
+		t.Fatalf("revision after Define + DefineWithoutMerge = %d, want 2", gotRevision)
+	}
+}
+
+func TestEnvironmentSingleBindingUsesInlineSlot(t *testing.T) {
+	env := NewEnvironment(nil)
+	value := StringValue{Val: "inline"}
+
+	env.DefineWithoutMerge("value", value)
+
+	if env.values != nil {
+		t.Fatalf("single binding should not allocate value map")
+	}
+	if !env.hasSingle || env.singleName != "value" || env.singleValue != value {
+		t.Fatalf("unexpected inline binding state: hasSingle=%t name=%q value=%#v", env.hasSingle, env.singleName, env.singleValue)
+	}
+	if got, ok := env.LookupInCurrentScope("value"); !ok || got != value {
+		t.Fatalf("LookupInCurrentScope(value) = (%#v, %t), want (%#v, true)", got, ok, value)
+	}
+	if keys := env.Keys(); len(keys) != 1 || keys[0] != "value" {
+		t.Fatalf("Keys() = %#v, want [value]", keys)
+	}
+	if snapshot := env.Snapshot(); len(snapshot) != 1 || snapshot["value"] != value {
+		t.Fatalf("Snapshot() = %#v, want single inline binding", snapshot)
+	}
+}
+
+func TestEnvironmentSecondBindingPromotesInlineSlotToMap(t *testing.T) {
+	env := NewEnvironment(nil)
+	first := StringValue{Val: "first"}
+	second := StringValue{Val: "second"}
+
+	env.DefineWithoutMerge("first", first)
+	env.DefineWithoutMerge("second", second)
+
+	if env.hasSingle {
+		t.Fatalf("second distinct binding should promote inline slot to map")
+	}
+	if env.values == nil {
+		t.Fatalf("promoted environment should have a value map")
+	}
+	if got, ok := env.LookupInCurrentScope("first"); !ok || got != first {
+		t.Fatalf("LookupInCurrentScope(first) = (%#v, %t), want (%#v, true)", got, ok, first)
+	}
+	if got, ok := env.LookupInCurrentScope("second"); !ok || got != second {
+		t.Fatalf("LookupInCurrentScope(second) = (%#v, %t), want (%#v, true)", got, ok, second)
+	}
+}
+
+func TestEnvironmentAssignExistingUpdatesInlineBinding(t *testing.T) {
+	parent := NewEnvironment(nil)
+	first := StringValue{Val: "first"}
+	second := StringValue{Val: "second"}
+	parent.DefineWithoutMerge("value", first)
+
+	child := NewEnvironment(parent)
+	if !child.AssignExisting("value", second) {
+		t.Fatalf("AssignExisting(value) should succeed")
+	}
+	if parent.values != nil {
+		t.Fatalf("AssignExisting on inline binding should not force map allocation")
+	}
+	if !parent.hasSingle || parent.singleValue != second {
+		t.Fatalf("parent inline binding not updated, got hasSingle=%t value=%#v", parent.hasSingle, parent.singleValue)
+	}
+}
+
+func TestEnvironmentSingleBindingChildAllocationCount(t *testing.T) {
+	parent := NewEnvironment(nil)
+	parent.SetSingleThread()
+	allocs := testing.AllocsPerRun(1000, func() {
+		child := NewEnvironment(parent)
+		child.DefineWithoutMerge("value", NilValue{})
+	})
+	if allocs > 1.1 {
+		t.Fatalf("unexpected child+single-binding allocations: got %.2f want <= 1.1", allocs)
 	}
 }
 

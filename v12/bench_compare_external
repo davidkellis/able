@@ -1,0 +1,466 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+bench_repo="$REPO_ROOT/../benchmarks"
+external_results_json=""
+benchmarks_csv="fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e"
+modes_csv="compiled,bytecode"
+languages_csv="go,ruby,python"
+runs=1
+timeout_seconds=90
+output_json=""
+output_md=""
+keep_tmp=false
+workdir=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_compare_external [options]
+
+Examples:
+  v12/bench_compare_external
+  v12/bench_compare_external --benchmarks fib,binarytrees --modes compiled
+  v12/bench_compare_external --output-md /tmp/able-vs-external.md
+
+Options:
+      --benchmark-repo DIR  External benchmarks repo (default: ../benchmarks)
+      --results-json PATH   External results.json (default: <benchmark-repo>/results.json)
+  -b, --benchmarks CSV      Benchmarks to compare
+  -m, --modes CSV           Modes: compiled,treewalker,bytecode (default: compiled,bytecode)
+  -l, --languages CSV       External language families to report (default: go,ruby,python)
+  -r, --runs N              Runs per Able benchmark/mode (default: 1)
+  -t, --timeout SEC         Timeout per Able run in seconds (default: 90)
+      --output-json PATH    Write machine-readable comparison JSON
+      --output-md PATH      Write Markdown report
+      --workdir DIR         Keep temporary artifacts in DIR
+      --keep                Keep temporary workdir
+  -h, --help                Show this help
+
+Notes:
+  - This harness builds on v12/bench_perf and compares Able runs against the
+    checked-in external benchmark results in ../benchmarks/results.json.
+  - Benchmarks that require setup.rb in the external repo will run that setup
+    automatically before the Able measurement.
+  - Benchmarks with explicitly parallel external reference workloads may also
+    set a benchmark-specific executor (for example binarytrees uses the
+    goroutine executor).
+EOF
+}
+
+die() {
+  echo "bench_compare_external: $*" >&2
+  exit 1
+}
+
+is_int() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+suite_dir_for() {
+  case "$1" in
+    i_before_e)
+      printf '%s\n' "$bench_repo/i-before-e"
+      ;;
+    *)
+      printf '%s\n' "$bench_repo/$1"
+      ;;
+  esac
+}
+
+target_for() {
+  case "$1" in
+    fib)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/fib.able"
+      ;;
+    binarytrees)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/binarytrees.able"
+      ;;
+    matrixmultiply)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/matrixmultiply.able"
+      ;;
+    i_before_e)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/i_before_e/i_before_e.able"
+      ;;
+    quicksort)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/quicksort/quicksort.able"
+      ;;
+    sudoku)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/sudoku/sudoku.able"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+program_args_for() {
+  case "$1" in
+    i_before_e)
+      printf '%s\n' "wordlist.txt"
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+executor_for() {
+  case "$1" in
+    binarytrees)
+      printf '%s\n' "goroutine"
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --benchmark-repo)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmark-repo"
+      bench_repo="$1"
+      ;;
+    --results-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --results-json"
+      external_results_json="$1"
+      ;;
+    -b|--benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      ;;
+    -m|--modes)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --modes"
+      modes_csv="$1"
+      ;;
+    -l|--languages)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --languages"
+      languages_csv="$1"
+      ;;
+    -r|--runs)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --runs"
+      runs="$1"
+      ;;
+    -t|--timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --timeout"
+      timeout_seconds="$1"
+      ;;
+    --output-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-json"
+      output_json="$1"
+      ;;
+    --output-md)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-md"
+      output_md="$1"
+      ;;
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --keep)
+      keep_tmp=true
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected positional argument: $1"
+      ;;
+  esac
+  shift
+done
+
+is_int "$runs" && ((runs > 0)) || die "--runs must be a positive integer"
+is_int "$timeout_seconds" && ((timeout_seconds > 0)) || die "--timeout must be a positive integer"
+
+bench_repo="$(realpath "$bench_repo")"
+[[ -d "$bench_repo" ]] || die "benchmark repo not found: $bench_repo"
+
+if [[ -z "$external_results_json" ]]; then
+  external_results_json="$bench_repo/results.json"
+fi
+external_results_json="$(realpath "$external_results_json")"
+[[ -f "$external_results_json" ]] || die "results.json not found: $external_results_json"
+
+if [[ -z "$workdir" ]]; then
+  workdir="$(mktemp -d "$SCRIPT_DIR/tmp/external-compare.XXXXXX")"
+else
+  workdir="$(realpath -m "$workdir")"
+  mkdir -p "$workdir"
+fi
+
+if [[ "$keep_tmp" == false ]]; then
+  trap 'rm -rf "$workdir"' EXIT
+fi
+
+if [[ -n "$output_json" ]]; then
+  output_json="$(realpath -m "$output_json")"
+  mkdir -p "$(dirname "$output_json")"
+fi
+if [[ -n "$output_md" ]]; then
+  output_md="$(realpath -m "$output_md")"
+  mkdir -p "$(dirname "$output_md")"
+fi
+
+summary_rows="$workdir/rows.tsv"
+: > "$summary_rows"
+
+IFS=',' read -r -a requested_benchmarks <<<"$benchmarks_csv"
+IFS=',' read -r -a requested_modes <<<"$modes_csv"
+
+echo ">>> External benchmark repo: $bench_repo"
+echo ">>> External results: $external_results_json"
+echo ">>> Workdir: $workdir"
+
+for bench in "${requested_benchmarks[@]}"; do
+  [[ -n "$bench" ]] || continue
+
+  suite_dir="$(suite_dir_for "$bench")"
+  [[ -d "$suite_dir" ]] || die "benchmark suite directory not found for $bench: $suite_dir"
+
+  if [[ -f "$suite_dir/setup.rb" ]]; then
+    echo ">>> Running external setup for $bench"
+    (cd "$suite_dir" && ruby setup.rb >/dev/null)
+  fi
+
+  target="$(target_for "$bench")" || die "no Able target mapping for benchmark: $bench"
+  target="$(realpath "$target")"
+  [[ -f "$target" ]] || die "Able target not found for $bench: $target"
+
+  bench_program_args=()
+  while IFS= read -r arg; do
+    [[ -n "$arg" ]] || continue
+    bench_program_args+=("$arg")
+  done < <(program_args_for "$bench")
+
+  bench_executor="$(executor_for "$bench" || true)"
+  bench_executor_args=()
+  if [[ -n "$bench_executor" ]]; then
+    bench_executor_args=(--executor "$bench_executor")
+  fi
+
+  bench_json="$workdir/${bench}.json"
+  echo ">>> Benchmark: $bench"
+  "$SCRIPT_DIR/bench_perf" \
+    --runs "$runs" \
+    --timeout "$timeout_seconds" \
+    --modes "$modes_csv" \
+    --run-from "$suite_dir" \
+    --output-json "$bench_json" \
+    "${bench_executor_args[@]}" \
+    "${bench_program_args[@]/#/--program-arg=}" \
+    "$target"
+
+  python - "$bench" "$bench_json" "$summary_rows" <<'PY'
+import json
+import sys
+
+bench, bench_json, rows_path = sys.argv[1:]
+with open(bench_json, "r", encoding="utf-8") as f:
+    payload = json.load(f)
+with open(rows_path, "a", encoding="utf-8") as out:
+    for row in payload.get("results", []):
+        out.write(
+            "\t".join(
+                [
+                    bench,
+                    row["mode"],
+                    str(row["ok_runs"]),
+                    str(row["timeouts"]),
+                    str(row["failures"]),
+                    "n/a" if row["avg_real_seconds"] is None else f"{row['avg_real_seconds']:.6f}",
+                    "n/a" if row["avg_user_seconds"] is None else f"{row['avg_user_seconds']:.6f}",
+                    "n/a" if row["avg_sys_seconds"] is None else f"{row['avg_sys_seconds']:.6f}",
+                    "n/a" if row["avg_gc"] is None else f"{row['avg_gc']:.2f}",
+                ]
+            )
+            + "\n"
+        )
+PY
+done
+
+python - "$summary_rows" "$external_results_json" "$languages_csv" "$benchmarks_csv" "$modes_csv" "$output_json" "$output_md" <<'PY'
+import json
+import math
+import sys
+from datetime import datetime, timezone
+
+rows_path, external_results_path, languages_csv, benchmarks_csv, modes_csv, output_json, output_md = sys.argv[1:]
+requested_languages = [x for x in languages_csv.split(",") if x]
+requested_benchmarks = [x for x in benchmarks_csv.split(",") if x]
+requested_modes = [x for x in modes_csv.split(",") if x]
+
+def external_benchmark_name(name: str) -> str:
+    return {
+        "i_before_e": "i-before-e",
+    }.get(name, name)
+
+rows = []
+with open(rows_path, "r", encoding="utf-8") as f:
+    for line in f:
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        bench, mode, ok, timeouts, failures, avg_real, avg_user, avg_sys, avg_gc = line.split("\t")
+        rows.append({
+            "benchmark": bench,
+            "mode": mode,
+            "ok_runs": int(ok),
+            "timeouts": int(timeouts),
+            "failures": int(failures),
+            "avg_real_seconds": None if avg_real == "n/a" else float(avg_real),
+            "avg_user_seconds": None if avg_user == "n/a" else float(avg_user),
+            "avg_sys_seconds": None if avg_sys == "n/a" else float(avg_sys),
+            "avg_gc": None if avg_gc == "n/a" else float(avg_gc),
+        })
+
+with open(external_results_path, "r", encoding="utf-8") as f:
+    external = json.load(f)
+
+external_results = external.get("results", [])
+reference = {}
+for bench in requested_benchmarks:
+    external_bench = external_benchmark_name(bench)
+    bench_refs = {}
+    for lang in requested_languages:
+        candidates = [
+            row for row in external_results
+            if row.get("benchmark") == external_bench
+            and row.get("status") == "ok"
+            and row.get("language_family") == lang
+            and row.get("real_time_secs") is not None
+        ]
+        if not candidates:
+            continue
+        best = min(candidates, key=lambda row: row["real_time_secs"])
+        bench_refs[lang] = {
+            "implementation": best.get("implementation"),
+            "real_time_secs": float(best["real_time_secs"]),
+        }
+    reference[bench] = bench_refs
+
+report_rows = []
+for bench in requested_benchmarks:
+    for mode in requested_modes:
+        able = next((row for row in rows if row["benchmark"] == bench and row["mode"] == mode), None)
+        if able is None:
+            continue
+        refs = reference.get(bench, {})
+        comparisons = {}
+        for lang, ref in refs.items():
+            ratio = None
+            if able["avg_real_seconds"] is not None and ref["real_time_secs"] > 0:
+                ratio = able["avg_real_seconds"] / ref["real_time_secs"]
+            comparisons[lang] = {
+                "reference_real_seconds": ref["real_time_secs"],
+                "reference_implementation": ref["implementation"],
+                "ratio": ratio,
+            }
+        report_rows.append({
+            "benchmark": bench,
+            "mode": mode,
+            "able": able,
+            "comparisons": comparisons,
+        })
+
+payload = {
+    "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "benchmarks": requested_benchmarks,
+    "modes": requested_modes,
+    "languages": requested_languages,
+    "external_results_json": external_results_path,
+    "rows": report_rows,
+}
+
+if output_json:
+    with open(output_json, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+
+lines = []
+lines.append("# External Benchmark Comparison")
+lines.append("")
+lines.append(f"- Generated: `{payload['generated_at']}`")
+lines.append(f"- External results: `{external_results_path}`")
+lines.append(f"- Able benchmarks: `{', '.join(requested_benchmarks)}`")
+lines.append(f"- Able modes: `{', '.join(requested_modes)}`")
+lines.append(f"- Reference languages: `{', '.join(requested_languages)}`")
+lines.append("")
+header = [
+    "Benchmark",
+    "Mode",
+    "Able Status",
+    "Able Real (s)",
+]
+for lang in requested_languages:
+    header.append(f"{lang} Real (s)")
+    header.append(f"Able/{lang}")
+lines.append("| " + " | ".join(header) + " |")
+lines.append("| " + " | ".join(["---"] * len(header)) + " |")
+
+def fmt_ratio(value):
+    if value is None:
+        return "n/a"
+    return f"{value:.2f}x"
+
+for row in report_rows:
+    able = row["able"]
+    if able["failures"] > 0:
+        status = f"error ({able['failures']})"
+    elif able["timeouts"] > 0 and able["ok_runs"] == 0:
+        status = f"timeout ({able['timeouts']})"
+    elif able["timeouts"] > 0:
+        status = f"mixed timeout ({able['ok_runs']} ok)"
+    else:
+        status = f"ok ({able['ok_runs']})"
+
+    cells = [
+        f"`{row['benchmark']}`",
+        f"`{row['mode']}`",
+        status,
+        "n/a" if able["avg_real_seconds"] is None else f"{able['avg_real_seconds']:.4f}",
+    ]
+    for lang in requested_languages:
+        comp = row["comparisons"].get(lang)
+        if comp is None:
+            cells.extend(["n/a", "n/a"])
+            continue
+        cells.append(f"{comp['reference_real_seconds']:.4f}")
+        cells.append(fmt_ratio(comp["ratio"]))
+    lines.append("| " + " | ".join(cells) + " |")
+
+markdown = "\n".join(lines) + "\n"
+if output_md:
+    with open(output_md, "w", encoding="utf-8") as f:
+        f.write(markdown)
+print(markdown, end="")
+PY
+
+if [[ -n "$output_json" ]]; then
+  echo ">>> Wrote comparison JSON: $output_json"
+fi
+if [[ -n "$output_md" ]]; then
+  echo ">>> Wrote comparison Markdown: $output_md"
+fi
+
+if [[ "$keep_tmp" == true ]]; then
+  echo ">>> Kept workdir: $workdir"
+fi

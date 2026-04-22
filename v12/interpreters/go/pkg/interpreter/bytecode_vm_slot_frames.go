@@ -3,7 +3,10 @@ package interpreter
 import "able/interpreter-go/pkg/runtime"
 
 const (
-	bytecodeSlotFrameBatchSize     = 8
+	// Reduced recursive bytecode benchmarks repeatedly churn very small slot
+	// frames. A larger batch keeps those hot pools populated across the common
+	// recursion depth instead of rebuilding them every run.
+	bytecodeSlotFrameBatchSize     = 32
 	bytecodeSlotFrameBatchMaxSlots = 16
 )
 
@@ -59,8 +62,25 @@ func (vm *bytecodeVM) releaseSlotFrame(slots []runtime.Value) {
 	if vm == nil || len(slots) == 0 {
 		return
 	}
-	clear(slots)
 	size := len(slots)
+	switch size {
+	case 1:
+		slots[0] = nil
+	case 2:
+		slots[0] = nil
+		slots[1] = nil
+	case 3:
+		slots[0] = nil
+		slots[1] = nil
+		slots[2] = nil
+	case 4:
+		slots[0] = nil
+		slots[1] = nil
+		slots[2] = nil
+		slots[3] = nil
+	default:
+		clear(slots)
+	}
 	if vm.slotFrameHotSize == 0 || vm.slotFrameHotSize == size {
 		vm.slotFrameHotSize = size
 		vm.slotFrameHotPool = append(vm.slotFrameHotPool, slots)

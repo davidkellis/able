@@ -21,14 +21,12 @@ func (g *generator) finishNativeCallableCall(ctx *compileContext, lines []string
 	if strings.TrimSpace(callNode) != "" {
 		callNodeExpr = callNode
 	}
-	lines = append(lines, fmt.Sprintf("__able_push_call_frame(%s)", callNodeExpr))
 	lines = append(lines, fmt.Sprintf("if %s == nil {", callableTemp))
 	lines = append(lines, fmt.Sprintf("\t%s = %s", controlTemp, g.runtimeErrorControlExpr(callNodeExpr, `fmt.Errorf("missing callable value")`)))
 	lines = append(lines, "} else {")
 	lines = append(lines, fmt.Sprintf("\t%s, %s = %s(%s)", resultTemp, controlTemp, callableTemp, strings.Join(argExprs, ", ")))
 	lines = append(lines, "}")
-	lines = append(lines, "__able_pop_call_frame()")
-	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNodeExpr)
 	if !ok {
 		return nil, "", "", false
 	}

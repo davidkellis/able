@@ -75,8 +75,11 @@ func (vm *bytecodeVM) execExactNativeCall(target bytecodeExactNativeCallTarget, 
 	if vm.env != nil {
 		callState = vm.env.RuntimeData()
 	}
-	ctx := vm.interp.acquireNativeCallContext(vm.env, callState)
-	defer vm.interp.releaseNativeCallContext(ctx)
+	var ctx *runtime.NativeCallContext
+	if !target.native.SkipContext {
+		ctx = vm.interp.acquireNativeCallContext(vm.env, callState)
+		defer vm.interp.releaseNativeCallContext(ctx)
+	}
 	if !target.hasReceiver {
 		args := explicitArgs
 		if !target.native.BorrowArgs {

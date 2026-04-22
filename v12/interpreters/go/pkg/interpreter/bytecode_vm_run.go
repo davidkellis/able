@@ -260,7 +260,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				if errVal, ok := asErrorValue(val); ok {
 					return nil, raiseSignal{value: errVal}
 				}
-				if vm.interp.matchesType(ast.Ty("Error"), val) {
+				if vm.interp.matchesType(cachedSimpleTypeExpression("Error"), val) {
 					return nil, raiseSignal{value: vm.interp.makeErrorValue(val, vm.env)}
 				}
 				vm.stack = append(vm.stack, val)
@@ -696,6 +696,17 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					continue
 				}
 			}
+		case bytecodeOpCallMember:
+			{
+				newProg, err := vm.execCallMember(*instr, program)
+				if err != nil {
+					return nil, err
+				}
+				if newProg != nil {
+					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
+					continue
+				}
+			}
 		case bytecodeOpCallSelf:
 			{
 				newProg, err := vm.execCallSelf(*instr, program)
@@ -944,59 +955,14 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			valIdx := len(vm.stack) - 1
 			val := vm.stack[valIdx]
 			vm.stack = vm.stack[:valIdx]
-			if len(vm.callFrames) > 0 {
-				// Inline return: pop call frame and continue in caller.
-				returnGenericNames := vm.callFrames[len(vm.callFrames)-1].returnGenericNames
-				if program.frameLayout != nil && program.frameLayout.returnType != nil && !inlineCoercionUnnecessary(program.frameLayout.returnType, val) {
-					coerced, coerceErr := vm.interp.coerceReturnValue(program.frameLayout.returnType, val, returnGenericNames, vm.env)
-					if coerceErr != nil {
-						if instr.node != nil {
-							coerceErr = vm.interp.attachRuntimeContext(coerceErr, instr.node, vm.interp.stateFromEnv(vm.env))
-						}
-						return nil, coerceErr
-					}
-					val = coerced
+			if vm.hasCallFrames() {
+				if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr, val); err != nil {
+					return nil, err
 				}
-				returnIP, returnProgram, returnSlots, returnEnv, iterBase, loopBase, hasImplicitReceiver, selfFast, ok := vm.popCallFrameFields()
-				if !ok {
-					return nil, fmt.Errorf("bytecode call frame underflow")
-				}
-				calleeSlots := vm.slots
-				if hasImplicitReceiver {
-					state := vm.interp.stateFromEnv(vm.env)
-					state.popImplicitReceiver()
-				}
-				vm.ip = returnIP
-				vm.slots = returnSlots
-				if !selfFast {
-					vm.env = returnEnv
-					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, returnProgram)
-				}
-				if len(vm.iterStack) > iterBase {
-					for idx := len(vm.iterStack) - 1; idx >= iterBase; idx-- {
-						if iter := vm.iterStack[idx].iter; iter != nil {
-							iter.Close()
-						}
-					}
-					vm.iterStack = vm.iterStack[:iterBase]
-				}
-				if len(vm.loopStack) > loopBase {
-					vm.loopStack = vm.loopStack[:loopBase]
-				}
-				vm.releaseSlotFrame(calleeSlots)
-				vm.stack = append(vm.stack, val)
 				continue
 			}
 			if instr.node != nil {
-				state := vm.interp.stateFromEnv(vm.env)
-				var context *runtimeDiagnosticContext
-				if state != nil {
-					context = &runtimeDiagnosticContext{
-						node:      instr.node,
-						callStack: state.snapshotCallStack(),
-					}
-				}
-				return nil, returnSignal{value: val, context: context}
+				return nil, returnSignal{value: val, node: instr.node}
 			}
 			return val, nil
 		default:
