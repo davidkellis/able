@@ -1388,3 +1388,24 @@ top-tier slice. The remaining reduced wall is back on
 `execBinarySlotConst(...)`, `bytecodeSubtractIntegerImmediateI32Fast(...)`,
 `bytecodeDirectSmallI32Value(...)`, `acquireSlotFrame(...)`, and residual
 run-loop dispatch.
+
+The next kept reduced-`fib` slice stayed on control-flow lowering, but moved
+from dead statement cleanup to direct conditional dispatch.
+`v12/interpreters/go/pkg/interpreter/bytecode_lowering_controlflow.go` now
+lowers `if` / `elsif` conditions through a dedicated conditional jump opcode
+when the existing slot-const matcher already proves the shape `slot <= i32`,
+and `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go` executes that
+path without first materializing a boolean result for `JumpIfFalse` to consume.
+
+That is another keep as a reduced recursion-kernel win rather than a full
+aligned benchmark fix. The prior kept warmed reduced
+`BenchmarkFib30Bytecode` band was roughly `159.41-163.53ms/op`; the refreshed
+warmed reruns on the kept code landed at `159.93ms/op`, `155.70ms/op`, and
+`151.83ms/op`. A single profiled reduced run landed at `151.60ms/op`.
+Aligned one-shot external bytecode `fib` still times out at `90s`, but the
+refreshed reduced profile no longer routes the base-case compare through the
+old `execBinarySlotConst(...) -> BoolValue -> JumpIfFalse` path. The remaining
+reduced wall is now more cleanly `execCallSelfIntSubSlotConst(...)`,
+`execBinary(...)`, `bytecodeSubtractIntegerImmediateI32Fast(...)`,
+`acquireSlotFrame(...)`, `finishInlineReturn(...)`, and residual run-loop
+dispatch.

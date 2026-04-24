@@ -435,6 +435,37 @@ func TestBytecodeVM_LoweringEmitsFusedSelfCallSlotConstOpcode(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_LoweringEmitsConditionalJumpForIntLessEqualSlotConstIf(t *testing.T) {
+	def := ast.Fn(
+		"fib",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
+		[]ast.Statement{
+			ast.IfExpr(
+				ast.Bin("<=", ast.ID("n"), ast.Int(2)),
+				ast.Block(ast.Ret(ast.Int(1))),
+			),
+			ast.Bin("-", ast.ID("n"), ast.Int(1)),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpJumpIfIntLessEqualSlotConstFalse) {
+		t.Fatalf("expected lowering to emit conditional slot-const jump opcode")
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntLessEqualSlotConst) {
+		t.Fatalf("expected conditional slot-const compare in if-position to skip standalone bool-producing opcode")
+	}
+}
+
 func TestBytecodeVM_LoweringSkipsDeadNilForStatementIfWithoutElse(t *testing.T) {
 	def := ast.Fn(
 		"fib",

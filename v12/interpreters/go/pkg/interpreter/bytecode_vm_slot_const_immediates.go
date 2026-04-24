@@ -27,7 +27,7 @@ func (vm *bytecodeVM) slotConstImmediateTable(program *bytecodeProgram) *bytecod
 	}
 	for idx, instr := range program.instructions {
 		switch instr.op {
-		case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpCallSelfIntSubSlotConst:
+		case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpCallSelfIntSubSlotConst, bytecodeOpJumpIfIntLessEqualSlotConstFalse:
 			if imm, ok := bytecodeInstructionImmediateInteger(instr); ok {
 				if !table.hasSingle && table.index == nil {
 					table.hasSingle = true
@@ -58,7 +58,7 @@ func bytecodeInstructionImmediateInteger(instr bytecodeInstruction) (runtime.Int
 
 func bytecodeSlotConstImmediateAt(instr bytecodeInstruction, ip int, table *bytecodeSlotConstIntImmediateTable) (runtime.IntegerValue, bool) {
 	switch instr.op {
-	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpCallSelfIntSubSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpCallSelfIntSubSlotConst, bytecodeOpJumpIfIntLessEqualSlotConstFalse:
 	default:
 		return runtime.IntegerValue{}, false
 	}
