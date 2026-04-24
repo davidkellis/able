@@ -888,6 +888,19 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				}
 				vm.ip++
 			}
+		case bytecodeOpJumpIfIntLessEqualSlotConstFalse:
+			{
+				if err := vm.execJumpIfIntLessEqualSlotConstFalse(instr, slotConstIntImmTable); err != nil {
+					err = vm.interp.wrapStandardRuntimeError(err)
+					if instr.node != nil {
+						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						if vm.handleLoopSignal(err) {
+							continue
+						}
+					}
+					return nil, err
+				}
+			}
 		case bytecodeOpJumpIfNil:
 			{
 				cond, err := vm.pop()

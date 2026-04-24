@@ -23,6 +23,7 @@ tmp*/
 _obj/
 *.coverprofile
 *.prof
+*.pprof
 *.test
 coverage.out
 /v10/interpreter10-go/able

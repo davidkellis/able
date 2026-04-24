@@ -63,10 +63,15 @@ func emitIf(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfExpression
 	if expr == nil {
 		return bytecodeUnsupported("nil if expression")
 	}
-	if err := emitExpression(ctx, i, expr.IfCondition); err != nil {
-		return err
+	jumpToElse := -1
+	if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, expr.IfCondition); ok {
+		jumpToElse = ctx.emit(instr)
+	} else {
+		if err := emitExpression(ctx, i, expr.IfCondition); err != nil {
+			return err
+		}
+		jumpToElse = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	}
-	jumpToElse := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	if err := emitBlock(ctx, i, expr.IfBody); err != nil {
 		return err
 	}
@@ -77,10 +82,15 @@ func emitIf(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfExpression
 		if clause == nil {
 			return bytecodeUnsupported("nil elsif clause")
 		}
-		if err := emitExpression(ctx, i, clause.Condition); err != nil {
-			return err
+		jumpToNext := -1
+		if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, clause.Condition); ok {
+			jumpToNext = ctx.emit(instr)
+		} else {
+			if err := emitExpression(ctx, i, clause.Condition); err != nil {
+				return err
+			}
+			jumpToNext = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 		}
-		jumpToNext := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 		if err := emitBlock(ctx, i, clause.Body); err != nil {
 			return err
 		}
@@ -107,10 +117,15 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 	if expr == nil {
 		return bytecodeUnsupported("nil if expression")
 	}
-	if err := emitExpression(ctx, i, expr.IfCondition); err != nil {
-		return err
+	jumpToElse := -1
+	if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, expr.IfCondition); ok {
+		jumpToElse = ctx.emit(instr)
+	} else {
+		if err := emitExpression(ctx, i, expr.IfCondition); err != nil {
+			return err
+		}
+		jumpToElse = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	}
-	jumpToElse := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	if err := emitBlock(ctx, i, expr.IfBody); err != nil {
 		return err
 	}
@@ -122,10 +137,15 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 		if clause == nil {
 			return bytecodeUnsupported("nil elsif clause")
 		}
-		if err := emitExpression(ctx, i, clause.Condition); err != nil {
-			return err
+		jumpToNext := -1
+		if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, clause.Condition); ok {
+			jumpToNext = ctx.emit(instr)
+		} else {
+			if err := emitExpression(ctx, i, clause.Condition); err != nil {
+				return err
+			}
+			jumpToNext = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 		}
-		jumpToNext := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 		if err := emitBlock(ctx, i, clause.Body); err != nil {
 			return err
 		}

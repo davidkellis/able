@@ -11,7 +11,7 @@ func TestBytecodeVM_SlotConstImmediateCacheBuildsAndRefreshes(t *testing.T) {
 	program := &bytecodeProgram{
 		instructions: []bytecodeInstruction{
 			{
-				op:              bytecodeOpBinaryIntSubSlotConst,
+				op:              bytecodeOpJumpIfIntLessEqualSlotConstFalse,
 				value:           runtime.StringValue{Val: "ignore-me"},
 				intImmediate:    runtime.NewSmallInt(3, runtime.IntegerI32),
 				hasIntImmediate: true,

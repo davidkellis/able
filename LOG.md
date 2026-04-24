@@ -1,5 +1,52 @@
 # Able Project Log
 
+# 2026-04-23 — reduced bytecode `fib` conditional slot-const jump tranche (v12)
+- Closed the next reduced-recursion slice after the statement-position `if`
+  lowering tranche.
+- What landed:
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_controlflow.go`
+    now lowers `if` / `elsif` conditions through a dedicated conditional jump
+    opcode when the existing slot-const matcher already proves the shape
+    `slot <= i32`
+  - `v12/interpreters/go/pkg/interpreter/bytecode_lowering_binary_slot_const.go`
+    now exposes the lowering helper for that branch form
+  - `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go` and
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go` now execute that
+    path without materializing a temporary boolean result and then immediately
+    consuming it with `JumpIfFalse`
+  - focused coverage in
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_binary_fastpath_test.go`
+    now pins the new lowering, and
+    `v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_immediates_test.go`
+    now keeps the typed-immediate metadata path covered for the new opcode too
+- Refreshed reduced and aligned `fib` numbers on the kept code:
+  - prior kept warmed reduced `BenchmarkFib30Bytecode` band:
+    `159.41-163.53ms/op`
+  - refreshed warmed reduced `BenchmarkFib30Bytecode` reruns:
+    `159.93ms/op`, `155.70ms/op`, `151.83ms/op`
+  - single profiled reduced run: `151.60ms/op`
+  - aligned external bytecode compare: still `timeout (1)` at `90s`
+- Outcome:
+  - this is a keep as another reduced recursion-kernel win
+  - the base-case `if n <= const` path no longer pays the old
+    `execBinarySlotConst(...) -> push BoolValue -> JumpIfFalse` sequence on the
+    hot reduced `fib` loop
+  - the refreshed reduced profile shows the intended shift:
+    `execBinarySlotConst(...)` dropped out of the visible top tier for the base
+    compare path, while the remaining reduced wall is now more cleanly
+    `execCallSelfIntSubSlotConst(...)`, `execBinary(...)`,
+    `bytecodeSubtractIntegerImmediateI32Fast(...)`, `acquireSlotFrame(...)`,
+    `finishInlineReturn(...)`, and residual run-loop dispatch
+  - aligned one-shot bytecode `fib` still times out, so this still is not the
+    full aligned benchmark fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmits(IntegerSlotConstHotOpcodes|FusedSelfCallSlotConstOpcode|ConditionalJumpForIntLessEqualSlotConstIf)|LoweringSkipsDeadNilForStatementIfWithoutElse|StatementIfWithoutElseParity|SlotConstImmediateCacheBuildsAndRefreshes|AddSmallI32PairFast|SubtractSmallI32PairFast|SubtractIntegerImmediateFast|BoxedIntegerI32ValueDynamicCache|PushSelfFastMinimalCallFrameUsesMinimalStacks|PushCallFrameMaterializesMinimalSelfFastSuffix|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=1x -cpuprofile /tmp/fib30-jumpleslot.cpu.pprof -memprofile /tmp/fib30-jumpleslot.mem.pprof -count=1`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+
 # 2026-04-21 — reduced bytecode `fib` small-`i32` pair-add specialization tranche (v12)
 - Closed the next bytecode recursion slice after the dedicated self-slot fast
   branch tranche.

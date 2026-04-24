@@ -76,6 +76,7 @@ const (
 	bytecodeOpContinueSignal
 	bytecodeOpJump
 	bytecodeOpJumpIfFalse
+	bytecodeOpJumpIfIntLessEqualSlotConstFalse
 	bytecodeOpJumpIfNil
 	bytecodeOpLoopEnter
 	bytecodeOpLoopExit

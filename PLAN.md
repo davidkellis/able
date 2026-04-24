@@ -1245,6 +1245,18 @@ These items remain important, but they are not active priorities right now.
           `execCallSelfIntSubSlotConst`, `execBinary`, `releaseSlotFrame`,
           and the narrowed immediate-subtract path instead of the older
           general call-frame bookkeeping
+      - the next reduced-`fib` lowering slice is landed too:
+        - statement-position `if` conditions that already match the slot-const
+          integer compare fast path now lower directly to a conditional jump
+          opcode instead of materializing a temporary boolean only to have
+          `JumpIfFalse` consume it immediately
+        - refreshed reduced `BenchmarkFib30Bytecode` reruns on the kept code:
+          `159.93ms/op`, `155.70ms/op`, `151.83ms/op`
+        - profiled reduced rerun on the kept code: `151.60ms/op`
+        - aligned external bytecode `fib` still times out at `90s`, so the
+          remaining aligned wall is now even more cleanly the residual
+          self-call / add / slot-frame path rather than the old base-case
+          compare result materialization
       - aligned `i_before_e` is no longer blocked on stdlib text helpers, but
         its bytecode profile still mixes one-time lowering with VM runtime
         cost
