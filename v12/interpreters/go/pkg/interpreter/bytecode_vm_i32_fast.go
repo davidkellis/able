@@ -106,6 +106,32 @@ func bytecodeAddSmallI32PairFast(left runtime.Value, right runtime.Value) (runti
 	return bytecodeBoxedIntegerI32Value(sum), true, nil
 }
 
+func bytecodeReturnAddSmallI32ValuePairFast(left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
+	lv, ok := left.(runtime.IntegerValue)
+	if !ok || lv.TypeSuffix != runtime.IntegerI32 {
+		return nil, false, nil
+	}
+	rv, ok := right.(runtime.IntegerValue)
+	if !ok || rv.TypeSuffix != runtime.IntegerI32 {
+		return nil, false, nil
+	}
+	lvRef := &lv
+	rvRef := &rv
+	if !lvRef.IsSmallRef() || !rvRef.IsSmallRef() {
+		return nil, false, nil
+	}
+	l := lvRef.Int64FastRef()
+	r := rvRef.Int64FastRef()
+	if l < math.MinInt32 || l > math.MaxInt32 || r < math.MinInt32 || r > math.MaxInt32 {
+		return nil, false, nil
+	}
+	sum := l + r
+	if sum < math.MinInt32 || sum > math.MaxInt32 {
+		return nil, true, newOverflowError("integer overflow")
+	}
+	return bytecodeBoxedIntegerI32Value(sum), true, nil
+}
+
 func bytecodeSubtractSmallI32PairFast(left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
 	l, ok := bytecodeDirectSmallI32Value(left)
 	if !ok {
