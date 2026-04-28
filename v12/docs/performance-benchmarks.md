@@ -1724,3 +1724,46 @@ return-add now reaches `bytecodeAddSmallI32PairFast(...)` directly on the hot
 path. The next profile should start from fused self-call setup,
 `execReturnConstIfIntLessEqualSlotConst(...)`, `finishInlineReturn(...)`, and
 the remaining direct small-`i32` pair extraction/boxing costs.
+
+The next aligned-fib tranche stayed on the fused self-call setup path. The raw
+slot-const immediate work proved the literal value was already available as an
+`int64`, so `execCallSelfIntSubSlotConst(...)` now performs the small-`i32`
+subtract directly in the fused recursive self-call branch instead of calling
+`bytecodeSelfCallSubtractIntegerImmediateI32RawFast(...)`. The existing
+overflow check, boxed integer cache, typed-immediate path, and generic fallback
+behavior remain unchanged.
+
+This is an aligned-shape keep with a reduced runtime-only assist. Reduced
+`BenchmarkFib30BytecodeRuntimeOnly` landed at `114.39ms/op`, `116.08ms/op`,
+and `122.80ms/op`. The aligned-style `fib_i32_small` bytecode-runtime fixture
+landed at `9.80s/op` across a 3-run band, with a profiled one-shot at
+`9.61s/op`. The aligned `preprofile` no longer shows the helper edge
+`execCallSelfIntSubSlotConst(...) -> bytecodeSelfCallSubtractIntegerImmediateI32RawFast(...)`;
+the fused self-call path now reaches `bytecodeBoxedIntegerI32Value(...)`
+directly after the inlined subtract. Full external bytecode `fib(45)` still
+times out at `90s`, so the next profile should start from the remaining
+`execCallSelfIntSubSlotConst(...)`, `finishInlineReturn(...)`,
+`execReturnConstIfIntLessEqualSlotConst(...)`, and `releaseSlotFrame2(...)`
+costs rather than another raw-subtract helper-shape rewrite.
+
+The next aligned-fib tranche removed work from the minimal self-fast return
+branch itself. The external-style base case lowers to
+`bytecodeOpReturnConstIfIntLessEqualSlotConst`, and that lowering encodes the
+literal return value as an `i32`. When the active function also declares an
+`i32` return, `finishInlineReturn(...)` now treats that fused opcode as already
+satisfying the return type and skips the generic simple return-coercion probe.
+All other return opcodes and mismatched return declarations keep the existing
+coercion path.
+
+This is an aligned-shape keep. Reduced `BenchmarkFib30BytecodeRuntimeOnly`
+landed at `118.01ms/op`, `113.15ms/op`, and `122.26ms/op`. Aligned-style
+`fib_i32_small` bytecode-runtime landed at `9.33s/op` and `9.24s/op` across
+two 3-run bands, with a profiled one-shot at `8.74s/op`. The aligned
+`preprofile` shows
+`finishInlineReturn(...) -> inlineCoercionUnnecessaryBySimpleCheck(...)`
+dropping from the prior `39` sample range to `14` samples after the fused
+base-case return skips that probe. Full external bytecode `fib(45)` still
+times out at `90s`. The next profile should start from
+`execCallSelfIntSubSlotConst(...)`, `execReturnConstIfIntLessEqualSlotConst(...)`,
+`bytecodeDirectSmallI32Pair(...)`, `bytecodeBoxedIntegerI32Value(...)`, and
+slot-frame release costs rather than another return-coercion shortcut.

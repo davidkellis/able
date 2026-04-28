@@ -11,16 +11,19 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 
 	if vm != nil && vm.selfFastMinimalSuffix > 0 {
 		if activeProgram != nil && activeProgram.frameLayout != nil && activeProgram.frameLayout.returnType != nil {
+			layout := activeProgram.frameLayout
 			noCoercion := false
-			if activeProgram.frameLayout.returnSimpleCheck != bytecodeSimpleTypeCheckUnknown {
-				noCoercion = inlineCoercionUnnecessaryBySimpleCheck(activeProgram.frameLayout.returnSimpleCheck, val)
-			} else if activeProgram.frameLayout.returnSimpleType != "" {
-				noCoercion = inlineCoercionUnnecessaryBySimpleType(activeProgram.frameLayout.returnSimpleType, val)
+			if instr != nil && instr.op == bytecodeOpReturnConstIfIntLessEqualSlotConst && layout.returnSimpleCheck == bytecodeSimpleTypeCheckI32 {
+				noCoercion = true
+			} else if layout.returnSimpleCheck != bytecodeSimpleTypeCheckUnknown {
+				noCoercion = inlineCoercionUnnecessaryBySimpleCheck(layout.returnSimpleCheck, val)
+			} else if layout.returnSimpleType != "" {
+				noCoercion = inlineCoercionUnnecessaryBySimpleType(layout.returnSimpleType, val)
 			} else {
-				noCoercion = inlineCoercionUnnecessary(activeProgram.frameLayout.returnType, val)
+				noCoercion = inlineCoercionUnnecessary(layout.returnType, val)
 			}
 			if !noCoercion {
-				coerced, coerceErr := vm.interp.coerceReturnValue(activeProgram.frameLayout.returnType, val, nil, vm.env)
+				coerced, coerceErr := vm.interp.coerceReturnValue(layout.returnType, val, nil, vm.env)
 				if coerceErr != nil {
 					if instr != nil && instr.node != nil {
 						coerceErr = vm.interp.attachRuntimeContext(coerceErr, instr.node, vm.interp.stateFromEnv(vm.env))
