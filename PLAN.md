@@ -1121,6 +1121,33 @@ Current state snapshot:
   The reduced `Fib30BytecodeRuntimeOnly` sanity band landed at
   `125.87-127.84ms/op`, so this keep is aligned-driven rather than a reduced
   `fib(30)` win;
+- the next aligned-fib self-call arithmetic tranche is landed too: the fused
+  raw-immediate self-call path now performs the small-`i32` subtract directly
+  inside `execCallSelfIntSubSlotConst(...)` instead of calling back through
+  `bytecodeSelfCallSubtractIntegerImmediateI32RawFast(...)`. Focused
+  recursive/arithmetic coverage is green; reduced
+  `Fib30BytecodeRuntimeOnly` landed at `114.39-122.80ms/op`, aligned-style
+  `fib_i32_small` bytecode-runtime landed at `9.80s/op` across a 3-run band,
+  and the profiled one-shot landed at `9.61s/op`. The full external bytecode
+  `fib(45)` check still times out at `90s`, so the next aligned-fib tranche
+  should start from the remaining `execCallSelfIntSubSlotConst(...)`,
+  `finishInlineReturn(...)`, `execReturnConstIfIntLessEqualSlotConst(...)`,
+  and `releaseSlotFrame2(...)` costs rather than another subtract-helper call
+  shape rewrite;
+- the next aligned-fib minimal-return tranche is landed too: the minimal
+  self-fast branch in `finishInlineReturn(...)` now recognizes the fused
+  `bytecodeOpReturnConstIfIntLessEqualSlotConst` base-case opcode in functions
+  declared `i32` and skips the generic simple return-coercion probe for that
+  already-encoded i32 constant. Focused lowering/runtime coverage pins that
+  the fused return-const value is encoded as `i32`; reduced
+  `Fib30BytecodeRuntimeOnly` landed at `113.15-122.26ms/op`, aligned-style
+  `fib_i32_small` bytecode-runtime landed at `9.33s/op` and `9.24s/op` across
+  two 3-run bands, and the profiled one-shot landed at `8.74s/op`. The full
+  external bytecode `fib(45)` check still times out at `90s`. The next
+  aligned-fib tranche should start from the remaining
+  `execCallSelfIntSubSlotConst(...)`, `execReturnConstIfIntLessEqualSlotConst(...)`,
+  `bytecodeDirectSmallI32Pair(...)`, and slot-frame release/boxing costs rather
+  than another return-coercion shortcut;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.

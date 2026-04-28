@@ -740,6 +740,9 @@ func TestBytecodeVM_LoweringEmitsReturnConstIfForIntLessEqualSlotConstStatement(
 	foundRaw := false
 	for _, instr := range program.instructions {
 		if instr.op == bytecodeOpReturnConstIfIntLessEqualSlotConst && instr.hasIntRaw && instr.intImmediateRaw == 2 {
+			if got, ok := instr.value.(runtime.IntegerValue); !ok || got.TypeSuffix != runtime.IntegerI32 {
+				t.Fatalf("expected fused return-const-if value to be i32, got %#v", instr.value)
+			}
 			foundRaw = true
 			break
 		}

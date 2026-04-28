@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
@@ -62,7 +63,31 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 					argErr  error
 				)
 				if instr.hasIntRaw {
-					arg, handled, argErr = bytecodeSelfCallSubtractIntegerImmediateI32RawFast(vm.slots[instr.argCount], instr.intImmediateRaw)
+					switch lv := vm.slots[instr.argCount].(type) {
+					case runtime.IntegerValue:
+						if lv.TypeSuffix == runtime.IntegerI32 {
+							lvRef := &lv
+							if lvRef.IsSmallRef() {
+								diff := lvRef.Int64FastRef() - instr.intImmediateRaw
+								handled = true
+								if diff < math.MinInt32 || diff > math.MaxInt32 {
+									argErr = newOverflowError("integer overflow")
+								} else {
+									arg = bytecodeBoxedIntegerI32Value(diff)
+								}
+							}
+						}
+					case *runtime.IntegerValue:
+						if lv != nil && lv.TypeSuffix == runtime.IntegerI32 && lv.IsSmallRef() {
+							diff := lv.Int64FastRef() - instr.intImmediateRaw
+							handled = true
+							if diff < math.MinInt32 || diff > math.MaxInt32 {
+								argErr = newOverflowError("integer overflow")
+							} else {
+								arg = bytecodeBoxedIntegerI32Value(diff)
+							}
+						}
+					}
 				} else {
 					arg, handled, argErr = bytecodeSelfCallSubtractIntegerImmediateI32Fast(vm.slots[instr.argCount], rightImmediate)
 				}

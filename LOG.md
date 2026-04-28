@@ -13438,3 +13438,42 @@
 - Benchmarks: reduced `BenchmarkFib30BytecodeRuntimeOnly` landed at `125.87ms/op`, `127.84ms/op`, and `125.94ms/op`, so the keep is not claimed as a reduced-fib win. Aligned-style `fib_i32_small` bytecode-runtime confirmation landed at `9.89s/op` and `9.86s/op` across two 3-run bands, with a profiled one-shot at `9.77s/op`.
 - Profile shift: the aligned `preprofile` no longer shows the previous `execReturnBinaryIntAdd(...) -> execBinarySpecializedOpcode(...)` edge; return-add now reaches `bytecodeAddSmallI32PairFast(...)` directly on the hot path.
 - External compare: full external bytecode `fib(45)` was not rerun for this tranche; based on the `fib_i32_small` scale it likely still needs more aligned-path work before the `90s` timeout clears.
+
+# 2026-04-28 — Bytecode aligned fib inline raw self-call subtract (v12)
+- Bytecode VM: the fused raw-immediate recursive self-call path now performs
+  the small-`i32` subtract directly inside `execCallSelfIntSubSlotConst(...)`
+  before setting up the next minimal self-fast frame.
+- Semantics: overflow bounds, boxed integer reuse, typed-immediate fallback,
+  and generic non-`i32` fallback behavior are unchanged; only the already-
+  proven raw small-`i32` hot case skips the helper call.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(SelfCallSubtractIntegerImmediateI32RawFast|SelfCallSubtractIntegerImmediateI32Fast|LoweringEmitsFusedSelfCallSlotConstOpcode|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|PushSelfFastMinimalCallFrameUsesMinimalStacks|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|AddSmallI32PairFast|ReturnBinaryIntAddImplicitFinalExpressionParity|ReturnConstIfIntLessEqualSlotConstFastPath)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`.
+- Benchmarks: reduced `BenchmarkFib30BytecodeRuntimeOnly` landed at
+  `114.39ms/op`, `116.08ms/op`, and `122.80ms/op`. Aligned-style
+  `fib_i32_small` bytecode-runtime landed at `9.80s/op` over a 3-run band,
+  with a profiled one-shot at `9.61s/op`.
+- Profile shift: the aligned `preprofile` no longer shows
+  `execCallSelfIntSubSlotConst(...) -> bytecodeSelfCallSubtractIntegerImmediateI32RawFast(...)`;
+  the fused self-call path now reaches `bytecodeBoxedIntegerI32Value(...)`
+  directly after the inlined subtract.
+- External compare: full external bytecode `fib(45)` still times out at `90s`.
+
+# 2026-04-28 — Bytecode aligned fib minimal return-const coercion skip (v12)
+- Bytecode VM: the minimal self-fast return branch in `finishInlineReturn(...)`
+  now treats fused `bytecodeOpReturnConstIfIntLessEqualSlotConst` returns from
+  functions declared `i32` as already satisfying the return type, avoiding the
+  generic simple return-coercion probe on the aligned `if n <= 2 { return 1 }`
+  base case.
+- Lowering invariant: focused coverage now pins that the fused return-const
+  opcode stores its literal result as an `i32` value, so the skip is tied to the
+  opcode/lowering contract rather than a general return-type relaxation.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(SelfCallSubtractIntegerImmediateI32RawFast|SelfCallSubtractIntegerImmediateI32Fast|LoweringEmitsFusedSelfCallSlotConstOpcode|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|PushSelfFastMinimalCallFrameUsesMinimalStacks|PushCallFrameMaterializesMinimalSelfFastSuffix|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|AddSmallI32PairFast|ReturnBinaryIntAddImplicitFinalExpressionParity|LoweringEmitsReturnBinaryIntAddForImplicitFinalExpression|ReturnConstIfIntLessEqualSlotConstFastPath|ReturnIfIntLessEqualSlotConstSameSlotFastPath|LoweringEmitsReturnIfForIntLessEqualSlotConstStatement|LoweringEmitsReturnConstIfForIntLessEqualSlotConstStatement)|TestBytecodeProgramReturnGenericNamesCacheIncludesMethodSetGenerics|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`.
+- Benchmarks: reduced `BenchmarkFib30BytecodeRuntimeOnly` landed at
+  `118.01ms/op`, `113.15ms/op`, and `122.26ms/op`. Aligned-style
+  `fib_i32_small` bytecode-runtime landed at `9.33s/op` and `9.24s/op` across
+  two 3-run bands, with a profiled one-shot at `8.74s/op`.
+- Profile shift: the aligned `preprofile` shows
+  `finishInlineReturn(...) -> inlineCoercionUnnecessaryBySimpleCheck(...)`
+  dropping from the prior `39` sample range to `14` samples after the fused
+  base-case return skips that probe.
+- External compare: `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  still times out for full external bytecode `fib(45)`.
