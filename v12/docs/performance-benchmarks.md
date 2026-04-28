@@ -1409,3 +1409,318 @@ reduced wall is now more cleanly `execCallSelfIntSubSlotConst(...)`,
 `execBinary(...)`, `bytecodeSubtractIntegerImmediateI32Fast(...)`,
 `acquireSlotFrame(...)`, `finishInlineReturn(...)`, and residual run-loop
 dispatch.
+
+The next kept reduced-`fib` slice moved onto that residual return side.
+`v12/interpreters/go/pkg/interpreter/bytecode_slot_analysis.go` now caches a
+compact primitive return check on slot frame layouts, and
+`v12/interpreters/go/pkg/interpreter/bytecode_vm_return.go` uses that cached
+check in `finishInlineReturn(...)` before falling back to the older
+string-based simple-type helper or full return coercion. The reduced `fib`
+kernel's recursive `Int` returns therefore avoid re-running the string-based
+simple return helper on every unwind while preserving the existing fallback
+path for non-simple and mismatched values.
+
+That is another keep as a reduced recursion-kernel win rather than a full
+aligned benchmark fix. The prior refreshed warmed reduced
+`BenchmarkFib30Bytecode` band was `156.88ms/op`, `160.22ms/op`, and
+`163.96ms/op`. The first warmed reruns on the kept code landed at
+`155.13ms/op`, `153.92ms/op`, and `159.16ms/op`; the confirmation band landed
+at `150.43ms/op`, `157.63ms/op`, `156.45ms/op`, `150.28ms/op`, and
+`151.49ms/op`. A single profiled reduced run landed at `144.17ms/op`.
+Allocation shape stayed essentially unchanged at about `102 KB/op` and
+`863 allocs/op`. Aligned one-shot external bytecode `fib` still times out at
+`90s`. The remaining reduced wall is now most likely the self-call arithmetic
+and residual frame churn around `execCallSelfIntSubSlotConst(...)`,
+`execBinary(...)`, `bytecodeSubtractIntegerImmediateI32Fast(...)`,
+`acquireSlotFrame(...)`, and run-loop dispatch.
+
+The next kept reduced-`fib` slice stayed on the fused recursive self-call path
+and targeted the arithmetic setup for `fib(n - 1)` / `fib(n - 2)` directly.
+`v12/interpreters/go/pkg/interpreter/bytecode_vm_i32_fast.go` now exposes a
+self-call-only small-`i32` immediate subtract helper, and
+`v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go` uses that helper
+inside `execCallSelfIntSubSlotConst(...)` before falling back to the broader
+integer-immediate helper ladder. This keeps generic arithmetic fallback
+unchanged while letting the reduced recursive fast path compute its next
+argument without reopening the wider helper path.
+
+That is another keep as a reduced recursion-kernel win rather than a full
+aligned benchmark fix. The prior kept confirmation band after cached return
+checks was `150.43ms/op`, `157.63ms/op`, `156.45ms/op`, `150.28ms/op`, and
+`151.49ms/op`. The first warmed band on this tranche landed at
+`147.64ms/op`, `149.63ms/op`, and one noisy `172.81ms/op` outlier; the
+confirmation band then landed at `146.70ms/op`, `144.66ms/op`,
+`143.36ms/op`, `139.07ms/op`, and `143.54ms/op`. A single profiled reduced
+run landed at `137.87ms/op`. Allocation shape stayed essentially unchanged at
+about `102 KB/op` and `863-864 allocs/op`. Aligned one-shot external bytecode
+`fib` still times out at `90s`. The next reduced wall should be re-profiled,
+but likely remains in residual self-call frame setup,
+`execBinary(...)` result addition, `acquireSlotFrame(...)`, and run-loop
+dispatch rather than the immediate subtract ladder.
+
+The next reduced-`fib` maintenance tranche was intentionally behavior-neutral.
+The fused slot-const recursive self-call path moved out of
+`v12/interpreters/go/pkg/interpreter/bytecode_vm_calls.go` and into
+`v12/interpreters/go/pkg/interpreter/bytecode_vm_call_self_slot_const.go` so
+follow-up work can stay below the project file-size cap and avoid mixing
+call-dispatch edits with fused-recursion edits. `bytecode_vm_calls.go` dropped
+from `992` to `842` lines; the new focused file is `158` lines.
+
+Focused recursive/self-fast coverage stayed green, and the reduced
+`BenchmarkFib30Bytecode` check remained in the current kept band at
+`143.51ms/op`, `148.90ms/op`, and `148.58ms/op` with the same allocation
+shape. No aligned external run was needed for this organization-only split.
+The next performance tranche should start from the new fused self-call file
+and re-profile before trying more run-loop or frame-setup work.
+
+The next kept reduced-`fib` slice used that new fused self-call boundary to
+target the remaining size-2 frame acquisition edge. `v12/interpreters/go/pkg/
+interpreter/bytecode_vm_slot_frames.go` now exposes a dedicated
+`acquireSlotFrame2()` helper that mirrors the existing hot-pool semantics for
+exactly two-slot frames, and `bytecode_vm_call_self_slot_const.go` uses it
+only when the fused self-call frame layout is exactly two slots. All other
+layouts continue through the general `acquireSlotFrame(slotCount)` path.
+
+That is another keep as a reduced recursion-kernel win rather than a full
+aligned benchmark fix. The refreshed pre-change reduced
+`BenchmarkFib30Bytecode` band was `147.30ms/op`, `140.91ms/op`, and
+`150.88ms/op`. The first warmed band after the change landed at
+`135.60ms/op`, `136.34ms/op`, and `138.36ms/op`; the confirmation band landed
+at `139.26ms/op`, `140.10ms/op`, `138.69ms/op`, `138.53ms/op`, and
+`141.70ms/op`. A single profiled reduced run landed at `133.52ms/op`.
+Allocation shape stayed unchanged at about `102 KB/op` and `863-864
+allocs/op`. Aligned one-shot external bytecode `fib` still times out at
+`90s`. The small `preprofile` output no longer shows the earlier
+`execCallSelfIntSubSlotConst(...) -> acquireSlotFrame(...)` edge; remaining
+visible reduced samples sit around fused self-call dispatch, the conditional
+slot-const jump, `finishInlineReturn(...)`, and `execBinary(...)`.
+
+The next kept reduced-`fib` slice stayed on that residual conditional
+slot-const jump path. `v12/interpreters/go/pkg/interpreter/bytecode_vm_ops.go`
+now gives `execJumpIfIntLessEqualSlotConstFalse(...)` a dedicated direct
+small-integer `<=` immediate helper. That keeps the fused `if n <= const`
+condition out of the generic `bytecodeDirectIntegerCompare("<=", ...)` helper
+and avoids constructing a `BoolValue` just so the conditional jump can read it
+back immediately. Generic binary comparisons still use the broader helper and
+fallback ladder.
+
+That is another keep as a reduced recursion-kernel win rather than a full
+aligned benchmark fix. The refreshed pre-change reduced
+`BenchmarkFib30Bytecode` checks landed at `135.15ms/op` for a 3x warmed run
+and `141.27ms/op` for the profiled one-shot. The first warmed band after the
+change landed at `130.38ms/op`, `141.41ms/op`, and `140.29ms/op`; the
+confirmation band landed at `138.06ms/op`, `137.32ms/op`, `136.52ms/op`,
+`134.52ms/op`, and `136.98ms/op`. A single profiled reduced run landed at
+`135.38ms/op`. Aligned one-shot external bytecode `fib` still times out at
+`90s`. The small `preprofile` output no longer shows the earlier
+`execJumpIfIntLessEqualSlotConstFalse(...) -> bytecodeDirectIntegerCompare(...)`
+edge; remaining visible reduced samples sit around fused self-call dispatch,
+add/binary execution, inline return, and residual conditional jump dispatch.
+
+The next reduced-`fib` tranche deliberately improved measurement instead of
+changing the VM hot path. `v12/interpreters/go/pkg/interpreter/fib_bench_test.go`
+now includes `BenchmarkFib30BytecodeRuntimeOnly`, which parses/evaluates the
+reduced `fib` function once, validates a warmup `fib(30) == 832040`, and then
+repeatedly calls that same bytecode function on the same interpreter. The
+existing `BenchmarkFib30Bytecode` remains the end-to-end reduced check that
+builds a fresh interpreter and evaluates the module each iteration.
+
+The first side-by-side check showed why this separation matters:
+end-to-end `BenchmarkFib30Bytecode` landed at `138.59ms/op` and
+`136.27ms/op` with about `102 KB/op` and `863-864 allocs/op`, while
+`BenchmarkFib30BytecodeRuntimeOnly` landed at `130.76ms/op` and
+`144.90ms/op` with effectively zero steady-state allocations. The broader
+runtime-only warmed band landed at `134.48ms/op`, `129.18ms/op`,
+`135.39ms/op`, `139.44ms/op`, and `130.13ms/op`; the profiled one-shot landed
+at `135.83ms/op`, and a post-assertion one-shot landed at `128.88ms/op`. The
+runtime-only `preprofile` now points directly at VM runtime edges:
+`execCallSelfIntSubSlotConst(...)`, `bytecodeSelfCallSubtractIntegerImmediateI32Fast(...)`,
+`execJumpIfIntLessEqualSlotConstFalse(...)`, `execBinary(...)`, and the
+remaining `finishInlineReturn(...)` sample.
+
+The next runtime-only reduced-`fib` slice used that isolated benchmark to
+target the sampled self-call subtract helper itself. Since
+`bytecodeSelfCallSubtractIntegerImmediateI32Fast(...)` only handles operands
+that have already been proven small `i32`, it no longer calls the generic
+`subInt64Overflow(...)` helper before checking the `i32` bounds. The observable
+overflow behavior is preserved by the existing `math.MinInt32` /
+`math.MaxInt32` check, so `i32` underflow still reports the same overflow
+error and non-`i32` shapes still miss this self-call helper.
+
+That is a runtime-only reduced recursion-kernel keep. The runtime-only
+baseline before the change landed at `133.10ms/op`, `127.21ms/op`, and
+`130.93ms/op`. The first warmed band after the change landed at
+`132.47ms/op`, `129.62ms/op`, `126.40ms/op`, `128.22ms/op`, and
+`126.96ms/op`; confirmation landed at `134.12ms/op`, `135.39ms/op`,
+`128.00ms/op`, `135.33ms/op`, and `130.16ms/op`; the profiled one-shot landed
+at `128.22ms/op`. A temporary restored A/B band with the old helper landed
+much slower at `156.25-180.87ms/op`, so the direct subtract helper change is
+kept despite the normal reduced-fib timing noise. The runtime-only profile now
+still points at `execCallSelfIntSubSlotConst(...)`, `finishInlineReturn(...)`,
+the fused conditional jump, and the residual binary add/boxing path as the
+remaining work.
+
+The next reduced-`fib` control-flow tranche fused the base-case return shape
+itself. Statement-position `if slot <= const { return slot }` now lowers to
+`bytecodeOpReturnIfIntLessEqualSlotConst`, so the reduced `fib` base case no
+longer executes a standalone slot-const conditional jump followed by a separate
+slot load and return dispatch. Expression-position `if` lowering and
+non-returning statement `if` behavior continue through the existing paths.
+
+That is a runtime-only reduced recursion-kernel keep. The first warmed band
+after the change landed at `122.95ms/op`, `127.64ms/op`, `128.59ms/op`,
+`133.48ms/op`, and `124.78ms/op`; confirmation landed at `136.10ms/op`,
+`125.41ms/op`, `132.00ms/op`, `132.53ms/op`, and `135.25ms/op`; the profiled
+one-shot landed at `136.73ms/op`. The small runtime-only `preprofile` now
+shows `runResumable(...) -> execReturnIfIntLessEqualSlotConst(...)` in place
+of the older standalone `execJumpIfIntLessEqualSlotConstFalse(...)` base-case
+edge. The remaining reduced wall is back on fused self-call dispatch,
+`finishInlineReturn(...)`, and residual binary add/small-integer handling.
+
+The next kept follow-on narrowed that fused return-if opcode further for the
+exact same-slot shape emitted by reduced `fib`: `if n <= const { return n }`.
+When the condition slot and return slot are identical and the opcode already
+carries a typed integer immediate, `execReturnIfIntLessEqualSlotConst(...)`
+now compares the already-read slot value directly, returns it on the true path,
+and advances `ip` on the false path. Other shapes still use the existing
+return-if fallback.
+
+This is another small runtime-only reduced recursion-kernel keep. The
+refreshed return-if baseline landed at `140.33ms/op`, `130.53ms/op`,
+`138.43ms/op`, `128.59ms/op`, and `131.46ms/op`. The same-slot fast path first
+kept band landed at `133.12ms/op`, `131.19ms/op`, `122.67ms/op`,
+`129.81ms/op`, and `132.06ms/op`; confirmation landed at `138.89ms/op`,
+`123.58ms/op`, `132.05ms/op`, `125.71ms/op`, and `127.26ms/op`. A temporary
+restored A/B check with the same-slot block removed regressed to
+`155.13ms/op`, `140.63ms/op`, `146.91ms/op`, `137.47ms/op`, and
+`136.60ms/op`, so the fast path is retained despite the noisy profiled
+one-shot. The next reduced profile should start again from fused self-call
+dispatch, inline return, and the binary add/small-integer path.
+
+The next kept run-loop tranche removed one of the helper edges introduced
+during the return-if split. `bytecodeOpReturnIfIntLessEqualSlotConst` is now
+handled inline in `runResumable(...)` again, while cold placeholder
+lambda/value execution moved to `bytecode_vm_placeholder.go` so
+`bytecode_vm_run.go` remains below the project line cap. A narrower
+self-call-only fixed-cache boxing bypass was tested first, but it regressed
+the runtime-only band to `139.98-153.20ms/op` and was reverted.
+
+The refreshed runtime-only baseline before this tranche landed at
+`125.49ms/op`, `125.65ms/op`, `139.05ms/op`, `128.96ms/op`, and
+`128.07ms/op`, with a profiled one-shot at `140.06ms/op`. The inline
+return-if/cold-placeholder split first clean band landed at `131.03ms/op`,
+`137.89ms/op`, `129.69ms/op`, `134.66ms/op`, and `136.04ms/op`; the quiet
+confirmation band landed at `130.60ms/op`, `127.63ms/op`, `130.90ms/op`,
+`128.78ms/op`, and `132.06ms/op`; the profiled one-shot landed at
+`144.56ms/op`. End-to-end reduced `BenchmarkFib30Bytecode` one-shots landed
+at `130.39ms/op`, `132.60ms/op`, and `131.84ms/op`. The final small
+runtime-only `preprofile` no longer shows the removed
+`runReturnIfIntLessEqualSlotConst(...)` wrapper. The next tranche should start
+from the remaining fused self-call dispatch, `finishInlineReturn(...)`, and
+binary add/small-integer samples.
+
+The next runtime-only reduced-`fib` tranche targeted the unwind side of that
+same minimal self-fast recursion path. `bytecode_vm_slot_frames.go` now has a
+dedicated `releaseSlotFrame2(...)` helper for exact two-slot frames, and
+`finishInlineReturn(...)` uses it only when the active frame layout proves the
+callee frame has exactly two slots. This is intentionally different from the
+rejected frame-clear elision probe: both slots are still eagerly cleared before
+the frame returns to the hot pool.
+
+The refreshed runtime-only baseline before the change landed at
+`137.61ms/op`, `126.62ms/op`, `127.97ms/op`, `127.92ms/op`, and
+`129.67ms/op`, with a profiled one-shot at `132.08ms/op`. The first kept band
+after the change landed at `112.96ms/op`, `113.63ms/op`, `119.86ms/op`,
+`127.98ms/op`, and `125.08ms/op`; the confirmation band landed at
+`114.67ms/op`, `111.05ms/op`, `111.15ms/op`, `117.82ms/op`, and
+`111.43ms/op`; the profiled one-shot landed at `118.84ms/op`. The tiny
+runtime-only `preprofile` no longer shows the old
+`finishInlineReturn(...) -> releaseSlotFrame(...)` edge. The next tranche
+should start from fused self-call setup, the residual `finishInlineReturn(...)`
+coercion check, and the binary add/small-integer samples.
+
+The next runtime-only reduced-`fib` tranche fused the final implicit add-return
+shape. A node-less implicit `BinaryIntAdd` followed by `Return` now lowers to
+`bytecodeOpReturnBinaryIntAdd`; the following return instruction is left in
+place but becomes unreachable, preserving existing jump targets. The VM uses
+the existing specialized add helper and returns the result directly instead of
+replacing the top two stack values and dispatching the next return opcode.
+Explicit `return expr + expr` shapes remain on the existing path.
+
+This is a small runtime-only reduced recursion-kernel keep. The same-load
+pre-change runtime-only baseline landed at `116.06ms/op`, `118.25ms/op`, and
+`116.52ms/op`. The first fused band landed at `118.64ms/op`, `121.93ms/op`,
+`116.23ms/op`, `115.53ms/op`, and `115.04ms/op`; the longer fused band landed
+at `111.70ms/op`, `112.49ms/op`, `120.25ms/op`, `125.21ms/op`,
+`111.48ms/op`, `111.92ms/op`, `114.35ms/op`, and `109.11ms/op`. A temporary
+no-fusion control under the same host load landed at `119.59ms/op`,
+`123.21ms/op`, `113.04ms/op`, `117.74ms/op`, and `113.97ms/op`; restored
+fused confirmation landed at `115.48ms/op`, `110.36ms/op`, `109.40ms/op`,
+`110.87ms/op`, and `112.25ms/op`. The profiled one-shot landed at
+`123.82ms/op`, and the tiny runtime-only `preprofile` now shows
+`runResumable(...) -> execReturnBinaryIntAdd(...)` rather than a standalone
+final recursive `execBinary(...)` sample. The next tranche should start from
+fused self-call setup, `finishInlineReturn(...)` coercion checks, and the
+remaining call-frame/slot state churn rather than another generic add-dispatch
+rewrite.
+
+The next kept tranche pivoted from the reduced `fib(30)` shape to the real
+aligned external benchmark shape. The checked-in external benchmark is
+`fib(45)` over `i32` with `if n <= 2 { return 1 }`, so the earlier fused
+`return slot` base-case opcode did not apply. Statement-position
+`if slot <= const { return small_i32_const }` now lowers to
+`bytecodeOpReturnConstIfIntLessEqualSlotConst`, which returns the encoded
+small `i32` constant directly after the same direct slot/immediate comparison
+used by the other fused slot-const conditional paths.
+
+This is an aligned-shape keep, not a full external timeout fix yet. The
+current reduced `BenchmarkFib30BytecodeRuntimeOnly` baseline before the change
+landed at `109.57-116.54ms/op`; after the change it landed at `113.40ms/op`,
+`116.23ms/op`, and `119.29ms/op`, so the already-optimized reduced path is
+effectively unchanged. The aligned-style `fib_i32_small` bytecode-runtime
+fixture landed at `10.56s/op` across three fused runs and `10.58s/op` on
+restored fused confirmation. A temporary no-fusion control under the same
+fixture landed at `12.59s/op`, which is enough to keep the opcode. The full
+external bytecode `fib(45)` run still times out at `90s`; the next tranche
+should stay on aligned-fib residual overhead rather than another reduced
+`fib(30)` branch unless a fresh profile says otherwise.
+
+The next aligned-fib tranche targeted a repeated object-immediate probe rather
+than another frame-setup branch. Lowered slot-const instructions now keep a raw
+`int64` immediate beside the existing typed `runtime.IntegerValue`. The typed
+value remains the semantic fallback path, while fused self-call subtract,
+return-const base-case, and conditional slot-const helpers can use the raw
+value after lowering has already proven the literal is a small default `i32`
+immediate.
+
+This is another aligned-shape keep. A profiled `fib_i32_small` run before the
+change showed samples in `bytecodeSelfCallSubtractIntegerImmediateI32Fast(...)`
+and `bytecodeDirectIntegerLessEqualImmediate(...)` from repeatedly unpacking
+the same instruction immediate. With raw immediates enabled, aligned-style
+`fib_i32_small` bytecode-runtime runs landed at `9.94s/op`, `10.37s/op`, and
+`10.18s/op`; a temporary no-raw control under the same code shape landed at
+`10.49s/op`; restored raw confirmation landed at `9.49s/op`. Reduced
+`BenchmarkFib30BytecodeRuntimeOnly` landed at `118.38-126.67ms/op`, so the
+change is kept for the aligned benchmark path rather than claimed as a reduced
+`fib(30)` win. The next profile should start from fused self-call setup,
+`bytecodeAddSmallI32PairFast(...)`, and `finishInlineReturn(...)`; the raw
+immediate probe itself should no longer be the first thing to chase.
+
+The next aligned-fib tranche specialized the already-fused implicit return-add
+opcode for functions declared `i32`. When lowering sees a node-less final
+`BinaryIntAdd` followed by the implicit `Return` inside an `i32` function, it
+now emits `bytecodeOpReturnBinaryIntAddI32`. That opcode tries the direct
+small-`i32` add path first, then falls back to the existing generic return-add
+semantics for unexpected operand shapes.
+
+This is an aligned-shape keep, not a reduced `fib(30)` win. The reduced
+`BenchmarkFib30BytecodeRuntimeOnly` sanity band landed at `125.87ms/op`,
+`127.84ms/op`, and `125.94ms/op`. The aligned-style `fib_i32_small`
+bytecode-runtime fixture landed at `9.89s/op` and `9.86s/op` across two
+3-run confirmation bands, with a profiled one-shot at `9.77s/op`. The
+aligned `preprofile` no longer shows the old
+`execReturnBinaryIntAdd(...) -> execBinarySpecializedOpcode(...)` edge;
+return-add now reaches `bytecodeAddSmallI32PairFast(...)` directly on the hot
+path. The next profile should start from fused self-call setup,
+`execReturnConstIfIntLessEqualSlotConst(...)`, `finishInlineReturn(...)`, and
+the remaining direct small-`i32` pair extraction/boxing costs.

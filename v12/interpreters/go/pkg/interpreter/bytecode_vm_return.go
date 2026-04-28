@@ -12,7 +12,9 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 	if vm != nil && vm.selfFastMinimalSuffix > 0 {
 		if activeProgram != nil && activeProgram.frameLayout != nil && activeProgram.frameLayout.returnType != nil {
 			noCoercion := false
-			if activeProgram.frameLayout.returnSimpleType != "" {
+			if activeProgram.frameLayout.returnSimpleCheck != bytecodeSimpleTypeCheckUnknown {
+				noCoercion = inlineCoercionUnnecessaryBySimpleCheck(activeProgram.frameLayout.returnSimpleCheck, val)
+			} else if activeProgram.frameLayout.returnSimpleType != "" {
 				noCoercion = inlineCoercionUnnecessaryBySimpleType(activeProgram.frameLayout.returnSimpleType, val)
 			} else {
 				noCoercion = inlineCoercionUnnecessary(activeProgram.frameLayout.returnType, val)
@@ -41,7 +43,11 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 		calleeSlots := vm.slots
 		vm.ip = returnIP
 		vm.slots = returnSlots
-		vm.releaseSlotFrame(calleeSlots)
+		if activeProgram != nil && activeProgram.frameLayout != nil && activeProgram.frameLayout.slotCount == 2 {
+			vm.releaseSlotFrame2(calleeSlots)
+		} else {
+			vm.releaseSlotFrame(calleeSlots)
+		}
 		vm.stack = append(vm.stack, val)
 		return nil
 	}
@@ -49,7 +55,9 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 	returnGenericNames := vm.peekReturnGenericNames()
 	if activeProgram != nil && activeProgram.frameLayout != nil && activeProgram.frameLayout.returnType != nil {
 		noCoercion := false
-		if activeProgram.frameLayout.returnSimpleType != "" {
+		if activeProgram.frameLayout.returnSimpleCheck != bytecodeSimpleTypeCheckUnknown {
+			noCoercion = inlineCoercionUnnecessaryBySimpleCheck(activeProgram.frameLayout.returnSimpleCheck, val)
+		} else if activeProgram.frameLayout.returnSimpleType != "" {
 			noCoercion = inlineCoercionUnnecessaryBySimpleType(activeProgram.frameLayout.returnSimpleType, val)
 		} else {
 			noCoercion = inlineCoercionUnnecessary(activeProgram.frameLayout.returnType, val)
@@ -95,4 +103,29 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 	vm.releaseSlotFrame(calleeSlots)
 	vm.stack = append(vm.stack, val)
 	return nil
+}
+
+func (vm *bytecodeVM) execReturnBinaryIntAdd(instr *bytecodeInstruction) (runtime.Value, error) {
+	if len(vm.stack) < 2 {
+		return nil, fmt.Errorf("bytecode stack underflow")
+	}
+	rightIdx := len(vm.stack) - 1
+	right := vm.stack[rightIdx]
+	leftIdx := rightIdx - 1
+	left := vm.stack[leftIdx]
+	if instr.op == bytecodeOpReturnBinaryIntAddI32 {
+		if val, handled, err := bytecodeAddSmallI32PairFast(left, right); handled {
+			vm.stack = vm.stack[:leftIdx]
+			return val, err
+		}
+	}
+	val, handled, err := vm.execBinarySpecializedOpcode(instr, left, right)
+	if !handled && err == nil {
+		err = fmt.Errorf("bytecode return-add opcode missing add handler")
+	}
+	if err != nil {
+		return nil, err
+	}
+	vm.stack = vm.stack[:leftIdx]
+	return val, nil
 }

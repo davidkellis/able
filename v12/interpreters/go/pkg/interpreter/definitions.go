@@ -173,6 +173,7 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 		return nil, err
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
+	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, layout)
 	layout.slotCount = ctx.nextSlot
 	return &bytecodeProgram{instructions: ctx.instructions, frameLayout: layout}, nil
 }

@@ -35,7 +35,9 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			target:          slot,
 			value:           imm,
 			intImmediate:    imm,
+			intImmediateRaw: litVal,
 			hasIntImmediate: true,
+			hasIntRaw:       true,
 			operator:        expr.Operator,
 			node:            expr,
 		}, true
@@ -45,7 +47,9 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			target:          slot,
 			value:           imm,
 			intImmediate:    imm,
+			intImmediateRaw: litVal,
 			hasIntImmediate: true,
+			hasIntRaw:       true,
 			operator:        expr.Operator,
 			node:            expr,
 		}, true
@@ -55,7 +59,9 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			target:          slot,
 			value:           imm,
 			intImmediate:    imm,
+			intImmediateRaw: litVal,
 			hasIntImmediate: true,
+			hasIntRaw:       true,
 			operator:        expr.Operator,
 			node:            expr,
 		}, true
@@ -79,8 +85,60 @@ func bytecodeJumpIfFalseBinarySlotConstInstruction(ctx *bytecodeLoweringContext,
 		argCount:        instr.target,
 		value:           instr.value,
 		intImmediate:    instr.intImmediate,
+		intImmediateRaw: instr.intImmediateRaw,
 		hasIntImmediate: instr.hasIntImmediate,
+		hasIntRaw:       instr.hasIntRaw,
 		operator:        instr.operator,
 		node:            instr.node,
 	}, true
+}
+
+func bytecodeReturnIfBinarySlotConstInstruction(ctx *bytecodeLoweringContext, condition ast.Expression, body *ast.BlockExpression) (bytecodeInstruction, bool) {
+	if ctx == nil || body == nil || len(body.Body) != 1 {
+		return bytecodeInstruction{}, false
+	}
+	ret, ok := body.Body[0].(*ast.ReturnStatement)
+	if !ok || ret == nil {
+		return bytecodeInstruction{}, false
+	}
+	instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, condition)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	if returnIdent, ok := ret.Argument.(*ast.Identifier); ok && returnIdent != nil {
+		returnSlot, found := ctx.lookupSlot(returnIdent.Name)
+		if !found {
+			return bytecodeInstruction{}, false
+		}
+		return bytecodeInstruction{
+			op:              bytecodeOpReturnIfIntLessEqualSlotConst,
+			target:          returnSlot,
+			argCount:        instr.argCount,
+			value:           instr.value,
+			intImmediate:    instr.intImmediate,
+			intImmediateRaw: instr.intImmediateRaw,
+			hasIntImmediate: instr.hasIntImmediate,
+			hasIntRaw:       instr.hasIntRaw,
+			operator:        instr.operator,
+			node:            ret,
+		}, true
+	}
+	if lit, ok := ret.Argument.(*ast.IntegerLiteral); ok && lit != nil && lit.Value != nil && lit.IntegerType == nil && lit.Value.IsInt64() {
+		litVal := lit.Value.Int64()
+		if litVal >= math.MinInt32 && litVal <= math.MaxInt32 {
+			return bytecodeInstruction{
+				op:              bytecodeOpReturnConstIfIntLessEqualSlotConst,
+				target:          -1,
+				argCount:        instr.argCount,
+				value:           runtime.NewSmallInt(litVal, runtime.IntegerI32),
+				intImmediate:    instr.intImmediate,
+				intImmediateRaw: instr.intImmediateRaw,
+				hasIntImmediate: instr.hasIntImmediate,
+				hasIntRaw:       instr.hasIntRaw,
+				operator:        instr.operator,
+				node:            ret,
+			}, true
+		}
+	}
+	return bytecodeInstruction{}, false
 }

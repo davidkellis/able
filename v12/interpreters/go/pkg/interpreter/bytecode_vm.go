@@ -77,11 +77,15 @@ const (
 	bytecodeOpJump
 	bytecodeOpJumpIfFalse
 	bytecodeOpJumpIfIntLessEqualSlotConstFalse
+	bytecodeOpReturnIfIntLessEqualSlotConst
+	bytecodeOpReturnConstIfIntLessEqualSlotConst
 	bytecodeOpJumpIfNil
 	bytecodeOpLoopEnter
 	bytecodeOpLoopExit
 	bytecodeOpEnterScope
 	bytecodeOpExitScope
+	bytecodeOpReturnBinaryIntAddI32
+	bytecodeOpReturnBinaryIntAdd
 	bytecodeOpReturn
 	bytecodeOpLoadSlot
 	bytecodeOpStoreSlot

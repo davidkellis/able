@@ -368,65 +368,12 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.ip++
 			}
 		case bytecodeOpPlaceholderLambda:
-			{
-				expr, ok := instr.node.(ast.Expression)
-				if !ok || expr == nil {
-					return nil, fmt.Errorf("bytecode placeholder lambda expects expression node")
-				}
-				program, err := vm.interp.lowerExpressionToBytecodeWithOptions(expr, false)
-				if err != nil {
-					return nil, err
-				}
-				state := vm.interp.stateFromEnv(vm.env)
-				if state.hasPlaceholderFrame() {
-					innerVM := vm.interp.acquireBytecodeVM(vm.env)
-					val, err := innerVM.run(program)
-					vm.interp.releaseBytecodeVM(innerVM)
-					if err != nil {
-						return nil, err
-					}
-					if val == nil {
-						val = runtime.NilValue{}
-					}
-					vm.stack = append(vm.stack, val)
-					vm.ip++
-					break
-				}
-				if instr.argCount <= 0 {
-					return nil, fmt.Errorf("bytecode placeholder lambda missing arity")
-				}
-				closure := &placeholderClosure{
-					interpreter: vm.interp,
-					expression:  expr,
-					env:         vm.env,
-					plan:        placeholderPlan{paramCount: instr.argCount},
-					bytecode:    program,
-				}
-				fn := runtime.NativeFunctionValue{
-					Name:  "<placeholder>",
-					Arity: instr.argCount,
-					Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-						return closure.invoke(args)
-					},
-				}
-				vm.stack = append(vm.stack, fn)
-				vm.ip++
+			if err := vm.execPlaceholderLambda(instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpPlaceholderValue:
-			{
-				placeholderExpr, ok := instr.node.(*ast.PlaceholderExpression)
-				if !ok || placeholderExpr == nil {
-					return nil, fmt.Errorf("bytecode placeholder value expects placeholder expression")
-				}
-				val, err := vm.interp.evaluatePlaceholderExpression(placeholderExpr, vm.env)
-				if err != nil {
-					return nil, err
-				}
-				if val == nil {
-					val = runtime.NilValue{}
-				}
-				vm.stack = append(vm.stack, val)
-				vm.ip++
+			if err := vm.execPlaceholderValue(instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpMakeFunction:
 			{
@@ -901,6 +848,42 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					return nil, err
 				}
 			}
+		case bytecodeOpReturnIfIntLessEqualSlotConst, bytecodeOpReturnConstIfIntLessEqualSlotConst:
+			{
+				var (
+					val      runtime.Value
+					returned bool
+					err      error
+				)
+				if instr.op == bytecodeOpReturnConstIfIntLessEqualSlotConst {
+					val, returned, err = vm.execReturnConstIfIntLessEqualSlotConst(instr, slotConstIntImmTable)
+				} else {
+					val, returned, err = vm.execReturnIfIntLessEqualSlotConst(instr, slotConstIntImmTable)
+				}
+				if err != nil {
+					err = vm.interp.wrapStandardRuntimeError(err)
+					if instr.node != nil {
+						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						if vm.handleLoopSignal(err) {
+							continue
+						}
+					}
+					return nil, err
+				}
+				if !returned {
+					continue
+				}
+				if vm.hasCallFrames() {
+					if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr, val); err != nil {
+						return nil, err
+					}
+					continue
+				}
+				if instr.node != nil {
+					return nil, returnSignal{value: val, node: instr.node}
+				}
+				return val, nil
+			}
 		case bytecodeOpJumpIfNil:
 			{
 				cond, err := vm.pop()
@@ -946,6 +929,27 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				}
 			}
 			vm.ip++
+		case bytecodeOpReturnBinaryIntAdd, bytecodeOpReturnBinaryIntAddI32:
+			{
+				val, err := vm.execReturnBinaryIntAdd(instr)
+				if err != nil {
+					err = vm.interp.wrapStandardRuntimeError(err)
+					if instr.node != nil {
+						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						if vm.handleLoopSignal(err) {
+							continue
+						}
+					}
+					return nil, err
+				}
+				if vm.hasCallFrames() {
+					if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, nil, val); err != nil {
+						return nil, err
+					}
+					continue
+				}
+				return val, nil
+			}
 		case bytecodeOpLoadSlot:
 			vm.stack = append(vm.stack, vm.slots[instr.target])
 			vm.ip++

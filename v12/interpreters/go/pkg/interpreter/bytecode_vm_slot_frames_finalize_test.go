@@ -3,6 +3,8 @@ package interpreter
 import (
 	"errors"
 	"testing"
+
+	"able/interpreter-go/pkg/runtime"
 )
 
 func TestBytecodeVMReleaseCompletedRunFramesReleasesActiveSlots(t *testing.T) {
@@ -75,6 +77,47 @@ func TestBytecodeVMAcquireSlotFramePrefillsHotBatchForSmallLayouts(t *testing.T)
 	}
 	if len(vm.slotFrameHotPool) != bytecodeSlotFrameBatchSize-1 {
 		t.Fatalf("expected hot slot frame pool size %d after batch prefill, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameHotPool))
+	}
+}
+
+func TestBytecodeVMAcquireSlotFrame2UsesHotBatch(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+
+	acquired := vm.acquireSlotFrame2()
+	if len(acquired) != 2 {
+		t.Fatalf("expected acquired slot frame length 2, got %d", len(acquired))
+	}
+	if vm.slotFrameHotSize != 2 {
+		t.Fatalf("expected hot slot frame size 2, got %d", vm.slotFrameHotSize)
+	}
+	if len(vm.slotFrameHotPool) != bytecodeSlotFrameBatchSize-1 {
+		t.Fatalf("expected hot slot frame pool size %d after size-2 prefill, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameHotPool))
+	}
+
+	vm.releaseSlotFrame(acquired)
+	reacquired := vm.acquireSlotFrame2()
+	if len(reacquired) != 2 || &reacquired[0] != &acquired[0] {
+		t.Fatalf("expected size-2 frame to round-trip through hot pool")
+	}
+}
+
+func TestBytecodeVMReleaseSlotFrame2ClearsAndReusesHotPool(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+
+	acquired := vm.acquireSlotFrame2()
+	acquired[0] = runtime.StringValue{Val: "left"}
+	acquired[1] = runtime.StringValue{Val: "right"}
+
+	vm.releaseSlotFrame2(acquired)
+	if acquired[0] != nil || acquired[1] != nil {
+		t.Fatalf("expected releaseSlotFrame2 to clear both slots, got %#v", acquired)
+	}
+
+	reacquired := vm.acquireSlotFrame2()
+	if len(reacquired) != 2 || &reacquired[0] != &acquired[0] {
+		t.Fatalf("expected size-2 frame to round-trip through dedicated release path")
 	}
 }
 

@@ -58,6 +58,55 @@ func (vm *bytecodeVM) acquireSlotFrame(slotCount int) []runtime.Value {
 	return make([]runtime.Value, slotCount)
 }
 
+func (vm *bytecodeVM) acquireSlotFrame2() []runtime.Value {
+	if vm == nil {
+		return make([]runtime.Value, 2)
+	}
+	if vm.slotFrameHotSize == 2 && len(vm.slotFrameHotPool) > 0 {
+		idx := len(vm.slotFrameHotPool) - 1
+		slots := vm.slotFrameHotPool[idx]
+		vm.slotFrameHotPool = vm.slotFrameHotPool[:idx]
+		return slots
+	}
+	if vm.slotFramePool != nil {
+		if frames := vm.slotFramePool[2]; len(frames) > 0 {
+			idx := len(frames) - 1
+			slots := frames[idx]
+			vm.slotFramePool[2] = frames[:idx]
+			return slots
+		}
+	}
+	if vm.slotFrameHotSize != 0 && vm.slotFrameHotSize != 2 {
+		vm.spillHotSlotFrames()
+	}
+	backing := make([]runtime.Value, 2*bytecodeSlotFrameBatchSize)
+	first := backing[:2:2]
+	vm.slotFrameHotSize = 2
+	for idx := bytecodeSlotFrameBatchSize - 1; idx >= 1; idx-- {
+		start := idx * 2
+		slots := backing[start : start+2 : start+2]
+		vm.slotFrameHotPool = append(vm.slotFrameHotPool, slots)
+	}
+	return first
+}
+
+func (vm *bytecodeVM) releaseSlotFrame2(slots []runtime.Value) {
+	if vm == nil {
+		return
+	}
+	slots[0] = nil
+	slots[1] = nil
+	if vm.slotFrameHotSize == 0 || vm.slotFrameHotSize == 2 {
+		vm.slotFrameHotSize = 2
+		vm.slotFrameHotPool = append(vm.slotFrameHotPool, slots)
+		return
+	}
+	if vm.slotFramePool == nil {
+		vm.slotFramePool = make(map[int][][]runtime.Value, 1)
+	}
+	vm.slotFramePool[2] = append(vm.slotFramePool[2], slots)
+}
+
 func (vm *bytecodeVM) releaseSlotFrame(slots []runtime.Value) {
 	if vm == nil || len(slots) == 0 {
 		return

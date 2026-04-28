@@ -41,7 +41,9 @@ func bytecodeSelfCallSlotConstInstruction(ctx *bytecodeLoweringContext, call *as
 		argCount:        argInstr.target,
 		value:           argInstr.value,
 		intImmediate:    argInstr.intImmediate,
+		intImmediateRaw: argInstr.intImmediateRaw,
 		hasIntImmediate: argInstr.hasIntImmediate,
+		hasIntRaw:       argInstr.hasIntRaw,
 		node:            call,
 	}, true
 }
