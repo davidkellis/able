@@ -6,14 +6,16 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions *[]bytecodeInstruction, validatedIntConsts *[]bool, slotConstIntImmTable **bytecodeSlotConstIntImmediateTable, instr *bytecodeInstruction, val runtime.Value) error {
+func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions *[]bytecodeInstruction, validatedIntConsts *[]bool, slotConstIntImmTable **bytecodeSlotConstIntImmediateTable, instr *bytecodeInstruction, val runtime.Value, knownReturnSimple bytecodeSimpleTypeCheck) error {
 	activeProgram := *program
 
 	if vm != nil && vm.selfFastMinimalSuffix > 0 {
 		if activeProgram != nil && activeProgram.frameLayout != nil && activeProgram.frameLayout.returnType != nil {
 			layout := activeProgram.frameLayout
 			noCoercion := false
-			if instr != nil && instr.op == bytecodeOpReturnConstIfIntLessEqualSlotConst && layout.returnSimpleCheck == bytecodeSimpleTypeCheckI32 {
+			if knownReturnSimple != bytecodeSimpleTypeCheckUnknown && knownReturnSimple == layout.returnSimpleCheck {
+				noCoercion = true
+			} else if instr != nil && instr.op == bytecodeOpReturnConstIfIntLessEqualSlotConst && layout.returnSimpleCheck == bytecodeSimpleTypeCheckI32 {
 				noCoercion = true
 			} else if layout.returnSimpleCheck != bytecodeSimpleTypeCheckUnknown {
 				noCoercion = inlineCoercionUnnecessaryBySimpleCheck(layout.returnSimpleCheck, val)
@@ -58,7 +60,9 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 	returnGenericNames := vm.peekReturnGenericNames()
 	if activeProgram != nil && activeProgram.frameLayout != nil && activeProgram.frameLayout.returnType != nil {
 		noCoercion := false
-		if activeProgram.frameLayout.returnSimpleCheck != bytecodeSimpleTypeCheckUnknown {
+		if knownReturnSimple != bytecodeSimpleTypeCheckUnknown && knownReturnSimple == activeProgram.frameLayout.returnSimpleCheck {
+			noCoercion = true
+		} else if activeProgram.frameLayout.returnSimpleCheck != bytecodeSimpleTypeCheckUnknown {
 			noCoercion = inlineCoercionUnnecessaryBySimpleCheck(activeProgram.frameLayout.returnSimpleCheck, val)
 		} else if activeProgram.frameLayout.returnSimpleType != "" {
 			noCoercion = inlineCoercionUnnecessaryBySimpleType(activeProgram.frameLayout.returnSimpleType, val)
@@ -108,18 +112,22 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 	return nil
 }
 
-func (vm *bytecodeVM) execReturnBinaryIntAdd(instr *bytecodeInstruction) (runtime.Value, error) {
+func (vm *bytecodeVM) execReturnBinaryIntAdd(instr *bytecodeInstruction) (runtime.Value, bytecodeSimpleTypeCheck, error) {
 	if len(vm.stack) < 2 {
-		return nil, fmt.Errorf("bytecode stack underflow")
+		return nil, bytecodeSimpleTypeCheckUnknown, fmt.Errorf("bytecode stack underflow")
 	}
 	rightIdx := len(vm.stack) - 1
 	right := vm.stack[rightIdx]
 	leftIdx := rightIdx - 1
 	left := vm.stack[leftIdx]
 	if instr.op == bytecodeOpReturnBinaryIntAddI32 {
+		if val, handled, err := bytecodeReturnAddSmallI32ValuePairFast(left, right); handled {
+			vm.stack = vm.stack[:leftIdx]
+			return val, bytecodeSimpleTypeCheckI32, err
+		}
 		if val, handled, err := bytecodeAddSmallI32PairFast(left, right); handled {
 			vm.stack = vm.stack[:leftIdx]
-			return val, err
+			return val, bytecodeSimpleTypeCheckI32, err
 		}
 	}
 	val, handled, err := vm.execBinarySpecializedOpcode(instr, left, right)
@@ -127,8 +135,8 @@ func (vm *bytecodeVM) execReturnBinaryIntAdd(instr *bytecodeInstruction) (runtim
 		err = fmt.Errorf("bytecode return-add opcode missing add handler")
 	}
 	if err != nil {
-		return nil, err
+		return nil, bytecodeSimpleTypeCheckUnknown, err
 	}
 	vm.stack = vm.stack[:leftIdx]
-	return val, nil
+	return val, bytecodeSimpleTypeCheckUnknown, nil
 }

@@ -293,6 +293,71 @@ func TestBytecodeVM_AddSmallI32PairFast(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_ReturnAddSmallI32ValuePairFast(t *testing.T) {
+	got, handled, err := bytecodeReturnAddSmallI32ValuePairFast(
+		runtime.NewSmallInt(19, runtime.IntegerI32),
+		runtime.NewSmallInt(23, runtime.IntegerI32),
+	)
+	if err != nil {
+		t.Fatalf("unexpected return-add i32 fast-path error: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected return-add i32 value-pair fast path to handle operands")
+	}
+	if !valuesEqual(got, runtime.NewSmallInt(42, runtime.IntegerI32)) {
+		t.Fatalf("unexpected return-add i32 value-pair result: got=%#v", got)
+	}
+
+	rightPtr := runtime.NewSmallInt(23, runtime.IntegerI32)
+	if _, handled, err := bytecodeReturnAddSmallI32ValuePairFast(runtime.NewSmallInt(19, runtime.IntegerI32), &rightPtr); handled || err != nil {
+		t.Fatalf("expected return-add value-pair fast path to miss pointer operand, handled=%v err=%v", handled, err)
+	}
+
+	_, handled, err = bytecodeReturnAddSmallI32ValuePairFast(
+		runtime.NewSmallInt(math.MaxInt32, runtime.IntegerI32),
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+	)
+	if err == nil || !handled {
+		t.Fatalf("expected return-add i32 overflow to be handled with error, handled=%v err=%v", handled, err)
+	}
+}
+
+func TestBytecodeVM_ReturnBinaryIntAddI32ReportsKnownSimpleTypeForHandledFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	instr := &bytecodeInstruction{op: bytecodeOpReturnBinaryIntAddI32, operator: "+"}
+
+	vm.stack = []runtime.Value{
+		runtime.NewSmallInt(19, runtime.IntegerI32),
+		runtime.NewSmallInt(23, runtime.IntegerI32),
+	}
+	got, known, err := vm.execReturnBinaryIntAdd(instr)
+	if err != nil {
+		t.Fatalf("unexpected return-add i32 error: %v", err)
+	}
+	if known != bytecodeSimpleTypeCheckI32 {
+		t.Fatalf("expected handled i32 return-add to report known i32, got %v", known)
+	}
+	if !valuesEqual(got, runtime.NewSmallInt(42, runtime.IntegerI32)) {
+		t.Fatalf("unexpected return-add i32 result: got=%#v", got)
+	}
+
+	vm.stack = []runtime.Value{
+		runtime.NewSmallInt(19, runtime.IntegerI64),
+		runtime.NewSmallInt(23, runtime.IntegerI64),
+	}
+	got, known, err = vm.execReturnBinaryIntAdd(instr)
+	if err != nil {
+		t.Fatalf("unexpected generic return-add error: %v", err)
+	}
+	if known != bytecodeSimpleTypeCheckUnknown {
+		t.Fatalf("expected generic fallback return-add to keep unknown simple type, got %v", known)
+	}
+	if !valuesEqual(got, runtime.NewSmallInt(42, runtime.IntegerI64)) {
+		t.Fatalf("unexpected generic return-add result: got=%#v", got)
+	}
+}
+
 func TestBytecodeVM_SubtractSmallI32PairFast(t *testing.T) {
 	left := runtime.NewSmallInt(9, runtime.IntegerI32)
 	right := runtime.NewSmallInt(2, runtime.IntegerI32)

@@ -1148,6 +1148,60 @@ Current state snapshot:
   `execCallSelfIntSubSlotConst(...)`, `execReturnConstIfIntLessEqualSlotConst(...)`,
   `bytecodeDirectSmallI32Pair(...)`, and slot-frame release/boxing costs rather
   than another return-coercion shortcut;
+- the next aligned-fib return-add value-pair tranche is landed too:
+  `bytecodeOpReturnBinaryIntAddI32` now handles direct
+  `runtime.IntegerValue`/`runtime.IntegerValue` small-`i32` operands before
+  falling back to the existing pointer-oriented small-`i32` add helper.
+  Focused coverage pins the direct value-pair result, pointer fallback, and
+  overflow error path. Reduced `Fib30BytecodeRuntimeOnly` was noisy but stayed
+  in the kept band after the first sample (`143.82ms/op`, `125.72ms/op`,
+  `116.12ms/op`), aligned-style `fib_i32_small` bytecode-runtime landed at
+  `9.07s/op` and `9.10s/op` across two 3-run bands, and the profiled one-shot
+  landed at `8.88s/op`. The full external bytecode `fib(45)` check still times
+  out at `90s`. The next aligned-fib tranche should start from the remaining
+  `execCallSelfIntSubSlotConst(...)`, `finishInlineReturn(...)`,
+  `execReturnConstIfIntLessEqualSlotConst(...)`, and slot-frame release costs
+  rather than another return-add operand extraction shortcut;
+- the next aligned-fib inline return-coercion tranche is landed too: handled
+  small-`i32` branches of `bytecodeOpReturnBinaryIntAddI32` now report that
+  the returned value already satisfies an `i32` return, allowing
+  `finishInlineReturn(...)` to skip the generic simple return-coercion probe
+  only for those proven fast-path values. Generic fallback arithmetic still
+  reports an unknown return shape and keeps the existing coercion behavior.
+  Focused coverage pins that distinction. Reduced `Fib30BytecodeRuntimeOnly`
+  landed at `110.85-114.67ms/op`, aligned-style `fib_i32_small`
+  bytecode-runtime landed at `8.33s/op` and `8.44s/op` across two 3-run bands,
+  and the profiled one-shot landed at `9.01s/op`. The full external bytecode
+  `fib(45)` check still times out at `90s`. The next aligned-fib tranche should
+  start from `execCallSelfIntSubSlotConst(...)`,
+  `execReturnConstIfIntLessEqualSlotConst(...)`, and slot-frame return/release
+  costs rather than another return-add coercion shortcut;
+- the next aligned-fib self-call layout tranche is landed too:
+  `execCallSelfIntSubSlotConst(...)` now keeps only the fused recursive
+  fast-path inline and delegates the non-fast callable/native/generic fallback
+  path to `execCallSelfIntSubSlotConstFallback(...)`. Semantics are unchanged;
+  this is a code-layout reduction for the hot self-call opcode. Focused
+  recursive coverage is green. Reduced `Fib30BytecodeRuntimeOnly` landed at
+  `109.33-118.41ms/op`, aligned-style `fib_i32_small` bytecode-runtime landed
+  at `8.44s/op` and `8.42s/op` across two 3-run bands, and the profiled
+  one-shot landed at `8.42s/op`. The full external bytecode `fib(45)` check
+  still times out at `90s`. The next aligned-fib tranche should start from
+  `execReturnConstIfIntLessEqualSlotConst(...)`, `finishInlineReturn(...)`,
+  and slot-frame return/release costs rather than more self-call fallback
+  rearrangement;
+- the next aligned-fib measurement tranche is landed too: no VM code changed,
+  but the cross-mode baseline is now quantified. On `fib_i32_small`, compiled
+  averaged `0.3433s`, tree-walker timed out `3/3` at `60s`, bytecode
+  end-to-end averaged `8.1467s`, and bytecode-runtime confirmed at about
+  `8.71-8.77s/op` with `24104 B/op` and `47 allocs/op`. Reduced
+  `Fib30BytecodeRuntimeOnly` stayed in range at `112.22-119.67ms/op`. A
+  longer external compare measured full `fib(45)` at compiled `3.3700s` and
+  bytecode `92.5200s`, so bytecode is now known to be just above the old
+  `90s` guard rather than unmeasured past it. The next aligned-fib tranche
+  should use the external `fib(45)` result as the keep/revert guardrail and
+  start from `execReturnConstIfIntLessEqualSlotConst(...)`,
+  `finishInlineReturn(...)`, and minimal slot-frame return/release costs
+  rather than reduced-only `fib(30)` micro-work;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.

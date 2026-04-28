@@ -874,7 +874,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					continue
 				}
 				if vm.hasCallFrames() {
-					if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr, val); err != nil {
+					if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr, val, bytecodeSimpleTypeCheckUnknown); err != nil {
 						return nil, err
 					}
 					continue
@@ -931,7 +931,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			vm.ip++
 		case bytecodeOpReturnBinaryIntAdd, bytecodeOpReturnBinaryIntAddI32:
 			{
-				val, err := vm.execReturnBinaryIntAdd(instr)
+				val, knownReturnSimple, err := vm.execReturnBinaryIntAdd(instr)
 				if err != nil {
 					err = vm.interp.wrapStandardRuntimeError(err)
 					if instr.node != nil {
@@ -943,7 +943,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					return nil, err
 				}
 				if vm.hasCallFrames() {
-					if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, nil, val); err != nil {
+					if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr, val, knownReturnSimple); err != nil {
 						return nil, err
 					}
 					continue
@@ -973,7 +973,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			val := vm.stack[valIdx]
 			vm.stack = vm.stack[:valIdx]
 			if vm.hasCallFrames() {
-				if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr, val); err != nil {
+				if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr, val, bytecodeSimpleTypeCheckUnknown); err != nil {
 					return nil, err
 				}
 				continue

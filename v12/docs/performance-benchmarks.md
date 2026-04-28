@@ -1767,3 +1767,79 @@ times out at `90s`. The next profile should start from
 `execCallSelfIntSubSlotConst(...)`, `execReturnConstIfIntLessEqualSlotConst(...)`,
 `bytecodeDirectSmallI32Pair(...)`, `bytecodeBoxedIntegerI32Value(...)`, and
 slot-frame release costs rather than another return-coercion shortcut.
+
+The next aligned-fib tranche specialized the return-add operand shape produced
+by the external-style recursive fixture. `bytecodeOpReturnBinaryIntAddI32` now
+tries a direct `runtime.IntegerValue`/`runtime.IntegerValue` small-`i32` branch
+before the existing pointer-oriented small-`i32` add helper. Pointer operands,
+non-small values, non-`i32` values, and generic fallback behavior keep the
+existing path, and overflow still returns the existing integer-overflow error.
+
+This is an aligned-shape keep. Reduced `BenchmarkFib30BytecodeRuntimeOnly` was
+noisy but stayed in the kept range after the first sample, landing at
+`143.82ms/op`, `125.72ms/op`, and `116.12ms/op`. Aligned-style
+`fib_i32_small` bytecode-runtime landed at `9.07s/op` and `9.10s/op` across
+two 3-run bands, with a profiled one-shot at `8.88s/op`. The aligned
+`preprofile` now shows
+`execReturnBinaryIntAdd(...) -> bytecodeReturnAddSmallI32ValuePairFast(...)`
+on the hot return-add edge. Full external bytecode `fib(45)` still times out at
+`90s`. The next profile should start from `execCallSelfIntSubSlotConst(...)`,
+`finishInlineReturn(...)`, `execReturnConstIfIntLessEqualSlotConst(...)`, and
+slot-frame release costs rather than another return-add operand extraction
+shortcut.
+
+The next aligned-fib tranche removed the return-coercion probe that still ran
+after the handled `bytecodeOpReturnBinaryIntAddI32` fast paths. Those handled
+small-`i32` branches now report that the value already satisfies an `i32`
+return, so `finishInlineReturn(...)` can skip the generic simple type check
+only for proven boxed-`i32` results. Generic fallback arithmetic still reports
+an unknown return shape and keeps the existing coercion behavior.
+
+This is an aligned-shape keep with a reduced runtime-only win. Reduced
+`BenchmarkFib30BytecodeRuntimeOnly` landed at `114.67ms/op`, `111.98ms/op`,
+and `110.85ms/op`. Aligned-style `fib_i32_small` bytecode-runtime landed at
+`8.33s/op` and `8.44s/op` across two 3-run bands, with a profiled one-shot at
+`9.01s/op`. The aligned `preprofile` no longer shows the prior
+`finishInlineReturn(...) -> inlineCoercionUnnecessaryBySimpleCheck(...)` edge.
+Full external bytecode `fib(45)` still times out at `90s`. The next profile
+should start from `execCallSelfIntSubSlotConst(...)`,
+`execReturnConstIfIntLessEqualSlotConst(...)`, and slot-frame return/release
+costs rather than another return-add coercion shortcut.
+
+The next aligned-fib tranche narrowed the body of the fused recursive self-call
+opcode. `execCallSelfIntSubSlotConst(...)` now keeps the common fused recursive
+path inline and moves the non-fast callable/native/generic handling into
+`execCallSelfIntSubSlotConstFallback(...)`. Immediate resolution, inline-call
+stats, native-call fallback, generic callable fallback, and error wrapping are
+unchanged; the point of the change is code layout around the hot opcode, not a
+new arithmetic or frame-pool rule.
+
+This is an aligned-shape keep. Reduced `BenchmarkFib30BytecodeRuntimeOnly`
+landed at `109.33ms/op`, `113.54ms/op`, and `118.41ms/op`. Aligned-style
+`fib_i32_small` bytecode-runtime landed at `8.44s/op` and `8.42s/op` across
+two 3-run bands, with a profiled one-shot at `8.42s/op`. The aligned
+`preprofile` does not show the extracted fallback helper on the hot path. Full
+external bytecode `fib(45)` still times out at `90s`. The next profile should
+start from `execReturnConstIfIntLessEqualSlotConst(...)`,
+`finishInlineReturn(...)`, and slot-frame return/release costs rather than more
+self-call fallback rearrangement.
+
+The follow-up tranche was measurement-only. The aligned
+`fib_i32_small` cross-mode matrix landed at compiled `0.3433s`, tree-walker
+`3/3` timeouts at `60s`, bytecode end-to-end `8.1467s`, and
+bytecode-runtime `8768648581 ns/op`, `24104 B/op`, `47 allocs/op`.
+A standalone bytecode-runtime confirmation landed at `8714877680 ns/op` with
+the same allocation shape, and the reduced
+`BenchmarkFib30BytecodeRuntimeOnly` sanity band remained in range at
+`119.67ms/op`, `115.41ms/op`, and `112.22ms/op`.
+
+The external comparison was rerun with a longer `120s` cap to measure the
+previous timeout. Full external `fib(45)` now records compiled `3.3700s` and
+bytecode `92.5200s`. That means the old `90s` guard is only slightly missed,
+but bytecode remains about `32.58x` the Go reference and `27.45x` the current
+compiled Able path on this recursive workload. The next tranche should use the
+external `fib(45)` result as the keep/revert guardrail and start from the
+remaining aligned hot path around
+`execReturnConstIfIntLessEqualSlotConst(...)`, `finishInlineReturn(...)`, and
+minimal slot-frame return/release work rather than a reduced-only `fib(30)`
+branch.

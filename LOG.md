@@ -13477,3 +13477,92 @@
   base-case return skips that probe.
 - External compare: `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
   still times out for full external bytecode `fib(45)`.
+
+# 2026-04-28 — Bytecode aligned fib return-add value-pair fast path (v12)
+- Bytecode VM: `bytecodeOpReturnBinaryIntAddI32` now handles direct
+  `runtime.IntegerValue`/`runtime.IntegerValue` small-`i32` operands before
+  falling back to the existing pointer-oriented small-`i32` return-add helper.
+- Semantics: pointer operands, non-small values, non-`i32` values, and generic
+  fallback behavior are unchanged; the new branch preserves the existing
+  overflow error path for out-of-range `i32` sums.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(ReturnAddSmallI32ValuePairFast|AddSmallI32PairFast|SelfCallSubtractIntegerImmediateI32RawFast|SelfCallSubtractIntegerImmediateI32Fast|LoweringEmitsFusedSelfCallSlotConstOpcode|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|PushSelfFastMinimalCallFrameUsesMinimalStacks|PushCallFrameMaterializesMinimalSelfFastSuffix|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|ReturnBinaryIntAddImplicitFinalExpressionParity|LoweringEmitsReturnBinaryIntAddForImplicitFinalExpression|ReturnConstIfIntLessEqualSlotConstFastPath|ReturnIfIntLessEqualSlotConstSameSlotFastPath|LoweringEmitsReturnIfForIntLessEqualSlotConstStatement|LoweringEmitsReturnConstIfForIntLessEqualSlotConstStatement)|TestBytecodeProgramReturnGenericNamesCacheIncludesMethodSetGenerics|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`.
+- Benchmarks: reduced `BenchmarkFib30BytecodeRuntimeOnly` landed at
+  `143.82ms/op`, `125.72ms/op`, and `116.12ms/op`, with the first sample noisy
+  and the later samples back in the kept range. Aligned-style `fib_i32_small`
+  bytecode-runtime landed at `9.07s/op` and `9.10s/op` across two 3-run bands,
+  with a profiled one-shot at `8.88s/op`.
+- Profile shift: the aligned `preprofile` now shows the return-add edge
+  flowing through
+  `execReturnBinaryIntAdd(...) -> bytecodeReturnAddSmallI32ValuePairFast(...)`;
+  the next remaining costs are recursive self-call setup, base-case return, and
+  slot-frame return/release work.
+- External compare: `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  still times out for full external bytecode `fib(45)`.
+
+# 2026-04-28 — Bytecode aligned fib return-add known-i32 return skip (v12)
+- Bytecode VM: handled small-`i32` branches of
+  `bytecodeOpReturnBinaryIntAddI32` now report
+  `bytecodeSimpleTypeCheckI32` to `finishInlineReturn(...)`, allowing the
+  inline return path to skip the generic simple return-coercion probe for those
+  already-proven values.
+- Semantics: generic fallback arithmetic still reports an unknown return shape
+  and keeps the existing return coercion path, so the shortcut is tied to the
+  fast paths that actually produced boxed `i32` values.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(ReturnBinaryIntAddI32ReportsKnownSimpleTypeForHandledFastPath|ReturnAddSmallI32ValuePairFast|AddSmallI32PairFast|SelfCallSubtractIntegerImmediateI32RawFast|SelfCallSubtractIntegerImmediateI32Fast|LoweringEmitsFusedSelfCallSlotConstOpcode|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|PushSelfFastMinimalCallFrameUsesMinimalStacks|PushCallFrameMaterializesMinimalSelfFastSuffix|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|ReturnBinaryIntAddImplicitFinalExpressionParity|LoweringEmitsReturnBinaryIntAddForImplicitFinalExpression|ReturnConstIfIntLessEqualSlotConstFastPath|ReturnIfIntLessEqualSlotConstSameSlotFastPath|LoweringEmitsReturnIfForIntLessEqualSlotConstStatement|LoweringEmitsReturnConstIfForIntLessEqualSlotConstStatement)|TestBytecodeProgramReturnGenericNamesCacheIncludesMethodSetGenerics|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`.
+- Benchmarks: reduced `BenchmarkFib30BytecodeRuntimeOnly` landed at
+  `114.67ms/op`, `111.98ms/op`, and `110.85ms/op`. Aligned-style
+  `fib_i32_small` bytecode-runtime landed at `8.33s/op` and `8.44s/op` across
+  two 3-run bands, with a profiled one-shot at `9.01s/op`.
+- Profile shift: the aligned `preprofile` no longer shows the prior
+  `finishInlineReturn(...) -> inlineCoercionUnnecessaryBySimpleCheck(...)`
+  edge; the remaining visible costs are recursive self-call setup, fused
+  base-case return compare, return-add value extraction/boxing, and slot-frame
+  return/release work.
+- External compare: `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  still times out for full external bytecode `fib(45)`.
+
+# 2026-04-28 — Bytecode aligned fib self-call fallback extraction (v12)
+- Bytecode VM: `execCallSelfIntSubSlotConst(...)` now keeps the fused
+  recursive fast path inline and delegates the non-fast callable/native/generic
+  fallback path to `execCallSelfIntSubSlotConstFallback(...)`.
+- Semantics: immediate resolution, inline-call hit/miss stats, native-call
+  fallback, generic callable fallback, and error wrapping remain unchanged; the
+  change is intentionally a code-layout reduction around the hot self-call
+  opcode rather than another arithmetic or frame-pool rewrite.
+- Tests: `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(SelfCallSubtractIntegerImmediateI32RawFast|SelfCallSubtractIntegerImmediateI32Fast|LoweringEmitsFusedSelfCallSlotConstOpcode|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath|PushSelfFastMinimalCallFrameUsesMinimalStacks|PushCallFrameMaterializesMinimalSelfFastSuffix|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots|ReturnBinaryIntAddI32ReportsKnownSimpleTypeForHandledFastPath|ReturnAddSmallI32ValuePairFast|ReturnConstIfIntLessEqualSlotConstFastPath|ReturnIfIntLessEqualSlotConstSameSlotFastPath)|TestBytecodeProgramReturnGenericNamesCacheIncludesMethodSetGenerics|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`.
+- Benchmarks: reduced `BenchmarkFib30BytecodeRuntimeOnly` landed at
+  `109.33ms/op`, `113.54ms/op`, and `118.41ms/op`. Aligned-style
+  `fib_i32_small` bytecode-runtime landed at `8.44s/op` and `8.42s/op` across
+  two 3-run bands, with a profiled one-shot at `8.42s/op`.
+- Profile shift: the aligned `preprofile` does not show the extracted fallback
+  helper on the hot path; remaining visible costs are the fused base-case
+  return compare, return-add value extraction, minimal return/frame release,
+  and the core fused self-call setup itself.
+- External compare: `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes bytecode --runs 1 --timeout 90`
+  still times out for full external bytecode `fib(45)`.
+
+# 2026-04-28 — Bytecode aligned fib cross-mode measurement (v12)
+- Measurement-only tranche: no VM code changed. The goal was to replace the
+  previous external `fib(45)` timeout note with a measured cross-mode baseline
+  before attempting another small bytecode rewrite.
+- Aligned fixture matrix:
+  `env TMPDIR=/home/david/sync/projects/able/v12/tmp/go-tmp GOCACHE=/home/david/sync/projects/able/v12/tmp/go-cache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 3 --timeout 60 --modes compiled,treewalker,bytecode,bytecode-runtime --run-from v12/fixtures/bench/fib_i32_small --output-json /tmp/fib-i32-small-cross-mode.json v12/fixtures/bench/fib_i32_small/main.able`
+  landed at compiled `0.3433s`, tree-walker `3/3` timeouts at `60s`,
+  bytecode end-to-end `8.1467s`, and bytecode-runtime
+  `8768648581 ns/op`, `24104 B/op`, `47 allocs/op`.
+- Bytecode-runtime confirmation:
+  `env TMPDIR=/home/david/sync/projects/able/v12/tmp/go-tmp GOCACHE=/home/david/sync/projects/able/v12/tmp/go-cache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 2 --timeout 45 --modes bytecode-runtime --run-from v12/fixtures/bench/fib_i32_small --output-json /tmp/fib-i32-small-bytecode-runtime-confirm.json v12/fixtures/bench/fib_i32_small/main.able`
+  landed at `8714877680 ns/op`, `24104 B/op`, `47 allocs/op`.
+- Reduced sanity:
+  `env TMPDIR=/home/david/sync/projects/able/v12/tmp/go-tmp GOCACHE=/home/david/sync/projects/able/v12/tmp/go-cache go test ./pkg/interpreter -bench '^BenchmarkFib30BytecodeRuntimeOnly$' -run '^$' -benchtime=5x -count=3`
+  landed at `119.67ms/op`, `115.41ms/op`, and `112.22ms/op`.
+- External compare:
+  `env TMPDIR=/home/david/sync/projects/able/v12/tmp/go-tmp GOCACHE=/home/david/sync/projects/able/v12/tmp/go-cache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks fib --modes compiled,bytecode --runs 1 --timeout 120 --output-json /tmp/fib-external-compiled-bytecode.json --output-md /tmp/fib-external-compiled-bytecode.md`
+  measured full external `fib(45)` at compiled `3.3700s` and bytecode
+  `92.5200s`; bytecode is now quantified just above the older `90s` guard
+  instead of only being reported as a timeout.
+- Decision: continue bytecode work only on the aligned hot path and use the
+  full external `fib(45)` runtime as the guardrail. The next tranche should
+  target a small, profile-backed cut in `execReturnConstIfIntLessEqualSlotConst(...)`
+  / minimal return release work, with a hard requirement that it improves
+  external `fib(45)` rather than only the reduced `fib(30)` kernel.

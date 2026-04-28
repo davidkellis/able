@@ -140,6 +140,10 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 		}
 	}
 
+	return vm.execCallSelfIntSubSlotConstFallback(instr, rightImmediate, hasImmediate, currentProgram, statsEnabled)
+}
+
+func (vm *bytecodeVM) execCallSelfIntSubSlotConstFallback(instr *bytecodeInstruction, rightImmediate runtime.IntegerValue, hasImmediate bool, currentProgram *bytecodeProgram, statsEnabled bool) (*bytecodeProgram, error) {
 	callee := vm.slots[instr.target]
 	var callNode *ast.FunctionCall
 	if instr.node != nil {
