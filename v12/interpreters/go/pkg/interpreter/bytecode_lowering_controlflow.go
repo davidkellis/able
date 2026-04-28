@@ -117,6 +117,12 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 	if expr == nil {
 		return bytecodeUnsupported("nil if expression")
 	}
+	if len(expr.ElseIfClauses) == 0 && expr.ElseBody == nil {
+		if instr, ok := bytecodeReturnIfBinarySlotConstInstruction(ctx, expr.IfCondition, expr.IfBody); ok {
+			ctx.emit(instr)
+			return nil
+		}
+	}
 	jumpToElse := -1
 	if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, expr.IfCondition); ok {
 		jumpToElse = ctx.emit(instr)

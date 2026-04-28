@@ -13,6 +13,7 @@ type bytecodeInstruction struct {
 	operator        string
 	value           runtime.Value
 	intImmediate    runtime.IntegerValue
+	intImmediateRaw int64
 	typeExpr        ast.TypeExpression
 	target          int
 	argCount        int
@@ -21,6 +22,7 @@ type bytecodeInstruction struct {
 	node            ast.Node
 	program         *bytecodeProgram
 	hasIntImmediate bool
+	hasIntRaw       bool
 	safe            bool
 	preferMethods   bool
 }

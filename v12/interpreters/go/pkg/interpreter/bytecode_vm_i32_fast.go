@@ -143,3 +143,62 @@ func bytecodeSubtractIntegerImmediateI32Fast(left runtime.Value, right runtime.I
 	}
 	return bytecodeBoxedIntegerI32Value(diff), true, nil
 }
+
+func bytecodeSelfCallSubtractIntegerImmediateI32Fast(left runtime.Value, right runtime.IntegerValue) (runtime.Value, bool, error) {
+	rightRef := &right
+	if right.TypeSuffix != runtime.IntegerI32 || !rightRef.IsSmallRef() {
+		return nil, false, nil
+	}
+	rightVal := rightRef.Int64FastRef()
+	var leftVal int64
+	switch lv := left.(type) {
+	case runtime.IntegerValue:
+		if lv.TypeSuffix != runtime.IntegerI32 {
+			return nil, false, nil
+		}
+		lvRef := &lv
+		if !lvRef.IsSmallRef() {
+			return nil, false, nil
+		}
+		leftVal = lvRef.Int64FastRef()
+	case *runtime.IntegerValue:
+		if lv == nil || lv.TypeSuffix != runtime.IntegerI32 || !lv.IsSmallRef() {
+			return nil, false, nil
+		}
+		leftVal = lv.Int64FastRef()
+	default:
+		return nil, false, nil
+	}
+	diff := leftVal - rightVal
+	if diff < math.MinInt32 || diff > math.MaxInt32 {
+		return nil, true, newOverflowError("integer overflow")
+	}
+	return bytecodeBoxedIntegerI32Value(diff), true, nil
+}
+
+func bytecodeSelfCallSubtractIntegerImmediateI32RawFast(left runtime.Value, rightVal int64) (runtime.Value, bool, error) {
+	var leftVal int64
+	switch lv := left.(type) {
+	case runtime.IntegerValue:
+		if lv.TypeSuffix != runtime.IntegerI32 {
+			return nil, false, nil
+		}
+		lvRef := &lv
+		if !lvRef.IsSmallRef() {
+			return nil, false, nil
+		}
+		leftVal = lvRef.Int64FastRef()
+	case *runtime.IntegerValue:
+		if lv == nil || lv.TypeSuffix != runtime.IntegerI32 || !lv.IsSmallRef() {
+			return nil, false, nil
+		}
+		leftVal = lv.Int64FastRef()
+	default:
+		return nil, false, nil
+	}
+	diff := leftVal - rightVal
+	if diff < math.MinInt32 || diff > math.MaxInt32 {
+		return nil, true, newOverflowError("integer overflow")
+	}
+	return bytecodeBoxedIntegerI32Value(diff), true, nil
+}

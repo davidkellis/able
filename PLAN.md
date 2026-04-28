@@ -1006,6 +1006,121 @@ Current state snapshot:
   `9189777`, `9094444`, and `9161513 ns/op`, and the kept profile shows the
   old `FunctionValue.GenericNameSet()` frame gone with small-int boxing
   reduced to noise;
+- the next reduced-fib tranche is landed too: slot frame layouts now cache a
+  compact primitive return check, and `finishInlineReturn(...)` uses that
+  cached check for simple return types before falling back to the older
+  string-based helper or full return coercion. Focused return/self-fast
+  coverage is green, refreshed reduced `BenchmarkFib30Bytecode` reruns moved
+  from the prior `156.88-163.96ms/op` band to `150.28-157.63ms/op`, and
+  aligned external bytecode `fib` still times out at `90s`;
+- the next reduced-fib tranche is landed too: the fused recursive self-call
+  path now has a self-call-only small-`i32` immediate subtract helper, so
+  `fib(n - 1)` / `fib(n - 2)` avoid the broader integer-immediate helper
+  ladder before setting up the minimal self-fast frame. Focused recursive and
+  arithmetic coverage is green; the refreshed confirmation band moved to
+  `139.07-146.70ms/op` with unchanged allocation shape, and aligned external
+  bytecode `fib` still times out at `90s`;
+- the next reduced-fib maintenance tranche is landed too: fused slot-const
+  recursive self-call execution now lives in
+  `bytecode_vm_call_self_slot_const.go`, reducing `bytecode_vm_calls.go` from
+  `992` to `842` lines while keeping the current reduced `fib` band in range
+  at `143.51-148.90ms/op`;
+- the next reduced-fib tranche is landed too: fused self-calls with the common
+  two-slot frame layout now acquire frames through a dedicated size-2 hot path
+  before falling back to the general frame pool. Focused slot-frame/self-call
+  coverage is green; warmed reduced `BenchmarkFib30Bytecode` reruns moved from
+  the refreshed `140.91-150.88ms/op` band to a kept `138.53-141.70ms/op`
+  confirmation band, with a profiled one-shot at `133.52ms/op`; aligned
+  external bytecode `fib` still times out at `90s`;
+- the next reduced-fib tranche is landed too: the fused slot-const conditional
+  jump now uses a dedicated direct small-integer `<=` immediate helper instead
+  of routing through the generic `bytecodeDirectIntegerCompare("<=", ...)`
+  helper and materializing a `BoolValue` only to read it immediately. Focused
+  comparison/lowering/recursive coverage is green; refreshed warmed reduced
+  `BenchmarkFib30Bytecode` confirmation moved to `134.52-138.06ms/op`, with a
+  profiled one-shot at `135.38ms/op`; aligned external bytecode `fib` still
+  times out at `90s`;
+- the next reduced-fib measurement tranche is landed too:
+  `BenchmarkFib30BytecodeRuntimeOnly` now evaluates/lowers the reduced `fib`
+  function once, validates a warmup `fib(30)` result, and then repeatedly calls
+  the same bytecode function on the same interpreter. This separates recursive
+  VM runtime from parser/module/interpreter setup noise; initial runtime-only
+  checks landed at `129.18-139.44ms/op` with effectively zero allocations, and
+  the profiled one-shot landed at `135.83ms/op`;
+- the next runtime-only reduced-fib helper tranche is landed too: the
+  self-call-only small-`i32` immediate subtract helper now skips the redundant
+  `int64` overflow probe after both operands have already been proven small
+  `i32`, while retaining the existing `i32` bounds check and overflow error.
+  Focused helper/self-call coverage is green; runtime-only `fib(30)` warmed
+  reruns landed at `126.40-132.47ms/op` on the first kept band, with a
+  profiled one-shot at `128.22ms/op`;
+- the next reduced-fib control-flow tranche is landed too: statement-position
+  `if slot <= const { return slot }` now lowers to a fused slot-const
+  return-if opcode instead of a conditional jump plus separate slot load and
+  return dispatch. Focused lowering/parity/self-call coverage is green;
+  runtime-only `fib(30)` warmed reruns landed at `122.95-133.48ms/op` on the
+  first kept band and `125.41-136.10ms/op` on confirmation, with a profiled
+  one-shot at `136.73ms/op`;
+- the next reduced-fib return-if micro-tranche is landed too: the fused
+  return-if opcode now has a same-slot typed-immediate path for the common
+  `if n <= const { return n }` shape, avoiding the extra return-slot bounds
+  check, immediate fallback ladder, and helper call on that hot base case.
+  Focused opcode/lowering coverage is green; runtime-only `fib(30)` warmed
+  reruns landed at `122.67-133.12ms/op` on the first kept band and
+  `123.58-138.89ms/op` on confirmation, while a temporary restored A/B check
+  regressed to `136.60-155.13ms/op`;
+- the next reduced-fib run-loop tranche is landed too: the hot fused
+  return-if opcode is back inline in `runResumable(...)`, while cold
+  placeholder lambda/value execution moved to a focused helper file to keep
+  `bytecode_vm_run.go` under the line cap. Focused placeholder/return-if/
+  self-call coverage is green; runtime-only `fib(30)` reruns landed at
+  `127.63-132.06ms/op` on the quiet confirmation band, and the reduced
+  end-to-end one-shot checks landed at `130.39-132.60ms/op`;
+- the next runtime-only reduced-fib frame-release tranche is landed too:
+  minimal self-fast returns from proven two-slot layouts now use a dedicated
+  `releaseSlotFrame2(...)` helper, preserving eager clearing while avoiding the
+  generic release switch on the hot recursive unwind path. Focused
+  slot-frame/self-call/return-if coverage is green; runtime-only `fib(30)`
+  reruns landed at `111.05-117.82ms/op` on the confirmation band, with a
+  profiled one-shot at `118.84ms/op`;
+- the next runtime-only reduced-fib implicit return-add tranche is landed too:
+  a node-less implicit `BinaryIntAdd` immediately followed by `Return` now
+  lowers to `bytecodeOpReturnBinaryIntAdd`, leaving the following return
+  instruction unreachable so jump targets stay stable while the VM returns the
+  add result directly. Focused lowering/parity/recursive coverage is green;
+  same-load pre-change runtime-only checks landed at `116.06-118.25ms/op`, a
+  temporary no-fusion control landed at `113.04-123.21ms/op`, and the restored
+  fused confirmation band landed at `109.40-115.48ms/op`, with a profiled
+  one-shot at `123.82ms/op`;
+- the next aligned-fib base-case tranche is landed too: statement-position
+  `if slot <= const { return small_i32_const }` now lowers to
+  `bytecodeOpReturnConstIfIntLessEqualSlotConst`, covering the real external
+  `fib(45)` shape (`if n <= 2 { return 1 }`) instead of only the reduced
+  `return n` shape. Focused lowering/VM coverage is green; the aligned-style
+  `fib_i32_small` bytecode-runtime fixture moved from a temporary no-fusion
+  control at `12.59s/op` to fused confirmation at `10.58s/op`. The full
+  external bytecode `fib(45)` check still times out at `90s`, so the next
+  tranche should continue on aligned-fib-only residual overhead rather than
+  another reduced-`fib(30)` micro-branch;
+- the next aligned-fib raw-immediate tranche is landed too: lowered
+  slot-const opcodes now retain a raw `int64` immediate next to the existing
+  typed `IntegerValue`, and the fused self-call / return-const / conditional
+  helpers use it on their direct small-integer path. Focused immediate,
+  lowering, self-call, and return-const coverage is green; the aligned-style
+  `fib_i32_small` bytecode-runtime fixture landed at `9.94s/op`, `10.37s/op`,
+  `10.18s/op`, and restored raw confirmation `9.49s/op`, versus a temporary
+  no-raw control at `10.49s/op`. A reduced `Fib30BytecodeRuntimeOnly` sanity
+  band landed at `118.38-126.67ms/op`, so this keep is aligned-driven;
+- the next aligned-fib return-add tranche is landed too: implicit final `+`
+  expressions in functions declared `i32` now lower to
+  `bytecodeOpReturnBinaryIntAddI32`, which tries the direct small-`i32` add
+  path before falling back to the existing generic return-add semantics.
+  Focused return-add/recursive coverage is green; aligned-style
+  `fib_i32_small` bytecode-runtime confirmation landed at `9.89s/op` and
+  `9.86s/op` across two 3-run bands, with a profiled one-shot at `9.77s/op`.
+  The reduced `Fib30BytecodeRuntimeOnly` sanity band landed at
+  `125.87-127.84ms/op`, so this keep is aligned-driven rather than a reduced
+  `fib(30)` win;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.

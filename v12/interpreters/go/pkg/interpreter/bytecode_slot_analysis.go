@@ -20,6 +20,7 @@ type bytecodeFrameLayout struct {
 	selfCallSlot        int                // reserved slot for recursive self-call fast path; -1 when disabled
 	returnType          ast.TypeExpression // declared return type (for coercion on inline return)
 	returnSimpleType    string             // cached simple type name for inline return coercion checks
+	returnSimpleCheck   bytecodeSimpleTypeCheck
 	usesImplicitMember  bool               // true if body references #member syntax
 	needsEnvScopes      bool               // true if body has definitions needing env registration
 	selfCallOneArgFast  bool               // true when one-arg self-call inline can skip declaration shape checks
@@ -78,6 +79,7 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		firstParamType = paramTypes[0]
 		firstParamSimple = paramSimpleTypes[0]
 	}
+	returnSimpleType := cachedSimpleTypeName(def.ReturnType)
 	return &bytecodeFrameLayout{
 		paramSlots:          len(def.Params),
 		paramTypes:          paramTypes,
@@ -88,7 +90,8 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		methodShorthand:     def.IsMethodShorthand,
 		selfCallSlot:        -1,
 		returnType:          def.ReturnType,
-		returnSimpleType:    cachedSimpleTypeName(def.ReturnType),
+		returnSimpleType:    returnSimpleType,
+		returnSimpleCheck:   bytecodeSimpleTypeCheckForName(returnSimpleType),
 		usesImplicitMember:  blockUsesImplicitMember(def.Body),
 		needsEnvScopes:      blockNeedsEnvScopes(def.Body),
 		selfCallOneArgFast:  !def.IsMethodShorthand && len(def.Params) == 1 && len(def.GenericParams) == 0,
@@ -196,6 +199,177 @@ func exprUsesImplicitMember(expr ast.Expression) bool {
 		return exprUsesImplicitMember(n.Expression)
 	case *ast.LoopExpression:
 		return blockUsesImplicitMember(n.Body)
+	}
+	return false
+}
+
+type bytecodeSimpleTypeCheck uint8
+
+const (
+	bytecodeSimpleTypeCheckUnknown bytecodeSimpleTypeCheck = iota
+	bytecodeSimpleTypeCheckAnyInteger
+	bytecodeSimpleTypeCheckI8
+	bytecodeSimpleTypeCheckI16
+	bytecodeSimpleTypeCheckI32
+	bytecodeSimpleTypeCheckI64
+	bytecodeSimpleTypeCheckI128
+	bytecodeSimpleTypeCheckU8
+	bytecodeSimpleTypeCheckU16
+	bytecodeSimpleTypeCheckU32
+	bytecodeSimpleTypeCheckU64
+	bytecodeSimpleTypeCheckU128
+	bytecodeSimpleTypeCheckIsize
+	bytecodeSimpleTypeCheckUsize
+	bytecodeSimpleTypeCheckAnyFloat
+	bytecodeSimpleTypeCheckF32
+	bytecodeSimpleTypeCheckF64
+	bytecodeSimpleTypeCheckString
+	bytecodeSimpleTypeCheckBool
+)
+
+func bytecodeSimpleTypeCheckForName(typeName string) bytecodeSimpleTypeCheck {
+	switch typeName {
+	case "Int":
+		return bytecodeSimpleTypeCheckAnyInteger
+	case "i8":
+		return bytecodeSimpleTypeCheckI8
+	case "i16":
+		return bytecodeSimpleTypeCheckI16
+	case "i32":
+		return bytecodeSimpleTypeCheckI32
+	case "i64":
+		return bytecodeSimpleTypeCheckI64
+	case "i128":
+		return bytecodeSimpleTypeCheckI128
+	case "u8":
+		return bytecodeSimpleTypeCheckU8
+	case "u16":
+		return bytecodeSimpleTypeCheckU16
+	case "u32":
+		return bytecodeSimpleTypeCheckU32
+	case "u64":
+		return bytecodeSimpleTypeCheckU64
+	case "u128":
+		return bytecodeSimpleTypeCheckU128
+	case "isize":
+		return bytecodeSimpleTypeCheckIsize
+	case "usize":
+		return bytecodeSimpleTypeCheckUsize
+	case "Float":
+		return bytecodeSimpleTypeCheckAnyFloat
+	case "f32":
+		return bytecodeSimpleTypeCheckF32
+	case "f64":
+		return bytecodeSimpleTypeCheckF64
+	case "String":
+		return bytecodeSimpleTypeCheckString
+	case "Bool":
+		return bytecodeSimpleTypeCheckBool
+	default:
+		return bytecodeSimpleTypeCheckUnknown
+	}
+}
+
+func (check bytecodeSimpleTypeCheck) integerType() (runtime.IntegerType, bool) {
+	switch check {
+	case bytecodeSimpleTypeCheckI8:
+		return runtime.IntegerI8, true
+	case bytecodeSimpleTypeCheckI16:
+		return runtime.IntegerI16, true
+	case bytecodeSimpleTypeCheckI32:
+		return runtime.IntegerI32, true
+	case bytecodeSimpleTypeCheckI64:
+		return runtime.IntegerI64, true
+	case bytecodeSimpleTypeCheckI128:
+		return runtime.IntegerI128, true
+	case bytecodeSimpleTypeCheckU8:
+		return runtime.IntegerU8, true
+	case bytecodeSimpleTypeCheckU16:
+		return runtime.IntegerU16, true
+	case bytecodeSimpleTypeCheckU32:
+		return runtime.IntegerU32, true
+	case bytecodeSimpleTypeCheckU64:
+		return runtime.IntegerU64, true
+	case bytecodeSimpleTypeCheckU128:
+		return runtime.IntegerU128, true
+	case bytecodeSimpleTypeCheckIsize:
+		return runtime.IntegerIsize, true
+	case bytecodeSimpleTypeCheckUsize:
+		return runtime.IntegerUsize, true
+	default:
+		return "", false
+	}
+}
+
+func (check bytecodeSimpleTypeCheck) floatType() (runtime.FloatType, bool) {
+	switch check {
+	case bytecodeSimpleTypeCheckF32:
+		return runtime.FloatF32, true
+	case bytecodeSimpleTypeCheckF64:
+		return runtime.FloatF64, true
+	default:
+		return "", false
+	}
+}
+
+func inlineCoercionUnnecessaryBySimpleCheck(check bytecodeSimpleTypeCheck, val runtime.Value) bool {
+	switch check {
+	case bytecodeSimpleTypeCheckAnyInteger:
+		switch v := val.(type) {
+		case runtime.IntegerValue:
+			return true
+		case *runtime.IntegerValue:
+			return v != nil
+		default:
+			return false
+		}
+	case bytecodeSimpleTypeCheckAnyFloat:
+		switch v := val.(type) {
+		case runtime.FloatValue:
+			return true
+		case *runtime.FloatValue:
+			return v != nil
+		default:
+			return false
+		}
+	case bytecodeSimpleTypeCheckString:
+		switch v := val.(type) {
+		case runtime.StringValue:
+			return true
+		case *runtime.StringValue:
+			return v != nil
+		default:
+			return false
+		}
+	case bytecodeSimpleTypeCheckBool:
+		switch v := val.(type) {
+		case runtime.BoolValue:
+			return true
+		case *runtime.BoolValue:
+			return v != nil
+		default:
+			return false
+		}
+	}
+	if kind, ok := check.integerType(); ok {
+		switch v := val.(type) {
+		case runtime.IntegerValue:
+			return v.TypeSuffix == kind
+		case *runtime.IntegerValue:
+			return v != nil && v.TypeSuffix == kind
+		default:
+			return false
+		}
+	}
+	if kind, ok := check.floatType(); ok {
+		switch v := val.(type) {
+		case runtime.FloatValue:
+			return v.TypeSuffix == kind
+		case *runtime.FloatValue:
+			return v != nil && v.TypeSuffix == kind
+		default:
+			return false
+		}
 	}
 	return false
 }

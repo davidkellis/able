@@ -62,6 +62,7 @@ func (i *Interpreter) lowerModuleToBytecode(module *ast.Module) (*bytecodeProgra
 		}
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
+	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
 	return &bytecodeProgram{instructions: ctx.instructions}, nil
 }
 
@@ -86,6 +87,7 @@ func (i *Interpreter) lowerExpressionToBytecodeWithOptions(expr ast.Expression, 
 		return nil, err
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
+	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
 	program := &bytecodeProgram{instructions: ctx.instructions}
 	return i.cacheExpressionBytecode(expr, allowPlaceholderLambda, program), nil
 }
@@ -102,6 +104,7 @@ func (i *Interpreter) lowerBlockExpressionToBytecode(block *ast.BlockExpression,
 		return nil, err
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
+	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
 	return &bytecodeProgram{instructions: ctx.instructions}, nil
 }
 

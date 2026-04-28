@@ -1,6 +1,8 @@
 package interpreter
 
 import (
+	"math"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -91,6 +93,50 @@ func TestBytecodeVM_DirectSmallIntegerComparisonFastPath(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_DirectIntegerLessEqualImmediateFastPath(t *testing.T) {
+	right := runtime.NewSmallInt(9, runtime.IntegerI32)
+	leftPtr := runtime.NewSmallInt(11, runtime.IntegerI64)
+	bigLeft := runtime.NewBigIntValue(big.NewInt(4), runtime.IntegerI32)
+
+	cases := []struct {
+		name    string
+		left    runtime.Value
+		want    bool
+		handled bool
+	}{
+		{name: "value_true", left: runtime.NewSmallInt(4, runtime.IntegerI32), want: true, handled: true},
+		{name: "value_false", left: runtime.NewSmallInt(12, runtime.IntegerI32), want: false, handled: true},
+		{name: "pointer_false", left: &leftPtr, want: false, handled: true},
+		{name: "big_left_miss", left: bigLeft, handled: false},
+		{name: "non_integer_miss", left: runtime.BoolValue{Val: true}, handled: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, handled := bytecodeDirectIntegerLessEqualImmediate(tc.left, right)
+			if handled != tc.handled {
+				t.Fatalf("handled mismatch: got=%v want=%v", handled, tc.handled)
+			}
+			if handled && got != tc.want {
+				t.Fatalf("result mismatch: got=%v want=%v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestBytecodeVM_DirectIntegerLessEqualImmediateRawFastPath(t *testing.T) {
+	if got, handled := bytecodeDirectIntegerLessEqualImmediateRaw(runtime.NewSmallInt(4, runtime.IntegerI32), 9); !handled || !got {
+		t.Fatalf("expected raw immediate compare to handle true small int, got=%v handled=%v", got, handled)
+	}
+	ptr := runtime.NewSmallInt(11, runtime.IntegerI32)
+	if got, handled := bytecodeDirectIntegerLessEqualImmediateRaw(&ptr, 9); !handled || got {
+		t.Fatalf("expected raw immediate compare to handle false pointer small int, got=%v handled=%v", got, handled)
+	}
+	if _, handled := bytecodeDirectIntegerLessEqualImmediateRaw(runtime.StringValue{Val: "x"}, 9); handled {
+		t.Fatalf("expected raw immediate compare to miss non-integer values")
+	}
+}
+
 func TestBytecodeVM_DirectSameTypeSmallIntPair(t *testing.T) {
 	leftVal := runtime.NewSmallInt(6, runtime.IntegerI32)
 	rightVal := runtime.NewSmallInt(3, runtime.IntegerI32)
@@ -148,6 +194,64 @@ func TestBytecodeVM_SubtractIntegerImmediateFast(t *testing.T) {
 
 	if _, handled, err := bytecodeSubtractIntegerImmediateFast(leftVal, otherType); err != nil || handled {
 		t.Fatalf("expected mismatched integer kinds to miss immediate subtract fast path, handled=%v err=%v", handled, err)
+	}
+}
+
+func TestBytecodeVM_SelfCallSubtractIntegerImmediateI32Fast(t *testing.T) {
+	leftVal := runtime.NewSmallInt(6, runtime.IntegerI32)
+	leftPtr := runtime.NewSmallInt(9, runtime.IntegerI32)
+	rightVal := runtime.NewSmallInt(2, runtime.IntegerI32)
+	otherType := runtime.NewSmallInt(2, runtime.IntegerI64)
+
+	got, handled, err := bytecodeSelfCallSubtractIntegerImmediateI32Fast(leftVal, rightVal)
+	if err != nil {
+		t.Fatalf("unexpected value-path error: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected value-path self-call subtract fast path to handle operands")
+	}
+	if !valuesEqual(got, runtime.NewSmallInt(4, runtime.IntegerI32)) {
+		t.Fatalf("unexpected value-path self-call subtract result: got=%#v", got)
+	}
+
+	got, handled, err = bytecodeSelfCallSubtractIntegerImmediateI32Fast(&leftPtr, rightVal)
+	if err != nil {
+		t.Fatalf("unexpected pointer-path error: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected pointer-path self-call subtract fast path to handle operands")
+	}
+	if !valuesEqual(got, runtime.NewSmallInt(7, runtime.IntegerI32)) {
+		t.Fatalf("unexpected pointer-path self-call subtract result: got=%#v", got)
+	}
+
+	if _, handled, err := bytecodeSelfCallSubtractIntegerImmediateI32Fast(leftVal, otherType); err != nil || handled {
+		t.Fatalf("expected mismatched integer kinds to miss self-call subtract fast path, handled=%v err=%v", handled, err)
+	}
+
+	minI32 := runtime.NewSmallInt(math.MinInt32, runtime.IntegerI32)
+	oneI32 := runtime.NewSmallInt(1, runtime.IntegerI32)
+	if _, handled, err := bytecodeSelfCallSubtractIntegerImmediateI32Fast(minI32, oneI32); !handled || err == nil {
+		t.Fatalf("expected i32 underflow to be handled with an error, handled=%v err=%v", handled, err)
+	}
+}
+
+func TestBytecodeVM_SelfCallSubtractIntegerImmediateI32RawFast(t *testing.T) {
+	leftVal := runtime.NewSmallInt(6, runtime.IntegerI32)
+	got, handled, err := bytecodeSelfCallSubtractIntegerImmediateI32RawFast(leftVal, 2)
+	if err != nil {
+		t.Fatalf("unexpected raw immediate self-call subtract error: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected raw immediate self-call subtract to handle operands")
+	}
+	if !valuesEqual(got, runtime.NewSmallInt(4, runtime.IntegerI32)) {
+		t.Fatalf("unexpected raw immediate self-call subtract result: got=%#v", got)
+	}
+
+	otherType := runtime.NewSmallInt(6, runtime.IntegerI64)
+	if _, handled, err := bytecodeSelfCallSubtractIntegerImmediateI32RawFast(otherType, 2); err != nil || handled {
+		t.Fatalf("expected mismatched raw immediate integer kind to miss, handled=%v err=%v", handled, err)
 	}
 }
 
@@ -428,10 +532,75 @@ func TestBytecodeVM_LoweringEmitsFusedSelfCallSlotConstOpcode(t *testing.T) {
 			if !instr.hasIntImmediate {
 				t.Fatalf("expected fused self-call slot-const opcode to carry typed integer-immediate metadata")
 			}
+			if !instr.hasIntRaw || instr.intImmediateRaw <= 0 {
+				t.Fatalf("expected fused self-call slot-const opcode to carry raw integer-immediate metadata, got raw=%v value=%d", instr.hasIntRaw, instr.intImmediateRaw)
+			}
 			if got, ok := instr.intImmediate.ToInt64(); !ok || got <= 0 {
 				t.Fatalf("expected fused self-call slot-const immediate, got=%v ok=%v", got, ok)
 			}
 		}
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsReturnBinaryIntAddForImplicitFinalExpression(t *testing.T) {
+	def := ast.Fn(
+		"fib",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
+		[]ast.Statement{
+			ast.IfExpr(
+				ast.Bin("<=", ast.ID("n"), ast.Int(1)),
+				ast.Block(ast.Ret(ast.ID("n"))),
+			),
+			ast.Bin(
+				"+",
+				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(1))),
+				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(2))),
+			),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpReturnBinaryIntAddI32) {
+		t.Fatalf("expected i32 lowering to emit fused return-add-i32 opcode")
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntAdd) {
+		t.Fatalf("expected fused return-add shape to replace standalone add opcode")
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpReturnBinaryIntAdd) {
+		t.Fatalf("expected i32 return-add shape to avoid generic return-add opcode")
+	}
+}
+
+func TestBytecodeVM_ReturnBinaryIntAddImplicitFinalExpressionParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"sum",
+			nil,
+			[]ast.Statement{
+				ast.Bin("+", ast.Int(19), ast.Int(23)),
+			},
+			ast.Ty("i32"),
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Call("sum"),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode return-add implicit final expression mismatch: got=%#v want=%#v", got, want)
 	}
 }
 
@@ -442,7 +611,7 @@ func TestBytecodeVM_LoweringEmitsConditionalJumpForIntLessEqualSlotConstIf(t *te
 		[]ast.Statement{
 			ast.IfExpr(
 				ast.Bin("<=", ast.ID("n"), ast.Int(2)),
-				ast.Block(ast.Ret(ast.Int(1))),
+				ast.Block(ast.Bin("-", ast.ID("n"), ast.Int(1))),
 			),
 			ast.Bin("-", ast.ID("n"), ast.Int(1)),
 		},
@@ -500,6 +669,162 @@ func TestBytecodeVM_LoweringSkipsDeadNilForStatementIfWithoutElse(t *testing.T) 
 		if _, ok := instr.value.(runtime.NilValue); ok {
 			t.Fatalf("expected statement-position if without else to skip dead nil const lowering")
 		}
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsReturnIfForIntLessEqualSlotConstStatement(t *testing.T) {
+	def := ast.Fn(
+		"fib",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("Int"))},
+		[]ast.Statement{
+			ast.IfExpr(
+				ast.Bin("<=", ast.ID("n"), ast.Int(1)),
+				ast.Block(ast.Ret(ast.ID("n"))),
+			),
+			ast.Bin(
+				"+",
+				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(1))),
+				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(2))),
+			),
+		},
+		ast.Ty("Int"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpReturnIfIntLessEqualSlotConst) {
+		t.Fatalf("expected lowering to emit fused slot-const return-if opcode")
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpJumpIfIntLessEqualSlotConstFalse) {
+		t.Fatalf("expected fused return-if shape to skip standalone conditional jump opcode")
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsReturnConstIfForIntLessEqualSlotConstStatement(t *testing.T) {
+	def := ast.Fn(
+		"fib",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
+		[]ast.Statement{
+			ast.IfExpr(
+				ast.Bin("<=", ast.ID("n"), ast.Int(2)),
+				ast.Block(ast.Ret(ast.Int(1))),
+			),
+			ast.Bin(
+				"+",
+				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(1))),
+				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(2))),
+			),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpReturnConstIfIntLessEqualSlotConst) {
+		t.Fatalf("expected lowering to emit fused slot-const return-const-if opcode")
+	}
+	foundRaw := false
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpReturnConstIfIntLessEqualSlotConst && instr.hasIntRaw && instr.intImmediateRaw == 2 {
+			foundRaw = true
+			break
+		}
+	}
+	if !foundRaw {
+		t.Fatalf("expected fused return-const-if opcode to cache raw condition immediate 2")
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpJumpIfIntLessEqualSlotConstFalse) {
+		t.Fatalf("expected fused return-const-if shape to skip standalone conditional jump opcode")
+	}
+}
+
+func TestBytecodeVM_ReturnConstIfIntLessEqualSlotConstFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	returnVal := runtime.NewSmallInt(1, runtime.IntegerI32)
+	vm.slots = []runtime.Value{runtime.NewSmallInt(2, runtime.IntegerI32)}
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpReturnConstIfIntLessEqualSlotConst,
+		argCount:        0,
+		value:           returnVal,
+		intImmediate:    runtime.NewSmallInt(2, runtime.IntegerI32),
+		hasIntImmediate: true,
+	}
+
+	got, returned, err := vm.execReturnConstIfIntLessEqualSlotConst(instr, nil)
+	if err != nil {
+		t.Fatalf("unexpected return-const-if error: %v", err)
+	}
+	if !returned {
+		t.Fatalf("expected return-const-if fast path to return")
+	}
+	if !valuesEqual(got, returnVal) {
+		t.Fatalf("unexpected return-const-if value: got=%#v want=%#v", got, returnVal)
+	}
+
+	vm.ip = 7
+	vm.slots[0] = runtime.NewSmallInt(3, runtime.IntegerI32)
+	got, returned, err = vm.execReturnConstIfIntLessEqualSlotConst(instr, nil)
+	if err != nil {
+		t.Fatalf("unexpected false return-const-if error: %v", err)
+	}
+	if returned || got != nil {
+		t.Fatalf("expected false return-const-if fast path not to return, got=%#v returned=%v", got, returned)
+	}
+	if vm.ip != 8 {
+		t.Fatalf("expected false return-const-if to advance ip, got %d", vm.ip)
+	}
+}
+
+func TestBytecodeVM_ReturnIfIntLessEqualSlotConstSameSlotFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	trueVal := runtime.NewSmallInt(1, runtime.IntegerI32)
+	vm.slots = []runtime.Value{trueVal}
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpReturnIfIntLessEqualSlotConst,
+		target:          0,
+		argCount:        0,
+		intImmediate:    runtime.NewSmallInt(1, runtime.IntegerI32),
+		hasIntImmediate: true,
+	}
+
+	got, returned, err := vm.execReturnIfIntLessEqualSlotConst(instr, nil)
+	if err != nil {
+		t.Fatalf("unexpected return-if error: %v", err)
+	}
+	if !returned {
+		t.Fatalf("expected return-if same-slot fast path to return")
+	}
+	if !valuesEqual(got, trueVal) {
+		t.Fatalf("unexpected return-if value: got=%#v want=%#v", got, trueVal)
+	}
+
+	vm.ip = 7
+	vm.slots[0] = runtime.NewSmallInt(2, runtime.IntegerI32)
+	got, returned, err = vm.execReturnIfIntLessEqualSlotConst(instr, nil)
+	if err != nil {
+		t.Fatalf("unexpected false return-if error: %v", err)
+	}
+	if returned || got != nil {
+		t.Fatalf("expected false return-if same-slot fast path not to return, got=%#v returned=%v", got, returned)
+	}
+	if vm.ip != 8 {
+		t.Fatalf("expected false return-if to advance ip, got %d", vm.ip)
 	}
 }
 

@@ -143,6 +143,32 @@ func TestInlineCoercionUnnecessaryAcceptsBoxedPrimitivePointers(t *testing.T) {
 	}
 }
 
+func TestInlineCoercionUnnecessaryBySimpleCheck(t *testing.T) {
+	intVal := runtime.NewSmallInt(7, runtime.IntegerI32)
+	floatVal := runtime.FloatValue{TypeSuffix: runtime.FloatF64}
+	stringVal := runtime.StringValue{Val: "x"}
+	boolVal := runtime.BoolValue{Val: true}
+
+	if !inlineCoercionUnnecessaryBySimpleCheck(bytecodeSimpleTypeCheckAnyInteger, intVal) {
+		t.Fatalf("expected Int check to accept integer values")
+	}
+	if !inlineCoercionUnnecessaryBySimpleCheck(bytecodeSimpleTypeCheckI32, intVal) {
+		t.Fatalf("expected i32 check to accept matching integer suffix")
+	}
+	if inlineCoercionUnnecessaryBySimpleCheck(bytecodeSimpleTypeCheckI64, intVal) {
+		t.Fatalf("expected i64 check to reject mismatched integer suffix")
+	}
+	if !inlineCoercionUnnecessaryBySimpleCheck(bytecodeSimpleTypeCheckAnyFloat, &floatVal) {
+		t.Fatalf("expected Float check to accept float pointers")
+	}
+	if !inlineCoercionUnnecessaryBySimpleCheck(bytecodeSimpleTypeCheckString, &stringVal) {
+		t.Fatalf("expected String check to accept string pointers")
+	}
+	if !inlineCoercionUnnecessaryBySimpleCheck(bytecodeSimpleTypeCheckBool, &boolVal) {
+		t.Fatalf("expected Bool check to accept bool pointers")
+	}
+}
+
 func TestInlineCoerceValueBySimpleTypeIntegerWidening(t *testing.T) {
 	value := runtime.NewSmallInt(7, runtime.IntegerI32)
 
