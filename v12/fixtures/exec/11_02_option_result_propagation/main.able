@@ -1,21 +1,35 @@
 package exec_11_02_option_result_propagation
 
-## Semantics: `or {}` handles nil Option results, `!` unwraps a present value, and `! or { err => ... }` handles a raised error via propagation.
+## Semantics: `or {}` handles nil Option results, `!` unwraps a present value,
+## nil through `!` returns from the current function, and `! or { err => ... }`
+## handles a raised error via propagation.
 
-fn maybe_id(ok: bool) {
+fn maybe_id(ok: bool) -> ?i32 {
   if ok { 10 } else { nil }
 }
 
-fn fallible(ok: bool) {
+fn fallible(ok: bool) -> !String {
   if ok { "ok" } else { raise "boom" }
 }
 
+fn require_present() -> ?i32 {
+  maybe_id(true)!
+}
+
+fn propagate_missing() -> ?i32 {
+  maybe_id(false)!
+  99
+}
+
 fn main() -> void {
-  present := maybe_id(true)!             ## unwraps non-nil Option
+  present := require_present() or { -99 } ## unwraps non-nil Option from a nil-compatible helper
   missing := maybe_id(false) or { -1 }   ## fallback on nil Option
+  propagated_value := propagate_missing()
+  nil_propagated := propagated_value or { -2 }
   error_handled := fallible(false)! or { err => err.message() } ## handler sees raised error
 
   print(`present ${present}`)
   print(`missing ${missing}`)
+  print(`nil-propagated ${nil_propagated}`)
   print(`error ${error_handled}`)
 }

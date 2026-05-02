@@ -29,3 +29,7 @@ Interpretation rules for the rest of this directory:
 Compiler architecture references:
 - `compiler-go-lowering-spec.md`: exhaustive Able -> Go lowering map
 - `compiler-go-lowering-plan.md`: ordered path from current compiler to that target
+
+Bytecode/runtime architecture references:
+- `bytecode-vm-v2.md`: current bytecode VM v2 plan for typed cells,
+  quickening, native Array/String bytecodes, and spec-preserving fallback

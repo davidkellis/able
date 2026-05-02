@@ -7,7 +7,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 bench_repo="$REPO_ROOT/../benchmarks"
 external_results_json=""
 benchmarks_csv="fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e"
-modes_csv="compiled,bytecode"
+modes_csv="compiled,bytecode,treewalker"
 languages_csv="go,ruby,python"
 runs=1
 timeout_seconds=90
@@ -30,7 +30,8 @@ Options:
       --benchmark-repo DIR  External benchmarks repo (default: ../benchmarks)
       --results-json PATH   External results.json (default: <benchmark-repo>/results.json)
   -b, --benchmarks CSV      Benchmarks to compare
-  -m, --modes CSV           Modes: compiled,treewalker,bytecode (default: compiled,bytecode)
+  -m, --modes CSV           Modes: compiled,bytecode,treewalker,bytecode-runtime
+                            (default: compiled,bytecode,treewalker)
   -l, --languages CSV       External language families to report (default: go,ruby,python)
   -r, --runs N              Runs per Able benchmark/mode (default: 1)
   -t, --timeout SEC         Timeout per Able run in seconds (default: 90)
@@ -225,6 +226,15 @@ summary_rows="$workdir/rows.tsv"
 
 IFS=',' read -r -a requested_benchmarks <<<"$benchmarks_csv"
 IFS=',' read -r -a requested_modes <<<"$modes_csv"
+for mode in "${requested_modes[@]}"; do
+  case "$mode" in
+    ""|compiled|bytecode|treewalker|bytecode-runtime)
+      ;;
+    *)
+      die "unknown mode: $mode"
+      ;;
+  esac
+done
 
 echo ">>> External benchmark repo: $bench_repo"
 echo ">>> External results: $external_results_json"
@@ -259,6 +269,7 @@ for bench in "${requested_benchmarks[@]}"; do
 
   bench_json="$workdir/${bench}.json"
   echo ">>> Benchmark: $bench"
+  set +e
   "$SCRIPT_DIR/bench_perf" \
     --runs "$runs" \
     --timeout "$timeout_seconds" \
@@ -268,6 +279,24 @@ for bench in "${requested_benchmarks[@]}"; do
     "${bench_executor_args[@]}" \
     "${bench_program_args[@]/#/--program-arg=}" \
     "$target"
+  bench_perf_rc=$?
+  set -e
+
+  if [[ "$bench_perf_rc" -ne 0 ]]; then
+    echo ">>> Benchmark failed before per-mode summary for $bench (exit $bench_perf_rc); recording failure rows"
+    python - "$bench" "$modes_csv" "$summary_rows" <<'PY'
+import sys
+
+bench, modes_csv, rows_path = sys.argv[1:]
+with open(rows_path, "a", encoding="utf-8") as out:
+    for mode in [m for m in modes_csv.split(",") if m]:
+        out.write(
+            "\t".join([bench, mode, "0", "0", "1", "n/a", "n/a", "n/a", "n/a"])
+            + "\n"
+        )
+PY
+    continue
+  fi
 
   python - "$bench" "$bench_json" "$summary_rows" <<'PY'
 import json

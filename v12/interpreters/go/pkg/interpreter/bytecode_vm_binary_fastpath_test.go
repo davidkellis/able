@@ -531,6 +531,7 @@ func TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes(t *testing.T) {
 			ast.Bin("+", ast.ID("n"), ast.Int(1)),
 			ast.Bin("<=", ast.ID("n"), ast.Int(2)),
 			ast.Bin("-", ast.ID("n"), ast.Int(1)),
+			ast.ID("n"),
 		},
 		nil,
 		nil,

@@ -295,6 +295,7 @@ type Interpreter struct {
 	methodCache           map[methodCacheKey]methodCacheEntry
 	interfaceImplCache    map[interfaceImplCacheKey]interfaceImplCacheEntry
 	boundMethodCache      map[boundMethodCacheKey]runtime.Value
+	propagationErrorCache map[string]bool
 	methodCacheMu         sync.RWMutex
 	methodCacheVersion    uint64
 	overloadCache         map[overloadCacheKey]*runtime.FunctionValue
@@ -458,6 +459,7 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		methodCache:             make(map[methodCacheKey]methodCacheEntry),
 		interfaceImplCache:      make(map[interfaceImplCacheKey]interfaceImplCacheEntry),
 		boundMethodCache:        make(map[boundMethodCacheKey]runtime.Value),
+		propagationErrorCache:   make(map[string]bool),
 		overloadCache:           make(map[overloadCacheKey]*runtime.FunctionValue),
 		typeAliasBaseCache:      make(map[string][]string),
 		typeInfoNameCache:       make(map[typeInfoCacheKey]string),
@@ -575,6 +577,7 @@ func (i *Interpreter) SetCompiledImplChecker(checker func(typeName string, inter
 		return
 	}
 	i.compiledImplChecker = checker
+	i.invalidateMethodCache()
 }
 
 // SetCompiledInstanceMethodResolver registers a callback that resolves compiled

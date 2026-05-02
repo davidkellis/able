@@ -62,6 +62,9 @@ func (vm *bytecodeVM) execCompoundAssignSlot(instr bytecodeInstruction) error {
 		return err
 	}
 	vm.slots[instr.target] = computed
+	if instr.target == 0 {
+		vm.setSelfFastSlot0I32Value(computed)
+	}
 	if computed == nil {
 		computed = runtime.NilValue{}
 	}

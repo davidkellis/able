@@ -66,6 +66,8 @@ func emitIf(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfExpression
 	jumpToElse := -1
 	if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, expr.IfCondition); ok {
 		jumpToElse = ctx.emit(instr)
+	} else if instr, ok := bytecodeJumpIfFalseBoolSlotInstruction(ctx, expr.IfCondition); ok {
+		jumpToElse = ctx.emit(instr)
 	} else {
 		if err := emitExpression(ctx, i, expr.IfCondition); err != nil {
 			return err
@@ -84,6 +86,8 @@ func emitIf(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfExpression
 		}
 		jumpToNext := -1
 		if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, clause.Condition); ok {
+			jumpToNext = ctx.emit(instr)
+		} else if instr, ok := bytecodeJumpIfFalseBoolSlotInstruction(ctx, clause.Condition); ok {
 			jumpToNext = ctx.emit(instr)
 		} else {
 			if err := emitExpression(ctx, i, clause.Condition); err != nil {
@@ -126,6 +130,8 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 	jumpToElse := -1
 	if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, expr.IfCondition); ok {
 		jumpToElse = ctx.emit(instr)
+	} else if instr, ok := bytecodeJumpIfFalseBoolSlotInstruction(ctx, expr.IfCondition); ok {
+		jumpToElse = ctx.emit(instr)
 	} else {
 		if err := emitExpression(ctx, i, expr.IfCondition); err != nil {
 			return err
@@ -145,6 +151,8 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 		}
 		jumpToNext := -1
 		if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, clause.Condition); ok {
+			jumpToNext = ctx.emit(instr)
+		} else if instr, ok := bytecodeJumpIfFalseBoolSlotInstruction(ctx, clause.Condition); ok {
 			jumpToNext = ctx.emit(instr)
 		} else {
 			if err := emitExpression(ctx, i, clause.Condition); err != nil {
@@ -206,10 +214,15 @@ func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.While
 	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
 	loopStart := len(ctx.instructions)
 	ctx.pushLoop(loopStart)
-	if err := emitExpression(ctx, i, loop.Condition); err != nil {
-		return err
+	jumpToNoBreak := -1
+	if instr, ok := bytecodeJumpIfFalseBoolSlotInstruction(ctx, loop.Condition); ok {
+		jumpToNoBreak = ctx.emit(instr)
+	} else {
+		if err := emitExpression(ctx, i, loop.Condition); err != nil {
+			return err
+		}
+		jumpToNoBreak = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	}
-	jumpToNoBreak := ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	if err := emitBlock(ctx, i, loop.Body); err != nil {
 		return err
 	}
@@ -222,6 +235,27 @@ func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.While
 	ctx.popLoop(loopExit)
 	ctx.patchLoopTargets(loopEnter, loopExit, loopStart)
 	return nil
+}
+
+func bytecodeJumpIfFalseBoolSlotInstruction(ctx *bytecodeLoweringContext, condition ast.Expression) (bytecodeInstruction, bool) {
+	if ctx == nil || ctx.frameLayout == nil {
+		return bytecodeInstruction{}, false
+	}
+	ident, ok := condition.(*ast.Identifier)
+	if !ok || ident == nil {
+		return bytecodeInstruction{}, false
+	}
+	slot, found := ctx.lookupSlot(ident.Name)
+	if !found || ctx.slotKind(slot) != bytecodeCellKindBool {
+		return bytecodeInstruction{}, false
+	}
+	return bytecodeInstruction{
+		op:       bytecodeOpJumpIfBoolSlotFalse,
+		target:   -1,
+		argCount: slot,
+		name:     ident.Name,
+		node:     ident,
+	}, true
 }
 
 func emitForLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.ForLoop) error {
@@ -373,12 +407,34 @@ func (ctx *bytecodeLoweringContext) lookupSlot(name string) (int, bool) {
 }
 
 func (ctx *bytecodeLoweringContext) declareSlot(name string) int {
+	return ctx.declareSlotWithKind(name, bytecodeCellKindValue)
+}
+
+func (ctx *bytecodeLoweringContext) declareSlotWithKind(name string, kind bytecodeCellKind) int {
 	slot := ctx.nextSlot
 	ctx.nextSlot++
+	ctx.setSlotKind(slot, kind)
 	if len(ctx.slotScopes) > 0 {
 		ctx.slotScopes[len(ctx.slotScopes)-1][name] = slot
 	}
 	return slot
+}
+
+func (ctx *bytecodeLoweringContext) setSlotKind(slot int, kind bytecodeCellKind) {
+	if slot < 0 {
+		return
+	}
+	for len(ctx.slotKinds) <= slot {
+		ctx.slotKinds = append(ctx.slotKinds, bytecodeCellKindValue)
+	}
+	ctx.slotKinds[slot] = kind
+}
+
+func (ctx *bytecodeLoweringContext) slotKind(slot int) bytecodeCellKind {
+	if slot < 0 || slot >= len(ctx.slotKinds) {
+		return bytecodeCellKindValue
+	}
+	return ctx.slotKinds[slot]
 }
 
 func (ctx *bytecodeLoweringContext) pushLoop(start int) {

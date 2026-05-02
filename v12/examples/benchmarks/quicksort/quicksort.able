@@ -2,59 +2,58 @@ package quicksort
 
 import able.kernel.{Array}
 import able.fs
-import able.text.string
 
-fn char_to_digit(ch: String) -> i32 {
-  if ch == "0" { 0 }
-  elsif ch == "1" { 1 }
-  elsif ch == "2" { 2 }
-  elsif ch == "3" { 3 }
-  elsif ch == "4" { 4 }
-  elsif ch == "5" { 5 }
-  elsif ch == "6" { 6 }
-  elsif ch == "7" { 7 }
-  elsif ch == "8" { 8 }
-  elsif ch == "9" { 9 }
-  else { -1 }
-}
-
-fn parse_i32(s: String) -> i32 {
-  result := 0
+fn parse_numbers(bytes: Array u8) -> Array i32 {
+  nums: Array i32 := Array.new()
+  value := 0
   negative := false
+  in_number := false
   i := 0
+  count := bytes.len()
   loop {
-    if i >= s.len_bytes() { break }
-    ch := s.substring(i, 1)!
-    d := char_to_digit(ch)
-    if ch == "-" {
+    if i >= count { break }
+    byte := bytes.read_slot(i)
+    if byte == 45_u8 {
       negative = true
-    } elsif d >= 0 {
-      result = result * 10 + d
+      in_number = true
+    } elsif byte >= 48_u8 && byte <= 57_u8 {
+      value = value * 10 + ((byte as i32) - 48)
+      in_number = true
+    } else {
+      if in_number {
+        if negative { nums.push(0 - value) } else { nums.push(value) }
+        value = 0
+        negative = false
+        in_number = false
+      }
     }
     i = i + 1
   }
-  if negative { 0 - result } else { result }
+  if in_number {
+    if negative { nums.push(0 - value) } else { nums.push(value) }
+  }
+  nums
 }
 
 fn swap(arr: Array i32, a: i32, b: i32) {
-  tmp := arr.get(a)!
-  arr.set(a, arr.get(b)!)
-  arr.set(b, tmp)
+  tmp := arr.read_slot(a)
+  arr.write_slot(a, arr.read_slot(b))
+  arr.write_slot(b, tmp)
 }
 
 fn quicksort(arr: Array i32, lo: i32, hi: i32) {
   if lo >= hi { return }
-  pivot := arr.get(((lo + hi) / 2) as i32)!
+  pivot := arr.read_slot(((lo + hi) / 2) as i32)
   i := lo
   j := hi
   loop {
     if i > j { break }
     loop {
-      if arr.get(i)! >= pivot { break }
+      if arr.read_slot(i) >= pivot { break }
       i = i + 1
     }
     loop {
-      if arr.get(j)! <= pivot { break }
+      if arr.read_slot(j) <= pivot { break }
       j = j - 1
     }
     if i <= j {
@@ -68,30 +67,20 @@ fn quicksort(arr: Array i32, lo: i32, hi: i32) {
 }
 
 fn main() {
-  text := fs.read_text("numbers.txt")
-  parts := text.split(",")
-  nums: Array i32 := Array.new()
-  i := 0
-  loop {
-    if i >= parts.len() { break }
-    part := parts.get(i)!
-    nums.push(parse_i32(part))
-    i = i + 1
-  }
+  nums := parse_numbers(fs.read_bytes("numbers.txt"))
 
   quicksort(nums, 0, nums.len() - 1)
 
-  i = 0
+  i := 0
   loop {
     if i >= 10 { break }
-    print(nums.get(i)!)
+    print(nums.read_slot(i))
     i = i + 1
   }
-  print("...")
   i = nums.len() - 10
   loop {
     if i >= nums.len() { break }
-    print(nums.get(i)!)
+    print(nums.read_slot(i))
     i = i + 1
   }
 }

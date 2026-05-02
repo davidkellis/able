@@ -74,3 +74,38 @@ func (g *generator) raiseControlExpr(nodeExpr string, valueExpr string) string {
 	}
 	return fmt.Sprintf("__able_raise_control(%s, %s)", nodeExpr, valueExpr)
 }
+
+func (g *generator) nilPropagationReturnLines(ctx *compileContext) ([]string, bool) {
+	expr, ok := g.nilPropagationReturnExpr(ctx)
+	if !ok {
+		if ctx != nil {
+			ctx.setReason("nil propagation requires nil-compatible return type")
+		}
+		return nil, false
+	}
+	return []string{fmt.Sprintf("return %s, nil", expr)}, true
+}
+
+func (g *generator) nilPropagationReturnExpr(ctx *compileContext) (string, bool) {
+	if g == nil || ctx == nil || ctx.returnType == "" {
+		return "", false
+	}
+	switch ctx.returnType {
+	case "runtime.Value":
+		return "runtime.NilValue{}", true
+	case "any":
+		return "nil", true
+	}
+	if _, nullable := g.nativeNullableValueInnerType(ctx.returnType); nullable {
+		return "nil", true
+	}
+	if expr, ok := g.nativeUnionNilExpr(ctx.returnType); ok {
+		return expr, true
+	}
+	if ctx.returnTypeExpr != nil && g.typeExprIncludesNilInPackage(ctx.packageName, ctx.returnTypeExpr) {
+		if typedNil, ok := g.typedNilExpr(ctx.returnType); ok {
+			return typedNil, true
+		}
+	}
+	return "", false
+}

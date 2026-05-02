@@ -279,11 +279,11 @@ func (i *Interpreter) evaluatePropagationExpression(expr *ast.PropagationExpress
 	if err != nil {
 		return nil, err
 	}
-	if errVal, ok := asErrorValue(val); ok {
-		return nil, raiseSignal{value: errVal}
+	if isNilRuntimeValue(val) {
+		return nil, returnSignal{value: runtime.NilValue{}, node: expr}
 	}
-	if i.matchesType(cachedSimpleTypeExpression("Error"), val) {
-		return nil, raiseSignal{value: i.makeErrorValue(val, env)}
+	if errVal, ok := i.propagationErrorValue(val, env); ok {
+		return nil, raiseSignal{value: errVal}
 	}
 	return val, nil
 }

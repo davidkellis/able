@@ -388,22 +388,8 @@ func (g *generator) renderMain() ([]byte, error) {
 	if functionCount == 0 {
 		onlyCompiledFunctions = false
 	}
-	onlyCompiledMethods := true
-	for _, method := range g.methodList {
-		if method == nil || method.Info == nil || !method.Info.Compileable {
-			onlyCompiledMethods = false
-			break
-		}
-	}
-	onlyCompiledImpls := true
-	for _, implMethod := range g.implMethodList {
-		if implMethod == nil || implMethod.Info == nil || !implMethod.Info.Compileable {
-			onlyCompiledImpls = false
-			break
-		}
-	}
 	importsSeedable := g.noBootstrapImportsSeedable()
-	requiresBootstrap := g.hasDynamicFeature || len(g.collectFallbacks()) > 0 || !onlyCompiledFunctions || !onlyCompiledMethods || !onlyCompiledImpls || !importsSeedable
+	requiresBootstrap := g.hasDynamicFeature || len(g.collectFallbacks()) > 0 || !onlyCompiledFunctions || !importsSeedable
 	fmt.Fprintf(&buf, "func main() {\n")
 	fmt.Fprintf(&buf, "\tstopProfile, err := profilehook.StartFromEnv()\n")
 	fmt.Fprintf(&buf, "\tif err != nil {\n")

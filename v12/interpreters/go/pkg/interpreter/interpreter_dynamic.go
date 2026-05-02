@@ -208,7 +208,7 @@ func (i *Interpreter) evaluateDynamicDefinition(pkgName, source string) runtime.
 			return runtime.ErrorValue{Message: fmt.Sprintf("dyn.def error: %s", evalErr.Error())}
 		}
 	}
-	return runtime.NilValue{}
+	return runtime.VoidValue{}
 }
 
 func (i *Interpreter) evaluateDynamicEval(pkgName, source string) runtime.Value {

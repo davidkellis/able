@@ -71,6 +71,97 @@ func TestCompilerGoExternStructBoundaryExecutes(t *testing.T) {
 	}
 }
 
+func TestCompilerGoExternMonoArrayReturnUsesNativeHostSlice(t *testing.T) {
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-go-extern-array-return-", strings.Join([]string{
+		"package demo",
+		"",
+		"extern go fn read_bytes() -> Array u8 {",
+		"  return []uint8{65, 66}",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  bytes := read_bytes()",
+		"  print(bytes.length())",
+		"  print(bytes.read_slot(0))",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:              "main",
+		ExperimentalMonoArrays:   true,
+		RequireStaticNoFallbacks: true,
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read_bytes")
+	if !ok {
+		t.Fatalf("compiled extern body not found")
+	}
+	if !strings.Contains(body, "return &__able_array_u8{Elements: append([]uint8(nil), __able_host_result...)}, nil") {
+		t.Fatalf("expected mono-array extern return to wrap host []uint8 directly:\n%s", body)
+	}
+	if strings.Contains(body, "bridge.HostValueToRuntime") {
+		t.Fatalf("expected mono-array extern return to avoid generic host return bridge:\n%s", body)
+	}
+}
+
+func TestCompilerGoExternPrimitiveArgsAndReturnStayNative(t *testing.T) {
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-go-extern-primitive-native-", strings.Join([]string{
+		"package demo",
+		"",
+		"prelude go {",
+		`import "strings"`,
+		"}",
+		"",
+		"extern go fn has(value: String, needle: String) -> bool {",
+		"  return strings.Contains(value, needle)",
+		"}",
+		"",
+		"extern go fn first_at(value: String, needle: String) -> i32 {",
+		"  return int32(strings.Index(value, needle))",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  print(has(\"ceiling\", \"ei\"))",
+		"  print(first_at(\"ceiling\", \"ei\"))",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:              "main",
+		RequireStaticNoFallbacks: true,
+	})
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_has")
+	if !ok {
+		t.Fatalf("compiled extern body not found")
+	}
+	for _, fragment := range []string{"bridge.RuntimeValueToHost", "bridge.HostValueToRuntime", "bridge.ToString(value)", "bridge.AsBool"} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected primitive extern body to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "__able_host_arg_0 := value") || !strings.Contains(body, "__able_host_arg_1 := needle") {
+		t.Fatalf("expected primitive extern args to pass native carriers directly:\n%s", body)
+	}
+	if !strings.Contains(body, "return __able_host_result, nil") {
+		t.Fatalf("expected primitive extern return to stay native:\n%s", body)
+	}
+
+	body, ok = findCompiledFunction(result, "__able_compiled_fn_first_at")
+	if !ok {
+		t.Fatalf("compiled i32 extern body not found")
+	}
+	for _, fragment := range []string{"bridge.RuntimeValueToHost", "bridge.HostValueToRuntime", "bridge.AsInt32"} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected i32 extern body to avoid %q:\n%s", fragment, body)
+		}
+	}
+	if !strings.Contains(body, "__able_host_arg_0 := value") || !strings.Contains(body, "__able_host_arg_1 := needle") {
+		t.Fatalf("expected i32 extern args to pass native carriers directly:\n%s", body)
+	}
+	if !strings.Contains(body, "return __able_host_result, nil") {
+		t.Fatalf("expected i32 extern return to stay native:\n%s", body)
+	}
+}
+
 func TestCompilerGoExternUnionMonoArrayToRuntimeHelperUsesSpecializedArrayBridge(t *testing.T) {
 	result := compileNoFallbackExecSourceWithOptions(t, "ablec-go-extern-array-union-", strings.Join([]string{
 		"package demo",
@@ -102,6 +193,16 @@ func TestCompilerGoExternUnionMonoArrayToRuntimeHelperUsesSpecializedArrayBridge
 	}
 	if strings.Contains(compiled, "unsupported union member type *__able_array_u8") {
 		t.Fatalf("expected mono-array union runtime bridge to avoid unsupported member fallback")
+	}
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_read_bytes")
+	if !ok {
+		t.Fatalf("compiled extern body not found")
+	}
+	if !strings.Contains(body, "if __able_host_slice, ok := __able_host_result.([]uint8); ok") {
+		t.Fatalf("expected union extern return to detect host []uint8 directly:\n%s", body)
+	}
+	if !strings.Contains(body, "&__able_array_u8{Elements: append([]uint8(nil), __able_host_slice...)}") {
+		t.Fatalf("expected union extern return to wrap native array member directly:\n%s", body)
 	}
 }
 

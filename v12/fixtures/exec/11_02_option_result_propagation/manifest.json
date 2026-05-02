@@ -4,6 +4,7 @@
     "stdout": [
       "present 10",
       "missing -1",
+      "nil-propagated -2",
       "error boom"
     ],
     "exit": 0

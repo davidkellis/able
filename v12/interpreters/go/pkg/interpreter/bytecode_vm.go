@@ -76,6 +76,7 @@ const (
 	bytecodeOpContinueSignal
 	bytecodeOpJump
 	bytecodeOpJumpIfFalse
+	bytecodeOpJumpIfBoolSlotFalse
 	bytecodeOpJumpIfIntLessEqualSlotConstFalse
 	bytecodeOpReturnIfIntLessEqualSlotConst
 	bytecodeOpReturnConstIfIntLessEqualSlotConst
@@ -84,12 +85,18 @@ const (
 	bytecodeOpLoopExit
 	bytecodeOpEnterScope
 	bytecodeOpExitScope
+	bytecodeOpConstI32
+	bytecodeOpBinaryI32Add
+	bytecodeOpBinaryI32Sub
+	bytecodeOpBoxI32
 	bytecodeOpReturnBinaryIntAddI32
 	bytecodeOpReturnBinaryIntAdd
 	bytecodeOpReturn
 	bytecodeOpLoadSlot
+	bytecodeOpLoadSlotI32
 	bytecodeOpStoreSlot
 	bytecodeOpStoreSlotNew
+	bytecodeOpStoreSlotI32
 	bytecodeOpCompoundAssignSlot
 	bytecodeOpCallSelf
 	bytecodeOpCallSelfIntSubSlotConst

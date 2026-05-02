@@ -54,6 +54,12 @@ func TestBytecodeVM_TypedIdentifierDeclarationUsesSlotLowering(t *testing.T) {
 				t.Fatalf("unexpected typed slot annotation: got=%q want=%q", got, "i32")
 			}
 		}
+		if instr.op == bytecodeOpStoreSlotI32 && instr.name == "x" {
+			sawTypedStoreSlotNew = true
+			if got := prog.frameLayout.slotKinds[instr.target]; got != bytecodeCellKindI32 {
+				t.Fatalf("expected typed i32 slot metadata for StoreSlotI32, got %d", got)
+			}
+		}
 	}
 	if !sawTypedStoreSlotNew {
 		t.Fatalf("expected typed slot declaration opcode metadata for typed identifier assignment")

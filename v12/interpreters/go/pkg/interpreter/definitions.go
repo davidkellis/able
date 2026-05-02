@@ -151,6 +151,7 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 		instructions:           make([]bytecodeInstruction, 0, len(def.Body.Body)*2),
 		allowPlaceholderLambda: true,
 		frameLayout:            layout,
+		slotKinds:              append([]bytecodeCellKind(nil), layout.paramKinds...),
 		nextSlot:               layout.paramSlots,
 		selfCallSlot:           -1,
 	}
@@ -158,6 +159,7 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 		layout.selfCallSlot = ctx.nextSlot
 		ctx.selfCallSlot = ctx.nextSlot
 		ctx.nextSlot++
+		ctx.setSlotKind(layout.selfCallSlot, bytecodeCellKindValue)
 		if def.ID != nil {
 			ctx.selfCallName = def.ID.Name
 		}
@@ -175,6 +177,15 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
 	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, layout)
 	layout.slotCount = ctx.nextSlot
+	layout.slotKinds = make([]bytecodeCellKind, layout.slotCount)
+	copy(layout.slotKinds, ctx.slotKinds)
+	layout.hasTypedSlots = false
+	for _, kind := range layout.slotKinds {
+		if kind != bytecodeCellKindValue {
+			layout.hasTypedSlots = true
+			break
+		}
+	}
 	return &bytecodeProgram{instructions: ctx.instructions, frameLayout: layout}, nil
 }
 

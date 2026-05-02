@@ -35,7 +35,47 @@ func (vm *bytecodeVM) pushSelfFastMinimalCallFrame(returnIP int, slots []runtime
 	frame := &vm.selfFastMinimal[idx]
 	frame.returnIP = returnIP
 	frame.slots = slots
+	frame.slot0 = nil
+	vm.saveSelfFastSlot0I32(frame)
+	frame.reusesSlots = false
+	vm.clearSelfFastSlot0I32()
 	vm.selfFastMinimalSuffix++
+}
+
+func (vm *bytecodeVM) pushSelfFastSlot0CallFrame(returnIP int) bool {
+	if vm == nil || len(vm.slots) == 0 {
+		return false
+	}
+	if cap(vm.selfFastMinimal) == 0 {
+		vm.selfFastMinimal = make([]bytecodeSelfFastMinimalCallFrame, 0, 32)
+	}
+	idx := len(vm.selfFastMinimal)
+	if idx < cap(vm.selfFastMinimal) {
+		vm.selfFastMinimal = vm.selfFastMinimal[:idx+1]
+	} else {
+		vm.selfFastMinimal = append(vm.selfFastMinimal, bytecodeSelfFastMinimalCallFrame{})
+	}
+	frame := &vm.selfFastMinimal[idx]
+	frame.returnIP = returnIP
+	frame.slots = vm.slots
+	frame.slot0 = vm.slots[0]
+	vm.saveSelfFastSlot0I32(frame)
+	frame.reusesSlots = true
+	vm.clearSelfFastSlot0I32()
+	vm.selfFastMinimalSuffix++
+	return true
+}
+
+func (vm *bytecodeVM) restoreSelfFastMinimalFrameSlot0(frame *bytecodeSelfFastMinimalCallFrame, slots []runtime.Value) {
+	if frame == nil {
+		return
+	}
+	if frame.reusesSlots && len(slots) > 0 {
+		slots[0] = frame.slot0
+	}
+	frame.slot0 = nil
+	frame.reusesSlots = false
+	vm.restoreSelfFastSlot0I32(frame)
 }
 
 func (vm *bytecodeVM) pushCallFrame(returnIP int, program *bytecodeProgram, slots []runtime.Value, env *runtime.Environment, returnGenericNames map[string]struct{}, iterBase int, loopBase int, hasImplicitReceiver bool, selfFast bool) {
@@ -48,6 +88,7 @@ func (vm *bytecodeVM) pushCallFrame(returnIP int, program *bytecodeProgram, slot
 			return
 		}
 		vm.materializeSelfFastMinimalSuffixKinds()
+		vm.clearSelfFastSlot0I32()
 		if cap(vm.selfFastCallFrames) == 0 {
 			vm.selfFastCallFrames = make([]bytecodeSelfFastCallFrame, 0, 32)
 		}
@@ -71,6 +112,7 @@ func (vm *bytecodeVM) pushCallFrame(returnIP int, program *bytecodeProgram, slot
 		return
 	}
 	vm.materializeSelfFastMinimalSuffixKinds()
+	vm.clearSelfFastSlot0I32()
 	if cap(vm.callFrames) == 0 {
 		vm.callFrames = make([]bytecodeCallFrame, 0, 32)
 	}
@@ -131,6 +173,7 @@ func (vm *bytecodeVM) popCallFrameFields() (returnIP int, program *bytecodeProgr
 		frame := &vm.selfFastMinimal[idx]
 		returnIP = frame.returnIP
 		slots = frame.slots
+		vm.restoreSelfFastMinimalFrameSlot0(frame, slots)
 		vm.selfFastMinimal = vm.selfFastMinimal[:idx]
 		vm.selfFastMinimalSuffix--
 		return returnIP, nil, slots, nil, 0, 0, false, true, true
@@ -147,6 +190,7 @@ func (vm *bytecodeVM) popCallFrameFields() (returnIP int, program *bytecodeProgr
 		frame := &vm.selfFastMinimal[idx]
 		returnIP = frame.returnIP
 		slots = frame.slots
+		vm.restoreSelfFastMinimalFrameSlot0(frame, slots)
 		vm.selfFastMinimal = vm.selfFastMinimal[:idx]
 		return returnIP, nil, slots, nil, 0, 0, false, true, true
 	case bytecodeCallFrameKindSelfFast:
@@ -178,4 +222,14 @@ func (vm *bytecodeVM) popCallFrameFields() (returnIP int, program *bytecodeProgr
 		vm.callFrames = vm.callFrames[:idx]
 		return returnIP, program, slots, env, iterBase, loopBase, hasImplicitReceiver, selfFast, true
 	}
+}
+
+func sameSlotFrame(left []runtime.Value, right []runtime.Value) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	if len(left) == 0 {
+		return left == nil && right == nil
+	}
+	return &left[0] == &right[0]
 }

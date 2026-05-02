@@ -491,6 +491,7 @@ func TestCompilerExperimentalMonoArraysMatrixMultiplyCountedLoopsStayNative(t *t
 		"for {",
 		"if i >= n {",
 		"if j >= n {",
+		"__able_runtime_error_value(",
 		"__able_checked_add_signed(",
 		"__able_checked_sub_signed(",
 	} {
@@ -520,6 +521,7 @@ func TestCompilerExperimentalMonoArraysMatrixMultiplyCountedLoopsStayNative(t *t
 		"if i >= n {",
 		"if j >= n {",
 		"if k >= n {",
+		"__able_runtime_error_value(",
 		"__able_checked_add_signed(",
 	} {
 		if strings.Contains(matmulBody, fragment) {

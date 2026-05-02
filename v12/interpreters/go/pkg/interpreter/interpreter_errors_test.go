@@ -192,6 +192,55 @@ func TestPropagationExpressionPassesThroughNonError(t *testing.T) {
 	}
 }
 
+func TestPropagationExpressionReturnsOnNil(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	expr := ast.Prop(ast.Nil())
+	_, err := interp.evaluateExpression(expr, env)
+	if err == nil {
+		t.Fatalf("expected nil propagation to return")
+	}
+	ret, ok := err.(returnSignal)
+	if !ok {
+		t.Fatalf("expected returnSignal, got %T", err)
+	}
+	if !isNilRuntimeValue(ret.value) {
+		t.Fatalf("expected nil return value, got %#v", ret.value)
+	}
+	if ret.node != expr {
+		t.Fatalf("expected propagation node on return signal")
+	}
+}
+
+func TestPropagationExpressionPassesThroughVoid(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	env.Define("ok", runtime.VoidValue{})
+	expr := ast.Prop(ast.ID("ok"))
+	val, err := interp.evaluateExpression(expr, env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := val.(runtime.VoidValue); !ok {
+		t.Fatalf("expected void success value, got %#v", val)
+	}
+}
+
+func TestPropagationErrorValueFastNegativePlainValues(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	values := []runtime.Value{
+		runtime.NewSmallInt(9, runtime.IntegerI32),
+		runtime.StringValue{Val: "ok"},
+		&runtime.ArrayValue{},
+	}
+	for _, value := range values {
+		if errVal, ok := interp.propagationErrorValue(value, env); ok {
+			t.Fatalf("plain value %#v propagated as error %#v", value, errVal)
+		}
+	}
+}
+
 func TestOrElseExpressionHandlesRaise(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{

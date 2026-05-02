@@ -244,6 +244,14 @@ func (i *Interpreter) newArrayValue(elements []runtime.Value, capacityHint int) 
 	return arr
 }
 
+func (i *Interpreter) newU8ArrayValueFromString(text string) *runtime.ArrayValue {
+	arr := runtime.ArrayStoreMonoValueFromU8String(text)
+	if arr != nil {
+		i.trackArrayValue(arr.Handle, arr)
+	}
+	return arr
+}
+
 func (i *Interpreter) arrayValueFromStructFields(fields map[string]runtime.Value) (*runtime.ArrayValue, error) {
 	var handle int64
 	var length int

@@ -3,6 +3,8 @@ package interpreter
 func (vm *bytecodeVM) prepareRunProgram(program *bytecodeProgram, resume bool) *bytecodeProgram {
 	if !resume {
 		vm.stack = vm.stack[:0]
+		vm.i32Stack = vm.i32Stack[:0]
+		vm.clearSelfFastSlot0I32()
 		vm.iterStack = vm.iterStack[:0]
 		vm.loopStack = vm.loopStack[:0]
 		vm.ensureStack = vm.ensureStack[:0]

@@ -600,6 +600,41 @@ func (g *generator) methodForReceiver(goType string, methodName string) *methodI
 	return g.methodForReceiverGoType(goType, methodName)
 }
 
+func (g *generator) hasUncompiledReceiverMethod(goType string, methodName string) bool {
+	if g == nil || goType == "" || methodName == "" {
+		return false
+	}
+	info := g.structInfoByGoName(goType)
+	if info == nil && g.isMonoArrayType(goType) {
+		info, _ = g.structInfoByNameUnique("Array")
+	}
+	if info != nil && info.Name != "" {
+		for _, method := range g.methods[info.Name][methodName] {
+			if method == nil || method.Info == nil || method.Info.Compileable || !method.ExpectsSelf {
+				continue
+			}
+			if method.ReceiverType == "" || g.receiverMethodMatchScore(method.ReceiverType, goType) > 0 {
+				return true
+			}
+		}
+		return false
+	}
+	if goType == "runtime.Value" || strings.HasPrefix(goType, "*") {
+		return false
+	}
+	for _, typeBucket := range g.methods {
+		for _, method := range typeBucket[methodName] {
+			if method == nil || method.Info == nil || method.Info.Compileable || !method.ExpectsSelf {
+				continue
+			}
+			if method.ReceiverType == goType {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (g *generator) receiverMethodMatchScore(expectedReceiverType string, actualGoType string) int {
 	if g == nil || expectedReceiverType == "" || actualGoType == "" {
 		return 0

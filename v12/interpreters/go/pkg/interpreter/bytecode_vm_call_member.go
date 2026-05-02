@@ -272,8 +272,13 @@ func (vm *bytecodeVM) execCallMember(instr bytecodeInstruction, currentProgram *
 
 	if bytecodeCanDirectMemberCall(receiver, instr.name) {
 		if useMethodCache {
-			if cached, ok := vm.lookupCachedMemberMethod(currentProgram, vm.ip, instr.name, true, receiver); ok {
-				return vm.execCachedResolvedMemberCall(cached, instr.name, receiverIndex, argBase, instr.argCount, callNode, currentProgram)
+			if cached, ok := vm.lookupCachedMemberMethodEntry(currentProgram, vm.ip, instr.name, true, receiver); ok {
+				if newProg, handled, err := vm.execCachedMemberMethodFastPath(cached.fastPath, instr, receiverIndex, argBase, callNode); handled {
+					return newProg, err
+				}
+				if callable, ok := cached.boundCallable(receiver); ok {
+					return vm.execCachedResolvedMemberCall(callable, instr.name, receiverIndex, argBase, instr.argCount, callNode, currentProgram)
+				}
 			}
 		}
 		callable, found, err := vm.interp.resolveMethodCallableFromPool(vm.env, instr.name, receiver, "")
@@ -286,9 +291,22 @@ func (vm *bytecodeVM) execCallMember(instr bytecodeInstruction, currentProgram *
 					vm.storeCachedMemberMethod(currentProgram, vm.ip, instr.name, true, receiver, bound)
 				}
 			}
+			if fn, ok := bytecodeResolvedMemberFastPathFunction(callable); ok {
+				kind := vm.resolvedMemberMethodFastPath(instr.name, receiver, fn)
+				if newProg, handled, err := vm.execCachedMemberMethodFastPath(kind, instr, receiverIndex, argBase, callNode); handled {
+					return newProg, err
+				}
+			}
+			if newProg, handled, err := vm.execCanonicalArrayGetOverloadMemberFast(callable, instr, receiverIndex, argBase, callNode); handled {
+				return newProg, err
+			}
 			if overloadFn, overloadReceiver, ok, err := vm.resolveConcreteMemberOverload(callable, receiver, vm.stack[argBase:], callNode); err != nil {
 				return nil, err
 			} else if ok {
+				kind := vm.resolvedMemberMethodFastPath(instr.name, overloadReceiver, overloadFn)
+				if newProg, handled, err := vm.execCachedMemberMethodFastPath(kind, instr, receiverIndex, argBase, callNode); handled {
+					return newProg, err
+				}
 				if newProg, err := vm.tryInlineResolvedCallFromStack(overloadFn, overloadReceiver, true, argBase, instr.argCount, receiverIndex, callNode, currentProgram); err != nil {
 					return nil, err
 				} else if newProg != nil {
@@ -342,14 +360,27 @@ func (vm *bytecodeVM) execCallMember(instr bytecodeInstruction, currentProgram *
 		}
 	}
 
+	if newProg, handled, err := vm.execCanonicalStringByteIteratorNextCallMemberFast(instr, receiverIndex, callNode); handled {
+		return newProg, err
+	}
+
 	memberExpr := ast.Expression(ast.ID(instr.name))
 	callee, err := vm.interp.memberAccessOnValueWithOptions(receiver, memberExpr, vm.env, true)
 	if err != nil {
 		return nil, vm.attachBytecodeRuntimeContext(err, callNode, nil)
 	}
+	if instr.name == "new" && instr.argCount == 0 {
+		if newProg, handled, err := vm.execStaticArrayNewMemberFast(instr, receiver, callee, receiverIndex, callNode); handled {
+			return newProg, err
+		}
+	}
 	if overloadFn, overloadReceiver, ok, err := vm.resolveConcreteMemberOverload(callee, receiver, vm.stack[argBase:], callNode); err != nil {
 		return nil, err
 	} else if ok {
+		kind := vm.resolvedMemberMethodFastPath(instr.name, overloadReceiver, overloadFn)
+		if newProg, handled, err := vm.execCachedMemberMethodFastPath(kind, instr, receiverIndex, argBase, callNode); handled {
+			return newProg, err
+		}
 		if newProg, err := vm.tryInlineResolvedCallFromStack(overloadFn, overloadReceiver, true, argBase, instr.argCount, receiverIndex, callNode, currentProgram); err != nil {
 			return nil, err
 		} else if newProg != nil {

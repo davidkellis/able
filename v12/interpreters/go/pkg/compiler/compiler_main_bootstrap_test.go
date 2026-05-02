@@ -380,6 +380,129 @@ func TestCompilerMainSkipsProgramEvaluationWhenStaticUsesImportedPublicMethodSel
 	}
 }
 
+func TestCompilerMainSkipsProgramEvaluationWhenStaticImportsTypeAlias(t *testing.T) {
+	mainSrc := compileMainSource(t, "demo", strings.Join([]string{
+		"package demo",
+		"",
+		"import demo.types.{Alias, make}",
+		"",
+		"fn unwrap(box: Alias) -> i32 {",
+		"  box.value",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  unwrap(make())",
+		"}",
+		"",
+	}, "\n"), "types.able", strings.Join([]string{
+		"package types",
+		"",
+		"struct Box {",
+		"  value: i32",
+		"}",
+		"",
+		"type Alias = Box",
+		"",
+		"fn make() -> Alias {",
+		"  Box { value: 7 }",
+		"}",
+		"",
+	}, "\n"))
+	if strings.Contains(mainSrc, "EvaluateProgram(") {
+		t.Fatalf("expected static type-alias import launcher to skip interpreter program evaluation")
+	}
+}
+
+func TestCompilerMainSkipsProgramEvaluationWhenStaticImportsInternalExternSelector(t *testing.T) {
+	mainSrc := compileMainSource(t, "demo", strings.Join([]string{
+		"package demo",
+		"",
+		"import demo.kernel.{__helper}",
+		"",
+		"fn main() -> i32 {",
+		"  __helper()",
+		"}",
+		"",
+	}, "\n"), "kernel.able", strings.Join([]string{
+		"package kernel",
+		"",
+		"extern go fn __helper() -> i32 {",
+		"  return int32(7)",
+		"}",
+		"",
+	}, "\n"))
+	if strings.Contains(mainSrc, "EvaluateProgram(") {
+		t.Fatalf("expected static internal extern import launcher to skip interpreter program evaluation")
+	}
+}
+
+func TestCompilerMainSkipsProgramEvaluationWhenStaticImportsUnusedUnsupportedMethod(t *testing.T) {
+	mainSrc, compiledSrc := compileOutputs(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.lib.{make_box}",
+			"",
+			"fn main() -> i32 {",
+			"  make_box().value",
+			"}",
+			"",
+		}, "\n"),
+		"lib.able": strings.Join([]string{
+			"package lib",
+			"",
+			"struct Box {",
+			"  value: i32",
+			"}",
+			"",
+			"fn make_box() -> Box {",
+			"  Box { value: 7 }",
+			"}",
+			"",
+			"methods Box {",
+			"  fn unsupported(self: Self) -> i64 {",
+			"    missing_runtime_fn()",
+			"  }",
+			"}",
+			"",
+		}, "\n"),
+	})
+	if strings.Contains(mainSrc, "EvaluateProgram(") {
+		t.Fatalf("expected unused unsupported method to avoid interpreter bootstrap")
+	}
+	if strings.Contains(compiledSrc, "__able_public_package_method_demo_lib_unsupported") {
+		t.Fatalf("expected unused unsupported method to stay out of no-bootstrap import seeding")
+	}
+}
+
+func TestCompilerMainKeepsProgramEvaluationWhenStaticCallsUnsupportedMethod(t *testing.T) {
+	mainSrc := compileMainSource(t, "demo", strings.Join([]string{
+		"package demo",
+		"",
+		"struct Box {",
+		"  value: i32",
+		"}",
+		"",
+		"fn make_box() -> Box {",
+		"  Box { value: 7 }",
+		"}",
+		"",
+		"methods Box {",
+		"  fn unsupported(self: Self) -> i64 {",
+		"    missing_runtime_fn()",
+		"  }",
+		"}",
+		"",
+		"fn main() -> i64 {",
+		"  make_box().unsupported()",
+		"}",
+		"",
+	}, "\n"))
+	if !strings.Contains(mainSrc, "EvaluateProgram(") {
+		t.Fatalf("expected actual unsupported method call to keep interpreter bootstrap")
+	}
+}
+
 func compileMainSource(t *testing.T, pkgName string, source string, extraPairs ...string) string {
 	t.Helper()
 	files := map[string]string{"main.able": source}

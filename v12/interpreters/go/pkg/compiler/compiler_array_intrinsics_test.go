@@ -144,6 +144,46 @@ func TestCompilerCountedLoopFastPath(t *testing.T) {
 	}
 }
 
+func TestCompilerCountedLoopStatementAvoidsDiscardedRuntimeValueProbe(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn sum(n: i32) -> i32 {",
+		"  total := 0",
+		"  i := 0",
+		"  loop {",
+		"    if i >= n { break }",
+		"    total = i",
+		"    i = i + 1",
+		"  }",
+		"  total",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_sum")
+	if !ok {
+		t.Fatalf("could not find compiled sum function")
+	}
+	for _, fragment := range []string{
+		"for i < n {",
+		"i++",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected counted-loop statement fast path to contain %q:\n%s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{
+		"runtime.NilValue{}",
+		"__able_runtime_error_value(",
+		"if i >= n {",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected counted-loop statement fast path to avoid %q:\n%s", fragment, body)
+		}
+	}
+}
+
 func TestCompilerInlineCheckedIntegerAddSubStayStatic(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

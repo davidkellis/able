@@ -443,7 +443,6 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		panic(err)
 	}
 	bodyName := g.compiledBodyName(info)
-	entryName := g.compiledEntryName(info)
 	fmt.Fprintf(buf, "func %s(", bodyName)
 	for i, param := range info.Params {
 		if i > 0 {
@@ -473,10 +472,14 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		if strings.TrimSpace(hostType) == "" {
 			hostType = "any"
 		}
-		fmt.Fprintf(buf, "\t__able_host_arg_%d, err := bridge.RuntimeValueToHost[%s](%s, %s)\n", idx, hostType, typeExprCode, runtimeExpr)
-		fmt.Fprintf(buf, "\tif err != nil {\n")
-		fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
-		fmt.Fprintf(buf, "\t}\n")
+		if directExpr, ok := directHostArgExpr(param.GoType, hostType, param.GoName); ok {
+			fmt.Fprintf(buf, "\t__able_host_arg_%d := %s\n", idx, directExpr)
+		} else {
+			fmt.Fprintf(buf, "\t__able_host_arg_%d, err := bridge.RuntimeValueToHost[%s](%s, %s)\n", idx, hostType, typeExprCode, runtimeExpr)
+			fmt.Fprintf(buf, "\tif err != nil {\n")
+			fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
+			fmt.Fprintf(buf, "\t}\n")
+		}
 	}
 	hostArgs := make([]string, 0, len(info.Params))
 	for idx := range info.Params {
@@ -497,7 +500,24 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		if !ok {
 			panic(fmt.Errorf("compiler: render extern return type %s", info.Name))
 		}
+		hostType, err := goExternHostType(retExpr, true)
+		if err != nil {
+			panic(err)
+		}
 		fmt.Fprintf(buf, "\t__able_host_result := %s(%s)\n", g.externHostFunctionName(info), strings.Join(hostArgs, ", "))
+		if directExpr, ok := directHostReturnExpr(info.ReturnType, hostType, "__able_host_result"); ok {
+			fmt.Fprintf(buf, "\treturn %s, nil\n", directExpr)
+			fmt.Fprintf(buf, "}\n\n")
+			g.renderCompiledExternEntryWrapper(buf, info, bodyName)
+			return
+		}
+		if emitted, terminal := g.renderDirectHostReturnIfPossible(buf, info, retExpr, "__able_host_result"); terminal {
+			fmt.Fprintf(buf, "}\n\n")
+			g.renderCompiledExternEntryWrapper(buf, info, bodyName)
+			return
+		} else if emitted {
+			fmt.Fprintf(buf, "\t// Host result did not match a native fast-path shape; use the semantic bridge.\n")
+		}
 		fmt.Fprintf(buf, "\t__able_runtime_result, err := bridge.HostValueToRuntime(__able_runtime, %s, __able_host_result)\n", retExprCode)
 	}
 	fmt.Fprintf(buf, "\tif err != nil {\n")
@@ -522,6 +542,14 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 	}
 	fmt.Fprintf(buf, "\treturn %s, nil\n", converted)
 	fmt.Fprintf(buf, "}\n\n")
+	g.renderCompiledExternEntryWrapper(buf, info, bodyName)
+}
+
+func (g *generator) renderCompiledExternEntryWrapper(buf *bytes.Buffer, info *functionInfo, bodyName string) {
+	if g == nil || buf == nil || info == nil {
+		return
+	}
+	entryName := g.compiledEntryName(info)
 	fmt.Fprintf(buf, "func %s(", entryName)
 	for i, param := range info.Params {
 		if i > 0 {
@@ -539,4 +567,78 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 	}
 	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, strings.Join(args, ", "))
 	fmt.Fprintf(buf, "}\n\n")
+}
+
+func (g *generator) renderDirectHostReturnIfPossible(buf *bytes.Buffer, info *functionInfo, retExpr ast.TypeExpression, hostResult string) (bool, bool) {
+	if g == nil || buf == nil || info == nil || retExpr == nil || hostResult == "" {
+		return false, false
+	}
+	if spec, ok := g.monoArraySpecForArrayTypeExpr(info.Package, retExpr); ok && spec != nil && info.ReturnType == spec.GoType {
+		renderDirectHostSliceToMonoArrayReturn(buf, spec, hostResult)
+		return true, true
+	}
+	union := g.nativeUnionInfoForGoType(info.ReturnType)
+	if union == nil {
+		return false, false
+	}
+	emitted := false
+	for _, member := range union.Members {
+		if member == nil {
+			continue
+		}
+		spec, ok := g.monoArraySpecForGoType(member.GoType)
+		if !ok || spec == nil {
+			continue
+		}
+		if g.typeExprIncludesNilInPackage(info.Package, member.TypeExpr) && g.goTypeHasNilZeroValue(member.GoType) {
+			fmt.Fprintf(buf, "\tif %s == nil {\n", hostResult)
+			fmt.Fprintf(buf, "\t\treturn %s(nil), nil\n", member.WrapHelper)
+			fmt.Fprintf(buf, "\t}\n")
+		}
+		fmt.Fprintf(buf, "\tif __able_host_slice, ok := %s.([]%s); ok {\n", hostResult, spec.ElemGoType)
+		fmt.Fprintf(buf, "\t\treturn %s(&%s{Elements: append([]%s(nil), __able_host_slice...)}), nil\n", member.WrapHelper, spec.GoName, spec.ElemGoType)
+		fmt.Fprintf(buf, "\t}\n")
+		emitted = true
+	}
+	return emitted, false
+}
+
+func renderDirectHostSliceToMonoArrayReturn(buf *bytes.Buffer, spec *monoArraySpec, hostResult string) {
+	fmt.Fprintf(buf, "\treturn &%s{Elements: append([]%s(nil), %s...)}, nil\n", spec.GoName, spec.ElemGoType, hostResult)
+}
+
+func directHostArgExpr(goType string, hostType string, expr string) (string, bool) {
+	goType = strings.TrimSpace(goType)
+	hostType = strings.TrimSpace(hostType)
+	if goType == "" || hostType == "" || expr == "" || goType != hostType {
+		return "", false
+	}
+	if !isDirectHostScalarType(goType) {
+		return "", false
+	}
+	return expr, true
+}
+
+func directHostReturnExpr(goType string, hostType string, expr string) (string, bool) {
+	goType = strings.TrimSpace(goType)
+	hostType = strings.TrimSpace(hostType)
+	if goType == "" || hostType == "" || expr == "" || goType != hostType {
+		return "", false
+	}
+	if !isDirectHostScalarType(goType) {
+		return "", false
+	}
+	return expr, true
+}
+
+func isDirectHostScalarType(goType string) bool {
+	switch goType {
+	case "bool", "string", "rune",
+		"float32", "float64",
+		"int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64":
+		return true
+	default:
+		return false
+	}
 }

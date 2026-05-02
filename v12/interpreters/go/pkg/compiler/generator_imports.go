@@ -171,7 +171,7 @@ func (g *generator) noBootstrapImportsSeedable() bool {
 				}
 			case staticImportBindingSelector:
 				exports := exportsByPackage[binding.SourcePackage]
-				if _, ok := exports[binding.SourceName]; !ok {
+				if _, ok := exports[binding.SourceName]; !ok && !g.externCallableExists(binding.SourcePackage, binding.SourceName) {
 					return false
 				}
 			case staticImportBindingWildcard:
@@ -237,12 +237,13 @@ func (g *generator) sortedImportableNames(pkgName string) []string {
 	structs := g.sortedPublicStructNames(pkgName)
 	interfaces := g.sortedPublicInterfaceNames(pkgName)
 	unions := g.sortedPublicUnionNames(pkgName)
+	aliases := g.sortedPublicTypeAliasNames(pkgName)
 	implNamespaces := g.sortedPublicImplNamespaceNames(pkgName)
-	if len(callables) == 0 && len(structs) == 0 && len(interfaces) == 0 && len(unions) == 0 && len(implNamespaces) == 0 {
+	if len(callables) == 0 && len(structs) == 0 && len(interfaces) == 0 && len(unions) == 0 && len(aliases) == 0 && len(implNamespaces) == 0 {
 		return nil
 	}
-	seen := make(map[string]struct{}, len(callables)+len(structs)+len(interfaces)+len(unions)+len(implNamespaces))
-	names := make([]string, 0, len(callables)+len(structs)+len(interfaces)+len(unions)+len(implNamespaces))
+	seen := make(map[string]struct{}, len(callables)+len(structs)+len(interfaces)+len(unions)+len(aliases)+len(implNamespaces))
+	names := make([]string, 0, len(callables)+len(structs)+len(interfaces)+len(unions)+len(aliases)+len(implNamespaces))
 	add := func(name string) {
 		if strings.TrimSpace(name) == "" {
 			return
@@ -263,6 +264,9 @@ func (g *generator) sortedImportableNames(pkgName string) []string {
 		add(name)
 	}
 	for _, name := range unions {
+		add(name)
+	}
+	for _, name := range aliases {
 		add(name)
 	}
 	for _, name := range implNamespaces {
@@ -368,6 +372,28 @@ func (g *generator) sortedPublicUnionNames(pkgName string) []string {
 			continue
 		}
 		names = append(names, def.ID.Name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func (g *generator) sortedPublicTypeAliasNames(pkgName string) []string {
+	if g == nil || strings.TrimSpace(pkgName) == "" {
+		return nil
+	}
+	aliases := g.typeAliases[pkgName]
+	if len(aliases) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(aliases))
+	for name := range aliases {
+		if strings.TrimSpace(name) == "" {
+			continue
+		}
+		if g.typeAliasPrivate[pkgName] != nil && g.typeAliasPrivate[pkgName][name] {
+			continue
+		}
+		names = append(names, name)
 	}
 	sort.Strings(names)
 	return names

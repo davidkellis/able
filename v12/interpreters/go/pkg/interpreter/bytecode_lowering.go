@@ -29,6 +29,7 @@ type bytecodeLoweringContext struct {
 	allowPlaceholderLambda bool
 	frameLayout            *bytecodeFrameLayout // non-nil = slot mode
 	slotScopes             []map[string]int     // scope stack for slot lookups
+	slotKinds              []bytecodeCellKind   // typed-cell kind by slot while lowering
 	nextSlot               int                  // next available slot index
 	selfCallName           string               // current function name for self-recursive call lowering
 	selfCallSlot           int                  // reserved slot for self-recursive call fast path
@@ -83,8 +84,12 @@ func (i *Interpreter) lowerExpressionToBytecodeWithOptions(expr ast.Expression, 
 		instructions:           make([]bytecodeInstruction, 0, 4),
 		allowPlaceholderLambda: allowPlaceholderLambda,
 	}
-	if err := emitExpression(ctx, i, expr); err != nil {
+	if emitted, err := bytecodeEmitFinalI32StackExpr(ctx, expr); err != nil {
 		return nil, err
+	} else if !emitted {
+		if err := emitExpression(ctx, i, expr); err != nil {
+			return nil, err
+		}
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
 	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
@@ -167,8 +172,12 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 			return bytecodeUnsupported("nil return statement")
 		}
 		if s.Argument != nil {
-			if err := emitExpression(ctx, i, s.Argument); err != nil {
+			if emitted, err := bytecodeEmitFinalI32StackExpr(ctx, s.Argument); err != nil {
 				return err
+			} else if !emitted {
+				if err := emitExpression(ctx, i, s.Argument); err != nil {
+					return err
+				}
 			}
 		} else {
 			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.VoidValue{}})
@@ -216,6 +225,13 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 		if !isLast {
 			if ifExpr, ok := s.(*ast.IfExpression); ok {
 				return emitIfStatement(ctx, i, ifExpr)
+			}
+		}
+		if isLast {
+			if emitted, err := bytecodeEmitFinalI32StackExpr(ctx, s); err != nil {
+				return err
+			} else if emitted {
+				return nil
 			}
 		}
 		if err := emitExpression(ctx, i, s); err != nil {
@@ -560,13 +576,32 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if n.Operator != ast.AssignmentDeclare && n.Operator != ast.AssignmentAssign || !ok {
 			return bytecodeUnsupported("assignment expression operator %q target %T", n.Operator, n.Left)
 		}
+		typedPattern, hasTypedStore := typedIdentifierPatternFromTarget(n.Left)
+		if ctx.frameLayout != nil && ok {
+			if n.Operator == ast.AssignmentDeclare && hasTypedStore && bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation) == bytecodeCellKindI32 && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
+				bytecodeEmitRawI32StackExpr(ctx, n.Right)
+				slot := ctx.declareSlotWithKind(name, bytecodeCellKindI32)
+				ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: slot, name: name, node: n})
+				return nil
+			}
+			if n.Operator == ast.AssignmentAssign {
+				if slot, found := ctx.lookupSlot(name); found && ctx.slotKind(slot) == bytecodeCellKindI32 && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
+					bytecodeEmitRawI32StackExpr(ctx, n.Right)
+					ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: slot, name: name, node: n})
+					return nil
+				}
+			}
+		}
 		if err := emitExpression(ctx, i, n.Right); err != nil {
 			return err
 		}
-		typedPattern, hasTypedStore := typedIdentifierPatternFromTarget(n.Left)
 		if ctx.frameLayout != nil && ok {
 			if n.Operator == ast.AssignmentDeclare {
-				slot := ctx.declareSlot(name)
+				slotKind := bytecodeCellKindValue
+				if hasTypedStore {
+					slotKind = bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation)
+				}
+				slot := ctx.declareSlotWithKind(name, slotKind)
 				instr := bytecodeInstruction{op: bytecodeOpStoreSlotNew, target: slot, name: name, node: n}
 				if hasTypedStore {
 					instr.storeTyped = true
@@ -634,7 +669,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if err := emitExpression(ctx, i, n.Expression); err != nil {
 			return err
 		}
-		ctx.emit(bytecodeInstruction{op: bytecodeOpPropagation})
+		ctx.emit(bytecodeInstruction{op: bytecodeOpPropagation, node: n})
 		return nil
 	case *ast.AwaitExpression:
 		if err := emitExpression(ctx, i, n.Expression); err != nil {

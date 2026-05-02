@@ -71,6 +71,10 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 			vm.stack = append(vm.stack, value)
 			vm.ip++
+		case bytecodeOpConstI32:
+			if err := vm.execConstI32(instr); err != nil {
+				return nil, err
+			}
 		case bytecodeOpLoadName:
 			if statsEnabled {
 				vm.interp.recordBytecodeLoadNameLookup()
@@ -159,6 +163,18 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				if handled {
 					continue
 				}
+			}
+		case bytecodeOpBinaryI32Add, bytecodeOpBinaryI32Sub:
+			handled, err := vm.execBinaryI32Opcode(instr)
+			if err != nil {
+				return nil, err
+			}
+			if handled {
+				continue
+			}
+		case bytecodeOpBoxI32:
+			if err := vm.execBoxI32(); err != nil {
+				return nil, err
 			}
 		case bytecodeOpUnary:
 			{
@@ -252,19 +268,12 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				}
 			}
 		case bytecodeOpPropagation:
-			{
-				val, err := vm.pop()
-				if err != nil {
-					return nil, err
-				}
-				if errVal, ok := asErrorValue(val); ok {
-					return nil, raiseSignal{value: errVal}
-				}
-				if vm.interp.matchesType(cachedSimpleTypeExpression("Error"), val) {
-					return nil, raiseSignal{value: vm.interp.makeErrorValue(val, vm.env)}
-				}
-				vm.stack = append(vm.stack, val)
-				vm.ip++
+			handled, err := vm.execPropagation(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr)
+			if err != nil {
+				return nil, err
+			}
+			if handled {
+				continue
 			}
 		case bytecodeOpOrElse:
 			{
@@ -824,16 +833,12 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 		case bytecodeOpJump:
 			vm.ip = instr.target
 		case bytecodeOpJumpIfFalse:
-			{
-				cond, err := vm.pop()
-				if err != nil {
-					return nil, err
-				}
-				if !vm.interp.isTruthy(cond) {
-					vm.ip = instr.target
-					break
-				}
-				vm.ip++
+			if err := vm.execJumpIfFalse(instr); err != nil {
+				return nil, err
+			}
+		case bytecodeOpJumpIfBoolSlotFalse:
+			if err := vm.execJumpIfBoolSlotFalse(instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpJumpIfIntLessEqualSlotConstFalse:
 			{
@@ -850,11 +855,9 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 		case bytecodeOpReturnIfIntLessEqualSlotConst, bytecodeOpReturnConstIfIntLessEqualSlotConst:
 			{
-				var (
-					val      runtime.Value
-					returned bool
-					err      error
-				)
+				var val runtime.Value
+				var returned bool
+				var err error
 				if instr.op == bytecodeOpReturnConstIfIntLessEqualSlotConst {
 					val, returned, err = vm.execReturnConstIfIntLessEqualSlotConst(instr, slotConstIntImmTable)
 				} else {
@@ -950,15 +953,12 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				}
 				return val, nil
 			}
-		case bytecodeOpLoadSlot:
-			vm.stack = append(vm.stack, vm.slots[instr.target])
-			vm.ip++
-		case bytecodeOpStoreSlot:
-			if err := vm.execStoreSlot(instr); err != nil {
+		case bytecodeOpLoadSlot, bytecodeOpLoadSlotI32:
+			if err := vm.execLoadSlotOpcode(instr); err != nil {
 				return nil, err
 			}
-		case bytecodeOpStoreSlotNew:
-			if err := vm.execStoreSlot(instr); err != nil {
+		case bytecodeOpStoreSlot, bytecodeOpStoreSlotNew, bytecodeOpStoreSlotI32:
+			if err := vm.execStoreSlotOpcode(instr); err != nil {
 				return nil, err
 			}
 		case bytecodeOpCompoundAssignSlot:

@@ -40,6 +40,9 @@ type functionInfo struct {
 	GoName         string
 	Params         []paramInfo
 	ParamFacts     map[string]integerFact
+	ReturnFact     integerFact
+	HasReturnFact  bool
+	ReturnRange    *integerReturnRangeFact
 	ReturnType     string
 	TypeBindings   map[string]ast.TypeExpression
 	cachedBindings map[string]ast.TypeExpression

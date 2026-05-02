@@ -13,6 +13,7 @@ type bytecodeFrameLayout struct {
 	paramSlots          int // number of param slots (always indices 0..paramSlots-1)
 	paramTypes          []ast.TypeExpression
 	paramSimpleTypes    []string           // cached simple type names for params (empty = non-simple)
+	paramKinds          []bytecodeCellKind // cached typed-cell kind for params
 	paramNeedsCoercion  []bool             // cached "may need runtime coercion" flags for inline arg setup
 	anyParamCoercion    bool               // true when any parameter may need runtime coercion
 	anyExplicitCoercion bool               // true when any non-receiver param may need runtime coercion
@@ -26,6 +27,8 @@ type bytecodeFrameLayout struct {
 	selfCallOneArgFast  bool               // true when one-arg self-call inline can skip declaration shape checks
 	firstParamType      ast.TypeExpression // cached first parameter type for self-call inline checks/coercion
 	firstParamSimple    string             // cached simple type name for first parameter (empty for non-simple)
+	slotKinds           []bytecodeCellKind // typed-cell kind by slot after lowering finalizes locals
+	hasTypedSlots       bool
 }
 
 // analyzeFrameLayout inspects a function definition and returns a
@@ -54,15 +57,21 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 	generics := functionGenericNameSet(nil, def)
 	paramTypes := make([]ast.TypeExpression, len(def.Params))
 	paramSimpleTypes := make([]string, len(def.Params))
+	paramKinds := make([]bytecodeCellKind, len(def.Params))
 	paramNeedsCoercion := make([]bool, len(def.Params))
 	anyParamCoercion := false
 	anyExplicitCoercion := false
+	hasTypedSlots := false
 	for idx, param := range def.Params {
 		if param == nil {
 			continue
 		}
 		paramTypes[idx] = param.ParamType
 		paramSimpleTypes[idx] = cachedSimpleTypeName(param.ParamType)
+		paramKinds[idx] = bytecodeCellKindForSimpleTypeName(paramSimpleTypes[idx])
+		if paramKinds[idx] != bytecodeCellKindValue {
+			hasTypedSlots = true
+		}
 		noOpCoercion := false
 		if i != nil {
 			noOpCoercion = i.coerceValueToTypeWouldBeNoOp(param.ParamType)
@@ -84,6 +93,7 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		paramSlots:          len(def.Params),
 		paramTypes:          paramTypes,
 		paramSimpleTypes:    paramSimpleTypes,
+		paramKinds:          paramKinds,
 		paramNeedsCoercion:  paramNeedsCoercion,
 		anyParamCoercion:    anyParamCoercion,
 		anyExplicitCoercion: anyExplicitCoercion,
@@ -97,6 +107,8 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		selfCallOneArgFast:  !def.IsMethodShorthand && len(def.Params) == 1 && len(def.GenericParams) == 0,
 		firstParamType:      firstParamType,
 		firstParamSimple:    firstParamSimple,
+		slotKinds:           append([]bytecodeCellKind(nil), paramKinds...),
+		hasTypedSlots:       hasTypedSlots,
 	}
 }
 
