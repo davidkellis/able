@@ -43,15 +43,26 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 		frame := &vm.selfFastMinimal[idx]
 		returnIP := frame.returnIP
 		returnSlots := frame.slots
+		reusesSlots := frame.reusesSlots
+		returnSlot0 := frame.slot0
+		frame.slot0 = nil
+		frame.reusesSlots = false
+		vm.restoreSelfFastSlot0I32(frame)
 		vm.selfFastMinimal = vm.selfFastMinimal[:idx]
 		vm.selfFastMinimalSuffix--
 		calleeSlots := vm.slots
 		vm.ip = returnIP
 		vm.slots = returnSlots
-		if activeProgram != nil && activeProgram.frameLayout != nil && activeProgram.frameLayout.slotCount == 2 {
-			vm.releaseSlotFrame2(calleeSlots)
+		if reusesSlots {
+			if len(returnSlots) > 0 {
+				returnSlots[0] = returnSlot0
+			}
 		} else {
-			vm.releaseSlotFrame(calleeSlots)
+			if activeProgram != nil && activeProgram.frameLayout != nil && activeProgram.frameLayout.slotCount == 2 {
+				vm.releaseSlotFrame2(calleeSlots)
+			} else {
+				vm.releaseSlotFrame(calleeSlots)
+			}
 		}
 		vm.stack = append(vm.stack, val)
 		return nil
@@ -107,7 +118,9 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 	if len(vm.loopStack) > loopBase {
 		vm.loopStack = vm.loopStack[:loopBase]
 	}
-	vm.releaseSlotFrame(calleeSlots)
+	if !sameSlotFrame(calleeSlots, returnSlots) {
+		vm.releaseSlotFrame(calleeSlots)
+	}
 	vm.stack = append(vm.stack, val)
 	return nil
 }
@@ -117,8 +130,8 @@ func (vm *bytecodeVM) execReturnBinaryIntAdd(instr *bytecodeInstruction) (runtim
 		return nil, bytecodeSimpleTypeCheckUnknown, fmt.Errorf("bytecode stack underflow")
 	}
 	rightIdx := len(vm.stack) - 1
-	right := vm.stack[rightIdx]
 	leftIdx := rightIdx - 1
+	right := vm.stack[rightIdx]
 	left := vm.stack[leftIdx]
 	if instr.op == bytecodeOpReturnBinaryIntAddI32 {
 		if val, handled, err := bytecodeReturnAddSmallI32ValuePairFast(left, right); handled {

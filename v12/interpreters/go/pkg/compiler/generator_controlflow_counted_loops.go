@@ -69,6 +69,59 @@ func (g *generator) compileCountedLoopExpression(ctx *compileContext, loop *ast.
 	return lines, valueTemp, resultType, true
 }
 
+func (g *generator) compileCountedLoopStatement(ctx *compileContext, loop *ast.LoopExpression) ([]string, bool) {
+	if g == nil || ctx == nil || loop == nil || loop.Body == nil {
+		return nil, false
+	}
+	stmts := loop.Body.Body
+	if len(stmts) < 2 {
+		return nil, false
+	}
+	varName, boundExpr, ok := g.matchCountedLoopGuard(stmts[0])
+	if !ok {
+		return nil, false
+	}
+	if !g.matchCountedLoopIncrement(stmts[len(stmts)-1], varName) {
+		return nil, false
+	}
+	coreStmts := stmts[1 : len(stmts)-1]
+	if countedLoopBodyAssignsName(coreStmts, varName) || countedLoopBodyContainsValueBreak(coreStmts) {
+		return nil, false
+	}
+	binding, ok := ctx.lookup(varName)
+	if !ok || binding.GoName == "" || !g.isIntegerType(binding.GoType) {
+		return nil, false
+	}
+	boundLines, boundGoExpr, boundType, ok := g.compileExprLines(ctx, boundExpr, "")
+	if !ok || len(boundLines) != 0 || boundGoExpr == "" || boundType != binding.GoType {
+		return nil, false
+	}
+
+	loopLabelName := ctx.newTemp()
+	coreBlock := ast.NewBlockExpression(coreStmts)
+	bodyCtx := ctx.child()
+	bodyCtx.loopDepth++
+	bodyCtx.loopLabel = loopLabelName
+	bodyCtx.loopBreakValueTemp = ""
+	bodyCtx.loopBreakValueType = "runtime.Value"
+	bodyCtx.loopBreakProbe = nil
+	g.seedCountedLoopIntegerFact(bodyCtx, binding, boundExpr)
+	bodyLines, ok := g.compileBlockStatement(bodyCtx, coreBlock)
+	if !ok {
+		return nil, false
+	}
+
+	forLine := fmt.Sprintf("for %s < %s {", binding.GoName, boundGoExpr)
+	if linesReferenceLabel(bodyLines, loopLabelName) {
+		forLine = fmt.Sprintf("%s: for %s < %s {", loopLabelName, binding.GoName, boundGoExpr)
+	}
+	lines := []string{forLine}
+	lines = append(lines, indentLines(bodyLines, 1)...)
+	lines = append(lines, fmt.Sprintf("\t%s++", binding.GoName))
+	lines = append(lines, "}")
+	return lines, true
+}
+
 func (g *generator) seedCountedLoopIntegerFact(ctx *compileContext, binding paramInfo, boundExpr ast.Expression) {
 	if g == nil || ctx == nil || binding.GoName == "" || !g.isIntegerType(binding.GoType) {
 		return
@@ -91,6 +144,141 @@ func (g *generator) seedCountedLoopIntegerFact(ctx *compileContext, binding para
 	}
 	if fact.hasUsefulFact() {
 		ctx.setIntegerFact(binding.GoName, fact)
+	}
+}
+
+func countedLoopBodyContainsValueBreak(stmts []ast.Statement) bool {
+	for _, stmt := range stmts {
+		if countedLoopStatementContainsValueBreak(stmt) {
+			return true
+		}
+	}
+	return false
+}
+
+func countedLoopStatementContainsValueBreak(stmt ast.Statement) bool {
+	if stmt == nil {
+		return false
+	}
+	switch s := stmt.(type) {
+	case *ast.FunctionDefinition:
+		return false
+	case *ast.BreakStatement:
+		return s.Value != nil
+	case *ast.AssignmentExpression:
+		return countedLoopExpressionContainsValueBreak(s.Right)
+	case *ast.BlockExpression:
+		return countedLoopBodyContainsValueBreak(s.Body)
+	case *ast.IfExpression:
+		if countedLoopExpressionContainsValueBreak(s.IfCondition) || countedLoopBodyContainsValueBreak(s.IfBody.Body) {
+			return true
+		}
+		for _, clause := range s.ElseIfClauses {
+			if clause == nil {
+				continue
+			}
+			if countedLoopExpressionContainsValueBreak(clause.Condition) || countedLoopBodyContainsValueBreak(clause.Body.Body) {
+				return true
+			}
+		}
+		return s.ElseBody != nil && countedLoopBodyContainsValueBreak(s.ElseBody.Body)
+	case *ast.WhileLoop:
+		return countedLoopExpressionContainsValueBreak(s.Condition) || countedLoopBodyContainsValueBreak(s.Body.Body)
+	case *ast.ForLoop:
+		return countedLoopExpressionContainsValueBreak(s.Iterable) || countedLoopBodyContainsValueBreak(s.Body.Body)
+	case *ast.LoopExpression:
+		return countedLoopBodyContainsValueBreak(s.Body.Body)
+	case *ast.ReturnStatement:
+		return countedLoopExpressionContainsValueBreak(s.Argument)
+	case *ast.RaiseStatement:
+		return countedLoopExpressionContainsValueBreak(s.Expression)
+	case *ast.YieldStatement:
+		return countedLoopExpressionContainsValueBreak(s.Expression)
+	default:
+		if expr, ok := stmt.(ast.Expression); ok {
+			return countedLoopExpressionContainsValueBreak(expr)
+		}
+		return false
+	}
+}
+
+func countedLoopExpressionContainsValueBreak(expr ast.Expression) bool {
+	if expr == nil {
+		return false
+	}
+	switch e := expr.(type) {
+	case *ast.AssignmentExpression:
+		return countedLoopStatementContainsValueBreak(e)
+	case *ast.BinaryExpression:
+		return countedLoopExpressionContainsValueBreak(e.Left) || countedLoopExpressionContainsValueBreak(e.Right)
+	case *ast.UnaryExpression:
+		return countedLoopExpressionContainsValueBreak(e.Operand)
+	case *ast.TypeCastExpression:
+		return countedLoopExpressionContainsValueBreak(e.Expression)
+	case *ast.FunctionCall:
+		if countedLoopExpressionContainsValueBreak(e.Callee) {
+			return true
+		}
+		for _, arg := range e.Arguments {
+			if countedLoopExpressionContainsValueBreak(arg) {
+				return true
+			}
+		}
+		return false
+	case *ast.MemberAccessExpression:
+		return countedLoopExpressionContainsValueBreak(e.Object) || countedLoopExpressionContainsValueBreak(e.Member)
+	case *ast.IndexExpression:
+		return countedLoopExpressionContainsValueBreak(e.Object) || countedLoopExpressionContainsValueBreak(e.Index)
+	case *ast.BlockExpression:
+		return countedLoopBodyContainsValueBreak(e.Body)
+	case *ast.IteratorLiteral:
+		return countedLoopBodyContainsValueBreak(e.Body)
+	case *ast.IfExpression:
+		return countedLoopStatementContainsValueBreak(e)
+	case *ast.MatchExpression:
+		if countedLoopExpressionContainsValueBreak(e.Subject) {
+			return true
+		}
+		for _, clause := range e.Clauses {
+			if clause == nil {
+				continue
+			}
+			if countedLoopExpressionContainsValueBreak(clause.Guard) || countedLoopExpressionContainsValueBreak(clause.Body) {
+				return true
+			}
+		}
+		return false
+	case *ast.RangeExpression:
+		return countedLoopExpressionContainsValueBreak(e.Start) || countedLoopExpressionContainsValueBreak(e.End)
+	case *ast.LambdaExpression:
+		return countedLoopExpressionContainsValueBreak(e.Body)
+	case *ast.StringInterpolation:
+		for _, part := range e.Parts {
+			if countedLoopExpressionContainsValueBreak(part) {
+				return true
+			}
+		}
+		return false
+	case *ast.SpawnExpression:
+		return countedLoopExpressionContainsValueBreak(e.Expression)
+	case *ast.AwaitExpression:
+		return countedLoopExpressionContainsValueBreak(e.Expression)
+	case *ast.PropagationExpression:
+		return countedLoopExpressionContainsValueBreak(e.Expression)
+	case *ast.OrElseExpression:
+		if countedLoopExpressionContainsValueBreak(e.Expression) {
+			return true
+		}
+		return e.Handler != nil && countedLoopBodyContainsValueBreak(e.Handler.Body)
+	case *ast.BreakpointExpression:
+		return e.Body != nil && countedLoopBodyContainsValueBreak(e.Body.Body)
+	case *ast.EnsureExpression:
+		if countedLoopExpressionContainsValueBreak(e.TryExpression) {
+			return true
+		}
+		return e.EnsureBlock != nil && countedLoopBodyContainsValueBreak(e.EnsureBlock.Body)
+	default:
+		return false
 	}
 }
 

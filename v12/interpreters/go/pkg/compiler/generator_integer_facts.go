@@ -123,6 +123,8 @@ func (g *generator) exprIntegerFact(ctx *compileContext, expr ast.Expression) (i
 		return fact, ok && fact.hasUsefulFact()
 	case *ast.TypeCastExpression:
 		return g.exprIntegerFactForCast(ctx, e)
+	case *ast.FunctionCall:
+		return g.staticFunctionCallIntegerReturnFact(ctx, e)
 	case *ast.UnaryExpression:
 		if e == nil {
 			return integerFact{}, false
@@ -146,6 +148,74 @@ func (g *generator) exprIntegerFact(ctx *compileContext, expr ast.Expression) (i
 	default:
 		return integerFact{}, false
 	}
+}
+
+func (g *generator) staticFunctionCallIntegerReturnFact(ctx *compileContext, call *ast.FunctionCall) (integerFact, bool) {
+	if g == nil || ctx == nil || call == nil || len(call.TypeArguments) != 0 {
+		return integerFact{}, false
+	}
+	callee, ok := call.Callee.(*ast.Identifier)
+	if !ok || callee == nil || callee.Name == "" {
+		return integerFact{}, false
+	}
+	info, overload, ok := g.resolveStaticCallable(ctx, callee.Name)
+	if !ok || overload != nil || info == nil || !info.Compileable || !info.HasReturnFact {
+		return integerFact{}, false
+	}
+	if len(call.Arguments) != len(info.Params) || !g.isIntegerType(info.ReturnType) {
+		return integerFact{}, false
+	}
+	if maxReturn, ok := g.staticFunctionCallRangeReturnMax(ctx, info, call); ok {
+		return integerFact{NonNegative: true, HasMax: true, MaxInclusive: maxReturn}, true
+	}
+	fact := info.ReturnFact
+	if g.isUnsignedIntegerType(info.ReturnType) {
+		fact.NonNegative = true
+	}
+	return fact, fact.hasUsefulFact()
+}
+
+func (g *generator) staticFunctionCallRangeReturnMax(ctx *compileContext, info *functionInfo, call *ast.FunctionCall) (int64, bool) {
+	if g == nil || ctx == nil || info == nil || call == nil || info.ReturnRange == nil || len(call.Arguments) != 1 {
+		return 0, false
+	}
+	argMax, ok := g.staticFunctionCallRangeArgumentMax(ctx, info, call.Arguments[0])
+	if !ok {
+		return 0, false
+	}
+	return info.ReturnRange.maxReturnForParamMax(argMax)
+}
+
+func (g *generator) staticFunctionCallRangeArgumentMax(ctx *compileContext, info *functionInfo, expr ast.Expression) (int64, bool) {
+	if fact, ok := g.exprIntegerFact(ctx, expr); ok && fact.HasMax {
+		return fact.MaxInclusive, true
+	}
+	rangeFact := info.ReturnRange
+	if ctx == nil || ctx.function != info || rangeFact == nil {
+		return 0, false
+	}
+	if ident, ok := expr.(*ast.Identifier); ok && ident != nil && ident.Name == rangeFact.ParamName {
+		if binding, found := ctx.lookup(ident.Name); found && binding.GoName == rangeFact.ParamGoName {
+			return rangeFact.MaxParam, true
+		}
+	}
+	binary, ok := expr.(*ast.BinaryExpression)
+	if !ok || binary == nil || binary.Operator != "-" {
+		return 0, false
+	}
+	left, ok := binary.Left.(*ast.Identifier)
+	if !ok || left == nil || left.Name != rangeFact.ParamName {
+		return 0, false
+	}
+	binding, found := ctx.lookup(left.Name)
+	if !found || binding.GoName != rangeFact.ParamGoName {
+		return 0, false
+	}
+	decrement, ok := positiveIntegerLiteralValue(binary.Right)
+	if !ok {
+		return 0, false
+	}
+	return rangeFact.MaxParam - decrement, true
 }
 
 func (g *generator) exprIntegerFactForCast(ctx *compileContext, expr *ast.TypeCastExpression) (integerFact, bool) {

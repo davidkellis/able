@@ -51,7 +51,9 @@ func (vm *bytecodeVM) finishRunResumable(runErr *error) {
 						}
 						vm.env = returnEnv
 						vm.slots = returnSlots
-						vm.releaseSlotFrame(calleeSlots)
+						if !sameSlotFrame(calleeSlots, returnSlots) {
+							vm.releaseSlotFrame(calleeSlots)
+						}
 					}
 				}
 			}
@@ -102,13 +104,20 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 	if len(vm.selfFastMinimal) > 0 {
 		for idx := range vm.selfFastMinimal {
 			frame := &vm.selfFastMinimal[idx]
-			vm.releaseSlotFrame(frame.slots)
+			if !frame.reusesSlots {
+				vm.releaseSlotFrame(frame.slots)
+			}
 			frame.returnIP = 0
 			frame.slots = nil
+			frame.slot0 = nil
+			frame.slot0I32Raw = 0
+			frame.slot0I32Valid = false
+			frame.reusesSlots = false
 		}
 		vm.selfFastMinimal = vm.selfFastMinimal[:0]
 	}
 	vm.selfFastMinimalSuffix = 0
+	vm.clearSelfFastSlot0I32()
 	if len(vm.callFrameKinds) > 0 {
 		clear(vm.callFrameKinds)
 		vm.callFrameKinds = vm.callFrameKinds[:0]

@@ -593,7 +593,6 @@ func (vm *bytecodeVM) execJumpIfIntLessEqualSlotConstFalse(instr *bytecodeInstru
 	if !hasImmediate {
 		return fmt.Errorf("bytecode slot-const conditional missing integer immediate")
 	}
-
 	left := vm.slots[slot]
 	condKnown := false
 	condValue := false
@@ -679,7 +678,6 @@ func (vm *bytecodeVM) execReturnIfIntLessEqualSlotConst(instr *bytecodeInstructi
 	if !hasImmediate {
 		return nil, false, fmt.Errorf("bytecode slot-const conditional missing integer immediate")
 	}
-
 	left := vm.slots[conditionSlot]
 	condKnown := false
 	condValue := false
@@ -729,6 +727,13 @@ func (vm *bytecodeVM) execReturnConstIfIntLessEqualSlotConst(instr *bytecodeInst
 	}
 	if !hasImmediate {
 		return nil, false, fmt.Errorf("bytecode slot-const conditional missing integer immediate")
+	}
+	if instr.hasIntRaw && conditionSlot == 0 && vm.selfFastSlot0I32Valid {
+		if int64(vm.selfFastSlot0I32Raw) <= instr.intImmediateRaw {
+			return instr.value, true, nil
+		}
+		vm.ip++
+		return nil, false, nil
 	}
 	left := vm.slots[conditionSlot]
 	if instr.hasIntRaw {

@@ -64,40 +64,59 @@ type bytecodeSelfFastCallFrame struct {
 }
 
 type bytecodeSelfFastMinimalCallFrame struct {
-	returnIP int
-	slots    []runtime.Value
+	returnIP      int
+	slots         []runtime.Value
+	slot0         runtime.Value
+	slot0I32Raw   int32
+	slot0I32Valid bool
+	reusesSlots   bool
 }
 
 type bytecodeVM struct {
-	interp                *Interpreter
-	stack                 []runtime.Value
-	env                   *runtime.Environment
-	ip                    int
-	iterStack             []forLoopIterator
-	loopStack             []bytecodeLoopFrame
-	ensureStack           []bytecodeEnsureFrame
-	slots                 []runtime.Value
-	slotFramePool         map[int][][]runtime.Value
-	slotFrameHotSize      int
-	slotFrameHotPool      [][]runtime.Value
-	callFrameKinds        []bytecodeCallFrameKind
-	callFrames            []bytecodeCallFrame
-	selfFastCallFrames    []bytecodeSelfFastCallFrame
-	selfFastMinimal       []bytecodeSelfFastMinimalCallFrame
-	selfFastMinimalSuffix int
-	currentProgram        *bytecodeProgram // tracks the active program for resume after yield
-	globalLookupCache     map[bytecodeGlobalLookupCacheKey]bytecodeGlobalLookupCacheEntry
-	scopeLookupCache      map[bytecodeGlobalLookupCacheKey]bytecodeScopeLookupCacheEntry
-	nameLookupHot         bytecodeInlineNameLookupCacheEntry
-	callNameCache         map[bytecodeGlobalLookupCacheKey]*bytecodeCallNameCacheEntry
-	callNameHot           bytecodeInlineCallNameCacheEntry
-	memberMethodCache     map[bytecodeMemberMethodCacheKey]bytecodeMemberMethodCacheEntry
-	memberMethodHot       bytecodeInlineMemberMethodCacheEntry
-	indexMethodCache      map[*bytecodeProgram]*bytecodeIndexMethodCacheTable
-	indexMethodHot        bytecodeInlineIndexMethodCacheEntry
-	validatedIntConsts    map[*bytecodeProgram][]bool
-	slotConstIntImm       map[*bytecodeProgram]*bytecodeSlotConstIntImmediateTable
-	stringInterpParts     []runtime.Value
+	interp                             *Interpreter
+	stack                              []runtime.Value
+	i32Stack                           []int32
+	selfFastSlot0I32Raw                int32
+	selfFastSlot0I32Valid              bool
+	env                                *runtime.Environment
+	ip                                 int
+	iterStack                          []forLoopIterator
+	loopStack                          []bytecodeLoopFrame
+	ensureStack                        []bytecodeEnsureFrame
+	slots                              []runtime.Value
+	slotFramePool                      map[int][][]runtime.Value
+	slotFrameHotSize                   int
+	slotFrameHotPool                   [][]runtime.Value
+	callFrameKinds                     []bytecodeCallFrameKind
+	callFrames                         []bytecodeCallFrame
+	selfFastCallFrames                 []bytecodeSelfFastCallFrame
+	selfFastMinimal                    []bytecodeSelfFastMinimalCallFrame
+	selfFastMinimalSuffix              int
+	currentProgram                     *bytecodeProgram // tracks the active program for resume after yield
+	globalLookupCache                  map[bytecodeGlobalLookupCacheKey]bytecodeGlobalLookupCacheEntry
+	scopeLookupCache                   map[bytecodeGlobalLookupCacheKey]bytecodeScopeLookupCacheEntry
+	nameLookupHot                      bytecodeInlineNameLookupCacheEntry
+	callNameCache                      map[bytecodeGlobalLookupCacheKey]*bytecodeCallNameCacheEntry
+	callNameHot                        bytecodeInlineCallNameCacheEntry
+	memberMethodCache                  map[bytecodeMemberMethodCacheKey]bytecodeMemberMethodCacheEntry
+	memberMethodHot                    bytecodeInlineMemberMethodCacheEntry
+	memberMethodFastPaths              map[bytecodeMemberMethodFastPathCacheKey]bytecodeMemberMethodFastPathKind
+	arrayGetOverloadHot                *runtime.FunctionOverloadValue
+	arrayGetOverloadHotVersion         uint64
+	arrayGetOverloadHotOK              bool
+	stringBytesIterDef                 *runtime.StructDefinitionValue
+	stringBytesIterDefSet              bool
+	stringBytesIteratorInterfaceDef    *runtime.InterfaceDefinitionValue
+	stringBytesIteratorInterfaceDefSet bool
+	stringBytesIteratorNextMethod      runtime.Value
+	stringBytesIteratorNextVersion     uint64
+	stringBytesIteratorNextGlobalRev   uint64
+	stringBytesIteratorNextSet         bool
+	indexMethodCache                   map[*bytecodeProgram]*bytecodeIndexMethodCacheTable
+	indexMethodHot                     bytecodeInlineIndexMethodCacheEntry
+	validatedIntConsts                 map[*bytecodeProgram][]bool
+	slotConstIntImm                    map[*bytecodeProgram]*bytecodeSlotConstIntImmediateTable
+	stringInterpParts                  []runtime.Value
 }
 
 type bytecodeLoopFrame struct {
@@ -116,6 +135,7 @@ func newBytecodeVM(interp *Interpreter, env *runtime.Environment) *bytecodeVM {
 		interp:             interp,
 		env:                env,
 		stack:              make([]runtime.Value, 0, 8),
+		i32Stack:           make([]int32, 0, 8),
 		iterStack:          make([]forLoopIterator, 0, 2),
 		loopStack:          make([]bytecodeLoopFrame, 0, 4),
 		ensureStack:        make([]bytecodeEnsureFrame, 0, 2),

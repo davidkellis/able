@@ -606,6 +606,63 @@ func TestBytecodeVM_PropagationExpression(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_PropagationStillRaisesStructImplementingError(t *testing.T) {
+	module := mustParseModuleSource(t, `
+struct MyError { message: String }
+
+impl Error for MyError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn result_value() -> !String {
+  MyError { message: "bad" }
+}
+
+fn fail() -> !String {
+  result_value()!
+  "after"
+}
+
+fail() or { err => err.message() }
+`)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode propagation mismatch: got=%#v want=%#v", got, want)
+	}
+	if str, ok := got.(runtime.StringValue); !ok || str.Val != "bad" {
+		t.Fatalf("expected handled error message, got %#v", got)
+	}
+}
+
+func TestBytecodeVM_PropagationReturnsNilFromCurrentFunction(t *testing.T) {
+	module := mustParseModuleSource(t, `
+fn maybe_text(ok: bool) {
+  if ok { "value" } else { nil }
+}
+
+fn marker(ok: bool) {
+  maybe_text(ok)!
+  "after"
+}
+
+first := marker(true) or { "nil" }
+second := marker(false) or { "nil" }
+first + ":" + second
+`)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode propagation mismatch: got=%#v want=%#v", got, want)
+	}
+	if str, ok := got.(runtime.StringValue); !ok || str.Val != "after:nil" {
+		t.Fatalf("expected nil propagation to return from marker, got %#v", got)
+	}
+}
+
 func TestBytecodeVM_OrElseExpression(t *testing.T) {
 	errorVal := runtime.ErrorValue{Message: "boom"}
 	errorModule := ast.Mod([]ast.Statement{

@@ -192,6 +192,77 @@ fn main() {
 	compileAndRunSource(t, "ablec-native-result-", source)
 }
 
+func TestCompilerNilPropagationReturnsNullableFromCurrentFunction(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"fn maybe_text(ok: bool) -> ?String {",
+		"  if ok { \"value\" } else { nil }",
+		"}",
+		"",
+		"fn marker(ok: bool) -> ?String {",
+		"  maybe_text(ok)!",
+		"  \"after\"",
+		"}",
+		"",
+	}, "\n")
+	result := compileNoFallbackSource(t, source)
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_marker")
+	if !ok {
+		t.Fatalf("could not find marker function")
+	}
+	if !strings.Contains(body, "return nil, nil") {
+		t.Fatalf("expected nil propagation to return a normal nullable nil value:\n%s", body)
+	}
+	if strings.Contains(body, "__able_raise_control(nil, runtime.NilValue{})") {
+		t.Fatalf("expected nil propagation not to lower as a raise control:\n%s", body)
+	}
+
+	compileAndRunSource(t, "ablec-nil-propagation-nullable-", `extern go fn __able_os_exit(code: i32) -> void {}
+
+fn maybe_text(ok: bool) -> ?String {
+  if ok { "value" } else { nil }
+}
+
+fn marker(ok: bool) -> ?String {
+  maybe_text(ok)!
+  "after"
+}
+
+fn main() {
+  value := marker(false)
+  handled := value or { "nil" }
+  if handled == "nil" {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`)
+}
+
+func TestCompilerNilPropagationReturnsNativeNullableFromCurrentFunction(t *testing.T) {
+	compileAndRunSource(t, "ablec-nil-propagation-native-nullable-", `extern go fn __able_os_exit(code: i32) -> void {}
+
+fn maybe_value(ok: bool) -> ?i32 {
+  if ok { 7 } else { nil }
+}
+
+fn marker(ok: bool) -> ?i32 {
+  maybe_value(ok)!
+  99
+}
+
+fn main() {
+  value := marker(false)
+  handled := value or { -1 }
+  if handled == -1 {
+    __able_os_exit(0)
+  }
+  __able_os_exit(1)
+}
+`)
+}
+
 func TestCompilerResultVoidReturnUsesNativeCarrier(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

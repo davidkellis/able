@@ -598,6 +598,9 @@ type StructInstanceValue struct {
 	Fields        map[string]Value
 	Positional    []Value
 	TypeArguments []ast.TypeExpression
+	// Native carries implementation-private host metadata. Language-visible
+	// semantics must continue to come from Definition, Fields, and Positional.
+	Native any
 }
 
 func (v *StructInstanceValue) Kind() Kind { return KindStructInstance }

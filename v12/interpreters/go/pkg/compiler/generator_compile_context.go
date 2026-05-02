@@ -5,6 +5,7 @@ import "able/interpreter-go/pkg/ast"
 func newCompileContext(gen *generator, info *functionInfo, functions map[string]*functionInfo, overloads map[string]*overloadInfo, packageName string, genericNames map[string]struct{}) *compileContext {
 	counter := 0
 	ctx := &compileContext{
+		function:     info,
 		params:       make(map[string]paramInfo),
 		locals:       make(map[string]paramInfo),
 		functions:    functions,

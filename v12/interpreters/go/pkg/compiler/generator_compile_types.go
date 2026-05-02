@@ -29,6 +29,7 @@ type nominalCoercionOrigin struct {
 }
 
 type compileContext struct {
+	function               *functionInfo
 	params                 map[string]paramInfo
 	locals                 map[string]paramInfo
 	integerFacts           map[string]integerFact

@@ -16,6 +16,20 @@ func valueNullableFailurePossible(valueType string, valueErrorUnion bool, g *gen
 	return !valueErrorUnion && (valueType == "runtime.Value" || valueType == "any")
 }
 
+func (g *generator) propagationSourceMayReturnNil(ctx *compileContext, expr ast.Expression, valueType string) bool {
+	if g == nil || ctx == nil {
+		return true
+	}
+	if _, nullable := g.nativeNullableValueInnerType(valueType); nullable {
+		return true
+	}
+	inferred, ok := g.inferExpressionTypeExpr(ctx, expr, valueType)
+	if !ok || inferred == nil {
+		return valueType == "runtime.Value" || valueType == "any"
+	}
+	return g.typeExprIncludesNilInPackage(ctx.packageName, g.lowerNormalizedTypeExpr(ctx, inferred))
+}
+
 func (g *generator) inferOrElseBindingTypeExpr(ctx *compileContext, expr *ast.OrElseExpression, valueErrorUnion bool, unionFailureMember *nativeUnionMember) ast.TypeExpression {
 	if g == nil || ctx == nil || expr == nil || expr.ErrorBinding == nil {
 		return nil
@@ -113,7 +127,7 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 		innerType, _ := g.nativeNullableValueInnerType(valueType)
 		lines := append([]string{}, valueLines...)
 		valueTemp := ctx.newTemp()
-		transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", "runtime.NilValue{}"))
+		transferLines, ok := g.nilPropagationReturnLines(ctx)
 		if !ok {
 			return nil, "", "", false
 		}
@@ -135,6 +149,15 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 	valueTemp := ctx.newTemp()
 	lines := append([]string{}, valueLines...)
 	lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
+	if g.propagationSourceMayReturnNil(ctx, expr.Expression, valueType) {
+		nilTransferLines, ok := g.nilPropagationReturnLines(ctx)
+		if !ok {
+			return nil, "", "", false
+		}
+		lines = append(lines, fmt.Sprintf("if __able_is_nil(%s) {", valueTemp))
+		lines = append(lines, indentLines(nilTransferLines, 1)...)
+		lines = append(lines, "}")
+	}
 	transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(%s)", valueTemp)))
 	if !ok {
 		return nil, "", "", false
@@ -244,7 +267,7 @@ func (g *generator) compilePropagationStaticArrayAccessCall(ctx *compileContext,
 	resultTemp := ctx.newTemp()
 	lines := append([]string{}, objLines...)
 	lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
-	nilTransferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", "runtime.NilValue{}"))
+	nilTransferLines, ok := g.nilPropagationReturnLines(ctx)
 	if !ok {
 		return nil, "", "", false
 	}

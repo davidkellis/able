@@ -657,6 +657,7 @@ func (g *generator) compileIfStatement(ctx *compileContext, expr *ast.IfExpressi
 	for i := 0; i < closingBraces; i++ {
 		lines = append(lines, "}")
 	}
+	g.seedFactsAfterTerminatingIf(ctx, expr)
 	return lines, true
 }
 

@@ -28,6 +28,9 @@ func (i *Interpreter) invalidateMethodCache() {
 	if len(i.boundMethodCache) > 0 {
 		i.boundMethodCache = make(map[boundMethodCacheKey]runtime.Value)
 	}
+	if len(i.propagationErrorCache) > 0 {
+		i.propagationErrorCache = make(map[string]bool)
+	}
 }
 
 func (i *Interpreter) currentMethodCacheVersion() uint64 {

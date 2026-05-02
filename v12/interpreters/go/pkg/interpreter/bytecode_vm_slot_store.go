@@ -7,6 +7,36 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
+func (vm *bytecodeVM) execLoadSlotOpcode(instr *bytecodeInstruction) error {
+	if instr == nil {
+		return fmt.Errorf("bytecode slot load missing instruction")
+	}
+	switch instr.op {
+	case bytecodeOpLoadSlot:
+		vm.stack = append(vm.stack, vm.slots[instr.target])
+		vm.ip++
+		return nil
+	case bytecodeOpLoadSlotI32:
+		return vm.execLoadSlotI32(instr)
+	default:
+		return fmt.Errorf("bytecode slot load opcode %d unsupported", instr.op)
+	}
+}
+
+func (vm *bytecodeVM) execStoreSlotOpcode(instr *bytecodeInstruction) error {
+	if instr == nil {
+		return fmt.Errorf("bytecode slot store missing instruction")
+	}
+	switch instr.op {
+	case bytecodeOpStoreSlot, bytecodeOpStoreSlotNew:
+		return vm.execStoreSlot(instr)
+	case bytecodeOpStoreSlotI32:
+		return vm.execStoreSlotI32(instr)
+	default:
+		return fmt.Errorf("bytecode slot store opcode %d unsupported", instr.op)
+	}
+}
+
 func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 	if instr == nil {
 		return fmt.Errorf("bytecode slot store missing instruction")
@@ -20,6 +50,9 @@ func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 	val := vm.stack[len(vm.stack)-1]
 	if !instr.storeTyped || instr.typeExpr == nil {
 		vm.slots[instr.target] = val
+		if instr.target == 0 {
+			vm.setSelfFastSlot0I32Value(val)
+		}
 		vm.ip++
 		return nil
 	}
@@ -32,6 +65,9 @@ func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 	}
 	if shouldStore {
 		vm.slots[instr.target] = storeVal
+		if instr.target == 0 {
+			vm.setSelfFastSlot0I32Value(storeVal)
+		}
 	}
 	if stackVal == nil {
 		stackVal = runtime.NilValue{}

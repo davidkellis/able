@@ -10,6 +10,7 @@ import (
 
 func (g *generator) render() (map[string][]byte, error) {
 	g.resolveStaticFunctionIntegerFacts()
+	g.resolveStaticFunctionIntegerReturnFacts()
 	if err := g.preparePackageInitBodies(); err != nil {
 		return nil, err
 	}

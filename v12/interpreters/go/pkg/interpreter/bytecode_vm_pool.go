@@ -30,10 +30,15 @@ func (vm *bytecodeVM) resetForRun(interp *Interpreter, env *runtime.Environment)
 	vm.env = env
 	vm.ip = 0
 	vm.currentProgram = nil
+	vm.clearSelfFastSlot0I32()
 
 	if len(vm.stack) > 0 {
 		clear(vm.stack)
 		vm.stack = vm.stack[:0]
+	}
+	if len(vm.i32Stack) > 0 {
+		clear(vm.i32Stack)
+		vm.i32Stack = vm.i32Stack[:0]
 	}
 	if len(vm.iterStack) > 0 {
 		clear(vm.iterStack)
@@ -92,6 +97,10 @@ func (vm *bytecodeVM) resetForRun(interp *Interpreter, env *runtime.Environment)
 				clear(frame.slots)
 				frame.slots = nil
 			}
+			frame.slot0 = nil
+			frame.slot0I32Raw = 0
+			frame.slot0I32Valid = false
+			frame.reusesSlots = false
 		}
 		vm.selfFastMinimal = vm.selfFastMinimal[:0]
 	}

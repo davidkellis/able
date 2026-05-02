@@ -102,6 +102,7 @@ func (c *compileContext) child() *compileContext {
 		return nil
 	}
 	return &compileContext{
+		function:               c.function,
 		locals:                 make(map[string]paramInfo),
 		integerFacts:           cloneIntegerFacts(c.integerFacts),
 		functions:              c.functions,

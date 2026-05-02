@@ -247,6 +247,87 @@ func TestBytecodeVMPushSelfFastMinimalCallFrameUsesMinimalStacks(t *testing.T) {
 	}
 }
 
+func TestBytecodeVMSelfFastSlot0FrameRestoresCallerSlot(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+
+	self := &runtime.FunctionValue{}
+	vm.slots = []runtime.Value{runtime.NewSmallInt(7, runtime.IntegerI32), self}
+	if !vm.pushSelfFastSlot0CallFrame(11) {
+		t.Fatalf("expected compact slot0 frame push to succeed")
+	}
+	vm.slots[0] = runtime.NewSmallInt(6, runtime.IntegerI32)
+
+	returnIP, _, returnSlots, _, _, _, _, _, ok := vm.popCallFrameFields()
+	if !ok {
+		t.Fatalf("expected compact self-fast frame to pop")
+	}
+	if returnIP != 11 {
+		t.Fatalf("expected returnIP 11, got %d", returnIP)
+	}
+	if len(returnSlots) == 0 || &returnSlots[0] != &vm.slots[0] {
+		t.Fatalf("expected compact frame to reuse current slot slice")
+	}
+	if got, ok := bytecodeRawI32Value(vm.slots[0]); !ok || got != 7 {
+		t.Fatalf("expected caller slot0 to be restored to 7, got %d ok=%v", got, ok)
+	}
+	if vm.selfFastMinimalSuffix != 0 || len(vm.selfFastMinimal) != 0 {
+		t.Fatalf("expected compact frame stack to be empty after pop")
+	}
+}
+
+func TestBytecodeVMFusedSelfCallSlot0FrameReusesCurrentSlots(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+
+	layout := &bytecodeFrameLayout{
+		slotCount:          2,
+		paramSlots:         1,
+		selfCallSlot:       1,
+		selfCallOneArgFast: true,
+	}
+	program := &bytecodeProgram{
+		frameLayout:              layout,
+		returnGenericNamesCached: true,
+	}
+	self := &runtime.FunctionValue{Closure: env, Bytecode: program}
+	vm.slots = vm.acquireSlotFrame2()
+	vm.slots[0] = runtime.NewSmallInt(10, runtime.IntegerI32)
+	vm.slots[1] = self
+	slot0 := &vm.slots[0]
+
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpCallSelfIntSubSlotConst,
+		target:          1,
+		argCount:        0,
+		intImmediate:    runtime.NewSmallInt(1, runtime.IntegerI32),
+		intImmediateRaw: 1,
+		hasIntImmediate: true,
+		hasIntRaw:       true,
+	}
+	newProgram, err := vm.execCallSelfIntSubSlotConst(instr, nil, program)
+	if err != nil {
+		t.Fatalf("fused self-call failed: %v", err)
+	}
+	if newProgram != program {
+		t.Fatalf("expected fused self-call to stay on current program")
+	}
+	if &vm.slots[0] != slot0 {
+		t.Fatalf("expected compact fused self-call to reuse current slot frame")
+	}
+	if got, ok := bytecodeRawI32Value(vm.slots[0]); !ok || got != 9 {
+		t.Fatalf("expected callee slot0 to be 9, got %d ok=%v", got, ok)
+	}
+	if len(vm.selfFastMinimal) != 1 || !vm.selfFastMinimal[0].reusesSlots {
+		t.Fatalf("expected compact self-fast frame to be recorded")
+	}
+	if got, ok := bytecodeRawI32Value(vm.selfFastMinimal[0].slot0); !ok || got != 10 {
+		t.Fatalf("expected compact frame to save caller slot0 10, got %d ok=%v", got, ok)
+	}
+}
+
 func TestBytecodeVMPushCallFrameMaterializesMinimalSelfFastSuffix(t *testing.T) {
 	interp := NewBytecode()
 	env := interp.GlobalEnvironment()

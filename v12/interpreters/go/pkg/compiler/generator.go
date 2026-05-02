@@ -16,6 +16,7 @@ type generator struct {
 	specializedStructs                  map[string]*structInfo
 	typeAliases                         map[string]map[string]ast.TypeExpression
 	typeAliasGenericParams              map[string]map[string][]*ast.GenericParameter
+	typeAliasPrivate                    map[string]map[string]bool
 	unions                              map[string]*ast.UnionDefinition
 	unionPackages                       map[string]string
 	nativeUnions                        map[string]*nativeUnionInfo
@@ -104,6 +105,7 @@ func newGenerator(opts Options) *generator {
 		specializedStructs:                  make(map[string]*structInfo),
 		typeAliases:                         make(map[string]map[string]ast.TypeExpression),
 		typeAliasGenericParams:              make(map[string]map[string][]*ast.GenericParameter),
+		typeAliasPrivate:                    make(map[string]map[string]bool),
 		unions:                              make(map[string]*ast.UnionDefinition),
 		unionPackages:                       make(map[string]string),
 		nativeUnions:                        make(map[string]*nativeUnionInfo),
@@ -120,11 +122,11 @@ func newGenerator(opts Options) *generator {
 		nativeInterfaceRenderedDispatches:   make(map[string]struct{}),
 		nativeInterfaceRenderedApplyHelpers: make(map[string]struct{}),
 		iteratorCollectMonoArrays:           make(map[string]*iteratorCollectMonoArrayInfo),
-			monoArraySpecs:                      make(map[string]*monoArraySpec),
-			nativeInterfaceBuilding:             make(map[string]struct{}),
-			nativeInterfaceRefreshing:           make(map[string]struct{}),
-			nativeInterfaceDirectAdapterChecks:  make(map[string]struct{}),
-			nativeInterfaceSpecializing:         make(map[string]struct{}),
+		monoArraySpecs:                      make(map[string]*monoArraySpec),
+		nativeInterfaceBuilding:             make(map[string]struct{}),
+		nativeInterfaceRefreshing:           make(map[string]struct{}),
+		nativeInterfaceDirectAdapterChecks:  make(map[string]struct{}),
+		nativeInterfaceSpecializing:         make(map[string]struct{}),
 		nativeInterfaceImplBindingCache:     make(map[string]nativeInterfaceImplBindingCacheEntry),
 		normalizedTypeExprCache:             make(map[string]ast.TypeExpression),
 		normalizedTypeExprPackageCache:      make(map[string]string),
@@ -164,6 +166,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.specializedStructs = make(map[string]*structInfo)
 	g.typeAliases = make(map[string]map[string]ast.TypeExpression)
 	g.typeAliasGenericParams = make(map[string]map[string][]*ast.GenericParameter)
+	g.typeAliasPrivate = make(map[string]map[string]bool)
 	g.unions = make(map[string]*ast.UnionDefinition)
 	g.unionPackages = make(map[string]string)
 	g.nativeUnions = make(map[string]*nativeUnionInfo)
@@ -180,11 +183,11 @@ func (g *generator) collect(program *driver.Program) error {
 	g.nativeInterfaceRenderedDispatches = make(map[string]struct{})
 	g.nativeInterfaceRenderedApplyHelpers = make(map[string]struct{})
 	g.iteratorCollectMonoArrays = make(map[string]*iteratorCollectMonoArrayInfo)
-		g.monoArraySpecs = make(map[string]*monoArraySpec)
-		g.nativeInterfaceBuilding = make(map[string]struct{})
-		g.nativeInterfaceRefreshing = make(map[string]struct{})
-		g.nativeInterfaceDirectAdapterChecks = make(map[string]struct{})
-		g.nativeInterfaceSpecializing = make(map[string]struct{})
+	g.monoArraySpecs = make(map[string]*monoArraySpec)
+	g.nativeInterfaceBuilding = make(map[string]struct{})
+	g.nativeInterfaceRefreshing = make(map[string]struct{})
+	g.nativeInterfaceDirectAdapterChecks = make(map[string]struct{})
+	g.nativeInterfaceSpecializing = make(map[string]struct{})
 	g.nativeInterfaceImplBindingCache = make(map[string]nativeInterfaceImplBindingCacheEntry)
 	g.normalizedTypeExprCache = make(map[string]ast.TypeExpression)
 	g.normalizedTypeExprPackageCache = make(map[string]string)
@@ -301,6 +304,12 @@ func (g *generator) collect(program *driver.Program) error {
 			}
 			if _, exists := g.typeAliases[module.Package][alias.ID.Name]; !exists {
 				g.typeAliases[module.Package][alias.ID.Name] = alias.TargetType
+				if alias.IsPrivate {
+					if g.typeAliasPrivate[module.Package] == nil {
+						g.typeAliasPrivate[module.Package] = make(map[string]bool)
+					}
+					g.typeAliasPrivate[module.Package][alias.ID.Name] = true
+				}
 				if len(alias.GenericParams) > 0 {
 					if g.typeAliasGenericParams[module.Package] == nil {
 						g.typeAliasGenericParams[module.Package] = make(map[string][]*ast.GenericParameter)
@@ -921,6 +930,22 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		return nil, false
 	case *ast.WhileLoop:
 		return g.compileWhileLoop(ctx, s)
+	case *ast.LoopExpression:
+		if lines, ok := g.compileCountedLoopStatement(ctx, s); ok {
+			return lines, true
+		}
+		valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", s)
+		if !ok {
+			return nil, false
+		}
+		if valueExpr == "" {
+			return valueLines, true
+		}
+		lines, ok := g.discardStatementResult(ctx, valueLines, valueExpr, valueType)
+		if !ok {
+			return nil, false
+		}
+		return lines, true
 	case *ast.ForLoop:
 		return g.compileForLoop(ctx, s)
 	case *ast.BreakStatement:

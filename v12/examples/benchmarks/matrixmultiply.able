@@ -5,11 +5,11 @@ import able.collections.array
 
 fn build_matrix(n: i32) -> Array (Array f64) {
   t := 1.0 / (n as f64) / (n as f64)
-  m: Array (Array f64) := Array.new()
+  m: Array (Array f64) := Array.with_capacity(n)
   i := 0
   loop {
     if i >= n { break }
-    row: Array f64 := Array.new()
+    row: Array f64 := Array.with_capacity(n)
     j := 0
     loop {
       if j >= n { break }
@@ -24,11 +24,11 @@ fn build_matrix(n: i32) -> Array (Array f64) {
 
 fn matmul(a: Array (Array f64), b: Array (Array f64)) -> Array (Array f64) {
   n := a.len()
-  c: Array (Array f64) := Array.new()
+  c: Array (Array f64) := Array.with_capacity(n)
   i := 0
   loop {
     if i >= n { break }
-    ci: Array f64 := Array.new()
+    ci: Array f64 := Array.with_capacity(n)
     j := 0
     loop {
       if j >= n { break }
@@ -39,11 +39,11 @@ fn matmul(a: Array (Array f64), b: Array (Array f64)) -> Array (Array f64) {
     i = i + 1
   }
 
-  d: Array (Array f64) := Array.new()
+  d: Array (Array f64) := Array.with_capacity(n)
   i = 0
   loop {
     if i >= n { break }
-    di: Array f64 := Array.new()
+    di: Array f64 := Array.with_capacity(n)
     ai := a.get(i)!
     j := 0
     loop {

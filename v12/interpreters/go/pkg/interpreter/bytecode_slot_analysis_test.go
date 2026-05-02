@@ -44,6 +44,43 @@ func TestAnalyzeFrameLayoutCachesParamSimpleTypes(t *testing.T) {
 	}
 }
 
+func TestAnalyzeFrameLayoutCachesParamCellKinds(t *testing.T) {
+	interp := New()
+	def := ast.Fn(
+		"f",
+		[]*ast.FunctionParameter{
+			ast.Param("a", ast.Ty("i32")),
+			ast.Param("b", ast.Ty("String")),
+			ast.Param("c", nil),
+		},
+		[]ast.Statement{
+			ast.ID("a"),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	layout := analyzeFrameLayout(interp, def)
+	if layout == nil {
+		t.Fatalf("expected frame layout")
+	}
+	if got, want := len(layout.paramKinds), 3; got != want {
+		t.Fatalf("unexpected param kind count: got=%d want=%d", got, want)
+	}
+	if layout.paramKinds[0] != bytecodeCellKindI32 {
+		t.Fatalf("expected first param to be i32 cell kind, got %d", layout.paramKinds[0])
+	}
+	if layout.paramKinds[1] != bytecodeCellKindValue || layout.paramKinds[2] != bytecodeCellKindValue {
+		t.Fatalf("expected non-i32 params to stay boxed value kinds, got %d and %d", layout.paramKinds[1], layout.paramKinds[2])
+	}
+	if !layout.hasTypedSlots {
+		t.Fatalf("expected layout to record typed slots")
+	}
+}
+
 func TestAnalyzeFrameLayoutCachesParamCoercionMetadata(t *testing.T) {
 	interp := New()
 	def := ast.Fn(

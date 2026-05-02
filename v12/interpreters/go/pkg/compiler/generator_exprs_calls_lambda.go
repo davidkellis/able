@@ -311,6 +311,10 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 							return lines, v, t, true
 						}
 					}
+					if g.hasUncompiledReceiverMethod(objType, ident.Name) {
+						ctx.setReason("unsupported method call")
+						return nil, "", "", false
+					}
 				}
 			}
 			if callee.Safe {
