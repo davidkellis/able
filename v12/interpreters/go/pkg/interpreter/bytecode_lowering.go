@@ -631,6 +631,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 	case *ast.IfExpression:
 		return emitIf(ctx, i, n)
 	case *ast.MatchExpression:
+		if emitted, err := emitSlotMatch(ctx, i, n); err != nil {
+			return err
+		} else if emitted {
+			return nil
+		}
 		if err := emitExpression(ctx, i, n.Subject); err != nil {
 			return err
 		}

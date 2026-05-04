@@ -1,5 +1,336 @@
 # Able Project Log
 
+# 2026-05-04 — bytecode Array.get hot-cache no-promotion hit path (v12)
+- Kept a tiny canonical `Array.get` call-site cache change for sudoku's nested
+  solver/output reads. Hot entries in the four-entry canonical `Array.get`
+  cache still keep the same env/global/method-version guards, but a hot hit no
+  longer moves the entry to the front on every access. Promotion still happens
+  when a site is stored or recovered from the backing cache.
+- Semantics stay unchanged: the fast path is still entered only after normal
+  member resolution proves the canonical nullable stdlib `Array.get(i32)` shape,
+  and invalidated env/runtime-context/method-cache versions still fall back to
+  regular v12 member resolution.
+- Guardrails:
+  - focused Array.get cache/member tests passed
+  - runtime-only `sudoku` warmed band: `137.57ms/op`, `148.35ms/op`, and one
+    noisy `164.03ms/op`, with allocations unchanged around `343k allocs/op`
+  - profiled runtime-only sample: `159.54ms/op`, `25.48 MB/op`,
+    `342,856 allocs/op`; `lookupCachedCanonicalArrayGetCall` fell from about
+    `100ms` cumulative in the refreshed profile to about `70ms`
+  - external bytecode `sudoku`: `0.3360s` over `5/5`, versus the prior
+    recorded `0.3560s`
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(CanonicalArrayGetOverloadFastPath|CanonicalArrayGetCallCacheGuardsClosureEnv|CanonicalArrayGetCallCacheFeedsExecCallMember|ArrayMemberFastPathLenAndGetSemantics)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-arrayget-nopromote.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-arrayget-nopromote.mem.pprof ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 300s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+- Next: profile this kept state before adding another `Array.get` change. The
+  remaining visible wall is now spread across `execCallMember(...)`,
+  `String.bytes()`/iterator `next`, string interpolation finalization, and
+  small runtime type/progression checks; the next tranche should prefer a
+  different hot edge unless a fresh profile again singles out the get-cache
+  lookup.
+
+# 2026-05-04 — bytecode slot-const greater-compare conditional jumps (v12)
+- Kept a control-flow lowering slice for slot-vs-integer-immediate comparisons
+  used by sudoku loop guards. Slot-backed `>` and `>=` conditions now lower to
+  `JumpIfIntCompareSlotConstFalse`, avoiding the previous standalone
+  bool-producing binary opcode followed by `JumpIfFalse`.
+- Semantics stay unchanged: only identifier-left / integer-literal-right
+  slot-eligible conditions are fused, direct integer values use the raw
+  small-int path, and unsupported or non-integer values fall back to the
+  existing generic binary operator plus truthiness behavior.
+- Guardrails:
+  - focused lowering/execution tests passed for the new compare jump and the
+    existing `<=` slot-const path
+  - runtime-only `sudoku` band: `149.16ms/op`, `153.52ms/op`, and one noisy
+    `176.73ms/op`, with allocations unchanged at about `343k allocs/op`
+  - profiled runtime-only sample: `171.99ms/op`, `25.44 MB/op`,
+    `342,921 allocs/op`; the old generic `execBinary` compare prominence is
+    gone, and visible wall is back in member dispatch, slot load/store, and
+    runtime bookkeeping
+  - external bytecode `sudoku`: `0.3560s` over `5/5`, versus the prior
+    recorded `0.3620s`
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsIntegerSlotConstHotOpcodes|LoweringEmitsConditionalJumpForIntLessEqualSlotConstIf|LoweringEmitsConditionalJumpForIntCompareSlotConstIf|JumpIfIntCompareSlotConstFalseFastPath|StatementIfWithoutElseParity|LoweringSkipsDeadNilForStatementIfWithoutElse)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=3x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=1 -timeout 300s -cpuprofile /tmp/sudoku-int-compare-slotconst.cpu.pprof -memprofile /tmp/sudoku-int-compare-slotconst.mem.pprof`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1 -timeout 300s`
+- Next: the next sudoku bytecode profile should start from residual
+  `execCallMember(...)` / canonical `Array.get` guard work, slot load/store
+  traffic, and runtime type/propagation checks. The remaining compare branch
+  work is no longer the top visible edge.
+
+# 2026-05-04 — bytecode primitive two-part string interpolation fast path (v12)
+- Kept a primitive-only bytecode string interpolation fast path for the common
+  two-part shape. `execStringInterpolation(...)` now formats pairs made from
+  primitive values directly, with a narrower `String + Integer` subpath that
+  writes integer digits into one grown builder. Structs, arrays, functions,
+  errors, and all other dynamic values still use the existing generic
+  `stringifyValue(...)` / Display path.
+- Semantics stay unchanged: the fast path only mirrors primitive
+  `valueToString(...)` behavior, leaves `String + String` on the old
+  buffer-reuse path, and falls back for struct `to_string` / Display
+  formatting.
+- Guardrails:
+  - focused interpolation tests passed for primitive-pair fast execution,
+    generic buffer reuse, and bytecode/tree-walker parity for struct
+    `to_string`
+  - runtime-only `sudoku` warmed band:
+    `163.65ms/op`, `161.29ms/op`, and `169.59ms/op`, with about
+    `343k allocs/op` versus the prior kept `~417k allocs/op`
+  - profiled runtime-only sample: `208.37ms/op`, `25.28 MB/op`,
+    `342,918 allocs/op` (CPU timing noisy, allocation shape confirmed)
+  - external bytecode `sudoku`: `0.3620s` over two `5/5` confirmations,
+    versus the prior recorded `0.3633s`
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM(ExecStringInterpolationReusesPartsBuffer|ExecStringInterpolationFastPrimitivePair|_StringInterpolation|_StringInterpolationUsesStructToString)$|TestStringInterpolation(.*)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=3x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=1 -timeout 300s -cpuprofile /tmp/sudoku-interp2-string-int.cpu.pprof -memprofile /tmp/sudoku-interp2-string-int.mem.pprof`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1 -timeout 300s`
+- Next: the next sudoku bytecode profile should start from residual
+  `execCallMember(...)` / canonical `Array.get` guard work and binary compare
+  slots. The string interpolation wall is now mostly final string construction,
+  so a bigger win likely needs a general byte-buffer/string-builder runtime
+  primitive rather than another local interpolation helper.
+
+# 2026-05-03 — bytecode canonical Array.get cache-first member ordering (v12)
+- Kept a call-member ordering slice for the existing canonical `Array.get`
+  proof cache. `execCallMember(...)` now checks the guarded canonical
+  `Array.get` call-site cache before the single-entry general member-method
+  cache, so nested sudoku `get` sites can use the 4-entry specialized MRU tier
+  without first paying general member-cache miss/churn work.
+- Semantics stay unchanged: the specialized path is still entered only after a
+  previous full member-resolution pass proved the canonical nullable stdlib
+  `Array.get(i32)` overload, and the proof remains guarded by env revision,
+  global revision, method-cache version, and absence of runtime impl context.
+  Unsupported or invalidated shapes still go through normal v12 member
+  resolution and overload selection.
+- Rejected in this tranche:
+  - rewriting `board_to_string` to stdlib `StringBuilder` regressed bytecode
+    runtime to `768.84ms/op` and ~2.03M allocs/op, so the benchmark source was
+    restored
+  - a VM fast path for two-part `String + small Integer` interpolation
+    regressed the warmed runtime band to `161.82-163.46ms/op` with ~470k
+    allocs/op, so it was reverted
+  - a single-thread propagation-cache mutex bypass lost the paired baseline
+    comparison (`176.89-187.41ms/op` versus restored `168.34-171.74ms/op`), so
+    it was reverted
+- Guardrails:
+  - paired restored pre-ordering runtime-only baseline:
+    `171.74ms/op`, `170.64ms/op`, `168.34ms/op`, about `417k allocs/op`
+  - kept cache-first runtime-only band: `163.35ms/op`, `167.92ms/op`,
+    `167.77ms/op`, about `417k allocs/op`
+  - profiled kept rerun: `161.23ms/op`, `26.95 MB/op`, `417,353 allocs/op`
+  - external bytecode `sudoku`: `0.3633s` over `3/3` runs, versus the prior
+    recorded `0.3700s`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(ArrayMemberFastPathLenAndGetSemantics|CanonicalArrayGetOverloadFastPath|CanonicalArrayGetOverloadCachesFunctionPair|CanonicalArrayGetCallCacheGuardsClosureEnv|CanonicalArrayGetCallCacheFeedsExecCallMember|ArrayMemberFastPathDetectsCanonicalMethods|MemberMethodCacheTracksStructDefinition|CallNameDotFallbackUsesMemberMethodCache)' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-arrayget-first.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-arrayget-first.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 240s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 3 --timeout 120`
+- Next: the next sudoku bytecode profile should start from
+  `lookupCachedCanonicalArrayGetCall(...)` itself, which is now deliberately
+  earlier in the call-member path, and from the remaining string interpolation
+  allocation in `board_to_string`. Avoid another stdlib-builder source rewrite
+  unless the builder path first gains a general VM fast path.
+
+# 2026-05-03 — bytecode canonical Array.get call-site MRU hot cache (v12)
+- Kept a cache-layout slice on top of the canonical `Array.get` call-site
+  cache. The VM now keeps a 4-entry MRU hot tier for proven canonical
+  `CallMember get` sites and delays env/global/method revision reads until a
+  cheap program/IP/env identity match, avoiding the old single-entry hot cache
+  thrash across nested sudoku `Array.get` call sites.
+- Semantics stay unchanged: the underlying canonical proof cache is still
+  guarded by env revision, global revision, method-cache version, and absence
+  of runtime impl context. Unsupported shapes still go through normal member
+  resolution and overload selection.
+- Guardrails:
+  - paired runtime-only pre-MRU rerun: `169.46ms/op`, `184.16ms/op`,
+    `187.57ms/op`, about `417k allocs/op`
+  - kept MRU runtime-only band: `168.19ms/op`, `164.50ms/op`,
+    `166.53ms/op`, `176.74ms/op`, `168.12ms/op`, about `417k allocs/op`
+  - profiled MRU rerun: `170.45ms/op`; `lookupCachedCanonicalArrayGetCall(...)`
+    dropped from about `0.10s` cumulative in the pre-MRU profile to about
+    `0.02s` cumulative
+  - paired external bytecode `sudoku`: MRU `0.3700s` over `5/5` and `3/3`
+    confirmations, versus a restored pre-MRU `0.3833s` over `3/3`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_CanonicalArrayGetCallCacheGuardsClosureEnv' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(ArrayMemberFastPathLenAndGetSemantics|CanonicalArrayGetOverloadFastPath|CanonicalArrayGetOverloadCachesFunctionPair|CanonicalArrayGetCallCacheGuardsClosureEnv|ArrayMemberFastPathDetectsCanonicalMethods)' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=5 -timeout 240s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 120`
+- Next: the remaining post-cache profile is no longer dominated by canonical
+  `Array.get` method resolution. The next tranche should target
+  `board_to_string` string construction through a spec-backed builder/buffer
+  surface, or move to timeout bytecode workloads where broader quickening and
+  typed-frame work matter more.
+
+# 2026-05-03 — bytecode canonical Array.get call-site cache (v12)
+- Kept a guarded per-call-site cache for canonical nullable stdlib
+  `Array.get(i32)` member calls in the bytecode VM. After full member
+  resolution proves a `CallMember get` site targets the canonical overload, the
+  VM caches that proof by program/IP/environment and executes the existing
+  tracked array-read fast body directly on later hits.
+- Semantics stay v12-aligned: unsupported receivers/arity/index values,
+  custom overload shapes, env/global/method-cache revision changes, and active
+  runtime impl context all fall back to the existing member-resolution and
+  overload-selection path.
+- Guardrails:
+  - paired no-trace `sudoku` runtime-only baseline before the cache:
+    `203.44ms/op`, `209.51ms/op`, `200.66ms/op`, about `499k allocs/op`
+  - kept no-trace `sudoku` band after the corrected cache key:
+    `187.35ms/op`, `176.47ms/op`, `200.95ms/op`, about `417k allocs/op`
+  - no-trace profiled rerun: `179.88ms/op`, `26.95 MB/op`, `417,355 allocs/op`
+  - CPU profile: `resolveMethodCallableFromPool(...)` is no longer a top-tier
+    `sudoku` cost; the remaining visible wall is `execCallMember(...)` guard
+    work, integer comparisons, and string interpolation in `board_to_string`
+  - external bytecode guard moved `sudoku` to `0.3500s` over `3/3` runs,
+    about `2.69x` Go
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(ArrayMemberFastPathLenAndGetSemantics|CanonicalArrayGetOverloadFastPath|CanonicalArrayGetOverloadCachesFunctionPair|CanonicalArrayGetCallCacheGuardsClosureEnv|ArrayMemberFastPathDetectsCanonicalMethods|MemberMethodCacheTracksStructDefinition|CallNameDotFallbackUsesMemberMethodCache)' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 240s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-arrayget-callcache-notrace.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-arrayget-callcache-notrace.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 240s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 3 --timeout 120`
+- Next: profile the kept post-cache state and target the remaining
+  `execCallMember` guard cost, residual `board_to_string` string
+  interpolation, or the larger timeout bytecode workloads if the next
+  member-call slice would require broader quickening infrastructure.
+
+# 2026-05-03 — bytecode slot-aware simple match lowering (v12)
+- Kept a bounded bytecode lowering for simple `match` expressions inside
+  slot-eligible functions. Clauses made of literal `nil`, wildcard, or typed
+  identifier/wildcard patterns now lower into direct bytecode branch tests
+  instead of routing through generic `bytecodeOpMatch`,
+  `matchPattern(...)`, per-clause environments, and nested
+  `evalExpressionBytecode(...)`.
+- Semantics stay narrow and v12-aligned: guarded clauses, literal values other
+  than `nil`, identifier-as-existing-symbol patterns, destructuring, and
+  nested structural patterns still use the existing generic match machinery.
+  Typed patterns reuse the same `matchesType(...)` / coercion semantics after
+  the exact primitive fast check, so non-primitive nominal matches are allowed
+  without adding any per-container compiler/runtime special case.
+- Guardrails:
+  - runtime-only `sudoku` moved from the prior exact-primitive match band of
+    `326.26-331.68ms/op`, `~86.60 MB/op`, `~916k allocs/op` to
+    `209.21ms/op`, `205.12ms/op`, and `203.70ms/op`, with
+    `31.48-34.58 MB/op` and `499.5k-499.9k allocs/op`
+  - profiled runtime-only `sudoku` rerun landed at `233.69ms/op`,
+    `32.57 MB/op`, and `499,764 allocs/op`
+  - the bytecode trace now shows `parse_board`, `find_empty`, and `solve`
+    dispatching inline instead of through the generic match/env path
+  - external bytecode guard over `5/5` runs moved `sudoku` to `0.4120s`
+    versus the prior kept `0.5040s`
+  - `i_before_e` guard was noisy but stayed in the same broad band: combined
+    guard `0.4680s`, rerun `0.4480s`, versus the prior `0.4360s` / `0.4200s`
+    exact-primitive confirmations
+  - opportunistic external bytecode `binarytrees` still timed out at `60s`;
+    this tranche does not close the binarytrees bytecode gap
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(SlotLoweringEmitsTyped(Primitive|Nominal)MatchOpcode|MatchTypedPrimitivePattern|MatchLiteralPatterns|MatchGuard|TypedIdentifierDeclarationUsesSlotLowering|ArrayMemberFastPathDetectsCanonicalMethods|CanonicalStdlibOriginCheckDoesNotAllocate|ArrayMemberFastPathLenAndGetSemantics|CanonicalArrayGetOverloadFastPath|CanonicalArrayGetOverloadCachesFunctionPair|CallMemberUsesCanonicalStringByteIteratorNextFastPath|StringMemberFastPath)|TestMatchExpression|TestMatchTypedPatternExactPrimitiveFastPath|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=3x -count=3 -timeout 240s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/i_before_e/i_before_e.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/i-before-e ABLE_BENCH_RUNTIME_ARGS_JSON='["wordlist.txt"]' go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=3x -count=3 -timeout 240s`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku,i_before_e --modes bytecode --runs 5 --timeout 60`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 5 --timeout 60`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks binarytrees --modes bytecode --runs 1 --timeout 60`
+- Next: post-match `sudoku` is now mostly member/index/string work again.
+  The next tranche should profile the current kept state and target residual
+  `CallMember get` / `board_to_string` string construction, or switch to the
+  still-timeout bytecode workloads (`binarytrees`, `quicksort`,
+  `matrixmultiply`) where typed nominal/struct allocation and call-frame
+  design remain the larger blockers.
+
+# 2026-05-03 — bytecode exact primitive typed-pattern match fast path (v12)
+- Kept a shared interpreter match-pattern fast path for exact primitive typed
+  patterns. When a typed pattern's annotation is a simple primitive type and
+  the runtime value already has that exact primitive shape, pattern matching
+  now binds the value directly instead of entering generic `matchesType(...)`
+  plus return coercion.
+- Semantics stay narrow: non-exact integer widths, aliases, structs,
+  interfaces, unions, and every non-primitive shape still use the existing
+  generic type-match/coercion path. This preserves v12 typed-pattern behavior
+  while shortening the hot `case byte: u8` path in `sudoku` parsing.
+- Guardrails:
+  - refreshed runtime-only `sudoku` baseline sample before the kept rewrite:
+    `340.43ms/op`, `86.60 MB/op`, `915,996 allocs/op`
+  - kept runtime-only `sudoku` warmed band: `327.53ms/op`, `326.26ms/op`,
+    `331.68ms/op`; profiled rerun `332.99ms/op`
+  - CPU profile: `matchPatternFast(...)` remains visible but the exact
+    primitive typed-pattern route no longer enters the generic typed-pattern
+    `matchesType(...)` / coercion ladder for the hot byte case
+  - external bytecode confirmations over `5/5` runs: `sudoku` `0.5080s` /
+    `0.5040s`, and `i_before_e` `0.4360s` / `0.4200s`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestMatchExpression|TestMatchTypedPatternExactPrimitiveFastPath|TestBytecodeVM_Match|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_ARGS_JSON='[]' go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 240s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku,i_before_e --modes bytecode --runs 5 --timeout 90`
+- Next: the remaining `sudoku` wall is still structural environment and string
+  construction work. The next bytecode tranche should either lower simple
+  `match` clauses into slot-aware bytecode so `parse_board` / `solve` can
+  inline, or target `board_to_string` with a spec-backed string builder /
+  byte-buffer surface rather than another generic interpolation tweak.
+
+# 2026-05-03 — bytecode Array.get overload function-pair cache (v12)
+- Kept a narrow bytecode cache slice for the canonical nullable
+  `Array.get(i32)` overload fast path. When member resolution returns a fresh
+  overload wrapper around the same canonical nullable `Array.get` function and
+  lower-priority result-returning implementation function, the VM now reuses
+  the previous canonical-shape validation result instead of rechecking origins
+  and declarations through the slow path.
+- Semantics stay narrow: the cache is keyed by the two underlying
+  `*runtime.FunctionValue` pointers plus the bytecode method/global cache
+  version. Unsupported overload shapes, custom origins, wrong arity, wrong
+  parameter/return shapes, and cache-version changes still fall back to the
+  existing validation path.
+- Guardrails:
+  - restored external bytecode passes before reapplying the cache were noisy
+    but landed at `sudoku` `0.6480s` / `0.6080s` and `i_before_e`
+    `0.5340s` / `0.4760s` over `5/5` runs
+  - kept external bytecode confirmations with the cache landed at `sudoku`
+    `0.5280s` / `0.5340s` and `i_before_e` `0.4580s` / `0.4540s` over
+    `5/5` runs
+  - a string-interpolation pre-grow/reused-render-buffer experiment in the
+    same tranche was reverted after the external guard regressed to
+    `sudoku` `0.7420s` and `i_before_e` `0.7240s`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(ArrayMemberFastPathDetectsCanonicalMethods|CanonicalStdlibOriginCheckDoesNotAllocate|ArrayMemberFastPathLenAndGetSemantics|CanonicalArrayGetOverloadFastPath|CanonicalArrayGetOverloadCachesFunctionPair|MemberMethodCache|CallMemberUsesCanonicalStringByteIteratorNextFastPath|CanonicalStringByteIteratorNextFastPathRequiresIteratorU8Interface|StringMemberFastPath|CallMemberOpcodeExecutesMethodCall|CallMemberFallsBackToCallableField|CallMemberHandlesOptionalMethodArity|CallMemberHandlesOverloadedMethods)' -count=1 -timeout 120s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku,i_before_e --modes bytecode --runs 5 --timeout 90`
+- Next: stop adding more validation-only member caches on this path unless a
+  fresh profile proves they are active. The next bytecode tranche should
+  investigate structural runtime environment churn around non-slot
+  `solve`/`parse_board` match-heavy calls and `board_to_string`, or switch
+  back to bytecode `fib` typed-frame work.
+
+# 2026-05-03 — bytecode canonical stdlib origin suffix allocation removal (v12)
+- Kept a small bytecode helper allocation slice: `isCanonicalAbleStdlibOrigin(...)`
+  now checks canonical `/able-stdlib/src/` and `/pkg/src/` suffixes without
+  building concatenated suffix strings on every validation.
+- Semantics stay narrow: canonical stdlib origin matching still accepts the
+  same external `able-stdlib` and installed `$ABLE_HOME/pkg/src` layouts, and
+  custom/project-local paths still do not match. No member-resolution,
+  overload-selection, or Array read behavior changed.
+- Guardrails:
+  - refreshed runtime-only `sudoku` baseline sample before the kept helper
+    rewrite: `339.53ms/op`, `118.11 MB/op`, `1,572,523 allocs/op`
+  - kept runtime-only `sudoku`: `334.69ms/op`, `86.58 MB/op`,
+    `915,969 allocs/op`
+  - allocation profile: `isCanonicalAbleStdlibOrigin(...)` dropped out of the
+    allocation top list, and `isCanonicalNullableArrayGetOverloadSlow(...)`
+    dropped to `0.06s` cumulative in the profiled sample
+  - external bytecode guardrail over `5/5` runs: `sudoku` `0.5160s` and
+    `i_before_e` `0.4280s`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(ArrayMemberFastPathDetectsCanonicalMethods|CanonicalStdlibOriginCheckDoesNotAllocate|ArrayMemberFastPathLenAndGetSemantics|CanonicalArrayGetOverloadFastPath|MemberMethodCache|CallMemberUsesCanonicalStringByteIteratorNextFastPath|CanonicalStringByteIteratorNextFastPathRequiresIteratorU8Interface|StringMemberFastPath|CallMemberOpcodeExecutesMethodCall|CallMemberFallsBackToCallableField|CallMemberHandlesOptionalMethodArity|CallMemberHandlesOverloadedMethods)' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_ARGS_JSON='[]' ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/able-sudoku-originfast.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/able-sudoku-originfast.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=3x -count=1 -timeout 240s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku,i_before_e --modes bytecode --runs 5 --timeout 90`
+- Next: profile the kept state and target remaining
+  `resolveMethodCallableFromPool(...)`, type-alias expansion, or runtime
+  environment churn around hot `Array.get` / `board_to_string` paths. Avoid
+  another member-cache layer unless a fresh trace proves it is active under
+  non-global bytecode call environments.
+
 # 2026-05-02 — bytecode canonical Array.get overload fast path (v12)
 - Kept a guarded `CallMember get` fast path for the canonical stdlib Array
   overload pair. When normal method resolution returns exactly canonical

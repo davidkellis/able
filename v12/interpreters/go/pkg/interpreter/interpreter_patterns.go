@@ -476,17 +476,99 @@ func (i *Interpreter) matchPatternFast(pattern ast.Pattern, value runtime.Value,
 		}
 		return runtime.NewEnvironment(base), true, true
 	case *ast.TypedPattern:
-		if !i.matchesType(p.TypeAnnotation, value) {
-			return nil, false, true
-		}
-		coerced, err := i.coerceValueToType(p.TypeAnnotation, value)
-		if err != nil {
+		coerced, ok := i.matchTypedPatternValue(p.TypeAnnotation, value)
+		if !ok {
 			return nil, false, true
 		}
 		return i.matchPatternFast(p.Pattern, coerced, base)
 	default:
 		return nil, false, false
 	}
+}
+
+func (i *Interpreter) matchTypedPatternValue(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, bool) {
+	if coerced, ok := matchTypedPatternExactPrimitive(typeExpr, value); ok {
+		return coerced, true
+	}
+	if !i.matchesType(typeExpr, value) {
+		return nil, false
+	}
+	coerced, err := i.coerceValueToType(typeExpr, value)
+	if err != nil {
+		return nil, false
+	}
+	return coerced, true
+}
+
+func matchTypedPatternExactPrimitive(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, bool) {
+	simple, ok := typeExpr.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return nil, false
+	}
+	name := normalizeKernelAliasName(simple.Name.Name)
+	switch v := value.(type) {
+	case runtime.IntegerValue:
+		if string(v.TypeSuffix) == name {
+			return value, true
+		}
+	case *runtime.IntegerValue:
+		if v != nil && string(v.TypeSuffix) == name {
+			return value, true
+		}
+	case runtime.FloatValue:
+		if string(v.TypeSuffix) == name {
+			return value, true
+		}
+	case *runtime.FloatValue:
+		if v != nil && string(v.TypeSuffix) == name {
+			return value, true
+		}
+	case runtime.StringValue:
+		if name == "String" {
+			return value, true
+		}
+	case *runtime.StringValue:
+		if v != nil && name == "String" {
+			return value, true
+		}
+	case runtime.BoolValue:
+		if name == "bool" || name == "Bool" {
+			return value, true
+		}
+	case *runtime.BoolValue:
+		if v != nil && (name == "bool" || name == "Bool") {
+			return value, true
+		}
+	case runtime.CharValue:
+		if name == "char" {
+			return value, true
+		}
+	case *runtime.CharValue:
+		if v != nil && name == "char" {
+			return value, true
+		}
+	case runtime.NilValue:
+		if name == "nil" {
+			return value, true
+		}
+	case runtime.VoidValue:
+		if name == "void" {
+			return value, true
+		}
+	case *runtime.VoidValue:
+		if v != nil && name == "void" {
+			return value, true
+		}
+	case runtime.IteratorEndValue:
+		if name == "IteratorEnd" {
+			return value, true
+		}
+	case *runtime.IteratorEndValue:
+		if v != nil && name == "IteratorEnd" {
+			return value, true
+		}
+	}
+	return nil, false
 }
 
 func (i *Interpreter) matchPattern(pattern ast.Pattern, value runtime.Value, base *runtime.Environment) (*runtime.Environment, bool) {

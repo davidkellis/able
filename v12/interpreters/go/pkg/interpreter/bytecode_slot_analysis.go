@@ -189,6 +189,18 @@ func exprUsesImplicitMember(expr ast.Expression) bool {
 			}
 		}
 		return blockUsesImplicitMember(n.ElseBody)
+	case *ast.MatchExpression:
+		if exprUsesImplicitMember(n.Subject) {
+			return true
+		}
+		for _, clause := range n.Clauses {
+			if clause == nil {
+				continue
+			}
+			if exprUsesImplicitMember(clause.Guard) || exprUsesImplicitMember(clause.Body) {
+				return true
+			}
+		}
 	case *ast.ArrayLiteral:
 		for _, el := range n.Elements {
 			if exprUsesImplicitMember(el) {
@@ -534,6 +546,18 @@ func exprNeedsEnvScopes(expr ast.Expression) bool {
 				return true
 			}
 		}
+	case *ast.MatchExpression:
+		if exprNeedsEnvScopes(n.Subject) {
+			return true
+		}
+		for _, clause := range n.Clauses {
+			if clause == nil {
+				continue
+			}
+			if exprNeedsEnvScopes(clause.Guard) || exprNeedsEnvScopes(clause.Body) {
+				return true
+			}
+		}
 	case *ast.LoopExpression:
 		return blockNeedsEnvScopes(n.Body)
 	}
@@ -640,8 +664,6 @@ func slotEligibleExpr(expr ast.Expression) bool {
 		return false
 	case *ast.SpawnExpression:
 		return false
-	case *ast.MatchExpression:
-		return false
 	case *ast.IteratorLiteral:
 		return false
 	case *ast.RescueExpression:
@@ -708,6 +730,8 @@ func slotEligibleExpr(expr ast.Expression) bool {
 			}
 		}
 		return slotEligibleBlock(n.ElseBody)
+	case *ast.MatchExpression:
+		return slotEligibleMatchExpression(n)
 	case *ast.ArrayLiteral:
 		for _, el := range n.Elements {
 			if !slotEligibleExpr(el) {
@@ -736,6 +760,24 @@ func slotEligibleExpr(expr ast.Expression) bool {
 		// Unknown expression type: bail out conservatively.
 		return false
 	}
+}
+
+func slotEligibleMatchExpression(n *ast.MatchExpression) bool {
+	if n == nil {
+		return true
+	}
+	if !bytecodeCanLowerSlotMatch(n) || !slotEligibleExpr(n.Subject) {
+		return false
+	}
+	for _, clause := range n.Clauses {
+		if clause == nil {
+			continue
+		}
+		if !slotEligibleExpr(clause.Body) {
+			return false
+		}
+	}
+	return true
 }
 
 // slotEligibleAssignment checks an assignment expression for slot eligibility.

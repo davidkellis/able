@@ -263,6 +263,62 @@ func TestBytecodeVM_StringInterpolation(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_StringInterpolationUsesStructToString(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+				ast.FieldDef(ast.Ty("i32"), "y"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Methods(
+			ast.Ty("Point"),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"to_string",
+					nil,
+					[]ast.Statement{
+						ast.Ret(ast.Interp(ast.Str("("), ast.ImplicitMember("x"), ast.Str(","), ast.ImplicitMember("y"), ast.Str(")"))),
+					},
+					ast.Ty("String"),
+					nil,
+					nil,
+					true,
+					false,
+				),
+			},
+			nil,
+			nil,
+		),
+		ast.Assign(
+			ast.ID("p"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(2), "x"),
+					ast.FieldInit(ast.Int(3), "y"),
+				},
+				false,
+				"Point",
+				nil,
+				nil,
+			),
+		),
+		ast.Interp(ast.Str("p="), ast.ID("p")),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode struct interpolation mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
 func TestBytecodeVM_BlockScope(t *testing.T) {
 	block := ast.Block(
 		ast.Assign(ast.ID("x"), ast.Int(2)),
@@ -509,6 +565,22 @@ func TestBytecodeVM_MatchGuard(t *testing.T) {
 
 	if !valuesEqual(got, want) {
 		t.Fatalf("bytecode match guard mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_MatchTypedPrimitivePattern(t *testing.T) {
+	matchExpr := ast.Match(
+		ast.NewTypeCastExpression(ast.Int(7), ast.Ty("u8")),
+		ast.Mc(ast.TypedP(ast.ID("byte"), ast.Ty("u8")), ast.Bin("+", ast.NewTypeCastExpression(ast.ID("byte"), ast.Ty("i32")), ast.Int(1))),
+		ast.Mc(ast.Wc(), ast.Int(0)),
+	)
+	module := ast.Mod([]ast.Statement{matchExpr}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode typed primitive match mismatch: got=%#v want=%#v", got, want)
 	}
 }
 

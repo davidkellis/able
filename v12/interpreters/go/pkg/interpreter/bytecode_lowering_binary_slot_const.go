@@ -65,6 +65,18 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			operator:        expr.Operator,
 			node:            expr,
 		}, true
+	case ">", ">=":
+		return bytecodeInstruction{
+			op:              bytecodeOpBinaryIntCompareSlotConst,
+			target:          slot,
+			value:           imm,
+			intImmediate:    imm,
+			intImmediateRaw: litVal,
+			hasIntImmediate: true,
+			hasIntRaw:       true,
+			operator:        expr.Operator,
+			node:            expr,
+		}, true
 	default:
 		return bytecodeInstruction{}, false
 	}
@@ -76,11 +88,17 @@ func bytecodeJumpIfFalseBinarySlotConstInstruction(ctx *bytecodeLoweringContext,
 		return bytecodeInstruction{}, false
 	}
 	instr, ok := bytecodeBinarySlotConstInstruction(ctx, binary)
-	if !ok || instr.op != bytecodeOpBinaryIntLessEqualSlotConst {
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	op := bytecodeOpJumpIfIntLessEqualSlotConstFalse
+	if instr.op == bytecodeOpBinaryIntCompareSlotConst {
+		op = bytecodeOpJumpIfIntCompareSlotConstFalse
+	} else if instr.op != bytecodeOpBinaryIntLessEqualSlotConst {
 		return bytecodeInstruction{}, false
 	}
 	return bytecodeInstruction{
-		op:              bytecodeOpJumpIfIntLessEqualSlotConstFalse,
+		op:              op,
 		target:          -1,
 		argCount:        instr.target,
 		value:           instr.value,

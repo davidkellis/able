@@ -181,6 +181,15 @@ func (vm *bytecodeVM) execCachedResolvedMemberCall(callee runtime.Value, memberN
 	}
 	receiver := vm.stack[receiverIndex]
 	explicitArgs := vm.stack[argBase:]
+	if newProg, handled, err := vm.execCanonicalArrayGetOverloadMemberFast(
+		callee,
+		bytecodeInstruction{name: memberName, argCount: argCount, node: traceNode},
+		receiverIndex,
+		argBase,
+		callNode,
+	); handled {
+		return newProg, err
+	}
 	if overloadFn, overloadReceiver, ok, err := vm.resolveConcreteMemberOverload(callee, receiver, explicitArgs, callNode); err != nil {
 		return nil, err
 	} else if ok {
@@ -271,6 +280,11 @@ func (vm *bytecodeVM) execCallMember(instr bytecodeInstruction, currentProgram *
 	useMethodCache := vm.canUseMemberMethodCache(instr.name, true)
 
 	if bytecodeCanDirectMemberCall(receiver, instr.name) {
+		if vm.lookupCachedCanonicalArrayGetCall(currentProgram, vm.ip, instr, receiver) {
+			if newProg, handled, err := vm.execArrayGetMemberFast(instr, receiverIndex, argBase, callNode); handled {
+				return newProg, err
+			}
+		}
 		if useMethodCache {
 			if cached, ok := vm.lookupCachedMemberMethodEntry(currentProgram, vm.ip, instr.name, true, receiver); ok {
 				if newProg, handled, err := vm.execCachedMemberMethodFastPath(cached.fastPath, instr, receiverIndex, argBase, callNode); handled {
@@ -297,7 +311,9 @@ func (vm *bytecodeVM) execCallMember(instr bytecodeInstruction, currentProgram *
 					return newProg, err
 				}
 			}
+			callIP := vm.ip
 			if newProg, handled, err := vm.execCanonicalArrayGetOverloadMemberFast(callable, instr, receiverIndex, argBase, callNode); handled {
+				vm.storeCachedCanonicalArrayGetCall(currentProgram, callIP, instr, receiver)
 				return newProg, err
 			}
 			if overloadFn, overloadReceiver, ok, err := vm.resolveConcreteMemberOverload(callable, receiver, vm.stack[argBase:], callNode); err != nil {

@@ -172,6 +172,42 @@ func bytecodeDirectIntegerLessEqualImmediateRaw(left runtime.Value, rightVal int
 	return false, false
 }
 
+func bytecodeDirectIntegerCompareImmediateRaw(op string, left runtime.Value, rightVal int64) (bool, bool) {
+	switch lv := left.(type) {
+	case runtime.IntegerValue:
+		lvRef := &lv
+		if !lvRef.IsSmallRef() {
+			return false, false
+		}
+		return bytecodeCompareInt64(op, lvRef.Int64FastRef(), rightVal)
+	case *runtime.IntegerValue:
+		if lv == nil || !lv.IsSmallRef() {
+			return false, false
+		}
+		return bytecodeCompareInt64(op, lv.Int64FastRef(), rightVal)
+	}
+	return false, false
+}
+
+func bytecodeCompareInt64(op string, left int64, right int64) (bool, bool) {
+	switch op {
+	case "<":
+		return left < right, true
+	case "<=":
+		return left <= right, true
+	case ">":
+		return left > right, true
+	case ">=":
+		return left >= right, true
+	case "==":
+		return left == right, true
+	case "!=":
+		return left != right, true
+	default:
+		return false, false
+	}
+}
+
 func execBinaryDirectIntegerComparisonFast(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool) {
 	switch op {
 	case "<", "<=", ">", ">=", "==", "!=":
@@ -356,7 +392,7 @@ func bytecodeImmediateIntegerValue(val runtime.Value) (runtime.IntegerValue, boo
 
 func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runtime.IntegerValue, hasImmediate bool) (runtime.Value, bool, error) {
 	switch instr.op {
-	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
 	default:
 		return nil, false, nil
 	}
@@ -443,6 +479,17 @@ func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runt
 		}
 		val, err := applyBinaryOperator(vm.interp, "<=", left, right)
 		return val, true, err
+	case bytecodeOpBinaryIntCompareSlotConst:
+		if instr.hasIntRaw {
+			if cmp, ok := bytecodeDirectIntegerCompareImmediateRaw(instr.operator, left, instr.intImmediateRaw); ok {
+				return runtime.BoolValue{Val: cmp}, true, nil
+			}
+		}
+		if leftInt, ok := bytecodeIntegerValue(left); ok {
+			return runtime.BoolValue{Val: integerComparisonResult(instr.operator, leftInt, right)}, true, nil
+		}
+		val, err := applyBinaryOperator(vm.interp, instr.operator, left, right)
+		return val, true, err
 	default:
 		return nil, false, nil
 	}
@@ -460,7 +507,7 @@ func isBytecodeBinaryFastPathCandidate(op string) bool {
 
 func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTable *bytecodeSlotConstIntImmediateTable) (bool, error) {
 	switch instr.op {
-	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
 		rightImmediate, hasImmediate := instr.intImmediate, instr.hasIntImmediate
 		if !hasImmediate {
 			rightImmediate, hasImmediate = bytecodeImmediateIntegerValue(instr.value)
@@ -616,6 +663,54 @@ func (vm *bytecodeVM) execJumpIfIntLessEqualSlotConstFalse(instr *bytecodeInstru
 	}
 	if !condKnown {
 		result, err := applyBinaryOperator(vm.interp, "<=", left, rightImmediate)
+		if err != nil {
+			return err
+		}
+		if result == nil {
+			result = runtime.NilValue{}
+		}
+		condValue = vm.interp.isTruthy(result)
+	}
+	if !condValue {
+		vm.ip = instr.target
+		return nil
+	}
+	vm.ip++
+	return nil
+}
+
+func (vm *bytecodeVM) execJumpIfIntCompareSlotConstFalse(instr *bytecodeInstruction, slotConstIntImmTable *bytecodeSlotConstIntImmediateTable) error {
+	slot := instr.argCount
+	if slot < 0 || slot >= len(vm.slots) {
+		return fmt.Errorf("bytecode slot out of range")
+	}
+	rightImmediate, hasImmediate := instr.intImmediate, instr.hasIntImmediate
+	if !hasImmediate {
+		rightImmediate, hasImmediate = bytecodeImmediateIntegerValue(instr.value)
+	}
+	if !hasImmediate {
+		rightImmediate, hasImmediate = bytecodeSlotConstImmediateAtIP(vm.ip, slotConstIntImmTable)
+	}
+	if !hasImmediate {
+		return fmt.Errorf("bytecode slot-const conditional missing integer immediate")
+	}
+	left := vm.slots[slot]
+	condKnown := false
+	condValue := false
+	if instr.hasIntRaw {
+		if cmp, ok := bytecodeDirectIntegerCompareImmediateRaw(instr.operator, left, instr.intImmediateRaw); ok {
+			condKnown = true
+			condValue = cmp
+		}
+	}
+	if !condKnown {
+		if leftInt, ok := bytecodeIntegerValue(left); ok {
+			condKnown = true
+			condValue = integerComparisonResult(instr.operator, leftInt, rightImmediate)
+		}
+	}
+	if !condKnown {
+		result, err := applyBinaryOperator(vm.interp, instr.operator, left, rightImmediate)
 		if err != nil {
 			return err
 		}

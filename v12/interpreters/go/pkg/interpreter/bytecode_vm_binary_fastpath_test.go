@@ -530,6 +530,7 @@ func TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes(t *testing.T) {
 		[]ast.Statement{
 			ast.Bin("+", ast.ID("n"), ast.Int(1)),
 			ast.Bin("<=", ast.ID("n"), ast.Int(2)),
+			ast.Bin(">=", ast.ID("n"), ast.Int(3)),
 			ast.Bin("-", ast.ID("n"), ast.Int(1)),
 			ast.ID("n"),
 		},
@@ -547,12 +548,13 @@ func TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes(t *testing.T) {
 	sawAddSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntAddSlotConst)
 	sawSubSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntSubSlotConst)
 	sawLESlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntLessEqualSlotConst)
-	if !sawAddSlotConst || !sawSubSlotConst || !sawLESlotConst {
-		t.Fatalf("expected lowering to emit slot-const opcodes: add=%v sub=%v le=%v", sawAddSlotConst, sawSubSlotConst, sawLESlotConst)
+	sawCompareSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntCompareSlotConst)
+	if !sawAddSlotConst || !sawSubSlotConst || !sawLESlotConst || !sawCompareSlotConst {
+		t.Fatalf("expected lowering to emit slot-const opcodes: add=%v sub=%v le=%v compare=%v", sawAddSlotConst, sawSubSlotConst, sawLESlotConst, sawCompareSlotConst)
 	}
 	for _, instr := range program.instructions {
 		switch instr.op {
-		case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst:
+		case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
 			if !instr.hasIntImmediate {
 				t.Fatalf("expected slot-const opcode %v to carry typed integer-immediate metadata", instr.op)
 			}

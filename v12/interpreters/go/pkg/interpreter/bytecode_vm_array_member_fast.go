@@ -173,8 +173,16 @@ func isCanonicalAbleStdlibOrigin(origin string, relative string) bool {
 	}
 	origin = filepath.ToSlash(origin)
 	relative = strings.TrimPrefix(filepath.ToSlash(relative), "/")
-	return strings.HasSuffix(origin, "/able-stdlib/src/"+relative) ||
-		strings.HasSuffix(origin, "/pkg/src/"+relative)
+	return hasCanonicalPathSuffix(origin, "/able-stdlib/src/", relative) ||
+		hasCanonicalPathSuffix(origin, "/pkg/src/", relative)
+}
+
+func hasCanonicalPathSuffix(origin string, base string, relative string) bool {
+	if relative == "" || !strings.HasSuffix(origin, relative) {
+		return false
+	}
+	prefixLen := len(origin) - len(relative)
+	return prefixLen >= len(base) && strings.HasSuffix(origin[:prefixLen], base)
 }
 
 func isCanonicalAbleKernelOrigin(origin string) bool {

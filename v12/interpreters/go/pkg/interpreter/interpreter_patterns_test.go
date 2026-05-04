@@ -123,6 +123,23 @@ func TestMatchExpressionTypedIdentifierPatternBindsValue(t *testing.T) {
 	}
 }
 
+func TestMatchTypedPatternExactPrimitiveFastPath(t *testing.T) {
+	value := runtime.NewSmallInt(7, runtime.IntegerU8)
+	got, ok := matchTypedPatternExactPrimitive(ast.Ty("u8"), value)
+	if !ok {
+		t.Fatalf("expected exact u8 typed pattern to use primitive fast path")
+	}
+	if got != value {
+		t.Fatalf("expected exact primitive fast path to preserve value, got %#v", got)
+	}
+	if _, ok := matchTypedPatternExactPrimitive(ast.Ty("u8"), runtime.NewSmallInt(7, runtime.IntegerI32)); ok {
+		t.Fatalf("expected non-exact integer kind to use generic typed-pattern path")
+	}
+	if got, ok := matchTypedPatternExactPrimitive(ast.Ty("bool"), runtime.BoolValue{Val: true}); !ok || got != (runtime.BoolValue{Val: true}) {
+		t.Fatalf("expected exact bool typed pattern to use primitive fast path, got %#v ok=%v", got, ok)
+	}
+}
+
 func TestDestructuringAssignmentArrayPattern(t *testing.T) {
 	interp := New()
 	patternWithRest := ast.ArrP([]ast.Pattern{ast.PatternFrom("first"), ast.PatternFrom("second")}, ast.PatternFrom("rest"))
