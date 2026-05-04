@@ -154,7 +154,8 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			bytecodeOpBinaryIntDivCast,
 			bytecodeOpBinaryIntAddSlotConst,
 			bytecodeOpBinaryIntSubSlotConst,
-			bytecodeOpBinaryIntLessEqualSlotConst:
+			bytecodeOpBinaryIntLessEqualSlotConst,
+			bytecodeOpBinaryIntCompareSlotConst:
 			{
 				handled, err := vm.execBinary(instr, slotConstIntImmTable)
 				if err != nil {
@@ -853,6 +854,19 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					return nil, err
 				}
 			}
+		case bytecodeOpJumpIfIntCompareSlotConstFalse:
+			{
+				if err := vm.execJumpIfIntCompareSlotConstFalse(instr, slotConstIntImmTable); err != nil {
+					err = vm.interp.wrapStandardRuntimeError(err)
+					if instr.node != nil {
+						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+						if vm.handleLoopSignal(err) {
+							continue
+						}
+					}
+					return nil, err
+				}
+			}
 		case bytecodeOpReturnIfIntLessEqualSlotConst, bytecodeOpReturnConstIfIntLessEqualSlotConst:
 			{
 				var val runtime.Value
@@ -899,6 +913,29 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				}
 				vm.ip++
 			}
+		case bytecodeOpJumpIfNotNil:
+			if err := vm.execJumpIfNotNil(instr); err != nil {
+				return nil, err
+			}
+		case bytecodeOpJumpIfNotTypedPattern:
+			if err := vm.execJumpIfNotTypedPattern(instr); err != nil {
+				if instr.node != nil {
+					err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+					if vm.handleLoopSignal(err) {
+						continue
+					}
+				}
+				return nil, err
+			}
+		case bytecodeOpMatchNoClause:
+			err := fmt.Errorf("Non-exhaustive match")
+			if instr.node != nil {
+				err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+				if vm.handleLoopSignal(err) {
+					continue
+				}
+			}
+			return nil, err
 		case bytecodeOpLoopEnter:
 			{
 				if err := vm.pushLoopFrame(instr.loopBreak, instr.loopContinue); err != nil {

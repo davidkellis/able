@@ -1,10 +1,10 @@
 # External Benchmark Scoreboard
 
-- Generated: `2026-05-02T23:26:24Z`
+- Generated: `2026-05-04T04:15:26Z`
 - External results: `../benchmarks/results.json`
 - External results generated: `2026-02-27T00:26:22Z`
 - Able measurement source: kept measurements recorded in `LOG.md`, `PLAN.md`,
-  and `v12/docs/performance-benchmarks.md` through 2026-05-02.
+  and `v12/docs/performance-benchmarks.md` through 2026-05-04.
 
 This is the checked-in current scoreboard for implemented external benchmark
 families. Ratios below `1.00x` mean Able is faster than that reference row.
@@ -24,7 +24,7 @@ families. Ratios below `1.00x` mean Able is faster than that reference row.
 | `quicksort` | `bytecode` | timeout | timeout | 2.0100 | n/a | 14.5800 | n/a | 20.3200 | n/a |
 | `quicksort` | `treewalker` | timeout | timeout | 2.0100 | n/a | 14.5800 | n/a | 20.3200 | n/a |
 | `sudoku` | `compiled` | ok (5) | 0.0600 | 0.1300 | 0.46x | 5.6700 | 0.01x | 3.0200 | 0.02x |
-| `sudoku` | `bytecode` | ok (5) | 0.5640 | 0.1300 | 4.34x | 5.6700 | 0.10x | 3.0200 | 0.19x |
+| `sudoku` | `bytecode` | ok (5) | 0.3360 | 0.1300 | 2.58x | 5.6700 | 0.06x | 3.0200 | 0.11x |
 | `sudoku` | `treewalker` | ok | 6.7100 | 0.1300 | 51.62x | 5.6700 | 1.18x | 3.0200 | 2.22x |
 | `i_before_e` | `compiled` | ok (5) | 0.0620 | 0.0500 | 1.24x | 0.1000 | 0.62x | 0.1300 | 0.48x |
 | `i_before_e` | `bytecode` | ok (5) | 0.4480 | 0.0500 | 8.96x | 0.1000 | 4.48x | 0.1300 | 3.45x |

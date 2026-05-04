@@ -44,6 +44,30 @@ func TestBytecodeVMExecStringInterpolationReusesPartsBuffer(t *testing.T) {
 	}
 }
 
+func TestBytecodeVMExecStringInterpolationFastPrimitivePair(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	instr := &bytecodeInstruction{op: bytecodeOpStringInterpolation, argCount: 2}
+
+	vm.stack = append(vm.stack, runtime.StringValue{Val: "n="}, runtime.NewSmallInt(42, runtime.IntegerI32))
+	if err := vm.execStringInterpolation(instr); err != nil {
+		t.Fatalf("execStringInterpolation fast primitive pair failed: %v", err)
+	}
+	if vm.ip != 1 {
+		t.Fatalf("expected interpolation to advance ip to 1, got %d", vm.ip)
+	}
+	if len(vm.stack) != 1 {
+		t.Fatalf("expected one interpolation result on stack, got %d", len(vm.stack))
+	}
+	got, ok := vm.stack[0].(runtime.StringValue)
+	if !ok || got.Val != "n=42" {
+		t.Fatalf("unexpected primitive interpolation result: %#v", vm.stack[0])
+	}
+	if len(vm.stringInterpParts) != 0 {
+		t.Fatalf("primitive fast path should not allocate interpolation parts buffer")
+	}
+}
+
 func TestBytecodeVMExecArrayLiteralCopiesStackSegment(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())

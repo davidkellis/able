@@ -104,6 +104,12 @@ type bytecodeVM struct {
 	arrayGetOverloadHot                *runtime.FunctionOverloadValue
 	arrayGetOverloadHotVersion         uint64
 	arrayGetOverloadHotOK              bool
+	arrayGetOverloadPairNullable       *runtime.FunctionValue
+	arrayGetOverloadPairResult         *runtime.FunctionValue
+	arrayGetOverloadPairVersion        uint64
+	arrayGetOverloadPairOK             bool
+	arrayGetCallCache                  map[bytecodeGlobalLookupCacheKey]bytecodeArrayGetCallCacheEntry
+	arrayGetCallHot                    [bytecodeArrayGetCallHotEntries]bytecodeInlineArrayGetCallCacheEntry
 	stringBytesIterDef                 *runtime.StructDefinitionValue
 	stringBytesIterDefSet              bool
 	stringBytesIteratorInterfaceDef    *runtime.InterfaceDefinitionValue

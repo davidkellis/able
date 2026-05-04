@@ -105,18 +105,26 @@ Current measured external snapshot:
   bytecode and tree-walker still time out at the current external benchmark
   scale.
 - `sudoku`: compiled `0.0600s` vs Go `0.1300s` on the refreshed comparison;
-  bytecode `0.5640s` after the shared propagation Error fast-negative guard,
+  bytecode `0.3360s` after the shared propagation Error fast-negative guard,
   v12 nil-propagation semantic alignment, cached member-method fast-path
   dispatch, cached `String.bytes()` byte construction, the mono/native `u8`
   string-byte iterator lane, the direct canonical `Iterator u8` wrapper,
   static `Array.new`, the canonical string byte-iterator `next` call-member
-  fast path, and the canonical nullable `Array.get` overload selector;
+  fast path, the canonical nullable `Array.get` overload selector, the
+  allocation-free canonical stdlib origin suffix check, the Array.get overload
+  function-pair validation cache, the exact primitive typed-pattern match fast
+  path, slot-aware simple match lowering for nil/wildcard/typed clauses, and
+  the guarded canonical `Array.get` call-site cache plus MRU hot tier and
+  cache-first call-member ordering that skip repeated member resolution inside
+  function closures, and the primitive two-part string interpolation fast path
+  that cuts `board_to_string` allocation churn, plus fused slot-constant
+  `>`/`>=` conditional jumps for loop guards, plus no-promotion hot hits in
+  the canonical `Array.get` call-site cache;
   tree-walker `6.71s`.
 - `i_before_e`: compiled `0.0620s` vs Go `0.0500s` after primitive host
   extern wrappers stopped bridging native scalar arguments/results and static
   no-fallback launchers stopped loading/parsing/evaluating source metadata;
-  bytecode `0.4480s` on the latest canonical nullable `Array.get` overload
-  selector confirmation;
+  bytecode `0.4480s` on the latest slot-aware simple match confirmation;
   tree-walker `3.54s`.
 
 Guardrails:
@@ -336,6 +344,115 @@ Guardrails:
       `resolveMethodCallableFromPool` / `lookupBoundMethodCache` around
       canonical primitive methods, or switch back to bytecode `fib` typed-frame
       work if the next member-call slice would require another map/cache layer.
+      The follow-up canonical-origin allocation slice is landed too:
+      `isCanonicalAbleStdlibOrigin(...)` now checks the fixed
+      `/able-stdlib/src/` and `/pkg/src/` path suffixes without allocating
+      concatenated suffix strings on every validation. This removes that helper
+      from the `sudoku` allocation profile, moves runtime-only `sudoku` from a
+      refreshed `339.53ms/op`, `118.11 MB/op`, `1,572,523 allocs/op` sample to
+      `334.69ms/op`, `86.58 MB/op`, `915,969 allocs/op`, and moves the
+      external bytecode guard to `0.5160s` for `sudoku` and `0.4280s` for
+      `i_before_e` over `5/5` runs. The follow-up Array.get overload
+      validation-cache slice is landed too: when member resolution returns a
+      fresh overload wrapper around the same canonical nullable `Array.get`
+      function and lower-priority result-returning implementation function,
+      the VM reuses the cached canonical-shape validation result until the
+      method/global cache version changes. Same-session restored external
+      passes were noisy at `0.6080-0.6480s` for `sudoku` and
+      `0.4760-0.5340s` for `i_before_e`; the kept cache confirmations landed
+      at `0.5280s` / `0.5340s` for `sudoku` and `0.4580s` / `0.4540s` for
+      `i_before_e` over `5/5` runs. The follow-up exact primitive
+      typed-pattern match slice is landed too: simple typed patterns whose
+      runtime value already has the exact primitive shape now bind directly
+      instead of entering generic `matchesType(...)` plus coercion. This keeps
+      aliases, non-exact integer widths, unions, structs, and interfaces on
+      the generic path while shortening the hot `case byte: u8` path in
+      `parse_board`. Runtime-only `sudoku` moved from a refreshed
+      `340.43ms/op`, `86.60 MB/op`, `915,996 allocs/op` sample to a kept
+      `326.26-331.68ms/op` warmed band with the same allocation shape, and
+      the external guard moved to `0.5040s` for `sudoku` and `0.4200s` for
+      `i_before_e` over `5/5` runs. Next, target the structural match/env
+      issue directly by lowering simple `match` clauses into slot-aware
+      bytecode so `parse_board` / `solve` can inline, or target
+      `board_to_string` through a spec-backed string builder / byte-buffer
+      surface rather than another generic interpolation tweak. The slot-aware
+      simple match lowering is now landed: match expressions inside
+      slot-eligible functions lower directly for literal `nil`, wildcard, and
+      typed identifier/wildcard clauses while guarded clauses, non-nil
+      literals, destructuring, and identifier-as-existing-symbol patterns stay
+      generic. Runtime-only `sudoku` moved to `203.70-209.21ms/op` with
+      about `499.5k` allocs/op, and the external bytecode guard moved
+      `sudoku` to `0.4120s` over `5/5` runs. `i_before_e` was noisy but
+      stayed in the same broad band (`0.4680s` combined guard, `0.4480s`
+      rerun), and external bytecode `binarytrees` still times out at `60s`.
+      Next, profile post-match `sudoku` and target residual `CallMember get`
+      / `board_to_string` string construction, or switch to the timeout
+      bytecode workloads where typed nominal/struct allocation and call-frame
+      design are larger blockers. The follow-up guarded canonical `Array.get`
+      call-site cache is now landed too: after full method resolution proves a
+      bytecode `CallMember get` site targets the canonical nullable stdlib
+      `Array.get(i32)` overload, the VM caches that proof per program/IP/env
+      and executes the existing tracked array-read fast body directly on later
+      hits. The cache is guarded by environment revision, global revision,
+      method-cache version, and absence of runtime impl context. Runtime-only
+      `sudoku` moved from a paired no-trace baseline of `200.66-209.51ms/op`
+      with about `499k allocs/op` to a kept `176.47-200.95ms/op` band with
+      about `417k allocs/op`; the no-trace profiled rerun landed at
+      `179.88ms/op`. The external bytecode guard moved `sudoku` to
+      `0.3500s` over `3/3` runs, about `2.69x` Go. Next, profile this kept
+      state and target the remaining `execCallMember` guard cost, residual
+      string interpolation in `board_to_string`, or switch to timeout
+      bytecode workloads if the next member-call slice needs broader
+      quickening infrastructure. The follow-up MRU hot-cache layout is now
+      landed too: the canonical `Array.get` call-site cache keeps four recent
+      program/IP/env identities and only reads revisions after a cheap identity
+      match. This removes the single-hot-entry thrash across nested sudoku
+      `Array.get` call sites. Paired runtime-only reruns moved from a restored
+      `169.46-187.57ms/op` band to `164.50-176.74ms/op`, with allocations
+      unchanged at about `417k allocs/op`; the profiled rerun shows
+      `lookupCachedCanonicalArrayGetCall(...)` down from about `0.10s` to
+      about `0.02s` cumulative. Paired external bytecode `sudoku` moved from
+      restored pre-MRU `0.3833s` to MRU `0.3700s`. The follow-up
+      cache-first member ordering slice is now landed too:
+      `execCallMember(...)` checks the guarded canonical `Array.get` call-site
+      cache before the single-hot general member-method cache, allowing nested
+      sudoku `get` sites to use the specialized MRU tier without first paying
+      general member-cache churn. Paired runtime-only reruns moved from a
+      restored `168.34-171.74ms/op` band to `163.35-167.92ms/op`, and the
+      profiled kept rerun landed at `161.23ms/op`. External bytecode `sudoku`
+      moved from the prior recorded `0.3700s` to `0.3633s` over `3/3` runs. A
+      stdlib `StringBuilder` benchmark-source rewrite, a two-part
+      interpolation VM fast path, and a single-thread propagation-cache mutex
+      bypass were all tested and reverted as non-keeps. Next, profile
+      `lookupCachedCanonicalArrayGetCall(...)` itself and the remaining
+      `board_to_string` interpolation allocation; avoid another builder-source
+      rewrite unless the builder path first gains a general VM fast path. A
+      narrower primitive-only two-part interpolation fast path is now landed:
+      `execStringInterpolation(...)` formats primitive pairs directly and uses
+      a one-builder `String + Integer` subpath while preserving generic
+      Display/`to_string` fallback for dynamic values. Runtime-only `sudoku`
+      now runs in the `161.29-169.59ms/op` band with about `343k allocs/op`,
+      and external bytecode `sudoku` confirmed at `0.3620s` over two `5/5`
+      runs. Next, profile residual `execCallMember(...)` / canonical
+      `Array.get` guard work and binary compare slots; larger string wins
+      likely require a general byte-buffer/string-builder runtime primitive.
+      The follow-up slot-constant compare branch slice is landed too:
+      slot-backed `>` and `>=` conditions now lower to
+      `JumpIfIntCompareSlotConstFalse`, avoiding standalone bool-producing
+      compares for sudoku loop guards like `i >= 9` and `num > 9`. Runtime-only
+      `sudoku` landed at `149.16ms/op`, `153.52ms/op`, and one noisy
+      `176.73ms/op`, with allocations unchanged around `343k allocs/op`; the
+      external bytecode guard moved to `0.3560s` over `5/5` runs. Next, target
+      residual `execCallMember(...)` / canonical `Array.get` guard work, slot
+      load/store traffic, or runtime type/propagation checks.
+      The follow-up canonical `Array.get` hot-cache slice is landed too: hot
+      hits in the four-entry call-site cache no longer promote entries to the
+      front on every nested solver/output access while preserving the same
+      env/global/method version guards. Runtime-only `sudoku` moved to a
+      warmed `137.57-164.03ms/op` band, and external bytecode `sudoku` moved
+      to `0.3360s` over `5/5` runs. Next, profile this kept state and avoid
+      another `Array.get` cache micro-slice unless the refreshed profile proves
+      it is still the top wall.
 - [ ] Add quickened call/member/index opcodes that rewrite after first
       successful shape resolution and invalidate safely under mutation or
       environment revision changes.

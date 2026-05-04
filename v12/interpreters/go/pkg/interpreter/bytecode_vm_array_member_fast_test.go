@@ -109,6 +109,22 @@ func TestBytecodeVM_ArrayMemberFastPathDetectsCanonicalMethods(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_CanonicalStdlibOriginCheckDoesNotAllocate(t *testing.T) {
+	var ok bool
+	allocs := testing.AllocsPerRun(1000, func() {
+		ok = isCanonicalAbleStdlibOrigin("/tmp/able-stdlib/src/collections/array.able", "collections/array.able")
+	})
+	if !ok {
+		t.Fatalf("expected canonical stdlib origin to match")
+	}
+	if allocs != 0 {
+		t.Fatalf("canonical stdlib origin check allocated %.2f times per run", allocs)
+	}
+	if isCanonicalAbleStdlibOrigin("/tmp/project/src/collections/array.able", "collections/array.able") {
+		t.Fatalf("custom origin should not match canonical stdlib path")
+	}
+}
+
 func TestBytecodeVM_ArrayMemberFastPathLenAndGetSemantics(t *testing.T) {
 	interp := NewBytecode()
 	env := interp.GlobalEnvironment()
@@ -261,6 +277,129 @@ func TestBytecodeVM_CanonicalArrayGetOverloadFastPath(t *testing.T) {
 	}}
 	if vm.isCanonicalNullableArrayGetOverload(rejected) {
 		t.Fatalf("custom Array.get overload should not use canonical fast path")
+	}
+}
+
+func TestBytecodeVM_CanonicalArrayGetOverloadCachesFunctionPair(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+
+	nullableGet := ast.Fn("get", []*ast.FunctionParameter{
+		ast.Param("self", ast.Ty("Self")),
+		ast.Param("idx", ast.Ty("i32")),
+	}, []ast.Statement{ast.Nil()}, ast.Nullable(ast.Ty("T")), nil, nil, false, false)
+	resultGet := ast.Fn("get", []*ast.FunctionParameter{
+		ast.Param("self", ast.Ty("Self")),
+		ast.Param("idx", ast.Ty("i32")),
+	}, []ast.Statement{ast.Nil()}, ast.Result(ast.Ty("T")), nil, nil, false, false)
+	interp.SetNodeOrigins(map[ast.Node]string{
+		nullableGet: "/tmp/able-stdlib/src/collections/array.able",
+		resultGet:   "/tmp/able-stdlib/src/collections/array.able",
+	})
+
+	resultFn := &runtime.FunctionValue{Declaration: resultGet, Closure: env, MethodPriority: -1}
+	nullableFn := &runtime.FunctionValue{Declaration: nullableGet, Closure: env}
+	first := &runtime.FunctionOverloadValue{Overloads: []*runtime.FunctionValue{resultFn, nullableFn}}
+	if !vm.isCanonicalNullableArrayGetOverload(first) {
+		t.Fatalf("expected first canonical Array.get overload wrapper to validate")
+	}
+	if vm.arrayGetOverloadPairNullable != nullableFn || vm.arrayGetOverloadPairResult != resultFn || !vm.arrayGetOverloadPairOK {
+		t.Fatalf("expected canonical Array.get pair cache to store underlying functions")
+	}
+
+	second := &runtime.FunctionOverloadValue{Overloads: []*runtime.FunctionValue{resultFn, nullableFn}}
+	if !vm.isCanonicalNullableArrayGetOverload(second) {
+		t.Fatalf("expected second canonical Array.get overload wrapper to validate from function-pair cache")
+	}
+	if vm.arrayGetOverloadHot != second {
+		t.Fatalf("expected pointer hot cache to refresh to second overload wrapper")
+	}
+}
+
+func TestBytecodeVM_CanonicalArrayGetCallCacheGuardsClosureEnv(t *testing.T) {
+	interp := NewBytecode()
+	global := interp.GlobalEnvironment()
+	closure := runtime.NewEnvironment(global)
+	vm := newBytecodeVM(interp, closure)
+	program := &bytecodeProgram{}
+	instr := bytecodeInstruction{name: "get", argCount: 1}
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.StringValue{Val: "zero"},
+		runtime.StringValue{Val: "one"},
+	}, 0)
+
+	if vm.lookupCachedCanonicalArrayGetCall(program, 3, instr, arr) {
+		t.Fatalf("unexpected canonical Array.get call-cache hit before store")
+	}
+	vm.storeCachedCanonicalArrayGetCall(program, 3, instr, arr)
+	if !vm.lookupCachedCanonicalArrayGetCall(program, 3, instr, arr) {
+		t.Fatalf("expected canonical Array.get call-cache hit after store")
+	}
+	vm.storeCachedCanonicalArrayGetCall(program, 5, instr, arr)
+	vm.arrayGetCallCache = nil
+	if !vm.lookupCachedCanonicalArrayGetCall(program, 3, instr, arr) {
+		t.Fatalf("expected canonical Array.get hot cache to retain older call site")
+	}
+	if !vm.lookupCachedCanonicalArrayGetCall(program, 5, instr, arr) {
+		t.Fatalf("expected canonical Array.get hot cache to retain newer call site")
+	}
+
+	vm.stack = []runtime.Value{arr, runtime.NewSmallInt(1, runtime.IntegerI32)}
+	_, handled, err := vm.execArrayGetMemberFast(instr, 0, 1, nil)
+	if err != nil {
+		t.Fatalf("cached canonical Array.get fast call failed: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected cached canonical Array.get fast call to handle array get")
+	}
+	if want := (runtime.StringValue{Val: "one"}); !valuesEqual(vm.stack[0], want) {
+		t.Fatalf("cached canonical Array.get result = %#v, want %#v", vm.stack[0], want)
+	}
+
+	closure.Define("marker", runtime.NewSmallInt(1, runtime.IntegerI32))
+	if vm.lookupCachedCanonicalArrayGetCall(program, 3, instr, arr) {
+		t.Fatalf("expected closure env revision change to invalidate canonical Array.get call cache")
+	}
+	vm.storeCachedCanonicalArrayGetCall(program, 3, instr, arr)
+	closure.SetRuntimeData(&implMethodContext{implName: "I"})
+	if vm.lookupCachedCanonicalArrayGetCall(program, 3, instr, arr) {
+		t.Fatalf("expected runtime impl context to bypass canonical Array.get call cache")
+	}
+}
+
+func TestBytecodeVM_CanonicalArrayGetCallCacheFeedsExecCallMember(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	program := &bytecodeProgram{}
+	instr := bytecodeInstruction{name: "get", argCount: 1}
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.StringValue{Val: "zero"},
+		runtime.StringValue{Val: "one"},
+	}, 0)
+
+	vm.storeCachedCanonicalArrayGetCall(program, 3, instr, arr)
+	vm.arrayGetCallCache = nil
+	vm.memberMethodCache = nil
+	vm.memberMethodHot = bytecodeInlineMemberMethodCacheEntry{}
+	vm.ip = 3
+	vm.stack = []runtime.Value{arr, runtime.NewSmallInt(1, runtime.IntegerI32)}
+
+	newProg, err := vm.execCallMember(instr, program)
+	if err != nil {
+		t.Fatalf("execCallMember cached canonical Array.get failed: %v", err)
+	}
+	if newProg != nil {
+		t.Fatalf("expected direct cached Array.get call to stay in current program")
+	}
+	if vm.ip != 4 {
+		t.Fatalf("expected cached Array.get call to advance ip to 4, got %d", vm.ip)
+	}
+	if len(vm.stack) != 1 {
+		t.Fatalf("expected one Array.get result, got stack %#v", vm.stack)
+	}
+	if want := (runtime.StringValue{Val: "one"}); !valuesEqual(vm.stack[0], want) {
+		t.Fatalf("cached canonical Array.get result = %#v, want %#v", vm.stack[0], want)
 	}
 }
 

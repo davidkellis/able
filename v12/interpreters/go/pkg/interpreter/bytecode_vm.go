@@ -23,6 +23,7 @@ const (
 	bytecodeOpBinaryIntAddSlotConst
 	bytecodeOpBinaryIntSubSlotConst
 	bytecodeOpBinaryIntLessEqualSlotConst
+	bytecodeOpBinaryIntCompareSlotConst
 	bytecodeOpUnary
 	bytecodeOpRange
 	bytecodeOpCast
@@ -78,9 +79,13 @@ const (
 	bytecodeOpJumpIfFalse
 	bytecodeOpJumpIfBoolSlotFalse
 	bytecodeOpJumpIfIntLessEqualSlotConstFalse
+	bytecodeOpJumpIfIntCompareSlotConstFalse
 	bytecodeOpReturnIfIntLessEqualSlotConst
 	bytecodeOpReturnConstIfIntLessEqualSlotConst
 	bytecodeOpJumpIfNil
+	bytecodeOpJumpIfNotNil
+	bytecodeOpJumpIfNotTypedPattern
+	bytecodeOpMatchNoClause
 	bytecodeOpLoopEnter
 	bytecodeOpLoopExit
 	bytecodeOpEnterScope
