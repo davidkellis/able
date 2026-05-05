@@ -102,6 +102,7 @@ const (
 	bytecodeOpStoreSlot
 	bytecodeOpStoreSlotNew
 	bytecodeOpStoreSlotI32
+	bytecodeOpStoreSlotBinaryIntSlotConst
 	bytecodeOpCompoundAssignSlot
 	bytecodeOpCallSelf
 	bytecodeOpCallSelfIntSubSlotConst

@@ -1,5 +1,40 @@
 # Able Project Log
 
+# 2026-05-04 — bytecode slot-const self-assignment store fusion (v12)
+- Kept a boxed slot-backed assignment lowering slice for `x = x + const` and
+  `x = x - const`. Slot-eligible identifier assignments now lower to
+  `StoreSlotBinaryIntSlotConst`, which computes the same checked integer
+  slot-const operation, stores the result back to the slot, and leaves the
+  assignment result on the stack for existing expression semantics.
+- Semantics stay unchanged: the fusion only applies when the assignment target
+  and the left side of the binary expression resolve to the same slot-backed
+  identifier, the right side is an `i32`-range integer literal, and the slot is
+  not already on the raw typed-`i32` path. Unsupported shapes keep the old
+  binary-plus-store lowering, typed `i32` slots keep `StoreSlotI32`, and
+  overflow/error wrapping uses the existing checked integer helper path.
+- A duplicate-unwrapping experiment for canonical `String.bytes().next()` was
+  tested first and reverted because the runtime-only `sudoku` band regressed
+  to `147.68ms/op`, `148.60ms/op`, and `152.70ms/op`.
+- Guardrails:
+  - runtime-only `sudoku` warmed band: `140.23ms/op`, `141.16ms/op`, and one
+    noisier `145.35ms/op`, with allocations unchanged around `343k allocs/op`
+  - profiled runtime-only sample: `144.89ms/op`, `25.49 MB/op`,
+    `342,850 allocs/op`
+  - external bytecode `sudoku`: `0.3320s` over `5/5`, versus the prior
+    recorded `0.3360s`
+  - external bytecode `i_before_e`: `0.4440s` over `5/5`, neutral to the
+    current recorded `0.4480s` band
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsIntegerSlotConstHotOpcodes|LoweringFusesSlotConstSelfAssignment|LoweringKeepsTypedI32SelfAssignmentOnRawStore|SlotConstSelfAssignmentParity|SlotConstImmediateCacheBuildsAndRefreshes|JumpIfIntCompareSlotConstFalseFastPath|LoweringEmitsConditionalJumpForIntCompareSlotConstIf|LoweringEmitsConditionalJumpForIntLessEqualSlotConstIf)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-slotconst-store.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-slotconst-store.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 300s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 5 --timeout 90`
+- Next: profile the kept state before adding another small slot-const
+  arithmetic shape. The visible sudoku wall remains dominated by
+  `execCallMember(...)`, `lookupCachedCanonicalArrayGetCall(...)`, residual
+  checked integer add/sub work, and typed slot assignment checks.
+
 # 2026-05-04 — bytecode Array.get hot-cache no-promotion hit path (v12)
 - Kept a tiny canonical `Array.get` call-site cache change for sudoku's nested
   solver/output reads. Hot entries in the four-entry canonical `Array.get`

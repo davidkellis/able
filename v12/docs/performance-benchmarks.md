@@ -683,6 +683,27 @@ external rows, bytecode `sudoku` is now `2.58x` Go, `0.06x` Ruby, and `0.11x`
 Python. The next profile should start from this kept state and avoid another
 `Array.get` cache micro-slice unless it is again the top visible wall.
 
+The next kept bytecode tranche targeted residual boxed slot load/store traffic
+instead of another member-cache layer. Slot-backed self assignments of the form
+`x = x + const` and `x = x - const` now lower to
+`StoreSlotBinaryIntSlotConst`, which performs the same checked slot-const
+integer operation, stores the result, and leaves the assignment value on the
+stack in one VM opcode. Unsupported shapes keep the old binary-plus-store
+lowering, and typed `i32` slots keep the existing raw `StoreSlotI32` path.
+
+Runtime-only `sudoku` moved to `140.23ms/op`, `141.16ms/op`, and one noisier
+`145.35ms/op`, with allocations unchanged around `343k allocs/op`. The
+profiled sample landed at `144.89ms/op`, `25.49 MB/op`, and `342,850
+allocs/op`; the former standalone store edge for sudoku loop counters is gone,
+with checked add/sub cost now visible inside the fused opcode. External
+bytecode `sudoku` moved from `0.3360s` to `0.3320s` over `5/5` runs, while
+external bytecode `i_before_e` stayed neutral at `0.4440s` over `5/5` runs.
+Against the external rows, bytecode `sudoku` is now `2.55x` Go, `0.06x` Ruby,
+and `0.11x` Python; bytecode `i_before_e` is now `8.88x` Go, `4.44x` Ruby,
+and `3.42x` Python. The next profile should start from this kept state and
+target `execCallMember(...)` / canonical `Array.get` guard cost, residual
+checked integer arithmetic, or typed slot assignment checks.
+
 As of April 29, 2026, the external `quicksort` compiled timeout is closed and
 the benchmark is in Go range. This took two steps: first, the benchmark source
 was changed to parse `numbers.txt` directly from bytes and use slot

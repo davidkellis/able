@@ -105,7 +105,7 @@ Current measured external snapshot:
   bytecode and tree-walker still time out at the current external benchmark
   scale.
 - `sudoku`: compiled `0.0600s` vs Go `0.1300s` on the refreshed comparison;
-  bytecode `0.3360s` after the shared propagation Error fast-negative guard,
+  bytecode `0.3320s` after the shared propagation Error fast-negative guard,
   v12 nil-propagation semantic alignment, cached member-method fast-path
   dispatch, cached `String.bytes()` byte construction, the mono/native `u8`
   string-byte iterator lane, the direct canonical `Iterator u8` wrapper,
@@ -119,12 +119,13 @@ Current measured external snapshot:
   function closures, and the primitive two-part string interpolation fast path
   that cuts `board_to_string` allocation churn, plus fused slot-constant
   `>`/`>=` conditional jumps for loop guards, plus no-promotion hot hits in
-  the canonical `Array.get` call-site cache;
+  the canonical `Array.get` call-site cache, plus fused slot-const
+  self-assignment stores for loop counters;
   tree-walker `6.71s`.
 - `i_before_e`: compiled `0.0620s` vs Go `0.0500s` after primitive host
   extern wrappers stopped bridging native scalar arguments/results and static
   no-fallback launchers stopped loading/parsing/evaluating source metadata;
-  bytecode `0.4480s` on the latest slot-aware simple match confirmation;
+  bytecode `0.4440s` on the latest slot-const self-assignment confirmation;
   tree-walker `3.54s`.
 
 Guardrails:
@@ -452,7 +453,17 @@ Guardrails:
       warmed `137.57-164.03ms/op` band, and external bytecode `sudoku` moved
       to `0.3360s` over `5/5` runs. Next, profile this kept state and avoid
       another `Array.get` cache micro-slice unless the refreshed profile proves
-      it is still the top wall.
+      it is still the top wall. The follow-up slot-const self-assignment store
+      slice is landed too: boxed slot-backed `x = x + const` and `x = x - const`
+      assignments now lower to `StoreSlotBinaryIntSlotConst`, combining the
+      checked slot-const arithmetic, slot write, and assignment-result stack
+      value into one opcode while typed `i32` slots keep the raw `StoreSlotI32`
+      path. Runtime-only `sudoku` moved to
+      `140.23-145.35ms/op`, external bytecode `sudoku` moved to `0.3320s`
+      over `5/5` runs, and external bytecode `i_before_e` stayed neutral at
+      `0.4440s` over `5/5` runs. Next, profile this kept state and target
+      `execCallMember(...)` / canonical `Array.get` guard cost, residual
+      checked integer arithmetic, or typed slot assignment checks.
 - [ ] Add quickened call/member/index opcodes that rewrite after first
       successful shape resolution and invalidate safely under mutation or
       environment revision changes.
