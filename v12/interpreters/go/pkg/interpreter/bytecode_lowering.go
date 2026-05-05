@@ -578,6 +578,14 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		}
 		typedPattern, hasTypedStore := typedIdentifierPatternFromTarget(n.Left)
 		if ctx.frameLayout != nil && ok {
+			if n.Operator == ast.AssignmentAssign {
+				if _, simpleIdent := n.Left.(*ast.Identifier); simpleIdent {
+					if instr, ok := bytecodeStoreSlotBinarySlotConstInstruction(ctx, name, n.Right, n); ok {
+						ctx.emit(instr)
+						return nil
+					}
+				}
+			}
 			if n.Operator == ast.AssignmentDeclare && hasTypedStore && bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation) == bytecodeCellKindI32 && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
 				bytecodeEmitRawI32StackExpr(ctx, n.Right)
 				slot := ctx.declareSlotWithKind(name, bytecodeCellKindI32)

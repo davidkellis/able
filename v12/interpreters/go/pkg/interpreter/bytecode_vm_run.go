@@ -998,6 +998,10 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			if err := vm.execStoreSlotOpcode(instr); err != nil {
 				return nil, err
 			}
+		case bytecodeOpStoreSlotBinaryIntSlotConst:
+			if err := vm.execStoreSlotBinaryIntSlotConst(instr, slotConstIntImmTable); err != nil {
+				return nil, err
+			}
 		case bytecodeOpCompoundAssignSlot:
 			if err := vm.execCompoundAssignSlot(*instr); err != nil {
 				return nil, err

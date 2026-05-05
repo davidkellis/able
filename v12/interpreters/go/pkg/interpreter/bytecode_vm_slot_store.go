@@ -37,6 +37,53 @@ func (vm *bytecodeVM) execStoreSlotOpcode(instr *bytecodeInstruction) error {
 	}
 }
 
+func (vm *bytecodeVM) execStoreSlotBinaryIntSlotConst(instr *bytecodeInstruction, slotConstIntImmTable *bytecodeSlotConstIntImmediateTable) error {
+	if instr == nil {
+		return fmt.Errorf("bytecode slot store missing instruction")
+	}
+	if instr.target < 0 || instr.target >= len(vm.slots) {
+		return fmt.Errorf("bytecode slot out of range")
+	}
+	rightImmediate, hasImmediate := instr.intImmediate, instr.hasIntImmediate
+	if !hasImmediate {
+		rightImmediate, hasImmediate = bytecodeImmediateIntegerValue(instr.value)
+	}
+	if !hasImmediate {
+		rightImmediate, hasImmediate = bytecodeSlotConstImmediateAtIP(vm.ip, slotConstIntImmTable)
+	}
+	if !hasImmediate {
+		return fmt.Errorf("bytecode slot-const store missing integer immediate")
+	}
+	binaryInstr := *instr
+	switch instr.operator {
+	case "+":
+		binaryInstr.op = bytecodeOpBinaryIntAddSlotConst
+	case "-":
+		binaryInstr.op = bytecodeOpBinaryIntSubSlotConst
+	default:
+		return fmt.Errorf("bytecode slot-const store unsupported operator %q", instr.operator)
+	}
+	result, handled, err := vm.execBinarySlotConst(&binaryInstr, rightImmediate, true)
+	if err != nil {
+		err = vm.interp.wrapStandardRuntimeError(err)
+		if instr.node != nil {
+			return vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+		}
+		return err
+	}
+	if !handled {
+		return fmt.Errorf("bytecode slot-const store was not handled")
+	}
+	result = bytecodeStackResultValue(result)
+	vm.slots[instr.target] = result
+	if instr.target == 0 {
+		vm.setSelfFastSlot0I32Value(result)
+	}
+	vm.stack = append(vm.stack, result)
+	vm.ip++
+	return nil
+}
+
 func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 	if instr == nil {
 		return fmt.Errorf("bytecode slot store missing instruction")

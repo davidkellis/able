@@ -111,6 +111,36 @@ func bytecodeJumpIfFalseBinarySlotConstInstruction(ctx *bytecodeLoweringContext,
 	}, true
 }
 
+func bytecodeStoreSlotBinarySlotConstInstruction(ctx *bytecodeLoweringContext, targetName string, expr ast.Expression, node ast.Node) (bytecodeInstruction, bool) {
+	if ctx == nil || targetName == "" {
+		return bytecodeInstruction{}, false
+	}
+	binary, ok := expr.(*ast.BinaryExpression)
+	if !ok || binary == nil {
+		return bytecodeInstruction{}, false
+	}
+	left, ok := binary.Left.(*ast.Identifier)
+	if !ok || left == nil || left.Name != targetName {
+		return bytecodeInstruction{}, false
+	}
+	instr, ok := bytecodeBinarySlotConstInstruction(ctx, binary)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	if ctx.slotKind(instr.target) == bytecodeCellKindI32 {
+		return bytecodeInstruction{}, false
+	}
+	switch instr.op {
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst:
+	default:
+		return bytecodeInstruction{}, false
+	}
+	instr.op = bytecodeOpStoreSlotBinaryIntSlotConst
+	instr.name = targetName
+	instr.node = node
+	return instr, true
+}
+
 func bytecodeReturnIfBinarySlotConstInstruction(ctx *bytecodeLoweringContext, condition ast.Expression, body *ast.BlockExpression) (bytecodeInstruction, bool) {
 	if ctx == nil || body == nil || len(body.Body) != 1 {
 		return bytecodeInstruction{}, false
