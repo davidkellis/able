@@ -59,10 +59,15 @@ const (
 	bytecodeOpArrayLiteral
 	bytecodeOpIndexGet
 	bytecodeOpIndexSet
+	bytecodeOpArrayReadSlot
 	bytecodeOpForLoop
 	bytecodeOpCall
 	bytecodeOpCallName
 	bytecodeOpCallMember
+	bytecodeOpCallMemberArrayGet
+	bytecodeOpCallMemberNext
+	bytecodeOpCallMemberArrayNew
+	bytecodeOpCallMemberArraySlot
 	bytecodeOpMemberAccess
 	bytecodeOpMemberSet
 	bytecodeOpMatch
@@ -80,6 +85,8 @@ const (
 	bytecodeOpJumpIfBoolSlotFalse
 	bytecodeOpJumpIfIntLessEqualSlotConstFalse
 	bytecodeOpJumpIfIntCompareSlotConstFalse
+	bytecodeOpJumpIfArrayReadSlotCompareSlotFalse
+	bytecodeOpJumpIfIntCompareSlotFalse
 	bytecodeOpReturnIfIntLessEqualSlotConst
 	bytecodeOpReturnConstIfIntLessEqualSlotConst
 	bytecodeOpJumpIfNil

@@ -1,10 +1,10 @@
 # External Benchmark Scoreboard
 
-- Generated: `2026-05-04T04:15:26Z`
+- Generated: `2026-05-08T03:15:05Z`
 - External results: `../benchmarks/results.json`
 - External results generated: `2026-02-27T00:26:22Z`
 - Able measurement source: kept measurements recorded in `LOG.md`, `PLAN.md`,
-  and `v12/docs/performance-benchmarks.md` through 2026-05-04.
+  and `v12/docs/performance-benchmarks.md` through 2026-05-07.
 
 This is the checked-in current scoreboard for implemented external benchmark
 families. Ratios below `1.00x` mean Able is faster than that reference row.
@@ -12,7 +12,7 @@ families. Ratios below `1.00x` mean Able is faster than that reference row.
 | Benchmark | Mode | Able status | Able real (s) | Go real (s) | Able/Go | Ruby real (s) | Able/Ruby | Python real (s) | Able/Python |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `fib` | `compiled` | ok (5) | 2.9940 | 2.8400 | 1.05x | 46.6400 | 0.06x | 60.6700 | 0.05x |
-| `fib` | `bytecode` | ok | 67.8200 | 2.8400 | 23.88x | 46.6400 | 1.45x | 60.6700 | 1.12x |
+| `fib` | `bytecode` | ok (3) | 3.7633 | 2.8400 | 1.33x | 46.6400 | 0.08x | 60.6700 | 0.06x |
 | `fib` | `treewalker` | timeout | timeout | 2.8400 | n/a | 46.6400 | n/a | 60.6700 | n/a |
 | `binarytrees` | `compiled` | ok (3) | 3.6400 | 3.8300 | 0.95x | 20.3900 | 0.18x | 12.2500 | 0.30x |
 | `binarytrees` | `bytecode` | timeout | timeout | 3.8300 | n/a | 20.3900 | n/a | 12.2500 | n/a |

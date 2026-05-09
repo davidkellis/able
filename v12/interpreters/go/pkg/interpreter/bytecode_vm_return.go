@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 
 	"able/interpreter-go/pkg/runtime"
 )
@@ -125,6 +126,58 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 	return nil
 }
 
+func bytecodeCanFinishMinimalReturnNoCoerce(program *bytecodeProgram, instr *bytecodeInstruction, knownReturnSimple bytecodeSimpleTypeCheck) bool {
+	if program == nil || instr == nil {
+		return false
+	}
+	layout := program.frameLayout
+	if layout == nil || layout.returnSimpleCheck != bytecodeSimpleTypeCheckI32 {
+		return false
+	}
+	if knownReturnSimple == bytecodeSimpleTypeCheckI32 {
+		return true
+	}
+	switch instr.op {
+	case bytecodeOpReturnConstIfIntLessEqualSlotConst:
+		return true
+	case bytecodeOpReturnIfIntLessEqualSlotConst:
+		return instr.target >= 0 && instr.target < len(layout.slotKinds) && layout.slotKinds[instr.target] == bytecodeCellKindI32
+	default:
+		return false
+	}
+}
+
+func (vm *bytecodeVM) finishMinimalSelfFastReturnNoCoerce(val runtime.Value) bool {
+	if vm == nil || vm.selfFastMinimalSuffix <= 0 || len(vm.selfFastMinimal) == 0 {
+		return false
+	}
+	idx := len(vm.selfFastMinimal) - 1
+	frame := &vm.selfFastMinimal[idx]
+	if !frame.reusesSlots || len(frame.slots) == 0 {
+		return false
+	}
+	returnIP := frame.returnIP
+	returnSlots := frame.slots
+	returnSlot0 := frame.slot0
+	frame.slot0 = nil
+	frame.reusesSlots = false
+	vm.restoreSelfFastSlot0I32(frame)
+	vm.selfFastMinimal = vm.selfFastMinimal[:idx]
+	vm.selfFastMinimalSuffix--
+	vm.ip = returnIP
+	vm.slots = returnSlots
+	returnSlots[0] = returnSlot0
+	vm.stack = append(vm.stack, val)
+	return true
+}
+
+func (vm *bytecodeVM) tryFinishMinimalSelfFastReturnNoCoerce(program *bytecodeProgram, instr *bytecodeInstruction, val runtime.Value, knownReturnSimple bytecodeSimpleTypeCheck) bool {
+	if !bytecodeCanFinishMinimalReturnNoCoerce(program, instr, knownReturnSimple) {
+		return false
+	}
+	return vm.finishMinimalSelfFastReturnNoCoerce(val)
+}
+
 func (vm *bytecodeVM) execReturnBinaryIntAdd(instr *bytecodeInstruction) (runtime.Value, bytecodeSimpleTypeCheck, error) {
 	if len(vm.stack) < 2 {
 		return nil, bytecodeSimpleTypeCheckUnknown, fmt.Errorf("bytecode stack underflow")
@@ -134,9 +187,23 @@ func (vm *bytecodeVM) execReturnBinaryIntAdd(instr *bytecodeInstruction) (runtim
 	right := vm.stack[rightIdx]
 	left := vm.stack[leftIdx]
 	if instr.op == bytecodeOpReturnBinaryIntAddI32 {
-		if val, handled, err := bytecodeReturnAddSmallI32ValuePairFast(left, right); handled {
-			vm.stack = vm.stack[:leftIdx]
-			return val, bytecodeSimpleTypeCheckI32, err
+		if lv, ok := left.(runtime.IntegerValue); ok && lv.TypeSuffix == runtime.IntegerI32 {
+			if rv, ok := right.(runtime.IntegerValue); ok && rv.TypeSuffix == runtime.IntegerI32 {
+				lvRef := &lv
+				rvRef := &rv
+				if lvRef.IsSmallRef() && rvRef.IsSmallRef() {
+					l := lvRef.Int64FastRef()
+					r := rvRef.Int64FastRef()
+					if l >= math.MinInt32 && l <= math.MaxInt32 && r >= math.MinInt32 && r <= math.MaxInt32 {
+						sum := l + r
+						vm.stack = vm.stack[:leftIdx]
+						if sum < math.MinInt32 || sum > math.MaxInt32 {
+							return nil, bytecodeSimpleTypeCheckI32, newOverflowError("integer overflow")
+						}
+						return bytecodeBoxedIntegerI32Value(sum), bytecodeSimpleTypeCheckI32, nil
+					}
+				}
+			}
 		}
 		if val, handled, err := bytecodeAddSmallI32PairFast(left, right); handled {
 			vm.stack = vm.stack[:leftIdx]

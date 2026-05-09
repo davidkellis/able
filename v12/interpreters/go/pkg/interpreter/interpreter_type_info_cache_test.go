@@ -122,6 +122,48 @@ func TestCanonicalTypeNamesUsesAliasBaseWithoutASTExpansion(t *testing.T) {
 	}
 }
 
+func TestExpandTypeAliasesCachedReusesAndInvalidates(t *testing.T) {
+	interp := New()
+	interp.RegisterTypeAlias(
+		"AliasBox",
+		ast.NewTypeAliasDefinition(
+			ast.ID("AliasBox"),
+			ast.Gen(ast.Ty("Array"), ast.Ty("T")),
+			[]*ast.GenericParameter{ast.GenericParam("T")},
+			nil,
+			false,
+		),
+	)
+	expr := ast.Gen(ast.Ty("AliasBox"), ast.Ty("String"))
+
+	first := interp.expandTypeAliasesCached(expr)
+	second := interp.expandTypeAliasesCached(expr)
+	if first != second {
+		t.Fatalf("expected alias expansion cache to reuse expanded type expression identity")
+	}
+	if len(interp.typeAliasExpansionCache) == 0 {
+		t.Fatalf("expected alias expansion cache to store expanded expression")
+	}
+	if got := typeExpressionToString(first); got != "Array<String>" {
+		t.Fatalf("unexpected first alias expansion: got=%q want=%q", got, "Array<String>")
+	}
+
+	interp.RegisterTypeAlias(
+		"AliasBox",
+		ast.NewTypeAliasDefinition(ast.ID("AliasBox"), ast.Ty("String"), nil, nil, false),
+	)
+	if len(interp.typeAliasExpansionCache) != 0 {
+		t.Fatalf("expected alias expansion cache to clear after alias registration")
+	}
+	updated := interp.expandTypeAliasesCached(expr)
+	if updated == first {
+		t.Fatalf("expected alias expansion after invalidation to produce a fresh result")
+	}
+	if got := typeExpressionToString(updated); got != "String" {
+		t.Fatalf("unexpected updated alias expansion: got=%q want=%q", got, "String")
+	}
+}
+
 func TestCachedTypeInfoNameAvoidsRepeatedAllocationsForCommonGenericTypes(t *testing.T) {
 	interp := New()
 	info := typeInfo{

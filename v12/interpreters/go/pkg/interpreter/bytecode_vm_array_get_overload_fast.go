@@ -45,6 +45,14 @@ func (vm *bytecodeVM) canUseCanonicalArrayGetCallCache(instr bytecodeInstruction
 	return vm.env.RuntimeData() == nil
 }
 
+func (vm *bytecodeVM) canUseCanonicalArrayGetCallCacheForArray(arr *runtime.ArrayValue) bool {
+	return vm != nil &&
+		vm.interp != nil &&
+		vm.env != nil &&
+		arr != nil &&
+		vm.env.RuntimeData() == nil
+}
+
 func (entry bytecodeInlineArrayGetCallCacheEntry) matchesCanonicalArrayGetCallIdentity(program *bytecodeProgram, ip int, env *runtime.Environment) bool {
 	return entry.valid &&
 		entry.program == program &&
@@ -79,6 +87,13 @@ func (vm *bytecodeVM) canonicalArrayGetCallVersions(env *runtime.Environment) (u
 
 func (vm *bytecodeVM) lookupCachedCanonicalArrayGetCall(program *bytecodeProgram, ip int, instr bytecodeInstruction, receiver runtime.Value) bool {
 	if program == nil || !vm.canUseCanonicalArrayGetCallCache(instr, receiver) {
+		return false
+	}
+	return vm.lookupCachedCanonicalArrayGetCallForArray(program, ip)
+}
+
+func (vm *bytecodeVM) lookupCachedCanonicalArrayGetCallForArray(program *bytecodeProgram, ip int) bool {
+	if program == nil || vm == nil || vm.env == nil {
 		return false
 	}
 	env := vm.env

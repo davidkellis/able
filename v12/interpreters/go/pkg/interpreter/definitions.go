@@ -186,7 +186,9 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 			break
 		}
 	}
-	return &bytecodeProgram{instructions: ctx.instructions, frameLayout: layout}, nil
+	program := &bytecodeProgram{instructions: ctx.instructions, frameLayout: layout}
+	program.i32RecurrenceKernel = bytecodeDetectI32RecurrenceKernel(program)
+	return program, nil
 }
 
 func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, env *runtime.Environment) (runtime.Value, error) {

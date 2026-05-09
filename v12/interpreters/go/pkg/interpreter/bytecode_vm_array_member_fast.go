@@ -17,6 +17,8 @@ const (
 	bytecodeMemberMethodFastPathArrayLen
 	bytecodeMemberMethodFastPathArrayGet
 	bytecodeMemberMethodFastPathArrayPush
+	bytecodeMemberMethodFastPathArrayReadSlot
+	bytecodeMemberMethodFastPathArrayWriteSlot
 	bytecodeMemberMethodFastPathStringLenBytes
 	bytecodeMemberMethodFastPathStringContains
 	bytecodeMemberMethodFastPathStringReplace
@@ -65,6 +67,14 @@ func (vm *bytecodeVM) memberMethodFastPathFor(key bytecodeMemberMethodCacheKey, 
 		case "push":
 			if isCanonicalAbleKernelOrigin(origin) && typeExpressionToString(def.ReturnType) == "void" {
 				return bytecodeMemberMethodFastPathArrayPush
+			}
+		case "read_slot":
+			if isCanonicalAbleKernelOrigin(origin) && isCanonicalArrayReadSlotFunction(def) {
+				return bytecodeMemberMethodFastPathArrayReadSlot
+			}
+		case "write_slot":
+			if isCanonicalAbleKernelOrigin(origin) && isCanonicalArrayWriteSlotFunction(def) {
+				return bytecodeMemberMethodFastPathArrayWriteSlot
 			}
 		}
 	case bytecodeMemberReceiverString:
@@ -202,6 +212,10 @@ func (vm *bytecodeVM) execCachedMemberMethodFastPath(kind bytecodeMemberMethodFa
 		return vm.execArrayGetMemberFast(instr, receiverIndex, argBase, callNode)
 	case bytecodeMemberMethodFastPathArrayPush:
 		return vm.execArrayPushMemberFast(instr, receiverIndex, argBase, callNode)
+	case bytecodeMemberMethodFastPathArrayReadSlot:
+		return vm.execArrayReadSlotMemberFast(instr, receiverIndex, argBase, callNode)
+	case bytecodeMemberMethodFastPathArrayWriteSlot:
+		return vm.execArrayWriteSlotMemberFast(instr, receiverIndex, argBase, callNode)
 	case bytecodeMemberMethodFastPathStringLenBytes:
 		return vm.execStringLenBytesMemberFast(instr, receiverIndex, callNode)
 	case bytecodeMemberMethodFastPathStringContains:
@@ -252,6 +266,13 @@ func (vm *bytecodeVM) execArrayGetMemberFast(instr bytecodeInstruction, receiver
 	}
 	idx, ok := bytecodeArrayGetIndexI32(vm.stack[argBase])
 	if !ok {
+		return nil, false, nil
+	}
+	return vm.finishArrayGetMemberFast(instr, arr, idx, receiverIndex, callNode)
+}
+
+func (vm *bytecodeVM) finishArrayGetMemberFast(instr bytecodeInstruction, arr *runtime.ArrayValue, idx int64, receiverIndex int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
+	if arr == nil || receiverIndex < 0 || receiverIndex >= len(vm.stack) {
 		return nil, false, nil
 	}
 	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
@@ -347,6 +368,13 @@ func (vm *bytecodeVM) execStaticArrayNewMemberFast(instr bytecodeInstruction, re
 	}
 	fn, ok := bytecodeSingleFunction(callee)
 	if !ok || !vm.isCanonicalArrayNewFunction(fn) {
+		return nil, false, nil
+	}
+	return vm.finishStaticArrayNewMemberFast(instr, receiverIndex, callNode)
+}
+
+func (vm *bytecodeVM) finishStaticArrayNewMemberFast(instr bytecodeInstruction, receiverIndex int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
+	if receiverIndex < 0 || receiverIndex >= len(vm.stack) || vm == nil || vm.interp == nil {
 		return nil, false, nil
 	}
 	if vm.interp != nil {

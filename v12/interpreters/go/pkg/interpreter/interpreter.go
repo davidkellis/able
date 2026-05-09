@@ -292,21 +292,22 @@ type Interpreter struct {
 	interfaceBuiltinsReady bool
 	envSingleThread        bool
 
-	methodCache           map[methodCacheKey]methodCacheEntry
-	interfaceImplCache    map[interfaceImplCacheKey]interfaceImplCacheEntry
-	boundMethodCache      map[boundMethodCacheKey]runtime.Value
-	propagationErrorCache map[string]bool
-	methodCacheMu         sync.RWMutex
-	methodCacheVersion    uint64
-	overloadCache         map[overloadCacheKey]*runtime.FunctionValue
-	typeAliasCacheMu      sync.RWMutex
-	typeAliasBaseCache    map[string][]string
-	typeInfoCacheMu       sync.RWMutex
-	typeInfoNameCache     map[typeInfoCacheKey]string
-	bytecodeVMPool        sync.Pool
-	nativeCallContextPool sync.Pool
-	bytecodeExprCacheMu   sync.RWMutex
-	bytecodeExprCache     map[bytecodeExpressionProgramCacheKey]*bytecodeProgram
+	methodCache             map[methodCacheKey]methodCacheEntry
+	interfaceImplCache      map[interfaceImplCacheKey]interfaceImplCacheEntry
+	boundMethodCache        map[boundMethodCacheKey]runtime.Value
+	propagationErrorCache   map[string]bool
+	methodCacheMu           sync.RWMutex
+	methodCacheVersion      uint64
+	overloadCache           map[overloadCacheKey]*runtime.FunctionValue
+	typeAliasCacheMu        sync.RWMutex
+	typeAliasBaseCache      map[string][]string
+	typeAliasExpansionCache map[ast.TypeExpression]ast.TypeExpression
+	typeInfoCacheMu         sync.RWMutex
+	typeInfoNameCache       map[typeInfoCacheKey]string
+	bytecodeVMPool          sync.Pool
+	nativeCallContextPool   sync.Pool
+	bytecodeExprCacheMu     sync.RWMutex
+	bytecodeExprCache       map[bytecodeExpressionProgramCacheKey]*bytecodeProgram
 
 	bytecodeStatsEnabled            bool
 	bytecodeOpCounts                [bytecodeOpCount]uint64
@@ -462,6 +463,7 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		propagationErrorCache:   make(map[string]bool),
 		overloadCache:           make(map[overloadCacheKey]*runtime.FunctionValue),
 		typeAliasBaseCache:      make(map[string][]string),
+		typeAliasExpansionCache: make(map[ast.TypeExpression]ast.TypeExpression),
 		typeInfoNameCache:       make(map[typeInfoCacheKey]string),
 		bytecodeExprCache:       make(map[bytecodeExpressionProgramCacheKey]*bytecodeProgram),
 		bytecodeStatsEnabled:    os.Getenv("ABLE_BYTECODE_STATS") != "",
@@ -615,6 +617,7 @@ func (i *Interpreter) setTypeAlias(name string, alias *ast.TypeAliasDefinition) 
 	i.typeAliases[name] = alias
 	i.typeAliasCacheMu.Lock()
 	clear(i.typeAliasBaseCache)
+	clear(i.typeAliasExpansionCache)
 	i.typeAliasCacheMu.Unlock()
 }
 

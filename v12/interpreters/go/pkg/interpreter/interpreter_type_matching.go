@@ -7,12 +7,12 @@ import (
 
 func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Value) bool {
 	if typeExpr != nil {
-		if expanded := expandTypeAliases(typeExpr, i.typeAliases, nil); expanded != nil {
+		if expanded := i.expandTypeAliasesCached(typeExpr); expanded != nil {
 			typeExpr = expanded
 		}
 	}
 	if valueExpr := i.typeExpressionFromValue(value); valueExpr != nil {
-		expandedValue := expandTypeAliases(valueExpr, i.typeAliases, nil)
+		expandedValue := i.expandTypeAliasesCached(valueExpr)
 		if expandedValue != nil && typeExpressionsEqual(typeExpr, expandedValue) {
 			return true
 		}

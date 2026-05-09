@@ -186,6 +186,45 @@ func expandTypeAliases(
 	}
 }
 
+func (i *Interpreter) expandTypeAliasesCached(expr ast.TypeExpression) ast.TypeExpression {
+	if i == nil || expr == nil || len(i.typeAliases) == 0 {
+		return expr
+	}
+	if !typeExpressionReferencesAlias(expr, i.typeAliases) {
+		return expr
+	}
+	if i.envSingleThread {
+		if cached, ok := i.typeAliasExpansionCache[expr]; ok {
+			return cached
+		}
+		expanded := expandTypeAliases(expr, i.typeAliases, nil)
+		if i.typeAliasExpansionCache == nil {
+			i.typeAliasExpansionCache = make(map[ast.TypeExpression]ast.TypeExpression)
+		}
+		i.typeAliasExpansionCache[expr] = expanded
+		return expanded
+	}
+	i.typeAliasCacheMu.RLock()
+	if cached, ok := i.typeAliasExpansionCache[expr]; ok {
+		i.typeAliasCacheMu.RUnlock()
+		return cached
+	}
+	i.typeAliasCacheMu.RUnlock()
+
+	expanded := expandTypeAliases(expr, i.typeAliases, nil)
+	i.typeAliasCacheMu.Lock()
+	if i.typeAliasExpansionCache == nil {
+		i.typeAliasExpansionCache = make(map[ast.TypeExpression]ast.TypeExpression)
+	}
+	if cached, ok := i.typeAliasExpansionCache[expr]; ok {
+		i.typeAliasCacheMu.Unlock()
+		return cached
+	}
+	i.typeAliasExpansionCache[expr] = expanded
+	i.typeAliasCacheMu.Unlock()
+	return expanded
+}
+
 func typeExpressionReferencesAlias(
 	expr ast.TypeExpression,
 	aliases map[string]*ast.TypeAliasDefinition,

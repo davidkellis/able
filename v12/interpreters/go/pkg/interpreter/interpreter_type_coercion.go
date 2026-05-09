@@ -151,7 +151,7 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 		}
 	}
 	if typeExpr != nil && typeExpressionReferencesAlias(typeExpr, i.typeAliases) {
-		if expanded := expandTypeAliases(typeExpr, i.typeAliases, nil); expanded != nil {
+		if expanded := i.expandTypeAliasesCached(typeExpr); expanded != nil {
 			typeExpr = expanded
 		}
 	}
