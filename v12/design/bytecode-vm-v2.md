@@ -292,6 +292,34 @@ The first three kept code slices are landed:
   the boxed semantic slot value, letting recursive subtract and base-case
   slot-const compare use proven raw `i32` state while all fallback/spec
   boundaries continue to observe the boxed `runtime.Value`.
+- the exact slot-backed one-arg `i32` recurrence shape used by aligned
+  external `fib` now attaches a guarded native bytecode kernel for
+  `if n <= c { return r }` followed by `self(n-a) + self(n-b)`, preserving
+  checked `i32` overflow and boxing only at the bytecode boundary.
+- canonical kernel `Array.read_slot(i32)` and `Array.write_slot(i32, T)` now
+  have guarded tracked-array member fast paths, so real external quicksort
+  source sites can bypass the generic kernel method body while preserving
+  negative-index errors, out-of-bounds `nil` reads, growth-on-write, and boxed
+  dynamic fallback behavior.
+- ordinary non-safe `Array.read_slot(i32)` and `Array.write_slot(i32, T)` call
+  sites now lower to a guarded `CallMemberArraySlot` opcode. The first normal
+  member-resolution pass seeds a revision-guarded proof cache for canonical
+  kernel slot methods; subsequent executions bypass the broader
+  `execCallMember` dispatch shell and jump directly into the tracked-array
+  fast body.
+- cached `CallMemberArraySlot` hits now finish the tracked read/write body
+  directly after validating the array receiver and cache identity, avoiding
+  the broader cached-member fast-path switch and the old
+  `canUseCanonicalArraySlotCallCache(...)` guard on every hot hit.
+- slot-backed quicksort pivot-loop conditions of the form
+  `arr.read_slot(index) <op> pivotSlot` now lower to
+  `JumpIfArrayReadSlotCompareSlotFalse`, which reuses the guarded canonical
+  `read_slot` proof cache and skips the standalone read result, boxed bool,
+  and generic `JumpIfFalse` path when the proof holds.
+- ordinary slot-backed identifier-vs-identifier integer comparison conditions
+  now lower to `JumpIfIntCompareSlotFalse`, avoiding the load/load/boxed-bool
+  / `JumpIfFalse` sequence for quicksort guards like `lo >= hi`, `i > j`,
+  `i <= j`, `lo < j`, and `i < hi`.
 
 This proves the typed operand lane, checked overflow behavior, boxed boundary,
 VM reset behavior, declared slot metadata, compact self-fast frame restoration,
@@ -302,19 +330,19 @@ One rejected experiment is now part of the design record: a parallel typed
 regressed reduced `Fib30Bytecode`, so the next work should not retry that
 shape.
 
-The next implementation tranche should target compact typed return/result
-handoff rather than per-frame side arrays or more helper shuffling:
+The next implementation tranche should not add another `fib`-only helper. The
+native recurrence kernel moved external bytecode `fib(45)` to `3.7633s` over
+`3/3` runs, close enough to Go that further recursion work should either:
 
-- carry small integer results through `execReturnBinaryIntAdd` and
-  `finishInlineReturn` with less boxed-value probing, ideally by making the
-  result handoff itself typed/raw and boxing only at the existing return
-  boundary;
-- avoid more helper-call rearrangement unless a fresh profile shows a specific
-  helper has re-entered the hot path;
-- keep `LoadSlotI32` / `StoreSlotI32` boxing-compatible at every dynamic/spec
-  boundary, and keep unsupported shapes on the existing `runtime.Value` path.
+- generalize the recurrence machinery to generic `Int` / other primitive
+  widths while preserving checked overflow and boxed dynamic boundaries; or
+- pivot to the remaining external timeout families and resume typed slots,
+  native collection/string bytecodes, and quickening where fresh profiles put
+  the wall.
 
-That tranche should deliberately target the recursive `fib` shape because the
-focused external scoreboard now shows bytecode `fib` completing at `67.8200s`
-but still far behind Go and slower than Python/Ruby. The implementation must
-remain general to checked integer operations and boxed dynamic boundaries.
+After the first five quicksort pivots, the next collection/string slice should
+not target condition-only jumps again unless a fresh profile reverses the
+ranking. The reduced profile now puts the remaining wall in residual boxed
+slot updates, slot-call dispatch, frame release, small-int boxing, and the
+`swap` / recursive quicksort call path. The next bounded test should start
+there while preserving the same boxed dynamic fallback behavior.

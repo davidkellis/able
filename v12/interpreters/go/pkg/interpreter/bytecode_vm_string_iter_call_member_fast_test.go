@@ -11,7 +11,7 @@ func TestBytecodeVM_CallMemberUsesCanonicalStringByteIteratorNextFastPath(t *tes
 	interp, vm, iface, iter := setupCanonicalStringByteIteratorCallMemberFast(t)
 
 	vm.stack = []runtime.Value{iface}
-	_, err := vm.execCallMember(bytecodeInstruction{name: "next", argCount: 0}, nil)
+	_, err := vm.execCallMemberNext(bytecodeInstruction{name: "next", argCount: 0}, nil)
 	if err != nil {
 		t.Fatalf("call-member string byte iterator next fast path failed: %v", err)
 	}
@@ -24,12 +24,51 @@ func TestBytecodeVM_CallMemberUsesCanonicalStringByteIteratorNextFastPath(t *tes
 
 	vm = newBytecodeVM(interp, interp.GlobalEnvironment())
 	vm.stack = []runtime.Value{iface}
-	_, err = vm.execCallMember(bytecodeInstruction{name: "next", argCount: 0}, nil)
+	_, err = vm.execCallMemberNext(bytecodeInstruction{name: "next", argCount: 0}, nil)
 	if err != nil {
 		t.Fatalf("call-member string byte iterator next end fast path failed: %v", err)
 	}
 	if _, ok := vm.stack[0].(runtime.IteratorEndValue); !ok {
 		t.Fatalf("next end result = %#v, want IteratorEnd", vm.stack[0])
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsStringByteIteratorNextCallMemberOpcode(t *testing.T) {
+	safeNext := ast.Member(ast.ID("maybe_iter"), "next")
+	safeNext.Safe = true
+	module := ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.Member(ast.ID("iter"), "next")),
+		ast.CallExpr(safeNext),
+	}, nil, nil)
+
+	program, err := NewBytecode().lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+
+	nextCount := 0
+	safeNextCount := 0
+	for _, instr := range program.instructions {
+		if instr.name != "next" {
+			continue
+		}
+		switch instr.op {
+		case bytecodeOpCallMemberNext:
+			nextCount++
+			if instr.argCount != 0 || instr.safe {
+				t.Fatalf("unexpected next opcode instruction: %#v", instr)
+			}
+		case bytecodeOpCallMember:
+			if instr.safe {
+				safeNextCount++
+			}
+		}
+	}
+	if nextCount != 1 {
+		t.Fatalf("next opcode count = %d, want 1", nextCount)
+	}
+	if safeNextCount != 1 {
+		t.Fatalf("safe next CallMember count = %d, want 1", safeNextCount)
 	}
 }
 

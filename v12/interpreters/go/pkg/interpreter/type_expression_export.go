@@ -18,7 +18,7 @@ func (i *Interpreter) ExpandTypeAliases(expr ast.TypeExpression) ast.TypeExpress
 	if i == nil {
 		return expr
 	}
-	return expandTypeAliases(expr, i.typeAliases, nil)
+	return i.expandTypeAliasesCached(expr)
 }
 
 // LookupUnionDefinition exposes named union lookup for compiler bridge helpers.

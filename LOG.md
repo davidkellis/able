@@ -1,5 +1,407 @@
 # Able Project Log
 
+# 2026-05-09 — bytecode quicksort slot-slot compare conditional jump (v12)
+- Kept a fused conditional jump for ordinary slot-backed integer comparison
+  conditions such as quicksort's `lo >= hi`, `i > j`, `i <= j`, `lo < j`, and
+  `i < hi`. Lowering recognizes identifier-vs-identifier comparisons in
+  `if` / `elsif` condition position and emits `JumpIfIntCompareSlotFalse`
+  instead of loading both slots, producing a boxed bool, and immediately
+  popping it through `JumpIfFalse`.
+- Semantics stay unchanged: the opcode reads the boxed slot values directly,
+  uses the same direct integer comparison fast path when possible, and falls
+  back to the existing binary-operator and truthiness behavior for unsupported
+  dynamic shapes. Runtime errors still pass through the same bytecode
+  jump-error wrapper and source-context attachment as the older fused
+  conditional jumps.
+- Guardrails:
+  - reduced external-style quicksort with 2000 descending numbers moved from
+    the prior read-slot compare `10.12-10.30ms/op` band to `9.18ms/op`,
+    `9.28ms/op`, and `9.29ms/op`
+  - profiled reduced run landed at `9.58ms/op`, `669971 B/op`, and
+    `9001 allocs/op`; the new slot-slot compare jump itself was not visible
+    in the short top profile, and the remaining visible wall shifted toward
+    residual binary/store-slot work, slot-call dispatch, frame release, and
+    small-int boxing
+  - bytecode trace still confirms the real quicksort slot API sites dispatch
+    through `array_read_slot_tracked_fast` and
+    `array_write_slot_tracked_fast`
+  - external bytecode `quicksort` still times out at `90s`, so this is a
+    reduced hot-path keep, not the final external timeout fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsSlotSlotCompareJump|JumpIfIntCompareSlotFalseFastPath|LoweringEmitsArrayReadSlotCompareSlotJump|JumpIfArrayReadSlotCompareSlotFalseFastPath|LoweringEmitsConditionalJumpForIntCompareSlotConstIf|JumpIfIntCompareSlotConstFalseFastPath)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - reduced quicksort confirmation/profile/trace runs via
+    `BenchmarkBytecodeProgramRuntime` with a temporary 2000-line
+    `numbers.txt`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+- Next: target residual quicksort costs in boxed slot updates
+  (`i = i + 1`, `j = j - 1`), `swap` / recursive call setup, and remaining
+  slot-call dispatch rather than adding more condition-only jumps.
+
+# 2026-05-08 — bytecode quicksort read-slot compare conditional jump (v12)
+- Kept a fused conditional jump for the quicksort pivot-loop shape
+  `arr.read_slot(index) <op> pivotSlot`. Lowering recognizes the exact
+  slot-backed, non-safe `read_slot` call on the left side of a comparison in
+  `if` / `elsif` condition position and emits
+  `JumpIfArrayReadSlotCompareSlotFalse` instead of materializing the
+  `read_slot` result, producing a `bool`, and immediately popping it through
+  `JumpIfFalse`.
+- Semantics stay unchanged: the opcode first uses the same revision-guarded
+  canonical kernel `read_slot` proof cache as `CallMemberArraySlot`, can seed
+  that proof through normal method resolution, and falls back to ordinary
+  member-call plus binary-operator evaluation when the receiver/proof/index
+  shape is unsupported. Negative indexes, out-of-bounds `nil` reads, dynamic
+  method overrides, and generic comparison errors stay on the existing v12
+  behavior.
+- Guardrails:
+  - reduced external-style quicksort with 2000 descending numbers moved from
+    the prior direct slot-call finish `10.76-10.87ms/op` band to
+    `10.12ms/op`, `10.20ms/op`, and `10.30ms/op`
+  - profiled reduced run landed at `9.94ms/op`, `669842 B/op`, and
+    `8997 allocs/op`; the previous `execJumpIfFalse(...)` hotspot disappeared
+    from the short profile, while the remaining visible comparison wall is now
+    ordinary slot-slot integer comparisons outside the fused read-slot pivot
+    guards
+  - bytecode trace still confirms the real quicksort hot `read_slot` sites,
+    including lines 52 and 56, dispatch through `array_read_slot_tracked_fast`
+  - external bytecode `quicksort` still times out at `90s`, so this is a
+    reduced hot-path keep, not the final external timeout fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsArrayReadSlotCompareSlotJump|JumpIfArrayReadSlotCompareSlotFalseFastPath|ArrayReadSlotMemberFastPathSemantics|CanonicalArraySlotCallCacheFeedsArraySlotOpcode|LoweringEmitsArraySlotCallMemberOpcode|JumpIfIntCompareSlotConstFalseFastPath|LoweringEmitsConditionalJumpForIntCompareSlotConstIf)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - reduced quicksort confirmation/profile/trace runs via
+    `BenchmarkBytecodeProgramRuntime` with a temporary 2000-line
+    `numbers.txt`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+- Rejected in this tranche: a smaller direct-`BoolValue` branch in
+  `execJumpIfFalse(...)` passed focused tests but produced a soft/regressed
+  reduced band (`10.72ms/op`, `10.84ms/op`, `11.94ms/op`, then
+  `11.02-11.09ms/op`), so it was reverted.
+- Next: target the remaining reduced quicksort wall in ordinary slot-slot
+  integer comparison conditionals (`lo >= hi`, `i > j`, `i <= j`, `lo < j`,
+  `i < hi`) or the `swap` / recursive quicksort call path.
+
+# 2026-05-08 — bytecode direct cached Array slot-call finish (v12)
+- Kept the follow-up direct finish path for cached `CallMemberArraySlot`
+  hits. Once a `read_slot` / `write_slot` site has the canonical kernel proof
+  cached, the opcode now validates the array receiver and cache identity once,
+  then finishes the tracked read/write directly instead of routing through the
+  generic cached-member fast-path switch and broader
+  `canUseCanonicalArraySlotCallCache(...)` guard.
+- Semantics stay unchanged: first resolution still proves the canonical kernel
+  method through normal member dispatch, cache hits remain guarded by
+  environment/global/method revisions and non-runtime-impl context, and
+  unsupported receivers or stale proofs fall back to `execCallMember(...)`.
+  The direct finish keeps negative-index errors, out-of-bounds `nil` reads,
+  write growth, and `void` write returns on the same fast bodies as the prior
+  tranche.
+- Guardrails:
+  - reduced external-style quicksort with 2000 descending numbers moved from
+    the prior `11.21-11.75ms/op` slot-opcode confirmation band to
+    `10.76ms/op`, `10.79ms/op`, and `10.87ms/op`
+  - profiled reduced run landed at `11.20ms/op`, `669948 B/op`, and
+    `9000 allocs/op`; `canUseCanonicalArraySlotCallCache(...)` dropped out of
+    the top profile list, and the remaining visible wall shifted to
+    `execJumpIfFalse(...)`, slot loads/stores, array index extraction, and
+    direct integer comparison
+  - bytecode trace still confirms the real quicksort hot sites dispatch
+    through `array_read_slot_tracked_fast` and
+    `array_write_slot_tracked_fast`
+  - external bytecode `quicksort` still times out at `90s`, so this is a
+    reduced hot-path keep, not the final external timeout fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(ArraySlotMemberFastPathDetectsCanonicalKernelMethods|ArrayReadSlotMemberFastPathSemantics|ArrayWriteSlotMemberFastPathSemantics|CanonicalArraySlotCallCacheFeedsArraySlotOpcode|LoweringEmitsArraySlotCallMemberOpcode|ArrayMemberFastPathDetectsCanonicalMethods|CanonicalArrayGetCallCacheFeedsExecCallMember|CanonicalArrayGetCallCacheFeedsArrayGetOpcode)' -count=1 -timeout 300s`
+  - reduced quicksort confirmation/profile/trace runs via
+    `BenchmarkBytecodeProgramRuntime` with a temporary 2000-line
+    `numbers.txt`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+- Next: stop targeting slot-call dispatch for quicksort. The next bounded
+  tranche should start from the remaining reduced profile wall in
+  bool-producing integer comparisons plus `JumpIfFalse`, array index
+  extraction, and the `swap` / recursive quicksort call path.
+
+# 2026-05-08 — bytecode guarded Array read/write-slot call-member opcode (v12)
+- Kept a guarded `CallMemberArraySlot` opcode for ordinary
+  `Array.read_slot(i32)` and `Array.write_slot(i32, T)` calls. Lowering emits
+  the opcode for non-safe calls with the exact arity, and the VM uses a
+  revision-guarded call-site proof cache after normal method resolution proves
+  the canonical kernel methods. Proven hot sites then jump directly to the
+  tracked-array slot fast body instead of paying the generic `execCallMember`
+  dispatch shell.
+- Semantics stay unchanged: safe-navigation calls, wrong arity, non-array
+  receivers, dynamic/runtime impl contexts, invalidated env/global/method
+  revisions, and non-canonical methods all fall back to the existing member
+  dispatch path. The fast body still preserves the kernel slot semantics for
+  negative indexes, out-of-bounds reads, write growth, and `void` method
+  returns.
+- Guardrails:
+  - reduced external-style quicksort with 2000 descending numbers moved from
+    the prior slot-fast `13.29-14.49ms/op` band to a kept opcode confirmation
+    band of `11.21ms/op`, `11.75ms/op`, and `11.55ms/op`; the first band also
+    had two good samples at `11.24ms/op` and `11.48ms/op` plus one noisy
+    `18.25ms/op` outlier
+  - profiled reduced run landed at `11.49ms/op`, `669836 B/op`, and
+    `8996 allocs/op`; the profile shows the slot sites under
+    `execCallMemberArraySlot(...)` instead of the older generic
+    `execCallMember(...)` shell
+  - bytecode trace still confirms the real quicksort source sites dispatch
+    through `array_read_slot_tracked_fast` and
+    `array_write_slot_tracked_fast`
+  - external bytecode `quicksort` still times out at `90s`, so this is a
+    reduced hot-path keep, not the final external timeout fix
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(ArraySlotMemberFastPathDetectsCanonicalKernelMethods|ArrayReadSlotMemberFastPathSemantics|ArrayWriteSlotMemberFastPathSemantics|CanonicalArraySlotCallCacheFeedsArraySlotOpcode|LoweringEmitsArraySlotCallMemberOpcode|ArrayMemberFastPathDetectsCanonicalMethods|ArrayMemberFastPathLenAndGetSemantics|CanonicalArrayGetCallCacheFeedsExecCallMember|CanonicalArrayGetCallCacheFeedsArrayGetOpcode)|TestExecFixtureParity/(06_12_18_stdlib_collections_array_range|07_10_bytecode_quicksort_hotloop)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM' -count=1 -timeout 300s`
+  - reduced quicksort confirmation/profile/trace runs via
+    `BenchmarkBytecodeProgramRuntime` with a temporary 2000-line
+    `numbers.txt`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+- Next: target the remaining reduced quicksort wall in integer comparisons,
+  slot-const binary work, and the `swap` / recursive quicksort call path. The
+  kernel slot method dispatch body and the generic member-call shell are no
+  longer the first targets.
+
+# 2026-05-08 — bytecode kernel Array read/write-slot fast paths (v12)
+- Kept guarded canonical-kernel `Array.read_slot(i32)` and
+  `Array.write_slot(i32, T)` member fast paths. The VM now recognizes the
+  methods only when they resolve to `v12/kernel/src/kernel.able` with the
+  expected signatures, then reads/writes tracked array state directly while
+  preserving the boxed `runtime.Value` boundary for ordinary bytecode.
+- Semantics stay unchanged: non-canonical methods, non-array receivers,
+  non-matching arity, non-`i32` index shapes, and unsupported receivers fall
+  back to existing member dispatch. Negative indexes keep the kernel builtin's
+  `array index must be non-negative` error; out-of-bounds `read_slot` still
+  returns `nil`; `write_slot` keeps the kernel store growth behavior and
+  returns `void` at the Able method boundary.
+- Guardrails:
+  - external `quicksort` bytecode still times out at `90s`, so this is not the
+    full timeout fix
+  - reduced external-style quicksort with 2000 descending numbers moved from a
+    temporary disabled-control band of `32.97ms/op`, `32.77ms/op`, and
+    `33.44ms/op` to a kept/restored band of `13.44ms/op`, `13.29ms/op`, and
+    `14.49ms/op`
+  - bytecode trace on the reduced quicksort source confirms the real hot sites
+    now dispatch through `array_read_slot_tracked_fast` and
+    `array_write_slot_tracked_fast`
+  - a reduced profiled run landed at `14.03ms/op`, `670474 B/op`, and
+    `8998 allocs/op`; the next visible quicksort costs are the residual
+    `execCallMember` shell, integer comparisons, and `swap`/recursive call
+    setup rather than the generic kernel slot method body
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(ArraySlotMemberFastPathDetectsCanonicalKernelMethods|ArrayReadSlotMemberFastPathSemantics|ArrayWriteSlotMemberFastPathSemantics|ArrayMemberFastPathDetectsCanonicalMethods|ArrayMemberFastPathLenAndGetSemantics|CanonicalArrayGetCallCacheFeedsExecCallMember|CanonicalArrayGetCallCacheFeedsArrayGetOpcode)|TestExecFixtureParity/(06_12_18_stdlib_collections_array_range|07_10_bytecode_quicksort_hotloop)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM' -count=1 -timeout 300s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+  - reduced quicksort A/B and trace runs via
+    `BenchmarkBytecodeProgramRuntime` with a temporary 2000-line
+    `numbers.txt`
+- Next: target a guarded `read_slot` / `write_slot` call-member opcode or
+  equivalent quickened call-member cache so proven hot sites can bypass the
+  residual generic `execCallMember` dispatch shell entirely. If that does not
+  move the larger quicksort timeout, pivot to the integer-compare and
+  recursive `swap`/quicksort call path.
+
+# 2026-05-06 — bytecode string interpolation digit concat fast path (v12)
+- Kept a narrow `String + single-digit integer` interpolation fast path.
+  `finishStringIntegerInterpolationFast(...)` now concatenates the existing
+  prefix with a cached one-byte digit string for `0..9` instead of building the
+  same result through `strings.Builder.Grow`. Multi-digit integers, non-small
+  integers, and generic interpolation still use the existing paths.
+- Semantics stay unchanged: the fast path only changes construction strategy
+  for the same primitive `String + Integer` interpolation result, while
+  Display/`to_string` fallback remains untouched for dynamic values.
+- Guardrails:
+  - focused interpolation/literal tests passed
+  - refreshed runtime-only `sudoku` baseline: `118.77ms/op`, `21.69 MB/op`,
+    `259,012 allocs/op`
+  - kept runtime-only `sudoku` reruns: `117.40ms/op`, `118.33ms/op`, and
+    `121.52ms/op`, with allocation counts still around `259k allocs/op`
+  - profiled kept runtime-only sample: `127.25ms/op`, `21.70 MB/op`,
+    `258,928 allocs/op`; the allocation profile shows
+    `finishStringIntegerInterpolationFast(...)` down from about `53.5 MB`
+    cumulative in the refreshed baseline to about `37 MB`
+  - external bytecode `sudoku`: `0.3180s` over `5/5`, holding the prior kept
+    external guard
+  - external bytecode `i_before_e`: `0.4410s` over `10/10`, versus the prior
+    `0.4420s` guard
+- Verification:
+  - `cd v12/interpreters/go && GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVMExecStringInterpolation(FastPrimitivePair|FastStringDigitPair|ReusesPartsBuffer)|TestBytecodeVM_StringInterpolation' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-string-digit-concat.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-string-digit-concat.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 300s`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 10 --timeout 90`
+- Next: profile this kept state and target residual member resolution /
+  bound-method cache allocation around iterator `next` and static `Array.new`,
+  or the remaining array growth/allocation path; propagation is no longer a
+  top trace item unless a fresh profile brings it back.
+
+# 2026-05-06 — bytecode Array.get opcode direct finish (v12)
+- Kept a narrower `CallMemberArrayGet` hot-path cleanup. Once the guarded
+  canonical `Array.get(i32)` proof cache has already validated a program/IP,
+  the opcode now reuses the proven array receiver and `i32` index to finish
+  the tracked-array read directly instead of re-entering
+  `execArrayGetMemberFast(...)` and repeating stack, receiver, and argument
+  shape checks.
+- Semantics stay unchanged: unproven sites, non-array receivers, non-`i32`
+  indexes, safe-navigation calls, runtime impl-context environments, and
+  invalidated env/global/method versions still fall back to the existing full
+  member-call path.
+- Guardrails:
+  - focused Array.get/Array.new/string-iterator member-call tests passed
+  - refreshed runtime-only `sudoku` baseline: `136.88ms/op`, `21.70 MB/op`,
+    `259,038 allocs/op`
+  - kept runtime-only `sudoku` reruns: `120.74ms/op`, `123.67ms/op`, and
+    `131.53ms/op`, with allocation shape essentially unchanged
+  - profiled kept runtime-only sample: `126.92ms/op`, `21.71 MB/op`,
+    `259,048 allocs/op`; `execCallMemberArrayGet(...)` dropped from about
+    `110ms` cumulative in the refreshed baseline profile to about `60ms`, and
+    `lookupCachedCanonicalArrayGetCall(...)` dropped from about `50ms` to
+    about `10ms` flat in the kept sample
+  - external bytecode `sudoku`: `0.3180s` over `5/5`, versus the prior
+    recorded `0.3240s`
+  - external bytecode `i_before_e`: `0.4420s` over `10/10`, better than the
+    prior noisy `0.4570-0.5220s` guard band
+- Verification:
+  - `cd v12/interpreters/go && GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(CanonicalArrayGetOverloadFastPath|CanonicalArrayGetOverloadCachesFunctionPair|CanonicalArrayGetCallCacheGuardsClosureEnv|CanonicalArrayGetCallCacheFeedsExecCallMember|CanonicalArrayGetCallCacheFeedsArrayGetOpcode|LoweringEmitsArrayGetCallMemberOpcode|CanonicalArrayNewCallCacheFeedsArrayNewOpcode|LoweringEmitsArrayNewCallMemberOpcode|CallMemberUsesCanonicalStringByteIteratorNextFastPath|LoweringEmitsStringByteIteratorNextCallMemberOpcode)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-arrayget-directfinish.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-arrayget-directfinish.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 300s`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 10 --timeout 90`
+- Next: profile this kept state and target propagation/error checks,
+  residual bound-method cache allocation, or string interpolation allocation;
+  avoid another `Array.get` cache/guard slice unless fresh evidence puts it
+  back at the top.
+
+# 2026-05-05 — bytecode guarded static Array.new call-member opcode (v12)
+- Kept a guarded `CallMemberArrayNew` opcode for ordinary zero-argument
+  `.new()` calls. The opcode only executes the direct static `Array.new`
+  construction after normal member resolution proves the canonical kernel
+  `Array.new() -> Array T` method at that program/IP, then caches that proof
+  behind environment, global, and method-cache revisions.
+- Semantics stay unchanged: safe-navigation calls, argument-bearing
+  `new(...)` calls, non-`Array` receivers, non-canonical `Array.new`
+  definitions, runtime impl-context environments, and invalidated cache
+  versions all fall back to the existing `execCallMember(...)` path.
+- Guardrails:
+  - focused lowering/member/cache tests passed
+  - runtime-only `sudoku` allocation dropped from the previous `~279k
+    allocs/op` band to `259,029`, `258,977`, and `259,275 allocs/op`;
+    wall-clock stayed soft at `133.40ms/op`, `135.83ms/op`, and
+    `136.59ms/op`, so this is not counted as a local CPU-wall win
+  - profiled runtime-only sample: `133.51ms/op`, `21.71 MB/op`, `259,043
+    allocs/op`; `execCallMember(...)` allocation dropped from the refreshed
+    `66.14 MB` cumulative profile to `47.20 MB`, and static Array
+    construction now flows through `execCallMemberArrayNew(...)`
+  - external bytecode `sudoku`: `0.3240s` over `5/5`, versus the prior
+    recorded `0.3260s`
+  - external bytecode `i_before_e`: noisy confirmations landed at `0.5220s`
+    and `0.4570s` over `10/10`, in the same broad band as the prior
+    `0.4500-0.4760s` note
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(CanonicalArrayNewCallCacheFeedsArrayNewOpcode|LoweringEmitsArrayNewCallMemberOpcode|StaticArrayNewFastPathSemantics|CanonicalArrayGetOverloadFastPath|CanonicalArrayGetCallCacheFeedsArrayGetOpcode|LoweringEmitsArrayGetCallMemberOpcode|CallMemberUsesCanonicalStringByteIteratorNextFastPath|LoweringEmitsStringByteIteratorNextCallMemberOpcode|CallMemberOpcodeExecutesMethodCall|CallMemberFallsBackToCallableField|CallMemberHandlesOptionalMethodArity|CallMemberHandlesOverloadedMethods)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-arraynew-op.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-arraynew-op.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 300s`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 10 --timeout 90`
+- Next: profile this kept state and target propagation/error checks or
+  residual bound-method cache allocation before adding more single-method
+  call-member opcodes.
+
+# 2026-05-05 — bytecode guarded string iterator next call-member opcode (v12)
+- Kept a guarded `CallMemberNext` opcode for ordinary zero-argument
+  `.next()` calls. The lowerer emits the specialized opcode for non-safe
+  `.next()` calls, and the VM first tries the existing canonical
+  `Iterator u8` / `RawStringBytesIter.next` fast body before falling back to
+  the full `execCallMember(...)` path.
+- Semantics stay unchanged: safe-navigation calls, non-`next` calls,
+  argument-bearing calls, non-canonical iterators, missing canonical stdlib
+  proofs, and all unsupported receiver shapes fall back to the existing member
+  dispatch path.
+- Guardrails:
+  - focused lowering/member/iterator tests passed
+  - runtime-only `sudoku` moved from the refreshed profiled baseline
+    `135.81ms/op`, `22.43 MB/op`, `279,238 allocs/op` to `130.46ms/op`,
+    `132.00ms/op`, and `133.02ms/op`
+  - profiled runtime-only sample: `128.28ms/op`, `22.41 MB/op`, `279,229
+    allocs/op`; `execCallMember(...)` fell from about `280ms` cumulative in
+    the refreshed profile to about `210ms`, and the string iterator next path
+    now appears under `execCallMemberNext(...)` at about `20ms`
+  - external bytecode `sudoku`: confirmed at `0.3260s` over `5/5`, versus the
+    prior recorded `0.3300s`
+  - external bytecode `i_before_e`: noisy confirmations landed at `0.4760s`
+    and `0.4500s` over `10/10`, versus the prior recorded `0.4610s`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(CallMemberUsesCanonicalStringByteIteratorNextFastPath|CanonicalStringByteIteratorNextFastPathRequiresIteratorU8Interface|StringByteIteratorNextFastPathDetectsCanonicalMethod|StringByteIteratorNextFastPathSemantics|LoweringEmitsStringByteIteratorNextCallMemberOpcode|LoweringEmitsArrayGetCallMemberOpcode|CanonicalArrayGetCallCacheFeedsArrayGetOpcode|CallMemberOpcodeExecutesMethodCall|CallMemberFallsBackToCallableField|CallMemberHandlesOptionalMethodArity|CallMemberHandlesOverloadedMethods)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-callmember-next-op.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-callmember-next-op.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 300s`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 10 --timeout 90`
+- Next: profile this kept state and target remaining non-`Array.get` /
+  non-`next` `execCallMember(...)` edges, especially static `Array.new`,
+  propagation/error checks, and residual bound-method cache allocation.
+
+# 2026-05-05 — bytecode guarded Array.get call-member opcode (v12)
+- Kept a guarded `CallMemberArrayGet` opcode for ordinary one-argument
+  `.get(...)` calls. The lowerer emits the specialized opcode for that shape,
+  and the VM uses the existing canonical nullable `Array.get(i32)` call-site
+  proof cache before entering the direct tracked-array read.
+- Semantics stay unchanged: unproven sites, non-array receivers, non-`i32`
+  indexes, safe-navigation calls, runtime impl-context environments, and
+  invalidated env/global/method versions all fall back to the existing
+  `execCallMember(...)` path.
+- Guardrails:
+  - focused lowering/member/cache tests passed
+  - runtime-only `sudoku` moved to `141.42ms/op`, `135.12ms/op`, and
+    `134.24ms/op` after the call-dispatch helper split required to keep
+    `bytecode_vm_run.go` under 1000 lines, with allocations still around
+    `279k allocs/op`
+  - profiled runtime-only sample: `134.14ms/op`, `22.42 MB/op`, `279,242
+    allocs/op`; `execCallMember(...)` was about `200ms` cumulative in the CPU
+    profile, with the guarded opcode at about `90ms`
+  - external bytecode `sudoku`: `0.3300s` over `5/5`, versus the prior
+    recorded `0.3460s`
+  - external bytecode `i_before_e`: `0.4610s` over `10/10`, versus the prior
+    recorded `0.4850s`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(CanonicalArrayGetOverloadFastPath|CanonicalArrayGetCallCacheGuardsClosureEnv|CanonicalArrayGetCallCacheFeedsExecCallMember|CanonicalArrayGetCallCacheFeedsArrayGetOpcode|LoweringEmitsArrayGetCallMemberOpcode|ArrayMemberFastPathLenAndGetSemantics|CallMemberOpcodeExecutesMethodCall|CallMemberFallsBackToCallableField|CallMemberHandlesOptionalMethodArity|CallMemberHandlesOverloadedMethods)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-arrayget-guarded-op-final.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-arrayget-guarded-op-final.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 300s`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 10 --timeout 90`
+- Next: profile this kept state and target the remaining non-`Array.get`
+  `execCallMember(...)` edges, especially propagation/error checks, string
+  iterator calls, and residual bound-method cache allocation.
+
+# 2026-05-05 — bytecode runtime type-alias expansion cache (v12)
+- Kept an interpreter-level type-alias expansion cache for repeated runtime
+  type checks. `matchesType(...)`, cast coercion, and the exported
+  `ExpandTypeAliases(...)` bridge now reuse alias-expanded
+  `ast.TypeExpression` identities when the input expression references a
+  registered alias.
+- Semantics stay unchanged: expressions without aliases return as before,
+  multi-threaded interpreters use the existing alias-cache lock, and
+  registering a type alias clears both alias caches so later expansion observes
+  the current v12 alias environment.
+- Guardrails:
+  - focused alias/type/member tests passed
+  - runtime-only `sudoku` moved from a restored `145.24ms/op` sample with
+    about `25.49 MB/op` and `342,847 allocs/op` to `136.38ms/op`,
+    `132.95ms/op`, and `141.75ms/op`, with about `279k allocs/op`
+  - profiled runtime-only sample: `138.89ms/op`, `22.42 MB/op`, `279,229
+    allocs/op`; `expandTypeAliases(...)` fell to about `20ms` cumulative and
+    `substituteAliasTypeExpression` fell to about `5 MB` flat allocation
+  - same-session external bytecode `sudoku`: restored `0.3540s`, kept
+    `0.3460s` over `5/5`
+  - same-session external bytecode `i_before_e`: restored `0.4970s`, kept
+    `0.4850s` over `10/10`
+- Verification:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'Test(ExpandTypeAliasesCachedReusesAndInvalidates|CanonicalTypeNamesUsesAliasBaseWithoutASTExpansion|CachedTypeInfoNameAvoidsRepeatedAllocationsForCommonGenericTypes|CastTypeAliasSemantics|AliasMethodsPropagate|AliasMethodsUseCanonicalTypeName|BytecodeVM_PropagationStillRaisesStructImplementingError|BytecodeVM_ArrayMemberFastPathLenAndGetSemantics)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/sudoku/sudoku.able ABLE_BENCH_RUNTIME_RUN_FROM=/home/david/sync/projects/benchmarks/sudoku ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/sudoku-alias-expansion-cache.cpu.pprof ABLE_BENCH_RUNTIME_MEM_PROFILE=/tmp/sudoku-alias-expansion-cache.mem.pprof go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=5x -count=1 -timeout 300s`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks sudoku --modes bytecode --runs 5 --timeout 90`
+  - `GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks i_before_e --modes bytecode --runs 10 --timeout 90`
+- Next: profile the kept state before adding another type-check cache. The
+  visible sudoku wall is now `execCallMember(...)`, with
+  `resolveMethodCallableFromPool(...)` and `storeBoundMethodCache(...)`
+  especially visible in allocation space.
+
 # 2026-05-04 — bytecode slot-const self-assignment store fusion (v12)
 - Kept a boxed slot-backed assignment lowering slice for `x = x + const` and
   `x = x - const`. Slot-eligible identifier assignments now lower to
@@ -14964,3 +15366,79 @@
   target a small, profile-backed cut in `execReturnConstIfIntLessEqualSlotConst(...)`
   / minimal return release work, with a hard requirement that it improves
   external `fib(45)` rather than only the reduced `fib(30)` kernel.
+
+# 2026-05-07 — Bytecode aligned fib direct compact minimal return (v12)
+- Bytecode VM: added a direct compact minimal-return path for proven `i32`
+  no-coercion returns from reused self-fast frames. `ReturnConstIfIntLessEqualSlotConst`,
+  same-slot `ReturnIfIntLessEqualSlotConst`, and handled `ReturnBinaryIntAddI32`
+  can now restore the compact caller slot/raw lane and append the boxed semantic
+  return value without entering the generic `finishInlineReturn(...)` path.
+- Semantics: the shortcut is limited to declared `i32` returns and reused
+  compact self-fast frames. Generic `Int`, non-`i32`, non-reused minimal frames,
+  and full/generic frames keep the existing boxed fallback and return-coercion
+  behavior required by the v12 spec.
+- Tests: focused recursive/raw-lane/return tests passed with
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM(MinimalSelfFastReturnNoCoerceRestoresCompactSlot0|MinimalSelfFastReturnNoCoerceRejectsGenericInt|ReturnConstIfSlot0UsesRawLane|FusedSelfCallSlot0RawLaneTracksCallee|Slot0StoreRefreshesRawLane)|TestBytecodeVM_(ReturnBinaryIntAddI32ReportsKnownSimpleTypeForHandledFastPath|ReturnIfIntLessEqualSlotConstSameSlotFastPath|LoweringEmitsReturnBinaryIntAddForImplicitFinalExpression|SelfCallSlotAvoidsCallNameLookups|SelfCallWithArrayParamKeepsInlineFastPath)' -count=1 -timeout 300s`.
+- Benchmarks: refreshed same-session aligned `fib_i32_small` bytecode-runtime
+  control was `14.2100s` over two runs. The kept run landed at `13.8350s` over
+  two runs, then `13.3533s` over three runs. Full external bytecode `fib(45)`
+  landed at `75.3700s` versus the reverted same-session control from the prior
+  tranche at `77.0800s`; this is a current-baseline win, not a new historical
+  best over the older `67.8200s` raw-lane one-shot.
+- Reduced sanity: generic-`Int` `BenchmarkFib30BytecodeRuntimeOnly` stayed in
+  range at `102.76ms/op`, `106.55ms/op`, and `102.57ms/op`.
+- Next: profile explicit return-add raw/value metadata or a proper typed-frame
+  return channel; avoid more single-branch proof-elision helpers unless a fresh
+  trace identifies a specific current-baseline regression.
+
+# 2026-05-07 — Bytecode aligned fib exact value-pair return-add inline (v12)
+- Bytecode VM: inlined the exact boxed `runtime.IntegerValue`/`runtime.IntegerValue`
+  small-`i32` branch inside `execReturnBinaryIntAdd(...)`. Pointer/generic
+  operands still flow through the existing fallback helpers, and checked `i32`
+  overflow behavior is unchanged.
+- Profile driver: after the compact minimal-return keep,
+  `bytecodeReturnAddSmallI32ValuePairFast(...)` was the largest flat profile
+  cost at roughly 24% of samples. The profiled rerun after this tranche showed
+  that helper edge gone; the remaining cost is now inside
+  `execReturnBinaryIntAdd(...)` itself.
+- Tests: focused return-add/minimal-return coverage passed with
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(ReturnAddSmallI32ValuePairFast|ReturnBinaryIntAddI32ReportsKnownSimpleTypeForHandledFastPath|LoweringEmitsReturnBinaryIntAddForImplicitFinalExpression|ReturnBinaryIntAddImplicitFinalExpressionParity)|TestBytecodeVM(MinimalSelfFastReturnNoCoerceRestoresCompactSlot0|MinimalSelfFastReturnNoCoerceRejectsGenericInt)' -count=1 -timeout 300s`.
+- Benchmarks: aligned `fib_i32_small` bytecode-runtime landed at `13.3233s`
+  over three runs, versus the prior `13.3533s` confirmation. A profiled one-shot
+  landed at `12.8900s`. Full external bytecode `fib(45)` landed at `72.8000s`,
+  versus the prior kept `75.3700s` and same-session reverted control at
+  `77.0800s`.
+- Next: target a real typed recursive return/value channel or VM-v2 typed-frame
+  work; avoid another small arithmetic helper split unless a fresh profile shows
+  a specific new helper edge.
+
+# 2026-05-07 — Bytecode aligned fib native i32 recurrence kernel (v12)
+- Bytecode VM: added a guarded native recurrence kernel for the exact
+  slot-backed one-arg `i32` shape emitted for aligned `fib`: a literal
+  `if n <= c { return r }` base case followed by `self(n-a) + self(n-b)` with
+  positive constant subtracts. The kernel runs checked `i32` subtract/add
+  directly and boxes only at the bytecode boundary; unsupported shapes and
+  bytecode-stats runs keep the existing bytecode dispatch path.
+- Semantics: this is limited to declared `i32` slot-backed functions with no
+  implicit receiver/env scopes/generics and preserves v12 checked integer
+  overflow. An overflow parity test proves overflowing recurrence results still
+  surface `integer overflow`.
+- Tests:
+  - `cd v12/interpreters/go && GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(DetectsI32RecurrenceKernel|I32RecurrenceKernelParity|I32RecurrenceKernelOverflowParity|SelfCallSlotAvoidsCallNameLookups|LoweringEmitsFusedSelfCallSlotConstOpcode|LoweringEmitsReturnBinaryIntAddForImplicitFinalExpression|ReturnBinaryIntAddImplicitFinalExpressionParity|LoweringEmitsReturnConstIfForIntLessEqualSlotConstStatement|ReturnConstIfIntLessEqualSlotConstFastPath|ReturnIfIntLessEqualSlotConstSameSlotFastPath)|TestBytecodeVM(MinimalSelfFastReturnNoCoerceRestoresCompactSlot0|MinimalSelfFastReturnNoCoerceRejectsGenericInt|ReturnConstIfSlot0UsesRawLane|FusedSelfCallSlot0RawLaneTracksCallee|Slot0StoreRefreshesRawLane)' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && GOTMPDIR=/home/david/sync/projects/able/v12/tmp/gotmp GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM' -count=1 -timeout 300s`
+- Benchmarks:
+  - refreshed aligned `fib_i32_small` bytecode-runtime baseline:
+    `13.1900s` one-shot
+  - kept aligned `fib_i32_small` bytecode-runtime:
+    `0.7867s` over `3/3`; profiled one-shot `0.8100s`
+  - full external bytecode `fib(45)`: `3.7633s` over `3/3`, versus Go
+    `2.8400s`, Ruby `46.6400s`, and Python `60.6700s`
+  - generic-`Int` reduced sanity stayed in range:
+    `BenchmarkFib30Bytecode` `129.40ms/op`;
+    `BenchmarkFib30BytecodeRuntimeOnly` `127.36ms/op`
+- Profile shift: the old recursive VM wall is gone for aligned `i32` fib; the
+  profiled steady-state run samples entirely inside
+  `(*bytecodeI32RecurrenceKernel).eval`.
+- Next: decide whether to carefully widen the recurrence kernel to generic
+  `Int`/other primitive widths, or move attention to the remaining bytecode
+  timeout families before adding more fib-specific machinery.

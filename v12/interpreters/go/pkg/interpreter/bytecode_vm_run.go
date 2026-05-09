@@ -40,6 +40,12 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 	slotConstIntImmTable := vm.slotConstImmediateTable(program)
 	statsEnabled := vm.interp != nil && vm.interp.bytecodeStatsEnabled
 	for vm.ip < len(instructions) {
+		if handled, result, err := vm.tryExecI32RecurrenceProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, resume); handled {
+			if result != nil || err != nil {
+				return result, err
+			}
+			continue
+		}
 		instr := &instructions[vm.ip]
 		if statsEnabled {
 			vm.interp.recordBytecodeOp(instr.op)
@@ -615,6 +621,15 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			if err := vm.execIndexSet(*instr); err != nil {
 				return nil, err
 			}
+		case bytecodeOpArrayReadSlot:
+			newProg, err := vm.execArrayReadSlot(instr, program)
+			if err != nil {
+				return nil, err
+			}
+			if newProg != nil {
+				vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
+				continue
+			}
 		case bytecodeOpForLoop:
 			{
 				loop, ok := instr.node.(*ast.ForLoop)
@@ -631,60 +646,14 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.stack = append(vm.stack, val)
 				vm.ip++
 			}
-		case bytecodeOpCall:
-			{
-				newProg, err := vm.execCall(*instr, program)
-				if err != nil {
-					return nil, err
-				}
-				if newProg != nil {
-					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
-					continue
-				}
+		case bytecodeOpCall, bytecodeOpCallName, bytecodeOpCallMember, bytecodeOpCallMemberArrayGet, bytecodeOpCallMemberNext, bytecodeOpCallMemberArrayNew, bytecodeOpCallMemberArraySlot, bytecodeOpCallSelf, bytecodeOpCallSelfIntSubSlotConst:
+			newProg, err := vm.execCallOpcode(instr, slotConstIntImmTable, program)
+			if err != nil {
+				return nil, err
 			}
-		case bytecodeOpCallName:
-			{
-				newProg, err := vm.execCallName(*instr, program)
-				if err != nil {
-					return nil, err
-				}
-				if newProg != nil {
-					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
-					continue
-				}
-			}
-		case bytecodeOpCallMember:
-			{
-				newProg, err := vm.execCallMember(*instr, program)
-				if err != nil {
-					return nil, err
-				}
-				if newProg != nil {
-					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
-					continue
-				}
-			}
-		case bytecodeOpCallSelf:
-			{
-				newProg, err := vm.execCallSelf(*instr, program)
-				if err != nil {
-					return nil, err
-				}
-				if newProg != nil {
-					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
-					continue
-				}
-			}
-		case bytecodeOpCallSelfIntSubSlotConst:
-			{
-				newProg, err := vm.execCallSelfIntSubSlotConst(instr, slotConstIntImmTable, program)
-				if err != nil {
-					return nil, err
-				}
-				if newProg != nil {
-					vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
-					continue
-				}
+			if newProg != nil {
+				vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
+				continue
 			}
 		case bytecodeOpMemberAccess:
 			if err := vm.execMemberAccess(*instr); err != nil {
@@ -841,29 +810,11 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			if err := vm.execJumpIfBoolSlotFalse(instr); err != nil {
 				return nil, err
 			}
-		case bytecodeOpJumpIfIntLessEqualSlotConstFalse:
-			{
-				if err := vm.execJumpIfIntLessEqualSlotConstFalse(instr, slotConstIntImmTable); err != nil {
-					err = vm.interp.wrapStandardRuntimeError(err)
-					if instr.node != nil {
-						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
-						if vm.handleLoopSignal(err) {
-							continue
-						}
-					}
-					return nil, err
-				}
-			}
-		case bytecodeOpJumpIfIntCompareSlotConstFalse:
-			{
-				if err := vm.execJumpIfIntCompareSlotConstFalse(instr, slotConstIntImmTable); err != nil {
-					err = vm.interp.wrapStandardRuntimeError(err)
-					if instr.node != nil {
-						err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
-						if vm.handleLoopSignal(err) {
-							continue
-						}
-					}
+		case bytecodeOpJumpIfIntLessEqualSlotConstFalse, bytecodeOpJumpIfIntCompareSlotConstFalse, bytecodeOpJumpIfArrayReadSlotCompareSlotFalse, bytecodeOpJumpIfIntCompareSlotFalse:
+			if err := vm.execJumpOpcode(instr, slotConstIntImmTable, program); err != nil {
+				if handled, err := vm.handleBytecodeJumpRuntimeError(err, instr.node); handled {
+					continue
+				} else if err != nil {
 					return nil, err
 				}
 			}
@@ -888,6 +839,9 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 					return nil, err
 				}
 				if !returned {
+					continue
+				}
+				if vm.tryFinishMinimalSelfFastReturnNoCoerce(program, instr, val, bytecodeSimpleTypeCheckUnknown) {
 					continue
 				}
 				if vm.hasCallFrames() {
@@ -981,6 +935,9 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 						}
 					}
 					return nil, err
+				}
+				if vm.tryFinishMinimalSelfFastReturnNoCoerce(program, instr, val, knownReturnSimple) {
+					continue
 				}
 				if vm.hasCallFrames() {
 					if err := vm.finishInlineReturn(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr, val, knownReturnSimple); err != nil {

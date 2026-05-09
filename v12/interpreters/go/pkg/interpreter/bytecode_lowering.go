@@ -328,6 +328,10 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 	case *ast.FunctionCall:
 		if member, ok := n.Callee.(*ast.MemberAccessExpression); ok && member != nil {
 			memberName := bytecodeIdentifierMemberName(member.Member)
+			if instr, ok := bytecodeArrayReadSlotInstruction(ctx, n, member, memberName); ok {
+				ctx.emit(instr)
+				return nil
+			}
 			if err := emitExpression(ctx, i, member.Object); err != nil {
 				return err
 			}
@@ -363,7 +367,17 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				}
 			}
 			if memberName != "" {
-				ctx.emit(bytecodeInstruction{op: bytecodeOpCallMember, name: memberName, argCount: len(n.Arguments), node: n})
+				op := bytecodeOpCallMember
+				if memberName == "get" && len(n.Arguments) == 1 {
+					op = bytecodeOpCallMemberArrayGet
+				} else if memberName == "next" && len(n.Arguments) == 0 {
+					op = bytecodeOpCallMemberNext
+				} else if memberName == "new" && len(n.Arguments) == 0 {
+					op = bytecodeOpCallMemberArrayNew
+				} else if bytecodeArraySlotCallShape(memberName, len(n.Arguments)) {
+					op = bytecodeOpCallMemberArraySlot
+				}
+				ctx.emit(bytecodeInstruction{op: op, name: memberName, argCount: len(n.Arguments), node: n})
 			} else {
 				ctx.emit(bytecodeInstruction{
 					op:            bytecodeOpMemberAccess,

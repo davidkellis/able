@@ -32,6 +32,7 @@ type bytecodeProgram struct {
 	frameLayout              *bytecodeFrameLayout // non-nil when slot-indexed locals are used
 	returnGenericNames       map[string]struct{}
 	returnGenericNamesCached bool
+	i32RecurrenceKernel      *bytecodeI32RecurrenceKernel
 }
 
 type bytecodeCallFrame struct {
@@ -110,6 +111,10 @@ type bytecodeVM struct {
 	arrayGetOverloadPairOK             bool
 	arrayGetCallCache                  map[bytecodeGlobalLookupCacheKey]bytecodeArrayGetCallCacheEntry
 	arrayGetCallHot                    [bytecodeArrayGetCallHotEntries]bytecodeInlineArrayGetCallCacheEntry
+	arrayNewCallCache                  map[bytecodeGlobalLookupCacheKey]bytecodeArrayNewCallCacheEntry
+	arrayNewCallHot                    [bytecodeArrayNewCallHotEntries]bytecodeInlineArrayNewCallCacheEntry
+	arraySlotCallCache                 map[bytecodeGlobalLookupCacheKey]bytecodeArraySlotCallCacheEntry
+	arraySlotCallHot                   [bytecodeArraySlotCallHotEntries]bytecodeInlineArraySlotCallCacheEntry
 	stringBytesIterDef                 *runtime.StructDefinitionValue
 	stringBytesIterDefSet              bool
 	stringBytesIteratorInterfaceDef    *runtime.InterfaceDefinitionValue

@@ -90,10 +90,11 @@ Current measured external snapshot:
   best Go/Ruby/Python rows from `../benchmarks/results.json`.
 - `fib`: compiled `2.9940s` vs Go `2.8400s` after bounded recursive
   return-range facts removed the final checked add for the proven `fib(45)`
-  call range; bytecode now completes at `67.8200s` on the latest focused
-  one-shot comparison after the compact self-call guard reduction, inline
-  small-`i32` return-add/value-pair, compact frame-push, and compact slot-0
-  raw-lane tranches; tree-walker times out at `60s`.
+  call range; bytecode now completes at `3.7633s` vs Go `2.8400s` over `3/3`
+  external runs after a guarded native bytecode kernel for the slot-backed
+  one-arg `i32` recurrence shape (`if n <= c { return r }` then
+  `self(n-a) + self(n-b)`) replaced the remaining recursive VM dispatch while
+  preserving checked `i32` overflow; tree-walker times out at `60s`.
 - `binarytrees`: compiled `3.6400s` vs Go `3.8300s` on the refreshed
   goroutine-executor comparison; bytecode and tree-walker time out.
 - `matrixmultiply`: compiled `0.9660s` vs Go `0.8800s` after the canonical
@@ -105,7 +106,7 @@ Current measured external snapshot:
   bytecode and tree-walker still time out at the current external benchmark
   scale.
 - `sudoku`: compiled `0.0600s` vs Go `0.1300s` on the refreshed comparison;
-  bytecode `0.3320s` after the shared propagation Error fast-negative guard,
+  bytecode `0.3180s` after the shared propagation Error fast-negative guard,
   v12 nil-propagation semantic alignment, cached member-method fast-path
   dispatch, cached `String.bytes()` byte construction, the mono/native `u8`
   string-byte iterator lane, the direct canonical `Iterator u8` wrapper,
@@ -120,12 +121,17 @@ Current measured external snapshot:
   that cuts `board_to_string` allocation churn, plus fused slot-constant
   `>`/`>=` conditional jumps for loop guards, plus no-promotion hot hits in
   the canonical `Array.get` call-site cache, plus fused slot-const
-  self-assignment stores for loop counters;
+  self-assignment stores for loop counters, plus interpreter-level type alias
+  expansion caching for repeated runtime type checks, plus a guarded
+  canonical `Array.get` call-member opcode and direct cached-opcode finish
+  path that bypass the broader member dispatch ladder after the canonical
+  call-site proof is cached, plus direct single-digit string interpolation
+  concatenation for `board_to_string`;
   tree-walker `6.71s`.
 - `i_before_e`: compiled `0.0620s` vs Go `0.0500s` after primitive host
   extern wrappers stopped bridging native scalar arguments/results and static
   no-fallback launchers stopped loading/parsing/evaluating source metadata;
-  bytecode `0.4440s` on the latest slot-const self-assignment confirmation;
+  bytecode `0.4410s` on the latest string-digit interpolation confirmation;
   tree-walker `3.54s`.
 
 Guardrails:
@@ -203,9 +209,25 @@ Guardrails:
       focused external check to `76.7900s`; and the compact slot-0 raw lane
       now carries proven `i32` recursive arguments through the exact
       self-fast frame shape, moving focused external bytecode `fib(45)` to
-      `67.8200s`. Next, target the remaining structural return/add handoff in
-      `finishInlineReturn` and `execReturnBinaryIntAdd` while preserving boxed
-      fallback boundaries and v12 checked integer semantics. The first bool
+      `67.8200s`. A direct compact minimal-return path for proven `i32`
+      no-coercion returns is now landed too: on the refreshed same-session
+      control it moved aligned `fib_i32_small` bytecode-runtime from `14.21s`
+      to `13.3533s` and external bytecode `fib(45)` from `77.0800s` control
+      to `75.3700s`. The exact value-pair branch in
+      `execReturnBinaryIntAdd` is now inline too, removing the helper call edge
+      and moving external bytecode `fib(45)` to `72.8000s`. The next structural
+      aligned-recursion slice is landed too: slot-backed one-arg `i32`
+      recurrences with a literal `<=` base return and two positive
+      self-subtract recursive calls now attach a checked native bytecode
+      recurrence kernel, boxing only at the bytecode boundary and preserving
+      v12 checked overflow. This moved aligned `fib_i32_small`
+      bytecode-runtime from a refreshed `13.1900s` one-shot baseline to
+      `0.7867s` over `3/3` runs, and full external bytecode `fib(45)` to
+      `3.7633s` over `3/3` runs (`1.33x` Go, `0.08x` Ruby, `0.06x` Python).
+      Next, decide whether to widen this recurrence kernel carefully to
+      generic `Int`/other primitive widths or pivot to the remaining bytecode
+      timeout families (`binarytrees`, `matrixmultiply`, `quicksort`) before
+      adding more `fib`-specific VM machinery. The first bool
       lane is also landed: declared slot-backed `bool` conditions in `if`,
       `elsif`, and `while` now branch through `JumpIfBoolSlotFalse`, moving
       external bytecode `sudoku` from a refreshed `4.2200s` baseline to
@@ -463,7 +485,85 @@ Guardrails:
       over `5/5` runs, and external bytecode `i_before_e` stayed neutral at
       `0.4440s` over `5/5` runs. Next, profile this kept state and target
       `execCallMember(...)` / canonical `Array.get` guard cost, residual
-      checked integer arithmetic, or typed slot assignment checks.
+      checked integer arithmetic, or typed slot assignment checks. The
+      follow-up interpreter type-alias expansion cache is landed too:
+      repeated runtime type checks now reuse alias-expanded
+      `ast.TypeExpression` identities and clear the cache on alias
+      registration, preserving v12 alias semantics while reducing sudoku's
+      runtime-only alias/type-check allocation churn. Same-session external
+      guards moved restored `sudoku` from `0.3540s` to `0.3460s` over `5/5`
+      runs and restored `i_before_e` from `0.4970s` to `0.4850s` over
+      `10/10` runs. Next, profile this kept state and target
+      `execCallMember(...)`, `resolveMethodCallableFromPool(...)`, and
+      `storeBoundMethodCache(...)` allocation before adding another
+      type-check cache layer. The follow-up guarded `Array.get` call-member
+      opcode is landed too: ordinary one-argument `.get(...)` calls now lower
+      to `CallMemberArrayGet`, which still falls back to the full member-call
+      path until the existing canonical nullable `Array.get(i32)` proof cache
+      validates the site, then jumps directly to the tracked-array fast read.
+      Runtime-only `sudoku` moved to `134.24-141.42ms/op` after the final
+      call-dispatch file split required by the 1000-line limit; the profiled
+      sample landed at `134.14ms/op` and showed `execCallMember(...)`
+      cumulative cost at about `200ms`. External bytecode `sudoku` moved to
+      `0.3300s` over `5/5` runs and external bytecode `i_before_e` moved to
+      `0.4610s` over `10/10` runs. Next, profile this kept state and
+      target the remaining `execCallMember(...)` paths that are not proven
+      canonical `Array.get`, especially propagation/error checks, string
+      iterator calls, and residual bound-method cache allocation. The
+      follow-up guarded string-byte iterator next opcode is landed too:
+      ordinary zero-argument `.next()` calls now lower to `CallMemberNext`,
+      which tries the existing canonical `Iterator u8` /
+      `RawStringBytesIter.next` fast body before falling back to full member
+      dispatch. Runtime-only `sudoku` moved from a refreshed `135.81ms/op`
+      profiled baseline to `130.46-133.02ms/op`, with a profiled kept sample
+      at `128.28ms/op`; external bytecode `sudoku` confirmed at `0.3260s`
+      over `5/5` runs, and external bytecode `i_before_e` confirmed in the
+      noisy `0.4500-0.4760s` band over `10/10` runs. Next, profile this kept
+      state and target remaining non-`Array.get` / non-`next`
+      `execCallMember(...)` edges, especially static `Array.new`,
+      propagation/error checks, and residual bound-method cache allocation.
+      The follow-up guarded static `Array.new` opcode is landed too:
+      ordinary zero-argument `.new()` calls now lower to
+      `CallMemberArrayNew`, which goes direct only after the canonical kernel
+      `Array.new() -> Array T` method is proven and cached behind
+      env/global/method-version guards. Runtime-only `sudoku` allocation
+      dropped from the previous `~279k allocs/op` band to about
+      `259k allocs/op`, while wall-clock stayed soft in the
+      `133.40-136.59ms/op` band; external bytecode `sudoku` edged to
+      `0.3240s` over `5/5`, and external bytecode `i_before_e` stayed noisy
+      in the `0.4570-0.5220s` band over `10/10`. Next, profile this kept
+      state and target propagation/error checks or residual bound-method cache
+      allocation before adding more single-method call-member opcodes.
+      The follow-up direct cached `Array.get` finish slice is landed too: once
+      `CallMemberArrayGet` has a valid canonical call-site proof, the opcode
+      reuses the already-proven array receiver and `i32` index to finish the
+      tracked-array read directly instead of re-entering the broader
+      `execArrayGetMemberFast(...)` helper. Runtime-only `sudoku` moved from a
+      refreshed `136.88ms/op` baseline to `120.74ms/op`, `123.67ms/op`, and
+      `131.53ms/op`, with allocation shape unchanged around `259k allocs/op`;
+      the profiled kept sample landed at `126.92ms/op` and showed
+      `execCallMemberArrayGet(...)` down from about `110ms` cumulative to
+      about `60ms`. External bytecode `sudoku` moved to `0.3180s` over `5/5`,
+      and external bytecode `i_before_e` moved to `0.4420s` over `10/10`.
+      Next, profile this kept state and target propagation/error checks,
+      residual bound-method cache allocation, or string interpolation
+      allocation; avoid another `Array.get` cache/guard slice unless fresh
+      evidence puts it back at the top.
+      The follow-up string interpolation digit-concat slice is landed too:
+      the primitive `String + Integer` interpolation fast path now concatenates
+      cached one-byte digit strings directly for `0..9` instead of using
+      `strings.Builder.Grow`, while multi-digit integers and generic
+      Display/`to_string` fallback stay on the existing paths. Runtime-only
+      `sudoku` moved from a refreshed `118.77ms/op` baseline to `117.40ms/op`,
+      `118.33ms/op`, and `121.52ms/op`; the profiled kept sample was noisy at
+      `127.25ms/op`, but `finishStringIntegerInterpolationFast(...)`
+      allocation dropped from about `53.5 MB` cumulative to about `37 MB`.
+      External bytecode `sudoku` held at `0.3180s` over `5/5`, and external
+      bytecode `i_before_e` edged to `0.4410s` over `10/10`. Next, profile this
+      kept state and target residual member resolution / bound-method cache
+      allocation around iterator `next` and static `Array.new`, or the
+      remaining array growth/allocation path; propagation is no longer a top
+      trace item unless a fresh profile brings it back.
 - [ ] Add quickened call/member/index opcodes that rewrite after first
       successful shape resolution and invalidate safely under mutation or
       environment revision changes.
@@ -1664,6 +1764,60 @@ Current state snapshot:
   shaving helper calls and either introduce safe raw/typed return-stack
   metadata with explicit invalidation, or move to a broader VM v2 typed-frame
   design slice;
+- the next post-fib timeout tranche is landed too: canonical kernel
+  `Array.read_slot(i32)` and `Array.write_slot(i32, T)` member calls now have
+  guarded bytecode member fast paths for tracked arrays. This targets the real
+  external `quicksort` source, which uses kernel slot methods instead of
+  bracket indexing. A reduced external-style quicksort A/B with 2000
+  descending numbers moved from `32.77-33.44ms/op` with only slot-method
+  detection disabled to a restored `13.29-14.49ms/op` band, and bytecode trace
+  confirms the hot source sites dispatch through `array_read_slot_tracked_fast`
+  / `array_write_slot_tracked_fast`. Full external bytecode `quicksort` still
+  times out at `90s`, so the next tranche should either lower proven
+  `read_slot` / `write_slot` call-member sites to a guarded direct opcode or
+  quicken the residual `execCallMember` shell before moving on to integer
+  compare and `swap`/recursive call overhead;
+- the next quicksort slot-dispatch tranche is landed too: non-safe
+  `read_slot(i32)` / `write_slot(i32, T)` calls now lower to
+  `CallMemberArraySlot`, and repeated proven canonical-kernel sites use a
+  revision-guarded call-site proof cache to jump directly to the tracked-array
+  fast body. Reduced external-style quicksort with 2000 descending numbers
+  moved from the prior slot-fast `13.29-14.49ms/op` band to a kept
+  `11.21-11.75ms/op` confirmation band, with a profiled one-shot at
+  `11.49ms/op`; full external bytecode `quicksort` still times out at `90s`.
+  The next quicksort tranche should start from integer comparisons,
+  slot-const binary work, and the `swap` / recursive quicksort call path
+  rather than more kernel slot method dispatch work;
+- the direct cached slot-call finish follow-up is landed too: after the
+  `CallMemberArraySlot` proof cache hits, the opcode now validates the array
+  receiver/cache identity once and finishes the tracked `read_slot` /
+  `write_slot` body directly instead of routing through the broader
+  cached-member fast-path switch and `canUseCanonicalArraySlotCallCache(...)`
+  guard. The same reduced quicksort harness moved again to
+  `10.76-10.87ms/op`, with a profiled one-shot at `11.20ms/op`; full external
+  bytecode `quicksort` still times out at `90s`. The next quicksort tranche
+  should stop targeting slot-call dispatch and start from bool-producing
+  integer comparisons plus `JumpIfFalse`, array index extraction, and the
+  `swap` / recursive quicksort call path;
+- the quicksort read-slot compare conditional jump is landed too:
+  slot-backed, non-safe `arr.read_slot(index) <op> pivotSlot` conditions now
+  lower to `JumpIfArrayReadSlotCompareSlotFalse`, reusing the guarded
+  canonical `read_slot` proof cache and falling back to ordinary member-call
+  / binary-operator semantics for unsupported shapes. The same reduced
+  quicksort harness moved to `10.12-10.30ms/op`, with a profiled one-shot at
+  `9.94ms/op`; full external bytecode `quicksort` still times out at `90s`.
+  The next quicksort tranche should target ordinary slot-slot integer
+  comparison conditionals (`lo >= hi`, `i > j`, `i <= j`, `lo < j`, `i < hi`)
+  or the `swap` / recursive quicksort call path;
+- the ordinary slot-slot compare conditional jump is landed too:
+  identifier-vs-identifier integer comparison conditions now lower to
+  `JumpIfIntCompareSlotFalse`, avoiding the load/load/bool/`JumpIfFalse`
+  sequence while preserving the existing boxed dynamic fallback behavior.
+  Reduced external-style quicksort moved again to `9.18-9.29ms/op`, with a
+  profiled one-shot at `9.58ms/op`; full external bytecode `quicksort` still
+  times out at `90s`. The next quicksort tranche should target residual boxed
+  slot updates (`i = i + 1`, `j = j - 1`), `swap` / recursive call setup, or
+  remaining slot-call dispatch rather than adding more condition-only jumps;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.
@@ -2895,9 +3049,15 @@ These items remain important, but they are not active priorities right now.
       - reduced `Fib30Bytecode` stayed neutral on the declared-slot slice
         because recursive self-fast frames still pass boxed slot values;
         guardrail reruns landed at `117.43ms/op` and `121.97ms/op`
-    - next step: carry typed `i32` slot state through inline/self-fast call
-      frames and wire the fused self-call subtract / typed return-add path to
-      consume that state, with boxing at all dynamic/spec boundaries.
+    - current state: the aligned `i32` recurrence kernel is now landed for the
+      exact checked slot-backed self-recursive shape used by external `fib`.
+      That closes the old full external bytecode `fib(45)` timeout and moves it
+      to `3.7633s` over `3/3` runs, close enough to Go that more `fib` work
+      should be justified by a broader recurrence plan rather than another
+      benchmark-local slice.
+    - next step: decide whether to generalize this recurrence machinery to
+      generic `Int` / other primitive widths, or pivot bytecode effort to the
+      remaining external timeout families before adding more `fib` machinery.
 - fixture exporter and other tooling cleanup
   - current state: the first cleanup slice is now landed
     - `cmd/fixture-exporter` has focused direct test coverage plus a

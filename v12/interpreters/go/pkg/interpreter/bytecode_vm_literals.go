@@ -8,6 +8,10 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
+var bytecodeInterpolationDigitSuffixes = [...]string{
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+}
+
 func (vm *bytecodeVM) stringInterpolationPartsBuffer(size int) []runtime.Value {
 	if size <= 0 {
 		return nil
@@ -86,9 +90,11 @@ func (vm *bytecodeVM) finishStringIntegerInterpolationFast(start int, prefix str
 	var builder strings.Builder
 	if raw, ok := value.ToInt64(); ok {
 		if raw >= 0 && raw <= 9 {
-			builder.Grow(len(prefix) + 1)
-			builder.WriteString(prefix)
-			builder.WriteByte(byte('0' + raw))
+			vm.stack[start] = runtime.StringValue{Val: prefix + bytecodeInterpolationDigitSuffixes[raw]}
+			clear(vm.stack[start+1:])
+			vm.stack = vm.stack[:start+1]
+			vm.ip++
+			return
 		} else {
 			var digits [20]byte
 			buf := strconv.AppendInt(digits[:0], raw, 10)

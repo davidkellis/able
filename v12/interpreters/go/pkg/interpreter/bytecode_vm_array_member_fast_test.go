@@ -403,6 +403,61 @@ func TestBytecodeVM_CanonicalArrayGetCallCacheFeedsExecCallMember(t *testing.T) 
 	}
 }
 
+func TestBytecodeVM_CanonicalArrayGetCallCacheFeedsArrayGetOpcode(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	program := &bytecodeProgram{}
+	instr := bytecodeInstruction{op: bytecodeOpCallMemberArrayGet, name: "get", argCount: 1}
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.StringValue{Val: "zero"},
+		runtime.StringValue{Val: "one"},
+	}, 0)
+
+	vm.storeCachedCanonicalArrayGetCall(program, 7, instr, arr)
+	vm.arrayGetCallCache = nil
+	vm.memberMethodCache = nil
+	vm.memberMethodHot = bytecodeInlineMemberMethodCacheEntry{}
+	vm.ip = 7
+	vm.stack = []runtime.Value{arr, runtime.NewSmallInt(1, runtime.IntegerI32)}
+
+	newProg, err := vm.execCallMemberArrayGet(instr, program)
+	if err != nil {
+		t.Fatalf("execCallMemberArrayGet cached canonical Array.get failed: %v", err)
+	}
+	if newProg != nil {
+		t.Fatalf("expected direct cached Array.get opcode to stay in current program")
+	}
+	if vm.ip != 8 {
+		t.Fatalf("expected cached Array.get opcode to advance ip to 8, got %d", vm.ip)
+	}
+	if len(vm.stack) != 1 {
+		t.Fatalf("expected one Array.get result, got stack %#v", vm.stack)
+	}
+	if want := (runtime.StringValue{Val: "one"}); !valuesEqual(vm.stack[0], want) {
+		t.Fatalf("cached canonical Array.get opcode result = %#v, want %#v", vm.stack[0], want)
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsArrayGetCallMemberOpcode(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.Member(ast.ID("arr"), "get"), ast.Int(0)),
+	}, nil, nil)
+
+	program, err := NewBytecode().lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpCallMemberArrayGet {
+			if instr.name != "get" || instr.argCount != 1 {
+				t.Fatalf("unexpected Array.get opcode instruction: %#v", instr)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected lowering to emit guarded Array.get call-member opcode")
+}
+
 func TestBytecodeVM_StaticArrayNewFastPathSemantics(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())

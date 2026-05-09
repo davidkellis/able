@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-04T04:15:26Z",
+  "generated_at": "2026-05-08T03:15:05Z",
   "kind": "external-benchmark-scoreboard",
   "external_results_json": "../benchmarks/results.json",
   "external_results_generated_at": "2026-02-27T00:26:22Z",
@@ -21,10 +21,10 @@
     "ruby",
     "python"
   ],
-  "measurement_source": "Kept Able measurements recorded in LOG.md, PLAN.md, and v12/docs/performance-benchmarks.md through 2026-05-04; external references are best successful rows from ../benchmarks/results.json.",
+  "measurement_source": "Kept Able measurements recorded in LOG.md, PLAN.md, and v12/docs/performance-benchmarks.md through 2026-05-07; external references are best successful rows from ../benchmarks/results.json.",
   "rows": [
     {"benchmark":"fib","mode":"compiled","able":{"status":"ok","runs":5,"real_seconds":2.9940,"note":"bounded recursive return-range proof"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.8400,"ratio":1.0542},"ruby":{"implementation":"ruby-4.0","real_seconds":46.6400,"ratio":0.0642},"python":{"implementation":"python-3.14","real_seconds":60.6700,"ratio":0.0493}}},
-    {"benchmark":"fib","mode":"bytecode","able":{"status":"ok","runs":1,"real_seconds":67.8200,"note":"compact self-fast slot0 raw lane"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.8400,"ratio":23.8803},"ruby":{"implementation":"ruby-4.0","real_seconds":46.6400,"ratio":1.4541},"python":{"implementation":"python-3.14","real_seconds":60.6700,"ratio":1.1179}}},
+    {"benchmark":"fib","mode":"bytecode","able":{"status":"ok","runs":3,"real_seconds":3.7633,"note":"native checked i32 recurrence kernel"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.8400,"ratio":1.3251},"ruby":{"implementation":"ruby-4.0","real_seconds":46.6400,"ratio":0.0807},"python":{"implementation":"python-3.14","real_seconds":60.6700,"ratio":0.0620}}},
     {"benchmark":"fib","mode":"treewalker","able":{"status":"timeout","timeout_seconds":60,"real_seconds":null,"note":"latest aligned tree-walker snapshot"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.8400,"ratio":null},"ruby":{"implementation":"ruby-4.0","real_seconds":46.6400,"ratio":null},"python":{"implementation":"python-3.14","real_seconds":60.6700,"ratio":null}}},
     {"benchmark":"binarytrees","mode":"compiled","able":{"status":"ok","runs":3,"real_seconds":3.6400,"note":"goroutine executor comparison"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":3.8300,"ratio":0.9504},"ruby":{"implementation":"ruby-4.0-parallel","real_seconds":20.3900,"ratio":0.1785},"python":{"implementation":"python-3.14","real_seconds":12.2500,"ratio":0.2971}}},
     {"benchmark":"binarytrees","mode":"bytecode","able":{"status":"timeout","timeout_seconds":null,"real_seconds":null,"note":"latest aligned external snapshot"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":3.8300,"ratio":null},"ruby":{"implementation":"ruby-4.0-parallel","real_seconds":20.3900,"ratio":null},"python":{"implementation":"python-3.14","real_seconds":12.2500,"ratio":null}}},
