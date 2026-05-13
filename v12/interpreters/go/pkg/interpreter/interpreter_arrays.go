@@ -82,6 +82,7 @@ func updateArrayElementTypeTokenForWrite(state *arrayState, idx int, value runti
 	if state == nil {
 		return
 	}
+	state.Revision++
 	if idx == 0 {
 		token, ok := bytecodeIndexValueTypeToken(value)
 		if !ok {
@@ -144,6 +145,7 @@ func (i *Interpreter) syncArrayValues(handle int64, state *arrayState) {
 	if state == nil || i.arraysByHandle == nil {
 		return
 	}
+	state.Revision++
 	token, ok := bytecodeArrayElementTypeTokenFromValues(state.Values)
 	state.ElementTypeToken = token
 	state.ElementTypeTokenKnown = ok
@@ -332,7 +334,7 @@ func (i *Interpreter) initArrayBuiltins() {
 			if capacity < 0 {
 				capacity = 0
 			}
-			handle := runtime.ArrayStoreNewWithCapacity(capacity)
+			handle := runtime.ArrayStoreNewReservedCapacity(capacity)
 			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
 	}

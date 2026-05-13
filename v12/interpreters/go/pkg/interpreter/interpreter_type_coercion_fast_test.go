@@ -52,6 +52,61 @@ func TestInterpreterCastValueToCanonicalSimpleTypeFast(t *testing.T) {
 	}
 }
 
+func TestIntegerValueToFloat64FastSmallIntegerWithoutAlloc(t *testing.T) {
+	intVal := runtime.NewSmallInt(7, runtime.IntegerI32)
+	allocs := testing.AllocsPerRun(1000, func() {
+		if got := integerValueToFloat64Fast(intVal); got != 7 {
+			t.Fatalf("integerValueToFloat64Fast() = %v, want 7", got)
+		}
+		if got := integerRefToFloat64Fast(&intVal); got != 7 {
+			t.Fatalf("integerRefToFloat64Fast() = %v, want 7", got)
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("expected repeated small integer to float helpers to allocate zero, got %.2f", allocs)
+	}
+}
+
+func TestInterpreterCastValueToCanonicalSimpleTypeFast_SmallIntegerToFloatAvoidsBigIntPath(t *testing.T) {
+	intVal := runtime.NewSmallInt(7, runtime.IntegerI32)
+	allocs := testing.AllocsPerRun(1000, func() {
+		casted, ok, err := castValueToCanonicalSimpleTypeFast("f64", intVal)
+		if err != nil {
+			t.Fatalf("unexpected f64 cast error: %v", err)
+		}
+		if !ok {
+			t.Fatalf("expected f64 fast cast to handle small integer input")
+		}
+		floatVal, ok := casted.(runtime.FloatValue)
+		if !ok || floatVal.TypeSuffix != runtime.FloatF64 || floatVal.Val != 7 {
+			t.Fatalf("unexpected f64 cast result: %#v", casted)
+		}
+	})
+	if allocs > 2 {
+		t.Fatalf("expected repeated small integer to f64 casts to avoid the big-int path, got %.2f allocations", allocs)
+	}
+}
+
+func TestInlineCoerceValueBySimpleTypeSmallIntegerToFloatAvoidsBigIntPath(t *testing.T) {
+	intVal := runtime.NewSmallInt(7, runtime.IntegerI32)
+	allocs := testing.AllocsPerRun(1000, func() {
+		casted, ok, err := inlineCoerceValueBySimpleType("f64", &intVal)
+		if err != nil {
+			t.Fatalf("unexpected f64 inline coercion error: %v", err)
+		}
+		if !ok {
+			t.Fatalf("expected f64 inline coercion to handle small integer input")
+		}
+		floatVal, ok := casted.(runtime.FloatValue)
+		if !ok || floatVal.TypeSuffix != runtime.FloatF64 || floatVal.Val != 7 {
+			t.Fatalf("unexpected f64 inline coercion result: %#v", casted)
+		}
+	})
+	if allocs > 1 {
+		t.Fatalf("expected repeated inline small integer to f64 coercions to avoid the big-int path, got %.2f allocations", allocs)
+	}
+}
+
 func TestInterpreterCastValueToCanonicalSimpleTypeFast_SmallIntegerWraps(t *testing.T) {
 	negVal := runtime.NewSmallInt(-1, runtime.IntegerI16)
 

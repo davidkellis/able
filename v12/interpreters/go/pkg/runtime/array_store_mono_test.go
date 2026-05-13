@@ -64,6 +64,23 @@ func TestArrayStoreDynamicSparseWritePreservesNilGap(t *testing.T) {
 	}
 }
 
+func TestArrayStoreReservedCapacityAllocatesDynamicBackingOnWrite(t *testing.T) {
+	handle := ArrayStoreNewReservedCapacity(8)
+	state := arrayStates[handle]
+	if state == nil {
+		t.Fatalf("reserved handle has no dynamic state")
+	}
+	if state.Capacity != 8 || cap(state.Values) != 0 {
+		t.Fatalf("reserved state capacity=%d backing=%d, want capacity 8 backing 0", state.Capacity, cap(state.Values))
+	}
+	if err := ArrayStoreWrite(handle, 0, BoolValue{Val: true}); err != nil {
+		t.Fatalf("ArrayStoreWrite: %v", err)
+	}
+	if state.Capacity != 8 || cap(state.Values) != 8 {
+		t.Fatalf("write should allocate reserved backing, capacity=%d backing=%d", state.Capacity, cap(state.Values))
+	}
+}
+
 func TestArrayStoreMonoBoolRoundTripAndDynamicFallback(t *testing.T) {
 	handle := ArrayStoreMonoNewBool()
 	if err := ArrayStoreMonoWriteBool(handle, 0, true); err != nil {
@@ -175,6 +192,97 @@ func TestArrayStoreMonoI64RoundTripAndDynamicFallback(t *testing.T) {
 	intVal, ok = value.(IntegerValue)
 	if n, nOk := intVal.ToInt64(); !ok || !nOk || n != 77 {
 		t.Fatalf("expected integer 77 after deopt write, got %#v", value)
+	}
+}
+
+func TestArrayStoreMonoF64PromoteUsesReservedCapacity(t *testing.T) {
+	handle := ArrayStoreNewReservedCapacity(4)
+	ok, err := ArrayStoreAppendF64Promote(handle, 1.5)
+	if err != nil {
+		t.Fatalf("ArrayStoreAppendF64Promote: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected reserved dynamic array to promote to mono f64")
+	}
+	values, mono, err := ArrayStoreMonoF64ValuesIfAvailable(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable: %v", err)
+	}
+	if !mono || len(values) != 1 || cap(values) != 4 || values[0] != 1.5 {
+		t.Fatalf("mono f64 values=%#v len=%d cap=%d mono=%v, want [1.5] cap 4", values, len(values), cap(values), mono)
+	}
+	capacity, err := ArrayStoreCapacity(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreCapacity: %v", err)
+	}
+	if capacity != 4 {
+		t.Fatalf("mono f64 capacity = %d, want 4", capacity)
+	}
+}
+
+func TestArrayStoreMonoF64PromoteAppendRoundTripAndDynamicFallback(t *testing.T) {
+	handle := ArrayStoreNewWithCapacity(4)
+	ok, err := ArrayStoreAppendF64Promote(handle, 1.5)
+	if err != nil {
+		t.Fatalf("ArrayStoreAppendF64Promote: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected dynamic array to promote to mono f64")
+	}
+	ok, err = ArrayStoreAppendF64Promote(handle, 2.5)
+	if err != nil {
+		t.Fatalf("ArrayStoreAppendF64Promote second: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected mono f64 append to stay handled")
+	}
+	values, mono, err := ArrayStoreMonoF64ValuesIfAvailable(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable: %v", err)
+	}
+	if !mono || len(values) != 2 || values[0] != 1.5 || values[1] != 2.5 {
+		t.Fatalf("mono f64 values = %#v mono=%v, want [1.5 2.5]", values, mono)
+	}
+	size, err := ArrayStoreSize(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreSize: %v", err)
+	}
+	if size != 2 {
+		t.Fatalf("mono f64 size = %d, want 2", size)
+	}
+	capacity, err := ArrayStoreCapacity(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreCapacity: %v", err)
+	}
+	if capacity != 4 {
+		t.Fatalf("mono f64 capacity = %d, want 4", capacity)
+	}
+	value, err := ArrayStoreRead(handle, 1)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead: %v", err)
+	}
+	floatVal, ok := value.(FloatValue)
+	if !ok || floatVal.TypeSuffix != FloatF64 || floatVal.Val != 2.5 {
+		t.Fatalf("ArrayStoreRead mono f64 = %#v, want f64 2.5", value)
+	}
+
+	state, err := ArrayStoreState(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreState deopt: %v", err)
+	}
+	if len(state.Values) != 2 {
+		t.Fatalf("deopt f64 state length = %d, want 2", len(state.Values))
+	}
+	if err := ArrayStoreMonoWriteF64(handle, 0, 4.5); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteF64 after deopt: %v", err)
+	}
+	value, err = ArrayStoreRead(handle, 0)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead after deopt write: %v", err)
+	}
+	floatVal, ok = value.(FloatValue)
+	if !ok || floatVal.TypeSuffix != FloatF64 || floatVal.Val != 4.5 {
+		t.Fatalf("ArrayStoreRead after deopt write = %#v, want f64 4.5", value)
 	}
 }
 

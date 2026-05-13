@@ -54,6 +54,62 @@ func TestBytecodeVM_LoweringEmitsConditionalJumpForIntCompareSlotConstIf(t *test
 	}
 }
 
+func TestBytecodeVM_LoweringEmitsTypedIntegerSlotConstCompareJump(t *testing.T) {
+	u8 := ast.IntegerTypeU8
+	def := ast.Fn(
+		"classify_byte",
+		[]*ast.FunctionParameter{ast.Param("byte", ast.Ty("u8"))},
+		[]ast.Statement{
+			ast.IfExpr(
+				ast.Bin("==", ast.ID("byte"), ast.IntTyped(45, &u8)),
+				ast.Block(ast.ID("byte")),
+			),
+			ast.IfExpr(
+				ast.Bin("<", ast.ID("byte"), ast.IntTyped(48, &u8)),
+				ast.Block(ast.ID("byte")),
+			),
+			ast.IfExpr(
+				ast.Bin(">=", ast.ID("byte"), ast.IntTyped(57, &u8)),
+				ast.Block(ast.ID("byte")),
+			),
+			ast.ID("byte"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	compareJumps := 0
+	for _, instr := range program.instructions {
+		if instr.op != bytecodeOpJumpIfIntCompareSlotConstFalse {
+			continue
+		}
+		compareJumps++
+		if instr.operator != "==" && instr.operator != "<" && instr.operator != ">=" {
+			t.Fatalf("unexpected typed compare jump operator %q", instr.operator)
+		}
+		if !instr.hasIntImmediate || instr.intImmediate.TypeSuffix != runtime.IntegerU8 {
+			t.Fatalf("expected typed u8 immediate, got %#v", instr.intImmediate)
+		}
+		if !instr.hasIntRaw || instr.intImmediateRaw <= 0 {
+			t.Fatalf("expected typed compare jump to carry raw immediate, got raw=%v value=%d", instr.hasIntRaw, instr.intImmediateRaw)
+		}
+	}
+	if compareJumps != 3 {
+		t.Fatalf("expected three typed conditional compare slot-const jumps, got %d", compareJumps)
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntCompareSlotConst) {
+		t.Fatalf("expected if-position typed compare to skip standalone bool-producing opcode")
+	}
+}
+
 func TestBytecodeVM_JumpIfIntCompareSlotConstFalseFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())

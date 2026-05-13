@@ -20,14 +20,13 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 		return bytecodeInstruction{}, false
 	}
 	lit, ok := expr.Right.(*ast.IntegerLiteral)
-	if !ok || lit == nil || lit.Value == nil || lit.IntegerType != nil || !lit.Value.IsInt64() {
+	if !ok {
 		return bytecodeInstruction{}, false
 	}
-	litVal := lit.Value.Int64()
-	if litVal < math.MinInt32 || litVal > math.MaxInt32 {
+	imm, litVal, ok := bytecodeSlotConstIntegerLiteralImmediate(lit)
+	if !ok {
 		return bytecodeInstruction{}, false
 	}
-	imm := runtime.NewSmallInt(litVal, runtime.IntegerI32)
 	switch expr.Operator {
 	case "+":
 		return bytecodeInstruction{
@@ -53,6 +52,18 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			operator:        expr.Operator,
 			node:            expr,
 		}, true
+	case "*":
+		return bytecodeInstruction{
+			op:              bytecodeOpBinaryIntMulSlotConst,
+			target:          slot,
+			value:           imm,
+			intImmediate:    imm,
+			intImmediateRaw: litVal,
+			hasIntImmediate: true,
+			hasIntRaw:       true,
+			operator:        expr.Operator,
+			node:            expr,
+		}, true
 	case "<=":
 		return bytecodeInstruction{
 			op:              bytecodeOpBinaryIntLessEqualSlotConst,
@@ -65,7 +76,7 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			operator:        expr.Operator,
 			node:            expr,
 		}, true
-	case ">", ">=":
+	case "<", ">", ">=", "==", "!=":
 		return bytecodeInstruction{
 			op:              bytecodeOpBinaryIntCompareSlotConst,
 			target:          slot,
@@ -80,6 +91,28 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 	default:
 		return bytecodeInstruction{}, false
 	}
+}
+
+func bytecodeSlotConstIntegerLiteralImmediate(lit *ast.IntegerLiteral) (runtime.IntegerValue, int64, bool) {
+	if lit == nil || lit.Value == nil || !lit.Value.IsInt64() {
+		return runtime.IntegerValue{}, 0, false
+	}
+	litVal := lit.Value.Int64()
+	kind := runtime.IntegerI32
+	if lit.IntegerType == nil {
+		if litVal < math.MinInt32 || litVal > math.MaxInt32 {
+			return runtime.IntegerValue{}, 0, false
+		}
+		return runtime.NewSmallInt(litVal, kind), litVal, true
+	}
+	kind = runtime.IntegerType(*lit.IntegerType)
+	if _, ok := lookupIntegerInfo(kind); !ok {
+		return runtime.IntegerValue{}, 0, false
+	}
+	if err := ensureFitsInt64Type(kind, litVal); err != nil {
+		return runtime.IntegerValue{}, 0, false
+	}
+	return runtime.NewSmallInt(litVal, kind), litVal, true
 }
 
 func bytecodeJumpIfFalseBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr ast.Expression) (bytecodeInstruction, bool) {
@@ -131,7 +164,7 @@ func bytecodeStoreSlotBinarySlotConstInstruction(ctx *bytecodeLoweringContext, t
 		return bytecodeInstruction{}, false
 	}
 	switch instr.op {
-	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst:
 	default:
 		return bytecodeInstruction{}, false
 	}

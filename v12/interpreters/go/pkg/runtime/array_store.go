@@ -1,106 +1,17 @@
 package runtime
 
-import (
-	"fmt"
-	"sync"
-)
-
-const (
-	arrayMetadataBoxI32Max = 65536
-	arrayMetadataBoxU64Max = 262144
-)
-
-var (
-	arrayMetadataBoxI32Once sync.Once
-	arrayMetadataBoxedI32   []Value
-	arrayMetadataBoxU64Once sync.Once
-	arrayMetadataBoxedU64   []Value
-)
-
-func initArrayMetadataI32BoxCache() {
-	size := arrayMetadataBoxI32Max + 1
-	arrayMetadataBoxedI32 = make([]Value, size)
-	for idx := range arrayMetadataBoxedI32 {
-		arrayMetadataBoxedI32[idx] = NewSmallInt(int64(idx), IntegerI32)
-	}
-}
-
-func boxedArrayMetadataI32Value(value int) (Value, bool) {
-	if value < 0 || value > arrayMetadataBoxI32Max {
-		return nil, false
-	}
-	arrayMetadataBoxI32Once.Do(initArrayMetadataI32BoxCache)
-	return arrayMetadataBoxedI32[value], true
-}
-
-func initArrayMetadataU64BoxCache() {
-	size := arrayMetadataBoxU64Max + 1
-	arrayMetadataBoxedU64 = make([]Value, size)
-	for idx := range arrayMetadataBoxedU64 {
-		arrayMetadataBoxedU64[idx] = NewSmallInt(int64(idx), IntegerU64)
-	}
-}
-
-func BoxedArrayMetadataU64Value(value int64) (Value, bool) {
-	if value < 0 || value > arrayMetadataBoxU64Max {
-		return nil, false
-	}
-	arrayMetadataBoxU64Once.Do(initArrayMetadataU64BoxCache)
-	return arrayMetadataBoxedU64[int(value)], true
-}
+import "fmt"
 
 type ArrayState struct {
 	Values                []Value
 	Capacity              int
+	Revision              uint64
 	ElementTypeToken      uint16
 	ElementTypeTokenKnown bool
 	cachedLength          int
 	cachedLengthBox       Value
 	cachedCapacity        int
 	cachedCapacityBox     Value
-}
-
-func (s *ArrayState) BoxedLengthValue() Value {
-	if s == nil {
-		if boxed, ok := boxedArrayMetadataI32Value(0); ok {
-			return boxed
-		}
-		return NewSmallInt(0, IntegerI32)
-	}
-	length := len(s.Values)
-	if s.cachedLengthBox != nil && s.cachedLength == length {
-		return s.cachedLengthBox
-	}
-	if boxed, ok := boxedArrayMetadataI32Value(length); ok {
-		s.cachedLength = length
-		s.cachedLengthBox = boxed
-		return boxed
-	}
-	boxed := NewSmallInt(int64(length), IntegerI32)
-	s.cachedLength = length
-	s.cachedLengthBox = boxed
-	return boxed
-}
-
-func (s *ArrayState) BoxedCapacityValue() Value {
-	if s == nil {
-		if boxed, ok := boxedArrayMetadataI32Value(0); ok {
-			return boxed
-		}
-		return NewSmallInt(0, IntegerI32)
-	}
-	if s.cachedCapacityBox != nil && s.cachedCapacity == s.Capacity {
-		return s.cachedCapacityBox
-	}
-	if boxed, ok := boxedArrayMetadataI32Value(s.Capacity); ok {
-		s.cachedCapacity = s.Capacity
-		s.cachedCapacityBox = boxed
-		return boxed
-	}
-	boxed := NewSmallInt(int64(s.Capacity), IntegerI32)
-	s.cachedCapacity = s.Capacity
-	s.cachedCapacityBox = boxed
-	return boxed
 }
 
 type monoArrayKind uint8
@@ -111,6 +22,7 @@ const (
 	monoArrayKindI64
 	monoArrayKindBool
 	monoArrayKindU8
+	monoArrayKindF64
 )
 
 type monoArrayState[T any] struct {
@@ -122,12 +34,14 @@ type monoArrayI32State = monoArrayState[int32]
 type monoArrayI64State = monoArrayState[int64]
 type monoArrayBoolState = monoArrayState[bool]
 type monoArrayU8State = monoArrayState[uint8]
+type monoArrayF64State = monoArrayState[float64]
 
 var arrayStates map[int64]*ArrayState
 var monoArrayI32States map[int64]*monoArrayI32State
 var monoArrayI64States map[int64]*monoArrayI64State
 var monoArrayBoolStates map[int64]*monoArrayBoolState
 var monoArrayU8States map[int64]*monoArrayU8State
+var monoArrayF64States map[int64]*monoArrayF64State
 var arrayHandleKinds map[int64]monoArrayKind
 var arrayNextHandle int64 = 1
 
@@ -146,6 +60,9 @@ func ensureArrayStore() {
 	}
 	if monoArrayU8States == nil {
 		monoArrayU8States = make(map[int64]*monoArrayU8State)
+	}
+	if monoArrayF64States == nil {
+		monoArrayF64States = make(map[int64]*monoArrayF64State)
 	}
 	if arrayHandleKinds == nil {
 		arrayHandleKinds = make(map[int64]monoArrayKind)
@@ -186,17 +103,28 @@ func ArrayEnsureCapacity(state *ArrayState, minimum int) bool {
 	if state == nil {
 		return false
 	}
-	if minimum <= state.Capacity {
+	if minimum <= state.Capacity && minimum <= cap(state.Values) {
 		return false
 	}
-	newCapacity := grownCapacity(state.Capacity, minimum)
+	newCapacity := state.Capacity
+	if newCapacity < len(state.Values) {
+		newCapacity = len(state.Values)
+	}
+	if newCapacity < minimum {
+		newCapacity = grownCapacity(newCapacity, minimum)
+	}
 	if newCapacity < minimum {
 		newCapacity = minimum
+	}
+	if newCapacity < len(state.Values) {
+		newCapacity = len(state.Values)
 	}
 	newValues := make([]Value, len(state.Values), newCapacity)
 	copy(newValues, state.Values)
 	state.Values = newValues
-	state.Capacity = newCapacity
+	if state.Capacity < newCapacity {
+		state.Capacity = newCapacity
+	}
 	return true
 }
 
@@ -204,10 +132,14 @@ func ArraySetLength(state *ArrayState, length int) {
 	if state == nil || length < 0 {
 		return
 	}
-	if length <= len(state.Values) {
+	oldLength := len(state.Values)
+	if length <= oldLength {
 		state.Values = state.Values[:length]
 		if len(state.Values) > state.Capacity {
 			state.Capacity = len(state.Values)
+		}
+		if length != oldLength {
+			state.Revision++
 		}
 		return
 	}
@@ -218,6 +150,7 @@ func ArraySetLength(state *ArrayState, length int) {
 	if len(state.Values) > state.Capacity {
 		state.Capacity = len(state.Values)
 	}
+	state.Revision++
 }
 
 func monoEnsureCapacity[T any](state *monoArrayState[T], minimum int) bool {
@@ -287,6 +220,10 @@ func arrayHandleKind(handle int64) (monoArrayKind, error) {
 		arrayHandleKinds[handle] = monoArrayKindU8
 		return monoArrayKindU8, nil
 	}
+	if _, ok := monoArrayF64States[handle]; ok {
+		arrayHandleKinds[handle] = monoArrayKindF64
+		return monoArrayKindF64, nil
+	}
 	return monoArrayKindDynamic, fmt.Errorf("array handle %d is not defined", handle)
 }
 
@@ -346,6 +283,20 @@ func u8FromValue(value Value) (uint8, error) {
 	return uint8(raw), nil
 }
 
+func float64FromValue(value Value) (float64, error) {
+	switch v := value.(type) {
+	case FloatValue:
+		if v.TypeSuffix == FloatF64 {
+			return v.Val, nil
+		}
+	case *FloatValue:
+		if v != nil && v.TypeSuffix == FloatF64 {
+			return v.Val, nil
+		}
+	}
+	return 0, fmt.Errorf("array element must be an f64")
+}
+
 func i32ToValue(v int32) Value {
 	return NewSmallInt(int64(v), IntegerI32)
 }
@@ -360,6 +311,10 @@ func boolToValue(v bool) Value {
 
 func u8ToValue(v uint8) Value {
 	return NewSmallInt(int64(v), IntegerU8)
+}
+
+func f64ToValue(v float64) Value {
+	return FloatValue{Val: v, TypeSuffix: FloatF64}
 }
 
 func deoptTypedArrayToDynamic(handle int64) (*ArrayState, error) {
@@ -420,6 +375,22 @@ func deoptTypedArrayToDynamic(handle int64) (*ArrayState, error) {
 		}
 		state = &ArrayState{Values: values, Capacity: mono.Capacity}
 		delete(monoArrayU8States, handle)
+	case monoArrayKindF64:
+		mono, ok := monoArrayF64States[handle]
+		if !ok {
+			return nil, fmt.Errorf("array handle %d is not defined", handle)
+		}
+		values := make([]Value, len(mono.Values))
+		for idx, value := range mono.Values {
+			values[idx] = f64ToValue(value)
+		}
+		state = &ArrayState{
+			Values:                values,
+			Capacity:              mono.Capacity,
+			ElementTypeToken:      0,
+			ElementTypeTokenKnown: false,
+		}
+		delete(monoArrayF64States, handle)
 	default:
 		return nil, fmt.Errorf("array handle %d has unknown kind", handle)
 	}
@@ -445,71 +416,13 @@ func ArrayStoreNewWithCapacity(capacity int) int64 {
 	return handle
 }
 
-func ArrayStoreMonoNewI32() int64 {
-	return ArrayStoreMonoNewWithCapacityI32(0)
-}
-
-func ArrayStoreMonoNewI64() int64 {
-	return ArrayStoreMonoNewWithCapacityI64(0)
-}
-
-func ArrayStoreMonoNewWithCapacityI32(capacity int) int64 {
+func ArrayStoreNewReservedCapacity(capacity int) int64 {
 	if capacity < 0 {
 		capacity = 0
 	}
 	handle := allocateArrayHandle()
-	monoArrayI32States[handle] = &monoArrayI32State{
-		Values:   make([]int32, 0, capacity),
-		Capacity: capacity,
-	}
-	arrayHandleKinds[handle] = monoArrayKindI32
-	return handle
-}
-
-func ArrayStoreMonoNewWithCapacityI64(capacity int) int64 {
-	if capacity < 0 {
-		capacity = 0
-	}
-	handle := allocateArrayHandle()
-	monoArrayI64States[handle] = &monoArrayI64State{
-		Values:   make([]int64, 0, capacity),
-		Capacity: capacity,
-	}
-	arrayHandleKinds[handle] = monoArrayKindI64
-	return handle
-}
-
-func ArrayStoreMonoNewBool() int64 {
-	return ArrayStoreMonoNewWithCapacityBool(0)
-}
-
-func ArrayStoreMonoNewWithCapacityBool(capacity int) int64 {
-	if capacity < 0 {
-		capacity = 0
-	}
-	handle := allocateArrayHandle()
-	monoArrayBoolStates[handle] = &monoArrayBoolState{
-		Values:   make([]bool, 0, capacity),
-		Capacity: capacity,
-	}
-	arrayHandleKinds[handle] = monoArrayKindBool
-	return handle
-}
-
-func ArrayStoreMonoNewU8() int64 {
-	return ArrayStoreMonoNewWithCapacityU8(0)
-}
-
-func ArrayStoreMonoNewWithCapacityU8(capacity int) int64 {
-	if capacity < 0 {
-		capacity = 0
-	}
-	handle := allocateArrayHandle()
-	monoArrayU8States[handle] = &monoArrayU8State{
-		Values:   make([]uint8, 0, capacity),
-		Capacity: capacity,
-	}
-	arrayHandleKinds[handle] = monoArrayKindU8
+	arrayStates[handle] = &ArrayState{Values: make([]Value, 0), Capacity: capacity}
+	arrayHandleKinds[handle] = monoArrayKindDynamic
 	return handle
 }
 
@@ -645,6 +558,12 @@ func ArrayStoreSize(handle int64) (int, error) {
 			return 0, fmt.Errorf("array handle %d is not defined", handle)
 		}
 		return len(state.Values), nil
+	case monoArrayKindF64:
+		state, ok := monoArrayF64States[handle]
+		if !ok {
+			return 0, fmt.Errorf("array handle %d is not defined", handle)
+		}
+		return len(state.Values), nil
 	default:
 		return 0, fmt.Errorf("array handle %d has unknown kind", handle)
 	}
@@ -682,6 +601,12 @@ func ArrayStoreCapacity(handle int64) (int, error) {
 		return state.Capacity, nil
 	case monoArrayKindU8:
 		state, ok := monoArrayU8States[handle]
+		if !ok {
+			return 0, fmt.Errorf("array handle %d is not defined", handle)
+		}
+		return state.Capacity, nil
+	case monoArrayKindF64:
+		state, ok := monoArrayF64States[handle]
 		if !ok {
 			return 0, fmt.Errorf("array handle %d is not defined", handle)
 		}
@@ -731,6 +656,14 @@ func ArrayStoreSetLength(handle int64, length int) error {
 		return nil
 	case monoArrayKindU8:
 		state, ok := monoArrayU8States[handle]
+		if !ok {
+			return fmt.Errorf("array handle %d is not defined", handle)
+		}
+		monoEnsureCapacity(state, length)
+		monoSetLength(state, length)
+		return nil
+	case monoArrayKindF64:
+		state, ok := monoArrayF64States[handle]
 		if !ok {
 			return fmt.Errorf("array handle %d is not defined", handle)
 		}
@@ -793,6 +726,15 @@ func ArrayStoreRead(handle int64, index int) (Value, error) {
 			return NilValue{}, nil
 		}
 		return u8ToValue(state.Values[index]), nil
+	case monoArrayKindF64:
+		state, ok := monoArrayF64States[handle]
+		if !ok {
+			return nil, fmt.Errorf("array handle %d is not defined", handle)
+		}
+		if index < 0 || index >= len(state.Values) {
+			return NilValue{}, nil
+		}
+		return f64ToValue(state.Values[index]), nil
 	default:
 		return nil, fmt.Errorf("array handle %d has unknown kind", handle)
 	}
@@ -821,6 +763,7 @@ func ArrayStoreWrite(handle int64, index int, value Value) error {
 			if state.Capacity < cap(state.Values) {
 				state.Capacity = cap(state.Values)
 			}
+			state.Revision++
 			return nil
 		}
 		ArrayEnsureCapacity(state, index+1)
@@ -828,6 +771,7 @@ func ArrayStoreWrite(handle int64, index int, value Value) error {
 			ArraySetLength(state, index+1)
 		}
 		state.Values[index] = value
+		state.Revision++
 		return nil
 	case monoArrayKindI32:
 		typed, err := int32FromValue(value)
@@ -853,6 +797,12 @@ func ArrayStoreWrite(handle int64, index int, value Value) error {
 			return err
 		}
 		return ArrayStoreMonoWriteU8(handle, index, typed)
+	case monoArrayKindF64:
+		typed, err := float64FromValue(value)
+		if err != nil {
+			return err
+		}
+		return ArrayStoreMonoWriteF64(handle, index, typed)
 	default:
 		return fmt.Errorf("array handle %d has unknown kind", handle)
 	}
@@ -894,6 +844,13 @@ func ArrayStoreReserve(handle int64, capacity int) error {
 		return nil
 	case monoArrayKindU8:
 		state, ok := monoArrayU8States[handle]
+		if !ok {
+			return fmt.Errorf("array handle %d is not defined", handle)
+		}
+		monoEnsureCapacity(state, capacity)
+		return nil
+	case monoArrayKindF64:
+		state, ok := monoArrayF64States[handle]
 		if !ok {
 			return fmt.Errorf("array handle %d is not defined", handle)
 		}
@@ -964,6 +921,17 @@ func ArrayStoreClone(handle int64) (int64, error) {
 		newHandle := allocateArrayHandle()
 		monoArrayU8States[newHandle] = &monoArrayU8State{Values: cloned, Capacity: state.Capacity}
 		arrayHandleKinds[newHandle] = monoArrayKindU8
+		return newHandle, nil
+	case monoArrayKindF64:
+		state, ok := monoArrayF64States[handle]
+		if !ok {
+			return 0, fmt.Errorf("array handle %d is not defined", handle)
+		}
+		cloned := make([]float64, len(state.Values))
+		copy(cloned, state.Values)
+		newHandle := allocateArrayHandle()
+		monoArrayF64States[newHandle] = &monoArrayF64State{Values: cloned, Capacity: state.Capacity}
+		arrayHandleKinds[newHandle] = monoArrayKindF64
 		return newHandle, nil
 	default:
 		return 0, fmt.Errorf("array handle %d has unknown kind", handle)

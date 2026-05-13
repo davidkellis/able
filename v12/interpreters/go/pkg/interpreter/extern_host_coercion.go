@@ -389,7 +389,7 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 			}
 		case "u8", "u16", "u32":
 			if value.Kind() >= reflect.Uint && value.Kind() <= reflect.Uint64 {
-				return runtime.NewSmallInt(int64(value.Uint()), runtime.IntegerType(name)), nil
+				return boxedOrSmallIntegerValue(runtime.IntegerType(name), int64(value.Uint())), nil
 			}
 		case "u64", "usize":
 			if value.Kind() >= reflect.Uint && value.Kind() <= reflect.Uint64 {

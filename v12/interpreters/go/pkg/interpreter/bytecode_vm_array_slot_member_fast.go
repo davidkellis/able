@@ -22,6 +22,16 @@ func isCanonicalArrayWriteSlotFunction(def *ast.FunctionDefinition) bool {
 }
 
 func bytecodeArraySlotIndexI32(val runtime.Value) (int, bool, error) {
+	if intVal, ok := val.(runtime.IntegerValue); ok && intVal.IsSmall() {
+		idx := intVal.Int64Fast()
+		if idx < -1<<31 || idx > 1<<31-1 {
+			return 0, false, nil
+		}
+		if idx < 0 {
+			return 0, true, fmt.Errorf("array index must be non-negative")
+		}
+		return int(idx), true, nil
+	}
 	idx, ok := bytecodeArrayGetIndexI32(val)
 	if !ok {
 		return 0, false, nil
@@ -84,7 +94,7 @@ func (vm *bytecodeVM) finishArrayReadSlotMemberFast(instr bytecodeInstruction, a
 	if !handled {
 		return nil, false, nil
 	}
-	if vm.interp != nil {
+	if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
 		vm.interp.recordBytecodeCallTrace("call_member", instr.name, "resolved_method", mode, instr.node)
 	}
 	vm.stack = vm.stack[:receiverIndex]
@@ -120,20 +130,17 @@ func (vm *bytecodeVM) finishArrayWriteSlotMemberFast(instr bytecodeInstruction, 
 	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
 		switch length := len(state.Values); {
 		case idx == length:
-			runtime.ArrayEnsureCapacity(state, idx+1)
-			state.Values = append(state.Values, value)
-			if state.Capacity < cap(state.Values) {
-				state.Capacity = cap(state.Values)
-			}
+			vm.appendTrackedArrayValueFast(arr, state, value)
 		case idx > length:
 			runtime.ArrayEnsureCapacity(state, idx+1)
 			runtime.ArraySetLength(state, idx+1)
 			state.Values[idx] = value
+			vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
 		default:
 			state.Values[idx] = value
+			vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
 		}
-		vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
-		if vm.interp != nil {
+		if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
 			vm.interp.recordBytecodeCallTrace("call_member", instr.name, "resolved_method", "array_write_slot_tracked_fast", instr.node)
 		}
 		vm.stack = vm.stack[:receiverIndex]
@@ -155,7 +162,7 @@ func (vm *bytecodeVM) finishArrayWriteSlotMemberFast(instr bytecodeInstruction, 
 			vm.interp.syncArrayValues(handle, state)
 		}
 	}
-	if vm.interp != nil {
+	if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
 		vm.interp.recordBytecodeCallTrace("call_member", instr.name, "resolved_method", "array_write_slot_fast", instr.node)
 	}
 	vm.stack = vm.stack[:receiverIndex]

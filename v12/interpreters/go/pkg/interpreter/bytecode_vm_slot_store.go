@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
@@ -13,7 +14,7 @@ func (vm *bytecodeVM) execLoadSlotOpcode(instr *bytecodeInstruction) error {
 	}
 	switch instr.op {
 	case bytecodeOpLoadSlot:
-		vm.stack = append(vm.stack, vm.slots[instr.target])
+		vm.stack = append(vm.stack, bytecodeSlotReadValue(vm.slots[instr.target]))
 		vm.ip++
 		return nil
 	case bytecodeOpLoadSlotI32:
@@ -23,17 +24,21 @@ func (vm *bytecodeVM) execLoadSlotOpcode(instr *bytecodeInstruction) error {
 	}
 }
 
-func (vm *bytecodeVM) execStoreSlotOpcode(instr *bytecodeInstruction) error {
+func (vm *bytecodeVM) execStoreSlotOpcode(instr *bytecodeInstruction, program **bytecodeProgram, instructions *[]bytecodeInstruction, validatedIntConsts *[]bool, slotConstIntImmTable **bytecodeSlotConstIntImmediateTable) (bool, error) {
 	if instr == nil {
-		return fmt.Errorf("bytecode slot store missing instruction")
+		return false, fmt.Errorf("bytecode slot store missing instruction")
 	}
 	switch instr.op {
 	case bytecodeOpStoreSlot, bytecodeOpStoreSlotNew:
-		return vm.execStoreSlot(instr)
+		return false, vm.execStoreSlot(instr)
 	case bytecodeOpStoreSlotI32:
-		return vm.execStoreSlotI32(instr)
+		return false, vm.execStoreSlotI32(instr)
+	case bytecodeOpStoreSlotFloatAddMul:
+		return false, vm.execStoreSlotFloatAddMul(instr)
+	case bytecodeOpStoreSlotFloatAddMulArrayGet:
+		return vm.execStoreSlotFloatAddMulArrayGet(program, instructions, validatedIntConsts, slotConstIntImmTable, instr)
 	default:
-		return fmt.Errorf("bytecode slot store opcode %d unsupported", instr.op)
+		return false, fmt.Errorf("bytecode slot store opcode %d unsupported", instr.op)
 	}
 }
 
@@ -54,12 +59,34 @@ func (vm *bytecodeVM) execStoreSlotBinaryIntSlotConst(instr *bytecodeInstruction
 	if !hasImmediate {
 		return fmt.Errorf("bytecode slot-const store missing integer immediate")
 	}
+	if result, handled, err := vm.storeSlotBinaryIntSlotConstFastResult(instr, rightImmediate); handled {
+		if err != nil {
+			if vm.interp != nil {
+				err = vm.interp.wrapStandardRuntimeError(err)
+			}
+			if instr.node != nil && vm.interp != nil {
+				return vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+			}
+			return err
+		}
+		vm.slots[instr.target] = result
+		if instr.target == 0 {
+			vm.setSelfFastSlot0I32Value(result)
+		}
+		if !instr.discardResult {
+			vm.stack = append(vm.stack, result)
+		}
+		vm.ip++
+		return nil
+	}
 	binaryInstr := *instr
 	switch instr.operator {
 	case "+":
 		binaryInstr.op = bytecodeOpBinaryIntAddSlotConst
 	case "-":
 		binaryInstr.op = bytecodeOpBinaryIntSubSlotConst
+	case "*":
+		binaryInstr.op = bytecodeOpBinaryIntMulSlotConst
 	default:
 		return fmt.Errorf("bytecode slot-const store unsupported operator %q", instr.operator)
 	}
@@ -79,9 +106,80 @@ func (vm *bytecodeVM) execStoreSlotBinaryIntSlotConst(instr *bytecodeInstruction
 	if instr.target == 0 {
 		vm.setSelfFastSlot0I32Value(result)
 	}
-	vm.stack = append(vm.stack, result)
+	if !instr.discardResult {
+		vm.stack = append(vm.stack, result)
+	}
 	vm.ip++
 	return nil
+}
+
+func (vm *bytecodeVM) storeSlotBinaryIntSlotConstFastResult(instr *bytecodeInstruction, right runtime.IntegerValue) (runtime.Value, bool, error) {
+	rightRef := &right
+	if instr == nil || !rightRef.IsSmallRef() {
+		return nil, false, nil
+	}
+	if right.TypeSuffix == runtime.IntegerI32 {
+		if leftVal, ok := bytecodeDirectSmallI32Value(vm.slots[instr.target]); ok {
+			return storeSlotBinaryIntSlotConstI32FastResult(instr.operator, leftVal, rightRef.Int64FastRef())
+		}
+	}
+	rightVal := rightRef.Int64FastRef()
+	compute := func(kind runtime.IntegerType, leftVal int64) (runtime.Value, bool, error) {
+		if kind != right.TypeSuffix {
+			return nil, false, nil
+		}
+		var (
+			result   int64
+			overflow bool
+		)
+		switch instr.operator {
+		case "+":
+			result, overflow = addInt64Overflow(leftVal, rightVal)
+		case "-":
+			result, overflow = subInt64Overflow(leftVal, rightVal)
+		case "*":
+			result, overflow = mulInt64Overflow(leftVal, rightVal)
+		default:
+			return nil, false, nil
+		}
+		if overflow {
+			return nil, false, nil
+		}
+		if err := ensureFitsInt64Type(kind, result); err != nil {
+			return nil, true, err
+		}
+		return boxedOrSmallIntegerValue(kind, result), true, nil
+	}
+	switch left := vm.slots[instr.target].(type) {
+	case runtime.IntegerValue:
+		leftRef := &left
+		if leftRef.IsSmallRef() {
+			return compute(left.TypeSuffix, leftRef.Int64FastRef())
+		}
+	case *runtime.IntegerValue:
+		if left != nil && left.IsSmallRef() {
+			return compute(left.TypeSuffix, left.Int64FastRef())
+		}
+	}
+	return nil, false, nil
+}
+
+func storeSlotBinaryIntSlotConstI32FastResult(operator string, leftVal int64, rightVal int64) (runtime.Value, bool, error) {
+	var result int64
+	switch operator {
+	case "+":
+		result = leftVal + rightVal
+	case "-":
+		result = leftVal - rightVal
+	case "*":
+		result = leftVal * rightVal
+	default:
+		return nil, false, nil
+	}
+	if result < math.MinInt32 || result > math.MaxInt32 {
+		return nil, true, newOverflowError("integer overflow")
+	}
+	return bytecodeBoxedIntegerI32Value(result), true, nil
 }
 
 func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
@@ -96,9 +194,13 @@ func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 	}
 	val := vm.stack[len(vm.stack)-1]
 	if !instr.storeTyped || instr.typeExpr == nil {
-		vm.slots[instr.target] = val
+		if fv, ok := val.(runtime.FloatValue); ok {
+			vm.storeOwnedFloatSlot(instr.target, fv)
+		} else {
+			vm.slots[instr.target] = val
+		}
 		if instr.target == 0 {
-			vm.setSelfFastSlot0I32Value(val)
+			vm.setSelfFastSlot0I32Value(vm.slots[instr.target])
 		}
 		vm.ip++
 		return nil
@@ -111,9 +213,13 @@ func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 		return err
 	}
 	if shouldStore {
-		vm.slots[instr.target] = storeVal
+		if fv, ok := storeVal.(runtime.FloatValue); ok {
+			vm.storeOwnedFloatSlot(instr.target, fv)
+		} else {
+			vm.slots[instr.target] = storeVal
+		}
 		if instr.target == 0 {
-			vm.setSelfFastSlot0I32Value(storeVal)
+			vm.setSelfFastSlot0I32Value(vm.slots[instr.target])
 		}
 	}
 	if stackVal == nil {

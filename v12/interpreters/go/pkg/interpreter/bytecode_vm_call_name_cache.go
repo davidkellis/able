@@ -16,18 +16,22 @@ const (
 )
 
 type bytecodeCallNameCacheEntry struct {
-	name                string
-	env                 *runtime.Environment
-	envVersion          uint64
-	owner               *runtime.Environment
-	ownerVersion        uint64
-	callee              runtime.Value
-	dispatch            bytecodeCallNameDispatchKind
-	exactTarget         bytecodeExactNativeCallTarget
-	inlineFn            *runtime.FunctionValue
-	injectedReceiver    runtime.Value
-	hasInjectedReceiver bool
-	needsStableArgsCopy bool
+	name                 string
+	env                  *runtime.Environment
+	envVersion           uint64
+	owner                *runtime.Environment
+	ownerVersion         uint64
+	callee               runtime.Value
+	dispatch             bytecodeCallNameDispatchKind
+	exactTarget          bytecodeExactNativeCallTarget
+	inlineFn             *runtime.FunctionValue
+	injectedReceiver     runtime.Value
+	hasInjectedReceiver  bool
+	inlineProgram        *bytecodeProgram
+	inlineLayout         *bytecodeFrameLayout
+	inlineReturnGenerics map[string]struct{}
+	inlineDirect         bool
+	needsStableArgsCopy  bool
 }
 
 type bytecodeInlineCallNameCacheEntry struct {
@@ -37,7 +41,7 @@ type bytecodeInlineCallNameCacheEntry struct {
 	entry   *bytecodeCallNameCacheEntry
 }
 
-func bytecodeBuildCallNameCacheEntry(name string, lookup bytecodeResolvedIdentifierLookup, callee runtime.Value, argCount int) bytecodeCallNameCacheEntry {
+func bytecodeBuildCallNameCacheEntry(name string, lookup bytecodeResolvedIdentifierLookup, callee runtime.Value, argCount int, callNode *ast.FunctionCall) bytecodeCallNameCacheEntry {
 	entry := bytecodeCallNameCacheEntry{
 		name:                name,
 		env:                 lookup.env,
@@ -58,8 +62,32 @@ func bytecodeBuildCallNameCacheEntry(name string, lookup bytecodeResolvedIdentif
 		entry.inlineFn = fn
 		entry.injectedReceiver = injectedReceiver
 		entry.hasInjectedReceiver = hasInjectedReceiver
+		if !hasInjectedReceiver {
+			entry.inlineProgram, entry.inlineLayout, entry.inlineReturnGenerics, entry.inlineDirect = bytecodeDirectCallNameInlineShape(fn, argCount, callNode)
+		}
 	}
 	return entry
+}
+
+func bytecodeDirectCallNameInlineShape(fn *runtime.FunctionValue, argCount int, callNode *ast.FunctionCall) (*bytecodeProgram, *bytecodeFrameLayout, map[string]struct{}, bool) {
+	if fn == nil {
+		return nil, nil, nil, false
+	}
+	if callNode != nil && len(callNode.TypeArguments) > 0 {
+		return nil, nil, nil, false
+	}
+	if fn.MethodSet != nil && len(fn.MethodSet.GenericParams) > 0 {
+		return nil, nil, nil, false
+	}
+	prog, ok := fn.Bytecode.(*bytecodeProgram)
+	if !ok || prog == nil || prog.frameLayout == nil {
+		return nil, nil, nil, false
+	}
+	layout := prog.frameLayout
+	if layout.methodShorthand || layout.paramSlots != argCount {
+		return nil, nil, nil, false
+	}
+	return prog, layout, bytecodeInlineReturnGenericNames(fn, prog), true
 }
 
 func (vm *bytecodeVM) lookupCachedCallName(program *bytecodeProgram, ip int, name string) (*bytecodeCallNameCacheEntry, bool) {
@@ -134,13 +162,14 @@ func (vm *bytecodeVM) execCachedCallName(entry *bytecodeCallNameCacheEntry, argB
 	if entry == nil {
 		return nil, fmt.Errorf("bytecode cached call entry missing")
 	}
+	traceEnabled := vm.interp != nil && vm.interp.bytecodeTraceEnabled
 	var traceNode ast.Node
-	if callNode != nil {
+	if traceEnabled && callNode != nil {
 		traceNode = callNode
 	}
 	switch entry.dispatch {
 	case bytecodeCallNameDispatchExactNative:
-		if vm.interp != nil {
+		if traceEnabled {
 			vm.interp.recordBytecodeCallTrace("call_name", entry.name, "name", "exact_native", traceNode)
 		}
 		args := vm.stack[argBase:]
@@ -148,10 +177,22 @@ func (vm *bytecodeVM) execCachedCallName(entry *bytecodeCallNameCacheEntry, argB
 		result, _, err := vm.execExactNativeCall(entry.exactTarget, args, callNode)
 		return vm.finishCompletedCall(result, err, callNode, nil)
 	case bytecodeCallNameDispatchInline:
+		if newProg, handled, err := vm.tryInlineCachedCallNameDirectFromStack(entry, argBase, argCount, callNode, currentProgram); handled || err != nil {
+			if err != nil {
+				return nil, err
+			}
+			if traceEnabled {
+				vm.interp.recordBytecodeCallTrace("call_name", entry.name, "name", "inline", traceNode)
+			}
+			if vm.interp != nil && vm.interp.bytecodeStatsEnabled {
+				vm.interp.recordBytecodeInlineCallHit()
+			}
+			return newProg, nil
+		}
 		if newProg, err := vm.tryInlineResolvedCallFromStack(entry.inlineFn, entry.injectedReceiver, entry.hasInjectedReceiver, argBase, argCount, argBase, callNode, currentProgram); err != nil {
 			return nil, err
 		} else if newProg != nil {
-			if vm.interp != nil {
+			if traceEnabled {
 				vm.interp.recordBytecodeCallTrace("call_name", entry.name, "name", "inline", traceNode)
 			}
 			if vm.interp != nil && vm.interp.bytecodeStatsEnabled {
@@ -168,9 +209,69 @@ func (vm *bytecodeVM) execCachedCallName(entry *bytecodeCallNameCacheEntry, argB
 	if entry.needsStableArgsCopy {
 		args = copyCallArgs(args)
 	}
-	if vm.interp != nil {
+	if traceEnabled {
 		vm.interp.recordBytecodeCallTrace("call_name", entry.name, "name", "generic", traceNode)
 	}
 	result, err := vm.interp.callCallableValueMutable(entry.callee, args, vm.env, callNode)
 	return vm.finishCompletedCall(result, err, callNode, nil)
+}
+
+func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromStack(entry *bytecodeCallNameCacheEntry, argBase int, argCount int, callNode *ast.FunctionCall, currentProgram *bytecodeProgram) (*bytecodeProgram, bool, error) {
+	if entry == nil || !entry.inlineDirect {
+		return nil, false, nil
+	}
+	if argBase < 0 || argCount < 0 || argBase+argCount > len(vm.stack) {
+		return nil, true, fmt.Errorf("bytecode stack underflow")
+	}
+	if callNode != nil && len(callNode.TypeArguments) > 0 {
+		return nil, false, nil
+	}
+	fn := entry.inlineFn
+	prog := entry.inlineProgram
+	layout := entry.inlineLayout
+	if fn == nil || prog == nil || layout == nil || argCount != layout.paramSlots {
+		return nil, false, nil
+	}
+	slots := vm.acquireSlotFrame(layout.slotCount)
+	if !layout.anyParamCoercion {
+		inlineCopyArgsToSlots(slots, vm.stack[argBase:argBase+argCount], argCount)
+	} else {
+		for idx := 0; idx < layout.paramSlots; idx++ {
+			arg := vm.stack[argBase+idx]
+			paramType := inlineParamType(layout, idx)
+			if inlineParamNeedsRuntimeCoercion(layout, idx, fn) && !inlineParamCoercionUnnecessary(layout, idx, paramType, arg) {
+				if coerced, ok, err := inlineCoerceValueBySimpleType(inlineParamSimpleType(layout, idx), arg); err != nil {
+					vm.releaseSlotFrame(slots)
+					return nil, true, err
+				} else if ok {
+					arg = coerced
+				} else {
+					coerced, err := vm.interp.coerceValueToType(paramType, arg)
+					if err != nil {
+						vm.releaseSlotFrame(slots)
+						return nil, true, err
+					}
+					arg = coerced
+				}
+			}
+			slots[idx] = arg
+		}
+	}
+	if layout.selfCallSlot >= 0 && layout.selfCallSlot < len(slots) {
+		slots[layout.selfCallSlot] = fn
+	}
+
+	hasImplicit := layout.paramSlots > 0 && layout.usesImplicitMember
+	if hasImplicit {
+		state := vm.interp.stateFromEnv(fn.Closure)
+		state.pushImplicitReceiver(vm.stack[argBase])
+	}
+
+	vm.stack = vm.stack[:argBase]
+	selfFast := bytecodeCanUseSelfFastFrame(currentProgram, prog, vm.env, fn.Closure)
+	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, entry.inlineReturnGenerics, len(vm.iterStack), len(vm.loopStack), hasImplicit, selfFast)
+	vm.slots = slots
+	vm.env = fn.Closure
+	vm.ip = 0
+	return prog, true, nil
 }

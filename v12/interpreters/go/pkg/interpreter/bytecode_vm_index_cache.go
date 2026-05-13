@@ -54,6 +54,65 @@ func bytecodeArrayReceiverForIndexCache(value runtime.Value) (*runtime.ArrayValu
 	return nil, false
 }
 
+func bytecodeArrayIndexGetSlotInstruction(ctx *bytecodeLoweringContext, expr *ast.IndexExpression) (bytecodeInstruction, bool) {
+	if ctx == nil || ctx.frameLayout == nil || expr == nil {
+		return bytecodeInstruction{}, false
+	}
+	objIdent, ok := expr.Object.(*ast.Identifier)
+	if !ok || objIdent == nil {
+		return bytecodeInstruction{}, false
+	}
+	idxIdent, ok := expr.Index.(*ast.Identifier)
+	if !ok || idxIdent == nil {
+		return bytecodeInstruction{}, false
+	}
+	objSlot, ok := ctx.lookupSlot(objIdent.Name)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	idxSlot, ok := ctx.lookupSlot(idxIdent.Name)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	return bytecodeInstruction{
+		op:        bytecodeOpArrayIndexGetSlot,
+		argCount:  objSlot,
+		loopBreak: idxSlot,
+		node:      expr,
+	}, true
+}
+
+func bytecodeArrayIndexSetSlotInstruction(ctx *bytecodeLoweringContext, expr *ast.AssignmentExpression, indexExpr *ast.IndexExpression) (bytecodeInstruction, bool) {
+	if ctx == nil || ctx.frameLayout == nil || expr == nil || indexExpr == nil {
+		return bytecodeInstruction{}, false
+	}
+	if expr.Operator != ast.AssignmentAssign {
+		return bytecodeInstruction{}, false
+	}
+	objIdent, ok := indexExpr.Object.(*ast.Identifier)
+	if !ok || objIdent == nil {
+		return bytecodeInstruction{}, false
+	}
+	idxIdent, ok := indexExpr.Index.(*ast.Identifier)
+	if !ok || idxIdent == nil {
+		return bytecodeInstruction{}, false
+	}
+	objSlot, ok := ctx.lookupSlot(objIdent.Name)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	idxSlot, ok := ctx.lookupSlot(idxIdent.Name)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	return bytecodeInstruction{
+		op:        bytecodeOpArrayIndexSetSlot,
+		argCount:  objSlot,
+		loopBreak: idxSlot,
+		node:      expr,
+	}, true
+}
+
 const (
 	bytecodeIndexTypeUnknown uint16 = iota
 	bytecodeIndexTypeI8
@@ -168,6 +227,11 @@ func bytecodeArrayElementTypeToken(arr *runtime.ArrayValue) (uint16, bool) {
 	}
 	if arr.State != nil && arr.State.ElementTypeTokenKnown {
 		return arr.State.ElementTypeToken, true
+	}
+	if arr.Handle != 0 {
+		if _, ok, err := runtime.ArrayStoreMonoF64ValuesIfAvailable(arr.Handle); err == nil && ok {
+			return bytecodeIndexTypeF64, true
+		}
 	}
 	return bytecodeArrayElementTypeTokenFromValues(arr.Elements)
 }
@@ -369,6 +433,102 @@ func (vm *bytecodeVM) resolveIndexGet(obj runtime.Value, idxVal runtime.Value) (
 	return vm.interp.indexGet(obj, idxVal)
 }
 
+func (vm *bytecodeVM) execArrayIndexGetSlot(instr *bytecodeInstruction) error {
+	if vm == nil || vm.interp == nil || instr == nil {
+		return fmt.Errorf("bytecode array index slot missing VM or instruction")
+	}
+	objSlot, idxSlot := instr.argCount, instr.loopBreak
+	if objSlot < 0 || objSlot >= len(vm.slots) || idxSlot < 0 || idxSlot >= len(vm.slots) {
+		return fmt.Errorf("bytecode array index slot out of range")
+	}
+	obj := vm.slots[objSlot]
+	idxVal := vm.slots[idxSlot]
+	var (
+		result runtime.Value
+		err    error
+	)
+	if vm.interp.canUseDirectArrayIndexGetFastPath() {
+		if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
+			if idx, small := bytecodeDirectSmallArrayIndex(idxVal); small {
+				if state, tracked := bytecodeTrackedArrayState(arr); tracked {
+					if idx < 0 || idx >= len(state.Values) {
+						result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
+					} else if val := state.Values[idx]; val != nil {
+						result = val
+					} else {
+						result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
+					}
+					vm.stack = append(vm.stack, result)
+					vm.ip++
+					return nil
+				}
+				result, err = vm.resolveDirectArrayIndexGetAt(arr, idx)
+			} else if value, handled, directErr := vm.resolveDirectArrayIndexGet(arr, idxVal); handled {
+				result, err = value, directErr
+			}
+		}
+	}
+	if result == nil && err == nil {
+		result, err = vm.resolveIndexGet(obj, idxVal)
+	}
+	if err != nil {
+		err = vm.interp.wrapStandardRuntimeError(err)
+		if instr.node != nil {
+			err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+		}
+		return err
+	}
+	vm.stack = append(vm.stack, result)
+	vm.ip++
+	return nil
+}
+
+func (vm *bytecodeVM) execArrayIndexSetSlot(instr *bytecodeInstruction) error {
+	if vm == nil || vm.interp == nil || instr == nil {
+		return fmt.Errorf("bytecode array index set slot missing VM or instruction")
+	}
+	objSlot, idxSlot := instr.argCount, instr.loopBreak
+	if objSlot < 0 || objSlot >= len(vm.slots) || idxSlot < 0 || idxSlot >= len(vm.slots) {
+		return fmt.Errorf("bytecode array index set slot out of range")
+	}
+	if len(vm.stack) == 0 {
+		return fmt.Errorf("bytecode stack underflow")
+	}
+	valueIdx := len(vm.stack) - 1
+	value := vm.stack[valueIdx]
+	obj := vm.slots[objSlot]
+	idxVal := vm.slots[idxSlot]
+	var (
+		result  runtime.Value
+		err     error
+		handled bool
+	)
+	if vm.interp.canUseDirectArrayIndexSetFastPath() {
+		if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
+			if idx, small := bytecodeDirectSmallArrayIndex(idxVal); small {
+				result, err = vm.resolveDirectArrayIndexSetAt(arr, idx, value)
+				handled = true
+			} else if directResult, directHandled, directErr := vm.resolveDirectArrayIndexSet(arr, idxVal, value, ast.AssignmentAssign, "", false); directHandled {
+				result, err = directResult, directErr
+				handled = true
+			}
+		}
+	}
+	if !handled && err == nil {
+		result, err = vm.resolveIndexSet(obj, idxVal, value, ast.AssignmentAssign, "", false)
+	}
+	if err != nil {
+		err = vm.interp.wrapStandardRuntimeError(err)
+		if instr.node != nil {
+			err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+		}
+		return err
+	}
+	vm.stack[valueIdx] = bytecodeStackResultValue(result)
+	vm.ip++
+	return nil
+}
+
 func (vm *bytecodeVM) resolveIndexSet(obj runtime.Value, idxVal runtime.Value, value runtime.Value, op ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, error) {
 	if vm != nil && vm.interp != nil && vm.interp.canUseDirectArrayIndexSetFastPath() {
 		if arr, ok := bytecodeArrayReceiverForIndexCache(obj); ok {
@@ -506,11 +666,61 @@ func bytecodeDirectArrayIndex(idxVal runtime.Value) (int, bool, error) {
 	return bytecodeDirectArrayIndexFromInteger(idxInt)
 }
 
+func bytecodeDirectSmallArrayIndex(idxVal runtime.Value) (int, bool) {
+	if strconv.IntSize != 64 {
+		return 0, false
+	}
+	switch idx := idxVal.(type) {
+	case runtime.IntegerValue:
+		idxRef := &idx
+		if idxRef.IsSmallRef() {
+			return int(idxRef.Int64FastRef()), true
+		}
+	case *runtime.IntegerValue:
+		if idx != nil && idx.IsSmallRef() {
+			return int(idx.Int64FastRef()), true
+		}
+	}
+	return 0, false
+}
+
 func bytecodeTrackedArrayState(arr *runtime.ArrayValue) (*runtime.ArrayState, bool) {
 	if arr == nil || arr.State == nil || arr.Handle == 0 || arr.TrackedHandle != arr.Handle {
 		return nil, false
 	}
 	return arr.State, true
+}
+
+func bytecodeSyncUnaliasedTrackedArrayWrite(arr *runtime.ArrayValue, state *runtime.ArrayState, idx int, value runtime.Value) bool {
+	if arr == nil || state == nil || arr.TrackedAliases || arr.Handle == 0 || arr.TrackedHandle != arr.Handle {
+		return false
+	}
+	updateArrayElementTypeTokenForWrite(state, idx, value)
+	arr.State = state
+	arr.Elements = state.Values
+	return true
+}
+
+func (vm *bytecodeVM) resolveDirectArrayIndexGetAt(arr *runtime.ArrayValue, idx int) (runtime.Value, error) {
+	if vm == nil || vm.interp == nil || arr == nil {
+		return nil, nil
+	}
+	state, tracked := bytecodeTrackedArrayState(arr)
+	if !tracked {
+		var err error
+		state, err = vm.interp.ensureArrayState(arr, 0)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if idx < 0 || idx >= len(state.Values) {
+		return vm.interp.makeIndexErrorValue(idx, len(state.Values)), nil
+	}
+	val := state.Values[idx]
+	if val == nil {
+		return vm.interp.makeIndexErrorValue(idx, len(state.Values)), nil
+	}
+	return val, nil
 }
 
 func (vm *bytecodeVM) resolveDirectArrayIndexGet(arr *runtime.ArrayValue, idxVal runtime.Value) (runtime.Value, bool, error) {
@@ -521,22 +731,8 @@ func (vm *bytecodeVM) resolveDirectArrayIndexGet(arr *runtime.ArrayValue, idxVal
 	if err != nil || !ok {
 		return nil, ok, err
 	}
-	state, tracked := bytecodeTrackedArrayState(arr)
-	if !tracked {
-		var err error
-		state, err = vm.interp.ensureArrayState(arr, 0)
-		if err != nil {
-			return nil, true, err
-		}
-	}
-	if idx < 0 || idx >= len(state.Values) {
-		return vm.interp.makeIndexErrorValue(idx, len(state.Values)), true, nil
-	}
-	val := state.Values[idx]
-	if val == nil {
-		return vm.interp.makeIndexErrorValue(idx, len(state.Values)), true, nil
-	}
-	return val, true, nil
+	value, err := vm.resolveDirectArrayIndexGetAt(arr, idx)
+	return value, true, err
 }
 
 func (vm *bytecodeVM) resolveDirectArrayIndexSet(arr *runtime.ArrayValue, idxVal runtime.Value, value runtime.Value, op ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, bool, error) {
@@ -550,6 +746,13 @@ func (vm *bytecodeVM) resolveDirectArrayIndexSet(arr *runtime.ArrayValue, idxVal
 	if err != nil || !ok {
 		return nil, ok, err
 	}
+	if op == ast.AssignmentAssign {
+		result, err := vm.resolveDirectArrayIndexSetAt(arr, idx, value)
+		return result, true, err
+	}
+	if !isCompound {
+		return nil, true, fmt.Errorf("unsupported assignment operator %s", op)
+	}
 	state, tracked := bytecodeTrackedArrayState(arr)
 	if !tracked {
 		var err error
@@ -561,20 +764,36 @@ func (vm *bytecodeVM) resolveDirectArrayIndexSet(arr *runtime.ArrayValue, idxVal
 	if idx < 0 || idx >= len(state.Values) {
 		return nil, true, fmt.Errorf("Array index out of bounds")
 	}
-	if op == ast.AssignmentAssign {
-		state.Values[idx] = value
-		vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
-		return value, true, nil
-	}
-	if !isCompound {
-		return nil, true, fmt.Errorf("unsupported assignment operator %s", op)
-	}
 	current := state.Values[idx]
 	computed, err := applyBinaryOperator(vm.interp, binaryOp, current, value)
 	if err != nil {
 		return nil, true, err
 	}
 	state.Values[idx] = computed
-	vm.interp.syncTrackedArrayWrite(arr, state, idx, computed)
+	if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, idx, computed) {
+		vm.interp.syncTrackedArrayWrite(arr, state, idx, computed)
+	}
 	return computed, true, nil
+}
+
+func (vm *bytecodeVM) resolveDirectArrayIndexSetAt(arr *runtime.ArrayValue, idx int, value runtime.Value) (runtime.Value, error) {
+	if vm == nil || vm.interp == nil || arr == nil {
+		return nil, nil
+	}
+	state, tracked := bytecodeTrackedArrayState(arr)
+	if !tracked {
+		var err error
+		state, err = vm.interp.ensureArrayState(arr, 0)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if idx < 0 || idx >= len(state.Values) {
+		return nil, fmt.Errorf("Array index out of bounds")
+	}
+	state.Values[idx] = value
+	if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, idx, value) {
+		vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+	}
+	return value, nil
 }
