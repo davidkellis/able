@@ -40,11 +40,13 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 	slotConstIntImmTable := vm.slotConstImmediateTable(program)
 	statsEnabled := vm.interp != nil && vm.interp.bytecodeStatsEnabled
 	for vm.ip < len(instructions) {
-		if handled, result, err := vm.tryExecI32RecurrenceProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, resume); handled {
-			if result != nil || err != nil {
-				return result, err
+		if !resume && !statsEnabled && vm.ip == 0 && program.i32RecurrenceKernel != nil {
+			if handled, result, err := vm.tryExecI32RecurrenceProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, resume); handled {
+				if result != nil || err != nil {
+					return result, err
+				}
+				continue
 			}
-			continue
 		}
 		instr := &instructions[vm.ip]
 		if statsEnabled {
@@ -160,6 +162,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			bytecodeOpBinaryIntDivCast,
 			bytecodeOpBinaryIntAddSlotConst,
 			bytecodeOpBinaryIntSubSlotConst,
+			bytecodeOpBinaryIntMulSlotConst,
 			bytecodeOpBinaryIntLessEqualSlotConst,
 			bytecodeOpBinaryIntCompareSlotConst:
 			{
@@ -617,6 +620,14 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			if err := vm.execIndexGet(*instr); err != nil {
 				return nil, err
 			}
+		case bytecodeOpArrayIndexGetSlot:
+			if err := vm.execArrayIndexGetSlot(instr); err != nil {
+				return nil, err
+			}
+		case bytecodeOpArrayIndexSetSlot, bytecodeOpArrayIndexSwapSlot:
+			if err := vm.execArrayIndexSlotMutation(instr); err != nil {
+				return nil, err
+			}
 		case bytecodeOpIndexSet:
 			if err := vm.execIndexSet(*instr); err != nil {
 				return nil, err
@@ -654,6 +665,14 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			if newProg != nil {
 				vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
 				continue
+			}
+		case bytecodeOpTryArrayPushF64AffineProduct:
+			if err := vm.execTryArrayPushF64AffineProduct(program, instr); err != nil {
+				return nil, err
+			}
+		case bytecodeOpTryArrayPushF64NestedGet:
+			if err := vm.execTryArrayPushF64NestedGet(program, instr); err != nil {
+				return nil, err
 			}
 		case bytecodeOpMemberAccess:
 			if err := vm.execMemberAccess(*instr); err != nil {
@@ -797,9 +816,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				return nil, breakSignal{value: val}
 			}
 		case bytecodeOpContinueSignal:
-			{
-				return nil, continueSignal{}
-			}
+			return nil, continueSignal{}
 		case bytecodeOpJump:
 			vm.ip = instr.target
 		case bytecodeOpJumpIfFalse:
@@ -810,7 +827,7 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			if err := vm.execJumpIfBoolSlotFalse(instr); err != nil {
 				return nil, err
 			}
-		case bytecodeOpJumpIfIntLessEqualSlotConstFalse, bytecodeOpJumpIfIntCompareSlotConstFalse, bytecodeOpJumpIfArrayReadSlotCompareSlotFalse, bytecodeOpJumpIfIntCompareSlotFalse:
+		case bytecodeOpJumpIfIntLessEqualSlotConstFalse, bytecodeOpJumpIfIntCompareSlotConstFalse, bytecodeOpJumpIfArrayReadSlotCompareSlotFalse, bytecodeOpJumpIfArrayIndexSlotCompareSlotFalse, bytecodeOpJumpIfIntCompareSlotFalse:
 			if err := vm.execJumpOpcode(instr, slotConstIntImmTable, program); err != nil {
 				if handled, err := vm.handleBytecodeJumpRuntimeError(err, instr.node); handled {
 					continue
@@ -891,11 +908,10 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			}
 			return nil, err
 		case bytecodeOpLoopEnter:
-			{
-				if err := vm.pushLoopFrame(instr.loopBreak, instr.loopContinue); err != nil {
-					return nil, err
-				}
-				vm.ip++
+			if handled, err := vm.execLoopEnterOpcode(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, instr); err != nil {
+				return nil, err
+			} else if handled {
+				continue
 			}
 		case bytecodeOpLoopExit:
 			{
@@ -951,9 +967,11 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 			if err := vm.execLoadSlotOpcode(instr); err != nil {
 				return nil, err
 			}
-		case bytecodeOpStoreSlot, bytecodeOpStoreSlotNew, bytecodeOpStoreSlotI32:
-			if err := vm.execStoreSlotOpcode(instr); err != nil {
+		case bytecodeOpStoreSlot, bytecodeOpStoreSlotNew, bytecodeOpStoreSlotI32, bytecodeOpStoreSlotFloatAddMul, bytecodeOpStoreSlotFloatAddMulArrayGet:
+			if handled, err := vm.execStoreSlotOpcode(instr, &program, &instructions, &validatedIntConsts, &slotConstIntImmTable); err != nil {
 				return nil, err
+			} else if handled {
+				continue
 			}
 		case bytecodeOpStoreSlotBinaryIntSlotConst:
 			if err := vm.execStoreSlotBinaryIntSlotConst(instr, slotConstIntImmTable); err != nil {

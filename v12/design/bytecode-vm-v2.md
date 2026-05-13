@@ -234,6 +234,13 @@ added.
 4. **Bool and `f64` lanes**
    - First bool branch slice is landed for declared slot-backed conditions:
      `if`, `elsif`, and `while` can use a bool-slot conditional jump.
+   - The reduced matrix f64 path now has direct float arithmetic, a fused
+     add-mul slot update, a guarded fused `Array.get!` operand update, and a
+     VM-owned raw accumulator cell for that fused update. The latest slice
+     now feeds raw `f32`/`f64` operands out of canonical `Array.get!` while
+     preserving nil/Error propagation. The next f64 lane should collapse the
+     remaining exact operand proof/read path or move toward typed f64
+     array/slot cells.
    - Add broader bool cells and `f64` arithmetic/comparison lanes only after
      post-branch profiles justify them.
    - Target `sudoku` and `matrixmultiply` reduced/external profiles.
@@ -325,10 +332,15 @@ This proves the typed operand lane, checked overflow behavior, boxed boundary,
 VM reset behavior, declared slot metadata, compact self-fast frame restoration,
 and focused parity tests without replacing the general boxed frame model.
 
-One rejected experiment is now part of the design record: a parallel typed
-`i32` slot side cache across recursive frames passed focused parity but
-regressed reduced `Fib30Bytecode`, so the next work should not retry that
-shape.
+Rejected experiments are part of the design record:
+
+- A parallel typed `i32` slot side cache across recursive frames passed focused
+  parity but regressed reduced `Fib30Bytecode`, so the next work should not
+  retry that shape.
+- Conservative untyped-local `i32` proof for quicksort partition locals passed
+  focused parity, but it did not produce a stable reduced quicksort win. Raw
+  declaration slots without an end-to-end typed update/call/return path are not
+  enough; do not reattempt untyped-local inference as a standalone slice.
 
 The next implementation tranche should not add another `fib`-only helper. The
 native recurrence kernel moved external bytecode `fib(45)` to `3.7633s` over
@@ -344,5 +356,197 @@ After the first five quicksort pivots, the next collection/string slice should
 not target condition-only jumps again unless a fresh profile reverses the
 ranking. The reduced profile now puts the remaining wall in residual boxed
 slot updates, slot-call dispatch, frame release, small-int boxing, and the
-`swap` / recursive quicksort call path. The next bounded test should start
-there while preserving the same boxed dynamic fallback behavior.
+`swap` / recursive quicksort call path. The follow-up cached parameter
+simple-check slice removed the string-dispatch part of primitive inline
+argument checks. The follow-up discard-result store slice removed the
+push-then-pop roundtrip for statement-position fused slot-const
+self-assignments. The follow-up bracket-swap pattern opcode removes the
+standalone get/cast/set/cast/set sequence for the exact local swap block used
+by quicksort while keeping the same v12 index guards and generic fallback.
+The follow-up small-index swap lane removes the remaining broad index
+conversion/get/set ladder for the hot tracked-array swap shape. This still
+does not change the larger structural picture: the next bounded test should
+start from fresh profile evidence around fused array-index comparison, direct
+call-frame setup, generic binary/modulo work in `build_data`, or a v12-safe
+typed-loop lane while preserving the same boxed dynamic fallback behavior.
+
+The first reduced matrix slice confirms the same VM-v2 direction for `f64`.
+Canonical tracked-array `Array.get(i32)` success values with cached primitive
+`f32`/`f64` element tokens and matching actual float results now skip an
+immediately following postfix propagation opcode when the current method-cache
+version proves that primitive type does not implement `Error`. This is
+intentionally a boxed-boundary fusion: nil, stale non-float element shapes, and
+active primitive-Error impls keep the old propagation path.
+The kept profile removes propagation from the top reduced matrix profile, and
+the follow-up direct boxed-float binary path removes the old
+`evaluateArithmetic(Fast)` wall for primitive `+`, `-`, and `*`. The remaining
+lesson is unchanged but sharper: the next bounded matrix slice should carry raw
+`f64` values through expression arithmetic and slot updates before boxing at
+array/dynamic/spec boundaries. The follow-up `StoreSlotFloatAddMul` opcode now
+does this for the common `x = x + left * right` update while preserving
+evaluation order and boxed fallback behavior. The follow-up fused-array-get
+and raw-accumulator slices now feed canonical `Array.get(i32)!` operands into
+that update and keep the accumulator in a VM-owned float cell until a visible
+slot read. The raw-operand slice dropped reduced `matrixmultiply_f64_small` to
+a `4.06-4.43s/op` kept band.
+
+The follow-up native f64 dot-loop slice is the first deliberately broader
+VM-v2-style matrix cut: lowering recognizes only the exact slot-backed loop
+body `if k >= n { break }; s = s + ai.get(k)! * cj.get(k)!; k = k + 1`,
+attaches a plan to the existing `LoopEnter`, and leaves the original loop
+bytecode in place as the fallback. Runtime guards require the canonical
+`Array.get` method, tracked arrays, valid `i32` index/bound slots, and actual
+`f64` elements. When any guard fails, execution enters the original loop before
+the unsupported iteration.
+
+That tranche drops reduced `matrixmultiply_f64_small` to
+`319.62-333.92ms/op`, with a traced/profiled confirmation at `405.57ms/op`.
+Full external bytecode `matrixmultiply` now completes in `23.85s` instead of
+timing out at `90s`, beating the Ruby and Python references for this benchmark
+while still trailing Go by `27.10x`. The next f64 work should target the
+remaining matrix construction/transpose calls and then generalize the typed f64
+array/slot lane from this proof point, not add more boxed float helpers.
+
+The f64 row-cache follow-up validates the next VM-v2 direction: keep raw typed
+rows behind a guarded representation boundary instead of repeatedly proving
+boxed values. Dynamic array states now carry a revision, writes and state
+resyncs invalidate that revision, and the native dot loop caches each tracked
+row/column as `[]float64` for the duration of a VM run. The reduced matrix band
+falls again to `204.02-229.45ms/op`, with a profiled `236.52ms/op`
+confirmation. Full external bytecode `matrixmultiply` moves to `3.08s`, about
+`3.50x` the Go reference and faster than Ruby/Python. The next VM-v2 f64 work
+should attack row construction/transpose allocation and member dispatch, then
+consider a broader typed-array storage lane once the fallback boundary is as
+clear as this row cache.
+
+The small-integer float-cast follow-up is a smaller construction-side lesson:
+before adding another opcode, remove representation churn at existing primitive
+boundaries. Directly converting small boxed integers to `f32`/`f64` cuts reduced
+matrix allocation volume from about `1.63M/op` to about `913k/op` and moves the
+kept band to `184.04-212.11ms/op`; full external bytecode `matrixmultiply`
+moves to `2.90s`, about `3.30x` Go. The remaining VM-v2 matrix work should
+focus on collection construction dispatch and typed row storage, not on more
+boxed numeric helper rewrites.
+
+The tracked `Array.push` append helper is a small but useful reminder that the
+external benchmark shape matters. The reduced fixture was neutral because it
+still grows rows dynamically, but the external benchmark preallocates rows with
+`Array.with_capacity(n)`. Skipping redundant capacity checks and using
+unaliased tracked sync moves full external bytecode `matrixmultiply` to
+`2.75s` over `3/3` runs, about `3.12x` Go. The next VM-v2 matrix work should
+focus on remaining construction-time `Array.get`/`Array.slot` dispatch and GC
+scan pressure rather than another push helper.
+
+The adjacent-`Pop` push cleanup is useful mainly as a semantics guardrail for
+future quickening: only the proven canonical push fast path may skip the
+statement-result `Pop`; lowering still emits the `Pop` so generic fallback stack
+behavior is preserved. It improves the reduced matrix fixture to
+`176.45-186.98ms/op`, but external bytecode `matrixmultiply` is neutral at
+`2.774s` over `5/5`. That makes the next VM-v2 target construction-time
+`Array.get` reads and residual slot-call cache checks, not more push-specific
+work.
+
+The f64 dot-loop accumulator-store follow-up sharpens the typed-value boundary:
+owned float cells help repeated slot mutation, but the native dot loop writes
+the accumulator only once after it consumes the full row/column. Storing that
+completed accumulator as a plain `FloatValue` removes one unamortized allocation
+source without changing fallback semantics. Reduced matrix now lands at
+`163.01-170.93ms/op`, around `822.9k allocs/op`; full external bytecode
+`matrixmultiply` moves to `2.604s` over `5/5`, about `2.96x` Go. The next VM-v2
+matrix target should be remaining boxed float arithmetic/cast allocation or a
+real typed f64 row/storage lane, not broad owned-slot reuse.
+
+The f64 affine `Array.push` try-fast path confirms the right VM-v2 shape for
+construction-side numeric work: recognize a narrow slot-backed expression, emit
+a guarded opcode before the original bytecode, and let every guard miss fall
+through to the boxed path. For the matrix `build_matrix` expression, direct f64
+append drops reduced matrix to `121.57-136.46ms/op` after warmup and moves full
+external bytecode `matrixmultiply` to `2.130s` over `5/5`, about `2.42x` Go.
+The next VM-v2 matrix step should reduce row/column storage allocation and
+remaining construction/transpose array traffic, ideally with a guarded typed
+f64 row/storage lane rather than more per-helper boxed arithmetic shaving.
+
+The versioned-stdlib canonical proof follow-up fixes an important measurement
+boundary rather than the macro runtime wall. Installed stdlib origins under
+`.able/pkg/src/able/<version>/src/...` now validate as canonical stdlib paths,
+and direct/bound canonical nullable `Array.get` functions are accepted by the
+same proof as overload wrappers. This restores the runtime-only reduced matrix
+harness to a warmed `117.29-122.68ms/op` band instead of falling into generic
+`Array.get` fallback after warmup, while full external bytecode
+`matrixmultiply` remains neutral at `2.1333s` over `3/3`. The next VM-v2 matrix
+work is still typed row/storage allocation and construction/transpose traffic,
+not more canonical-origin or `Array.get` proof-cache polishing.
+
+The mono-f64 array storage tranche confirms the row-storage direction but also
+shows where the next boundary is. Dynamic rows can now promote to guarded mono
+f64 storage from the affine `Array.push` fast path, the native f64 dot-loop can
+read mono f64 rows without building a boxed row cache, and canonical
+`Array.get` fast paths read mono f64 handles without calling generic
+`ArrayStoreRead`. Reduced runtime-only matrix keeps the warmed wall-clock band
+while dropping allocation volume to about `21.8-22.0MB/op` and `193.1k
+allocs/op`; full external bytecode `matrixmultiply` moves to `2.0400s` over
+`3/3`, about `2.32x` Go. The remaining f64 matrix work is now boundary boxing:
+`finishArrayGetMemberFast(...)` still materializes about one boxed float per
+external result read, and the native dot-loop accumulator slot write still boxes
+one `FloatValue` per completed cell. The next VM-v2 matrix step should target a
+typed f64 cell/result boundary there, not another push/storage helper.
+
+The guarded nested-get push tranche removes the transpose-side boxed f64
+boundary for the exact canonical shape `ci.push(b.get(j)!.get(i)!)`. Lowering
+emits a try opcode ahead of the original call and the VM only commits when both
+`Array.get` calls and the destination `Array.push` are canonical, the propagated
+outer value is a concrete Array that cannot implement `Error`, and the inner row
+has an in-bounds raw f64 value; otherwise execution falls through to the
+unchanged bytecode. This drops reduced runtime-only matrix allocation from the
+prior `193k allocs/op` area to about `103k allocs/op` while keeping wall time in
+the same warmed band. Same-session external control without the fusion landed at
+`2.3533s`; the restored fused confirmation landed at `2.1840s` over `5/5`.
+Because the older mono-f64 best was `2.0400s`, treat this as a shape/allocation
+keep rather than proof that matrix wall time has reached a new low. The next
+work should target the dot-loop accumulator box and repeated array/cache guard
+costs, or graduate the matrix loop to a typed f64 cell/result boundary.
+
+The owned f64 accumulator cell tranche is a smaller typed-cell step. Ordinary
+float slot stores now seed/reuse the VM-owned float cell used by the fused
+float update machinery, and the native f64 dot-loop stores its accumulator
+through that cell. Slot loads still snapshot `*FloatValue` cells back to
+ordinary `FloatValue`, so user-visible primitive value semantics are unchanged.
+Reduced runtime-only matrix wall time moved to `108.75-114.94ms/op`, and full
+external bytecode `matrixmultiply` moved to `2.0840s` over `5/5`. Allocation did
+not drop because the box moved from the dot-loop accumulator write to the
+following `bytecodeSlotReadValue(...)` for `di.push(s)`. The next VM-v2 matrix
+step should therefore be a guarded slot-backed f64 push for that exact
+`Array.push` shape, not a broad load-slot pointer exposure.
+
+The reserved-capacity follow-up is an allocation-only keep from the full
+external profile. Interpreted `Array.with_capacity(n)` no longer allocates a
+dynamic `[]Value` backing immediately; it records logical capacity on the
+dynamic handle and lets the first dynamic write allocate the reserved backing.
+Rows that immediately promote through the guarded mono-f64 append path now skip
+the discarded dynamic backing entirely. This preserves `Array.capacity`, sparse
+writes, generic dynamic writes, and mono-f64 deopt behavior; `Array.new(n)` and
+`ArrayStoreNewWithCapacity(n)` remain eager for compatibility with compiled and
+runtime ABI paths that still observe `ArrayValue.Elements`.
+
+The reduced fixture is neutral because it uses `Array.new`, but full
+bytecode-runtime `matrixmultiply` allocation moves from the prior profiled
+`125.83MB` total / `121MB/op` area to `90.89MB` profiled total and
+`71.84MB/op` unprofiled. Full external bytecode `matrixmultiply` stays neutral
+at `2.1000s` over `5/5`, with lower GC. The next matrix work should return to
+the f64 result boundary (`bytecodeSlotReadValue(...)` feeding `di.push(s)`) or
+a broader typed f64 result-row lane, not generic capacity reservation.
+
+The native f64 dot-loop result append is the successful shape for that
+boundary. Instead of adding another pre-call try opcode for `di.push(s)`, the
+existing dot-loop plan now optionally spans the following discarded
+statement-position push of the same accumulator. If the dot-loop, canonical
+`Array.get`, canonical `Array.push`, and raw f64 append guards all pass, the VM
+appends the accumulator directly and jumps past the fallback push bytecode. If
+any guard fails, the original loop and push execute unchanged.
+
+This removes `bytecodeSlotReadValue(...)` from the allocation top list and
+moves full bytecode-runtime `matrixmultiply` to about `39.8MB/op` and `73.5k
+allocs/op`; full external bytecode `matrixmultiply` lands at `2.0240s` over
+`5/5`. The next matrix work should target mono-f64 append storage and growth,
+especially `ArrayStoreAppendF64Promote(...)` / `appendMonoF64Value(...)`, not
+more result-load boxing or standalone slot-push dispatch.

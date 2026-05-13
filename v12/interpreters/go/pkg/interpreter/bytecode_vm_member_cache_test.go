@@ -117,6 +117,89 @@ func TestBytecodeVM_MemberMethodCacheTracksStructDefinition(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_MemberMethodCacheWorksInPackageEnv(t *testing.T) {
+	t.Setenv("ABLE_BYTECODE_STATS", "1")
+
+	structDef := ast.StructDef(
+		"S",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "n"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+
+	ping := ast.Fn(
+		"ping",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Self")),
+		},
+		[]ast.Statement{
+			ast.Int(7),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	callPing := ast.Fn(
+		"call_ping",
+		[]*ast.FunctionParameter{
+			ast.Param("s", ast.Ty("S")),
+		},
+		[]ast.Statement{
+			ast.CallExpr(ast.Member(ast.ID("s"), "ping")),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	module := ast.Mod([]ast.Statement{
+		structDef,
+		ast.Methods(ast.Ty("S"), []*ast.FunctionDefinition{ping}, nil, nil),
+		callPing,
+		ast.Assign(
+			ast.ID("s"),
+			ast.StructLit([]*ast.StructFieldInitializer{
+				ast.FieldInit(ast.Int(1), "n"),
+			}, false, "S", nil, nil),
+		),
+		ast.Call("call_ping", ast.ID("s")),
+		ast.Call("call_ping", ast.ID("s")),
+	}, nil, nil)
+
+	interp := NewBytecode()
+	program, err := interp.lowerModuleToBytecode(module)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	packageEnv := runtime.NewEnvironment(interp.GlobalEnvironment())
+	vm := newBytecodeVM(interp, packageEnv)
+	got, err := vm.run(program)
+	if err != nil {
+		t.Fatalf("bytecode execution failed: %v", err)
+	}
+	want := mustEvalModule(t, New(), module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode package-env member cache mismatch: got=%#v want=%#v", got, want)
+	}
+
+	stats := interp.BytecodeStats()
+	if stats.MemberMethodCacheMiss == 0 {
+		t.Fatalf("expected package-env member method cache misses > 0")
+	}
+	if stats.MemberMethodCacheHits == 0 {
+		t.Fatalf("expected package-env member method cache hits > 0")
+	}
+}
+
 func TestBytecodeVM_NonMethodMemberAccessSkipsMemberMethodCacheCounters(t *testing.T) {
 	t.Setenv("ABLE_BYTECODE_STATS", "1")
 

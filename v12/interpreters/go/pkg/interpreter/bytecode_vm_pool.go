@@ -56,6 +56,12 @@ func (vm *bytecodeVM) resetForRun(interp *Interpreter, env *runtime.Environment)
 		clear(vm.slots)
 		vm.slots = nil
 	}
+	if len(vm.ownedFloatSlots) > 0 {
+		clear(vm.ownedFloatSlots)
+	}
+	if len(vm.f64ArrayCache) > 0 {
+		clear(vm.f64ArrayCache)
+	}
 	if len(vm.callFrames) > 0 {
 		for idx := range vm.callFrames {
 			frame := &vm.callFrames[idx]

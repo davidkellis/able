@@ -43,9 +43,16 @@ func bytecodeCanUseSelfFastFrame(currentProgram *bytecodeProgram, calleeProgram 
 }
 
 func inlineParamCoercionUnnecessary(layout *bytecodeFrameLayout, idx int, typeExpr ast.TypeExpression, val runtime.Value) bool {
-	if layout != nil && idx >= 0 && idx < len(layout.paramSimpleTypes) {
-		if typeName := layout.paramSimpleTypes[idx]; typeName != "" {
-			return inlineCoercionUnnecessaryBySimpleType(typeName, val)
+	if layout != nil && idx >= 0 {
+		if idx < len(layout.paramSimpleChecks) {
+			if check := layout.paramSimpleChecks[idx]; check != bytecodeSimpleTypeCheckUnknown {
+				return inlineCoercionUnnecessaryBySimpleCheck(check, val)
+			}
+		}
+		if idx < len(layout.paramSimpleTypes) {
+			if typeName := layout.paramSimpleTypes[idx]; typeName != "" {
+				return inlineCoercionUnnecessaryBySimpleType(typeName, val)
+			}
 		}
 	}
 	return inlineCoercionUnnecessary(typeExpr, val)
@@ -723,9 +730,6 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction, currentProgram *by
 	if instr.argCount < 0 {
 		return nil, fmt.Errorf("bytecode call arg count invalid")
 	}
-	if len(vm.stack) < instr.argCount {
-		return nil, fmt.Errorf("bytecode stack underflow")
-	}
 	if instr.name == "" {
 		return nil, fmt.Errorf("bytecode call missing target name")
 	}
@@ -741,8 +745,16 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction, currentProgram *by
 	}
 	traceLookup := "name"
 	statsEnabled := vm.interp != nil && vm.interp.bytecodeStatsEnabled
+	traceEnabled := vm.interp != nil && vm.interp.bytecodeTraceEnabled
 	if statsEnabled {
 		vm.interp.recordBytecodeCallNameLookup()
+	}
+	if instr.slotArgs {
+		if err := vm.pushCallNameSlotArgs(instr); err != nil {
+			return nil, err
+		}
+	} else if len(vm.stack) < instr.argCount {
+		return nil, fmt.Errorf("bytecode stack underflow")
 	}
 	argBase := len(vm.stack) - instr.argCount
 	if instr.nameSimple {
@@ -799,14 +811,14 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction, currentProgram *by
 		}
 	}
 	if instr.nameSimple && found {
-		entry := bytecodeBuildCallNameCacheEntry(instr.name, lookup, calleeVal, instr.argCount)
+		entry := bytecodeBuildCallNameCacheEntry(instr.name, lookup, calleeVal, instr.argCount, callNode)
 		if cached := vm.storeCachedCallName(currentProgram, vm.ip, entry); cached != nil {
 			return vm.execCachedCallName(cached, argBase, instr.argCount, callNode, currentProgram)
 		}
 		return nil, fmt.Errorf("bytecode call-name cache store failed")
 	}
 	if target, ok := bytecodeResolveExactNativeCallTarget(calleeVal, instr.argCount); ok {
-		if vm.interp != nil {
+		if traceEnabled {
 			vm.interp.recordBytecodeCallTrace("call_name", instr.name, traceLookup, "exact_native", traceNode)
 		}
 		args := vm.stack[argBase:]
@@ -818,7 +830,7 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction, currentProgram *by
 	if newProg, err := vm.tryInlineCallFromStack(calleeVal, argBase, instr.argCount, argBase, callNode, currentProgram); err != nil {
 		return nil, err
 	} else if newProg != nil {
-		if vm.interp != nil {
+		if traceEnabled {
 			vm.interp.recordBytecodeCallTrace("call_name", instr.name, traceLookup, "inline", traceNode)
 		}
 		if statsEnabled {
@@ -834,9 +846,24 @@ func (vm *bytecodeVM) execCallName(instr bytecodeInstruction, currentProgram *by
 		args = copyCallArgs(args)
 	}
 	// Normal call.
-	if vm.interp != nil {
+	if traceEnabled {
 		vm.interp.recordBytecodeCallTrace("call_name", instr.name, traceLookup, "generic", traceNode)
 	}
 	result, err := vm.interp.callCallableValueMutable(calleeVal, args, vm.env, callNode)
 	return vm.finishCompletedCall(result, err, callNode, nil)
+}
+
+func (vm *bytecodeVM) pushCallNameSlotArgs(instr bytecodeInstruction) error {
+	if instr.argCount < 0 || instr.argCount > 3 {
+		return fmt.Errorf("bytecode slot-arg call count invalid")
+	}
+	argSlots := [3]int{instr.target, instr.loopBreak, instr.loopContinue}
+	for idx := 0; idx < instr.argCount; idx++ {
+		slot := argSlots[idx]
+		if slot < 0 || slot >= len(vm.slots) {
+			return fmt.Errorf("bytecode slot-arg call slot out of range")
+		}
+		vm.stack = append(vm.stack, bytecodeSlotReadValue(vm.slots[slot]))
+	}
+	return nil
 }

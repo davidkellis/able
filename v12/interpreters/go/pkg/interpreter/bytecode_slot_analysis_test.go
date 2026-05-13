@@ -81,6 +81,43 @@ func TestAnalyzeFrameLayoutCachesParamCellKinds(t *testing.T) {
 	}
 }
 
+func TestAnalyzeFrameLayoutCachesParamSimpleChecks(t *testing.T) {
+	interp := New()
+	def := ast.Fn(
+		"f",
+		[]*ast.FunctionParameter{
+			ast.Param("a", ast.Ty("i32")),
+			ast.Param("b", ast.Ty("String")),
+			ast.Param("c", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+		},
+		[]ast.Statement{
+			ast.ID("a"),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	layout := analyzeFrameLayout(interp, def)
+	if layout == nil {
+		t.Fatalf("expected frame layout")
+	}
+	if got, want := len(layout.paramSimpleChecks), 3; got != want {
+		t.Fatalf("unexpected param simple check count: got=%d want=%d", got, want)
+	}
+	if got := layout.paramSimpleChecks[0]; got != bytecodeSimpleTypeCheckI32 {
+		t.Fatalf("unexpected first param simple check: got=%d want=%d", got, bytecodeSimpleTypeCheckI32)
+	}
+	if got := layout.paramSimpleChecks[1]; got != bytecodeSimpleTypeCheckString {
+		t.Fatalf("unexpected second param simple check: got=%d want=%d", got, bytecodeSimpleTypeCheckString)
+	}
+	if got := layout.paramSimpleChecks[2]; got != bytecodeSimpleTypeCheckUnknown {
+		t.Fatalf("unexpected generic param simple check: got=%d want unknown", got)
+	}
+}
+
 func TestAnalyzeFrameLayoutCachesParamCoercionMetadata(t *testing.T) {
 	interp := New()
 	def := ast.Fn(
@@ -203,6 +240,18 @@ func TestInlineCoercionUnnecessaryBySimpleCheck(t *testing.T) {
 	}
 	if !inlineCoercionUnnecessaryBySimpleCheck(bytecodeSimpleTypeCheckBool, &boolVal) {
 		t.Fatalf("expected Bool check to accept bool pointers")
+	}
+}
+
+func TestInlineParamCoercionUnnecessaryUsesCachedSimpleCheck(t *testing.T) {
+	layout := &bytecodeFrameLayout{
+		paramSimpleTypes:  []string{"String"},
+		paramSimpleChecks: []bytecodeSimpleTypeCheck{bytecodeSimpleTypeCheckI32},
+	}
+	value := runtime.NewSmallInt(7, runtime.IntegerI32)
+
+	if !inlineParamCoercionUnnecessary(layout, 0, ast.Ty("String"), value) {
+		t.Fatalf("expected cached i32 simple check to accept matching integer value")
 	}
 }
 

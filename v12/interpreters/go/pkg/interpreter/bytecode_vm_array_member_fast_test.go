@@ -123,6 +123,12 @@ func TestBytecodeVM_CanonicalStdlibOriginCheckDoesNotAllocate(t *testing.T) {
 	if isCanonicalAbleStdlibOrigin("/tmp/project/src/collections/array.able", "collections/array.able") {
 		t.Fatalf("custom origin should not match canonical stdlib path")
 	}
+	if !isCanonicalAbleStdlibOrigin("/home/user/.able/pkg/src/able/v0.1.0_hash/src/collections/array.able", "collections/array.able") {
+		t.Fatalf("versioned stdlib cache origin should match")
+	}
+	if isCanonicalAbleStdlibOrigin("/home/user/.able/pkg/src/able/v0.1.0_hash/collections/array.able", "collections/array.able") {
+		t.Fatalf("versioned stdlib cache origin without src segment should not match")
+	}
 }
 
 func TestBytecodeVM_ArrayMemberFastPathLenAndGetSemantics(t *testing.T) {
@@ -277,6 +283,23 @@ func TestBytecodeVM_CanonicalArrayGetOverloadFastPath(t *testing.T) {
 	}}
 	if vm.isCanonicalNullableArrayGetOverload(rejected) {
 		t.Fatalf("custom Array.get overload should not use canonical fast path")
+	}
+
+	nullableFn := &runtime.FunctionValue{Declaration: nullableGet, Closure: env}
+	if !vm.isCanonicalNullableArrayGetOverload(runtime.BoundMethodValue{Receiver: arr, Method: nullableFn}) {
+		t.Fatalf("bound canonical nullable Array.get function should validate")
+	}
+	if !vm.isCanonicalNullableArrayGetOverload(&runtime.BoundMethodValue{Receiver: arr, Method: nullableFn}) {
+		t.Fatalf("bound pointer canonical nullable Array.get function should validate")
+	}
+	if !vm.isCanonicalNullableArrayGetOverload(nullableFn) {
+		t.Fatalf("canonical nullable Array.get function should validate")
+	}
+	if vm.isCanonicalNullableArrayGetOverload(&runtime.FunctionValue{Declaration: resultGet, Closure: env, MethodPriority: -1}) {
+		t.Fatalf("canonical Result-returning Array.get function should not validate as nullable get")
+	}
+	if vm.isCanonicalNullableArrayGetOverload(runtime.BoundMethodValue{Receiver: arr, Method: &runtime.FunctionValue{Declaration: customGet, Closure: env}}) {
+		t.Fatalf("bound custom nullable Array.get function should not validate")
 	}
 }
 

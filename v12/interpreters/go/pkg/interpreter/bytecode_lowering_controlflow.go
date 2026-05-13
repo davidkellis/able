@@ -47,9 +47,41 @@ func emitBlock(ctx *bytecodeLoweringContext, i *Interpreter, block *ast.BlockExp
 		ctx.exitScope()
 		return nil
 	}
-	for idx, stmt := range block.Body {
+	if instr, ok := bytecodeArrayIndexSwapSlotInstruction(ctx, block.Body); ok {
+		ctx.emit(instr)
+		ctx.exitScope()
+		return nil
+	}
+	for idx := 0; idx < len(block.Body); idx++ {
+		stmt := block.Body[idx]
 		if stmt == nil {
 			return bytecodeUnsupported("nil statement in block")
+		}
+		if loop, ok := stmt.(*ast.LoopExpression); ok && idx+1 < len(block.Body)-1 {
+			if receiverSlot, ok := bytecodeF64DotLoopResultAppendReceiverSlot(ctx, loop, block.Body[idx+1]); ok {
+				loopEnter, err := emitLoopExpressionCore(ctx, i, loop)
+				if err != nil {
+					return err
+				}
+				ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+				pushStart := len(ctx.instructions)
+				if err := emitStatement(ctx, i, block.Body[idx+1], false); err != nil {
+					return err
+				}
+				pushIP := bytecodeFindArrayPushSlotCall(ctx.instructions[pushStart:])
+				if pushIP >= 0 && ctx.f64DotLoops != nil {
+					plan := ctx.f64DotLoops[loopEnter]
+					if plan.successTarget > loopEnter {
+						plan.resultAppend = true
+						plan.resultReceiverSlot = receiverSlot
+						plan.resultPushIP = pushStart + pushIP
+						plan.resultTarget = len(ctx.instructions)
+						ctx.f64DotLoops[loopEnter] = plan
+					}
+				}
+				idx++
+				continue
+			}
 		}
 		if err := emitStatement(ctx, i, stmt, idx == len(block.Body)-1); err != nil {
 			return err
@@ -67,6 +99,8 @@ func emitIf(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfExpression
 	if instr, ok := bytecodeJumpIfFalseBinarySlotSlotInstruction(ctx, expr.IfCondition); ok {
 		jumpToElse = ctx.emit(instr)
 	} else if instr, ok := bytecodeJumpIfFalseArrayReadSlotCompareSlotInstruction(ctx, expr.IfCondition); ok {
+		jumpToElse = ctx.emit(instr)
+	} else if instr, ok := bytecodeJumpIfFalseArrayIndexSlotCompareSlotInstruction(ctx, expr.IfCondition); ok {
 		jumpToElse = ctx.emit(instr)
 	} else if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, expr.IfCondition); ok {
 		jumpToElse = ctx.emit(instr)
@@ -92,6 +126,8 @@ func emitIf(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfExpression
 		if instr, ok := bytecodeJumpIfFalseBinarySlotSlotInstruction(ctx, clause.Condition); ok {
 			jumpToNext = ctx.emit(instr)
 		} else if instr, ok := bytecodeJumpIfFalseArrayReadSlotCompareSlotInstruction(ctx, clause.Condition); ok {
+			jumpToNext = ctx.emit(instr)
+		} else if instr, ok := bytecodeJumpIfFalseArrayIndexSlotCompareSlotInstruction(ctx, clause.Condition); ok {
 			jumpToNext = ctx.emit(instr)
 		} else if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, clause.Condition); ok {
 			jumpToNext = ctx.emit(instr)
@@ -140,6 +176,8 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 		jumpToElse = ctx.emit(instr)
 	} else if instr, ok := bytecodeJumpIfFalseArrayReadSlotCompareSlotInstruction(ctx, expr.IfCondition); ok {
 		jumpToElse = ctx.emit(instr)
+	} else if instr, ok := bytecodeJumpIfFalseArrayIndexSlotCompareSlotInstruction(ctx, expr.IfCondition); ok {
+		jumpToElse = ctx.emit(instr)
 	} else if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, expr.IfCondition); ok {
 		jumpToElse = ctx.emit(instr)
 	} else if instr, ok := bytecodeJumpIfFalseBoolSlotInstruction(ctx, expr.IfCondition); ok {
@@ -165,6 +203,8 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 		if instr, ok := bytecodeJumpIfFalseBinarySlotSlotInstruction(ctx, clause.Condition); ok {
 			jumpToNext = ctx.emit(instr)
 		} else if instr, ok := bytecodeJumpIfFalseArrayReadSlotCompareSlotInstruction(ctx, clause.Condition); ok {
+			jumpToNext = ctx.emit(instr)
+		} else if instr, ok := bytecodeJumpIfFalseArrayIndexSlotCompareSlotInstruction(ctx, clause.Condition); ok {
 			jumpToNext = ctx.emit(instr)
 		} else if instr, ok := bytecodeJumpIfFalseBinarySlotConstInstruction(ctx, clause.Condition); ok {
 			jumpToNext = ctx.emit(instr)
@@ -199,25 +239,44 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 }
 
 func emitLoopExpression(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.LoopExpression) error {
+	_, err := emitLoopExpressionCore(ctx, i, loop)
+	return err
+}
+
+func emitLoopExpressionCore(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.LoopExpression) (int, error) {
 	if loop == nil {
-		return bytecodeUnsupported("nil loop expression")
+		return -1, bytecodeUnsupported("nil loop expression")
 	}
 	if loop.Body == nil {
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.VoidValue{}})
-		return nil
+		return -1, nil
 	}
+	dotLoop, hasDotLoop := bytecodeF64DotLoopPlanForLoop(ctx, loop)
 	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
 	loopStart := len(ctx.instructions)
 	ctx.pushLoop(loopStart)
 	if err := emitBlock(ctx, i, loop.Body); err != nil {
-		return err
+		return -1, err
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
 	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
 	loopExit := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopExit})
 	ctx.popLoop(loopExit)
 	ctx.patchLoopTargets(loopEnter, loopExit, loopStart)
-	return nil
+	if hasDotLoop {
+		dotLoop.successTarget = len(ctx.instructions)
+		ctx.setF64DotLoopPlan(loopEnter, dotLoop)
+	}
+	return loopEnter, nil
+}
+
+func bytecodeFindArrayPushSlotCall(instructions []bytecodeInstruction) int {
+	for idx, instr := range instructions {
+		if instr.op == bytecodeOpCallMemberArraySlot && instr.name == "push" && instr.argCount == 1 && !instr.safe {
+			return idx
+		}
+	}
+	return -1
 }
 
 func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.WhileLoop) error {

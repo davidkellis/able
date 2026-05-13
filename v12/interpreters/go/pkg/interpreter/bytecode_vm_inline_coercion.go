@@ -59,13 +59,13 @@ func inlineCoerceValueBySimpleType(typeName string, value runtime.Value) (runtim
 			}
 			return runtime.FloatValue{Val: normalizeFloat(targetFloat, val.Val), TypeSuffix: targetFloat}, true, nil
 		case runtime.IntegerValue:
-			f := bigIntToFloat(val.BigInt())
+			f := integerValueToFloat64Fast(val)
 			return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, true, nil
 		case *runtime.IntegerValue:
 			if val == nil {
 				return nil, false, nil
 			}
-			f := bigIntToFloat(val.BigInt())
+			f := integerRefToFloat64Fast(val)
 			return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, true, nil
 		}
 	}

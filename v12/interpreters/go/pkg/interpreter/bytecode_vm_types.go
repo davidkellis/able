@@ -23,6 +23,8 @@ type bytecodeInstruction struct {
 	program         *bytecodeProgram
 	hasIntImmediate bool
 	hasIntRaw       bool
+	slotArgs        bool
+	discardResult   bool
 	safe            bool
 	preferMethods   bool
 }
@@ -33,6 +35,9 @@ type bytecodeProgram struct {
 	returnGenericNames       map[string]struct{}
 	returnGenericNamesCached bool
 	i32RecurrenceKernel      *bytecodeI32RecurrenceKernel
+	f64DotLoops              map[int]bytecodeF64DotLoopPlan
+	f64AffinePushes          map[int]bytecodeF64AffineProductPushPlan
+	f64NestedGetPushes       map[int]bytecodeF64NestedArrayGetPushPlan
 }
 
 type bytecodeCallFrame struct {
@@ -88,6 +93,7 @@ type bytecodeVM struct {
 	slotFramePool                      map[int][][]runtime.Value
 	slotFrameHotSize                   int
 	slotFrameHotPool                   [][]runtime.Value
+	ownedFloatSlots                    map[*runtime.Value]*runtime.FloatValue
 	callFrameKinds                     []bytecodeCallFrameKind
 	callFrames                         []bytecodeCallFrame
 	selfFastCallFrames                 []bytecodeSelfFastCallFrame
@@ -111,9 +117,20 @@ type bytecodeVM struct {
 	arrayGetOverloadPairOK             bool
 	arrayGetCallCache                  map[bytecodeGlobalLookupCacheKey]bytecodeArrayGetCallCacheEntry
 	arrayGetCallHot                    [bytecodeArrayGetCallHotEntries]bytecodeInlineArrayGetCallCacheEntry
+	arrayGetF32NoErrorVersion          uint64
+	arrayGetF32NoErrorKnown            bool
+	arrayGetF32NoError                 bool
+	arrayGetF64NoErrorVersion          uint64
+	arrayGetF64NoErrorKnown            bool
+	arrayGetF64NoError                 bool
+	arrayValueNoErrorVersion           uint64
+	arrayValueNoErrorKnown             bool
+	arrayValueNoError                  bool
+	f64ArrayCache                      map[*runtime.ArrayState]bytecodeF64ArrayCacheEntry
 	arrayNewCallCache                  map[bytecodeGlobalLookupCacheKey]bytecodeArrayNewCallCacheEntry
 	arrayNewCallHot                    [bytecodeArrayNewCallHotEntries]bytecodeInlineArrayNewCallCacheEntry
 	arraySlotCallCache                 map[bytecodeGlobalLookupCacheKey]bytecodeArraySlotCallCacheEntry
+	arraySlotCallDirect                [bytecodeArraySlotCallDirectEntries]bytecodeInlineArraySlotCallCacheEntry
 	arraySlotCallHot                   [bytecodeArraySlotCallHotEntries]bytecodeInlineArraySlotCallCacheEntry
 	stringBytesIterDef                 *runtime.StructDefinitionValue
 	stringBytesIterDefSet              bool

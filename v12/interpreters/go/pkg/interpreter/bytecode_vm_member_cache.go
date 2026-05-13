@@ -14,6 +14,7 @@ const (
 type bytecodeMemberMethodCacheKey struct {
 	program       *bytecodeProgram
 	ip            int
+	env           *runtime.Environment
 	member        string
 	preferMethods bool
 	receiverKind  bytecodeMemberReceiverKind
@@ -21,6 +22,7 @@ type bytecodeMemberMethodCacheKey struct {
 }
 
 type bytecodeMemberMethodCacheEntry struct {
+	envVersion         uint64
 	globalRevision     uint64
 	methodCacheVersion uint64
 	methodTemplate     runtime.Value
@@ -31,10 +33,12 @@ type bytecodeInlineMemberMethodCacheEntry struct {
 	valid              bool
 	program            *bytecodeProgram
 	ip                 int
+	env                *runtime.Environment
 	member             string
 	preferMethods      bool
 	receiverKind       bytecodeMemberReceiverKind
 	structDef          *runtime.StructDefinitionValue
+	envVersion         uint64
 	globalRevision     uint64
 	methodCacheVersion uint64
 	methodTemplate     runtime.Value
@@ -48,10 +52,19 @@ type bytecodeCachedMemberMethod struct {
 }
 
 func (vm *bytecodeVM) canUseMemberMethodCache(memberName string, preferMethods bool) bool {
-	if vm == nil || vm.interp == nil || vm.interp.global == nil || vm.env != vm.interp.global {
+	if vm == nil || vm.interp == nil || vm.interp.global == nil || vm.env == nil {
 		return false
 	}
-	return preferMethods && memberName != ""
+	if !preferMethods || memberName == "" {
+		return false
+	}
+	if vm.env == vm.interp.global {
+		return true
+	}
+	if vm.env.RuntimeData() != nil {
+		return false
+	}
+	return vm.env.Parent() == vm.interp.global
 }
 
 func (vm *bytecodeVM) memberMethodCacheIdentity(memberName string, preferMethods bool, receiver runtime.Value) (bytecodeMemberReceiverKind, *runtime.StructDefinitionValue, bool) {
@@ -89,6 +102,7 @@ func (vm *bytecodeVM) memberMethodCacheKey(program *bytecodeProgram, ip int, mem
 	return bytecodeMemberMethodCacheKey{
 		program:       program,
 		ip:            ip,
+		env:           vm.env,
 		member:        memberName,
 		preferMethods: preferMethods,
 		receiverKind:  receiverKind,
@@ -159,13 +173,17 @@ func (vm *bytecodeVM) lookupCachedMemberMethodEntry(program *bytecodeProgram, ip
 	if !ok {
 		return bytecodeCachedMemberMethod{}, false
 	}
+	env := vm.env
+	envVersion := vm.bytecodeEnvRevision(env)
 	if hot := vm.memberMethodHot; hot.valid &&
 		hot.program == program &&
 		hot.ip == ip &&
+		hot.env == env &&
 		hot.member == memberName &&
 		hot.preferMethods == preferMethods &&
 		hot.receiverKind == receiverKind &&
 		hot.structDef == structDef &&
+		hot.envVersion == envVersion &&
 		hot.globalRevision == vm.bytecodeGlobalRevision() &&
 		hot.methodCacheVersion == vm.bytecodeMethodCacheVersion() {
 		if hot.fastPath != bytecodeMemberMethodFastPathNone {
@@ -186,6 +204,7 @@ func (vm *bytecodeVM) lookupCachedMemberMethodEntry(program *bytecodeProgram, ip
 	key := bytecodeMemberMethodCacheKey{
 		program:       program,
 		ip:            ip,
+		env:           env,
 		member:        memberName,
 		preferMethods: preferMethods,
 		receiverKind:  receiverKind,
@@ -193,6 +212,10 @@ func (vm *bytecodeVM) lookupCachedMemberMethodEntry(program *bytecodeProgram, ip
 	}
 	entry, ok := vm.memberMethodCache[key]
 	if !ok {
+		vm.interp.recordBytecodeMemberMethodCacheMiss()
+		return bytecodeCachedMemberMethod{}, false
+	}
+	if entry.envVersion != envVersion {
 		vm.interp.recordBytecodeMemberMethodCacheMiss()
 		return bytecodeCachedMemberMethod{}, false
 	}
@@ -208,10 +231,12 @@ func (vm *bytecodeVM) lookupCachedMemberMethodEntry(program *bytecodeProgram, ip
 		valid:              true,
 		program:            program,
 		ip:                 ip,
+		env:                env,
 		member:             memberName,
 		preferMethods:      preferMethods,
 		receiverKind:       receiverKind,
 		structDef:          structDef,
+		envVersion:         entry.envVersion,
 		globalRevision:     entry.globalRevision,
 		methodCacheVersion: entry.methodCacheVersion,
 		methodTemplate:     entry.methodTemplate,
@@ -250,6 +275,7 @@ func (vm *bytecodeVM) storeCachedMemberMethod(program *bytecodeProgram, ip int, 
 		fastPath = vm.memberMethodFastPathForFunction(key, fn)
 	}
 	entry := bytecodeMemberMethodCacheEntry{
+		envVersion:         vm.bytecodeEnvRevision(vm.env),
 		globalRevision:     vm.bytecodeGlobalRevision(),
 		methodCacheVersion: vm.bytecodeMethodCacheVersion(),
 		methodTemplate:     template,
@@ -260,10 +286,12 @@ func (vm *bytecodeVM) storeCachedMemberMethod(program *bytecodeProgram, ip int, 
 		valid:              true,
 		program:            program,
 		ip:                 ip,
+		env:                key.env,
 		member:             memberName,
 		preferMethods:      preferMethods,
 		receiverKind:       key.receiverKind,
 		structDef:          key.structDef,
+		envVersion:         entry.envVersion,
 		globalRevision:     entry.globalRevision,
 		methodCacheVersion: entry.methodCacheVersion,
 		methodTemplate:     entry.methodTemplate,

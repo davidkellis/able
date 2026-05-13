@@ -234,6 +234,9 @@ func (vm *bytecodeVM) execBinarySpecializedOpcode(instr *bytecodeInstruction, le
 		if fast, handled, err := bytecodeAddSmallI32PairFast(left, right); handled {
 			return fast, true, err
 		}
+		if fast, handled := bytecodeDirectFloatArithmeticFast("+", left, right); handled {
+			return fast, true, nil
+		}
 		if kind, l, r, ok := bytecodeDirectSameTypeSmallIntPair(left, right); ok {
 			sum, overflow := addInt64Overflow(l, r)
 			if !overflow {
@@ -265,6 +268,9 @@ func (vm *bytecodeVM) execBinarySpecializedOpcode(instr *bytecodeInstruction, le
 	case bytecodeOpBinaryIntSub:
 		if fast, handled, err := bytecodeSubtractSmallI32PairFast(left, right); handled {
 			return fast, true, err
+		}
+		if fast, handled := bytecodeDirectFloatArithmeticFast("-", left, right); handled {
+			return fast, true, nil
 		}
 		if kind, l, r, ok := bytecodeDirectSameTypeSmallIntPair(left, right); ok {
 			diff, overflow := subInt64Overflow(l, r)
@@ -390,9 +396,42 @@ func bytecodeImmediateIntegerValue(val runtime.Value) (runtime.IntegerValue, boo
 	return runtime.IntegerValue{}, false
 }
 
+func bytecodeMultiplyIntegerImmediateFast(left runtime.Value, right runtime.IntegerValue) (runtime.Value, bool, error) {
+	rightRef := &right
+	if !rightRef.IsSmallRef() {
+		return nil, false, nil
+	}
+	rightVal := rightRef.Int64FastRef()
+	compute := func(kind runtime.IntegerType, leftVal int64) (runtime.Value, bool, error) {
+		if kind != right.TypeSuffix {
+			return nil, false, nil
+		}
+		result, overflow := mulInt64Overflow(leftVal, rightVal)
+		if overflow {
+			return nil, false, nil
+		}
+		if err := ensureFitsInt64Type(kind, result); err != nil {
+			return nil, true, err
+		}
+		return boxedOrSmallIntegerValue(kind, result), true, nil
+	}
+	switch lv := left.(type) {
+	case runtime.IntegerValue:
+		lvRef := &lv
+		if lvRef.IsSmallRef() {
+			return compute(lv.TypeSuffix, lvRef.Int64FastRef())
+		}
+	case *runtime.IntegerValue:
+		if lv != nil && lv.IsSmallRef() {
+			return compute(lv.TypeSuffix, lv.Int64FastRef())
+		}
+	}
+	return nil, false, nil
+}
+
 func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runtime.IntegerValue, hasImmediate bool) (runtime.Value, bool, error) {
 	switch instr.op {
-	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
 	default:
 		return nil, false, nil
 	}
@@ -453,6 +492,26 @@ func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runt
 		}
 		val, err := applyBinaryOperator(vm.interp, "-", left, right)
 		return val, true, err
+	case bytecodeOpBinaryIntMulSlotConst:
+		if fast, handled, err := bytecodeMultiplyIntegerImmediateFast(left, right); handled {
+			return fast, true, err
+		}
+		switch lv := left.(type) {
+		case runtime.IntegerValue:
+			val, err := evaluateIntegerArithmeticFast("*", lv, right)
+			return val, true, err
+		case *runtime.IntegerValue:
+			if lv != nil {
+				val, err := evaluateIntegerArithmeticFast("*", *lv, right)
+				return val, true, err
+			}
+		}
+		if leftInt, ok := bytecodeIntegerValue(left); ok {
+			val, err := evaluateIntegerArithmeticFast("*", leftInt, right)
+			return val, true, err
+		}
+		val, err := applyBinaryOperator(vm.interp, "*", left, right)
+		return val, true, err
 	case bytecodeOpBinaryIntLessEqualSlotConst:
 		rightRef := &right
 		switch lv := left.(type) {
@@ -498,7 +557,7 @@ func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runt
 func isBytecodeBinaryFastPathCandidate(op string) bool {
 	normalized, _ := normalizeOperator(op)
 	switch normalized {
-	case "+", "-", "<", "<=", ">", ">=", "==", "!=":
+	case "+", "-", "*", "<", "<=", ">", ">=", "==", "!=":
 		return true
 	default:
 		return false
@@ -507,7 +566,7 @@ func isBytecodeBinaryFastPathCandidate(op string) bool {
 
 func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTable *bytecodeSlotConstIntImmediateTable) (bool, error) {
 	switch instr.op {
-	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
 		rightImmediate, hasImmediate := instr.intImmediate, instr.hasIntImmediate
 		if !hasImmediate {
 			rightImmediate, hasImmediate = bytecodeImmediateIntegerValue(instr.value)
@@ -588,6 +647,11 @@ func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTabl
 		}
 	}
 	if fast, handled := execBinaryDirectIntegerComparisonFast(instr.operator, left, right); handled {
+		vm.replaceTop2Unchecked(fast)
+		vm.ip++
+		return false, nil
+	}
+	if fast, handled := bytecodeDirectFloatArithmeticFast(instr.operator, left, right); handled {
 		vm.replaceTop2Unchecked(fast)
 		vm.ip++
 		return false, nil

@@ -34,10 +34,10 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
   with reusable library features needed to implement the missing benchmark
   families, using host-backed primitives where that is the language/runtime
   boundary rather than benchmark-specific lowering.
-- **Bytecode VM v2 performance**: after the compiled/static path is credible,
-  move bytecode from accumulated opcode micro-fusions toward typed slots,
-  quickened opcodes, native collection/string bytecodes, and unboxed primitive
-  frames.
+- **Bytecode VM v2 performance**: with the first compiled/static benchmark
+  families now in Go range, bytecode work is pivoting from accumulated opcode
+  micro-fusions to typed slots, quickened opcodes, native collection/string
+  bytecodes, and unboxed primitive frames.
 - **Everything else**: parser/tooling/WASM/testing-framework work stays in
   backlog unless it directly supports benchmark competitiveness or is selected
   explicitly.
@@ -100,7 +100,10 @@ Current measured external snapshot:
 - `matrixmultiply`: compiled `0.9660s` vs Go `0.8800s` after the canonical
   Able benchmark started using `Array.with_capacity(n)` for fixed-size matrix
   rows/outers and statement-position counted loops stopped materializing
-  discarded `runtime.Value` loop results; bytecode and tree-walker time out.
+  discarded `runtime.Value` loop results; bytecode now lands at `2.0400s` vs
+  Go `0.8800s` after the native f64 dot-loop, row-cache, construction-side
+  affine push, versioned-stdlib canonical `Array.get` proof, and guarded
+  mono-f64 row storage/read tranches; tree-walker still times out.
 - `quicksort`: compiled now completes in Go range after the byte-parser source
   rewrite plus native `Array u8` host-return boundary (`1.75s` vs Go `2.01s`);
   bytecode and tree-walker still time out at the current external benchmark
@@ -190,6 +193,28 @@ Guardrails:
       `fib` micro-slices.
 
 #### Milestone D: Bytecode VM Competitiveness
+- Active direction: evolve the existing bytecode VM into VM v2 rather than
+  starting a separate interpreter. A conservative untyped-local `i32` proof
+  slice was tested against reduced quicksort and rejected: it stayed
+  semantically green, but raw slot declarations plus the existing update/call
+  machinery did not produce a stable timing win. Do not add untyped-local
+  inference by itself. The next VM v2 production slice should either carry
+  typed values end-to-end across local updates/calls/returns, or target native
+  Array/String bytecodes and guarded quickening where fresh profiles show the
+  wall.
+- Current matrix VM-v2 state: guarded mono-f64 array storage is now landed for
+  the proven matrix row shape. The affine `Array.push` fast path can promote
+  unaliased dynamic rows to mono f64, the native dot loop reads mono f64 rows
+  directly, canonical `Array.get` fast paths avoid generic store reads for
+  mono f64 handles, and the transpose shape `ci.push(b.get(j)!.get(i)!)`
+  has a guarded raw-f64 nested-get push fast path. Float slot stores now seed
+  and reuse owned f64 cells, so the native dot loop updates the matrix
+  accumulator cell instead of replacing the slot with a freshly boxed value.
+  The latest external bytecode `matrixmultiply` confirmation landed at
+  `2.0840s` over `5/5`. The next matrix tranche should target the allocation
+  that moved to `bytecodeSlotReadValue(...)` for the following `di.push(s)`;
+  a slot-backed guarded f64 `Array.push` for that exact shape is preferable to
+  another general storage/push helper.
 - [ ] Add typed primitive slot/register storage, following
       `v12/design/bytecode-vm-v2.md`. Start with `i32` slots/stack cells for
       slot-eligible, non-yielding functions, with boxed `runtime.Value`
@@ -564,6 +589,221 @@ Guardrails:
       allocation around iterator `next` and static `Array.new`, or the
       remaining array growth/allocation path; propagation is no longer a top
       trace item unless a fresh profile brings it back.
+      The follow-up quicksort host-result allocation slice is landed too:
+      Go extern unsigned integer results now reuse the VM boxed-small-int
+      cache for `u8`, `u16`, and `u32`, preserving the existing tracked
+      dynamic `Array u8` path while avoiding fresh boxed Able integers for
+      every byte returned by `fs.read_bytes`. On the reduced external-style
+      quicksort harness, the warmed band landed at `8.48-9.23ms/op`, with a
+      longer `50x` confirmation at `8.50-9.87ms/op`, while allocation dropped
+      from about `662 KB/op` and `~8,980 allocs/op` to about `232-235 KB/op`
+      and `~80-88 allocs/op`. Full external bytecode `quicksort` still times
+      out at `90s`. Subsequent quicksort bytecode tranches have moved the
+      reduced hotloop from the old array-slot/member path onto bracket
+      `ArrayIndexGetSlot` / `ArrayIndexSetSlot`, added small-index extraction
+      for those slot opcodes, skipped disabled trace recorder calls, and added
+      the tracked-unaliased direct index-write sync shortcut. Follow-up read
+      and compare tranches made `ArrayIndexGetSlot` handle the tracked-array +
+      small-index case directly and fused `arr[i] as i32 OP pivot` conditions
+      into `JumpIfArrayIndexSlotCompareSlotFalse`. The latest raw lane applies
+      the absorbed `as i32` cast and comparison on raw small integers for that
+      fused opcode, moving reduced quicksort from a refreshed `5.51ms/op`
+      profile baseline to a kept `5.03-5.27ms/op` warmed band with a profiled
+      `5.08ms/op` confirmation. The follow-up env-aware member-cache tranche
+      now lets package-environment member calls reuse the existing
+      member-method cache under env/global/method-version guards, removing the
+      repeated package-env `resolveMethodCallableFromPool(...)` edge from the
+      reduced quicksort member-call profile and moving the warmed band to
+      `5.27-5.34ms/op`. External bytecode `quicksort` still times out at
+      `90s`. The follow-up call-name slot-arg tranche lowers simple named
+      calls with one to three identifier arguments as `CallName` instructions
+      that read their arguments from slots at dispatch time, skipping the
+      standalone argument `LoadSlot` opcodes in hot shapes such as
+      `swap(arr, i, j)`. The reduced quicksort warmed band moved again to
+      `4.96-5.07ms/op`, while external bytecode `quicksort` still times out at
+      `90s`. A precursor right-slot `i32` mark for the fused array-index
+      compare was rejected because the hot `pivot := ... as i32` local is
+      intentionally untyped under v12 slot semantics. The follow-up
+      `Array.push` slot-call tranche extends the guarded canonical array-slot
+      call cache to ordinary non-safe `arr.push(x)`, so proven canonical
+      `Array.push(value)` sites lower to `CallMemberArraySlot` and cached hits
+      jump directly into the existing tracked push body. The refreshed reduced
+      quicksort baseline was `5.10-5.22ms/op`; the kept 5x band landed at
+      `4.86-5.12ms/op`, with longer 20x confirmations mostly at
+      `4.96-5.10ms/op` plus one noisy `5.54ms/op` outlier and a profiled
+      `5.16ms/op` kept run. External bytecode `quicksort` still times out at
+      `90s`. The follow-up cached parameter simple-check tranche now lets
+      inline call setup use a compact per-parameter primitive check enum before
+      falling back to the existing coercion path. The refreshed reduced
+      quicksort profiled baseline was `5.77ms/op`; kept confirmations landed
+      at `5.00ms/op` profiled and `4.98-5.14ms/op` over longer non-profiled
+      runs, while full external bytecode `quicksort` still times out at
+      `90s`. The follow-up discard-result slot-const store tranche now skips
+      pushing assignment expression results that statement-position lowering
+      would immediately pop for fused self-assignments like `i = i + 1`. The
+      refreshed reduced quicksort profiled baseline was `4.92ms/op`; kept
+      confirmations landed at `4.90ms/op` profiled, `4.92-4.94ms/op` over
+      longer non-profiled runs, and `4.85ms/op` after the nested-assignment
+      guard, while full external bytecode `quicksort` still times out at
+      `90s`. The follow-up bracket-swap pattern tranche now recognizes the
+      exact local block shape used by quicksort's helper swap:
+      `tmp := arr[a] as T; arr[a] = arr[b] as T; arr[b] = tmp`. Slot-backed
+      receiver/index shapes lower to `ArrayIndexSwapSlot`, preserving casts
+      and final assignment results while using the existing guarded direct
+      array-index get/set bodies when v12 `Index` / `IndexMut` semantics allow
+      it. The kept reduced quicksort `500x` band landed at `4.82ms/op`,
+      `4.76ms/op`, and `4.86ms/op`, with a profiled `4.79ms/op` confirmation;
+      full external bytecode `quicksort` still times out at `90s`. The
+      follow-up swap small-index lane now handles the hot tracked-array shape
+      inside `ArrayIndexSwapSlot`: when both indexes are small integer slot
+      values, the VM reads the tracked state once, casts both values, writes
+      both slots, and syncs aliases through the same tracked-array machinery
+      used by direct index writes. The kept reduced quicksort `500x` band
+      landed at `4.66ms/op`, `4.55ms/op`, and `4.68ms/op`, with a profiled
+      `4.59ms/op` confirmation; full external bytecode `quicksort` still
+      times out at `90s`. The next quicksort tranche should target
+      `execJumpIfArrayIndexSlotCompareSlotFalse(...)`, direct call-frame setup,
+      generic `%` / binary work in `build_data`, or start a v12-safe
+      typed-loop lane for partition locals, not more swap indexing, a named
+      non-primitive `Array.swap` special case, simple parameter coercion
+      dispatch, direct tracked-array compare branching, delayed `paramType`
+      lookup, the host byte-conversion boundary, generic cast guards, more
+      bracket read/write sync shaving, another `Array.push` dispatch slice, or
+      unproven untyped-local type inference. The first reduced
+      `matrixmultiply_f64_small` bytecode-runtime tranche is landed too:
+      canonical tracked-array `Array.get(i32)` success values whose cached
+      element token is primitive `f32`/`f64` and whose actual read value still
+      matches that primitive float shape now skip an immediately following
+      postfix propagation opcode, while nil results, stale non-float element
+      shapes, and primitive types that currently implement `Error` keep the
+      old propagation path. A VM-local method-versioned primitive no-error
+      cache keeps the semantic guard out of the per-read hot path. The
+      profiled reduced matrix baseline was `14.72s/op`; the kept final
+      cached-propagation band landed at `11.96s/op`, `11.50s/op`, and
+      `11.66s/op`, with a profiled kept rerun at `10.98s/op`. The follow-up
+      direct float binary tranche landed a narrower first arithmetic cut:
+      direct `runtime.FloatValue` pairs for primitive `+`, `-`, and `*` now
+      bypass generic numeric classification and `evaluateArithmetic(Fast)(...)`
+      while preserving f32 normalization and f64 widening. The refreshed
+      profiled reduced matrix baseline was `11.63s/op`; the kept band landed
+      at `8.71s/op`, `9.27s/op`, and `9.56s/op`, with a confirmed profiled
+      rerun at `8.81s/op`. The follow-up f64 add-mul slot update tranche now
+      lowers `x = x + left * right` to a guarded `StoreSlotFloatAddMul` opcode:
+      it loads the old slot before evaluating `left` and `right`, computes the
+      multiply/add as raw primitive floats when all three values are direct
+      `FloatValue`s, and falls back through the existing boxed `*` then `+`
+      operator path for non-float shapes. The kept reduced matrix band landed
+      at `7.59s/op`, `8.26s/op`, and `7.85s/op`, with a confirmed profiled
+      rerun at `7.26s/op`; allocations dropped from roughly `55.45M` to
+      `28.45M allocs/op`. The follow-up fused operand tranche now lowers
+      `s = s + ai.get(k)! * cj.get(k)!` to a guarded
+      `StoreSlotFloatAddMulArrayGet` opcode when the receivers and indexes are
+      slot-backed identifiers. It reuses the canonical `Array.get` call-site
+      proof, preserves nil/Error propagation, and feeds direct f64 reads into
+      the fused add-mul update. The kept reduced matrix band landed at
+      `7.19s/op`, `5.71s/op`, and `6.07s/op`, with a profiled `5.42s/op`
+      confirmation. The raw-accumulator follow-up now lets that opcode read the
+      target slot directly and store the direct primitive result in a VM-owned
+      mutable float cell while visible slot reads materialize value copies. The
+      kept reduced matrix band landed at `5.57s/op`, `5.73s/op`, and
+      `5.86s/op`, with a profiled `5.80s/op`; allocations dropped from roughly
+      `28.45M allocs/op` to roughly `1.63M allocs/op`. The raw operand
+      follow-up now preflights both canonical `Array.get(i32)!` operands,
+      handles nil/Error propagation at the same boundary, proves exact
+      primitive float tokens against the actual values, and feeds raw
+      `f32`/`f64` values into the VM-owned accumulator update. The kept reduced
+      matrix band landed at `4.43s/op`, `4.06s/op`, and `4.41s/op`, with a
+      profiled `4.36s/op` confirmation. The guarded native f64 dot-loop
+      follow-up now recognizes the exact v12 loop shape
+      `if k >= n { break }; s = s + ai.get(k)! * cj.get(k)!; k = k + 1` and
+      attaches a fallback-preserving plan to `LoopEnter`. When the current
+      runtime proves canonical `Array.get`, tracked arrays, `f64` elements, and
+      valid `i32` loop slots, the VM runs the whole dot product with raw f64
+      values and skips the old inner bytecode loop; any failed guard falls back
+      to the original loop before the unsupported iteration. The kept reduced
+      matrix band landed at `319.62-333.92ms/op`, with a traced/profiled
+      confirmation at `405.57ms/op`; full external bytecode `matrixmultiply`
+      now completes in `23.85s` instead of timing out at `90s`. The row-cache
+      follow-up adds a guarded per-run f64 cache for tracked array states keyed
+      by dynamic array revision, so the native dot loop proves and extracts each
+      matrix row/column once instead of re-reading every element for every dot
+      product. Tracked writes, full state resyncs, dynamic length changes, and
+      dynamic storage writes bump the revision so stale caches cannot survive
+      mutation. The kept reduced matrix band landed at `204.02-229.45ms/op`,
+      with a profiled confirmation at `236.52ms/op`; full external bytecode
+      `matrixmultiply` now lands at `3.0800s` against Go `0.8800s`, Ruby
+      `42.9300s`, and Python `56.2900s`. The small-integer float-cast
+      follow-up keeps v12 primitive cast semantics but bypasses the
+      `big.Int`/`big.Float` path when a small boxed integer is cast to
+      `f32`/`f64`; this is the construction-side cast in
+      `build_matrix`. The kept reduced matrix band landed at
+      `184.04-212.11ms/op`, allocations dropped from roughly `1.63M/op` to
+      roughly `913k/op`, and full external bytecode `matrixmultiply` now lands
+      at `2.9000s` against Go `0.8800s`, Ruby `42.9300s`, and Python
+      `56.2900s`. The Array push helper follow-up factors the tracked append
+      body, skips the generic capacity helper when existing backing storage is
+      sufficient, and uses the unaliased tracked-write sync path before falling
+      back to alias-aware sync. The reduced fixture is mostly neutral
+      (`190.00-193.85ms/op`, profiled `199.26ms/op`) because it still grows
+      rows from `Array.new`, but the full external benchmark uses
+      `Array.with_capacity(n)` and moved to `2.7500s` over `3/3` bytecode runs.
+      The adjacent-`Pop` push follow-up is a smaller reduced-fixture cleanup:
+      canonical `Array.push(value)` now skips materializing `void` when the VM
+      has already handled the call and the next bytecode is a statement-result
+      `Pop`; lowering still emits the `Pop`, so generic fallback stack semantics
+      remain unchanged. The corrected reduced band landed at
+      `176.45-186.98ms/op`; external `matrixmultiply` was effectively neutral
+      at `2.7740s` over `5/5` bytecode runs.
+      The f64 dot-loop accumulator-store follow-up stops installing an owned
+      float cell for the completed fused dot-product accumulator; that loop
+      writes the accumulator once per completed dot product, so the cell was
+      not amortized and only added allocation/GC pressure. The kept reduced
+      band landed at `163.01-170.93ms/op`, allocation volume dropped to roughly
+      `44.1-44.4MB/op` and `823k allocs/op`, and full external bytecode
+      `matrixmultiply` moved to `2.6040s` over `5/5` runs, about `2.96x` Go.
+      The affine `Array.push` try-fast follow-up now emits a guarded opcode
+      before the ordinary fallback call for the matrix construction expression
+      `row.push(t * ((i - j) as f64) * ((i + j) as f64))`. When runtime guards
+      prove canonical `Array.push`, direct `f64` scale, and `i32` left/right
+      slots, the VM computes and appends the raw f64 value directly; any guard
+      miss falls through to the existing bytecode. The kept reduced band now
+      lands at `121.57-136.46ms/op` after warmup, allocation volume drops to
+      about `31.2MB/op` and `282.8k allocs/op`, and full external bytecode
+      `matrixmultiply` moves to `2.1300s` over `5/5` runs, about `2.42x` Go.
+      The versioned-stdlib canonical proof follow-up now recognizes installed
+      cache origins shaped as `.able/pkg/src/able/<version>/src/...` and also
+      validates direct/bound canonical nullable `Array.get` function values.
+      This restores the runtime-only reduced matrix harness, which had fallen
+      into generic `Array.get` fallback after warmup: warmed
+      `BenchmarkBytecodeProgramRuntime` reruns now land at
+      `117.29-122.68ms/op`, `~31.2MB/op`, and `~282.8k allocs/op`. Full
+      external bytecode `matrixmultiply` is neutral at `2.1333s` over `3/3`,
+      so this is a proof/measurement keep rather than a macro speedup. The
+      follow-up mono-f64 storage, nested-get push, and owned f64 accumulator
+      tranches then moved row storage and transpose/result traffic onto guarded
+      typed lanes while preserving boxed fallback semantics: reduced runtime
+      allocation fell to the `15.7MB/op`, `103k allocs/op` area and full
+      external bytecode `matrixmultiply` held around `2.08s` over `5/5`. The
+      latest reserved-capacity tranche changes interpreted
+      `Array.with_capacity(n)` to reserve logical capacity without allocating
+      the dynamic `[]Value` backing until a dynamic write actually needs it.
+      Rows that immediately promote to mono f64 now avoid the discarded
+      dynamic backing; profiled full bytecode-runtime `matrixmultiply`
+      allocation moved from about `125.8MB` total / `121MB/op` to about
+      `90.9MB` total / `71.8MB/op`, while external wall time stayed neutral at
+      `2.1000s` over `5/5` and GC dropped to the `7` area. The latest f64
+      dot-loop result append tranche extends the existing native dot-loop plan
+      across the immediately following statement-position `di.push(s)` shape.
+      When the dot-loop and canonical `Array.push` guards all hold, the VM
+      appends the raw accumulator to the result row and jumps past the boxed
+      fallback bytecode; on any guard miss it still executes the original loop
+      and push. Full external bytecode `matrixmultiply` moved to `2.0240s`
+      over `5/5`, and full bytecode-runtime allocation moved to
+      `39.8MB/op` and about `73.5k allocs/op`. Next, target the remaining
+      `ArrayStoreAppendF64Promote(...)` / mono-f64 append growth cost, not the
+      now-removed `bytecodeSlotReadValue(...)` result boundary, canonical
+      origin, `Array.get` proof caching, or generic capacity helpers unless a
+      fresh full external profile moves them back above append storage.
 - [ ] Add quickened call/member/index opcodes that rewrite after first
       successful shape resolution and invalidate safely under mutation or
       environment revision changes.
@@ -1818,6 +2058,228 @@ Current state snapshot:
   times out at `90s`. The next quicksort tranche should target residual boxed
   slot updates (`i = i + 1`, `j = j - 1`), `swap` / recursive call setup, or
   remaining slot-call dispatch rather than adding more condition-only jumps;
+- the direct read-slot expression opcode is landed too:
+  ordinary slot-backed, non-safe `arr.read_slot(i)` expressions now lower to
+  `ArrayReadSlot`, reusing the guarded canonical kernel proof cache without
+  entering the broader member-call opcode shell. A same-session no-direct
+  control landed at `10.25-10.74ms/op`; the restored direct opcode landed at
+  `9.73-10.56ms/op`, with a profiled one-shot at `9.38ms/op`. Full external
+  bytecode `quicksort` still times out at `90s`, so the next tranche should
+  target a larger remaining wall: boxed slot updates, `swap` / recursive call
+  setup, or residual cache/revision checks around proven array slot calls;
+- the slot-const store direct fast path is landed too:
+  `StoreSlotBinaryIntSlotConst` now handles the hot small same-type integer
+  `x = x + const` / `x = x - const` case directly while keeping the prior
+  fallback for non-small, mismatched, dynamic, or int64-overflow shapes.
+  Reduced external-style quicksort moved from the direct-read baseline
+  `9.73-10.56ms/op` to `8.45-8.82ms/op`; full external bytecode `quicksort`
+  still times out at `90s`. The next quicksort tranche should target the
+  larger remaining wall in `execBinary(...)` arithmetic/comparison, direct
+  `arrayReadSlotValue(...)` cache/proof checks, or `swap` / recursive call
+  setup rather than another store-only shortcut;
+- the slot-const multiply path is landed too:
+  `x * i32_const` now lowers to `BinaryIntMulSlotConst`, and self-assignments
+  such as quicksort's `value = value * 10` reuse
+  `StoreSlotBinaryIntSlotConst` with checked small-integer multiplication
+  before falling back to the existing dynamic/big-integer path. The reduced
+  external-style quicksort baseline in this tranche had a warmed
+  `9.93-10.07ms/op` band after a cold/noisy first run; the kept confirmation
+  landed at `9.29-9.56ms/op`, with a profiled one-shot at `9.48ms/op`.
+  Full external bytecode `quicksort` still times out at `90s`, so the next
+  tranche should target broad generic comparison/arithmetic stack execution,
+  `arrayReadSlotValue(...)` cache/proof checks, or direct `swap` / recursive
+  quicksort call setup rather than more array-slot helper shaving;
+- the typed slot-const compare lowering path is landed too:
+  primitive typed integer literals such as `45_u8`, `48_u8`, and `57_u8`
+  now feed the existing slot-const immediate lowering when they fit their
+  declared suffix, and `BinaryIntCompareSlotConst` now covers `<`, `==`, and
+  `!=` in addition to the previous `>` / `>=` cases. This moves quicksort's
+  byte-parser comparisons away from generic binary dispatch. Reduced
+  external-style quicksort moved from the post-multiply `9.29-9.56ms/op` band
+  to `8.51-9.16ms/op`, with a profiled one-shot at `9.19ms/op`. Full
+  external bytecode `quicksort` still times out at `90s`, so the next tranche
+  should stop treating parse-number comparisons as the main wall and target
+  `arrayReadSlotValue(...)` proof/cache costs or direct `swap` / recursive
+  quicksort call setup;
+- the array-slot proof hot-tier width is landed too:
+  the canonical array `read_slot` / `write_slot` proof cache now keeps `8`
+  hot entries instead of `4`, matching the eight material hot call sites in
+  the reduced external-style quicksort trace after the recent direct-slot
+  lowerings. Revision guards, identity checks, and fallback behavior are
+  unchanged. Reduced quicksort moved from the typed-compare `8.51-9.16ms/op`
+  band to kept reruns of `7.62-8.42ms/op`, with a profiled one-shot at
+  `7.71ms/op`. Full external bytecode `quicksort` still times out at `90s`,
+  so the next tranche should stop expanding this proof tier and target direct
+  `swap` / recursive quicksort call setup or a broader typed-loop /
+  dispatch-lane change;
+- the direct cached call-name inline setup path is landed too:
+  cached direct function calls now record the prevalidated inline
+  program/layout/return-generic shape, so hot cached inline sites such as
+  quicksort's `swap(arr, i, j)` avoid re-running the broader inline-call shape
+  ladder. Rebinding, env/owner revision invalidation, explicit type arguments,
+  bound methods, native calls, and generic fallbacks keep the existing
+  behavior. The same-session refreshed reduced baseline after the array-slot
+  hot-tier tranche warmed at `7.02-7.06ms/op` after a cold/noisy first run;
+  the kept confirmation landed at `6.64-6.89ms/op`, with a profiled one-shot
+  at `7.26ms/op`. Full external bytecode `quicksort` still times out at
+  `90s`, so the next tranche should target remaining canonical array-slot
+  proof identity/version checks or a broader typed-loop / dispatch-lane
+  change;
+- the direct i32 slot-update fast path is landed too:
+  `StoreSlotBinaryIntSlotConst` now handles small `i32` slot values plus
+  small `i32` immediates through a direct checked `i32` branch before the
+  broader same-type integer fallback. This keeps untyped binding semantics
+  unchanged while moving hot loop updates such as `i = i + 1`, `j = j - 1`,
+  and `value = value * 10` away from the generic overflow-helper /
+  fit-check / boxing path. Reduced quicksort moved from the prior
+  `6.64-6.89ms/op` confirmation band to `6.31-6.84ms/op`, with a profiled
+  one-shot at `6.62ms/op`. Full external bytecode `quicksort` still times
+  out at `90s`, so the next tranche should not add another store-only
+  shortcut; it should target residual call/member dispatch, array-slot
+  proof/cache checks, or a real v12-safe typed-loop lane for the partition
+  indices and pivot;
+- the recurrence-probe dispatch guard is landed too:
+  the run loop now calls `tryExecI32RecurrenceProgram(...)` only for programs
+  that actually carry the native `i32` recurrence kernel and only at program
+  entry, so ordinary quicksort bytecode no longer pays the fib-kernel helper
+  on every instruction. The same-session reduced quicksort baseline was
+  `6.94-7.70ms/op` with the old probe, the profiled guarded run landed at
+  `6.45ms/op`, a temporary old-probe control landed at `6.83ms/op`, and the
+  final guarded confirmation landed at `6.03-6.33ms/op`. External bytecode
+  `fib(45)` still completes at `3.8500s`, while full external bytecode
+  `quicksort` still times out at `90s`. The next tranche should start from
+  `lookupCachedCanonicalArraySlotCallForArray(...)` /
+  `arrayReadSlotValue(...)` proof/cache checks, residual
+  `execCallMember(...)` / `resolveMethodCallableFromPool(...)`, or a proper
+  v12-safe typed-loop lane;
+- the direct array-slot proof cache is landed too:
+  the canonical array `read_slot` / `write_slot` proof path now has a
+  VM-local direct-mapped cache ahead of the existing hot tier and map. Hits are
+  still checked against the same program/IP/environment/kind identity and
+  environment/global/method revisions, so mutation and method invalidation keep
+  the existing fallback behavior. Reduced quicksort moved from the guarded
+  dispatch `6.03-6.33ms/op` band to `5.93-6.11ms/op`, with profiled reduced
+  reruns at `7.31ms/op` and `6.31ms/op`; the profile shows
+  `lookupCachedCanonicalArraySlotCallForArray(...)` dropping from about
+  `100ms` flat in the fresh baseline to `20-50ms` flat after the direct cache.
+  External bytecode `fib(45)` still completes at `3.9900s`, while full
+  external bytecode `quicksort` still times out at `90s`. The next tranche
+  should target the remaining `arrayReadSlotValue(...)` /
+  `readArraySlotValueFast(...)` value path, residual `execCallMember(...)` /
+  `resolveMethodCallableFromPool(...)`, or a proper v12-safe typed-loop lane;
+- the small array-slot index extraction slice is landed too:
+  `bytecodeArraySlotIndexI32(...)` now handles small integer values directly
+  inside the canonical `read_slot` / `write_slot` path after checking that the
+  value fits `i32`, while big integers, out-of-range values, non-integers, and
+  negative-index errors keep the existing fallback behavior. Reduced quicksort
+  moved from the direct-cache `5.93-6.11ms/op` band to kept confirmation bands
+  of `5.68-5.81ms/op` and `5.71-5.88ms/op`. The profiled run was noisy at
+  `8.89ms/op`, but the old `bytecodeArrayGetIndexI32(...)` edge disappeared
+  from the array-slot profile. External bytecode `fib(45)` still completes at
+  `3.9900s`, while full external bytecode `quicksort` still times out at
+  `90s`. The next tranche should stop shaving index extraction and target
+  generic package/member calls such as `fs.read_bytes(...)`, residual
+  `execCallMember(...)` fallback cost, or a proper v12-safe typed-loop lane for
+  partition locals;
+- disabled bytecode tracing is now guarded at the canonical array-slot fast
+  trace call sites too: `read_slot` / `write_slot` fast paths check
+  `bytecodeTraceEnabled` before calling `recordBytecodeCallTrace(...)`, so the
+  ordinary untraced reduced quicksort path no longer pays the trace helper.
+  Reduced quicksort confirmed at `6.07-6.30ms/op`, with a profiled one-shot at
+  `6.54ms/op` where the disabled trace edge is gone from
+  `arrayReadSlotValue(...)`. Full external bytecode `quicksort` still times
+  out at `90s`; next work should target the real remaining read/cache/index
+  and member/name-call dispatch wall, not more disabled-trace overhead;
+- slot-backed bracket indexing now has a guarded bytecode opcode too: simple
+  slot-shaped `arr[i]` expressions lower to `ArrayIndexGetSlot`, reading the
+  receiver/index directly from `vm.slots` and using the existing direct array
+  index body while no v12 `Index` implementation can override array indexing.
+  Unsupported shapes and custom `Index` implementations fall back through
+  `resolveIndexGet(...)`. Reduced quicksort moved from the current
+  `~7.5ms/op` profile band to `6.94-7.21ms/op`, with a profiled confirmation
+  at `6.84ms/op`; full external bytecode `quicksort` still times out at
+  `90s`. The next tranche should profile the kept state and target residual
+  boxed integer compare/arithmetic, `execIndexSet(...)` / swap writes, or a
+  v12-safe typed loop lane for quicksort partition locals;
+- the slot-backed bracket-read opcode now has a small-index extraction branch
+  too: hot small `runtime.IntegerValue` indexes go directly to the already
+  decoded `int` read body before the broader `bytecodeDirectArrayIndex(...)`
+  helper, while boxed/big integers, unsupported values, and custom `Index`
+  implementations keep the old fallback semantics. Reduced quicksort moved
+  from a refreshed `6.62ms/op` long baseline to a kept `6.18-6.37ms/op`
+  warmed band and `6.39ms/op` profiled confirmation. Full external bytecode
+  `quicksort` still times out at `90s`; the next tranche should target
+  residual checked `i32` arithmetic/comparison, `execIndexSet(...)` / swap
+  writes, or a v12-safe typed loop lane for quicksort partition locals;
+- slot-backed bracket writes are now landed too: simple `arr[i] = value`
+  assignments with slot-backed receiver/index lower to `ArrayIndexSetSlot`
+  after RHS evaluation, so quicksort swap writes no longer push local array and
+  index values just to route through generic `execIndexSet(...)`. The opcode
+  keeps the existing v12 `IndexMut` override guard and tracked-array alias
+  synchronization. A disabled call-name trace guard also landed in the same
+  tranche, while a cached inline-argument coercion bypass and a cast-target
+  cache were tested and reverted because their reduced quicksort bands were
+  not defensible. Reduced quicksort moved from a refreshed `6.20ms/op`
+  baseline to a kept `6.00-6.42ms/op` warmed band, `5.83-5.89ms/op` final
+  confirmation, and `6.21ms/op` profiled confirmation; full external bytecode
+  `quicksort` still times out at `90s`.
+  The next tranche should profile the kept state and target repeated small
+  index extraction around `ArrayIndexGetSlot` / `ArrayIndexSetSlot`, residual
+  checked `i32` comparison/arithmetic, or a v12-safe typed loop lane for
+  quicksort partition locals;
+- fused bracket-index comparison jumps are now landed too: `if` / `elsif`
+  conditions shaped like `arr[i] as i32 >= pivot` lower to
+  `JumpIfArrayIndexSlotCompareSlotFalse`, reading receiver/index/right values
+  from slots and jumping directly instead of materializing the index result,
+  cast result, comparison bool, and `JumpIfFalse` pop. The opcode keeps the
+  existing v12 `Index` override guard and cached cast-name proof; unsupported
+  shapes fall back through normal lowering. Reduced quicksort moved from the
+  refreshed `5.89ms/op` profile baseline and prior `5.78-5.90ms/op` kept band
+  to `5.15ms/op`, `5.25ms/op`, and `5.40ms/op`, with a profiled confirmation
+  at `5.26ms/op`. Full external bytecode `quicksort` still times out at
+  `90s` against Go `2.0100s`, Ruby `14.5800s`, and Python `20.3200s`. The
+  next tranche should target the new residual cast guard /
+  `bytecodeValueIsI32(...)` cost inside the fused bracket-index comparison
+  path, then remaining generic binary/name-call costs or a v12-safe typed loop
+  lane for partition locals;
+- the fused bracket-index comparison raw lane is landed too: when the absorbed
+  cast target is `i32`, the indexed value is a small integer, and the right
+  comparison slot is a small `i32`, `JumpIfArrayIndexSlotCompareSlotFalse`
+  applies the same wrapping `as i32` semantics on raw `int64` values and
+  compares directly. Unsupported shapes still fall back through the normal v12
+  array-index/cast path. Reduced quicksort moved from a refreshed
+  `5.51ms/op` profile baseline to a kept `5.03-5.27ms/op` warmed band, with a
+  profiled confirmation at `5.08ms/op`; the old
+  `arrayIndexSlotCompareMaybeCast(...)` / `bytecodeValueIsI32(...)` edge is no
+  longer in the fused compare profile. Full external bytecode `quicksort`
+  still times out at `90s` against Go `2.0100s`, Ruby `14.5800s`, and Python
+  `20.3200s`. The next tranche should target remaining generic
+  binary/name-call setup or start a v12-safe typed loop lane for quicksort
+  partition locals;
+- the bracket-index swap pattern opcode is landed too: exact local blocks
+  shaped like `tmp := arr[a] as T; arr[a] = arr[b] as T; arr[b] = tmp` lower
+  to `ArrayIndexSwapSlot` when the receiver and both indexes are slot-backed
+  identifiers. The opcode preserves the explicit casts and final assignment
+  result while using the existing guarded direct array-index get/set bodies
+  when v12 `Index` / `IndexMut` semantics allow it; unsupported shapes still
+  use the normal generic get/set sequence. Reduced quicksort kept a `500x`
+  band at `4.82ms/op`, `4.76ms/op`, and `4.86ms/op`, with a profiled
+  confirmation at `4.79ms/op`. Full external bytecode `quicksort` still times
+  out at `90s`, so the next tranche should start from a fresh profile and
+  target direct call-frame setup, generic `%` / binary work in `build_data`,
+  residual array-index cast/index conversion, or a v12-safe typed loop lane
+  rather than a named non-primitive `Array.swap` special case;
+- the swap small-index lane is landed too: hot tracked-array
+  `ArrayIndexSwapSlot` executions now use small integer indexes directly,
+  read the tracked state once, perform both cast checks, write both swapped
+  values, and sync aliases through the existing tracked-array machinery.
+  Reduced quicksort moved from a refreshed `4.75ms/op` profiled sample to a
+  kept `500x` band of `4.66ms/op`, `4.55ms/op`, and `4.68ms/op`, with a
+  profiled confirmation at `4.59ms/op`. Full external bytecode `quicksort`
+  still times out at `90s`, so the next tranche should target fused
+  array-index compare, direct call-name frame setup, generic `%` / binary work
+  in `build_data`, or a v12-safe typed-loop lane rather than more swap-index
+  shaving;
 - benchmark harnesses and counters already exist;
 - the remaining work is no longer “find obvious first wins”, but a disciplined
   second phase focused on the remaining hot-path costs.

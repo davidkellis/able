@@ -68,6 +68,20 @@ func castIntegerValueToTargetKindFast(val runtime.IntegerValue, targetKind runti
 	return nil, false
 }
 
+func integerValueToFloat64Fast(val runtime.IntegerValue) float64 {
+	if val.IsSmall() {
+		return float64(val.Int64Fast())
+	}
+	return bigIntToFloat(val.BigInt())
+}
+
+func integerRefToFloat64Fast(val *runtime.IntegerValue) float64 {
+	if val.IsSmallRef() {
+		return float64(val.Int64FastRef())
+	}
+	return bigIntToFloat(val.BigInt())
+}
+
 func castValueToCanonicalSimpleTypeFast(typeName string, rawValue runtime.Value) (runtime.Value, bool, error) {
 	switch val := rawValue.(type) {
 	case runtime.IntegerValue:
@@ -169,13 +183,13 @@ func castValueToCanonicalSimpleTypeFast(typeName string, rawValue runtime.Value)
 			}
 			return runtime.FloatValue{Val: normalizeFloat(targetFloat, val.Val), TypeSuffix: targetFloat}, true, nil
 		case runtime.IntegerValue:
-			f := bigIntToFloat(val.BigInt())
+			f := integerValueToFloat64Fast(val)
 			return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, true, nil
 		case *runtime.IntegerValue:
 			if val == nil {
 				return nil, true, fmt.Errorf("cannot cast <nil> to %s", typeName)
 			}
-			f := bigIntToFloat(val.BigInt())
+			f := integerRefToFloat64Fast(val)
 			return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, true, nil
 		}
 		return nil, false, nil

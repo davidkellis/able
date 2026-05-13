@@ -33,6 +33,11 @@ type bytecodeLoweringContext struct {
 	nextSlot               int                  // next available slot index
 	selfCallName           string               // current function name for self-recursive call lowering
 	selfCallSlot           int                  // reserved slot for self-recursive call fast path
+	discardExpressionValue bool
+	discardExpressionNode  ast.Expression
+	f64DotLoops            map[int]bytecodeF64DotLoopPlan
+	f64AffinePushes        map[int]bytecodeF64AffineProductPushPlan
+	f64NestedGetPushes     map[int]bytecodeF64NestedArrayGetPushPlan
 }
 
 type loopContext struct {
@@ -64,7 +69,7 @@ func (i *Interpreter) lowerModuleToBytecode(module *ast.Module) (*bytecodeProgra
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
 	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	return &bytecodeProgram{instructions: ctx.instructions}, nil
+	return &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}, nil
 }
 
 func (i *Interpreter) lowerExpressionToBytecode(expr ast.Expression) (*bytecodeProgram, error) {
@@ -93,7 +98,7 @@ func (i *Interpreter) lowerExpressionToBytecodeWithOptions(expr ast.Expression, 
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
 	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	program := &bytecodeProgram{instructions: ctx.instructions}
+	program := &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}
 	return i.cacheExpressionBytecode(expr, allowPlaceholderLambda, program), nil
 }
 
@@ -110,10 +115,11 @@ func (i *Interpreter) lowerBlockExpressionToBytecode(block *ast.BlockExpression,
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
 	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	return &bytecodeProgram{instructions: ctx.instructions}, nil
+	return &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}, nil
 }
 
 func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statement, isLast bool) error {
+	resultDiscarded := false
 	switch s := stmt.(type) {
 	case *ast.FunctionDefinition:
 		if s == nil {
@@ -234,13 +240,25 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 				return nil
 			}
 		}
+		start := len(ctx.instructions)
+		prevDiscard := ctx.discardExpressionValue
+		prevDiscardNode := ctx.discardExpressionNode
+		ctx.discardExpressionValue = !isLast
+		if !isLast {
+			ctx.discardExpressionNode = s
+		}
 		if err := emitExpression(ctx, i, s); err != nil {
+			ctx.discardExpressionValue = prevDiscard
+			ctx.discardExpressionNode = prevDiscardNode
 			return err
 		}
+		ctx.discardExpressionValue = prevDiscard
+		ctx.discardExpressionNode = prevDiscardNode
+		resultDiscarded = !isLast && len(ctx.instructions) > start && ctx.instructions[len(ctx.instructions)-1].discardResult
 	default:
 		return bytecodeUnsupported("statement %T", stmt)
 	}
-	if !isLast {
+	if !isLast && !resultDiscarded {
 		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
 	}
 	return nil
@@ -317,6 +335,10 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		})
 		return nil
 	case *ast.IndexExpression:
+		if instr, ok := bytecodeArrayIndexGetSlotInstruction(ctx, n); ok {
+			ctx.emit(instr)
+			return nil
+		}
 		if err := emitExpression(ctx, i, n.Object); err != nil {
 			return err
 		}
@@ -330,6 +352,16 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			memberName := bytecodeIdentifierMemberName(member.Member)
 			if instr, ok := bytecodeArrayReadSlotInstruction(ctx, n, member, memberName); ok {
 				ctx.emit(instr)
+				return nil
+			}
+			if emitted, err := bytecodeEmitTryArrayPushF64NestedGet(ctx, i, n, member, memberName); err != nil {
+				return err
+			} else if emitted {
+				return nil
+			}
+			if emitted, err := bytecodeEmitTryArrayPushF64AffineProduct(ctx, i, n, member, memberName); err != nil {
+				return err
+			} else if emitted {
 				return nil
 			}
 			if err := emitExpression(ctx, i, member.Object); err != nil {
@@ -411,6 +443,10 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 					}
 				}
 				ctx.emit(bytecodeInstruction{op: bytecodeOpCallSelf, target: ctx.selfCallSlot, argCount: len(n.Arguments), node: n})
+				return nil
+			}
+			if instr, ok := bytecodeCallNameSlotArgsInstruction(ctx, ident.Name, n); ok {
+				ctx.emit(instr)
 				return nil
 			}
 			for _, arg := range n.Arguments {
@@ -536,6 +572,10 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			if err := emitExpression(ctx, i, n.Right); err != nil {
 				return err
 			}
+			if instr, ok := bytecodeArrayIndexSetSlotInstruction(ctx, n, idxExpr); ok {
+				ctx.emit(instr)
+				return nil
+			}
 			if err := emitExpression(ctx, i, idxExpr.Object); err != nil {
 				return err
 			}
@@ -594,7 +634,29 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if ctx.frameLayout != nil && ok {
 			if n.Operator == ast.AssignmentAssign {
 				if _, simpleIdent := n.Left.(*ast.Identifier); simpleIdent {
+					if plan, ok := bytecodeStoreSlotFloatAddMulArrayGetPlan(ctx, name, n.Right, n); ok {
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.leftReceiverSlot, name: plan.leftReceiverName, node: n.Right})
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.leftIndexSlot, name: plan.leftIndexName, node: n.Right})
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.rightReceiverSlot, name: plan.rightReceiverName, node: n.Right})
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.rightIndexSlot, name: plan.rightIndexName, node: n.Right})
+						plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						ctx.emit(plan.instr)
+						return nil
+					}
+					if plan, ok := bytecodeStoreSlotFloatAddMulPlan(ctx, name, n.Right, n); ok {
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.targetSlot, name: name, node: n.Right})
+						if err := emitExpression(ctx, i, plan.mulLeft); err != nil {
+							return err
+						}
+						if err := emitExpression(ctx, i, plan.mulRight); err != nil {
+							return err
+						}
+						plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						ctx.emit(plan.instr)
+						return nil
+					}
 					if instr, ok := bytecodeStoreSlotBinarySlotConstInstruction(ctx, name, n.Right, n); ok {
+						instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
 						ctx.emit(instr)
 						return nil
 					}
@@ -741,6 +803,38 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 	default:
 		return bytecodeUnsupported("expression %T", expr)
 	}
+}
+
+func bytecodeCallNameSlotArgsInstruction(ctx *bytecodeLoweringContext, name string, call *ast.FunctionCall) (bytecodeInstruction, bool) {
+	if ctx == nil || ctx.frameLayout == nil || call == nil || name == "" {
+		return bytecodeInstruction{}, false
+	}
+	if len(call.Arguments) == 0 || len(call.Arguments) > 3 {
+		return bytecodeInstruction{}, false
+	}
+	slots := [3]int{-1, -1, -1}
+	for idx, arg := range call.Arguments {
+		ident, ok := arg.(*ast.Identifier)
+		if !ok || ident == nil {
+			return bytecodeInstruction{}, false
+		}
+		slot, found := ctx.lookupSlot(ident.Name)
+		if !found {
+			return bytecodeInstruction{}, false
+		}
+		slots[idx] = slot
+	}
+	return bytecodeInstruction{
+		op:           bytecodeOpCallName,
+		name:         name,
+		nameSimple:   bytecodeSimpleLookupName(name),
+		argCount:     len(call.Arguments),
+		target:       slots[0],
+		loopBreak:    slots[1],
+		loopContinue: slots[2],
+		node:         call,
+		slotArgs:     true,
+	}, true
 }
 
 func (ctx *bytecodeLoweringContext) emit(instr bytecodeInstruction) int {

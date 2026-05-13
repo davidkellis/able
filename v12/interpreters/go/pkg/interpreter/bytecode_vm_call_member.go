@@ -356,6 +356,10 @@ func (vm *bytecodeVM) execCallMemberArraySlot(instr bytecodeInstruction, current
 			if newProg, handled, err := vm.finishArrayWriteSlotMemberFast(instr, arr, receiverIndex, argBase, callNode); handled {
 				return newProg, err
 			}
+		case bytecodeMemberMethodFastPathArrayPush:
+			if newProg, handled, err := vm.execArrayPushMemberFast(instr, receiverIndex, argBase, callNode); handled {
+				return newProg, err
+			}
 		}
 	}
 	return vm.execCallMember(instr, currentProgram)

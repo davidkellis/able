@@ -172,6 +172,9 @@ func (vm *bytecodeVM) storeCachedCanonicalArrayGetCall(program *bytecodeProgram,
 }
 
 func (vm *bytecodeVM) isCanonicalNullableArrayGetOverload(callable runtime.Value) bool {
+	if fn := bytecodeArrayGetFunctionCallable(callable); fn != nil {
+		return vm.isCanonicalNullableArrayGetFunction(fn)
+	}
 	overload := bytecodeArrayGetOverloadCallable(callable)
 	if overload == nil {
 		return false
@@ -216,6 +219,24 @@ func bytecodeArrayGetOverloadCallable(callable runtime.Value) *runtime.FunctionO
 	case *runtime.BoundMethodValue:
 		if fn != nil {
 			if method, ok := fn.Method.(*runtime.FunctionOverloadValue); ok {
+				return method
+			}
+		}
+	}
+	return nil
+}
+
+func bytecodeArrayGetFunctionCallable(callable runtime.Value) *runtime.FunctionValue {
+	switch fn := callable.(type) {
+	case *runtime.FunctionValue:
+		return fn
+	case runtime.BoundMethodValue:
+		if method, ok := fn.Method.(*runtime.FunctionValue); ok {
+			return method
+		}
+	case *runtime.BoundMethodValue:
+		if fn != nil {
+			if method, ok := fn.Method.(*runtime.FunctionValue); ok {
 				return method
 			}
 		}
@@ -294,6 +315,21 @@ func bytecodeArrayGetOverloadFunctionDefinition(fn *runtime.FunctionValue) (*ast
 		return nil, false
 	}
 	return def, true
+}
+
+func (vm *bytecodeVM) isCanonicalNullableArrayGetFunction(fn *runtime.FunctionValue) bool {
+	if vm == nil || vm.interp == nil {
+		return false
+	}
+	def, ok := bytecodeArrayGetOverloadFunctionDefinition(fn)
+	if !ok {
+		return false
+	}
+	if _, ok := def.ReturnType.(*ast.NullableTypeExpression); !ok {
+		return false
+	}
+	origin := vm.interp.nodeOrigins[def]
+	return isCanonicalAbleStdlibOrigin(origin, "collections/array.able")
 }
 
 func (vm *bytecodeVM) isCanonicalArrayGetOverloadFunction(fn *runtime.FunctionValue) bool {

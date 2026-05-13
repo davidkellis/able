@@ -12,7 +12,8 @@ type bytecodeFrameLayout struct {
 	slotCount           int // total slots needed (params + locals); set after lowering
 	paramSlots          int // number of param slots (always indices 0..paramSlots-1)
 	paramTypes          []ast.TypeExpression
-	paramSimpleTypes    []string           // cached simple type names for params (empty = non-simple)
+	paramSimpleTypes    []string // cached simple type names for params (empty = non-simple)
+	paramSimpleChecks   []bytecodeSimpleTypeCheck
 	paramKinds          []bytecodeCellKind // cached typed-cell kind for params
 	paramNeedsCoercion  []bool             // cached "may need runtime coercion" flags for inline arg setup
 	anyParamCoercion    bool               // true when any parameter may need runtime coercion
@@ -57,6 +58,7 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 	generics := functionGenericNameSet(nil, def)
 	paramTypes := make([]ast.TypeExpression, len(def.Params))
 	paramSimpleTypes := make([]string, len(def.Params))
+	paramSimpleChecks := make([]bytecodeSimpleTypeCheck, len(def.Params))
 	paramKinds := make([]bytecodeCellKind, len(def.Params))
 	paramNeedsCoercion := make([]bool, len(def.Params))
 	anyParamCoercion := false
@@ -68,6 +70,7 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		}
 		paramTypes[idx] = param.ParamType
 		paramSimpleTypes[idx] = cachedSimpleTypeName(param.ParamType)
+		paramSimpleChecks[idx] = bytecodeSimpleTypeCheckForName(paramSimpleTypes[idx])
 		paramKinds[idx] = bytecodeCellKindForSimpleTypeName(paramSimpleTypes[idx])
 		if paramKinds[idx] != bytecodeCellKindValue {
 			hasTypedSlots = true
@@ -93,6 +96,7 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		paramSlots:          len(def.Params),
 		paramTypes:          paramTypes,
 		paramSimpleTypes:    paramSimpleTypes,
+		paramSimpleChecks:   paramSimpleChecks,
 		paramKinds:          paramKinds,
 		paramNeedsCoercion:  paramNeedsCoercion,
 		anyParamCoercion:    anyParamCoercion,

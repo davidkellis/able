@@ -127,6 +127,28 @@ func TestBytecodeVM_ArrayReadSlotMemberFastPathSemantics(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_ArraySlotIndexSmallIntegerFastPathSemantics(t *testing.T) {
+	idx, ok, err := bytecodeArraySlotIndexI32(runtime.NewSmallInt(2, runtime.IntegerI32))
+	if err != nil || !ok || idx != 2 {
+		t.Fatalf("small i32 index = idx %d ok %v err %v, want 2/true/nil", idx, ok, err)
+	}
+
+	idx, ok, err = bytecodeArraySlotIndexI32(runtime.NewSmallInt(3, ""))
+	if err != nil || !ok || idx != 3 {
+		t.Fatalf("small unsuffixed index = idx %d ok %v err %v, want 3/true/nil", idx, ok, err)
+	}
+
+	_, ok, err = bytecodeArraySlotIndexI32(runtime.NewSmallInt(1<<40, runtime.IntegerI64))
+	if err != nil || ok {
+		t.Fatalf("out-of-i32 small index = ok %v err %v, want false/nil", ok, err)
+	}
+
+	_, ok, err = bytecodeArraySlotIndexI32(runtime.NewSmallInt(-1, runtime.IntegerI32))
+	if err == nil || !ok || !strings.Contains(err.Error(), "array index must be non-negative") {
+		t.Fatalf("negative small index = ok %v err %v, want handled non-negative error", ok, err)
+	}
+}
+
 func TestBytecodeVM_ArrayWriteSlotMemberFastPathSemantics(t *testing.T) {
 	interp := NewBytecode()
 	env := interp.GlobalEnvironment()
@@ -265,6 +287,57 @@ func TestBytecodeVM_CanonicalArraySlotCallCacheFeedsArraySlotOpcode(t *testing.T
 	if want := (runtime.StringValue{Val: "updated"}); !valuesEqual(state.Values[0], want) {
 		t.Fatalf("cached write_slot value = %#v, want %#v", state.Values[0], want)
 	}
+
+	pushInstr := bytecodeInstruction{op: bytecodeOpCallMemberArraySlot, name: "push", argCount: 1}
+	vm.storeCachedCanonicalArraySlotCall(program, 11, pushInstr, arr, bytecodeMemberMethodFastPathArrayPush)
+	vm.arraySlotCallCache = nil
+	vm.ip = 11
+	vm.stack = []runtime.Value{arr, runtime.StringValue{Val: "tail"}}
+	newProg, err = vm.execCallMemberArraySlot(pushInstr, program)
+	if err != nil {
+		t.Fatalf("execCallMemberArraySlot cached push failed: %v", err)
+	}
+	if newProg != nil {
+		t.Fatalf("expected cached push to stay in current program")
+	}
+	if vm.ip != 12 {
+		t.Fatalf("ip after cached push = %d, want 12", vm.ip)
+	}
+	if _, ok := vm.stack[0].(runtime.VoidValue); !ok {
+		t.Fatalf("cached push result = %#v, want void", vm.stack[0])
+	}
+	if want := (runtime.StringValue{Val: "tail"}); !valuesEqual(state.Values[len(state.Values)-1], want) {
+		t.Fatalf("cached push value = %#v, want %#v", state.Values[len(state.Values)-1], want)
+	}
+}
+
+func TestBytecodeVM_CanonicalArraySlotDirectCacheInvalidates(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+	program := &bytecodeProgram{}
+	arr := interp.newArrayValue([]runtime.Value{runtime.StringValue{Val: "zero"}}, 0)
+	instr := bytecodeInstruction{op: bytecodeOpCallMemberArraySlot, name: "read_slot", argCount: 1}
+
+	vm.storeCachedCanonicalArraySlotCall(program, 3, instr, arr, bytecodeMemberMethodFastPathArrayReadSlot)
+	vm.arraySlotCallCache = nil
+	vm.arraySlotCallHot = [bytecodeArraySlotCallHotEntries]bytecodeInlineArraySlotCallCacheEntry{}
+	if !vm.lookupCachedCanonicalArraySlotCallForArray(program, 3, bytecodeMemberMethodFastPathArrayReadSlot) {
+		t.Fatalf("expected direct canonical array-slot cache hit after hot/map caches are cleared")
+	}
+
+	env.Define("marker", runtime.NewSmallInt(1, runtime.IntegerI32))
+	if vm.lookupCachedCanonicalArraySlotCallForArray(program, 3, bytecodeMemberMethodFastPathArrayReadSlot) {
+		t.Fatalf("expected env revision change to invalidate direct canonical array-slot cache")
+	}
+
+	vm.storeCachedCanonicalArraySlotCall(program, 3, instr, arr, bytecodeMemberMethodFastPathArrayReadSlot)
+	vm.arraySlotCallCache = nil
+	vm.arraySlotCallHot = [bytecodeArraySlotCallHotEntries]bytecodeInlineArraySlotCallCacheEntry{}
+	interp.invalidateMethodCache()
+	if vm.lookupCachedCanonicalArraySlotCallForArray(program, 3, bytecodeMemberMethodFastPathArrayReadSlot) {
+		t.Fatalf("expected method-cache version change to invalidate direct canonical array-slot cache")
+	}
 }
 
 func TestBytecodeVM_LoweringEmitsArraySlotCallMemberOpcode(t *testing.T) {
@@ -273,6 +346,7 @@ func TestBytecodeVM_LoweringEmitsArraySlotCallMemberOpcode(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
 		ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.Int(0)),
 		ast.CallExpr(ast.Member(ast.ID("arr"), "write_slot"), ast.Int(0), ast.Int(1)),
+		ast.CallExpr(ast.Member(ast.ID("arr"), "push"), ast.Int(2)),
 		ast.CallExpr(safeRead, ast.Int(0)),
 	}, nil, nil)
 
@@ -284,7 +358,7 @@ func TestBytecodeVM_LoweringEmitsArraySlotCallMemberOpcode(t *testing.T) {
 	var slotCalls int
 	var safeRegularCalls int
 	for _, instr := range program.instructions {
-		if instr.name != "read_slot" && instr.name != "write_slot" {
+		if instr.name != "read_slot" && instr.name != "write_slot" && instr.name != "push" {
 			continue
 		}
 		switch instr.op {
@@ -299,10 +373,52 @@ func TestBytecodeVM_LoweringEmitsArraySlotCallMemberOpcode(t *testing.T) {
 			}
 		}
 	}
-	if slotCalls != 2 {
-		t.Fatalf("array slot opcode count = %d, want 2", slotCalls)
+	if slotCalls != 3 {
+		t.Fatalf("array slot opcode count = %d, want 3", slotCalls)
 	}
 	if safeRegularCalls != 1 {
 		t.Fatalf("safe regular read_slot call count = %d, want 1", safeRegularCalls)
+	}
+}
+
+func TestBytecodeVM_ArrayPushFastPathSkipsAdjacentPop(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+	program := &bytecodeProgram{
+		instructions: []bytecodeInstruction{
+			{op: bytecodeOpCallMemberArraySlot, name: "push", argCount: 1},
+			{op: bytecodeOpPop},
+		},
+	}
+	arr := interp.newArrayValue([]runtime.Value{}, 1)
+	instr := program.instructions[0]
+	vm.storeCachedCanonicalArraySlotCall(program, 0, instr, arr, bytecodeMemberMethodFastPathArrayPush)
+	vm.arraySlotCallCache = nil
+	vm.currentProgram = program
+	vm.ip = 0
+	vm.stack = []runtime.Value{arr, runtime.StringValue{Val: "tail"}}
+	newProg, err := vm.execCallMemberArraySlot(instr, program)
+	if err != nil {
+		t.Fatalf("execCallMemberArraySlot push fast path failed: %v", err)
+	}
+	if newProg != nil {
+		t.Fatalf("expected push fast path to stay in current program")
+	}
+	if vm.ip != 2 {
+		t.Fatalf("ip after push adjacent-pop skip = %d, want 2", vm.ip)
+	}
+	if len(vm.stack) != 0 {
+		t.Fatalf("push adjacent-pop stack = %#v, want empty", vm.stack)
+	}
+	state, err := interp.ensureArrayState(arr, 0)
+	if err != nil {
+		t.Fatalf("ensure array state after push: %v", err)
+	}
+	if len(state.Values) != 1 {
+		t.Fatalf("push length = %d, want 1", len(state.Values))
+	}
+	if want := (runtime.StringValue{Val: "tail"}); !valuesEqual(state.Values[0], want) {
+		t.Fatalf("push value = %#v, want %#v", state.Values[0], want)
 	}
 }

@@ -22,6 +22,7 @@ const (
 	bytecodeOpBinaryIntDivCast
 	bytecodeOpBinaryIntAddSlotConst
 	bytecodeOpBinaryIntSubSlotConst
+	bytecodeOpBinaryIntMulSlotConst
 	bytecodeOpBinaryIntLessEqualSlotConst
 	bytecodeOpBinaryIntCompareSlotConst
 	bytecodeOpUnary
@@ -59,6 +60,9 @@ const (
 	bytecodeOpArrayLiteral
 	bytecodeOpIndexGet
 	bytecodeOpIndexSet
+	bytecodeOpArrayIndexGetSlot
+	bytecodeOpArrayIndexSetSlot
+	bytecodeOpArrayIndexSwapSlot
 	bytecodeOpArrayReadSlot
 	bytecodeOpForLoop
 	bytecodeOpCall
@@ -68,6 +72,8 @@ const (
 	bytecodeOpCallMemberNext
 	bytecodeOpCallMemberArrayNew
 	bytecodeOpCallMemberArraySlot
+	bytecodeOpTryArrayPushF64AffineProduct
+	bytecodeOpTryArrayPushF64NestedGet
 	bytecodeOpMemberAccess
 	bytecodeOpMemberSet
 	bytecodeOpMatch
@@ -86,6 +92,7 @@ const (
 	bytecodeOpJumpIfIntLessEqualSlotConstFalse
 	bytecodeOpJumpIfIntCompareSlotConstFalse
 	bytecodeOpJumpIfArrayReadSlotCompareSlotFalse
+	bytecodeOpJumpIfArrayIndexSlotCompareSlotFalse
 	bytecodeOpJumpIfIntCompareSlotFalse
 	bytecodeOpReturnIfIntLessEqualSlotConst
 	bytecodeOpReturnConstIfIntLessEqualSlotConst
@@ -110,6 +117,8 @@ const (
 	bytecodeOpStoreSlotNew
 	bytecodeOpStoreSlotI32
 	bytecodeOpStoreSlotBinaryIntSlotConst
+	bytecodeOpStoreSlotFloatAddMul
+	bytecodeOpStoreSlotFloatAddMulArrayGet
 	bytecodeOpCompoundAssignSlot
 	bytecodeOpCallSelf
 	bytecodeOpCallSelfIntSubSlotConst

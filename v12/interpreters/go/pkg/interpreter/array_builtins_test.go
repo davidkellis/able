@@ -68,3 +68,44 @@ func TestArrayBuiltins(t *testing.T) {
 		t.Fatalf("Array.new should respect capacity, got %d", cap(arrCap.Elements))
 	}
 }
+
+func TestArrayWithCapacityUsesReservedBacking(t *testing.T) {
+	interp := New()
+	global := interp.GlobalEnvironment()
+	sym, err := global.Get("__able_array_with_capacity")
+	if err != nil {
+		t.Fatalf("__able_array_with_capacity missing: %v", err)
+	}
+	fn, ok := sym.(runtime.NativeFunctionValue)
+	if !ok {
+		t.Fatalf("__able_array_with_capacity unexpected type %T", sym)
+	}
+	handleValue, err := fn.Impl(&runtime.NativeCallContext{Env: global}, []runtime.Value{
+		runtime.IntegerValue{Val: big.NewInt(8), TypeSuffix: runtime.IntegerI32},
+	})
+	if err != nil {
+		t.Fatalf("__able_array_with_capacity call failed: %v", err)
+	}
+	handleInt, ok := handleValue.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("__able_array_with_capacity returned %T", handleValue)
+	}
+	handle, ok := handleInt.ToInt64()
+	if !ok {
+		t.Fatalf("__able_array_with_capacity handle out of range: %#v", handleInt)
+	}
+	capacity, err := runtime.ArrayStoreCapacity(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreCapacity: %v", err)
+	}
+	if capacity != 8 {
+		t.Fatalf("reserved capacity = %d, want 8", capacity)
+	}
+	state, err := runtime.ArrayStoreState(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreState: %v", err)
+	}
+	if len(state.Values) != 0 || cap(state.Values) != 0 {
+		t.Fatalf("reserved backing len=%d cap=%d, want len 0 cap 0", len(state.Values), cap(state.Values))
+	}
+}
