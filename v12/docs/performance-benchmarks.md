@@ -3742,3 +3742,40 @@ The full bytecode-runtime profile moved to `1.855s/op`, `39,764,440 B/op`, and
 `bytecodeSlotReadValue(...)` is no longer an allocation leader. The remaining
 matrix allocation wall is `ArrayStoreAppendF64Promote(...)` and mono-f64
 append/growth storage, not the result-load box.
+
+The f64 dot-loop range-hoist tranche is a small CPU cleanup inside the existing
+native dot-loop rather than another storage rewrite. The VM now proves the full
+`i32` loop range against both raw f64 row slices before accumulating, then runs
+the product as a plain `int` indexed Go loop. If the range is negative or would
+run out of either row, the fast path falls through before mutating loop slots so
+the original bytecode handles the observable failure path.
+
+Reduced runtime-only `matrixmultiply_f64_small` landed at `104.74ms/op`,
+`10.43MB/op`, and `13.83k allocs/op`; a same-session old-loop control landed
+at `107.86ms/op` with the same allocation floor. Full external bytecode
+`matrixmultiply` confirmed at `2.0060s` over `5/5`, while the full
+bytecode-runtime profile landed at `1.937s/op`, `39,759,120 B/op`, and
+`73,492 allocs/op`. The CPU profile shows `tryExecF64DotLoop(...)` around
+`0.91s` flat / `1.17s` cumulative. The next matrix work should be plan-level
+row/handle caching or a typed matrix kernel boundary; standalone mono-f64
+append/helper rewrites have not shown enough macro movement.
+
+The f64 matrix row-kernel tranche is the first kept typed matrix boundary. The
+lowerer recognizes the exact outer `j` loop around `s := 0.0`,
+`cj := c.get(j)!`, the proven native f64 dot loop, `di.push(s)`, and
+`j = j + 1`. The VM validates canonical `Array.get` / `Array.push`, concrete
+row values, f64 row storage, non-negative in-bounds ranges, and destination
+non-aliasing before it computes the remaining row and bulk-appends raw f64
+results. Guard misses keep the original bytecode and leave the destination row
+unmodified.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from the fresh
+`105.35ms/op`, `10.45MB/op`, and `13.89k allocs/op` baseline to `76.79ms/op`,
+`10.00MB/op`, and `11.72k allocs/op` over `5/5`; a profiled confirmation
+landed at `87.27ms/op`. Full external bytecode `matrixmultiply` moved from
+`2.0060s` to `1.7580s` over `5/5` after an earlier same-tranche `1.4967s`
+`3/3` run. The `5/5` comparison is about `2.00x` Go (`0.8800s`) and roughly
+24x faster than Ruby / 32x faster than Python on the external table. The next
+matrix work should target mono-f64 row/result storage growth and capacity
+proofs, or graduate this into a broader typed matrix bytecode that carries raw
+f64 row slices through build, transpose, and multiply.

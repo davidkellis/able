@@ -16,10 +16,19 @@ func (vm *bytecodeVM) execLoopEnterOpcode(program **bytecodeProgram, _ *[]byteco
 	if instr == nil {
 		return false, fmt.Errorf("bytecode loop enter missing instruction")
 	}
-	if active := programValue(program); active != nil && active.f64DotLoops != nil {
-		if plan, ok := active.f64DotLoops[vm.ip]; ok {
-			if handled, err := vm.tryExecF64DotLoop(active, plan); handled || err != nil {
-				return handled, err
+	if active := programValue(program); active != nil {
+		if active.f64MatrixRowLoops != nil {
+			if plan, ok := active.f64MatrixRowLoops[vm.ip]; ok {
+				if handled, err := vm.tryExecF64MatrixRowLoop(active, plan); handled || err != nil {
+					return handled, err
+				}
+			}
+		}
+		if active.f64DotLoops != nil {
+			if plan, ok := active.f64DotLoops[vm.ip]; ok {
+				if handled, err := vm.tryExecF64DotLoop(active, plan); handled || err != nil {
+					return handled, err
+				}
 			}
 		}
 	}
@@ -78,15 +87,15 @@ func (vm *bytecodeVM) tryExecF64DotLoop(program *bytecodeProgram, plan bytecodeF
 	if !ok {
 		return false, nil
 	}
-	iterated := false
-	for index < bound {
-		if index < 0 || index >= int64(len(leftValues)) || index >= int64(len(rightValues)) {
-			break
-		}
-		acc += leftValues[int(index)] * rightValues[int(index)]
-		index++
-		iterated = true
+	start, end, ok := bytecodeF64DotLoopRange(index, bound, len(leftValues), len(rightValues))
+	if !ok {
+		return false, nil
 	}
+	for idx := start; idx < end; idx++ {
+		acc += leftValues[idx] * rightValues[idx]
+	}
+	index = bound
+	iterated := start < end
 	if iterated && !resultAppend {
 		vm.storeOwnedFloatSlot(plan.accumulatorSlot, runtime.FloatValue{Val: acc, TypeSuffix: runtime.FloatF64})
 		if plan.accumulatorSlot == 0 {
@@ -114,6 +123,18 @@ func (vm *bytecodeVM) tryExecF64DotLoop(program *bytecodeProgram, plan bytecodeF
 	vm.stack = append(vm.stack, runtime.NilValue{})
 	vm.ip = plan.successTarget
 	return true, nil
+}
+
+func bytecodeF64DotLoopRange(index, bound int64, leftLen, rightLen int) (int, int, bool) {
+	if index < 0 || bound < 0 {
+		return 0, 0, false
+	}
+	start := int(index)
+	end := int(bound)
+	if start < 0 || end < start || end > leftLen || end > rightLen {
+		return 0, 0, false
+	}
+	return start, end, true
 }
 
 func (vm *bytecodeVM) appendF64DotLoopResult(program *bytecodeProgram, plan bytecodeF64DotLoopPlan, value float64) bool {

@@ -550,3 +550,30 @@ allocs/op`; full external bytecode `matrixmultiply` lands at `2.0240s` over
 `5/5`. The next matrix work should target mono-f64 append storage and growth,
 especially `ArrayStoreAppendF64Promote(...)` / `appendMonoF64Value(...)`, not
 more result-load boxing or standalone slot-push dispatch.
+
+The f64 dot-loop range-hoist follow-up is a modest CPU keep inside the existing
+native dot-loop. The VM now checks the whole `i32` index range against both raw
+f64 row slices before accumulating; successful guards run a plain `int` indexed
+Go loop, while negative or out-of-bounds ranges fall through before accumulator
+or index mutation. This keeps fallback bytecode responsible for observable
+nil/propagation behavior. Reduced runtime-only matrix moved from a same-session
+old-loop control at `107.86ms/op` to `104.74ms/op`, full external bytecode
+confirmed at `2.0060s` over `5/5`, and the profile shows
+`tryExecF64DotLoop(...)` around `0.91s` flat / `1.17s` cumulative with
+allocation unchanged. The next VM-v2 matrix slice should be plan-level
+row/handle caching or a typed matrix kernel boundary, not another isolated
+mono-f64 append helper rewrite.
+
+The f64 matrix row-kernel follow-up is the first kept typed matrix boundary in
+the bytecode VM. It keeps fallback bytecode intact, but attaches a guarded plan
+to the outer `j` loop when the source shape is exactly `s := 0.0`,
+`cj := c.get(j)!`, native f64 dot loop, `di.push(s)`, and `j = j + 1`. On the
+fast path, the VM validates canonical `Array.get` / `Array.push`, concrete row
+values, f64 row slices, non-negative in-bounds ranges, and destination
+non-aliasing before computing all remaining row cells and bulk-appending the
+raw f64 results. Reduced matrix moved from a fresh `105.35ms/op` baseline to
+`76.79ms/op` over `5/5`; full external bytecode `matrixmultiply` confirmed at
+`1.7580s` over `5/5` after an earlier `1.4967s` `3/3` run. The next VM-v2
+matrix slice should target mono-f64 row/result storage growth and capacity
+proofs, or turn build/transpose/multiply into a broader typed matrix bytecode
+contract.

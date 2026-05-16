@@ -114,6 +114,55 @@ func ArrayStoreAppendF64Promote(handle int64, value float64) (bool, error) {
 	return true, nil
 }
 
+func ArrayStoreAppendF64ValuesPromote(handle int64, values []float64) (bool, error) {
+	if handle == 0 {
+		return false, nil
+	}
+	kind, err := arrayHandleKind(handle)
+	if err != nil {
+		return false, err
+	}
+	if len(values) == 0 {
+		return kind == monoArrayKindF64 || kind == monoArrayKindDynamic, nil
+	}
+	if kind == monoArrayKindF64 {
+		state, ok := monoArrayF64States[handle]
+		if !ok {
+			return false, fmt.Errorf("array handle %d is not defined", handle)
+		}
+		appendMonoF64Values(state, values)
+		return true, nil
+	}
+	if kind != monoArrayKindDynamic {
+		return false, nil
+	}
+	state, ok := arrayStates[handle]
+	if !ok {
+		return false, fmt.Errorf("array handle %d is not defined", handle)
+	}
+	capacity := state.Capacity
+	if capacity < len(state.Values) {
+		capacity = len(state.Values)
+	}
+	minCapacity := len(state.Values) + len(values)
+	if capacity < minCapacity {
+		capacity = grownCapacity(capacity, minCapacity)
+	}
+	converted := make([]float64, len(state.Values), capacity)
+	for idx, current := range state.Values {
+		raw, err := float64FromValue(current)
+		if err != nil {
+			return false, nil
+		}
+		converted[idx] = raw
+	}
+	converted = append(converted, values...)
+	delete(arrayStates, handle)
+	monoArrayF64States[handle] = &monoArrayF64State{Values: converted, Capacity: cap(converted)}
+	arrayHandleKinds[handle] = monoArrayKindF64
+	return true, nil
+}
+
 func appendMonoF64Value(state *monoArrayF64State, value float64) {
 	if state == nil {
 		return
@@ -123,6 +172,20 @@ func appendMonoF64Value(state *monoArrayF64State, value float64) {
 		monoEnsureCapacity(state, idx+1)
 	}
 	state.Values = append(state.Values, value)
+	if state.Capacity < cap(state.Values) {
+		state.Capacity = cap(state.Values)
+	}
+}
+
+func appendMonoF64Values(state *monoArrayF64State, values []float64) {
+	if state == nil || len(values) == 0 {
+		return
+	}
+	minimum := len(state.Values) + len(values)
+	if minimum > state.Capacity || minimum > cap(state.Values) {
+		monoEnsureCapacity(state, minimum)
+	}
+	state.Values = append(state.Values, values...)
 	if state.Capacity < cap(state.Values) {
 		state.Capacity = cap(state.Values)
 	}
