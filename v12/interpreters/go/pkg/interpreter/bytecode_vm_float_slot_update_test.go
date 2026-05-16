@@ -335,6 +335,56 @@ func TestBytecodeVM_F64DotLoopFastPath(t *testing.T) {
 	assertFloatValue(t, vm.stack[0], runtime.FloatF64, 57.5)
 }
 
+func TestBytecodeVM_F64DotLoopFallsThroughWithoutPartialMutationWhenRangeOutOfBounds(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	left := monoF64ArrayValueForTest(t, 2)
+	right := monoF64ArrayValueForTest(t, 5)
+	program := &bytecodeProgram{
+		instructions: []bytecodeInstruction{{
+			op:           bytecodeOpLoopEnter,
+			loopBreak:    1,
+			loopContinue: 0,
+		}},
+		f64DotLoops: map[int]bytecodeF64DotLoopPlan{0: {
+			accumulatorSlot:   0,
+			indexSlot:         1,
+			boundSlot:         2,
+			leftReceiverSlot:  3,
+			rightReceiverSlot: 4,
+			successTarget:     2,
+		}},
+	}
+	vm.currentProgram = program
+	vm.ip = 0
+	vm.slots = []runtime.Value{
+		runtime.FloatValue{Val: 1.5, TypeSuffix: runtime.FloatF64},
+		runtime.NewBigIntValue(big.NewInt(0), runtime.IntegerI32),
+		runtime.NewBigIntValue(big.NewInt(2), runtime.IntegerI32),
+		left,
+		right,
+	}
+	vm.storeCachedCanonicalArrayGetCall(program, 0, bytecodeInstruction{name: "get", argCount: 1}, left)
+
+	programPtr := program
+	instructions := program.instructions
+	handled, err := vm.execLoopEnterOpcode(&programPtr, &instructions, nil, nil, &program.instructions[0])
+	if err != nil {
+		t.Fatalf("f64 dot-loop guard miss failed: %v", err)
+	}
+	if handled {
+		t.Fatalf("out-of-bounds dot-loop range should fall through to ordinary bytecode")
+	}
+	if vm.ip != 1 {
+		t.Fatalf("ip after f64 dot-loop guard miss = %d, want fallback ip 1", vm.ip)
+	}
+	assertFloatValue(t, vm.slots[0], runtime.FloatF64, 1.5)
+	assertIntValue(t, vm.slots[1], runtime.IntegerI32, 0)
+	if len(vm.stack) != 0 {
+		t.Fatalf("stack after f64 dot-loop guard miss = %#v, want empty", vm.stack)
+	}
+}
+
 func TestBytecodeVM_F64DotLoopResultAppendFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())

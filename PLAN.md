@@ -209,12 +209,17 @@ Guardrails:
   mono f64 handles, and the transpose shape `ci.push(b.get(j)!.get(i)!)`
   has a guarded raw-f64 nested-get push fast path. Float slot stores now seed
   and reuse owned f64 cells, so the native dot loop updates the matrix
-  accumulator cell instead of replacing the slot with a freshly boxed value.
-  The latest external bytecode `matrixmultiply` confirmation landed at
-  `2.0840s` over `5/5`. The next matrix tranche should target the allocation
-  that moved to `bytecodeSlotReadValue(...)` for the following `di.push(s)`;
-  a slot-backed guarded f64 `Array.push` for that exact shape is preferable to
-  another general storage/push helper.
+  accumulator cell instead of replacing the slot with a freshly boxed value;
+  the dot-loop result-append and range-hoist tranches then removed the
+  `di.push(s)` boxing boundary and tightened the inner f64 loop. The latest
+  row-kernel tranche recognizes the exact outer `j` matrix loop and computes a
+  full result row through guarded raw f64 slices before bulk appending. Full
+  external bytecode `matrixmultiply` now confirms at `1.7580s` over `5/5`
+  (`2.00x` Go), with reduced `matrixmultiply_f64_small` at `76.79ms/op` over
+  `5/5`. The next matrix tranche should target mono-f64 row/result storage
+  growth and capacity proofs, or graduate the row kernel into a broader typed
+  matrix bytecode that carries raw f64 row slices through build, transpose, and
+  multiply.
 - [ ] Add typed primitive slot/register storage, following
       `v12/design/bytecode-vm-v2.md`. Start with `i32` slots/stack cells for
       slot-eligible, non-yielding functions, with boxed `runtime.Value`
@@ -799,11 +804,26 @@ Guardrails:
       fallback bytecode; on any guard miss it still executes the original loop
       and push. Full external bytecode `matrixmultiply` moved to `2.0240s`
       over `5/5`, and full bytecode-runtime allocation moved to
-      `39.8MB/op` and about `73.5k allocs/op`. Next, target the remaining
-      `ArrayStoreAppendF64Promote(...)` / mono-f64 append growth cost, not the
-      now-removed `bytecodeSlotReadValue(...)` result boundary, canonical
-      origin, `Array.get` proof caching, or generic capacity helpers unless a
-      fresh full external profile moves them back above append storage.
+      `39.8MB/op` and about `73.5k allocs/op`. The dot-loop range-hoist
+      follow-up now proves the full `i32` loop range against both f64 row
+      slices once, then runs the accumulator as a plain `int` indexed Go loop;
+      out-of-bounds or negative ranges fall through before slot mutation. This
+      is a modest CPU keep: reduced runtime-only matrix moved from a
+      same-session old-loop control at `107.86ms/op` to `104.74ms/op`, full
+      external bytecode confirmed at `2.0060s` over `5/5`, and the full
+      bytecode-runtime profile shows `tryExecF64DotLoop(...)` at about `0.91s`
+      flat / `1.17s` cumulative with allocation unchanged near `39.8MB/op`.
+      The row-kernel follow-up now recognizes the exact outer `j` loop around
+      `s := 0.0`, `cj := c.get(j)!`, the native f64 dot loop, `di.push(s)`,
+      and `j = j + 1`, then computes the remaining row and bulk-appends raw f64
+      results after canonical get/push, bounds, f64 row, and alias guards pass.
+      Reduced runtime-only matrix moved from a fresh `105.35ms/op` baseline to
+      `76.79ms/op` over `5/5`, and full external bytecode `matrixmultiply`
+      confirmed at `1.7580s` over `5/5` (`2.00x` Go). Next, target mono-f64
+      row/result storage growth and capacity proofs, or a broader typed matrix
+      bytecode; do not spend another tranche on standalone
+      `ArrayStoreAppendF64Promote(...)` / `appendMonoF64Value(...)` helper
+      micro-rewrites unless a same-session control shows macro movement.
 - [ ] Add quickened call/member/index opcodes that rewrite after first
       successful shape resolution and invalidate safely under mutation or
       environment revision changes.

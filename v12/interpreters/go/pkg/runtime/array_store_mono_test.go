@@ -286,6 +286,38 @@ func TestArrayStoreMonoF64PromoteAppendRoundTripAndDynamicFallback(t *testing.T)
 	}
 }
 
+func TestArrayStoreMonoF64PromoteBulkAppend(t *testing.T) {
+	handle := ArrayStoreNewWithCapacity(4)
+	ok, err := ArrayStoreAppendF64ValuesPromote(handle, []float64{1.5, 2.5, 3.5})
+	if err != nil {
+		t.Fatalf("ArrayStoreAppendF64ValuesPromote: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected dynamic array to bulk-promote to mono f64")
+	}
+	values, mono, err := ArrayStoreMonoF64ValuesIfAvailable(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable: %v", err)
+	}
+	if !mono || len(values) != 3 || cap(values) != 4 || values[0] != 1.5 || values[1] != 2.5 || values[2] != 3.5 {
+		t.Fatalf("mono f64 values=%#v len=%d cap=%d mono=%v, want [1.5 2.5 3.5] cap 4", values, len(values), cap(values), mono)
+	}
+	ok, err = ArrayStoreAppendF64ValuesPromote(handle, []float64{4.5, 5.5})
+	if err != nil {
+		t.Fatalf("ArrayStoreAppendF64ValuesPromote second: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected mono f64 bulk append to stay handled")
+	}
+	values, mono, err = ArrayStoreMonoF64ValuesIfAvailable(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable second: %v", err)
+	}
+	if !mono || len(values) != 5 || values[3] != 4.5 || values[4] != 5.5 {
+		t.Fatalf("mono f64 values after second append=%#v mono=%v, want suffix [4.5 5.5]", values, mono)
+	}
+}
+
 func mustBigInt(t *testing.T, value int64) *big.Int {
 	t.Helper()
 	return big.NewInt(value)

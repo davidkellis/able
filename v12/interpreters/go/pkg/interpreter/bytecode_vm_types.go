@@ -36,6 +36,7 @@ type bytecodeProgram struct {
 	returnGenericNamesCached bool
 	i32RecurrenceKernel      *bytecodeI32RecurrenceKernel
 	f64DotLoops              map[int]bytecodeF64DotLoopPlan
+	f64MatrixRowLoops        map[int]bytecodeF64MatrixRowLoopPlan
 	f64AffinePushes          map[int]bytecodeF64AffineProductPushPlan
 	f64NestedGetPushes       map[int]bytecodeF64NestedArrayGetPushPlan
 }

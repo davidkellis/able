@@ -16763,3 +16763,65 @@
   and mono-f64 result-row growth/capacity behavior. Do not retry standalone
   slot-push opcodes or more generic capacity/proof-cache work unless a fresh
   full external profile moves those costs back above append storage.
+
+# 2026-05-14 — Bytecode matrix f64 dot-loop range hoist (v12)
+- Bytecode VM: the native f64 dot-loop now validates the full `i32` loop range
+  against both raw f64 row slices before accumulating, then runs the hot
+  product loop as a plain `int` indexed Go loop. Negative or out-of-bounds
+  ranges fall through before mutating the accumulator/index slots, so the
+  original bytecode remains responsible for observable failure behavior.
+- Tests:
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsF64DotLoopPlan|LoweringF64DotLoopPlansResultAppend|F64DotLoopFastPath|F64DotLoopFallsThroughWithoutPartialMutationWhenRangeOutOfBounds|F64DotLoopResultAppendFastPath|F64DotLoopReadsMonoF64Arrays|F64DotLoopRowCacheInvalidatesOnTrackedWrite|StoreSlotFloatReusesOwnedCellAcrossReinitialization|TryArrayPushF64(NestedGet|AffineProduct)(AppendsDirectFloat|FallsThroughOnGuardMiss))' -count=1 -timeout 300s`.
+- Benchmarks: reduced runtime-only `matrixmultiply_f64_small` landed at
+  `104.74ms/op`, `10.43MB/op`, and `13.83k allocs/op`. A same-session
+  temporary old-loop control landed at `107.86ms/op`, with the same allocation
+  floor, so this is a modest CPU keep rather than an allocation tranche.
+- External/profile checks: standalone full external bytecode `matrixmultiply`
+  confirmed at `2.0060s` over `5/5` after an earlier concurrent/noisy run at
+  `2.0720s`. Full bytecode-runtime profile landed at `1.937s/op`,
+  `39,759,120 B/op`, and `73,492 allocs/op`; `tryExecF64DotLoop(...)` was
+  about `0.91s` flat / `1.17s` cumulative, down from the previous
+  `0.97-1.07s` flat / `1.25-1.29s` cumulative profile band.
+- Next: target plan-level row/handle caching or a typed matrix kernel boundary.
+  The direct mono-f64 append/storage helper micro-rewrite was already rejected,
+  and this profile still says helper-only work is too small unless paired with
+  a broader reduction in repeated row/handle lookup.
+
+# 2026-05-15 — Bytecode matrix f64 row-kernel loop fusion (v12)
+- Bytecode lowering/VM: added a guarded f64 matrix-row loop plan for the exact
+  v12 matrix shape `j` loop around `s := 0.0`, `cj := c.get(j)!`, the proven
+  native f64 dot loop, `di.push(s)`, and `j = j + 1`. The plan attaches to the
+  outer loop-enter and, when canonical `Array.get` / `Array.push` and raw f64
+  row guards hold, computes the remaining row in one VM fast path and bulk
+  appends the f64 results to the destination row. The original bytecode remains
+  in place for every guard miss.
+- Runtime: added `ArrayStoreAppendF64ValuesPromote(...)` so the row kernel can
+  promote or append a batch of f64 results through the same mono-f64 storage
+  rules as the single-value append path.
+- Semantics: the fast path validates all source row bounds before mutating the
+  destination row, rejects destination/input array aliasing, requires the
+  propagated outer `Array.get` value to be a concrete Array, and falls through
+  without partial mutation for short rows, non-f64 rows, non-canonical methods,
+  unsupported destination rows, or alias-sensitive cases.
+- Tests:
+  `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestArrayStoreMonoF64(PromoteUsesReservedCapacity|PromoteAppendRoundTripAndDynamicFallback|PromoteBulkAppend)' -count=1`
+  and
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsF64(MatrixRowLoopPlan|DotLoopPlan)|LoweringF64DotLoopPlansResultAppend|F64(MatrixRowLoopFastPathAppendsRow|MatrixRowLoopFallsThroughWithoutPartialMutation|MatrixRowLoopFallsThroughWhenDestinationAliasesInput|DotLoopFastPath|DotLoopFallsThroughWithoutPartialMutationWhenRangeOutOfBounds|DotLoopResultAppendFastPath|DotLoopReadsMonoF64Arrays|DotLoopRowCacheInvalidatesOnTrackedWrite)|TryArrayPushF64(NestedGet|AffineProduct)(AppendsDirectFloat|FallsThroughOnGuardMiss)|LoweringEmitsTryArrayPushF64(AffineProduct|NestedGet))' -count=1 -timeout 300s`.
+- Benchmarks: reduced runtime-only `matrixmultiply_f64_small` moved from the
+  fresh `105.35ms/op`, `10.45MB/op`, `13.89k allocs/op` baseline to a kept
+  `76.79ms/op`, `10.00MB/op`, and `11.72k allocs/op` over `5/5`. A profiled
+  reduced confirmation landed at `87.27ms/op`, `10.02MB/op`, and
+  `11.78k allocs/op`.
+- External check: full external bytecode `matrixmultiply` moved from the prior
+  `2.0060s` confirmation to `1.7580s` over `5/5`, with an earlier same-tranche
+  `3/3` run at `1.4967s`. The `5/5` comparison is about `2.00x` Go
+  (`0.8800s`) and still far ahead of Ruby/Python.
+- Profile: reduced CPU now puts `tryExecF64MatrixRowLoop(...)` at the top of
+  the matrix slice. Allocation is still dominated by mono-f64 backing growth
+  for row/result arrays, with bulk result append visible but no longer spending
+  the whole row on repeated dot-loop dispatch.
+- Next: target remaining f64 matrix storage/growth and result materialization:
+  pre-size mono-f64 rows when `Array.with_capacity(n)` plus the exact affine,
+  transpose, or row-kernel shapes prove the final length, or add a broader
+  typed matrix bytecode that carries f64 row capacity and raw slices through
+  build/transpose/multiply as a kernel-level contract.

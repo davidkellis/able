@@ -252,6 +252,7 @@ func emitLoopExpressionCore(ctx *bytecodeLoweringContext, i *Interpreter, loop *
 		return -1, nil
 	}
 	dotLoop, hasDotLoop := bytecodeF64DotLoopPlanForLoop(ctx, loop)
+	matrixRowLoop, hasMatrixRowLoop := bytecodeF64MatrixRowLoopPlanForLoop(ctx, loop)
 	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
 	loopStart := len(ctx.instructions)
 	ctx.pushLoop(loopStart)
@@ -266,6 +267,13 @@ func emitLoopExpressionCore(ctx *bytecodeLoweringContext, i *Interpreter, loop *
 	if hasDotLoop {
 		dotLoop.successTarget = len(ctx.instructions)
 		ctx.setF64DotLoopPlan(loopEnter, dotLoop)
+	}
+	if hasMatrixRowLoop {
+		if pushIP := bytecodeFindArrayPushSlotCall(ctx.instructions[loopStart:loopExit]); pushIP >= 0 {
+			matrixRowLoop.resultPushIP = loopStart + pushIP
+			matrixRowLoop.successTarget = len(ctx.instructions)
+			ctx.setF64MatrixRowLoopPlan(loopEnter, matrixRowLoop)
+		}
 	}
 	return loopEnter, nil
 }

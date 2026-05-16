@@ -36,6 +36,7 @@ type bytecodeLoweringContext struct {
 	discardExpressionValue bool
 	discardExpressionNode  ast.Expression
 	f64DotLoops            map[int]bytecodeF64DotLoopPlan
+	f64MatrixRowLoops      map[int]bytecodeF64MatrixRowLoopPlan
 	f64AffinePushes        map[int]bytecodeF64AffineProductPushPlan
 	f64NestedGetPushes     map[int]bytecodeF64NestedArrayGetPushPlan
 }
@@ -69,7 +70,7 @@ func (i *Interpreter) lowerModuleToBytecode(module *ast.Module) (*bytecodeProgra
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
 	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	return &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}, nil
+	return &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64MatrixRowLoops: ctx.f64MatrixRowLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}, nil
 }
 
 func (i *Interpreter) lowerExpressionToBytecode(expr ast.Expression) (*bytecodeProgram, error) {
@@ -98,7 +99,7 @@ func (i *Interpreter) lowerExpressionToBytecodeWithOptions(expr ast.Expression, 
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
 	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	program := &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}
+	program := &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64MatrixRowLoops: ctx.f64MatrixRowLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}
 	return i.cacheExpressionBytecode(expr, allowPlaceholderLambda, program), nil
 }
 
@@ -115,7 +116,7 @@ func (i *Interpreter) lowerBlockExpressionToBytecode(block *ast.BlockExpression,
 	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
 	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	return &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}, nil
+	return &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64MatrixRowLoops: ctx.f64MatrixRowLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}, nil
 }
 
 func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statement, isLast bool) error {
