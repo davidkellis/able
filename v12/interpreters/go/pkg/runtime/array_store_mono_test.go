@@ -318,6 +318,47 @@ func TestArrayStoreMonoF64PromoteBulkAppend(t *testing.T) {
 	}
 }
 
+func TestArrayStoreMonoF64RevisionTracksMutation(t *testing.T) {
+	handle := ArrayStoreMonoNewWithCapacityF64(2)
+	if ok, err := ArrayStoreAppendF64ValuesPromote(handle, []float64{1, 2}); err != nil || !ok {
+		t.Fatalf("ArrayStoreAppendF64ValuesPromote seed ok=%v err=%v", ok, err)
+	}
+	_, revision, mono, err := ArrayStoreMonoF64ValuesRevisionIfAvailable(handle)
+	if err != nil || !mono {
+		t.Fatalf("ArrayStoreMonoF64ValuesRevisionIfAvailable initial mono=%v err=%v", mono, err)
+	}
+	if err := ArrayStoreMonoWriteF64(handle, 0, 3); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteF64: %v", err)
+	}
+	_, writeRevision, mono, err := ArrayStoreMonoF64ValuesRevisionIfAvailable(handle)
+	if err != nil || !mono {
+		t.Fatalf("ArrayStoreMonoF64ValuesRevisionIfAvailable after write mono=%v err=%v", mono, err)
+	}
+	if writeRevision <= revision {
+		t.Fatalf("revision after write = %d, want > %d", writeRevision, revision)
+	}
+	if err := ArrayStoreReserve(handle, 16); err != nil {
+		t.Fatalf("ArrayStoreReserve: %v", err)
+	}
+	_, reserveRevision, mono, err := ArrayStoreMonoF64ValuesRevisionIfAvailable(handle)
+	if err != nil || !mono {
+		t.Fatalf("ArrayStoreMonoF64ValuesRevisionIfAvailable after reserve mono=%v err=%v", mono, err)
+	}
+	if reserveRevision <= writeRevision {
+		t.Fatalf("revision after reserve = %d, want > %d", reserveRevision, writeRevision)
+	}
+	if ok, err := ArrayStoreAppendF64Promote(handle, 4); err != nil || !ok {
+		t.Fatalf("ArrayStoreAppendF64Promote ok=%v err=%v", ok, err)
+	}
+	_, appendRevision, mono, err := ArrayStoreMonoF64ValuesRevisionIfAvailable(handle)
+	if err != nil || !mono {
+		t.Fatalf("ArrayStoreMonoF64ValuesRevisionIfAvailable after append mono=%v err=%v", mono, err)
+	}
+	if appendRevision <= reserveRevision {
+		t.Fatalf("revision after append = %d, want > %d", appendRevision, reserveRevision)
+	}
+}
+
 func mustBigInt(t *testing.T, value int64) *big.Int {
 	t.Helper()
 	return big.NewInt(value)

@@ -577,3 +577,40 @@ raw f64 results. Reduced matrix moved from a fresh `105.35ms/op` baseline to
 matrix slice should target mono-f64 row/result storage growth and capacity
 proofs, or turn build/transpose/multiply into a broader typed matrix bytecode
 contract.
+
+The f64 affine row-loop follow-up keeps that boundary narrow and moves it to
+matrix construction. Lowering recognizes only the exact `build_matrix` inner
+loop shape `if j >= n { break }; row.push(t * ((i - j) as f64) * ((i + j) as
+f64)); j = j + 1`, attaches a guarded plan to loop-enter, and leaves the
+fallback bytecode in place. The VM validates the same canonical `Array.push`
+proof as the existing per-cell affine push, rejects bad f64/i32/range operands
+before mutation, computes the remaining row values as raw f64, and bulk-appends
+them through mono-f64 storage. For `Array.new`, the bulk append preserves the
+amortized final capacity observable after repeated pushes; for
+`Array.with_capacity(n)`, it preserves the declared capacity.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from a fresh
+`74.64ms/op` baseline to `54.73ms/op` over `5/5`, and full external bytecode
+`matrixmultiply` confirmed at `1.4480s` over `5/5`, about `1.65x` Go. The next
+VM-v2 matrix slice should apply the same loop-level treatment to the transpose
+row shape `ci.push(b.get(j)!.get(i)!)`, then reassess whether the remaining
+wall is result row materialization, canonical get/push version checks, or a
+broader typed matrix bytecode contract.
+
+The f64 transpose row-loop follow-up completes the current build/transpose
+loop-fusion pair. Lowering recognizes only the exact `matmul` transpose loop
+shape `if j >= n { break }; ci.push(b.get(j)!.get(i)!); j = j + 1`, attaches a
+guarded plan to loop-enter, and leaves fallback bytecode intact. The VM gathers
+all remaining column values before mutating the destination row, requiring
+canonical `Array.get` / `Array.push`, Array-valued source rows, raw f64 row
+storage, non-negative i32 indices, and destination/source non-aliasing. This
+preserves propagation/fallback behavior and final row capacity while removing
+the repeated per-cell nested-get push dispatch.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from the prior
+`54.73ms/op` affine-row keep to `40.86ms/op` over `5/5`, and full external
+bytecode `matrixmultiply` confirmed at `1.3060s` over `5/5`, about `1.48x` Go.
+The remaining VM-v2 matrix wall is now the result row kernel: it still re-reads
+and revalidates every transposed `c` row for each output row. The next slice
+should test a guarded raw row-slice cache for the transposed matrix, or another
+row-kernel tightening with the same fallback discipline.

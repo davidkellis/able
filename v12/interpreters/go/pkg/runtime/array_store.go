@@ -28,6 +28,7 @@ const (
 type monoArrayState[T any] struct {
 	Values   []T
 	Capacity int
+	Revision uint64
 }
 
 type monoArrayI32State = monoArrayState[int32]
@@ -168,6 +169,7 @@ func monoEnsureCapacity[T any](state *monoArrayState[T], minimum int) bool {
 	copy(newValues, state.Values)
 	state.Values = newValues
 	state.Capacity = newCapacity
+	state.Revision++
 	return true
 }
 
@@ -176,9 +178,13 @@ func monoSetLength[T any](state *monoArrayState[T], length int) {
 		return
 	}
 	if length <= len(state.Values) {
+		oldLength := len(state.Values)
 		state.Values = state.Values[:length]
 		if len(state.Values) > state.Capacity {
 			state.Capacity = len(state.Values)
+		}
+		if length != oldLength {
+			state.Revision++
 		}
 		return
 	}
@@ -190,6 +196,7 @@ func monoSetLength[T any](state *monoArrayState[T], length int) {
 	if len(state.Values) > state.Capacity {
 		state.Capacity = len(state.Values)
 	}
+	state.Revision++
 }
 
 func arrayHandleKind(handle int64) (monoArrayKind, error) {

@@ -211,15 +211,20 @@ Guardrails:
   and reuse owned f64 cells, so the native dot loop updates the matrix
   accumulator cell instead of replacing the slot with a freshly boxed value;
   the dot-loop result-append and range-hoist tranches then removed the
-  `di.push(s)` boxing boundary and tightened the inner f64 loop. The latest
-  row-kernel tranche recognizes the exact outer `j` matrix loop and computes a
-  full result row through guarded raw f64 slices before bulk appending. Full
-  external bytecode `matrixmultiply` now confirms at `1.7580s` over `5/5`
-  (`2.00x` Go), with reduced `matrixmultiply_f64_small` at `76.79ms/op` over
-  `5/5`. The next matrix tranche should target mono-f64 row/result storage
-  growth and capacity proofs, or graduate the row kernel into a broader typed
-  matrix bytecode that carries raw f64 row slices through build, transpose, and
-  multiply.
+  `di.push(s)` boxing boundary and tightened the inner f64 loop. The row-kernel
+  tranche recognizes the exact outer `j` matrix loop and computes a full result
+  row through guarded raw f64 slices before bulk appending. The affine row-loop
+  tranche recognizes the exact `build_matrix` inner loop and bulk-appends the
+  generated row values while preserving the final capacity that repeated
+  `Array.push` would expose. The latest transpose row-loop tranche recognizes
+  the exact `ci.push(b.get(j)!.get(i)!)` loop and bulk-appends the generated
+  column row after canonical get/push, raw f64 row, and non-aliasing guards.
+  Full external bytecode `matrixmultiply` now confirms at `1.3060s` over `5/5`
+  (`1.48x` Go), with reduced `matrixmultiply_f64_small` at `40.86ms/op` over
+  `5/5`. The next matrix tranche should target the remaining matrix row-kernel
+  wall with a guarded raw row-slice cache for the transposed matrix, or tighten
+  the row kernel so it does not re-read and revalidate every `c` row for each
+  output row.
 - [ ] Add typed primitive slot/register storage, following
       `v12/design/bytecode-vm-v2.md`. Start with `i32` slots/stack cells for
       slot-eligible, non-yielding functions, with boxed `runtime.Value`
@@ -823,7 +828,24 @@ Guardrails:
       row/result storage growth and capacity proofs, or a broader typed matrix
       bytecode; do not spend another tranche on standalone
       `ArrayStoreAppendF64Promote(...)` / `appendMonoF64Value(...)` helper
-      micro-rewrites unless a same-session control shows macro movement.
+      micro-rewrites unless a same-session control shows macro movement. The
+      affine row-loop follow-up now recognizes the exact `build_matrix` inner
+      loop shape and bulk-appends the generated f64 row while preserving
+      repeated-push final capacity; reduced runtime-only matrix moved from a
+      fresh `74.64ms/op` baseline to `54.73ms/op` over `5/5`, and full external
+      bytecode `matrixmultiply` confirmed at `1.4480s` over `5/5` (`1.65x`
+      Go). Next, apply the same bounded loop-level treatment to the transpose
+      row shape `ci.push(b.get(j)!.get(i)!)`, then reassess whether the
+      remaining wall is result row materialization or canonical get/push
+      version checks. The transpose row-loop follow-up now recognizes that
+      exact loop shape and bulk-appends the generated column row after
+      canonical get/push, raw f64 row, and non-aliasing guards; reduced
+      runtime-only matrix moved to `40.86ms/op`, `8.76MB/op`, and `6.32k
+      allocs/op` over `5/5`, and full external bytecode `matrixmultiply`
+      confirmed at `1.3060s` over `5/5` (`1.48x` Go). Next, target the
+      remaining `tryExecF64MatrixRowLoop(...)` wall with a guarded raw row-slice
+      cache for the transposed matrix or a row-kernel tightening that avoids
+      re-reading and revalidating every `c` row for each output row.
 - [ ] Add quickened call/member/index opcodes that rewrite after first
       successful shape resolution and invalidate safely under mutation or
       environment revision changes.
