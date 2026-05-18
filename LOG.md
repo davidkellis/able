@@ -16825,3 +16825,69 @@
   transpose, or row-kernel shapes prove the final length, or add a broader
   typed matrix bytecode that carries f64 row capacity and raw slices through
   build/transpose/multiply as a kernel-level contract.
+
+# 2026-05-17 — Bytecode matrix f64 affine row-loop fusion (v12)
+- Bytecode lowering/VM: added a guarded f64 affine row-loop plan for the
+  `build_matrix` inner loop shape `if j >= n { break }; row.push(t * ((i - j)
+  as f64) * ((i + j) as f64)); j = j + 1`. The plan attaches to loop-enter,
+  computes the remaining affine row into raw f64 values, bulk-appends through
+  the mono-f64 append path, and jumps past the original loop body. The original
+  bytecode remains in place for all guard misses.
+- Semantics: the fast path requires the same canonical `Array.push` proof as
+  the existing per-cell affine push. It rejects negative ranges and non-f64
+  scale/index inputs before mutating the row. For `Array.new` rows, bulk append
+  uses the same amortized final capacity that repeated single appends would
+  produce; for `Array.with_capacity(n)` rows, it preserves the declared
+  capacity.
+- Tests:
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsF64(AffineRowLoopPlan|MatrixRowLoopPlan|DotLoopPlan)|LoweringF64DotLoopPlansResultAppend|F64(AffineRowLoopFastPathAppendsRowWithAmortizedCapacity|AffineRowLoopFallsThroughWithoutPartialMutation|MatrixRowLoopFastPathAppendsRow|MatrixRowLoopFallsThroughWithoutPartialMutation|MatrixRowLoopFallsThroughWhenDestinationAliasesInput|DotLoopFastPath|DotLoopFallsThroughWithoutPartialMutationWhenRangeOutOfBounds|DotLoopResultAppendFastPath|DotLoopReadsMonoF64Arrays|DotLoopRowCacheInvalidatesOnTrackedWrite)|TryArrayPushF64(NestedGet|AffineProduct)(AppendsDirectFloat|FallsThroughOnGuardMiss)|LoweringEmitsTryArrayPushF64(AffineProduct|NestedGet))' -count=1 -timeout 300s`.
+- Benchmarks: fresh reduced runtime-only `matrixmultiply_f64_small` baseline
+  was `74.64ms/op`, `10.02MB/op`, and `11.78k allocs/op`. The kept affine-row
+  run landed at `54.73ms/op`, `9.17MB/op`, and `8.12k allocs/op` over `5/5`;
+  the profiled reduced confirmation landed at `58.66ms/op`, `9.20MB/op`, and
+  `8.18k allocs/op`.
+- External check: full external bytecode `matrixmultiply` moved from the prior
+  row-kernel `1.7580s` confirmation to `1.4480s` over `5/5`, about `1.65x`
+  Go (`0.8800s`) and still far ahead of Ruby/Python.
+- Profile: the affine row-build no longer appears as repeated
+  `execTryArrayPushF64AffineProduct(...)` calls. The reduced profile now leaves
+  `tryExecF64MatrixRowLoop(...)` and the transpose-side
+  `execTryArrayPushF64NestedGet(...)` as the obvious remaining matrix VM costs.
+- Next: implement the same bounded loop-level treatment for the transpose row
+  shape `ci.push(b.get(j)!.get(i)!)`, preserving capacity and fallback
+  semantics. After that, reassess whether the remaining matrix wall is result
+  row materialization or canonical get/push version checks.
+
+# 2026-05-17 — Bytecode matrix f64 transpose row-loop fusion (v12)
+- Bytecode lowering/VM: added a guarded f64 transpose row-loop plan for the
+  `matmul` transpose shape `if j >= n { break }; ci.push(b.get(j)!.get(i)!);
+  j = j + 1`. The plan attaches to loop-enter, gathers the remaining column
+  values from raw f64 rows, bulk-appends them to the destination row, and jumps
+  past the original loop body. The original bytecode remains in place for all
+  guard misses.
+- Semantics: the fast path requires canonical `Array.get` / `Array.push`,
+  Array-valued source rows, raw f64 source row storage, non-negative i32
+  indices, and destination/source non-aliasing before mutation. Short rows,
+  non-f64 rows, non-canonical methods, bad indices, and alias-sensitive cases
+  fall through without partial destination mutation. `Array.new` rows keep the
+  same amortized final capacity that repeated single pushes would expose, while
+  `Array.with_capacity(n)` rows preserve their declared capacity.
+- Tests:
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsF64(TransposeRowLoopPlan|AffineRowLoopPlan|MatrixRowLoopPlan|DotLoopPlan)|LoweringF64DotLoopPlansResultAppend|F64(TransposeRowLoopFastPathAppendsColumnWithAmortizedCapacity|TransposeRowLoopFallsThroughWithoutPartialMutation|TransposeRowLoopFallsThroughWhenDestinationAliasesInputRow|AffineRowLoopFastPathAppendsRowWithAmortizedCapacity|AffineRowLoopFallsThroughWithoutPartialMutation|MatrixRowLoopFastPathAppendsRow|MatrixRowLoopFallsThroughWithoutPartialMutation|MatrixRowLoopFallsThroughWhenDestinationAliasesInput|DotLoopFastPath|DotLoopFallsThroughWithoutPartialMutationWhenRangeOutOfBounds|DotLoopResultAppendFastPath|DotLoopReadsMonoF64Arrays|DotLoopRowCacheInvalidatesOnTrackedWrite)|TryArrayPushF64(NestedGet|AffineProduct)(AppendsDirectFloat|FallsThroughOnGuardMiss)|LoweringEmitsTryArrayPushF64(AffineProduct|NestedGet))' -count=1 -timeout 300s`.
+- Benchmarks: reduced runtime-only `matrixmultiply_f64_small` moved from the
+  prior kept affine-row `54.73ms/op`, `9.17MB/op`, and `8.12k allocs/op` band
+  to `40.86ms/op`, `8.76MB/op`, and `6.32k allocs/op` over `5/5`. The profiled
+  reduced confirmation landed at `42.45ms/op`, `8.78MB/op`, and `6.38k
+  allocs/op`.
+- External check: full external bytecode `matrixmultiply` moved from the prior
+  affine-row `1.4480s` confirmation to `1.3060s` over `5/5`, about `1.48x`
+  Go (`0.8800s`) and still far ahead of Ruby/Python.
+- Profile: the transpose build no longer appears as repeated
+  `execTryArrayPushF64NestedGet(...)` calls. The reduced CPU profile now puts
+  `tryExecF64MatrixRowLoop(...)` at the top, with `tryExecF64TransposeRowLoop`
+  only visible through the remaining raw f64 row reads.
+- Next: target the remaining matrix row-kernel wall with a guarded raw
+  row-slice cache for the transposed matrix or a row-kernel tightening that
+  avoids re-reading and revalidating every `c` row for each output row. Avoid
+  another standalone append/helper micro-rewrite unless a fresh control shows
+  macro movement.

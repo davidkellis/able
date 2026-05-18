@@ -50,25 +50,31 @@ func ArrayStoreMonoWriteF64(handle int64, index int, value float64) error {
 		monoSetLength(state, index+1)
 	}
 	state.Values[index] = value
+	state.Revision++
 	return nil
 }
 
 func ArrayStoreMonoF64ValuesIfAvailable(handle int64) ([]float64, bool, error) {
+	values, _, ok, err := ArrayStoreMonoF64ValuesRevisionIfAvailable(handle)
+	return values, ok, err
+}
+
+func ArrayStoreMonoF64ValuesRevisionIfAvailable(handle int64) ([]float64, uint64, bool, error) {
 	if handle == 0 {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
 	kind, err := arrayHandleKind(handle)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, false, err
 	}
 	if kind != monoArrayKindF64 {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
 	state, ok := monoArrayF64States[handle]
 	if !ok {
-		return nil, false, fmt.Errorf("array handle %d is not defined", handle)
+		return nil, 0, false, fmt.Errorf("array handle %d is not defined", handle)
 	}
-	return state.Values, true, nil
+	return state.Values, state.Revision, true, nil
 }
 
 func ArrayStoreAppendF64Promote(handle int64, value float64) (bool, error) {
@@ -175,6 +181,7 @@ func appendMonoF64Value(state *monoArrayF64State, value float64) {
 	if state.Capacity < cap(state.Values) {
 		state.Capacity = cap(state.Values)
 	}
+	state.Revision++
 }
 
 func appendMonoF64Values(state *monoArrayF64State, values []float64) {
@@ -189,4 +196,5 @@ func appendMonoF64Values(state *monoArrayF64State, values []float64) {
 	if state.Capacity < cap(state.Values) {
 		state.Capacity = cap(state.Values)
 	}
+	state.Revision++
 }

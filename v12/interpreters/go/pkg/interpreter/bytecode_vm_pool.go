@@ -62,6 +62,9 @@ func (vm *bytecodeVM) resetForRun(interp *Interpreter, env *runtime.Environment)
 	if len(vm.f64ArrayCache) > 0 {
 		clear(vm.f64ArrayCache)
 	}
+	if len(vm.f64MatrixRowsCache) > 0 {
+		clear(vm.f64MatrixRowsCache)
+	}
 	if len(vm.callFrames) > 0 {
 		for idx := range vm.callFrames {
 			frame := &vm.callFrames[idx]

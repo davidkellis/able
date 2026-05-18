@@ -17,6 +17,20 @@ func (vm *bytecodeVM) execLoopEnterOpcode(program **bytecodeProgram, _ *[]byteco
 		return false, fmt.Errorf("bytecode loop enter missing instruction")
 	}
 	if active := programValue(program); active != nil {
+		if active.f64AffineRowLoops != nil {
+			if plan, ok := active.f64AffineRowLoops[vm.ip]; ok {
+				if handled, err := vm.tryExecF64AffineRowLoop(active, plan); handled || err != nil {
+					return handled, err
+				}
+			}
+		}
+		if active.f64TransposeRowLoops != nil {
+			if plan, ok := active.f64TransposeRowLoops[vm.ip]; ok {
+				if handled, err := vm.tryExecF64TransposeRowLoop(active, plan); handled || err != nil {
+					return handled, err
+				}
+			}
+		}
 		if active.f64MatrixRowLoops != nil {
 			if plan, ok := active.f64MatrixRowLoops[vm.ip]; ok {
 				if handled, err := vm.tryExecF64MatrixRowLoop(active, plan); handled || err != nil {

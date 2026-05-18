@@ -3779,3 +3779,51 @@ landed at `87.27ms/op`. Full external bytecode `matrixmultiply` moved from
 matrix work should target mono-f64 row/result storage growth and capacity
 proofs, or graduate this into a broader typed matrix bytecode that carries raw
 f64 row slices through build, transpose, and multiply.
+
+The f64 affine row-loop tranche moves the same idea into matrix construction.
+Lowering now recognizes the exact `build_matrix` inner loop shape
+`if j >= n { break }; row.push(t * ((i - j) as f64) * ((i + j) as f64));
+j = j + 1`, attaches a guarded loop plan, and leaves the original bytecode as
+the fallback. On the fast path, the VM validates the canonical `Array.push`
+proof and f64/i32 operands before mutating the row, computes the remaining row
+values into raw f64 storage, then bulk-appends through the existing mono-f64
+append rules. This is deliberately not a generic capacity rewrite: `Array.new`
+rows end with the same amortized capacity repeated single pushes would expose,
+while `Array.with_capacity(n)` rows preserve their declared capacity.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from a fresh
+`74.64ms/op`, `10.02MB/op`, and `11.78k allocs/op` baseline to `54.73ms/op`,
+`9.17MB/op`, and `8.12k allocs/op` over `5/5`; a profiled confirmation landed
+at `58.66ms/op`, `9.20MB/op`, and `8.18k allocs/op`. Full external bytecode
+`matrixmultiply` moved from the row-kernel `1.7580s` confirmation to
+`1.4480s` over `5/5`, about `1.65x` Go (`0.8800s`) while remaining far ahead
+of Ruby and Python on the external table. The reduced profile no longer spends
+the row build on repeated `execTryArrayPushF64AffineProduct(...)` calls. The
+next matrix tranche should apply the same bounded loop-level treatment to the
+transpose row shape `ci.push(b.get(j)!.get(i)!)`, then reassess result row
+materialization and canonical get/push version checks.
+
+The f64 transpose row-loop tranche applies that bounded loop-level treatment to
+the `matmul` transpose build. Lowering recognizes only the exact loop shape
+`if j >= n { break }; ci.push(b.get(j)!.get(i)!); j = j + 1`, attaches a
+guarded loop plan, and keeps the original bytecode as the fallback. On the fast
+path, the VM validates canonical `Array.get` / `Array.push`, Array-valued
+source rows, raw f64 row storage, non-negative i32 indices, and
+destination/source non-aliasing before mutation. It then gathers the remaining
+column values and bulk-appends them through the same mono-f64 append rules as
+the other matrix loop plans. Guard misses fall through without partial
+destination mutation, and final row capacity stays equivalent to repeated
+single pushes for `Array.new` or the declared capacity for
+`Array.with_capacity(n)`.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from the prior kept
+affine-row `54.73ms/op`, `9.17MB/op`, and `8.12k allocs/op` band to
+`40.86ms/op`, `8.76MB/op`, and `6.32k allocs/op` over `5/5`; a profiled
+confirmation landed at `42.45ms/op`, `8.78MB/op`, and `6.38k allocs/op`. Full
+external bytecode `matrixmultiply` moved from `1.4480s` to `1.3060s` over
+`5/5`, about `1.48x` Go (`0.8800s`). The reduced CPU profile no longer shows
+the repeated `execTryArrayPushF64NestedGet(...)` transpose cell path; the
+largest remaining wall is `tryExecF64MatrixRowLoop(...)`. The next matrix
+tranche should target a guarded raw row-slice cache for the transposed matrix
+or tighten the row kernel so it avoids re-reading and revalidating every `c`
+row for each output row.

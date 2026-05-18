@@ -253,6 +253,8 @@ func emitLoopExpressionCore(ctx *bytecodeLoweringContext, i *Interpreter, loop *
 	}
 	dotLoop, hasDotLoop := bytecodeF64DotLoopPlanForLoop(ctx, loop)
 	matrixRowLoop, hasMatrixRowLoop := bytecodeF64MatrixRowLoopPlanForLoop(ctx, loop)
+	affineRowLoop, hasAffineRowLoop := bytecodeF64AffineRowLoopPlanForLoop(ctx, loop)
+	transposeRowLoop, hasTransposeRowLoop := bytecodeF64TransposeRowLoopPlanForLoop(ctx, loop)
 	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
 	loopStart := len(ctx.instructions)
 	ctx.pushLoop(loopStart)
@@ -273,6 +275,20 @@ func emitLoopExpressionCore(ctx *bytecodeLoweringContext, i *Interpreter, loop *
 			matrixRowLoop.resultPushIP = loopStart + pushIP
 			matrixRowLoop.successTarget = len(ctx.instructions)
 			ctx.setF64MatrixRowLoopPlan(loopEnter, matrixRowLoop)
+		}
+	}
+	if hasAffineRowLoop {
+		if pushIP := bytecodeFindArrayPushSlotCall(ctx.instructions[loopStart:loopExit]); pushIP >= 0 {
+			affineRowLoop.resultPushIP = loopStart + pushIP
+			affineRowLoop.successTarget = len(ctx.instructions)
+			ctx.setF64AffineRowLoopPlan(loopEnter, affineRowLoop)
+		}
+	}
+	if hasTransposeRowLoop {
+		if pushIP := bytecodeFindArrayPushSlotCall(ctx.instructions[loopStart:loopExit]); pushIP >= 0 {
+			transposeRowLoop.resultPushIP = loopStart + pushIP
+			transposeRowLoop.successTarget = len(ctx.instructions)
+			ctx.setF64TransposeRowLoopPlan(loopEnter, transposeRowLoop)
 		}
 	}
 	return loopEnter, nil

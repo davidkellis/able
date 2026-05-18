@@ -37,6 +37,8 @@ type bytecodeProgram struct {
 	i32RecurrenceKernel      *bytecodeI32RecurrenceKernel
 	f64DotLoops              map[int]bytecodeF64DotLoopPlan
 	f64MatrixRowLoops        map[int]bytecodeF64MatrixRowLoopPlan
+	f64AffineRowLoops        map[int]bytecodeF64AffineRowLoopPlan
+	f64TransposeRowLoops     map[int]bytecodeF64TransposeRowLoopPlan
 	f64AffinePushes          map[int]bytecodeF64AffineProductPushPlan
 	f64NestedGetPushes       map[int]bytecodeF64NestedArrayGetPushPlan
 }
@@ -128,6 +130,7 @@ type bytecodeVM struct {
 	arrayValueNoErrorKnown             bool
 	arrayValueNoError                  bool
 	f64ArrayCache                      map[*runtime.ArrayState]bytecodeF64ArrayCacheEntry
+	f64MatrixRowsCache                 map[*runtime.ArrayState]bytecodeF64MatrixRowsCacheEntry
 	arrayNewCallCache                  map[bytecodeGlobalLookupCacheKey]bytecodeArrayNewCallCacheEntry
 	arrayNewCallHot                    [bytecodeArrayNewCallHotEntries]bytecodeInlineArrayNewCallCacheEntry
 	arraySlotCallCache                 map[bytecodeGlobalLookupCacheKey]bytecodeArraySlotCallCacheEntry

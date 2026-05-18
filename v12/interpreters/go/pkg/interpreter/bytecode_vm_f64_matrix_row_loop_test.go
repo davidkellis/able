@@ -204,6 +204,85 @@ func TestBytecodeVM_F64MatrixRowLoopFallsThroughWhenDestinationAliasesInput(t *t
 	}
 }
 
+func TestBytecodeVM_F64MatrixRowLoopRowCacheInvalidatesOnMonoF64Revision(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	left := monoF64ArrayValueForTest(t, 1, 1)
+	row0 := monoF64ArrayValueForTest(t, 3, 4)
+	row1 := monoF64ArrayValueForTest(t, 5, 6)
+	outer := interp.newArrayValue([]runtime.Value{row0, row1}, 2)
+	if _, err := interp.ensureArrayState(outer, 0); err != nil {
+		t.Fatalf("ensure outer array state: %v", err)
+	}
+	program := bytecodeF64MatrixRowLoopProgramForTest()
+	vm.currentProgram = program
+	vm.storeCachedCanonicalArrayGetCall(program, 0, bytecodeInstruction{name: "get", argCount: 1}, outer)
+
+	dest1 := interp.newArrayValue([]runtime.Value{}, 2)
+	vm.ip = 0
+	vm.slots = []runtime.Value{
+		runtime.NewBigIntValue(big.NewInt(0), runtime.IntegerI32),
+		runtime.NewBigIntValue(big.NewInt(2), runtime.IntegerI32),
+		dest1,
+		left,
+		outer,
+	}
+	vm.storeCachedCanonicalArraySlotCall(program, 1, program.instructions[1], dest1, bytecodeMemberMethodFastPathArrayPush)
+	programPtr := program
+	instructions := program.instructions
+	handled, err := vm.execLoopEnterOpcode(&programPtr, &instructions, nil, nil, &program.instructions[0])
+	if err != nil {
+		t.Fatalf("f64 matrix-row first fast path failed: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected first f64 matrix-row fast path to complete")
+	}
+	if len(vm.f64MatrixRowsCache) != 1 {
+		t.Fatalf("expected one cached transposed row set, got %d", len(vm.f64MatrixRowsCache))
+	}
+	values, mono, err := runtime.ArrayStoreMonoF64ValuesIfAvailable(dest1.Handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable dest1: %v", err)
+	}
+	if !mono || len(values) != 2 || values[0] != 7 || values[1] != 11 {
+		t.Fatalf("first matrix row values=%#v mono=%v, want [7 11]", values, mono)
+	}
+
+	if err := runtime.ArrayStoreReserve(row0.Handle, 16); err != nil {
+		t.Fatalf("ArrayStoreReserve row0: %v", err)
+	}
+	if err := runtime.ArrayStoreMonoWriteF64(row0.Handle, 0, 30); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteF64 row0: %v", err)
+	}
+	dest2 := interp.newArrayValue([]runtime.Value{}, 2)
+	vm.ip = 0
+	vm.stack = vm.stack[:0]
+	vm.slots = []runtime.Value{
+		runtime.NewBigIntValue(big.NewInt(0), runtime.IntegerI32),
+		runtime.NewBigIntValue(big.NewInt(2), runtime.IntegerI32),
+		dest2,
+		left,
+		outer,
+	}
+	vm.storeCachedCanonicalArraySlotCall(program, 1, program.instructions[1], dest2, bytecodeMemberMethodFastPathArrayPush)
+	programPtr = program
+	instructions = program.instructions
+	handled, err = vm.execLoopEnterOpcode(&programPtr, &instructions, nil, nil, &program.instructions[0])
+	if err != nil {
+		t.Fatalf("f64 matrix-row second fast path failed: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected second f64 matrix-row fast path to complete")
+	}
+	values, mono, err = runtime.ArrayStoreMonoF64ValuesIfAvailable(dest2.Handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable dest2: %v", err)
+	}
+	if !mono || len(values) != 2 || values[0] != 34 || values[1] != 11 {
+		t.Fatalf("second matrix row values=%#v mono=%v, want [34 11]", values, mono)
+	}
+}
+
 func bytecodeF64MatrixRowLoopProgramForTest() *bytecodeProgram {
 	return &bytecodeProgram{
 		instructions: []bytecodeInstruction{
