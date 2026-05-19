@@ -3827,3 +3827,86 @@ largest remaining wall is `tryExecF64MatrixRowLoop(...)`. The next matrix
 tranche should target a guarded raw row-slice cache for the transposed matrix
 or tighten the row kernel so it avoids re-reading and revalidating every `c`
 row for each output row.
+
+The f64 row-slice cache tranche targets that remaining validation wall without
+changing the matrix source or broadening nominal lowering. Runtime mono array
+states now carry a revision counter, and f64 rows expose
+`ArrayStoreMonoF64ValuesRevisionIfAvailable(...)` for cache validation. The
+matrix row-kernel caches the transposed matrix's validated raw f64 row slices
+only when the outer array has a tracked dynamic state and every source row is
+mono f64. Cache hits recheck the outer state revision, row handles, row
+revisions, row lengths, and destination non-aliasing before use; partial loop
+resumes still use the old row-by-row path so the fast path does not read rows
+the fallback loop would skip.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from the prior kept
+transpose-row `40.86ms/op`, `8.76MB/op`, and `6.32k allocs/op` band to
+`39.20ms/op`, `8.80MB/op`, and `6.33k allocs/op` over `5/5`; a profiled
+confirmation landed at `37.11ms/op`, `8.82MB/op`, and `6.38k allocs/op`. Full
+external bytecode `matrixmultiply` moved from `1.3060s` to `1.2240s` over
+`5/5`, about `1.39x` Go (`0.8800s`). The reduced CPU profile still puts
+`tryExecF64MatrixRowLoop(...)` at the top, so the next matrix tranche should
+target row-kernel result materialization: write computed row results directly
+into a guarded mono-f64 destination row or otherwise avoid the per-row temporary
+result buffer and second append copy while preserving `Array.new` /
+`Array.with_capacity` capacity semantics.
+
+The f64 direct result-row segment tranche removes that temporary result buffer
+from the validated row-cache path. Runtime now exposes
+`ArrayStoreAppendF64UninitializedPromote(...)`, which appends a new f64 segment
+using the same dynamic-to-mono promotion and capacity-growth rules as the bulk
+append path. After all row-cache, canonical `Array.push`, source-row revision,
+and aliasing guards have passed, the matrix row-kernel writes each computed dot
+result directly into that destination segment. The non-cache fallback path is
+unchanged.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from the prior kept
+row-cache `39.20ms/op`, `8.80MB/op`, and `6.33k allocs/op` band to
+`37.72ms/op`, `7.99MB/op`, and `6.03k allocs/op` over `5/5`; a profiled
+confirmation landed at `36.48ms/op`, `8.01MB/op`, and `6.08k allocs/op`. Full
+external bytecode `matrixmultiply` moved from `1.2240s` to `1.2160s` over
+`5/5`, about `1.38x` Go (`0.8800s`). The allocation profile now shows
+destination mono-f64 growth itself rather than a temporary row result buffer.
+The next matrix tranche should target remaining canonical/raw-read overhead:
+cache raw source row slices for the transpose row-loop or hoist
+canonical/version checks that still happen once per row/cell before broadening
+the typed matrix storage contract.
+
+The transpose row-cache reuse tranche removes that remaining transpose-side
+raw-read overhead for the proven square matrix loop. The transpose row-loop now
+reuses the same guarded mono-f64 source-row cache as the row kernel when it
+enters from `j == 0` and the requested column is inside the proven bound. On
+that path it reads each column value directly from the cached raw source row
+and appends the generated destination row through the direct f64 segment path.
+Partial resumes, `col >= bound` cases, source-row revision changes, source
+length changes, canonical call invalidation, and destination/source aliasing
+keep the old fallback semantics.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from the prior direct
+result-row `37.72ms/op`, `7.99MB/op`, and `6.03k allocs/op` band to
+`32.78ms/op`, `7.20MB/op`, and `5.73k allocs/op` over `5/5`; a profiled
+confirmation landed at `32.23ms/op`, `7.22MB/op`, and `5.79k allocs/op`. Full
+external bytecode `matrixmultiply` moved from `1.2160s` to `1.1180s` over
+`5/5`, about `1.27x` Go (`0.8800s`). The reduced CPU profile is now too short
+for useful fine-grained ranking but samples in `tryExecF64MatrixRowLoop(...)`,
+so the next matrix tranche should target the actual dot-product row kernel or
+start the broader typed matrix storage contract.
+
+The batch-4 row-kernel tranche targets that actual dot-product work. Once the
+existing row-cache and direct-destination guards have passed, the matrix
+row-kernel computes four destination cells per inner pass. That reuses each
+`ai` source value across four cached transposed rows while preserving the
+left-to-right accumulation order for each individual dot product. The scalar
+remainder path handles non-multiple-of-four row counts, and the non-cache
+fallback remains unchanged.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from a same-session
+transpose-cache baseline of `33.63ms/op`, `7.20MB/op`, and `5.73k allocs/op`
+to `16.96ms/op`, `7.20MB/op`, and `5.73k allocs/op` over `5/5`; a profiled
+confirmation landed at `15.90ms/op`, `7.22MB/op`, and `5.79k allocs/op`. Full
+external bytecode `matrixmultiply` moved from `1.1180s` to `0.4640s` over
+`5/5`, about `0.53x` Go (`0.8800s`). A full external profile now puts the
+batched dot helper at the top and row-cache revision validation next. Matrix
+is now competitive with the current external Go reference, so further matrix
+work should be driven by broad VM-v2 goals or fresh cross-benchmark evidence
+rather than this benchmark alone.

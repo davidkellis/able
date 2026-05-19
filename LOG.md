@@ -16891,3 +16891,146 @@
   avoids re-reading and revalidating every `c` row for each output row. Avoid
   another standalone append/helper micro-rewrite unless a fresh control shows
   macro movement.
+
+# 2026-05-17 — Bytecode matrix f64 row-slice cache (v12)
+- Runtime: added a monotonic revision counter to mono array states and exposed
+  `ArrayStoreMonoF64ValuesRevisionIfAvailable(...)` so VM caches can validate
+  raw f64 row slices across writes, appends, length changes, and capacity
+  reallocations. Existing mono-f64 read helpers still expose the old
+  `ArrayStoreMonoF64ValuesIfAvailable(...)` API for callers that do not need a
+  revision.
+- Bytecode VM: the f64 matrix row-kernel now caches the validated raw row
+  slices for the transposed matrix `c` when the outer array has a tracked
+  dynamic state and every source row is mono f64. Cache hits recheck the outer
+  state revision, row handles, row revisions, row lengths, and destination
+  non-aliasing before using the cached slices. Guard misses fall back to the
+  existing row-by-row validation path.
+- Semantics: the cache is only used from the full-row `j == 0` kernel entry, so
+  it never reads source rows that the fallback loop would skip after a partial
+  loop resume. Source row mutation invalidates the cache through the new
+  mono-f64 revisions; destination/source aliasing still falls through before
+  mutation.
+- Tests:
+  `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestArrayStoreMonoF64(RevisionTracksMutation|PromoteUsesReservedCapacity|PromoteAppendRoundTripAndDynamicFallback|PromoteBulkAppend)' -count=1`
+  and
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(F64MatrixRowLoop(RowCacheInvalidatesOnMonoF64Revision|FastPathAppendsRow|FallsThroughWithoutPartialMutation|FallsThroughWhenDestinationAliasesInput)|LoweringEmitsF64(MatrixRowLoopPlan|TransposeRowLoopPlan|AffineRowLoopPlan|DotLoopPlan)|F64(TransposeRowLoopFastPathAppendsColumnWithAmortizedCapacity|AffineRowLoopFastPathAppendsRowWithAmortizedCapacity|DotLoopFastPath|DotLoopResultAppendFastPath))' -count=1 -timeout 300s`.
+- Benchmarks: reduced runtime-only `matrixmultiply_f64_small` moved from the
+  prior kept transpose-row `40.86ms/op`, `8.76MB/op`, and `6.32k allocs/op`
+  band to `39.20ms/op`, `8.80MB/op`, and `6.33k allocs/op` over `5/5`. The
+  profiled reduced confirmation landed at `37.11ms/op`, `8.82MB/op`, and
+  `6.38k allocs/op`.
+- External check: full external bytecode `matrixmultiply` moved from the prior
+  transpose-row `1.3060s` confirmation to `1.2240s` over `5/5`, about `1.39x`
+  Go (`0.8800s`).
+- Profile: the reduced CPU profile still puts `tryExecF64MatrixRowLoop(...)`
+  at the top; the row-cache removes repeated transposed-row validation rather
+  than the actual `n*n` dot work inside each output row. A small
+  `bytecodeGlobalRevision(...)` / canonical-get version-check sample is now
+  visible.
+- Next: target row-kernel result materialization or canonical-version checks.
+  The likely next bounded slice is writing computed row results directly into a
+  guarded mono-f64 destination row, avoiding the per-row temporary result
+  buffer plus second append copy, while preserving `Array.new` /
+  `Array.with_capacity` capacity semantics.
+
+# 2026-05-18 — Bytecode matrix f64 direct result-row segment (v12)
+- Runtime: added `ArrayStoreAppendF64UninitializedPromote(...)`, a guarded
+  mono-f64 append API that reserves and exposes a newly appended f64 segment
+  while using the same dynamic-to-mono promotion and capacity-growth rules as
+  `ArrayStoreAppendF64ValuesPromote(...)`.
+- Bytecode VM: the matrix row-kernel now uses that segment API on the
+  row-slice-cache path, after all source row guards have passed. It writes each
+  computed dot result directly into the destination row instead of first
+  allocating a temporary `[]float64` result buffer and then bulk-copying that
+  buffer into the row. The non-cache fallback path is unchanged.
+- Semantics: mutation still starts only after canonical `Array.push`, row-cache
+  validation, source-row revision checks, and destination/source alias checks
+  pass. `Array.new` and `Array.with_capacity(n)` capacity behavior follows the
+  same growth path as repeated append/bulk append.
+- Tests:
+  `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestArrayStoreMonoF64(RevisionTracksMutation|PromoteUninitializedAppend|PromoteUsesReservedCapacity|PromoteAppendRoundTripAndDynamicFallback|PromoteBulkAppend)' -count=1`
+  and
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(F64MatrixRowLoop(RowCacheInvalidatesOnMonoF64Revision|FastPathAppendsRow|FallsThroughWithoutPartialMutation|FallsThroughWhenDestinationAliasesInput)|LoweringEmitsF64(MatrixRowLoopPlan|TransposeRowLoopPlan|AffineRowLoopPlan|DotLoopPlan)|F64(TransposeRowLoopFastPathAppendsColumnWithAmortizedCapacity|AffineRowLoopFastPathAppendsRowWithAmortizedCapacity|DotLoopFastPath|DotLoopResultAppendFastPath))' -count=1 -timeout 300s`.
+- Benchmarks: reduced runtime-only `matrixmultiply_f64_small` moved from the
+  prior kept row-cache `39.20ms/op`, `8.80MB/op`, and `6.33k allocs/op` band
+  to `37.72ms/op`, `7.99MB/op`, and `6.03k allocs/op` over `5/5`. The profiled
+  reduced confirmation landed at `36.48ms/op`, `8.01MB/op`, and `6.08k
+  allocs/op`.
+- External check: full external bytecode `matrixmultiply` moved from the prior
+  row-cache `1.2240s` confirmation to `1.2160s` over `5/5`, about `1.38x` Go
+  (`0.8800s`).
+- Profile: the matrix row-kernel no longer allocates the temporary result
+  buffer on the cache path; reduced allocation now shows destination mono-f64
+  growth itself, build/transpose row storage, and startup noise. CPU is still
+  dominated by `tryExecF64MatrixRowLoop(...)`, with a smaller
+  `readCanonicalArrayGetF64Raw(...)` / array-handle lookup sample from the
+  transpose row path.
+- Next: target remaining canonical/raw-read overhead in the matrix phases. The
+  next bounded slice should either cache raw source row slices for the
+  transpose row-loop or hoist canonical/version checks that still happen once
+  per row/cell, before considering a broader typed matrix storage contract.
+
+# 2026-05-18 — Bytecode matrix f64 transpose row-cache reuse (v12)
+- Bytecode VM: the transpose row-loop now reuses the existing guarded
+  mono-f64 matrix row cache when the recognized loop enters from `j == 0` and
+  the requested column is proven inside the same square bound. On that path it
+  reads each source row from the cached raw `[]float64` slice and writes the
+  generated column directly into a guarded mono-f64 destination segment.
+- Semantics: unsupported shapes, partial loop resumes, non-square column reads
+  where `col >= bound`, canonical get/push invalidation, source-row revision
+  changes, source length changes, and destination/source aliasing still fall
+  through before mutation. A focused test reserves and mutates a source row
+  after the first cache fill to prove the transpose path rebuilds the cache
+  instead of using a stale raw slice.
+- Tests:
+  `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestArrayStoreMonoF64(RevisionTracksMutation|PromoteUninitializedAppend|PromoteUsesReservedCapacity|PromoteAppendRoundTripAndDynamicFallback|PromoteBulkAppend)' -count=1`
+  and
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(F64TransposeRowLoop(UsesCachedRowsAndInvalidatesOnMonoF64Revision|FastPathAppendsColumnWithAmortizedCapacity|FallsThroughWithoutPartialMutation|FallsThroughWhenDestinationAliasesInputRow)|F64MatrixRowLoop(RowCacheInvalidatesOnMonoF64Revision|FastPathAppendsRow|FallsThroughWithoutPartialMutation|FallsThroughWhenDestinationAliasesInput)|LoweringEmitsF64(MatrixRowLoopPlan|TransposeRowLoopPlan|AffineRowLoopPlan|DotLoopPlan)|F64(AffineRowLoopFastPathAppendsRowWithAmortizedCapacity|AffineRowLoopFallsThroughWithoutPartialMutation|DotLoopFastPath|DotLoopResultAppendFastPath))' -count=1 -timeout 300s`.
+- Benchmarks: reduced runtime-only `matrixmultiply_f64_small` moved from the
+  prior direct result-row `37.72ms/op`, `7.99MB/op`, and `6.03k allocs/op`
+  band to `32.78ms/op`, `7.20MB/op`, and `5.73k allocs/op` over `5/5`. The
+  profiled reduced confirmation landed at `32.23ms/op`, `7.22MB/op`, and
+  `5.79k allocs/op`.
+- External check: full external bytecode `matrixmultiply` moved from the prior
+  direct result-row `1.2160s` confirmation to `1.1180s` over `5/5`, about
+  `1.27x` Go (`0.8800s`).
+- Profile: the reduced CPU profile is now too short for useful fine-grained
+  ranking, but its samples sit in `tryExecF64MatrixRowLoop(...)`; the
+  transpose-side raw read and temporary column buffer are no longer visible as
+  separate costs.
+- Next: target the remaining actual dot-product row kernel. The next bounded
+  slice should either strengthen the row-kernel typed boundary around the
+  cached `[][]float64` + direct destination segment path, or prototype a
+  broader typed matrix storage contract if a fresh profile shows the dot work
+  itself rather than validation or allocation is now the limiter.
+
+# 2026-05-18 — Bytecode matrix f64 batch-4 row kernel (v12)
+- Bytecode VM: the cached f64 matrix row-kernel now computes four destination
+  row cells per inner dot-product pass. Each source `ai` value is loaded once
+  and applied to four cached transposed rows, while every individual dot
+  product still accumulates in the same left-to-right order as the previous
+  scalar row loop. Non-cache fallback behavior is unchanged.
+- Semantics: the batched path only runs after the same canonical `Array.push`,
+  row-cache, source-row revision, row-length, and destination/source alias
+  guards have passed. A focused test covers a five-column row so both the
+  four-row batch and scalar remainder path are exercised.
+- Tests:
+  `cd v12/interpreters/go && go test ./pkg/runtime -run 'TestArrayStoreMonoF64(RevisionTracksMutation|PromoteUninitializedAppend|PromoteUsesReservedCapacity|PromoteAppendRoundTripAndDynamicFallback|PromoteBulkAppend)' -count=1`
+  and
+  `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(F64MatrixRowLoop(BatchesFourRowsWithRemainder|RowCacheInvalidatesOnMonoF64Revision|FastPathAppendsRow|FallsThroughWithoutPartialMutation|FallsThroughWhenDestinationAliasesInput)|F64TransposeRowLoop(UsesCachedRowsAndInvalidatesOnMonoF64Revision|FastPathAppendsColumnWithAmortizedCapacity|FallsThroughWithoutPartialMutation|FallsThroughWhenDestinationAliasesInputRow)|LoweringEmitsF64(MatrixRowLoopPlan|TransposeRowLoopPlan|AffineRowLoopPlan|DotLoopPlan)|F64(AffineRowLoopFastPathAppendsRowWithAmortizedCapacity|AffineRowLoopFallsThroughWithoutPartialMutation|DotLoopFastPath|DotLoopResultAppendFastPath))' -count=1 -timeout 300s`.
+- Benchmarks: reduced runtime-only `matrixmultiply_f64_small` moved from the
+  same-session transpose-cache baseline of `33.63ms/op`, `7.20MB/op`, and
+  `5.73k allocs/op` to `16.96ms/op`, `7.20MB/op`, and `5.73k allocs/op` over
+  `5/5`. The profiled reduced confirmation landed at `15.90ms/op`, `7.22MB/op`,
+  and `5.79k allocs/op`.
+- External check: full external bytecode `matrixmultiply` moved from the prior
+  transpose-cache `1.1180s` confirmation to `0.4640s` over `5/5`, about
+  `0.53x` Go (`0.8800s`).
+- Profile: a full external profiled run now puts
+  `bytecodeF64DotProduct4SameLength(...)` at the top, with row-cache
+  validation through `validForRows(...)` next. The matrix benchmark is now
+  competitive with the current external Go reference; further matrix work
+  should be justified by broad VM-v2 goals, not by this benchmark alone.
+- Next: target row-cache validation amortization only if another matrix tranche
+  is needed; otherwise move to the next external bytecode laggard such as
+  quicksort or the remaining generic call/index paths.

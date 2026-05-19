@@ -55,46 +55,63 @@ func (vm *bytecodeVM) tryExecF64MatrixRowLoop(program *bytecodeProgram, plan byt
 	if !ok {
 		return false, nil
 	}
-	results := make([]float64, end-start)
+	boundLen := int(bound)
+	leftValues = leftValues[:boundLen]
 	rows, cachedRows, err := vm.f64MatrixRowLoopCachedRows(program, dest, outer, int(bound), start)
 	if err != nil {
 		return false, err
 	}
 	if cachedRows {
-		for rowIdx := start; rowIdx < end; rowIdx++ {
-			rowValues := rows[rowIdx]
-			acc := 0.0
-			for colIdx := 0; colIdx < int(bound); colIdx++ {
-				acc += leftValues[colIdx] * rowValues[colIdx]
-			}
-			results[rowIdx-start] = acc
+		segment, ok := vm.appendF64MatrixRowLoopResultSegment(program, plan, dest, end-start)
+		if !ok {
+			return false, nil
 		}
-	} else {
-		for rowIdx := start; rowIdx < end; rowIdx++ {
-			rowValue, _, _, handled, err := vm.readCanonicalArrayGetValue(outer, int64(rowIdx))
-			if err != nil {
-				return false, err
-			}
-			if !handled {
-				return false, nil
-			}
-			row, ok := rowValue.(*runtime.ArrayValue)
-			if !ok || row == nil || !vm.canUseValidatedCanonicalArrayGet(program, row) {
-				return false, nil
-			}
-			if bytecodeSameArrayStorage(dest, row) {
-				return false, nil
-			}
-			rowValues, ok := vm.f64DotLoopFloatValues(row)
-			if !ok || len(rowValues) < int(bound) {
-				return false, nil
-			}
-			acc := 0.0
-			for colIdx := 0; colIdx < int(bound); colIdx++ {
-				acc += leftValues[colIdx] * rowValues[colIdx]
-			}
-			results[rowIdx-start] = acc
+		segmentIdx := 0
+		rowIdx := start
+		for ; rowIdx+3 < end; rowIdx += 4 {
+			acc0, acc1, acc2, acc3 := bytecodeF64DotProduct4SameLength(
+				leftValues,
+				rows[rowIdx][:boundLen],
+				rows[rowIdx+1][:boundLen],
+				rows[rowIdx+2][:boundLen],
+				rows[rowIdx+3][:boundLen],
+			)
+			segment[segmentIdx] = acc0
+			segment[segmentIdx+1] = acc1
+			segment[segmentIdx+2] = acc2
+			segment[segmentIdx+3] = acc3
+			segmentIdx += 4
 		}
+		for ; rowIdx < end; rowIdx++ {
+			segment[segmentIdx] = bytecodeF64DotProductSameLength(leftValues, rows[rowIdx][:boundLen])
+			segmentIdx++
+		}
+		vm.storeI32Slot(plan.indexSlot, int64(end))
+		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.ip = plan.successTarget
+		return true, nil
+	}
+	results := make([]float64, end-start)
+	for rowIdx := start; rowIdx < end; rowIdx++ {
+		rowValue, _, _, handled, err := vm.readCanonicalArrayGetValue(outer, int64(rowIdx))
+		if err != nil {
+			return false, err
+		}
+		if !handled {
+			return false, nil
+		}
+		row, ok := rowValue.(*runtime.ArrayValue)
+		if !ok || row == nil || !vm.canUseValidatedCanonicalArrayGet(program, row) {
+			return false, nil
+		}
+		if bytecodeSameArrayStorage(dest, row) {
+			return false, nil
+		}
+		rowValues, ok := vm.f64DotLoopFloatValues(row)
+		if !ok || len(rowValues) < boundLen {
+			return false, nil
+		}
+		results[rowIdx-start] = bytecodeF64DotProductSameLength(leftValues, rowValues[:boundLen])
 	}
 	if !vm.appendF64MatrixRowLoopResults(program, plan, dest, results) {
 		return false, nil
@@ -103,6 +120,33 @@ func (vm *bytecodeVM) tryExecF64MatrixRowLoop(program *bytecodeProgram, plan byt
 	vm.stack = append(vm.stack, runtime.NilValue{})
 	vm.ip = plan.successTarget
 	return true, nil
+}
+
+func bytecodeF64DotProductSameLength(leftValues []float64, rightValues []float64) float64 {
+	rightValues = rightValues[:len(leftValues)]
+	acc := 0.0
+	for idx, leftValue := range leftValues {
+		acc += leftValue * rightValues[idx]
+	}
+	return acc
+}
+
+func bytecodeF64DotProduct4SameLength(leftValues []float64, row0 []float64, row1 []float64, row2 []float64, row3 []float64) (float64, float64, float64, float64) {
+	row0 = row0[:len(leftValues)]
+	row1 = row1[:len(leftValues)]
+	row2 = row2[:len(leftValues)]
+	row3 = row3[:len(leftValues)]
+	acc0 := 0.0
+	acc1 := 0.0
+	acc2 := 0.0
+	acc3 := 0.0
+	for idx, leftValue := range leftValues {
+		acc0 += leftValue * row0[idx]
+		acc1 += leftValue * row1[idx]
+		acc2 += leftValue * row2[idx]
+		acc3 += leftValue * row3[idx]
+	}
+	return acc0, acc1, acc2, acc3
 }
 
 func (vm *bytecodeVM) f64MatrixRowLoopCachedRows(program *bytecodeProgram, dest *runtime.ArrayValue, outer *runtime.ArrayValue, bound int, start int) ([][]float64, bool, error) {
@@ -249,6 +293,36 @@ func (vm *bytecodeVM) appendF64MatrixRowLoopResults(program *bytecodeProgram, pl
 		return false
 	}
 	return vm.appendArrayF64ValuesFast(dest, values)
+}
+
+func (vm *bytecodeVM) appendF64MatrixRowLoopResultSegment(program *bytecodeProgram, plan bytecodeF64MatrixRowLoopPlan, dest *runtime.ArrayValue, count int) ([]float64, bool) {
+	return vm.appendArrayF64SegmentFastAt(program, plan.resultPushIP, dest, count)
+}
+
+func (vm *bytecodeVM) appendArrayF64SegmentFastAt(program *bytecodeProgram, resultPushIP int, dest *runtime.ArrayValue, count int) ([]float64, bool) {
+	if vm == nil || vm.interp == nil || dest == nil || dest.Handle == 0 || dest.TrackedAliases || count < 0 {
+		return nil, false
+	}
+	if state, tracked := bytecodeTrackedArrayState(dest); tracked {
+		if state == nil {
+			return nil, false
+		}
+		if state.ElementTypeTokenKnown && state.ElementTypeToken != bytecodeIndexTypeF64 && state.ElementTypeToken != bytecodeIndexTypeUnknown {
+			return nil, false
+		}
+	}
+	instr := bytecodeInstruction{op: bytecodeOpCallMemberArraySlot, name: "push", argCount: 1}
+	if !vm.canUseCanonicalArrayPushAt(program, resultPushIP, instr, dest) {
+		return nil, false
+	}
+	segment, ok, err := runtime.ArrayStoreAppendF64UninitializedPromote(dest.Handle, count)
+	if err != nil || !ok {
+		return nil, false
+	}
+	dest.State = nil
+	dest.Elements = nil
+	dest.TrackedHandle = dest.Handle
+	return segment, true
 }
 
 func (vm *bytecodeVM) appendArrayF64ValuesFast(arr *runtime.ArrayValue, values []float64) bool {

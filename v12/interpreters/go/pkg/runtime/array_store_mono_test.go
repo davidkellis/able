@@ -359,6 +359,48 @@ func TestArrayStoreMonoF64RevisionTracksMutation(t *testing.T) {
 	}
 }
 
+func TestArrayStoreMonoF64PromoteUninitializedAppend(t *testing.T) {
+	handle := ArrayStoreNewWithCapacity(0)
+	segment, ok, err := ArrayStoreAppendF64UninitializedPromote(handle, 5)
+	if err != nil {
+		t.Fatalf("ArrayStoreAppendF64UninitializedPromote: %v", err)
+	}
+	if !ok || len(segment) != 5 {
+		t.Fatalf("segment len=%d ok=%v, want len 5 ok", len(segment), ok)
+	}
+	for idx := range segment {
+		segment[idx] = float64(idx + 1)
+	}
+	values, revision, mono, err := ArrayStoreMonoF64ValuesRevisionIfAvailable(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesRevisionIfAvailable: %v", err)
+	}
+	if !mono || len(values) != 5 || cap(values) != 8 || revision == 0 {
+		t.Fatalf("mono=%v len=%d cap=%d revision=%d, want mono len 5 cap 8 revision > 0", mono, len(values), cap(values), revision)
+	}
+	for idx, value := range values {
+		if value != float64(idx+1) {
+			t.Fatalf("values[%d]=%v, want %v (all=%#v)", idx, value, float64(idx+1), values)
+		}
+	}
+	segment, ok, err = ArrayStoreAppendF64UninitializedPromote(handle, 2)
+	if err != nil {
+		t.Fatalf("ArrayStoreAppendF64UninitializedPromote second: %v", err)
+	}
+	if !ok || len(segment) != 2 {
+		t.Fatalf("second segment len=%d ok=%v, want len 2 ok", len(segment), ok)
+	}
+	segment[0] = 6
+	segment[1] = 7
+	values, nextRevision, mono, err := ArrayStoreMonoF64ValuesRevisionIfAvailable(handle)
+	if err != nil || !mono {
+		t.Fatalf("ArrayStoreMonoF64ValuesRevisionIfAvailable second mono=%v err=%v", mono, err)
+	}
+	if nextRevision <= revision || len(values) != 7 || values[5] != 6 || values[6] != 7 {
+		t.Fatalf("values=%#v revision=%d previous=%d, want appended [6 7] and newer revision", values, nextRevision, revision)
+	}
+}
+
 func mustBigInt(t *testing.T, value int64) *big.Int {
 	t.Helper()
 	return big.NewInt(value)

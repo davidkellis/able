@@ -100,10 +100,10 @@ Current measured external snapshot:
 - `matrixmultiply`: compiled `0.9660s` vs Go `0.8800s` after the canonical
   Able benchmark started using `Array.with_capacity(n)` for fixed-size matrix
   rows/outers and statement-position counted loops stopped materializing
-  discarded `runtime.Value` loop results; bytecode now lands at `2.0400s` vs
-  Go `0.8800s` after the native f64 dot-loop, row-cache, construction-side
-  affine push, versioned-stdlib canonical `Array.get` proof, and guarded
-  mono-f64 row storage/read tranches; tree-walker still times out.
+  discarded `runtime.Value` loop results; bytecode now lands at `0.4640s` vs
+  Go `0.8800s` after guarded mono-f64 row storage/read tranches, raw
+  build/transpose loops, cached transposed rows, direct result segments, and
+  the batch-4 row kernel; tree-walker still times out.
 - `quicksort`: compiled now completes in Go range after the byte-parser source
   rewrite plus native `Array u8` host-return boundary (`1.75s` vs Go `2.01s`);
   bytecode and tree-walker still time out at the current external benchmark
@@ -218,13 +218,26 @@ Guardrails:
   generated row values while preserving the final capacity that repeated
   `Array.push` would expose. The latest transpose row-loop tranche recognizes
   the exact `ci.push(b.get(j)!.get(i)!)` loop and bulk-appends the generated
-  column row after canonical get/push, raw f64 row, and non-aliasing guards.
-  Full external bytecode `matrixmultiply` now confirms at `1.3060s` over `5/5`
-  (`1.48x` Go), with reduced `matrixmultiply_f64_small` at `40.86ms/op` over
-  `5/5`. The next matrix tranche should target the remaining matrix row-kernel
-  wall with a guarded raw row-slice cache for the transposed matrix, or tighten
-  the row kernel so it does not re-read and revalidate every `c` row for each
-  output row.
+  column row after canonical get/push, raw f64 row, and non-aliasing guards. The
+  row-slice cache tranche adds mono-f64 row revisions and lets the row kernel
+  reuse validated raw slices for the transposed matrix across output rows,
+  invalidating on outer-row replacement, source-row mutation, length changes,
+  capacity reallocations, and destination/source aliasing. The latest direct
+  result-row tranche writes row-kernel dot results straight into a guarded
+  mono-f64 destination segment on the cache path, avoiding the per-row
+  temporary result buffer and append copy. The latest transpose row-cache reuse
+  tranche reuses those validated mono-f64 source-row slices for
+  `ci.push(b.get(j)!.get(i)!)` when the requested column is inside the proven
+  square bound, and writes the generated column directly into a guarded
+  destination segment. The latest batch-4 row-kernel tranche computes four
+  destination cells per dot-product pass on the validated cache path, reusing
+  each `ai` source value across four transposed rows while preserving each
+  dot product's sequential accumulation order. Full external bytecode
+  `matrixmultiply` now confirms at `0.4640s` over `5/5` (`0.53x` Go), with
+  reduced `matrixmultiply_f64_small` at `16.96ms/op` over `5/5`. Matrix is now
+  competitive with the current external Go reference; further matrix work
+  should target row-cache validation amortization only if fresh broad profiles
+  justify it, otherwise move to the next bytecode laggard such as quicksort.
 - [ ] Add typed primitive slot/register storage, following
       `v12/design/bytecode-vm-v2.md`. Start with `i32` slots/stack cells for
       slot-eligible, non-yielding functions, with boxed `runtime.Value`
@@ -845,7 +858,43 @@ Guardrails:
       confirmed at `1.3060s` over `5/5` (`1.48x` Go). Next, target the
       remaining `tryExecF64MatrixRowLoop(...)` wall with a guarded raw row-slice
       cache for the transposed matrix or a row-kernel tightening that avoids
-      re-reading and revalidating every `c` row for each output row.
+      re-reading and revalidating every `c` row for each output row. The
+      row-slice cache follow-up now adds mono-f64 row revisions and reuses
+      validated transposed row slices across output rows while invalidating on
+      outer-row replacement, source-row mutation, length changes, capacity
+      reallocations, and destination/source aliasing. Reduced runtime-only
+      matrix moved to `39.20ms/op`, `8.80MB/op`, and `6.33k allocs/op` over
+      `5/5`, with a profiled confirmation at `37.11ms/op`; full external
+      bytecode `matrixmultiply` confirmed at `1.2240s` over `5/5` (`1.39x`
+      Go). Next, target row-kernel result materialization by writing computed
+      row results directly into a guarded mono-f64 destination row or otherwise
+      avoiding the per-row temporary result buffer plus append copy. The direct
+      result-row follow-up now adds
+      `ArrayStoreAppendF64UninitializedPromote(...)` and lets the matrix
+      row-kernel write dot results directly into the destination row segment on
+      the validated row-cache path. Reduced runtime-only matrix moved to
+      `37.72ms/op`, `7.99MB/op`, and `6.03k allocs/op` over `5/5`, with a
+      profiled confirmation at `36.48ms/op`; full external bytecode
+      `matrixmultiply` confirmed at `1.2160s` over `5/5` (`1.38x` Go). Next,
+      target remaining canonical/raw-read overhead, especially transpose
+      row-loop source row reads or per-row/cell version checks. The transpose
+      row-cache reuse follow-up now reuses the guarded mono-f64 row cache for
+      the recognized transpose loop when `col < bound`, invalidating on source
+      row revisions and aliasing before mutation, and appends the generated
+      column through the direct f64 segment path. Reduced runtime-only matrix
+      moved to `32.78ms/op`, `7.20MB/op`, and `5.73k allocs/op` over `5/5`,
+      with a profiled confirmation at `32.23ms/op`; full external bytecode
+      `matrixmultiply` confirmed at `1.1180s` over `5/5` (`1.27x` Go). Next,
+      target the remaining actual dot-product row kernel or prototype the
+      broader typed matrix storage contract. The batch-4 row-kernel follow-up
+      now computes four destination cells per inner pass on the validated
+      cache path, preserving each dot product's sequential accumulation order.
+      Reduced runtime-only matrix moved from a same-session `33.63ms/op`
+      baseline to `16.96ms/op`, `7.20MB/op`, and `5.73k allocs/op` over `5/5`,
+      with a profiled confirmation at `15.90ms/op`; full external bytecode
+      `matrixmultiply` confirmed at `0.4640s` over `5/5` (`0.53x` Go). Next,
+      prefer the next external bytecode laggard unless a fresh broad profile
+      specifically justifies row-cache validation amortization.
 - [ ] Add quickened call/member/index opcodes that rewrite after first
       successful shape resolution and invalidate safely under mutation or
       environment revision changes.

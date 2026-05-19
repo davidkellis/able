@@ -203,6 +203,81 @@ func TestBytecodeVM_F64TransposeRowLoopFallsThroughWhenDestinationAliasesInputRo
 	}
 }
 
+func TestBytecodeVM_F64TransposeRowLoopUsesCachedRowsAndInvalidatesOnMonoF64Revision(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	row0 := monoF64ArrayValueForTest(t, 1, 10)
+	row1 := monoF64ArrayValueForTest(t, 2, 20)
+	outer := bytecodeF64TransposeOuterForTest(t, interp, row0, row1)
+	program := bytecodeF64TransposeRowLoopProgramForTest()
+	vm.currentProgram = program
+	vm.storeCachedCanonicalArrayGetCall(program, 0, bytecodeInstruction{name: "get", argCount: 1}, outer)
+
+	dest1 := interp.newArrayValue([]runtime.Value{}, 2)
+	vm.ip = 0
+	vm.slots = []runtime.Value{
+		runtime.NewBigIntValue(big.NewInt(0), runtime.IntegerI32),
+		runtime.NewBigIntValue(big.NewInt(2), runtime.IntegerI32),
+		dest1,
+		outer,
+		runtime.NewBigIntValue(big.NewInt(1), runtime.IntegerI32),
+	}
+	vm.storeCachedCanonicalArraySlotCall(program, 1, program.instructions[1], dest1, bytecodeMemberMethodFastPathArrayPush)
+	programPtr := program
+	instructions := program.instructions
+	handled, err := vm.execLoopEnterOpcode(&programPtr, &instructions, nil, nil, &program.instructions[0])
+	if err != nil {
+		t.Fatalf("f64 transpose-row first fast path failed: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected first f64 transpose-row fast path to complete")
+	}
+	if len(vm.f64MatrixRowsCache) != 1 {
+		t.Fatalf("expected one cached transpose row set, got %d", len(vm.f64MatrixRowsCache))
+	}
+	values, mono, err := runtime.ArrayStoreMonoF64ValuesIfAvailable(dest1.Handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable dest1: %v", err)
+	}
+	if !mono || len(values) != 2 || values[0] != 10 || values[1] != 20 {
+		t.Fatalf("first transpose row values=%#v mono=%v, want [10 20]", values, mono)
+	}
+
+	if err := runtime.ArrayStoreReserve(row0.Handle, 16); err != nil {
+		t.Fatalf("ArrayStoreReserve row0: %v", err)
+	}
+	if err := runtime.ArrayStoreMonoWriteF64(row0.Handle, 1, 30); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteF64 row0: %v", err)
+	}
+	dest2 := interp.newArrayValue([]runtime.Value{}, 2)
+	vm.ip = 0
+	vm.stack = vm.stack[:0]
+	vm.slots = []runtime.Value{
+		runtime.NewBigIntValue(big.NewInt(0), runtime.IntegerI32),
+		runtime.NewBigIntValue(big.NewInt(2), runtime.IntegerI32),
+		dest2,
+		outer,
+		runtime.NewBigIntValue(big.NewInt(1), runtime.IntegerI32),
+	}
+	vm.storeCachedCanonicalArraySlotCall(program, 1, program.instructions[1], dest2, bytecodeMemberMethodFastPathArrayPush)
+	programPtr = program
+	instructions = program.instructions
+	handled, err = vm.execLoopEnterOpcode(&programPtr, &instructions, nil, nil, &program.instructions[0])
+	if err != nil {
+		t.Fatalf("f64 transpose-row second fast path failed: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected second f64 transpose-row fast path to complete")
+	}
+	values, mono, err = runtime.ArrayStoreMonoF64ValuesIfAvailable(dest2.Handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable dest2: %v", err)
+	}
+	if !mono || len(values) != 2 || values[0] != 30 || values[1] != 20 {
+		t.Fatalf("second transpose row values=%#v mono=%v, want [30 20]", values, mono)
+	}
+}
+
 func bytecodeF64TransposeOuterForTest(t *testing.T, interp *Interpreter, rows ...runtime.Value) *runtime.ArrayValue {
 	t.Helper()
 	outer := interp.newArrayValue(rows, len(rows))

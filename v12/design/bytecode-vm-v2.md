@@ -614,3 +614,70 @@ The remaining VM-v2 matrix wall is now the result row kernel: it still re-reads
 and revalidates every transposed `c` row for each output row. The next slice
 should test a guarded raw row-slice cache for the transposed matrix, or another
 row-kernel tightening with the same fallback discipline.
+
+The f64 row-slice cache follow-up proves that cache shape. Runtime mono arrays
+now carry a revision counter; f64 rows expose raw values plus revision so the VM
+can invalidate cached row slices after writes, appends, length changes, and
+capacity reallocations. The row kernel caches the transposed matrix only when
+the outer array is a tracked dynamic state and every source row is mono f64.
+Cache hits still recheck the outer revision, row handles, row revisions, row
+lengths, and destination non-aliasing. Partial loop resumes deliberately stay
+on the old row-by-row path so the fast path does not inspect rows the fallback
+loop would not touch.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from `40.86ms/op` to
+`39.20ms/op` over `5/5`, with a profiled confirmation at `37.11ms/op`. Full
+external bytecode `matrixmultiply` confirmed at `1.2240s` over `5/5`, about
+`1.39x` Go. This removes repeated transposed-row validation but not the core
+row-kernel dot work or result materialization. The next VM-v2 matrix slice
+should write computed row results directly into a guarded mono-f64 destination
+row, or otherwise remove the temporary result buffer and append copy while
+preserving row capacity semantics.
+
+The f64 direct result-row segment follow-up removes that buffer on the validated
+row-cache path. Runtime exposes an uninitialized f64 append segment that shares
+the same promotion and capacity-growth behavior as the existing bulk append.
+Once the row kernel has validated canonical push, cached source rows, source
+row revisions, and destination/source non-aliasing, it writes each computed dot
+result directly into the destination row segment. The fallback path still uses
+the older temporary buffer and bulk append.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from `39.20ms/op` to
+`37.72ms/op` over `5/5`, and full external bytecode `matrixmultiply` confirmed
+at `1.2160s` over `5/5`, about `1.38x` Go. The remaining VM-v2 matrix cost is
+mostly actual dot work plus smaller canonical/raw-read overhead in the matrix
+phases. The next slice should cache raw source row slices for the transpose
+row-loop or hoist remaining canonical/version checks before moving to a broader
+typed matrix storage contract.
+
+The transpose row-cache reuse follow-up removes that smaller transpose-side
+raw-read overhead. The recognized transpose loop now reuses the existing
+guarded mono-f64 row cache when it enters from the full-column start and
+`col < bound`, then writes the generated column directly into a guarded f64
+destination segment. Partial resumes, wider non-square column reads, stale
+source row revisions, length changes, canonical call invalidation, and
+destination/source aliasing keep the old fallback behavior.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from `37.72ms/op` to
+`32.78ms/op` over `5/5`, and full external bytecode `matrixmultiply` confirmed
+at `1.1180s` over `5/5`, about `1.27x` Go. The next VM-v2 matrix slice should
+target the actual dot-product row kernel or graduate this proven
+`[][]float64` + direct destination segment shape into a broader typed matrix
+storage contract if fresh profiles no longer show validation or allocation as
+the limiter.
+
+The batch-4 row-kernel follow-up targets the actual remaining dot work without
+changing the language-level matrix code. On the validated row-cache path, the
+kernel computes four destination cells per inner pass, so each `ai` source
+value is loaded once and applied to four cached transposed rows. Each
+individual dot product still accumulates left-to-right in the same order as
+the previous scalar loop, and the fallback row path is unchanged.
+
+Reduced runtime-only `matrixmultiply_f64_small` moved from a same-session
+`33.63ms/op` transpose-cache baseline to `16.96ms/op` over `5/5`, and full
+external bytecode `matrixmultiply` confirmed at `0.4640s` over `5/5`, about
+`0.53x` Go. The full profile now shows the batched dot helper itself at the
+top and row-cache revision validation next. Matrix is now competitive with the
+current external Go reference; further matrix work should be justified by a
+broad VM-v2 target such as row-cache validation amortization or typed storage,
+not by chasing this benchmark in isolation.

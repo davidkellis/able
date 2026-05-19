@@ -115,6 +115,59 @@ func TestBytecodeVM_F64MatrixRowLoopFastPathAppendsRow(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_F64MatrixRowLoopBatchesFourRowsWithRemainder(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	dest := interp.newArrayValue([]runtime.Value{}, 5)
+	left := monoF64ArrayValueForTest(t, 1, 2, 3, 4, 5)
+	rows := []runtime.Value{
+		monoF64ArrayValueForTest(t, 1, 0, 0, 0, 0),
+		monoF64ArrayValueForTest(t, 0, 1, 0, 0, 0),
+		monoF64ArrayValueForTest(t, 0, 0, 1, 0, 0),
+		monoF64ArrayValueForTest(t, 0, 0, 0, 1, 0),
+		monoF64ArrayValueForTest(t, 0, 0, 0, 0, 1),
+	}
+	outer := interp.newArrayValue(rows, len(rows))
+	if _, err := interp.ensureArrayState(outer, 0); err != nil {
+		t.Fatalf("ensure outer array state: %v", err)
+	}
+	program := bytecodeF64MatrixRowLoopProgramForTest()
+	vm.currentProgram = program
+	vm.ip = 0
+	vm.slots = []runtime.Value{
+		runtime.NewBigIntValue(big.NewInt(0), runtime.IntegerI32),
+		runtime.NewBigIntValue(big.NewInt(5), runtime.IntegerI32),
+		dest,
+		left,
+		outer,
+	}
+	vm.storeCachedCanonicalArrayGetCall(program, 0, bytecodeInstruction{name: "get", argCount: 1}, outer)
+	vm.storeCachedCanonicalArraySlotCall(program, 1, program.instructions[1], dest, bytecodeMemberMethodFastPathArrayPush)
+
+	programPtr := program
+	instructions := program.instructions
+	handled, err := vm.execLoopEnterOpcode(&programPtr, &instructions, nil, nil, &program.instructions[0])
+	if err != nil {
+		t.Fatalf("f64 matrix-row batch fast path failed: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected f64 matrix-row batch fast path to complete")
+	}
+	values, mono, err := runtime.ArrayStoreMonoF64ValuesIfAvailable(dest.Handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoF64ValuesIfAvailable: %v", err)
+	}
+	want := []float64{1, 2, 3, 4, 5}
+	if !mono || len(values) != len(want) {
+		t.Fatalf("batched result row values=%#v mono=%v, want %v", values, mono, want)
+	}
+	for idx, value := range want {
+		if values[idx] != value {
+			t.Fatalf("batched result row[%d]=%v, want %v (all=%#v)", idx, values[idx], value, values)
+		}
+	}
+}
+
 func TestBytecodeVM_F64MatrixRowLoopFallsThroughWithoutPartialMutation(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
