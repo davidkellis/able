@@ -169,6 +169,68 @@ func ArrayStoreAppendF64ValuesPromote(handle int64, values []float64) (bool, err
 	return true, nil
 }
 
+func ArrayStoreAppendF64UninitializedPromote(handle int64, count int) ([]float64, bool, error) {
+	if handle == 0 || count < 0 {
+		return nil, false, nil
+	}
+	kind, err := arrayHandleKind(handle)
+	if err != nil {
+		return nil, false, err
+	}
+	if count == 0 {
+		if kind == monoArrayKindF64 || kind == monoArrayKindDynamic {
+			return []float64{}, true, nil
+		}
+		return nil, false, nil
+	}
+	if kind == monoArrayKindF64 {
+		state, ok := monoArrayF64States[handle]
+		if !ok {
+			return nil, false, fmt.Errorf("array handle %d is not defined", handle)
+		}
+		oldLen := len(state.Values)
+		minimum := oldLen + count
+		if minimum > state.Capacity || minimum > cap(state.Values) {
+			monoEnsureCapacity(state, minimum)
+		}
+		state.Values = state.Values[:minimum]
+		if state.Capacity < cap(state.Values) {
+			state.Capacity = cap(state.Values)
+		}
+		state.Revision++
+		return state.Values[oldLen:minimum], true, nil
+	}
+	if kind != monoArrayKindDynamic {
+		return nil, false, nil
+	}
+	state, ok := arrayStates[handle]
+	if !ok {
+		return nil, false, fmt.Errorf("array handle %d is not defined", handle)
+	}
+	capacity := state.Capacity
+	if capacity < len(state.Values) {
+		capacity = len(state.Values)
+	}
+	minCapacity := len(state.Values) + count
+	if capacity < minCapacity {
+		capacity = grownCapacity(capacity, minCapacity)
+	}
+	converted := make([]float64, len(state.Values), capacity)
+	for idx, current := range state.Values {
+		raw, err := float64FromValue(current)
+		if err != nil {
+			return nil, false, nil
+		}
+		converted[idx] = raw
+	}
+	oldLen := len(converted)
+	converted = converted[:minCapacity]
+	delete(arrayStates, handle)
+	monoArrayF64States[handle] = &monoArrayF64State{Values: converted, Capacity: cap(converted), Revision: state.Revision + 1}
+	arrayHandleKinds[handle] = monoArrayKindF64
+	return converted[oldLen:minCapacity], true, nil
+}
+
 func appendMonoF64Value(state *monoArrayF64State, value float64) {
 	if state == nil {
 		return

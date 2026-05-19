@@ -42,6 +42,24 @@ func (vm *bytecodeVM) tryExecF64TransposeRowLoop(program *bytecodeProgram, plan 
 	if !vm.canUseCanonicalArrayPushAt(program, plan.resultPushIP, instr, dest) {
 		return false, nil
 	}
+	rows, cachedRows, err := vm.f64MatrixRowLoopCachedRows(program, dest, outer, int(bound), start)
+	if err != nil {
+		return false, err
+	}
+	if cachedRows && col < bound {
+		segment, ok := vm.appendArrayF64SegmentFastAt(program, plan.resultPushIP, dest, end-start)
+		if !ok {
+			return false, nil
+		}
+		colIdx := int(col)
+		for rowIdx := start; rowIdx < end; rowIdx++ {
+			segment[rowIdx-start] = rows[rowIdx][colIdx]
+		}
+		vm.storeI32Slot(plan.indexSlot, int64(end))
+		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.ip = plan.successTarget
+		return true, nil
+	}
 	values := make([]float64, end-start)
 	for rowIdx := start; rowIdx < end; rowIdx++ {
 		rowValue, _, _, handled, err := vm.readCanonicalArrayGetValue(outer, int64(rowIdx))
