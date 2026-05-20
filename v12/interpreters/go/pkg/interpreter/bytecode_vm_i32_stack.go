@@ -51,6 +51,8 @@ func (vm *bytecodeVM) execBoxI32() error {
 func bytecodeRawI32Value(value runtime.Value) (int32, bool) {
 	var intVal runtime.IntegerValue
 	switch v := value.(type) {
+	case bytecodeRawI32SlotValue:
+		return int32(v), true
 	case runtime.IntegerValue:
 		intVal = v
 	case *runtime.IntegerValue:

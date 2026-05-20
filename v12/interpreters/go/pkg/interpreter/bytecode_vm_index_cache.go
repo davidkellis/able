@@ -671,6 +671,8 @@ func bytecodeDirectSmallArrayIndex(idxVal runtime.Value) (int, bool) {
 		return 0, false
 	}
 	switch idx := idxVal.(type) {
+	case bytecodeRawI32SlotValue:
+		return int(idx), true
 	case runtime.IntegerValue:
 		idxRef := &idx
 		if idxRef.IsSmallRef() {

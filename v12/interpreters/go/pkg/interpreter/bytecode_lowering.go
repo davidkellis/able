@@ -658,6 +658,17 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 						ctx.emit(plan.instr)
 						return nil
 					}
+					if plan, ok := bytecodeStoreSlotIntMulConstAddPlan(ctx, name, n.Right, n); ok {
+						if plan.loadBase {
+							ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.targetSlot, name: name, node: n.Right})
+						}
+						if err := emitExpression(ctx, i, plan.addend); err != nil {
+							return err
+						}
+						plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						ctx.emit(plan.instr)
+						return nil
+					}
 					if instr, ok := bytecodeStoreSlotBinarySlotConstInstruction(ctx, name, n.Right, n); ok {
 						instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
 						ctx.emit(instr)

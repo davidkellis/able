@@ -23,6 +23,7 @@ const (
 	bytecodeOpBinaryIntAddSlotConst
 	bytecodeOpBinaryIntSubSlotConst
 	bytecodeOpBinaryIntMulSlotConst
+	bytecodeOpBinaryIntModSlotConst
 	bytecodeOpBinaryIntLessEqualSlotConst
 	bytecodeOpBinaryIntCompareSlotConst
 	bytecodeOpUnary
@@ -117,6 +118,8 @@ const (
 	bytecodeOpStoreSlotNew
 	bytecodeOpStoreSlotI32
 	bytecodeOpStoreSlotBinaryIntSlotConst
+	bytecodeOpStoreSlotIntMulConstAdd
+	bytecodeOpStoreSlotIntMulConstAddFromSlot
 	bytecodeOpStoreSlotFloatAddMul
 	bytecodeOpStoreSlotFloatAddMulArrayGet
 	bytecodeOpCompoundAssignSlot

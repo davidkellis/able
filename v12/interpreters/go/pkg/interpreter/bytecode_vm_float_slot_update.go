@@ -112,6 +112,9 @@ func bytecodeDirectFloatAddMulRaw(base runtime.Value, leftVal float64, leftKind 
 }
 
 func bytecodeSlotReadValue(value runtime.Value) runtime.Value {
+	if raw, ok := value.(bytecodeRawI32SlotValue); ok {
+		return bytecodeBoxRawI32Value(raw)
+	}
 	if fv, ok := value.(*runtime.FloatValue); ok && fv != nil {
 		return runtime.FloatValue{Val: fv.Val, TypeSuffix: fv.TypeSuffix}
 	}
