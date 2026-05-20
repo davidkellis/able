@@ -1,5 +1,139 @@
 # Able Project Log
 
+# 2026-05-19 — Rejected quicksort array-slot direct-cache expansion (v12)
+- Tested a narrow canonical array/member-call probe: raise
+  `bytecodeArraySlotCallDirectEntries` from `16` to `64` so hot `read_slot`,
+  `write_slot`, and `push` proofs collide less often before falling back to the
+  hot scan or map-backed cache.
+- Result: reverted. Focused array-slot/quicksort coverage stayed green and the
+  profiled confirmation improved to `1172047751 ns/op`, but the repeated
+  unprofiled bands were not defensible: first `3/3` landed at
+  `1184457441 ns/op`, then the second `3/3` regressed to
+  `1230487621 ns/op`, with no allocation benefit.
+- Restored kept affine baseline check:
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(CanonicalArraySlotCallCacheFeedsArraySlotOpcode|CanonicalArraySlotDirectCacheInvalidates|ArrayReadSlotOpcodeFastPath|ArrayReadSlotOpcodeTraceStillRecordsWhenEnabled|JumpIfArrayReadSlotCompareSlotFalseFastPath|ArraySlotMemberFastPathReadsMonoU8Handle)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  - restored 1MB quicksort prefix: `1170701139 ns/op`, `85984312 B/op`,
+    `1261499 allocs/op`
+- Next: do not spend more quicksort time on array-slot cache-size tuning. The
+  next tranche should either design the true sidecar/register raw-i32 lane, or
+  target a larger canonical array/member-call rewrite with fewer per-hit
+  version checks rather than a bigger direct table.
+
+# 2026-05-19 — Rejected quicksort owned-i32 producer lane (v12)
+- Tested a broader raw integer producer experiment after the kept affine
+  update: discarded `StoreSlotBinaryIntSlotConst` and affine parser updates
+  stored VM-owned `*runtime.IntegerValue` cells, while a pure-addend affine
+  variant tried to read the base slot without materializing it first.
+- Result: reverted. The focused semantic slice stayed green, but the 1MB
+  external quicksort prefix regressed allocation sharply:
+  `1178541416 ns/op`, `143733707 B/op`, `2464643 allocs/op` over `3/3`.
+  That is much worse than the kept affine allocation band around `86 MB/op`
+  and `1.26M allocs/op`.
+- Restored kept affine baseline check:
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringFusesSlotMulConstAddAssignment|SlotMulConstAddAssignmentPreservesRHSOrdering|StoreSlotIntMulConstAdd(FastPath|Overflow)|StoreSlotBinaryIntSlotConst(FastPath|DiscardResultFastPath|MultiplyFastPath|ModuloFastPath|ModuloByZero|SubtractFastPath|FastPathOverflow|SubtractFastPathOverflow|MultiplyFastPathOverflow)|SlotConstSelfAssignmentParity)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  - restored 1MB quicksort prefix: `1235423235 ns/op`, `85978800 B/op`,
+    `1261495 allocs/op`
+- Next: do not represent raw integer slots as mutable `runtime.Value`
+  pointers. The next plausible raw-typed work needs a real sidecar/register
+  representation with explicit materialization only at proven boundaries, or
+  should pivot to a broader canonical array/member-call plan from a fresh
+  profile.
+
+# 2026-05-19 — Rejected quicksort call-setup micro-probes (v12)
+- Tested two narrow bytecode call/setup probes after the kept
+  `StoreSlotIntMulConstAdd` affine update:
+  1. direct no-error completion for `ArrayReadSlot`, bypassing
+     `finishCompletedCall(...)` on successful canonical `read_slot` reads;
+  2. cached `CallName` slot-arg direct inline setup, copying identifier slot
+     arguments straight into an inline callee frame instead of first pushing
+     them on the VM stack.
+- Result: both were reverted. The focused semantic slices stayed green, but
+  neither timing signal was defensible. `ArrayReadSlot` direct completion had
+  one improved unprofiled prefix band but regressed the profiled confirmation
+  to `1198737091 ns/op`. Cached slot-arg direct inline setup regressed the
+  profiled prefix to `1346702398 ns/op` with no allocation benefit.
+- Restored kept affine baseline check:
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(CallNameCacheRecordsDirectInlineShape|CallNameCacheSkipsDirectInlineForTypeArguments|LoweringEmitsCallNameSlotArgsForIdentifierArgs)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/runtime ./pkg/interpreter -run '^$' -count=1 -timeout 120s`
+  - restored 1MB quicksort prefix: `1132697980 ns/op`, `85984440 B/op`,
+    `1261505 allocs/op`
+- Next: stop shaving successful call completion or slot-arg call setup in
+  isolation. The remaining quicksort work needs either raw slot/index storage
+  that avoids boxing at producers and consumers, or a broader canonical
+  array/member-call plan backed by a fresh profile.
+
+# 2026-05-19 — Bytecode int affine slot update fusion (v12)
+- Bytecode lowering/VM: simple assignments shaped as
+  `slot = slot * integer_literal + expr` now lower to
+  `StoreSlotIntMulConstAdd`. Lowering loads the old slot before evaluating the
+  addend expression, preserving v12 left-to-right behavior when the addend has
+  side effects. The VM fast path handles same-type small integers, with a
+  direct i32 branch for the quicksort parser shape, and falls back to the
+  normal `*` then `+` semantics for unsupported values.
+- Scope: this targets general integer affine slot updates and does not revive
+  the rejected native quicksort scan/partition loop or owned integer slot-cell
+  approach.
+- Tests:
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringFusesSlotMulConstAddAssignment|SlotMulConstAddAssignmentPreservesRHSOrdering|StoreSlotIntMulConstAdd(FastPath|Overflow)|StoreSlotBinaryIntSlotConst(FastPath|DiscardResultFastPath|MultiplyFastPath|ModuloFastPath|ModuloByZero|SubtractFastPath|FastPathOverflow|SubtractFastPathOverflow|MultiplyFastPathOverflow)|SlotConstSelfAssignmentParity|LoweringFusesSlotConstSelfAssignment|LoweringDiscardsStatementSlotConstSelfAssignmentResult|LoweringKeepsNestedSlotConstAssignmentResult|ArrayReadSlotMemberFastPathReadsMonoU8Handle)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/runtime ./pkg/interpreter -run '^$' -count=1 -timeout 120s`
+- Benchmarks:
+  - 1MB external quicksort prefix, prior restored profiled baseline:
+    `1123911063 ns/op`, `99818456 B/op`, `1548962 allocs/op`
+  - kept profiled prefix run: `1104789293 ns/op`, `86006760 B/op`,
+    `1261553 allocs/op`
+  - kept unprofiled prefix average over `3/3`: `1160421199 ns/op`,
+    `85980701 B/op`, `1261499 allocs/op`
+  - reduced in-tree quicksort hotloop guard: `4850727 ns/op` over `300x`
+  - full external `../benchmarks` quicksort bytecode still timed out at `60s`
+- Next: the remaining quicksort wall is still boxed slot-const index updates,
+  canonical array/member call setup, and recursive/direct call-frame overhead.
+  Start the next tranche from a fresh profile and do not add another parser
+  arithmetic fusion unless it shows up again.
+
+# 2026-05-19 — Rejected bytecode owned-i32 slot-cell probe (v12)
+- Tested a narrow quicksort allocation slice for discarded
+  `StoreSlotBinaryIntSlotConst` i32 updates: reuse a VM-owned
+  `*runtime.IntegerValue` slot cell and materialize integer cells on visible
+  slot reads.
+- Result: rejected and reverted. The focused interpreter slice stayed green,
+  but the 1MB external quicksort prefix regressed from the restored baseline
+  `1123911063 ns/op`, `99818456 B/op`, `1548962 allocs/op` to
+  `1274257710 ns/op`, `109824248 B/op`, `1757614 allocs/op`. The profile
+  showed the read-materialization boundary adding allocation pressure, so this
+  is not the right shape for integer slot storage.
+- Tests after revert:
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(StoreSlotBinaryIntSlotConst(FastPath|DiscardResultFastPath|MultiplyFastPath|ModuloFastPath|ModuloByZero|SubtractFastPath|FastPathOverflow|SubtractFastPathOverflow|MultiplyFastPathOverflow)|SlotConstSelfAssignmentParity|LoweringFusesSlotConstSelfAssignment|LoweringDiscardsStatementSlotConstSelfAssignmentResult|LoweringKeepsNestedSlotConstAssignmentResult|ArrayReadSlotMemberFastPathReadsMonoU8Handle)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/runtime ./pkg/interpreter -run '^$' -count=1 -timeout 120s`
+- Next: avoid owned integer cells for dynamic slots unless a raw typed slot
+  contract can keep values unboxed end-to-end. The next quicksort tranche
+  should target remaining external-scale `execBinary` / boxed i32 arithmetic
+  and array/member call-frame costs from a fresh untraced profile.
+
+# 2026-05-19 — Bytecode mono-u8 read_slot fast path (v12)
+- Bytecode VM: canonical `Array.read_slot(i32)` now reads mono `Array u8`
+  handles through `ArrayStoreMonoReadU8IfAvailable(...)` and returns the
+  existing boxed-small-`u8` cached value instead of routing successful byte
+  reads through generic `ArrayStoreRead(...)` boxing. The slot-index helper now
+  also accepts pointer-shaped small integer values and keeps the same
+  non-negative / i32-range semantics.
+- Scope: this keeps the normal guarded canonical `read_slot` proof path and
+  fallback behavior. It is not a native quicksort/parser loop and does not
+  special-case a named non-primitive container.
+- Tests:
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(ArraySlotMemberFastPathDetectsCanonicalKernelMethods|ArrayReadSlotMemberFastPathSemantics|ArraySlotIndexSmallIntegerFastPathSemantics|ArrayReadSlotMemberFastPathReadsMonoU8Handle|ArrayWriteSlotMemberFastPathSemantics|CanonicalArraySlotCallCacheFeedsArraySlotOpcode|CanonicalArraySlotDirectCacheInvalidates|LoweringEmitsArraySlotCallMemberOpcode|ArrayPushFastPathSkipsAdjacentPop|ArrayReadSlotOpcodeFastPath|JumpIfArrayReadSlotCompareSlotFalseFastPath)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  - `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/runtime ./pkg/interpreter -run '^$' -count=1 -timeout 120s`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+- Benchmarks:
+  - reduced in-tree quicksort hotloop guard: `5098051 ns/op` over `300x`
+  - small in-tree `bench_suite` quicksort bytecode input: `0.1800s` over `1/1`
+  - full external `../benchmarks` quicksort bytecode still timed out at `60s`
+- Next: the remaining quicksort competitiveness work is external-scale
+  parsing/sorting throughput, not more `read_slot` helper shaving. Re-profile
+  the full benchmark with a longer cap when safe and choose between a v12-safe
+  byte parser/native bytecode lane, typed collection storage, or direct
+  call-frame setup based on that profile.
+
 # 2026-05-11 — Bytecode raw f64 accumulator for fused matrix update (v12)
 - Bytecode VM: the fused `StoreSlotFloatAddMulArrayGet` opcode no longer
   pushes the accumulator slot through `LoadSlot` before every dot-product
@@ -17034,3 +17168,110 @@
 - Next: target row-cache validation amortization only if another matrix tranche
   is needed; otherwise move to the next external bytecode laggard such as
   quicksort or the remaining generic call/index paths.
+
+# 2026-05-19 — Reconciled quicksort and stdlib experiment fallout (v12)
+
+- Review result: the attempted native i32 quicksort scan/partition loop work was
+  not kept. It hard-coded the helper name `swap`, bypassed normal function-call
+  semantics, and did not preserve v12 index/cast error behavior. The focused
+  `07_10_bytecode_quicksort_hotloop` parity run hung for minutes under that
+  code path and previously drove the machine into OOM. The untracked lowering
+  and VM files for `bytecodeI32ScanLoopPlan` / `bytecodeI32PartitionLoopPlan`
+  were removed.
+- Review result: the mono-i32 push-promotion hook was not kept. Promoting
+  tracked `Array i32` during `Array.push` is unsafe with the current store
+  boundary because `ArrayStoreState` and related callers deopt mono arrays back
+  to dynamic state. The untracked mono-i32 helper file was removed; future work
+  needs a deopt-safe typed-array design before reintroducing promotion.
+- Kept VM pieces: `bytecodeOpBinaryIntModSlotConst` now handles `slot %
+  literal` lowering/execution, including fused self-assignment and division by
+  zero tests. The tracked-array `read_slot`/`write_slot` member fast path also
+  keeps the small non-negative integer index shortcut, falling back to the
+  existing canonical path for negative, big, non-tracked, or unsupported shapes.
+- Kept stdlib pieces: `able.fs.read_bytes`, `read_lines`, and newline
+  normalization now use direct host-backed helpers; `able.io.unwrap`,
+  `unwrap_void`, and `bytes_to_string` use `!` propagation. The attempted
+  host-backed `String.len_bytes` / `contains` / `replace` shortcuts were
+  reverted because they passed Able `String` structs to externs expecting host
+  strings. The mutable `fs.read_lines` cache was also removed so repeated reads
+  return fresh arrays.
+- Verification after reconciliation:
+  `go test ./pkg/runtime ./pkg/interpreter -run '^$'`,
+  focused slot-const modulo tests,
+  focused array-slot fast-path tests,
+  `TestExecFixtureParity/07_10_bytecode_quicksort_hotloop`,
+  reduced `BenchmarkBytecodeQuicksortHotloopRuntime` spot-check
+  (`5.382644ms/op`, single noisy run), and focused stdlib fs/io/text tests in
+  both tree-walker and bytecode modes.
+- Next: treat whole-loop native quicksort kernels and mono-i32 promotion as
+  future design work, not active code. A safe next tranche should target direct
+  call-frame setup, a semantically proven `read_slot`/`write_slot` hot path, or
+  typed storage infrastructure that keeps `Array.len`, `ArrayStoreState`, and
+  alias synchronization mono-aware before promotion is enabled.
+
+# 2026-05-19 — Bytecode quicksort raw i32 discarded-slot sentinel (v12)
+
+- Bytecode VM: discarded `i32` slot-const and affine slot-update results can now
+  store an internal `bytecodeRawI32SlotValue` in the local slot instead of
+  immediately materializing a `runtime.IntegerValue`. Direct integer compares,
+  raw i32 extraction, array index helpers, `Array.read_slot` fast paths, and
+  visible slot reads now either consume the raw value directly or materialize it
+  through `bytecodeSlotReadValue(...)` at the dynamic/spec boundary.
+- Lowering/VM: the affine parser update path now has a pure-addend
+  `StoreSlotIntMulConstAddFromSlot` form that reads the base slot inside the VM
+  operation. Mutating addends keep the old base-load-before-RHS lowering, so
+  v12 left-to-right evaluation remains preserved. Slot-const `%` is handled in
+  the i32 store fast path, including Euclidean modulo and division-by-zero
+  behavior, so raw sentinel values do not leak into generic arithmetic.
+- Tests:
+  `cd v12/interpreters/go && ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringFusesSlotMulConstAddAssignment|LoweringKeepsSlotMulConstAddLoadForMutatingAddend|SlotMulConstAddAssignmentPreservesRHSOrdering|StoreSlotIntMulConstAdd(FastPath|Overflow)|StoreSlotBinaryIntSlotConst(FastPath|DiscardResultFastPath|MultiplyFastPath|ModuloFastPath|ModuloByZero|SubtractFastPath|FastPathOverflow|SubtractFastPathOverflow|MultiplyFastPathOverflow)|SlotConstSelfAssignmentParity)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  and
+  `cd v12/interpreters/go && env -u ABLE_STDLIB_ROOT go test ./pkg/interpreter -count=1 -timeout 300s`.
+- Benchmarks: the fresh restored 1MB external quicksort prefix baseline was
+  `1192647051 ns/op`, `86006824 B/op`, and `1261556 allocs/op`. The kept raw
+  sentinel `3/3` bands landed at `1047273039 ns/op`, `77168787 B/op`,
+  `2130511 allocs/op`, then `1097504897 ns/op`, `77166939 B/op`, and
+  `2130510 allocs/op`. The profiled confirmation landed at `1141060286 ns/op`,
+  `77194872 B/op`, and `2130567 allocs/op`.
+- Profile: bytes and wall-clock improved, but allocation count regressed
+  because the non-pointer raw sentinel still boxes into the `runtime.Value`
+  slot interface on each write. The memory profile now splits allocation across
+  `bytecodeBoxedIntegerI32Value(...)`,
+  `storeSlotBinaryIntSlotConstI32FastResult(...)`, and
+  `execStoreSlotIntMulConstAdd(...)` rather than eliminating allocation
+  outright.
+- Next: keep this as a bounded quicksort-prefix win, but do not expand the
+  interface-sentinel approach further. The next raw integer tranche should move
+  to a real sidecar/register typed-slot lane, with raw `i32` values stored out
+  of the `runtime.Value` interface and explicit materialization at loads,
+  calls, returns, member dispatch, and any other dynamic boundary.
+
+# 2026-05-20 — Rejected bytecode quicksort stable raw-i32 slot cell (v12)
+
+- Experiment: changed the internal discarded-slot raw `i32` representation from
+  a non-pointer `bytecodeRawI32SlotValue` sentinel to a stable pointer-shaped
+  raw slot cell that could be mutated and reused across repeated discarded
+  slot-const / affine updates. The goal was to keep the previous sentinel
+  tranche's wall-clock/bytes win while recovering the allocation-count
+  regression caused by storing non-pointer raw values into `runtime.Value`
+  interfaces.
+- Result: focused semantics stayed green, and allocation count improved, but
+  wall-clock regressed enough that the slice was not defensible. The 1MB
+  external quicksort prefix moved from the kept sentinel bands of roughly
+  `1.047s/op` to `1.098s/op`, `77.17MB/op`, and `2.13M allocs/op` to raw-cell
+  bands of `1389097633 ns/op`, `74061771 B/op`, `1354198 allocs/op`, then
+  `1238411773 ns/op`, `74061573 B/op`, `1354189 allocs/op`. The profiled
+  raw-cell confirmation landed at `1182344224 ns/op`, `74095648 B/op`, and
+  `1354279 allocs/op`.
+- Profile: the raw-cell allocation profile confirmed the intended alloc-count
+  improvement, but CPU shifted toward pointer-shaped raw-cell checks plus the
+  same map/member dispatch costs. This is an allocation win with a wall-clock
+  loss, so it was reverted.
+- Restored verification: the focused slot/update/quicksort parity slice stayed
+  green after revert, and a restored 1MB quicksort prefix spot-check returned
+  to `1026297428 ns/op`, `77172552 B/op`, and `2130519 allocs/op`.
+- Next: do not retry pointer-shaped raw cells for dynamic slots. A future raw
+  integer tranche needs a real sidecar/register lane that stores raw `i32`
+  outside `runtime.Value` entirely and avoids per-access pointer cell checks,
+  or the quicksort work should pivot to canonical array/member dispatch or a
+  v12-safe parser/native-bytecode lane.

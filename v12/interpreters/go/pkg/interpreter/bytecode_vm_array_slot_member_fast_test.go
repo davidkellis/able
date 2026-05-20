@@ -133,6 +133,12 @@ func TestBytecodeVM_ArraySlotIndexSmallIntegerFastPathSemantics(t *testing.T) {
 		t.Fatalf("small i32 index = idx %d ok %v err %v, want 2/true/nil", idx, ok, err)
 	}
 
+	ptr := runtime.NewSmallInt(4, runtime.IntegerI32)
+	idx, ok, err = bytecodeArraySlotIndexI32(&ptr)
+	if err != nil || !ok || idx != 4 {
+		t.Fatalf("small i32 pointer index = idx %d ok %v err %v, want 4/true/nil", idx, ok, err)
+	}
+
 	idx, ok, err = bytecodeArraySlotIndexI32(runtime.NewSmallInt(3, ""))
 	if err != nil || !ok || idx != 3 {
 		t.Fatalf("small unsuffixed index = idx %d ok %v err %v, want 3/true/nil", idx, ok, err)
@@ -146,6 +152,14 @@ func TestBytecodeVM_ArraySlotIndexSmallIntegerFastPathSemantics(t *testing.T) {
 	_, ok, err = bytecodeArraySlotIndexI32(runtime.NewSmallInt(-1, runtime.IntegerI32))
 	if err == nil || !ok || !strings.Contains(err.Error(), "array index must be non-negative") {
 		t.Fatalf("negative small index = ok %v err %v, want handled non-negative error", ok, err)
+	}
+
+	if idx, ok := arraySlotIndexSmall(&ptr); !ok || idx != 4 {
+		t.Fatalf("small direct pointer index = idx %d ok %v, want 4/true", idx, ok)
+	}
+
+	if _, ok := arraySlotIndexSmall(runtime.NewSmallInt(1<<31, runtime.IntegerI64)); ok {
+		t.Fatalf("small direct index should reject out-of-i32 value")
 	}
 }
 
@@ -230,6 +244,26 @@ func TestBytecodeVM_ArrayWriteSlotMemberFastPathSemantics(t *testing.T) {
 	}
 	if err == nil || !strings.Contains(err.Error(), "array index must be non-negative") {
 		t.Fatalf("negative write_slot err = %v, want non-negative index error", err)
+	}
+}
+
+func TestBytecodeVM_ArrayReadSlotMemberFastPathReadsMonoU8Handle(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := runtime.ArrayStoreMonoValueFromU8String("az")
+
+	got, mode, handled, err := vm.readArraySlotValueFast(arr, runtime.NewSmallInt(1, runtime.IntegerI32))
+	if err != nil {
+		t.Fatalf("mono u8 read_slot fast path failed: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected mono u8 read_slot fast path to handle call")
+	}
+	if mode != "array_read_slot_mono_u8_fast" {
+		t.Fatalf("mono u8 read_slot mode = %q, want array_read_slot_mono_u8_fast", mode)
+	}
+	if !valuesEqual(got, runtime.NewSmallInt(122, runtime.IntegerU8)) {
+		t.Fatalf("mono u8 read_slot value = %#v, want u8 122", got)
 	}
 }
 

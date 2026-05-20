@@ -38,6 +38,60 @@ func (vm *bytecodeVM) execAssignPattern(instr bytecodeInstruction) error {
 	return nil
 }
 
+func (vm *bytecodeVM) execBindPattern(instr bytecodeInstruction) (bool, error) {
+	var pattern ast.Pattern
+	contextNode := instr.node
+	isForLoop := false
+	switch node := instr.node.(type) {
+	case ast.Pattern:
+		pattern = node
+	case *ast.ForLoop:
+		if node != nil {
+			pattern = node.Pattern
+			contextNode = node
+			isForLoop = true
+		}
+	}
+	if pattern == nil {
+		return false, fmt.Errorf("bytecode bind pattern expects pattern node")
+	}
+	val, err := vm.pop()
+	if err != nil {
+		return false, err
+	}
+	if isForLoop {
+		assigned, err := vm.interp.assignPatternForLoop(pattern, val, vm.env)
+		if err != nil {
+			err = vm.interp.attachRuntimeContext(err, contextNode, vm.interp.stateFromEnv(vm.env))
+			if vm.handleLoopSignal(err) {
+				return true, nil
+			}
+			return false, err
+		}
+		if errVal, ok := asErrorValue(assigned); ok {
+			if len(vm.loopStack) == 0 {
+				return false, fmt.Errorf("bytecode loop frame missing for pattern mismatch")
+			}
+			frame := vm.loopStack[len(vm.loopStack)-1]
+			vm.env = frame.env
+			vm.stack = append(vm.stack, errVal)
+			vm.ip = frame.breakTarget
+			return true, nil
+		}
+		vm.ip++
+		return true, nil
+	}
+	if err := vm.interp.assignPattern(pattern, val, vm.env, true, nil); err != nil {
+		err = vm.interp.attachRuntimeContext(err, contextNode, vm.interp.stateFromEnv(vm.env))
+		if vm.handleLoopSignal(err) {
+			return true, nil
+		}
+		return false, err
+	}
+	vm.ip++
+	return true, nil
+}
+
 func (vm *bytecodeVM) execCompoundAssignSlot(instr bytecodeInstruction) error {
 	val, err := vm.pop()
 	if err != nil {

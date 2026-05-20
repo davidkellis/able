@@ -202,6 +202,81 @@ Guardrails:
   typed values end-to-end across local updates/calls/returns, or target native
   Array/String bytecodes and guarded quickening where fresh profiles show the
   wall.
+- Current quicksort VM-v2 state: the unsafe native scan/partition-loop and
+  mono-i32 push-promotion experiments were removed during reconciliation. The
+  kept path is still the general bytecode VM path plus narrow canonical array
+  fast paths. Latest narrow slice: `Array.read_slot(i32)` over mono `Array u8`
+  handles now reads raw bytes and returns the existing boxed-small-`u8` cached
+  values, and the slot-index helper accepts pointer-shaped small integers while
+  preserving i32-range / non-negative semantics. Reduced in-tree quicksort
+  stayed healthy at `5098051 ns/op` over `300x`; the small in-tree
+  `bench_suite` quicksort bytecode input completed at `0.1800s` over `1/1`.
+  Full external `../benchmarks` quicksort bytecode still timed out at `60s`.
+  Next quicksort work should start from an external-scale profile and choose
+  between a v12-safe byte parser/native bytecode lane, typed collection
+  storage, or direct call-frame setup; do not spend another tranche on
+  `read_slot` helper shaving unless the full profile makes it dominant again.
+  A follow-up owned-i32 slot-cell probe for discarded slot-const updates was
+  also rejected: it stayed semantically green, but integer read materialization
+  raised the 1MB external quicksort prefix from the restored
+  `1123911063 ns/op`, `99818456 B/op`, `1548962 allocs/op` baseline to
+  `1274257710 ns/op`, `109824248 B/op`, `1757614 allocs/op`. Do not retry
+  owned integer cells for ordinary dynamic slots without a raw typed-slot
+  contract that keeps values unboxed across reads, calls, and returns. The
+  latest kept quicksort parser slice is the general
+  `StoreSlotIntMulConstAdd` fusion for `slot = slot * integer_literal + expr`.
+  It preserves left-to-right evaluation by loading the old slot before the
+  addend expression and falls back to normal `*` then `+` semantics for
+  unsupported values. On the 1MB external quicksort prefix it moved the
+  restored profiled baseline from `1123911063 ns/op`, `99818456 B/op`,
+  `1548962 allocs/op` to `1104789293 ns/op`, `86006760 B/op`,
+  `1261553 allocs/op`; the unprofiled `3/3` prefix average landed at
+  `1160421199 ns/op`, `85980701 B/op`, `1261499 allocs/op`. Full external
+  bytecode quicksort still timed out at `60s`. A follow-up call/setup
+  micro-probe tranche was rejected and reverted: direct no-error completion for
+  successful `ArrayReadSlot` regressed the profiled prefix confirmation to
+  `1198737091 ns/op`, and cached `CallName` slot-arg direct inline setup
+  regressed it to `1346702398 ns/op` without reducing allocations. The restored
+  kept affine prefix landed at `1132697980 ns/op`, `85984440 B/op`, and
+  `1261505 allocs/op`. Do not continue isolated successful-call completion or
+  slot-arg setup shaving. A broader owned-i32 producer lane was also tested and
+  reverted: discarded slot-const and affine parser updates stored mutable
+  `*runtime.IntegerValue` cells and a pure-addend affine variant read the base
+  slot without materializing it, but the 1MB prefix regressed to
+  `1178541416 ns/op`, `143733707 B/op`, and `2464643 allocs/op`. The restored
+  allocation band returned to `85978800 B/op` and `1261495 allocs/op`. Do not
+  represent raw integer slots as mutable `runtime.Value` pointers. The next
+  tranche should start from a fresh profile and target either a true sidecar /
+  register raw-typed representation with explicit materialization boundaries,
+  or a broader canonical array/member-call plan with a clear allocation/runtime
+  win. A follow-up canonical array/member-call cache-size probe was also
+  rejected: increasing the direct array-slot proof table from `16` to `64`
+  entries made one profiled prefix look better at `1172047751 ns/op`, but the
+  repeated unprofiled bands were `1184457441 ns/op` and then
+  `1230487621 ns/op` with no allocation win. Do not spend more quicksort time
+  on array-slot cache-size tuning; any next canonical array/member-call tranche
+  needs to remove per-hit version/check work rather than just enlarge the table.
+  The latest kept quicksort raw-i32 tranche stores discarded `i32` slot-const
+  and affine update results as an internal `bytecodeRawI32SlotValue` sentinel
+  and materializes it through explicit load/return/stack boundaries. It moved
+  the 1MB external quicksort prefix from a fresh restored `1192647051 ns/op`,
+  `86006824 B/op`, and `1261556 allocs/op` baseline to repeated kept bands of
+  `1047273039 ns/op`, `77168787 B/op`, `2130511 allocs/op` and
+  `1097504897 ns/op`, `77166939 B/op`, `2130510 allocs/op`; the profiled
+  confirmation was `1141060286 ns/op`, `77194872 B/op`, and
+  `2130567 allocs/op`. Keep the wall/bytes win, but do not broaden the
+  interface-sentinel representation: allocation count regressed because the
+  sentinel still boxes into the `runtime.Value` slot interface. The next raw
+  integer tranche should use a true sidecar/register typed-slot lane that keeps
+  raw `i32` values out of `runtime.Value` until an explicit dynamic/spec
+  boundary materializes them. A stable pointer-shaped raw slot cell was tested
+  as an intermediate step and rejected: it cut allocation count to about
+  `1.35M allocs/op` and bytes to about `74MB/op`, but regressed the 1MB
+  quicksort prefix wall-clock to `1.24s/op`-`1.39s/op` versus the kept
+  sentinel's `1.05s/op`-`1.10s/op` band. Do not retry pointer cells for
+  dynamic slots; the next quicksort tranche should either implement a real
+  sidecar/register lane with no `runtime.Value` storage on raw writes, or pivot
+  to canonical array/member dispatch or a v12-safe parser/native-bytecode lane.
 - Current matrix VM-v2 state: guarded mono-f64 array storage is now landed for
   the proven matrix row shape. The affine `Array.push` fast path can promote
   unaliased dynamic rows to mono f64, the native dot loop reads mono f64 rows
@@ -684,15 +759,59 @@ Guardrails:
       used by direct index writes. The kept reduced quicksort `500x` band
       landed at `4.66ms/op`, `4.55ms/op`, and `4.68ms/op`, with a profiled
       `4.59ms/op` confirmation; full external bytecode `quicksort` still
-      times out at `90s`. The next quicksort tranche should target
-      `execJumpIfArrayIndexSlotCompareSlotFalse(...)`, direct call-frame setup,
-      generic `%` / binary work in `build_data`, or start a v12-safe
-      typed-loop lane for partition locals, not more swap indexing, a named
-      non-primitive `Array.swap` special case, simple parameter coercion
-      dispatch, direct tracked-array compare branching, delayed `paramType`
-      lookup, the host byte-conversion boundary, generic cast guards, more
-      bracket read/write sync shaving, another `Array.push` dispatch slice, or
-      unproven untyped-local type inference. The first reduced
+      times out at `90s`. A later native i32 scan/partition-loop experiment
+      was reviewed during reconciliation and removed rather than kept: it
+      hard-coded the benchmark helper name `swap`, skipped normal call and
+      index/cast error semantics, and caused the focused quicksort parity run
+      to hang long enough to trigger the prior OOM failure. The related
+      mono-i32 push-promotion hook was also removed because it deoptimized
+      through the existing dynamic `ArrayStoreState` boundary. Do not revive
+      that work as a whole-loop benchmark kernel. The reconciled code keeps
+      only two narrow, general pieces from that line: `slot % literal`
+      lowering through `bytecodeOpBinaryIntModSlotConst`, with divide-by-zero
+      coverage, and a guarded small-index shortcut for tracked-array
+      `read_slot`/`write_slot`. A follow-up canonical `read_slot` slice keeps
+      the same general path but lets mono `Array u8` handles return cached
+      boxed-small `u8` values from raw byte reads, and lets the slot-index
+      helper accept pointer-shaped small integers under the same i32-range /
+      non-negative rules. Reduced in-tree quicksort stayed at `5098051 ns/op`
+      over `300x`, the small in-tree `bench_suite` quicksort bytecode input
+      completed at `0.1800s` over `1/1`, and full external bytecode
+      `quicksort` still timed out at `60s`. The follow-up parser arithmetic
+      slice now lowers general `slot = slot * integer_literal + expr` updates
+      to `StoreSlotIntMulConstAdd`, loading the old slot before the addend to
+      preserve side-effect ordering and falling back through the ordinary `*`
+      then `+` semantics for unsupported values. On the 1MB external
+      quicksort prefix it moved the restored profiled baseline from
+      `1123911063 ns/op`, `99818456 B/op`, `1548962 allocs/op` to
+      `1104789293 ns/op`, `86006760 B/op`, `1261553 allocs/op`, while full
+      external bytecode `quicksort` still timed out at `60s`. A later
+      call/setup micro-probe tranche was tested and reverted: direct no-error
+      completion for successful `ArrayReadSlot` regressed the profiled prefix
+      confirmation to `1198737091 ns/op`, and cached `CallName` slot-arg direct
+      inline setup regressed it to `1346702398 ns/op` with no allocation
+      benefit. The restored kept affine prefix landed at `1132697980 ns/op`,
+      `85984440 B/op`, and `1261505 allocs/op`. A broader owned-i32 producer
+      lane was tested next and reverted: discarded slot-const and affine parser
+      updates stored mutable integer cells, plus a pure-addend affine variant
+      skipped the old-slot load, but the 1MB prefix regressed to
+      `1178541416 ns/op`, `143733707 B/op`, and `2464643 allocs/op`. The
+      restored allocation band returned to `85978800 B/op` and
+      `1261495 allocs/op`. The next quicksort tranche should start from a fresh
+      profile and target a true sidecar/register raw-typed representation with
+      explicit materialization boundaries, or a broader canonical
+      array/member-call plan with a clear runtime/allocation win; not mutable
+      integer cells stored as `runtime.Value` pointers, more isolated
+      call-completion or slot-arg setup shaving, array-slot cache-size tuning,
+      more swap
+      indexing, a named
+      non-primitive `Array.swap` special case, whole-loop quicksort kernels,
+      simple parameter coercion dispatch, direct tracked array compare
+      branching, delayed `paramType` lookup, the host byte-conversion
+      boundary, generic cast guards, more bracket read/write sync shaving,
+      another `Array.push` dispatch slice, another `read_slot` helper shave,
+      another parser arithmetic fusion, or unproven untyped-local type
+      inference. The first reduced
       `matrixmultiply_f64_small` bytecode-runtime tranche is landed too:
       canonical tracked-array `Array.get(i32)` success values whose cached
       element token is primitive `f32`/`f64` and whose actual read value still

@@ -74,7 +74,7 @@ func (vm *bytecodeVM) execStoreSlotBinaryIntSlotConst(instr *bytecodeInstruction
 			vm.setSelfFastSlot0I32Value(result)
 		}
 		if !instr.discardResult {
-			vm.stack = append(vm.stack, result)
+			vm.stack = append(vm.stack, bytecodeSlotReadValue(result))
 		}
 		vm.ip++
 		return nil
@@ -87,6 +87,8 @@ func (vm *bytecodeVM) execStoreSlotBinaryIntSlotConst(instr *bytecodeInstruction
 		binaryInstr.op = bytecodeOpBinaryIntSubSlotConst
 	case "*":
 		binaryInstr.op = bytecodeOpBinaryIntMulSlotConst
+	case "%":
+		binaryInstr.op = bytecodeOpBinaryIntModSlotConst
 	default:
 		return fmt.Errorf("bytecode slot-const store unsupported operator %q", instr.operator)
 	}
@@ -120,7 +122,7 @@ func (vm *bytecodeVM) storeSlotBinaryIntSlotConstFastResult(instr *bytecodeInstr
 	}
 	if right.TypeSuffix == runtime.IntegerI32 {
 		if leftVal, ok := bytecodeDirectSmallI32Value(vm.slots[instr.target]); ok {
-			return storeSlotBinaryIntSlotConstI32FastResult(instr.operator, leftVal, rightRef.Int64FastRef())
+			return storeSlotBinaryIntSlotConstI32FastResult(instr.operator, leftVal, rightRef.Int64FastRef(), instr.discardResult)
 		}
 	}
 	rightVal := rightRef.Int64FastRef()
@@ -164,7 +166,7 @@ func (vm *bytecodeVM) storeSlotBinaryIntSlotConstFastResult(instr *bytecodeInstr
 	return nil, false, nil
 }
 
-func storeSlotBinaryIntSlotConstI32FastResult(operator string, leftVal int64, rightVal int64) (runtime.Value, bool, error) {
+func storeSlotBinaryIntSlotConstI32FastResult(operator string, leftVal int64, rightVal int64, discardResult bool) (runtime.Value, bool, error) {
 	var result int64
 	switch operator {
 	case "+":
@@ -173,11 +175,19 @@ func storeSlotBinaryIntSlotConstI32FastResult(operator string, leftVal int64, ri
 		result = leftVal - rightVal
 	case "*":
 		result = leftVal * rightVal
+	case "%":
+		if rightVal == 0 {
+			return nil, true, newDivisionByZeroError()
+		}
+		_, result = euclideanDivModInt64(leftVal, rightVal)
 	default:
 		return nil, false, nil
 	}
 	if result < math.MinInt32 || result > math.MaxInt32 {
 		return nil, true, newOverflowError("integer overflow")
+	}
+	if discardResult {
+		return bytecodeRawI32SlotValue(int32(result)), true, nil
 	}
 	return bytecodeBoxedIntegerI32Value(result), true, nil
 }

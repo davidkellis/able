@@ -9,6 +9,8 @@ import (
 
 func bytecodeIntegerValue(val runtime.Value) (runtime.IntegerValue, bool) {
 	switch iv := val.(type) {
+	case bytecodeRawI32SlotValue:
+		return runtime.NewSmallInt(int64(iv), runtime.IntegerI32), true
 	case runtime.IntegerValue:
 		return iv, true
 	case *runtime.IntegerValue:
@@ -30,6 +32,8 @@ func bytecodeIntegerValue(val runtime.Value) (runtime.IntegerValue, bool) {
 
 func bytecodeDirectIntegerValue(val runtime.Value) (runtime.IntegerValue, bool) {
 	switch iv := val.(type) {
+	case bytecodeRawI32SlotValue:
+		return runtime.NewSmallInt(int64(iv), runtime.IntegerI32), true
 	case runtime.IntegerValue:
 		return iv, true
 	case *runtime.IntegerValue:
@@ -42,6 +46,20 @@ func bytecodeDirectIntegerValue(val runtime.Value) (runtime.IntegerValue, bool) 
 
 func bytecodeDirectSameTypeSmallIntPair(left runtime.Value, right runtime.Value) (runtime.IntegerType, int64, int64, bool) {
 	switch lv := left.(type) {
+	case bytecodeRawI32SlotValue:
+		switch rv := right.(type) {
+		case bytecodeRawI32SlotValue:
+			return runtime.IntegerI32, int64(lv), int64(rv), true
+		case runtime.IntegerValue:
+			rvRef := &rv
+			if rv.TypeSuffix == runtime.IntegerI32 && rvRef.IsSmallRef() {
+				return runtime.IntegerI32, int64(lv), rvRef.Int64FastRef(), true
+			}
+		case *runtime.IntegerValue:
+			if rv != nil && rv.TypeSuffix == runtime.IntegerI32 && rv.IsSmallRef() {
+				return runtime.IntegerI32, int64(lv), rv.Int64FastRef(), true
+			}
+		}
 	case runtime.IntegerValue:
 		lvRef := &lv
 		if !lvRef.IsSmallRef() {
@@ -98,6 +116,20 @@ func bytecodeDirectIntegerCompare(op string, left runtime.Value, right runtime.V
 	}
 
 	switch lv := left.(type) {
+	case bytecodeRawI32SlotValue:
+		switch rv := right.(type) {
+		case bytecodeRawI32SlotValue:
+			return compare(int64(lv), int64(rv))
+		case runtime.IntegerValue:
+			rvRef := &rv
+			if rvRef.IsSmallRef() {
+				return compare(int64(lv), rvRef.Int64FastRef())
+			}
+		case *runtime.IntegerValue:
+			if rv != nil && rv.IsSmallRef() {
+				return compare(int64(lv), rv.Int64FastRef())
+			}
+		}
 	case runtime.IntegerValue:
 		lvRef := &lv
 		if !lvRef.IsSmallRef() {
@@ -140,6 +172,8 @@ func bytecodeDirectIntegerLessEqualImmediate(left runtime.Value, right runtime.I
 	}
 	rightVal := rightRef.Int64FastRef()
 	switch lv := left.(type) {
+	case bytecodeRawI32SlotValue:
+		return int64(lv) <= rightVal, true
 	case runtime.IntegerValue:
 		lvRef := &lv
 		if !lvRef.IsSmallRef() {
@@ -157,6 +191,8 @@ func bytecodeDirectIntegerLessEqualImmediate(left runtime.Value, right runtime.I
 
 func bytecodeDirectIntegerLessEqualImmediateRaw(left runtime.Value, rightVal int64) (bool, bool) {
 	switch lv := left.(type) {
+	case bytecodeRawI32SlotValue:
+		return int64(lv) <= rightVal, true
 	case runtime.IntegerValue:
 		lvRef := &lv
 		if !lvRef.IsSmallRef() {
@@ -174,6 +210,8 @@ func bytecodeDirectIntegerLessEqualImmediateRaw(left runtime.Value, rightVal int
 
 func bytecodeDirectIntegerCompareImmediateRaw(op string, left runtime.Value, rightVal int64) (bool, bool) {
 	switch lv := left.(type) {
+	case bytecodeRawI32SlotValue:
+		return bytecodeCompareInt64(op, int64(lv), rightVal)
 	case runtime.IntegerValue:
 		lvRef := &lv
 		if !lvRef.IsSmallRef() {
@@ -431,7 +469,7 @@ func bytecodeMultiplyIntegerImmediateFast(left runtime.Value, right runtime.Inte
 
 func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runtime.IntegerValue, hasImmediate bool) (runtime.Value, bool, error) {
 	switch instr.op {
-	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst, bytecodeOpBinaryIntModSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
 	default:
 		return nil, false, nil
 	}
@@ -512,6 +550,27 @@ func (vm *bytecodeVM) execBinarySlotConst(instr *bytecodeInstruction, right runt
 		}
 		val, err := applyBinaryOperator(vm.interp, "*", left, right)
 		return val, true, err
+	case bytecodeOpBinaryIntModSlotConst:
+		rightInt, ok := bytecodeIntegerValue(right)
+		if ok {
+			if rightInt.IsSmall() && rightInt.Int64Fast() == 0 {
+				return nil, true, newDivisionByZeroError()
+			}
+			switch lv := left.(type) {
+			case runtime.IntegerValue:
+				if lv.IsSmall() && rightInt.IsSmall() {
+					_, rem := euclideanDivModInt64(lv.Int64Fast(), rightInt.Int64Fast())
+					return boxedOrSmallIntegerValue(lv.TypeSuffix, rem), true, nil
+				}
+			case *runtime.IntegerValue:
+				if lv != nil && lv.IsSmallRef() && rightInt.IsSmall() {
+					_, rem := euclideanDivModInt64(lv.Int64FastRef(), rightInt.Int64Fast())
+					return boxedOrSmallIntegerValue(lv.TypeSuffix, rem), true, nil
+				}
+			}
+		}
+		val, err := evaluateDivMod(vm.interp, "%", left, right)
+		return val, true, err
 	case bytecodeOpBinaryIntLessEqualSlotConst:
 		rightRef := &right
 		switch lv := left.(type) {
@@ -566,7 +625,7 @@ func isBytecodeBinaryFastPathCandidate(op string) bool {
 
 func (vm *bytecodeVM) execBinary(instr *bytecodeInstruction, slotConstIntImmTable *bytecodeSlotConstIntImmediateTable) (bool, error) {
 	switch instr.op {
-	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
+	case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst, bytecodeOpBinaryIntModSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
 		rightImmediate, hasImmediate := instr.intImmediate, instr.hasIntImmediate
 		if !hasImmediate {
 			rightImmediate, hasImmediate = bytecodeImmediateIntegerValue(instr.value)
@@ -872,7 +931,7 @@ func (vm *bytecodeVM) execReturnIfIntLessEqualSlotConst(instr *bytecodeInstructi
 		vm.ip++
 		return nil, false, nil
 	}
-	return vm.slots[returnSlot], true, nil
+	return bytecodeSlotReadValue(vm.slots[returnSlot]), true, nil
 }
 
 func (vm *bytecodeVM) execReturnConstIfIntLessEqualSlotConst(instr *bytecodeInstruction, slotConstIntImmTable *bytecodeSlotConstIntImmediateTable) (runtime.Value, bool, error) {

@@ -188,6 +188,8 @@ func (vm *bytecodeVM) arrayIndexSlotCompareMaybeCast(instr *bytecodeInstruction,
 
 func bytecodeArrayIndexCastSmallI32Raw(value runtime.Value) (int64, bool) {
 	switch v := value.(type) {
+	case bytecodeRawI32SlotValue:
+		return int64(v), true
 	case runtime.IntegerValue:
 		ref := &v
 		if ref.IsSmallRef() {
@@ -203,6 +205,8 @@ func bytecodeArrayIndexCastSmallI32Raw(value runtime.Value) (int64, bool) {
 
 func bytecodeValueIsI32(value runtime.Value) bool {
 	switch v := value.(type) {
+	case bytecodeRawI32SlotValue:
+		return true
 	case runtime.IntegerValue:
 		return v.TypeSuffix == runtime.IntegerI32
 	case *runtime.IntegerValue:

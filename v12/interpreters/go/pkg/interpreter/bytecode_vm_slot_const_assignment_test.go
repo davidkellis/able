@@ -16,6 +16,7 @@ func TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes(t *testing.T) {
 		[]ast.Statement{
 			ast.Bin("+", ast.ID("n"), ast.Int(1)),
 			ast.Bin("*", ast.ID("n"), ast.Int(10)),
+			ast.Bin("%", ast.ID("n"), ast.Int(7)),
 			ast.Bin("<=", ast.ID("n"), ast.Int(2)),
 			ast.Bin(">=", ast.ID("n"), ast.Int(3)),
 			ast.Bin("-", ast.ID("n"), ast.Int(1)),
@@ -35,14 +36,15 @@ func TestBytecodeVM_LoweringEmitsIntegerSlotConstHotOpcodes(t *testing.T) {
 	sawAddSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntAddSlotConst)
 	sawSubSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntSubSlotConst)
 	sawMulSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntMulSlotConst)
+	sawModSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntModSlotConst)
 	sawLESlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntLessEqualSlotConst)
 	sawCompareSlotConst := bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntCompareSlotConst)
-	if !sawAddSlotConst || !sawSubSlotConst || !sawMulSlotConst || !sawLESlotConst || !sawCompareSlotConst {
-		t.Fatalf("expected lowering to emit slot-const opcodes: add=%v sub=%v mul=%v le=%v compare=%v", sawAddSlotConst, sawSubSlotConst, sawMulSlotConst, sawLESlotConst, sawCompareSlotConst)
+	if !sawAddSlotConst || !sawSubSlotConst || !sawMulSlotConst || !sawModSlotConst || !sawLESlotConst || !sawCompareSlotConst {
+		t.Fatalf("expected lowering to emit slot-const opcodes: add=%v sub=%v mul=%v mod=%v le=%v compare=%v", sawAddSlotConst, sawSubSlotConst, sawMulSlotConst, sawModSlotConst, sawLESlotConst, sawCompareSlotConst)
 	}
 	for _, instr := range program.instructions {
 		switch instr.op {
-		case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
+		case bytecodeOpBinaryIntAddSlotConst, bytecodeOpBinaryIntSubSlotConst, bytecodeOpBinaryIntMulSlotConst, bytecodeOpBinaryIntModSlotConst, bytecodeOpBinaryIntLessEqualSlotConst, bytecodeOpBinaryIntCompareSlotConst:
 			if !instr.hasIntImmediate {
 				t.Fatalf("expected slot-const opcode %v to carry typed integer-immediate metadata", instr.op)
 			}
@@ -61,6 +63,7 @@ func TestBytecodeVM_LoweringFusesSlotConstSelfAssignment(t *testing.T) {
 			ast.Assign(ast.ID("i"), ast.Int(1)),
 			ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("+", ast.ID("i"), ast.Int(2))),
 			ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("*", ast.ID("i"), ast.Int(3))),
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("%", ast.ID("i"), ast.Int(5))),
 			ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("-", ast.ID("i"), ast.Int(1))),
 			ast.ID("i"),
 		},
@@ -81,15 +84,15 @@ func TestBytecodeVM_LoweringFusesSlotConstSelfAssignment(t *testing.T) {
 			continue
 		}
 		fused++
-		if instr.name != "i" || (instr.operator != "+" && instr.operator != "-" && instr.operator != "*") {
+		if instr.name != "i" || (instr.operator != "+" && instr.operator != "-" && instr.operator != "*" && instr.operator != "%") {
 			t.Fatalf("unexpected fused slot-const assignment: name=%q operator=%q", instr.name, instr.operator)
 		}
 		if !instr.hasIntImmediate {
 			t.Fatalf("expected fused slot-const assignment to carry typed integer-immediate metadata")
 		}
 	}
-	if fused != 3 {
-		t.Fatalf("expected three fused slot-const self-assignments, got %d", fused)
+	if fused != 4 {
+		t.Fatalf("expected four fused slot-const self-assignments, got %d", fused)
 	}
 }
 
@@ -195,6 +198,136 @@ func TestBytecodeVM_LoweringKeepsTypedI32SelfAssignmentOnRawStore(t *testing.T) 
 	}
 }
 
+func TestBytecodeVM_LoweringFusesSlotMulConstAddAssignment(t *testing.T) {
+	def := ast.Fn(
+		"f",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("value"), ast.Int(1)),
+			ast.Assign(ast.ID("digit"), ast.Int(2)),
+			ast.AssignOp(
+				ast.AssignmentAssign,
+				ast.ID("value"),
+				ast.Bin("+", ast.Bin("*", ast.ID("value"), ast.Int(10)), ast.ID("digit")),
+			),
+			ast.ID("value"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	var sawAffine bool
+	for idx, instr := range program.instructions {
+		if instr.op != bytecodeOpStoreSlotIntMulConstAddFromSlot {
+			continue
+		}
+		sawAffine = true
+		if instr.name != "value" {
+			t.Fatalf("unexpected affine target name: %q", instr.name)
+		}
+		if !instr.discardResult {
+			t.Fatalf("statement-position affine assignment should discard result")
+		}
+		if got, ok := instr.intImmediate.ToInt64(); !ok || got != 10 {
+			t.Fatalf("affine immediate = %d ok=%v, want 10", got, ok)
+		}
+		for scan := 0; scan < idx; scan++ {
+			prior := program.instructions[scan]
+			if prior.op == bytecodeOpLoadSlot && prior.target == instr.target {
+				t.Fatalf("pure affine addend should avoid old-slot materialization before rhs, load at index=%d", scan)
+			}
+		}
+	}
+	if !sawAffine {
+		t.Fatalf("expected fused int affine slot assignment")
+	}
+}
+
+func TestBytecodeVM_LoweringKeepsSlotMulConstAddLoadForMutatingAddend(t *testing.T) {
+	def := ast.Fn(
+		"f",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("x"), ast.Int(3)),
+			ast.Assign(ast.ID("y"), ast.Int(4)),
+			ast.AssignOp(
+				ast.AssignmentAssign,
+				ast.ID("x"),
+				ast.Bin("+", ast.Bin("*", ast.ID("x"), ast.Int(10)), ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.ID("y"))),
+			),
+			ast.ID("x"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	var sawAffine bool
+	for idx, instr := range program.instructions {
+		if instr.op != bytecodeOpStoreSlotIntMulConstAdd {
+			continue
+		}
+		sawAffine = true
+		var sawOldSlotLoad bool
+		for scan := 0; scan < idx; scan++ {
+			prior := program.instructions[scan]
+			if prior.op == bytecodeOpLoadSlot && prior.target == instr.target {
+				sawOldSlotLoad = true
+				break
+			}
+		}
+		if !sawOldSlotLoad {
+			t.Fatalf("expected mutating affine addend to load old slot before rhs, index=%d", idx)
+		}
+	}
+	if !sawAffine {
+		t.Fatalf("expected ordering-preserving int affine slot assignment")
+	}
+}
+
+func TestBytecodeVM_SlotMulConstAddAssignmentPreservesRHSOrdering(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"f",
+			nil,
+			[]ast.Statement{
+				ast.Assign(ast.ID("x"), ast.Int(3)),
+				ast.Assign(ast.ID("y"), ast.Int(4)),
+				ast.AssignOp(
+					ast.AssignmentAssign,
+					ast.ID("x"),
+					ast.Bin("+", ast.Bin("*", ast.ID("x"), ast.Int(10)), ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.ID("y"))),
+				),
+				ast.ID("x"),
+			},
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Call("f"),
+	}, nil, nil)
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode affine slot assignment mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
 func TestBytecodeVM_SlotConstSelfAssignmentParity(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
 		ast.Fn(
@@ -204,6 +337,7 @@ func TestBytecodeVM_SlotConstSelfAssignmentParity(t *testing.T) {
 				ast.Assign(ast.ID("i"), ast.Int(3)),
 				ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("+", ast.ID("i"), ast.Int(2))),
 				ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("*", ast.ID("i"), ast.Int(3))),
+				ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("%", ast.ID("i"), ast.Int(5))),
 				ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("-", ast.ID("i"), ast.Int(1))),
 				ast.ID("i"),
 			},
@@ -271,8 +405,21 @@ func TestBytecodeVM_StoreSlotBinaryIntSlotConstDiscardResultFastPath(t *testing.
 	if !ok || got != 6 {
 		t.Fatalf("stored slot = %#v, want small i32 6", vm.slots[0])
 	}
+	if _, ok := vm.slots[0].(bytecodeRawI32SlotValue); !ok {
+		t.Fatalf("discarded i32 slot-const update should store raw i32 sentinel, got %#v", vm.slots[0])
+	}
 	if len(vm.stack) != 0 {
 		t.Fatalf("discarded assignment result should not push stack value, got len=%d", len(vm.stack))
+	}
+	if err := vm.execLoadSlotOpcode(&bytecodeInstruction{op: bytecodeOpLoadSlot, target: 0}); err != nil {
+		t.Fatalf("load raw i32 slot: %v", err)
+	}
+	if _, ok := vm.stack[0].(bytecodeRawI32SlotValue); ok {
+		t.Fatalf("visible LoadSlot should materialize raw i32 sentinel, got %#v", vm.stack[0])
+	}
+	loaded, ok := bytecodeDirectSmallI32Value(vm.stack[0])
+	if !ok || loaded != 6 {
+		t.Fatalf("loaded value = %#v, want materialized i32 6", vm.stack[0])
 	}
 }
 
@@ -300,6 +447,115 @@ func TestBytecodeVM_StoreSlotBinaryIntSlotConstMultiplyFastPath(t *testing.T) {
 	}
 	if !vm.selfFastSlot0I32Valid || vm.selfFastSlot0I32Raw != 12 {
 		t.Fatalf("expected slot0 raw lane to refresh to 12, valid=%v raw=%d", vm.selfFastSlot0I32Valid, vm.selfFastSlot0I32Raw)
+	}
+}
+
+func TestBytecodeVM_StoreSlotBinaryIntSlotConstModuloFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	vm.slots = []runtime.Value{runtime.NewSmallInt(10, runtime.IntegerI32)}
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpStoreSlotBinaryIntSlotConst,
+		target:          0,
+		operator:        "%",
+		intImmediate:    runtime.NewSmallInt(3, runtime.IntegerI32),
+		hasIntImmediate: true,
+	}
+	if err := vm.execStoreSlotBinaryIntSlotConst(instr, nil); err != nil {
+		t.Fatalf("unexpected modulo store-slot fast-path error: %v", err)
+	}
+	got, ok := bytecodeDirectSmallI32Value(vm.slots[0])
+	if !ok || got != 1 {
+		t.Fatalf("stored slot = %#v, want small i32 1", vm.slots[0])
+	}
+	stackGot, ok := bytecodeDirectSmallI32Value(vm.stack[0])
+	if !ok || stackGot != 1 {
+		t.Fatalf("stack result = %#v, want small i32 1", vm.stack[0])
+	}
+	if !vm.selfFastSlot0I32Valid || vm.selfFastSlot0I32Raw != 1 {
+		t.Fatalf("expected slot0 raw lane to refresh to 1, valid=%v raw=%d", vm.selfFastSlot0I32Valid, vm.selfFastSlot0I32Raw)
+	}
+}
+
+func TestBytecodeVM_StoreSlotBinaryIntSlotConstModuloByZero(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	vm.slots = []runtime.Value{runtime.NewSmallInt(10, runtime.IntegerI32)}
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpStoreSlotBinaryIntSlotConst,
+		target:          0,
+		operator:        "%",
+		intImmediate:    runtime.NewSmallInt(0, runtime.IntegerI32),
+		hasIntImmediate: true,
+	}
+	err := vm.execStoreSlotBinaryIntSlotConst(instr, nil)
+	if err == nil || !strings.Contains(err.Error(), "division by zero") {
+		t.Fatalf("expected division by zero, got %v", err)
+	}
+	got, ok := bytecodeDirectSmallI32Value(vm.slots[0])
+	if !ok || got != 10 {
+		t.Fatalf("division by zero should leave slot unchanged, got %#v", vm.slots[0])
+	}
+	if len(vm.stack) != 0 {
+		t.Fatalf("division by zero should not push assignment result, got len=%d", len(vm.stack))
+	}
+}
+
+func TestBytecodeVM_StoreSlotIntMulConstAddFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	vm.slots = []runtime.Value{runtime.NewSmallInt(0, runtime.IntegerI32)}
+	vm.stack = []runtime.Value{
+		runtime.NewSmallInt(4, runtime.IntegerI32),
+		runtime.NewSmallInt(2, runtime.IntegerI32),
+	}
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpStoreSlotIntMulConstAdd,
+		target:          0,
+		intImmediate:    runtime.NewSmallInt(10, runtime.IntegerI32),
+		hasIntImmediate: true,
+		discardResult:   true,
+	}
+	if err := vm.execStoreSlotIntMulConstAdd(instr); err != nil {
+		t.Fatalf("unexpected affine store error: %v", err)
+	}
+	got, ok := bytecodeDirectSmallI32Value(vm.slots[0])
+	if !ok || got != 42 {
+		t.Fatalf("stored slot = %#v, want small i32 42", vm.slots[0])
+	}
+	if _, ok := vm.slots[0].(bytecodeRawI32SlotValue); !ok {
+		t.Fatalf("discarded affine update should store raw i32 sentinel, got %#v", vm.slots[0])
+	}
+	if len(vm.stack) != 0 {
+		t.Fatalf("discarded affine assignment should not push stack value, got len=%d", len(vm.stack))
+	}
+	if !vm.selfFastSlot0I32Valid || vm.selfFastSlot0I32Raw != 42 {
+		t.Fatalf("expected slot0 raw lane to refresh to 42, valid=%v raw=%d", vm.selfFastSlot0I32Valid, vm.selfFastSlot0I32Raw)
+	}
+}
+
+func TestBytecodeVM_StoreSlotIntMulConstAddOverflow(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	vm.slots = []runtime.Value{runtime.NewSmallInt(7, runtime.IntegerI32)}
+	vm.stack = []runtime.Value{
+		runtime.NewSmallInt(math.MaxInt32, runtime.IntegerI32),
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+	}
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpStoreSlotIntMulConstAdd,
+		target:          0,
+		intImmediate:    runtime.NewSmallInt(2, runtime.IntegerI32),
+		hasIntImmediate: true,
+		discardResult:   true,
+	}
+	err := vm.execStoreSlotIntMulConstAdd(instr)
+	if err == nil || !strings.Contains(err.Error(), "integer overflow") {
+		t.Fatalf("expected integer overflow, got %v", err)
+	}
+	got, ok := bytecodeDirectSmallI32Value(vm.slots[0])
+	if !ok || got != 7 {
+		t.Fatalf("overflow should leave slot unchanged, got %#v", vm.slots[0])
 	}
 }
 

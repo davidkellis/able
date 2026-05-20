@@ -41,6 +41,8 @@ func bytecodeBoxedIntegerI32Value(value int64) runtime.Value {
 
 func bytecodeDirectSmallI32Value(val runtime.Value) (int64, bool) {
 	switch iv := val.(type) {
+	case bytecodeRawI32SlotValue:
+		return int64(iv), true
 	case runtime.IntegerValue:
 		ivRef := &iv
 		if iv.TypeSuffix == runtime.IntegerI32 && ivRef.IsSmallRef() {
@@ -55,40 +57,15 @@ func bytecodeDirectSmallI32Value(val runtime.Value) (int64, bool) {
 }
 
 func bytecodeDirectSmallI32Pair(left runtime.Value, right runtime.Value) (int64, int64, bool) {
-	switch lv := left.(type) {
-	case runtime.IntegerValue:
-		lvRef := &lv
-		if lv.TypeSuffix != runtime.IntegerI32 || !lvRef.IsSmallRef() {
-			return 0, 0, false
-		}
-		switch rv := right.(type) {
-		case runtime.IntegerValue:
-			rvRef := &rv
-			if rv.TypeSuffix == runtime.IntegerI32 && rvRef.IsSmallRef() {
-				return lvRef.Int64FastRef(), rvRef.Int64FastRef(), true
-			}
-		case *runtime.IntegerValue:
-			if rv != nil && rv.TypeSuffix == runtime.IntegerI32 && rv.IsSmallRef() {
-				return lvRef.Int64FastRef(), rv.Int64FastRef(), true
-			}
-		}
-	case *runtime.IntegerValue:
-		if lv == nil || lv.TypeSuffix != runtime.IntegerI32 || !lv.IsSmallRef() {
-			return 0, 0, false
-		}
-		switch rv := right.(type) {
-		case runtime.IntegerValue:
-			rvRef := &rv
-			if rv.TypeSuffix == runtime.IntegerI32 && rvRef.IsSmallRef() {
-				return lv.Int64FastRef(), rvRef.Int64FastRef(), true
-			}
-		case *runtime.IntegerValue:
-			if rv != nil && rv.TypeSuffix == runtime.IntegerI32 && rv.IsSmallRef() {
-				return lv.Int64FastRef(), rv.Int64FastRef(), true
-			}
-		}
+	l, ok := bytecodeDirectSmallI32Value(left)
+	if !ok {
+		return 0, 0, false
 	}
-	return 0, 0, false
+	r, ok := bytecodeDirectSmallI32Value(right)
+	if !ok {
+		return 0, 0, false
+	}
+	return l, r, true
 }
 
 func bytecodeAddSmallI32PairFast(left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
