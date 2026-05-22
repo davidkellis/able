@@ -17275,3 +17275,67 @@
   outside `runtime.Value` entirely and avoids per-access pointer cell checks,
   or the quicksort work should pivot to canonical array/member dispatch or a
   v12-safe parser/native-bytecode lane.
+
+# 2026-05-20 — Rejected bytecode quicksort active-frame raw-i32 sidecar (v12)
+
+- Experiment: replaced the kept internal raw-i32 sentinel storage for discarded
+  local updates with an active-frame sidecar lane: `rawI32Slots` /
+  `rawI32SlotValid` on the bytecode VM, call-frame save/restore, explicit slot
+  materialization helpers, and raw sidecar writes for discarded slot-const and
+  affine `i32` updates. The visible `runtime.Value` slot was cleared on raw
+  writes so hot discarded updates no longer stored the sentinel in the slot
+  interface.
+- Result: focused slot/update/quicksort parity stayed green, but the 1MB
+  external quicksort prefix regressed to `1186531639 ns/op`, `84947653 B/op`,
+  and `3293543 allocs/op`. The profiled confirmation landed at
+  `1162881928 ns/op`, `84981168 B/op`, and `3293607 allocs/op`.
+- Profile: the sidecar shape moved allocation from raw writes into repeated
+  materialization and frame setup: `slotRuntimeValue(...)` accounted for about
+  `655k` allocs/op, and lazy sidecar frame allocation for another `131k`
+  allocs/op. Fixing that requires typed opcodes or pooled sidecar frames across
+  the VM, not a local discarded-update patch.
+- Revert: the experiment was reverted completely. Focused parity passed after
+  revert, and a restored 1MB quicksort prefix spot-check landed at
+  `1141961498 ns/op`, `77166864 B/op`, and `2130506 allocs/op`.
+- Next: stop raw-slot storage experiments for quicksort unless the work starts
+  from typed opcodes / register-frame design rather than retrofitting
+  `runtime.Value` slots. The next quicksort tranche should pivot to canonical
+  array/member dispatch or a v12-safe parser/native-bytecode lane.
+
+# 2026-05-20 — Rejected bytecode quicksort array-slot trace-flag cache (v12)
+
+- Experiment: cached `bytecodeTraceEnabled` on the bytecode VM and routed the
+  hot `Array.read_slot` / `Array.write_slot` fast-path trace guards through that
+  VM-local flag instead of repeatedly checking `vm.interp.bytecodeTraceEnabled`.
+  The goal was to remove a sampled disabled-trace check from the current
+  external quicksort prefix profile without changing v12 dispatch semantics.
+- Result: focused array-slot, trace, and quicksort parity stayed green, but the
+  1MB external quicksort prefix regressed to `1174707776 ns/op`,
+  `77170704 B/op`, and `2130517 allocs/op` over `3/3`, with no allocation
+  improvement.
+- Revert: the experiment was reverted completely. Focused parity passed after
+  revert, and a restored 1MB quicksort prefix band returned to
+  `1077327345 ns/op`, `77168904 B/op`, and `2130517 allocs/op`.
+- Next: do not spend another quicksort tranche on disabled-trace guard shaving.
+  The next canonical array/member-dispatch attempt should remove a real
+  operation from the hot path, such as duplicate tracked-array probing or
+  per-hit proof/version work, or pivot to the v12-safe parser/native-bytecode
+  lane.
+
+# 2026-05-20 — Rejected bytecode quicksort specialized read_slot proof lookup (v12)
+
+- Experiment: added a direct `Array.read_slot` proof-cache lookup for the
+  lowered `ArrayReadSlot` opcode so the hot direct-read path could skip the
+  generic array-slot kind validation and the separate cacheability helper call
+  on cache hits. The specialized lookup kept the same env/global/method-cache
+  revision checks as the generic path.
+- Result: focused direct-cache invalidation, array-slot trace, and quicksort
+  parity stayed green, but the 1MB external quicksort prefix did not improve.
+  The experimental `3/3` band landed at `1135058602 ns/op`, `77168760 B/op`,
+  and `2130510 allocs/op`, with allocation essentially unchanged.
+- Revert: the experiment was reverted completely. Focused parity passed after
+  revert, and a restored 1MB quicksort prefix spot-check landed at
+  `1120617924 ns/op`, `77167056 B/op`, and `2130515 allocs/op`.
+- Next: stop one-off canonical read-slot proof helper rewrites. The remaining
+  quicksort wall needs a larger v12-safe typed/native-bytecode lane or a real
+  typed opcode/register-frame design rather than more generic-cache shaving.

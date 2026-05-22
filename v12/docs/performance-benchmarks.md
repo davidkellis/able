@@ -4025,3 +4025,40 @@ reverted. A restored spot-check returned to `1026297428 ns/op`,
 `77172552 B/op`, and `2130519 allocs/op`. Future raw-slot work should skip
 pointer cells and go straight to sidecar/register storage outside
 `runtime.Value`, or pivot away from raw slot storage.
+
+A follow-up active-frame sidecar retrofit was also tested and rejected. This
+variant added VM `rawI32Slots` / `rawI32SlotValid` state with call-frame
+save/restore and cleared the visible `runtime.Value` slot on discarded raw
+updates. Focused semantics stayed green, but the 1MB quicksort prefix regressed
+to `1186531639 ns/op`, `84947653 B/op`, and `3293543 allocs/op`; the profiled
+run landed at `1162881928 ns/op`, `84981168 B/op`, and `3293607 allocs/op`.
+The profile showed the local retrofit moved allocation into repeated
+`slotRuntimeValue(...)` materialization plus lazy sidecar frame allocation. The
+experiment was reverted, and a restored prefix spot-check returned to
+`1141961498 ns/op`, `77166864 B/op`, and `2130506 allocs/op`. Future quicksort
+work should not keep adding raw-slot retrofits to dynamic `runtime.Value`
+frames; it should use typed opcodes/register frames, or pivot to canonical
+array/member dispatch or a v12-safe parser/native-bytecode lane.
+
+The first canonical-dispatch follow-up after the sidecar rejection was also
+tested and rejected. Caching `bytecodeTraceEnabled` on the VM and using that
+flag in the hot array-slot trace guards preserved focused array-slot/trace
+semantics, but the 1MB quicksort prefix regressed to `1174707776 ns/op`,
+`77170704 B/op`, and `2130517 allocs/op` over `3/3`, with no allocation
+improvement. After revert, a restored `3/3` band returned to `1077327345 ns/op`,
+`77168904 B/op`, and `2130517 allocs/op`. Future canonical array/member work
+should not spend more time on disabled-trace guard shaving; it should remove
+duplicate tracked-array probing or per-hit proof/version work, or move to the
+v12-safe parser/native-bytecode lane.
+
+A subsequent direct `Array.read_slot` proof-cache specialization was also
+tested and rejected. The specialized lowered-opcode lookup kept the same
+env/global/method-cache revision checks as the generic array-slot proof cache,
+but skipped the generic kind validation and separate cacheability helper on hot
+hits. Focused invalidation/trace/quicksort parity stayed green, but the 1MB
+quicksort prefix landed at `1135058602 ns/op`, `77168760 B/op`, and
+`2130510 allocs/op` over `3/3`, with no allocation win. After revert, a restored
+spot-check landed at `1120617924 ns/op`, `77167056 B/op`, and
+`2130515 allocs/op`. Future quicksort work should stop one-off canonical
+read-slot proof helper rewrites and move to the v12-safe typed/native-bytecode
+lane or a real typed opcode/register-frame design.

@@ -277,6 +277,29 @@ Guardrails:
   dynamic slots; the next quicksort tranche should either implement a real
   sidecar/register lane with no `runtime.Value` storage on raw writes, or pivot
   to canonical array/member dispatch or a v12-safe parser/native-bytecode lane.
+  An active-frame raw-i32 sidecar retrofit was also tested and rejected: it
+  added VM sidecar arrays plus call-frame save/restore and moved discarded raw
+  writes out of `runtime.Value`, but the 1MB quicksort prefix regressed to
+  `1186531639 ns/op`, `84947653 B/op`, and `3293543 allocs/op`. The profile
+  showed the retrofit moved allocation into repeated `slotRuntimeValue(...)`
+  materialization and sidecar frame allocation. Do not continue raw-slot
+  retrofits on top of dynamic `runtime.Value` slots. Future raw work should
+  start as typed opcodes / register-frame design; otherwise pivot quicksort to
+  canonical array/member dispatch or a v12-safe parser/native-bytecode lane. A
+  disabled-trace flag cache on the array-slot fast path was tested as the first
+  canonical-dispatch follow-up and rejected: focused trace/array-slot parity
+  stayed green, but the 1MB quicksort prefix regressed to `1174707776 ns/op`
+  versus a restored `1077327345 ns/op` band. Do not keep shaving trace guards;
+  the next canonical dispatch tranche needs to remove a real array-slot
+  operation such as duplicate tracked-array probing or per-hit proof/version
+  checks, or move to the v12-safe parser/native-bytecode lane. A specialized
+  direct `read_slot` proof-cache lookup was tested next and also rejected: it
+  preserved focused invalidation/parity coverage, but the 1MB quicksort prefix
+  stayed worse than baseline at `1135058602 ns/op` with unchanged allocation
+  shape; the restored spot-check landed at `1120617924 ns/op`. Do not continue
+  one-off read-slot proof helper rewrites. The next quicksort tranche should
+  start the v12-safe typed/native-bytecode lane or a real typed opcode/register
+  frame design, not another canonical-cache micro-specialization.
 - Current matrix VM-v2 state: guarded mono-f64 array storage is now landed for
   the proven matrix row shape. The affine `Array.push` fast path can promote
   unaliased dynamic rows to mono f64, the native dot loop reads mono f64 rows
