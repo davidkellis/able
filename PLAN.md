@@ -3741,6 +3741,17 @@ These items remain important, but they are not active priorities right now.
         overflow and box back before return
       - declared `i32` slot metadata plus `LoadSlotI32` / `StoreSlotI32` are
         now landed for safe final arithmetic and typed local declarations
+      - statement-position explicit typed `i32` declarations and assignments
+        now keep discarded `StoreSlotI32` results raw in the slot instead of
+        boxing and pushing an assignment value that is immediately popped;
+        final/non-discarded typed assignment expressions still box/push, and
+        visible generic loads still materialize the slot value at the v12
+        boundary
+      - explicit typed `i32` compound `+=` / `-=` updates now have a dedicated
+        `CompoundAssignSlotI32` opcode for raw-stackable RHS expressions; the
+        opcode preserves v12 RHS-first semantics by evaluating the RHS before
+        reading the current slot in the VM, and RHS expressions with assignment
+        side effects stay on the generic compound path
       - reduced `Fib30Bytecode` stayed neutral on the declared-slot slice
         because recursive self-fast frames still pass boxed slot values;
         guardrail reruns landed at `117.43ms/op` and `121.97ms/op`
@@ -3750,9 +3761,11 @@ These items remain important, but they are not active priorities right now.
       to `3.7633s` over `3/3` runs, close enough to Go that more `fib` work
       should be justified by a broader recurrence plan rather than another
       benchmark-local slice.
-    - next step: decide whether to generalize this recurrence machinery to
-      generic `Int` / other primitive widths, or pivot bytecode effort to the
-      remaining external timeout families before adding more `fib` machinery.
+    - next step: move the typed lane from explicit syntax-only cases to
+      typechecker-backed slot-kind propagation for locals declared from typed
+      values (`i := lo`, `j := hi`, typed `len()` results) and benchmark-shaped
+      `x = x + rhs` loop updates. Do not revive untyped quicksort-local
+      inference inside bytecode lowering without that v12 type proof.
 - fixture exporter and other tooling cleanup
   - current state: the first cleanup slice is now landed
     - `cmd/fixture-exporter` has focused direct test coverage plus a

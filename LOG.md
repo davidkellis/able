@@ -17339,3 +17339,53 @@
 - Next: stop one-off canonical read-slot proof helper rewrites. The remaining
   quicksort wall needs a larger v12-safe typed/native-bytecode lane or a real
   typed opcode/register-frame design rather than more generic-cache shaving.
+
+# 2026-05-22 — Bytecode typed i32 discarded store lane (v12)
+
+- Landed a narrow VM v2 typed-lane slice for explicitly typed `i32` slots.
+  Statement-position typed `i32` declarations and assignments that already
+  lower through `StoreSlotI32` now mark the store as discarded, and the VM stores
+  the internal raw `bytecodeRawI32SlotValue` instead of boxing and pushing an
+  assignment result that will be popped immediately. Non-discarded assignment
+  expressions still box/push normally, and visible generic slot loads still
+  materialize the raw slot value before exposing it.
+- This is intentionally explicit-typed-only. It does not infer untyped quicksort
+  partition locals, and it keeps the existing v12 boundary behavior for returns,
+  calls, member dispatch, and generic loads.
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsI32StackOpsForFinalLiteralArithmetic|I32StackLiteralArithmeticParity|I32StackLiteralArithmeticOverflowParity|LoweringEmitsI32SlotStackOpsForFinalParamArithmetic|I32SlotStackParamArithmeticParity|I32SlotStackParamArithmeticOverflowParity|LoweringEmitsI32StoreSlotForTypedLocalLiteralArithmetic|LoweringKeepsFinalI32StoreSlotResult|StoreSlotI32DiscardResultStoresRawSlot|StoreSlotBinaryIntSlotConstDiscardResultFastPath|StoreSlotIntMulConstAddFastPath)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 3 --timeout 60 --modes bytecode-runtime --run-from /tmp/able-quicksort-prefix-1m --output-json /tmp/able-quicksort-prefix-typed-store-i32.json v12/examples/benchmarks/quicksort/quicksort.able`
+- Guardrail result: the 1MB external quicksort prefix stayed non-regressive at
+  `1074942410 ns/op`, `77167024 B/op`, and `2130512 allocs/op` over `3/3`.
+  That benchmark is mostly untyped, so it is a regression guard rather than the
+  keep basis for this typed-lane infrastructure.
+- Next: extend the explicit typed raw lane across a larger end-to-end boundary,
+  such as typed local update chains, typed call/return boundaries, or typed loop
+  lowering. Do not restart untyped local inference for quicksort without a v12
+  typechecker-backed proof.
+
+# 2026-05-22 — Bytecode typed i32 compound assignment lane (v12)
+
+- Landed the next explicit typed-lane opcode: `+=` and `-=` against proven
+  `i32` slots now lower to `CompoundAssignSlotI32` when the RHS can already run
+  on the raw `i32` stack. The opcode evaluates the RHS first, then reads the
+  current typed slot inside the VM before applying checked `i32` add/sub and
+  storing the result. Statement-position compounds keep the raw internal slot;
+  non-discarded compounds still box/push the visible expression result.
+- The lowering is deliberately conservative. RHS expressions with assignment
+  side effects stay on the generic compound-assignment path, which preserves the
+  v12 RHS-first rule for cases like `x += (x = 5)`.
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsI32StoreSlotForTypedLocalLiteralArithmetic|LoweringKeepsFinalI32StoreSlotResult|StoreSlotI32DiscardResultStoresRawSlot|LoweringEmitsI32CompoundAssignForTypedSlot|I32CompoundAssignParity|I32CompoundAssignOverflowParity|I32CompoundAssignKeepsRHSFirstFallback|CompoundAssignSlotI32DiscardResultStoresRawSlot|CompoundAssignmentName|CompoundAssignmentPattern)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 3 --timeout 60 --modes bytecode-runtime --run-from /tmp/able-quicksort-prefix-1m --output-json /tmp/able-quicksort-prefix-typed-compound-i32.json v12/examples/benchmarks/quicksort/quicksort.able`
+- Guardrail result: the 1MB external quicksort prefix stayed in the existing
+  band at `1124163735 ns/op`, `77167029 B/op`, and `2130514 allocs/op` over
+  `3/3`. The benchmark source primarily uses `x = x + 1` rather than compound
+  `+=`, so this is a semantics/regression guard, not a direct quicksort win.
+- Next: the benchmark-facing typed-lane work should stop at syntax-only
+  compound support and move to v12 typechecker-backed slot-kind propagation for
+  locals declared from typed values, such as `i := lo`, `j := hi`, and other
+  `x = x + rhs` loop updates. Without that proof, do not infer untyped
+  benchmark locals in bytecode lowering.

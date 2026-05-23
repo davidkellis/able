@@ -619,6 +619,13 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		}
 		if ok && n.Operator != ast.AssignmentDeclare && n.Operator != ast.AssignmentAssign {
 			if _, isCompound := binaryOpForAssignment(n.Operator); isCompound {
+				if ctx.frameLayout != nil && bytecodeCanEmitRawI32CompoundAssign(n.Operator) && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
+					if slot, found := ctx.lookupSlot(name); found && ctx.slotKind(slot) == bytecodeCellKindI32 {
+						bytecodeEmitRawI32StackExpr(ctx, n.Right)
+						ctx.emit(bytecodeInstruction{op: bytecodeOpCompoundAssignSlotI32, target: slot, name: name, operator: string(n.Operator), node: n, discardResult: ctx.discardExpressionValue && ctx.discardExpressionNode == n})
+						return nil
+					}
+				}
 				if err := emitExpression(ctx, i, n.Right); err != nil {
 					return err
 				}
@@ -679,13 +686,13 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			if n.Operator == ast.AssignmentDeclare && hasTypedStore && bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation) == bytecodeCellKindI32 && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
 				bytecodeEmitRawI32StackExpr(ctx, n.Right)
 				slot := ctx.declareSlotWithKind(name, bytecodeCellKindI32)
-				ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: slot, name: name, node: n})
+				ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: slot, name: name, node: n, discardResult: ctx.discardExpressionValue && ctx.discardExpressionNode == n})
 				return nil
 			}
 			if n.Operator == ast.AssignmentAssign {
 				if slot, found := ctx.lookupSlot(name); found && ctx.slotKind(slot) == bytecodeCellKindI32 && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
 					bytecodeEmitRawI32StackExpr(ctx, n.Right)
-					ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: slot, name: name, node: n})
+					ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: slot, name: name, node: n, discardResult: ctx.discardExpressionValue && ctx.discardExpressionNode == n})
 					return nil
 				}
 			}

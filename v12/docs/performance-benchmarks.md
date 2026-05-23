@@ -4062,3 +4062,36 @@ spot-check landed at `1120617924 ns/op`, `77167056 B/op`, and
 `2130515 allocs/op`. Future quicksort work should stop one-off canonical
 read-slot proof helper rewrites and move to the v12-safe typed/native-bytecode
 lane or a real typed opcode/register-frame design.
+
+The next kept typed-lane slice stayed deliberately away from untyped quicksort
+inference. Explicit typed `i32` declarations and assignments that already lower
+through `StoreSlotI32` now mark statement-position stores as discarded, letting
+the VM keep the raw `bytecodeRawI32SlotValue` in the typed slot instead of
+boxing and pushing an assignment value that will be popped immediately.
+Non-discarded assignment expressions still box/push, and generic visible loads
+still materialize the raw slot value at the boundary.
+
+The 1MB external quicksort prefix is mostly untyped, so it is only a regression
+guard for this infrastructure slice. It stayed clean at `1074942410 ns/op`,
+`77167024 B/op`, and `2130512 allocs/op` over `3/3`. The next typed-lane
+performance tranche should carry explicit raw `i32` values across a larger
+end-to-end boundary, such as typed local update chains, typed call/return
+boundaries, or typed loop lowering; do not restart untyped quicksort-local
+inference without a v12 typechecker-backed proof.
+
+The follow-up kept typed-lane slice added that same raw treatment to explicit
+typed `i32` compound updates. `+=` and `-=` against a proven `i32` slot now
+lower to a dedicated `CompoundAssignSlotI32` opcode when the RHS can already run
+on the raw `i32` stack. The opcode still honors v12 compound-assignment order:
+the RHS is evaluated first, and only then does the VM read the current slot and
+apply checked `i32` add/sub. RHS expressions with assignment side effects fall
+back to the generic compound path.
+
+The 1MB external quicksort prefix stayed neutral at `1124163735 ns/op`,
+`77167029 B/op`, and `2130514 allocs/op` over `3/3`, which is expected because
+the current quicksort source uses `x = x + 1` updates rather than compound
+`+=`. The next benchmark-facing typed-lane tranche should therefore move to
+v12 typechecker-backed slot-kind propagation for locals declared from typed
+values, such as `i := lo`, `j := hi`, typed `len()` results, and benchmark
+`x = x + rhs` loop updates. Do not restart untyped local inference in bytecode
+lowering without that proof.

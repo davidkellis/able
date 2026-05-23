@@ -20,6 +20,15 @@ func bytecodeCanEmitRawI32StackExpr(expr ast.Expression) bool {
 	return bytecodeCanEmitRawI32StackExprWithSlots(nil, expr)
 }
 
+func bytecodeCanEmitRawI32CompoundAssign(op ast.AssignmentOperator) bool {
+	switch op {
+	case ast.AssignmentAdd, ast.AssignmentSub:
+		return true
+	default:
+		return false
+	}
+}
+
 func bytecodeCanEmitRawI32StackExprWithSlots(ctx *bytecodeLoweringContext, expr ast.Expression) bool {
 	switch n := expr.(type) {
 	case *ast.IntegerLiteral:

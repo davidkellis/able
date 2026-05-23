@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
 
@@ -99,6 +100,72 @@ func (vm *bytecodeVM) execStoreSlotI32(instr *bytecodeInstruction) error {
 	raw, err := vm.popI32()
 	if err != nil {
 		return err
+	}
+	if instr.discardResult {
+		vm.slots[instr.target] = bytecodeRawI32SlotValue(raw)
+		if instr.target == 0 {
+			vm.setSelfFastSlot0I32Raw(raw)
+		}
+		vm.ip++
+		return nil
+	}
+	value := bytecodeBoxedIntegerI32Value(int64(raw))
+	vm.slots[instr.target] = value
+	if instr.target == 0 {
+		vm.setSelfFastSlot0I32Raw(raw)
+	}
+	vm.stack = append(vm.stack, value)
+	vm.ip++
+	return nil
+}
+
+func (vm *bytecodeVM) execCompoundAssignSlotI32(instr *bytecodeInstruction) error {
+	if instr == nil {
+		return fmt.Errorf("bytecode i32 compound assignment missing instruction")
+	}
+	if instr.target < 0 || instr.target >= len(vm.slots) {
+		return fmt.Errorf("bytecode slot out of range")
+	}
+	right, err := vm.popI32()
+	if err != nil {
+		return err
+	}
+	left, ok := bytecodeRawI32Value(vm.slots[instr.target])
+	if !ok {
+		return fmt.Errorf("bytecode i32 compound assignment expected i32 slot value")
+	}
+	assignmentOp := ast.AssignmentOperator(instr.operator)
+	binaryOp, isCompound := binaryOpForAssignment(assignmentOp)
+	if !isCompound {
+		return fmt.Errorf("unsupported assignment operator %s", assignmentOp)
+	}
+	var result int64
+	switch binaryOp {
+	case "+":
+		result = int64(left) + int64(right)
+	case "-":
+		result = int64(left) - int64(right)
+	default:
+		return fmt.Errorf("bytecode i32 compound assignment unsupported operator %q", binaryOp)
+	}
+	if result < math.MinInt32 || result > math.MaxInt32 {
+		err := newOverflowError("integer overflow")
+		if vm.interp != nil {
+			err = vm.interp.wrapStandardRuntimeError(err)
+			if instr.node != nil {
+				return vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+			}
+		}
+		return err
+	}
+	raw := int32(result)
+	if instr.discardResult {
+		vm.slots[instr.target] = bytecodeRawI32SlotValue(raw)
+		if instr.target == 0 {
+			vm.setSelfFastSlot0I32Raw(raw)
+		}
+		vm.ip++
+		return nil
 	}
 	value := bytecodeBoxedIntegerI32Value(int64(raw))
 	vm.slots[instr.target] = value
