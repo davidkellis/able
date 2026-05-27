@@ -17389,3 +17389,181 @@
   locals declared from typed values, such as `i := lo`, `j := hi`, and other
   `x = x + rhs` loop updates. Without that proof, do not infer untyped
   benchmark locals in bytecode lowering.
+
+# 2026-05-26 — Rejected bytecode quicksort propagated i32 local slots (v12)
+
+- Experiment: propagated unannotated local slots to `i32` when their initializer
+  was already proven by an existing `i32` slot or an explicit `i32` literal.
+  This targeted quicksort shapes like `i := lo`, `j := hi`, and the following
+  `i = i + 1` / `j = j - 1` loop updates without inferring plain untyped
+  literals such as `x := 1`.
+- Result: reverted. Focused typed-slot and quicksort parity stayed green, but
+  the 1MB external quicksort prefix regressed sharply to `1472282588 ns/op`,
+  `77921013 B/op`, and `2319143 allocs/op` over `3/3`.
+- Restored verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsI32StoreSlotForTypedLocalLiteralArithmetic|LoweringKeepsFinalI32StoreSlotResult|StoreSlotI32DiscardResultStoresRawSlot|LoweringEmitsI32CompoundAssignForTypedSlot|I32CompoundAssignParity|I32CompoundAssignOverflowParity|I32CompoundAssignKeepsRHSFirstFallback|CompoundAssignSlotI32DiscardResultStoresRawSlot)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - restored 1MB quicksort prefix: `1102503186 ns/op`, `77166880 B/op`, and
+    `2130506 allocs/op`
+- Next: do not propagate hot benchmark locals onto the current raw
+  `runtime.Value` slot representation. The next typed-lane tranche needs real
+  sidecar/register storage for raw `i32` slots, with materialization only at
+  generic loads, calls, returns, and member/index boundaries; once that storage
+  exists, re-test `i := lo` / `j := hi` propagation.
+
+# 2026-05-26 — Rejected bytecode active-frame i32 sidecar retry (v12)
+
+- Experiment: retried a narrower VM active-frame `i32` sidecar for explicitly
+  typed raw slots. `StoreSlotI32` / `CompoundAssignSlotI32` kept discarded raw
+  values outside `runtime.Value` slots, generic loads materialized through the
+  sidecar, and inline call frames saved/restored the sidecar state. Slot-const,
+  branch, array-index, and f64 kernel readers were adjusted to see sidecar raw
+  values where needed.
+- Result: reverted. Focused typed-slot, recursive self-fast, f64, and quicksort
+  parity stayed green, and reduced `Fib30Bytecode` stayed in range at
+  `160.39ms/op`, `162.00ms/op`, and `160.20ms/op`, but the 1MB external
+  quicksort prefix repeated the old sidecar failure shape:
+  `1126267158 ns/op`, `84192925 B/op`, and `3293537 allocs/op` over `3/3`.
+  The allocation count regression is too large to keep as infrastructure.
+- Restored verification:
+  - focused typed-slot/quicksort parity slice in `./pkg/interpreter`
+  - restored 1MB quicksort prefix spot-check: `1009100674 ns/op`,
+    `77172744 B/op`, and `2130528 allocs/op`
+- Next: do not keep adding sidecar state to the current dynamic
+  `runtime.Value` frame model. The next quicksort typed-lane attempt should be
+  a real typed opcode/register-frame design with no per-frame sidecar
+  allocation/materialization churn, or the work should pivot back to canonical
+  array/member dispatch based on a fresh external-scale profile.
+
+# 2026-05-26 — Bytecode quicksort trailing block-result discard (v12)
+
+- Landed a bounded control-flow lowering cleanup for statement-position blocks.
+  When the final instruction in an `if` / `elsif` / `else`, `loop`, `while`, or
+  `for` body is a store opcode that already supports `discardResult`, lowering
+  now marks that store as discarded and omits the immediately following `Pop`.
+  This targets hot quicksort loop bodies such as `i = i + 1` / `j = j - 1`
+  without changing expression-position `if` semantics or unsupported stores.
+- Tests:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringDiscards(StatementSlotConstSelfAssignmentResult|LoopTrailingSlotConstAssignmentResult|WhileTrailingSlotConstAssignmentResult|ForTrailingSlotConstAssignmentResult|IfStatementTrailingSlotConstAssignmentResult)|SlotConstSelfAssignmentParity|StoreSlotBinaryIntSlotConst(DiscardResultFastPath|FastPath|MultiplyFastPath|ModuloFastPath|SubtractFastPath)|LoweringKeepsSlotMulConstAddLoadForMutatingAddend)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+- Benchmarks:
+  - local in-tree quicksort runtime guard:
+    `5.303891ms/op`, `5.422678ms/op`, `6.166849ms/op`
+  - 1MB external quicksort prefix over `3/3`:
+    `971146975 ns/op`, `45216701 B/op`, `3779418 allocs/op`
+  - profiled 1MB prefix:
+    `906273990 ns/op`, `45244848 B/op`, `3779485 allocs/op`
+- Profile: the old trailing assignment-result box/push/pop path is gone for
+  the optimized block endings. The tradeoff is explicit: `B/op` dropped
+  materially versus the restored `77MB/op` band, but allocation count rose
+  because more discarded updates now store `bytecodeRawI32SlotValue` sentinels
+  into `runtime.Value` interfaces. `storeSlotBinaryIntSlotConstI32FastResult`
+  is the next allocation-object leader.
+- Next: target raw-slot allocation removal with a real typed opcode/register
+  frame design, or pick a fresh canonical array/member-dispatch profile edge.
+  Do not broaden interface-sentinel writes or revive active-frame sidecar
+  retrofits.
+
+# 2026-05-26 — Rejected bytecode quicksort boxed discard-slot stores (v12)
+
+- Experiment: changed discarded `StoreSlotBinaryIntSlotConst` i32 updates to
+  store the boxed cached i32 result instead of the internal
+  `bytecodeRawI32SlotValue` sentinel. This tested whether reducing interface
+  sentinel allocations would improve the 1MB external quicksort prefix.
+- Result: reverted. Focused arithmetic/slot-const/quicksort parity stayed
+  green, and allocation count fell, but wall time and allocated bytes regressed
+  sharply to `1222827886 ns/op`, `75424064 B/op`, and `1694770 allocs/op`
+  over `3/3`.
+- Restored verification:
+  - focused arithmetic/slot-const/quicksort parity slice in `./pkg/interpreter`
+  - restored 1MB quicksort prefix spot-check: `1002372929 ns/op`,
+    `45216648 B/op`, and `3779422 allocs/op`
+- Next: keep the raw sentinel for discarded slot-const stores until a real
+  typed opcode/register-frame design can keep raw i32 writes out of
+  `runtime.Value` slots altogether.
+
+# 2026-05-26 — Bytecode quicksort guarded read_slot/write_slot swap fusion (v12)
+
+- Landed a general guarded fusion for canonical Array slot swaps written as
+  `tmp := arr.read_slot(a); arr.write_slot(a, arr.read_slot(b));
+  arr.write_slot(b, tmp)`. Slot-backed receiver/index shapes now lower to a
+  dedicated `ArraySlotSwapSlot` opcode. At runtime the VM proves both kernel
+  `read_slot` and `write_slot` through the existing env/global/method-version
+  cache discipline before using direct array storage; failed proofs fall back
+  to ordinary member calls.
+- The opcode preserves `write_slot` semantics rather than bracket-index
+  assignment semantics: the fused operation returns `void`, keeps sparse/grow
+  behavior, and synchronizes tracked array aliases through the same write path
+  as canonical `write_slot`.
+- Tests:
+  - focused array swap / array-slot cache / quicksort parity slice in
+    `./pkg/interpreter`
+  - full `go test ./pkg/interpreter -count=1 -timeout 300s`
+- Benchmarks:
+  - rejected boxed-discard experiment: `1222827886 ns/op`, `75424064 B/op`,
+    `1694770 allocs/op`
+  - restored prefix spot-check before swap fusion: `1002372929 ns/op`,
+    `45216648 B/op`, `3779422 allocs/op`
+  - kept 1MB external quicksort prefix over `3/3`: `876341839 ns/op`,
+    `45216184 B/op`, `3779409 allocs/op`
+  - profiled kept prefix: `866065855 ns/op`, `45244304 B/op`,
+    `3779475 allocs/op`
+- Full external `../benchmarks` quicksort bytecode still timed out at `90s`.
+  The trace confirms the helper body no longer emits separate hot
+  `read_slot`/`write_slot` entries, but the `swap(arr, i, j)` call itself
+  remains a `437200`-hit inline `call_name` edge.
+- Next: target call-site-level swap elimination or a broader tiny-function
+  inlining/quickening plan under normal `CallName` cache guards. Do not add a
+  nominal `Array.swap` special case or revive the unsafe whole-loop quicksort
+  kernel.
+
+# 2026-05-26 — Rejected bytecode quicksort swap call-site micro-quickening (v12)
+
+- Experiment 1: detected cached named functions whose bytecode body was exactly
+  `ArraySlotSwapSlot; Return`, then executed that tiny body directly from a
+  cached `CallName` site. For slot-arg calls this skipped argument stack pushes
+  and call-frame setup on cached hits while retaining the existing
+  env/owner-version call-name cache and canonical Array method proof cache.
+- Result: reverted. Focused call-name/swap/cache/quicksort parity stayed
+  green, but the 1MB external quicksort prefix regressed to
+  `914586515 ns/op`, `45213875 B/op`, and `3779403 allocs/op` over `3/3`,
+  worse than the kept guarded slot-swap band of `876341839 ns/op`.
+- Experiment 2: added a smaller direct tracked-array small-index path inside
+  `ArraySlotSwapSlot` to avoid two read helpers and two write helpers when both
+  indexes were in-bounds on a tracked Array.
+- Result: reverted. Focused parity stayed green, but the 1MB prefix regressed
+  further to `983497967 ns/op`, `45216232 B/op`, and `3779416 allocs/op`.
+- Restored verification:
+  - focused call-name/swap/cache/quicksort parity slice in `./pkg/interpreter`
+  - restored prefix spot-check: `914221901 ns/op`, `45216152 B/op`, and
+    `3779408 allocs/op`
+- Next: stop spending quicksort tranches on swap-body/call-site micro paths.
+  The next tranche should start with a fresh profile of the current kept state
+  and choose a non-swap edge, most likely raw i32 register-frame design or the
+  parser/byte-array lane; do not retry direct tiny-body `CallName` swap
+  quickening or tracked-swap helper rewrites.
+
+# 2026-05-26 — Bytecode quicksort raw i32 sentinel cache (v12)
+
+- Landed a bounded allocation-side cache for common
+  `bytecodeRawI32SlotValue` sentinels. Discarded slot-const updates and the
+  affine parser update path now store pre-boxed `runtime.Value` interface
+  sentinels for raw i32 values in the `-1024..262143` range, avoiding many
+  per-write interface boxes while preserving the same internal raw sentinel
+  semantics and visible materialization behavior.
+- The first cache range (`-1024..131071`) moved the 1MB external quicksort
+  prefix to `826684825 ns/op`, `35829405 B/op`, and `1432739 allocs/op` over
+  `3/3`, with a profiled confirmation at `819242291 ns/op`, `35857440 B/op`,
+  and `1432805 allocs/op`.
+- Doubling the positive range to `262143` kept wall time in range while
+  improving allocations again: `829529632 ns/op`, `35244595 B/op`, and
+  `1286523 allocs/op` over `3/3`, with a profiled confirmation at
+  `782730382 ns/op`, `35272736 B/op`, and `1286588 allocs/op`.
+- Full external `../benchmarks` quicksort bytecode still timed out at `90s`.
+- Tests:
+  - focused raw-cache / slot-store / affine / quicksort parity slice in
+    `./pkg/interpreter`
+  - `go test ./pkg/interpreter -count=1 -timeout 300s` passed in `46.275s`
+- Next: do not keep tuning this cache without a fresh reason; the remaining
+  quicksort wall is now in compare/cast/proof-control flow and residual
+  uncached raw/affine allocations. The next tranche should start from a fresh
+  profile and choose between a real raw i32 register-frame design and the
+  parser/byte-array lane.

@@ -134,6 +134,200 @@ func TestBytecodeVM_LoweringDiscardsStatementSlotConstSelfAssignmentResult(t *te
 	}
 }
 
+func TestBytecodeVM_LoweringDiscardsLoopTrailingSlotConstAssignmentResult(t *testing.T) {
+	def := ast.Fn(
+		"f",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("i"), ast.Int(0)),
+			ast.Loop(
+				ast.Iff(ast.Bin(">=", ast.ID("i"), ast.Int(3)), ast.Brk(nil, nil)),
+				ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("+", ast.ID("i"), ast.Int(1))),
+			),
+			ast.ID("i"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	var sawDiscardStore bool
+	for idx, instr := range program.instructions {
+		if instr.op != bytecodeOpStoreSlotBinaryIntSlotConst {
+			continue
+		}
+		sawDiscardStore = true
+		if !instr.discardResult {
+			t.Fatalf("expected loop trailing fused self-assignment to discard result")
+		}
+		if idx+1 < len(program.instructions) && program.instructions[idx+1].op == bytecodeOpPop {
+			t.Fatalf("expected loop trailing fused self-assignment to skip following Pop")
+		}
+	}
+	if !sawDiscardStore {
+		t.Fatalf("expected fused loop slot-const self-assignment")
+	}
+
+	module := ast.Mod([]ast.Statement{def, ast.Call("f")}, nil, nil)
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode loop trailing slot-const assignment mismatch: got=%#v want=%#v", got, want)
+	}
+	assertIntValue(t, got, runtime.IntegerI32, 3)
+}
+
+func TestBytecodeVM_LoweringDiscardsWhileTrailingSlotConstAssignmentResult(t *testing.T) {
+	def := ast.Fn(
+		"f",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("i"), ast.Int(0)),
+			ast.Wloop(
+				ast.Bin("<", ast.ID("i"), ast.Int(3)),
+				ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("+", ast.ID("i"), ast.Int(1))),
+			),
+			ast.ID("i"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	var sawDiscardStore bool
+	for idx, instr := range program.instructions {
+		if instr.op != bytecodeOpStoreSlotBinaryIntSlotConst {
+			continue
+		}
+		sawDiscardStore = true
+		if !instr.discardResult {
+			t.Fatalf("expected while trailing fused self-assignment to discard result")
+		}
+		if idx+1 < len(program.instructions) && program.instructions[idx+1].op == bytecodeOpPop {
+			t.Fatalf("expected while trailing fused self-assignment to skip following Pop")
+		}
+	}
+	if !sawDiscardStore {
+		t.Fatalf("expected fused while slot-const self-assignment")
+	}
+
+	module := ast.Mod([]ast.Statement{def, ast.Call("f")}, nil, nil)
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode while trailing slot-const assignment mismatch: got=%#v want=%#v", got, want)
+	}
+	assertIntValue(t, got, runtime.IntegerI32, 3)
+}
+
+func TestBytecodeVM_LoweringDiscardsForTrailingSlotConstAssignmentResult(t *testing.T) {
+	def := ast.Fn(
+		"f",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("i"), ast.Int(0)),
+			ast.ForIn(
+				"item",
+				ast.Arr(ast.Int(1), ast.Int(2), ast.Int(3)),
+				ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("+", ast.ID("i"), ast.Int(1))),
+			),
+			ast.ID("i"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	var sawDiscardStore bool
+	for idx, instr := range program.instructions {
+		if instr.op != bytecodeOpStoreSlotBinaryIntSlotConst {
+			continue
+		}
+		sawDiscardStore = true
+		if !instr.discardResult {
+			t.Fatalf("expected for trailing fused self-assignment to discard result")
+		}
+		if idx+1 < len(program.instructions) && program.instructions[idx+1].op == bytecodeOpPop {
+			t.Fatalf("expected for trailing fused self-assignment to skip following Pop")
+		}
+	}
+	if !sawDiscardStore {
+		t.Fatalf("expected fused for slot-const self-assignment")
+	}
+
+	module := ast.Mod([]ast.Statement{def, ast.Call("f")}, nil, nil)
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode for trailing slot-const assignment mismatch: got=%#v want=%#v", got, want)
+	}
+	assertIntValue(t, got, runtime.IntegerI32, 3)
+}
+
+func TestBytecodeVM_LoweringDiscardsIfStatementTrailingSlotConstAssignmentResult(t *testing.T) {
+	def := ast.Fn(
+		"f",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("i"), ast.Int(0)),
+			ast.Iff(ast.Bool(true), ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("+", ast.ID("i"), ast.Int(1)))),
+			ast.ID("i"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	var sawDiscardStore bool
+	for idx, instr := range program.instructions {
+		if instr.op != bytecodeOpStoreSlotBinaryIntSlotConst {
+			continue
+		}
+		sawDiscardStore = true
+		if !instr.discardResult {
+			t.Fatalf("expected if-statement trailing fused self-assignment to discard result")
+		}
+		if idx+1 < len(program.instructions) && program.instructions[idx+1].op == bytecodeOpPop {
+			t.Fatalf("expected if-statement trailing fused self-assignment to skip following Pop")
+		}
+	}
+	if !sawDiscardStore {
+		t.Fatalf("expected fused if-statement slot-const self-assignment")
+	}
+
+	module := ast.Mod([]ast.Statement{def, ast.Call("f")}, nil, nil)
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode if-statement trailing slot-const assignment mismatch: got=%#v want=%#v", got, want)
+	}
+	assertIntValue(t, got, runtime.IntegerI32, 1)
+}
+
 func TestBytecodeVM_LoweringKeepsNestedSlotConstAssignmentResult(t *testing.T) {
 	inner := ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("+", ast.ID("i"), ast.Int(2)))
 	def := ast.Fn(

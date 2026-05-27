@@ -19,6 +19,7 @@ const (
 	bytecodeMemberMethodFastPathArrayPush
 	bytecodeMemberMethodFastPathArrayReadSlot
 	bytecodeMemberMethodFastPathArrayWriteSlot
+	bytecodeMemberMethodFastPathArrayReadWriteSlot
 	bytecodeMemberMethodFastPathStringLenBytes
 	bytecodeMemberMethodFastPathStringContains
 	bytecodeMemberMethodFastPathStringReplace

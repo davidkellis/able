@@ -48,6 +48,46 @@ func TestBytecodeVM_LoweringEmitsArrayIndexSwapSlotOpcode(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_LoweringEmitsArraySlotSwapSlotOpcode(t *testing.T) {
+	def := ast.Fn(
+		"swap",
+		[]*ast.FunctionParameter{
+			ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+			ast.Param("a", ast.Ty("i32")),
+			ast.Param("b", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.Assign(ast.ID("tmp"), ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.ID("a"))),
+			ast.CallExpr(ast.Member(ast.ID("arr"), "write_slot"), ast.ID("a"), ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.ID("b"))),
+			ast.CallExpr(ast.Member(ast.ID("arr"), "write_slot"), ast.ID("b"), ast.ID("tmp")),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	program, err := NewBytecode().lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	sawSwap := false
+	for _, instr := range program.instructions {
+		switch instr.op {
+		case bytecodeOpArraySlotSwapSlot:
+			sawSwap = true
+			if instr.argCount != 0 || instr.loopBreak != 1 || instr.loopContinue != 2 {
+				t.Fatalf("slot swap slots = receiver %d first %d second %d, want 0/1/2", instr.argCount, instr.loopBreak, instr.loopContinue)
+			}
+		case bytecodeOpCallMemberArraySlot:
+			t.Fatalf("read_slot/write_slot swap pattern should avoid standalone array-slot call opcode")
+		}
+	}
+	if !sawSwap {
+		t.Fatalf("expected lowering to emit array slot swap opcode")
+	}
+}
+
 func TestBytecodeVM_ArrayIndexSwapSlotFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
@@ -80,6 +120,51 @@ func TestBytecodeVM_ArrayIndexSwapSlotFastPath(t *testing.T) {
 	}
 	if got := vm.stack[0].(runtime.IntegerValue).Int64Fast(); got != 1 {
 		t.Fatalf("swap result = %d, want original first value 1", got)
+	}
+	state, err := interp.ensureArrayState(arr, 0)
+	if err != nil {
+		t.Fatalf("ensure array state after swap: %v", err)
+	}
+	if got := state.Values[0].(runtime.IntegerValue).Int64Fast(); got != 3 {
+		t.Fatalf("slot 0 after swap = %d, want 3", got)
+	}
+	if got := state.Values[2].(runtime.IntegerValue).Int64Fast(); got != 1 {
+		t.Fatalf("slot 2 after swap = %d, want 1", got)
+	}
+}
+
+func TestBytecodeVM_ArraySlotSwapSlotFastPathReturnsVoid(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+		runtime.NewSmallInt(2, runtime.IntegerI32),
+		runtime.NewSmallInt(3, runtime.IntegerI32),
+	}, 3)
+	if _, err := interp.ensureArrayState(arr, 0); err != nil {
+		t.Fatalf("ensure array state: %v", err)
+	}
+	vm.slots = []runtime.Value{
+		arr,
+		runtime.NewSmallInt(0, runtime.IntegerI32),
+		runtime.NewSmallInt(2, runtime.IntegerI32),
+	}
+	program := &bytecodeProgram{instructions: []bytecodeInstruction{{
+		op:           bytecodeOpArraySlotSwapSlot,
+		argCount:     0,
+		loopBreak:    1,
+		loopContinue: 2,
+	}}}
+	vm.storeCachedCanonicalArraySlotCallForArray(program, 0, arr, bytecodeMemberMethodFastPathArrayReadWriteSlot)
+
+	if err := vm.execArraySlotSwapSlot(&program.instructions[0], program); err != nil {
+		t.Fatalf("array slot swap opcode failed: %v", err)
+	}
+	if vm.ip != 1 {
+		t.Fatalf("array slot swap opcode ip = %d, want 1", vm.ip)
+	}
+	if _, ok := vm.stack[0].(runtime.VoidValue); !ok {
+		t.Fatalf("slot swap result = %#v, want void", vm.stack[0])
 	}
 	state, err := interp.ensureArrayState(arr, 0)
 	if err != nil {

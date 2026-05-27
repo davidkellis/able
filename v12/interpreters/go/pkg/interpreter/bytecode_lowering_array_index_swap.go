@@ -111,3 +111,103 @@ func bytecodeArrayIndexSwapSlots(ctx *bytecodeLoweringContext, expr *ast.IndexEx
 	idxSlot, ok := ctx.lookupSlot(idxIdent.Name)
 	return objSlot, idxSlot, ok
 }
+
+func bytecodeArraySlotSwapSlotInstruction(ctx *bytecodeLoweringContext, body []ast.Statement) (bytecodeInstruction, bool) {
+	if ctx == nil || ctx.frameLayout == nil || len(body) != 3 {
+		return bytecodeInstruction{}, false
+	}
+	first, ok := body[0].(*ast.AssignmentExpression)
+	if !ok || first == nil || first.Operator != ast.AssignmentDeclare {
+		return bytecodeInstruction{}, false
+	}
+	temp, ok := first.Left.(*ast.Identifier)
+	if !ok || temp == nil || temp.Name == "" {
+		return bytecodeInstruction{}, false
+	}
+	receiver, firstIndex, ok := bytecodeArraySlotSwapReadCall(first.Right)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	second, ok := body[1].(*ast.FunctionCall)
+	if !ok || second == nil {
+		return bytecodeInstruction{}, false
+	}
+	secondReceiver, secondWriteIndex, secondValue, ok := bytecodeArraySlotSwapWriteCall(second)
+	if !ok || secondReceiver != receiver || secondWriteIndex != firstIndex {
+		return bytecodeInstruction{}, false
+	}
+	secondReadReceiver, secondIndex, ok := bytecodeArraySlotSwapReadCall(secondValue)
+	if !ok || secondReadReceiver != receiver {
+		return bytecodeInstruction{}, false
+	}
+	third, ok := body[2].(*ast.FunctionCall)
+	if !ok || third == nil {
+		return bytecodeInstruction{}, false
+	}
+	thirdReceiver, thirdWriteIndex, thirdValue, ok := bytecodeArraySlotSwapWriteCall(third)
+	if !ok || thirdReceiver != receiver || thirdWriteIndex != secondIndex {
+		return bytecodeInstruction{}, false
+	}
+	resultIdent, ok := thirdValue.(*ast.Identifier)
+	if !ok || resultIdent == nil || resultIdent.Name != temp.Name {
+		return bytecodeInstruction{}, false
+	}
+	receiverSlot, ok := ctx.lookupSlot(receiver)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	firstSlot, ok := ctx.lookupSlot(firstIndex)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	secondSlot, ok := ctx.lookupSlot(secondIndex)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	return bytecodeInstruction{
+		op:           bytecodeOpArraySlotSwapSlot,
+		argCount:     receiverSlot,
+		loopBreak:    firstSlot,
+		loopContinue: secondSlot,
+		node:         third,
+	}, true
+}
+
+func bytecodeArraySlotSwapReadCall(expr ast.Expression) (string, string, bool) {
+	call, ok := expr.(*ast.FunctionCall)
+	if !ok || call == nil || len(call.Arguments) != 1 {
+		return "", "", false
+	}
+	member, ok := call.Callee.(*ast.MemberAccessExpression)
+	if !ok || member == nil || member.Safe || bytecodeIdentifierMemberName(member.Member) != "read_slot" {
+		return "", "", false
+	}
+	receiver, ok := member.Object.(*ast.Identifier)
+	if !ok || receiver == nil || receiver.Name == "" {
+		return "", "", false
+	}
+	index, ok := call.Arguments[0].(*ast.Identifier)
+	if !ok || index == nil || index.Name == "" {
+		return "", "", false
+	}
+	return receiver.Name, index.Name, true
+}
+
+func bytecodeArraySlotSwapWriteCall(call *ast.FunctionCall) (string, string, ast.Expression, bool) {
+	if call == nil || len(call.Arguments) != 2 {
+		return "", "", nil, false
+	}
+	member, ok := call.Callee.(*ast.MemberAccessExpression)
+	if !ok || member == nil || member.Safe || bytecodeIdentifierMemberName(member.Member) != "write_slot" {
+		return "", "", nil, false
+	}
+	receiver, ok := member.Object.(*ast.Identifier)
+	if !ok || receiver == nil || receiver.Name == "" {
+		return "", "", nil, false
+	}
+	index, ok := call.Arguments[0].(*ast.Identifier)
+	if !ok || index == nil || index.Name == "" {
+		return "", "", nil, false
+	}
+	return receiver.Name, index.Name, call.Arguments[1], true
+}

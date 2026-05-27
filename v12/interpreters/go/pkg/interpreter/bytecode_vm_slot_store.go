@@ -187,7 +187,7 @@ func storeSlotBinaryIntSlotConstI32FastResult(operator string, leftVal int64, ri
 		return nil, true, newOverflowError("integer overflow")
 	}
 	if discardResult {
-		return bytecodeRawI32SlotValue(int32(result)), true, nil
+		return bytecodeRawI32SlotCachedValue(int32(result)), true, nil
 	}
 	return bytecodeBoxedIntegerI32Value(result), true, nil
 }

@@ -65,6 +65,7 @@ const (
 	bytecodeOpArrayIndexSetSlot
 	bytecodeOpArrayIndexSwapSlot
 	bytecodeOpArrayReadSlot
+	bytecodeOpArraySlotSwapSlot
 	bytecodeOpForLoop
 	bytecodeOpCall
 	bytecodeOpCallName

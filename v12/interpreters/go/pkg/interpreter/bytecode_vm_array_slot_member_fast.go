@@ -175,6 +175,27 @@ func (vm *bytecodeVM) finishArrayWriteSlotMemberFast(instr bytecodeInstruction, 
 	}
 	indexVal := vm.stack[argBase]
 	value := vm.stack[argBase+1]
+	mode, handled, err := vm.writeArraySlotValueFast(arr, indexVal, value)
+	if err != nil {
+		vm.stack = vm.stack[:receiverIndex]
+		newProg, finishErr := vm.finishCompletedCall(nil, err, callNode, nil)
+		return newProg, true, finishErr
+	}
+	if !handled {
+		return nil, false, nil
+	}
+	if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
+		vm.interp.recordBytecodeCallTrace("call_member", instr.name, "resolved_method", mode, instr.node)
+	}
+	vm.stack = vm.stack[:receiverIndex]
+	newProg, finishErr := vm.finishCompletedCall(runtime.VoidValue{}, nil, callNode, nil)
+	return newProg, true, finishErr
+}
+
+func (vm *bytecodeVM) writeArraySlotValueFast(arr *runtime.ArrayValue, indexVal runtime.Value, value runtime.Value) (string, bool, error) {
+	if vm == nil || arr == nil || vm.interp == nil {
+		return "", false, nil
+	}
 	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
 		if idx, ok := arraySlotIndexSmall(indexVal); ok {
 			switch length := len(state.Values); {
@@ -189,20 +210,15 @@ func (vm *bytecodeVM) finishArrayWriteSlotMemberFast(instr bytecodeInstruction, 
 				state.Values[idx] = value
 				vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
 			}
-			vm.stack = vm.stack[:receiverIndex]
-			vm.stack = append(vm.stack, runtime.VoidValue{})
-			vm.ip++
-			return nil, true, nil
+			return "array_write_slot_tracked_fast", true, nil
 		}
 	}
 	idx, ok, err := bytecodeArraySlotIndexI32(indexVal)
 	if err != nil {
-		vm.stack = vm.stack[:receiverIndex]
-		newProg, finishErr := vm.finishCompletedCall(nil, err, callNode, nil)
-		return newProg, true, finishErr
+		return "", true, err
 	}
 	if !ok {
-		return nil, false, nil
+		return "", false, nil
 	}
 	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
 		switch length := len(state.Values); {
@@ -217,21 +233,14 @@ func (vm *bytecodeVM) finishArrayWriteSlotMemberFast(instr bytecodeInstruction, 
 			state.Values[idx] = value
 			vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
 		}
-		if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
-			vm.interp.recordBytecodeCallTrace("call_member", instr.name, "resolved_method", "array_write_slot_tracked_fast", instr.node)
-		}
-		vm.stack = vm.stack[:receiverIndex]
-		newProg, finishErr := vm.finishCompletedCall(runtime.VoidValue{}, nil, callNode, nil)
-		return newProg, true, finishErr
+		return "array_write_slot_tracked_fast", true, nil
 	}
 	handle, ok, err := vm.arrayHandleFast(arr)
 	if err != nil {
-		vm.stack = vm.stack[:receiverIndex]
-		newProg, finishErr := vm.finishCompletedCall(nil, err, callNode, nil)
-		return newProg, true, finishErr
+		return "", true, err
 	}
 	if !ok {
-		return nil, false, nil
+		return "", false, nil
 	}
 	err = runtime.ArrayStoreWrite(handle, idx, value)
 	if err == nil {
@@ -239,10 +248,5 @@ func (vm *bytecodeVM) finishArrayWriteSlotMemberFast(instr bytecodeInstruction, 
 			vm.interp.syncArrayValues(handle, state)
 		}
 	}
-	if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
-		vm.interp.recordBytecodeCallTrace("call_member", instr.name, "resolved_method", "array_write_slot_fast", instr.node)
-	}
-	vm.stack = vm.stack[:receiverIndex]
-	newProg, finishErr := vm.finishCompletedCall(runtime.VoidValue{}, err, callNode, nil)
-	return newProg, true, finishErr
+	return "array_write_slot_fast", true, err
 }

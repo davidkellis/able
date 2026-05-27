@@ -56,6 +56,7 @@ func bytecodeArraySlotCallFastPathForInstruction(instr bytecodeInstruction) (byt
 func bytecodeMemberMethodFastPathIsArraySlot(kind bytecodeMemberMethodFastPathKind) bool {
 	return kind == bytecodeMemberMethodFastPathArrayReadSlot ||
 		kind == bytecodeMemberMethodFastPathArrayWriteSlot ||
+		kind == bytecodeMemberMethodFastPathArrayReadWriteSlot ||
 		kind == bytecodeMemberMethodFastPathArrayPush
 }
 
@@ -204,6 +205,14 @@ func (vm *bytecodeVM) lookupCachedCanonicalArraySlotCallForArray(program *byteco
 
 func (vm *bytecodeVM) storeCachedCanonicalArraySlotCall(program *bytecodeProgram, ip int, instr bytecodeInstruction, receiver runtime.Value, kind bytecodeMemberMethodFastPathKind) {
 	if program == nil || !vm.canUseCanonicalArraySlotCallCache(instr, receiver, kind) {
+		return
+	}
+	arr, _ := receiver.(*runtime.ArrayValue)
+	vm.storeCachedCanonicalArraySlotCallForArray(program, ip, arr, kind)
+}
+
+func (vm *bytecodeVM) storeCachedCanonicalArraySlotCallForArray(program *bytecodeProgram, ip int, arr *runtime.ArrayValue, kind bytecodeMemberMethodFastPathKind) {
+	if program == nil || !vm.canUseCanonicalArraySlotCallCacheForArray(arr) || !bytecodeMemberMethodFastPathIsArraySlot(kind) {
 		return
 	}
 	envVersion, globalRev, methodVersion := vm.canonicalArraySlotCallVersions(vm.env)

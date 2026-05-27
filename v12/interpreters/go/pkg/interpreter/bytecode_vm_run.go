@@ -595,6 +595,10 @@ func (vm *bytecodeVM) runResumable(program *bytecodeProgram, resume bool) (resul
 				vm.switchRunProgram(&program, &instructions, &validatedIntConsts, &slotConstIntImmTable, newProg)
 				continue
 			}
+		case bytecodeOpArraySlotSwapSlot:
+			if err := vm.execArraySlotSwapSlot(instr, program); err != nil {
+				return nil, err
+			}
 		case bytecodeOpForLoop:
 			{
 				loop, ok := instr.node.(*ast.ForLoop)

@@ -51,7 +51,7 @@ func (vm *bytecodeVM) execStoreSlotIntMulConstAdd(instr *bytecodeInstruction) er
 				}
 				return err
 			}
-			result := bytecodeRawI32SlotValue(raw)
+			result := bytecodeRawI32SlotCachedValue(raw)
 			vm.stack = vm.stack[:baseIdx]
 			vm.slots[instr.target] = result
 			if instr.target == 0 {

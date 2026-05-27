@@ -142,3 +142,21 @@ func TestBytecodeVM_BoxedIntegerI32ValueDynamicCache(t *testing.T) {
 		t.Fatalf("expected zero allocations for cached direct i32 boxed value, got %.2f", allocs)
 	}
 }
+
+func TestBytecodeVM_RawI32SlotCachedValueReusesCommonSentinels(t *testing.T) {
+	first := bytecodeRawI32SlotCachedValue(42)
+	second := bytecodeRawI32SlotCachedValue(42)
+	if first != second {
+		t.Fatalf("expected cached raw i32 sentinel identity to be reused")
+	}
+	if got, ok := first.(bytecodeRawI32SlotValue); !ok || got != 42 {
+		t.Fatalf("cached raw i32 sentinel = %#v, want raw 42", first)
+	}
+
+	uncached := int32(bytecodeRawI32SlotCacheMax + 1)
+	uncachedValue := bytecodeRawI32SlotCachedValue(uncached)
+	got, ok := uncachedValue.(bytecodeRawI32SlotValue)
+	if !ok || got != bytecodeRawI32SlotValue(uncached) {
+		t.Fatalf("uncached raw i32 sentinel = %#v, want raw %d", uncachedValue, uncached)
+	}
+}

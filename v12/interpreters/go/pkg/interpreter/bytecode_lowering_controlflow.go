@@ -52,6 +52,11 @@ func emitBlock(ctx *bytecodeLoweringContext, i *Interpreter, block *ast.BlockExp
 		ctx.exitScope()
 		return nil
 	}
+	if instr, ok := bytecodeArraySlotSwapSlotInstruction(ctx, block.Body); ok {
+		ctx.emit(instr)
+		ctx.exitScope()
+		return nil
+	}
 	for idx := 0; idx < len(block.Body); idx++ {
 		stmt := block.Body[idx]
 		if stmt == nil {
@@ -188,10 +193,13 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 		}
 		jumpToElse = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	}
+	bodyStart := len(ctx.instructions)
 	if err := emitBlock(ctx, i, expr.IfBody); err != nil {
 		return err
 	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	}
 	jumpToEnd := []int{ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1})}
 	ctx.patchJump(jumpToElse, len(ctx.instructions))
 
@@ -216,19 +224,25 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 			}
 			jumpToNext = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 		}
+		bodyStart := len(ctx.instructions)
 		if err := emitBlock(ctx, i, clause.Body); err != nil {
 			return err
 		}
-		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+		if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+		}
 		jumpToEnd = append(jumpToEnd, ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1}))
 		ctx.patchJump(jumpToNext, len(ctx.instructions))
 	}
 
 	if expr.ElseBody != nil {
+		bodyStart := len(ctx.instructions)
 		if err := emitBlock(ctx, i, expr.ElseBody); err != nil {
 			return err
 		}
-		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+		if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+		}
 	}
 
 	end := len(ctx.instructions)
@@ -258,10 +272,13 @@ func emitLoopExpressionCore(ctx *bytecodeLoweringContext, i *Interpreter, loop *
 	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
 	loopStart := len(ctx.instructions)
 	ctx.pushLoop(loopStart)
+	bodyStart := len(ctx.instructions)
 	if err := emitBlock(ctx, i, loop.Body); err != nil {
 		return -1, err
 	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
 	loopExit := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopExit})
 	ctx.popLoop(loopExit)
@@ -303,6 +320,32 @@ func bytecodeFindArrayPushSlotCall(instructions []bytecodeInstruction) int {
 	return -1
 }
 
+func bytecodeDiscardTrailingBlockResult(ctx *bytecodeLoweringContext, start int) bool {
+	if ctx == nil || start < 0 || len(ctx.instructions) <= start {
+		return false
+	}
+	idx := len(ctx.instructions) - 1
+	if ctx.instructions[idx].op == bytecodeOpExitScope {
+		idx--
+	}
+	if idx < start {
+		return false
+	}
+	switch ctx.instructions[idx].op {
+	case bytecodeOpStoreSlotI32,
+		bytecodeOpCompoundAssignSlotI32,
+		bytecodeOpStoreSlotBinaryIntSlotConst,
+		bytecodeOpStoreSlotIntMulConstAdd,
+		bytecodeOpStoreSlotIntMulConstAddFromSlot,
+		bytecodeOpStoreSlotFloatAddMul,
+		bytecodeOpStoreSlotFloatAddMulArrayGet:
+		ctx.instructions[idx].discardResult = true
+		return true
+	default:
+		return false
+	}
+}
+
 func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.WhileLoop) error {
 	if loop == nil {
 		return bytecodeUnsupported("nil while loop")
@@ -322,10 +365,13 @@ func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.While
 		}
 		jumpToNoBreak = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	}
+	bodyStart := len(ctx.instructions)
 	if err := emitBlock(ctx, i, loop.Body); err != nil {
 		return err
 	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	}
 	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
 	noBreak := len(ctx.instructions)
 	ctx.patchJump(jumpToNoBreak, noBreak)
@@ -394,10 +440,13 @@ func emitForLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.ForLoop
 	} else {
 		ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop})
 	}
+	blockStart := len(ctx.instructions)
 	if err := emitBlock(ctx, i, loop.Body); err != nil {
 		return err
 	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	if !bytecodeDiscardTrailingBlockResult(ctx, blockStart) {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+	}
 	ctx.exitScope()
 	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
 

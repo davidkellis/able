@@ -372,6 +372,19 @@ func TestBytecodeVM_CanonicalArraySlotDirectCacheInvalidates(t *testing.T) {
 	if vm.lookupCachedCanonicalArraySlotCallForArray(program, 3, bytecodeMemberMethodFastPathArrayReadSlot) {
 		t.Fatalf("expected method-cache version change to invalidate direct canonical array-slot cache")
 	}
+
+	vm = newBytecodeVM(interp, env)
+	vm.storeCachedCanonicalArraySlotCallForArray(program, 5, arr, bytecodeMemberMethodFastPathArrayReadWriteSlot)
+	vm.arraySlotCallCache = nil
+	vm.arraySlotCallHot = [bytecodeArraySlotCallHotEntries]bytecodeInlineArraySlotCallCacheEntry{}
+	if !vm.lookupCachedCanonicalArraySlotCallForArray(program, 5, bytecodeMemberMethodFastPathArrayReadWriteSlot) {
+		t.Fatalf("expected combined read/write direct canonical array-slot cache hit")
+	}
+
+	env.Define("marker_after_combined", runtime.NewSmallInt(2, runtime.IntegerI32))
+	if vm.lookupCachedCanonicalArraySlotCallForArray(program, 5, bytecodeMemberMethodFastPathArrayReadWriteSlot) {
+		t.Fatalf("expected env revision change to invalidate combined direct canonical array-slot cache")
+	}
 }
 
 func TestBytecodeVM_LoweringEmitsArraySlotCallMemberOpcode(t *testing.T) {
