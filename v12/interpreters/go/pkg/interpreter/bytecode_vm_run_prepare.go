@@ -16,5 +16,6 @@ func (vm *bytecodeVM) prepareRunProgram(program *bytecodeProgram, resume bool) *
 		program = vm.currentProgram
 	}
 	vm.currentProgram = program
+	vm.activateI32RegisterFrame(program)
 	return program
 }

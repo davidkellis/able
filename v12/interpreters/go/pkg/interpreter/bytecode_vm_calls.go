@@ -863,7 +863,7 @@ func (vm *bytecodeVM) pushCallNameSlotArgs(instr bytecodeInstruction) error {
 		if slot < 0 || slot >= len(vm.slots) {
 			return fmt.Errorf("bytecode slot-arg call slot out of range")
 		}
-		vm.stack = append(vm.stack, bytecodeSlotReadValue(vm.slots[slot]))
+		vm.stack = append(vm.stack, vm.slotRuntimeValue(slot))
 	}
 	return nil
 }

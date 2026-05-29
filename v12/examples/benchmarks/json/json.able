@@ -1,0 +1,29 @@
+package json_benchmark
+
+import able.collections.array
+import able.core.interfaces.{Error}
+import able.fs
+import able.json
+import able.kernel.{Array}
+
+fn coordinate_fields() -> Array String {
+  fields: Array String := Array.with_capacity(3)
+  fields.push("x")
+  fields.push("y")
+  fields.push("z")
+  fields
+}
+
+fn means_or_raise(text: String) -> Array f64 {
+  json.f64_field_means(text, "coordinates", coordinate_fields()) match {
+    case means: Array f64 => means,
+    case err: Error => { raise err }
+  }
+}
+
+fn main() {
+  means := means_or_raise(fs.read_text("sample.json"))
+  print(means.get(0)!)
+  print(means.get(1)!)
+  print(means.get(2)!)
+}

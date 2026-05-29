@@ -56,6 +56,7 @@ func bytecodeArrayIndexSwapSlotInstruction(ctx *bytecodeLoweringContext, body []
 		loopBreak:    firstSlot,
 		loopContinue: secondSlot,
 		typeExpr:     castTarget,
+		name:         typeExpressionToString(castTarget),
 		node:         secondAssign,
 	}, true
 }

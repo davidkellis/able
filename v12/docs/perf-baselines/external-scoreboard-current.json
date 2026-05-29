@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T03:15:05Z",
+  "generated_at": "2026-05-28T05:28:20Z",
   "kind": "external-benchmark-scoreboard",
   "external_results_json": "../benchmarks/results.json",
   "external_results_generated_at": "2026-02-27T00:26:22Z",
@@ -9,7 +9,11 @@
     "matrixmultiply",
     "quicksort",
     "sudoku",
-    "i_before_e"
+    "i_before_e",
+    "base64",
+    "json",
+    "monte_carlo_pi",
+    "pidigits"
   ],
   "modes": [
     "compiled",
@@ -21,7 +25,7 @@
     "ruby",
     "python"
   ],
-  "measurement_source": "Kept Able measurements recorded in LOG.md, PLAN.md, and v12/docs/performance-benchmarks.md through 2026-05-07; external references are best successful rows from ../benchmarks/results.json.",
+  "measurement_source": "Kept Able measurements recorded in LOG.md, PLAN.md, and v12/docs/performance-benchmarks.md through 2026-05-28; external references are best successful rows from ../benchmarks/results.json.",
   "rows": [
     {"benchmark":"fib","mode":"compiled","able":{"status":"ok","runs":5,"real_seconds":2.9940,"note":"bounded recursive return-range proof"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.8400,"ratio":1.0542},"ruby":{"implementation":"ruby-4.0","real_seconds":46.6400,"ratio":0.0642},"python":{"implementation":"python-3.14","real_seconds":60.6700,"ratio":0.0493}}},
     {"benchmark":"fib","mode":"bytecode","able":{"status":"ok","runs":3,"real_seconds":3.7633,"note":"native checked i32 recurrence kernel"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.8400,"ratio":1.3251},"ruby":{"implementation":"ruby-4.0","real_seconds":46.6400,"ratio":0.0807},"python":{"implementation":"python-3.14","real_seconds":60.6700,"ratio":0.0620}}},
@@ -40,6 +44,15 @@
     {"benchmark":"sudoku","mode":"treewalker","able":{"status":"ok","runs":null,"real_seconds":6.7100,"note":"latest aligned external snapshot"},"comparisons":{"go":{"implementation":"go-1.22","real_seconds":0.1300,"ratio":51.6154},"ruby":{"implementation":"ruby-4.0","real_seconds":5.6700,"ratio":1.1834},"python":{"implementation":"python-3.14","real_seconds":3.0200,"ratio":2.2219}}},
     {"benchmark":"i_before_e","mode":"compiled","able":{"status":"ok","runs":5,"real_seconds":0.0620,"note":"primitive extern wrappers and static no-fallback launcher"},"comparisons":{"go":{"implementation":"go-1.22","real_seconds":0.0500,"ratio":1.2400},"ruby":{"implementation":"ruby-4.0-jit","real_seconds":0.1000,"ratio":0.6200},"python":{"implementation":"python-3.12","real_seconds":0.1300,"ratio":0.4769}}},
     {"benchmark":"i_before_e","mode":"bytecode","able":{"status":"ok","runs":5,"real_seconds":0.4480,"note":"slot-aware simple match lowering guard rerun"},"comparisons":{"go":{"implementation":"go-1.22","real_seconds":0.0500,"ratio":8.9600},"ruby":{"implementation":"ruby-4.0-jit","real_seconds":0.1000,"ratio":4.4800},"python":{"implementation":"python-3.12","real_seconds":0.1300,"ratio":3.4462}}},
-    {"benchmark":"i_before_e","mode":"treewalker","able":{"status":"ok","runs":null,"real_seconds":3.5400,"note":"latest aligned external snapshot"},"comparisons":{"go":{"implementation":"go-1.22","real_seconds":0.0500,"ratio":70.8000},"ruby":{"implementation":"ruby-4.0-jit","real_seconds":0.1000,"ratio":35.4000},"python":{"implementation":"python-3.12","real_seconds":0.1300,"ratio":27.2308}}}
+    {"benchmark":"i_before_e","mode":"treewalker","able":{"status":"ok","runs":null,"real_seconds":3.5400,"note":"latest aligned external snapshot"},"comparisons":{"go":{"implementation":"go-1.22","real_seconds":0.0500,"ratio":70.8000},"ruby":{"implementation":"ruby-4.0-jit","real_seconds":0.1000,"ratio":35.4000},"python":{"implementation":"python-3.12","real_seconds":0.1300,"ratio":27.2308}}},
+    {"benchmark":"base64","mode":"compiled","able":{"status":"ok","runs":1,"real_seconds":2.8600,"note":"host-backed base64 and MD5 stdlib APIs"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.2000,"ratio":1.3000},"ruby":{"implementation":"ruby-3.3","real_seconds":2.2100,"ratio":1.2941},"python":{"implementation":"python-3.14","real_seconds":3.3100,"ratio":0.8640}}},
+    {"benchmark":"base64","mode":"bytecode","able":{"status":"ok","runs":1,"real_seconds":8.4400,"note":"host-backed base64 and MD5 stdlib APIs"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.2000,"ratio":3.8364},"ruby":{"implementation":"ruby-3.3","real_seconds":2.2100,"ratio":3.8190},"python":{"implementation":"python-3.14","real_seconds":3.3100,"ratio":2.5498}}},
+    {"benchmark":"base64","mode":"treewalker","able":{"status":"ok","runs":1,"real_seconds":26.8400,"note":"host-backed base64 and MD5 stdlib APIs"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":2.2000,"ratio":12.2000},"ruby":{"implementation":"ruby-3.3","real_seconds":2.2100,"ratio":12.1448},"python":{"implementation":"python-3.14","real_seconds":3.3100,"ratio":8.1088}}},
+    {"benchmark":"json","mode":"compiled","able":{"status":"ok","runs":3,"real_seconds":0.6700,"note":"able.json fast numeric projection scanner plus host-backed fs.read_text"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":1.3600,"ratio":0.4926},"ruby":{"implementation":"ruby-4.0","real_seconds":1.5600,"ratio":0.4295},"python":{"implementation":"python-3.12","real_seconds":2.8700,"ratio":0.2334}}},
+    {"benchmark":"json","mode":"bytecode","able":{"status":"ok","runs":3,"real_seconds":0.7233,"note":"able.json fast numeric projection scanner plus host-backed fs.read_text"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":1.3600,"ratio":0.5318},"ruby":{"implementation":"ruby-4.0","real_seconds":1.5600,"ratio":0.4637},"python":{"implementation":"python-3.12","real_seconds":2.8700,"ratio":0.2520}}},
+    {"benchmark":"monte_carlo_pi","mode":"compiled","able":{"status":"ok","runs":3,"real_seconds":0.3233,"note":"deterministic Park-Miller sampling with inline hot-loop recurrence"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":0.1800,"ratio":1.7961},"ruby":{"implementation":"ruby-3.3","real_seconds":1.4200,"ratio":0.2277},"python":{"implementation":"python-3.14","real_seconds":1.6800,"ratio":0.1924}}},
+    {"benchmark":"monte_carlo_pi","mode":"bytecode","able":{"status":"ok","runs":3,"real_seconds":18.7967,"note":"functional but boxed numeric arithmetic remains noncompetitive"},"comparisons":{"go":{"implementation":"go-1.26","real_seconds":0.1800,"ratio":104.4261},"ruby":{"implementation":"ruby-3.3","real_seconds":1.4200,"ratio":13.2371},"python":{"implementation":"python-3.14","real_seconds":1.6800,"ratio":11.1885}}},
+    {"benchmark":"pidigits","mode":"compiled","able":{"status":"ok","runs":3,"real_seconds":1.3367,"note":"host-backed BigIntRef over Go math/big"},"comparisons":{"go":{"implementation":"go-1.26-gmp","real_seconds":0.7400,"ratio":1.8064},"ruby":{"implementation":"ruby-3.3","real_seconds":9.1800,"ratio":0.1456},"python":{"implementation":null,"real_seconds":null,"ratio":null}}},
+    {"benchmark":"pidigits","mode":"bytecode","able":{"status":"ok","runs":3,"real_seconds":2.0300,"note":"host-backed BigIntRef over Go math/big"},"comparisons":{"go":{"implementation":"go-1.26-gmp","real_seconds":0.7400,"ratio":2.7432},"ruby":{"implementation":"ruby-3.3","real_seconds":9.1800,"ratio":0.2211},"python":{"implementation":null,"real_seconds":null,"ratio":null}}}
   ]
 }

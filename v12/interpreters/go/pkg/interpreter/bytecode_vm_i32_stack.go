@@ -81,6 +81,11 @@ func (vm *bytecodeVM) execLoadSlotI32(instr *bytecodeInstruction) error {
 	if instr.target < 0 || instr.target >= len(vm.slots) {
 		return fmt.Errorf("bytecode slot out of range")
 	}
+	if value, ok := vm.i32RegisterRaw(instr.target); ok {
+		vm.pushI32(value)
+		vm.ip++
+		return nil
+	}
 	value, ok := bytecodeRawI32Value(vm.slots[instr.target])
 	if !ok {
 		return fmt.Errorf("bytecode i32 slot load expected i32 value")
@@ -102,7 +107,11 @@ func (vm *bytecodeVM) execStoreSlotI32(instr *bytecodeInstruction) error {
 		return err
 	}
 	if instr.discardResult {
-		vm.slots[instr.target] = bytecodeRawI32SlotValue(raw)
+		if vm.setI32RegisterRaw(instr.target, raw) {
+			vm.slots[instr.target] = nil
+		} else {
+			vm.slots[instr.target] = bytecodeRawI32SlotCachedValue(raw)
+		}
 		if instr.target == 0 {
 			vm.setSelfFastSlot0I32Raw(raw)
 		}
@@ -111,6 +120,7 @@ func (vm *bytecodeVM) execStoreSlotI32(instr *bytecodeInstruction) error {
 	}
 	value := bytecodeBoxedIntegerI32Value(int64(raw))
 	vm.slots[instr.target] = value
+	vm.setI32RegisterRaw(instr.target, raw)
 	if instr.target == 0 {
 		vm.setSelfFastSlot0I32Raw(raw)
 	}
@@ -130,7 +140,10 @@ func (vm *bytecodeVM) execCompoundAssignSlotI32(instr *bytecodeInstruction) erro
 	if err != nil {
 		return err
 	}
-	left, ok := bytecodeRawI32Value(vm.slots[instr.target])
+	left, ok := vm.i32RegisterRaw(instr.target)
+	if !ok {
+		left, ok = bytecodeRawI32Value(vm.slots[instr.target])
+	}
 	if !ok {
 		return fmt.Errorf("bytecode i32 compound assignment expected i32 slot value")
 	}
@@ -160,7 +173,11 @@ func (vm *bytecodeVM) execCompoundAssignSlotI32(instr *bytecodeInstruction) erro
 	}
 	raw := int32(result)
 	if instr.discardResult {
-		vm.slots[instr.target] = bytecodeRawI32SlotValue(raw)
+		if vm.setI32RegisterRaw(instr.target, raw) {
+			vm.slots[instr.target] = nil
+		} else {
+			vm.slots[instr.target] = bytecodeRawI32SlotCachedValue(raw)
+		}
 		if instr.target == 0 {
 			vm.setSelfFastSlot0I32Raw(raw)
 		}
@@ -169,6 +186,7 @@ func (vm *bytecodeVM) execCompoundAssignSlotI32(instr *bytecodeInstruction) erro
 	}
 	value := bytecodeBoxedIntegerI32Value(int64(raw))
 	vm.slots[instr.target] = value
+	vm.setI32RegisterRaw(instr.target, raw)
 	if instr.target == 0 {
 		vm.setSelfFastSlot0I32Raw(raw)
 	}

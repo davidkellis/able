@@ -1,5 +1,32 @@
 # Able Project Log
 
+# 2026-05-28 — Bytecode leaf i32 register-frame seed (v12)
+- Landed the first conservative VM-v2 raw `i32` register-frame slice. Slot
+  analysis now enables an `i32` register frame only for slot-eligible leaf
+  functions whose bodies stay inside local primitive arithmetic/control-flow:
+  no call, member, index, async, propagation, match, rescue, or untyped `:=`
+  boundary.
+- VM behavior: discarded `StoreSlotI32` / `CompoundAssignSlotI32` writes store
+  raw values in a pooled `[]int32` register frame instead of writing raw
+  sentinels into `[]runtime.Value`. `LoadSlotI32`, fused slot compares,
+  slot-const checks, and generic `LoadSlot` materialize through the register
+  lane only when one is active; the old direct slot path remains the fast path
+  for ordinary bytecode programs.
+- Semantics: generic slot loads still box at the v12 boundary, generic stores
+  keep the register lane synchronized when active, and RHS-first compound
+  assignment behavior is pinned by the existing fallback test.
+- Tests:
+  - `cd v12/interpreters/go && GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(I32RegisterFrameStoresDiscardedSlotOffValueFrame|I32RegisterFrameLoopParity|StoreSlotI32DiscardResultStoresRawSlot|I32CompoundAssignParity|I32CompoundAssignOverflowParity|I32CompoundAssignKeepsRHSFirstFallback|CompoundAssignSlotI32DiscardResultStoresRawSlot|LoweringEmitsI32(StoreSlotForTypedLocalLiteralArithmetic|SlotStackOpsForFinalParamArithmetic|StackOpsForFinalLiteralArithmetic)|I32(StackLiteralArithmeticParity|SlotStackParamArithmeticParity|StackLiteralArithmeticOverflowParity|SlotStackParamArithmeticOverflowParity)|JumpIfIntCompareSlotFalseFastPath|ConditionalJumpForIntLessEqualSlotConstIf|StoreSlotBinaryIntSlotConstRawImmediateFastPath|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|ReleaseCompletedRunFramesReleasesActiveSlots)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 180s`
+  - `cd v12/interpreters/go && env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+- Benchmark guard: reduced in-tree quicksort is neutral/noisy, as expected for
+  this leaf-only lane: `4.78ms/op`, `4.60ms/op`, `4.67ms/op`, then a wider
+  confirmation of `4.91ms/op`, `5.10ms/op`, `4.85ms/op`, `4.74ms/op`, and
+  `4.70ms/op`. A separate three-run guard had one `6.47ms/op` outlier.
+- Next: extend typed registers across inline call frames with explicit
+  save/restore and materialization boundaries, then revisit quicksort's typed
+  `i`, `j`, and parser counters. Do not revive active-frame sidecars or add
+  untyped-local inference without a real data-flow proof.
+
 # 2026-05-19 — Rejected quicksort array-slot direct-cache expansion (v12)
 - Tested a narrow canonical array/member-call probe: raise
   `bytecodeArraySlotCallDirectEntries` from `16` to `64` so hot `read_slot`,
@@ -17567,3 +17594,353 @@
   uncached raw/affine allocations. The next tranche should start from a fresh
   profile and choose between a real raw i32 register-frame design and the
   parser/byte-array lane.
+
+# 2026-05-27 — Bytecode quicksort small integer literal constants (v12)
+
+- Landed a general bytecode literal representation cleanup: integer literals
+  that fit in `int64` now lower to small `runtime.IntegerValue` constants
+  instead of big-backed `runtime.NewBigIntValue(...)` constants. Larger
+  literals stay big-backed, and typed out-of-range literals still validate
+  lazily only when their `Const` instruction executes.
+- Quicksort impact: parser arithmetic such as
+  `value = value * 10 + ((byte as i32) - 48)` now keeps the `48` addend on the
+  small-int path, so discarded affine parser updates can stay on
+  `bytecodeIntMulConstAddI32RawFast(...)` instead of allocating through
+  `storeSlotIntMulConstAddResult(...)` and generic `applyBinaryOperator`.
+- Benchmarks:
+  - refreshed kept baseline before the edit:
+    `800775979 ns/op`, `35272672 B/op`, `1286585 allocs/op`
+  - first noisy experimental `3/3` run:
+    `1704753695 ns/op`, `30156461 B/op`, `1180518 allocs/op`
+  - confirming warmed `3/3` run:
+    `763104452 ns/op`, `30156808 B/op`, `1180529 allocs/op`
+  - profiled confirmation:
+    `770806166 ns/op`, `30184704 B/op`, `1180584 allocs/op`
+- Full external `../benchmarks` quicksort bytecode still timed out at `90s`.
+- Profile: the previous `storeSlotIntMulConstAddResult(...)` allocation leader
+  is gone from the profiled allocation table. Remaining allocation leaders are
+  still `bytecodeRawI32SlotCachedValue(...)` for uncached raw writes, cache
+  initialization, parser startup, and smaller boxed i32 materialization.
+- Tests:
+  - focused const/lazy-validation, affine, and quicksort parity slice in
+    `./pkg/interpreter`
+  - `env -u ABLE_STDLIB_ROOT go test ./pkg/interpreter -count=1 -timeout 300s`
+    passed in `48.190s`
+  - a package run with `ABLE_STDLIB_ROOT` forced failed only because
+    `TestBuildExecSearchPathsRejectsDistinctStdlibRoots` intentionally checks
+    stdlib collision handling
+- Next: target the remaining uncached raw i32 slot-write allocations with a
+  typed opcode/register-frame design, or re-profile the parser byte-array lane
+  before adding another narrow parser fusion. Do not interpret this as a reason
+  to keep expanding the raw sentinel cache.
+
+# 2026-05-27 — Performance competitiveness vision handoff (v12)
+
+- Added `v12/design/performance-competitiveness-vision.md` as the current
+  handoff for the compiler/interpreter performance program.
+- The note records the target end state for compiled Able, bytecode VM v2, and
+  benchmark-enabling stdlib work; it also names the current external benchmark
+  state, near-term workstreams, rejected paths not to repeat, and a recommended
+  assignment order for follow-on models.
+- `PLAN.md` now points to the new design note from the active Benchmark
+  Competitiveness Program section so future sessions do not have to reconstruct
+  the strategy from historical tranche notes.
+
+# 2026-05-27 — Base64 benchmark stdlib coverage tranche (v12)
+
+- Added canonical external stdlib APIs for the `base64` benchmark:
+  - `../able-stdlib/src/encoding/base64.able` with host-backed string and
+    byte-array encode/decode operations plus `DecodeError`.
+  - `../able-stdlib/src/crypto/md5.able` with host-backed MD5 hex helpers for
+    strings and byte arrays.
+  - focused stdlib specs in `../able-stdlib/tests/encoding/base64.test.able`
+    and `../able-stdlib/tests/crypto/md5.test.able`, green in both
+    tree-walker and bytecode modes.
+- Added the canonical Able benchmark source at
+  `v12/examples/benchmarks/base64/base64.able` and wired `base64` into
+  `v12/bench_compare_external` as an opt-in target. The default comparison set
+  is unchanged so the heavier new family does not unexpectedly slow existing
+  default runs.
+- External comparison results over `1/1` runs:
+  - compiled: `2.8600s` vs Go `2.2000s`, Ruby `2.2100s`, Python `3.3100s`
+  - bytecode: `8.4400s` vs Go `2.2000s`, Ruby `2.2100s`, Python `3.3100s`
+  - tree-walker: `26.8400s` vs Go `2.2000s`, Ruby `2.2100s`, Python `3.3100s`
+- The compiled benchmark emits the exact external verifier output:
+  `7707d6ae4e027c70eea2a935c2296f21`,
+  `82636e8ed2066ac036e6a3aacaf2e94d`,
+  `7707d6ae4e027c70eea2a935c2296f21`.
+- Generated-source audit: the explicit benchmark loop and `repeat_byte`
+  builder compile to typed Go over `uint8` arrays, while base64/MD5 work goes
+  through the intended host-backed stdlib extern boundary. `decode_string`
+  still returns through the semantic union bridge, which is correct but is the
+  next obvious compiled cleanup if base64 becomes a priority again.
+- Verification:
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/able test tests/encoding/base64.test.able tests/crypto/md5.test.able`
+    from `../able-stdlib`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/ablebc test tests/encoding/base64.test.able tests/crypto/md5.test.able`
+    from `../able-stdlib`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 180 --modes compiled --show-output --run-from ../benchmarks/base64 v12/examples/benchmarks/base64/base64.able`
+  - compiled, bytecode, and tree-walker `base64` runs through
+    `v12/bench_compare_external --benchmarks base64`
+- Next: the benchmark-coverage lane should move to `able.json` and the JSON
+  external benchmark family, or first add a small `String.repeat` /
+  byte-buffer convenience if the next model wants to remove the manual
+  one-million-byte loop from the base64 source without changing semantics.
+
+# 2026-05-27 — JSON benchmark stdlib coverage and file-text fast path (v12)
+
+- Added canonical external stdlib APIs for the `json` benchmark:
+  - `../able-stdlib/src/json.able` with small-DOM `JsonValue` structs,
+    `parse(...)`, typed `JsonObject` / `JsonArray` accessors, and a streaming
+    `f64_field_means(...)` helper for numeric fields inside a top-level object
+    array.
+  - `../able-stdlib/tests/json.test.able`, green in both tree-walker and
+    bytecode modes as semantic coverage.
+- Added the canonical Able benchmark source at
+  `v12/examples/benchmarks/json/json.able` and wired `json` into
+  `v12/bench_compare_external` as an opt-in target. The benchmark now reads
+  `sample.json`, computes `x`/`y`/`z` means through `able.json`, and prints the
+  three values.
+- Added a host-backed `able.fs.read_text` fast path in
+  `../able-stdlib/src/fs.able`. This is the critical performance fix for JSON:
+  before it, the full 110 MB external sample paid the byte-array-to-string
+  conversion path and measured compiled `34.7600s` while bytecode timed out at
+  `180s`.
+- External JSON comparison results after the file-text fast path over `3/3`
+  runs:
+  - compiled: `3.7033s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+  - bytecode: `4.0267s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+- Verification:
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/able test tests/json.test.able tests/fs_smoke.test.able`
+    from `../able-stdlib`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/ablebc test tests/json.test.able tests/fs_smoke.test.able`
+    from `../able-stdlib`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks json --modes compiled,bytecode --runs 1 --timeout 180 --output-json /tmp/able-json-external.json --output-md /tmp/able-json-external.md`
+    captured the pre-fast-read failure shape
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks json --modes compiled,bytecode --runs 3 --timeout 90 --output-json /tmp/able-json-external-fast-read-3x.json --output-md /tmp/able-json-external-fast-read-3x.md`
+- Next: close the remaining JSON gap with a reusable lower-allocation
+  parser/token or typed projection lane, and keep performance evidence focused
+  on compiled and bytecode. Tree-walker JSON coverage remains semantic only.
+
+# 2026-05-27 — JSON fast numeric projection scanner (v12)
+
+- Replaced the `encoding/json.Decoder` token loop inside
+  `able.json.f64_field_means(...)` with a reusable Go fast scanner over the
+  already-loaded JSON text. The public API remains generic over a top-level
+  array key plus requested numeric field names, and the scanner skips unrelated
+  top-level values and nested object/array payloads such as the benchmark
+  `opts` field.
+- Kept the DOM `parse(...)` API unchanged. Focused stdlib coverage now also
+  verifies that `f64_field_means(...)` skips nested non-target fields and
+  trailing top-level fields.
+- External JSON comparison results after the scanner over `3/3` runs:
+  - compiled: `0.6700s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+  - bytecode: `0.7233s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+- Baseline movement:
+  - before host-backed `fs.read_text`: compiled `34.7600s`, bytecode timed out
+    at `180s`
+  - decoder projection plus host-backed `fs.read_text`: compiled `3.7033s`,
+    bytecode `4.0267s`
+  - fast projection scanner: compiled `0.6700s`, bytecode `0.7233s`
+- Verification:
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/able test tests/json.test.able tests/fs_smoke.test.able`
+    from `../able-stdlib`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/ablebc test tests/json.test.able tests/fs_smoke.test.able`
+    from `../able-stdlib`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks json --modes compiled,bytecode --runs 3 --timeout 90 --output-json /tmp/able-json-fast-scan-3x.json --output-md /tmp/able-json-fast-scan-3x.md`
+- Next: move benchmark coverage to the remaining unimplemented external suites.
+  `monte_carlo_pi` is probably the next smallest tranche if deterministic RNG
+  and numeric helpers are enough; `pidigits` needs a more substantial
+  BigInt/BigUint competitiveness pass.
+
+# 2026-05-28 — Monte Carlo Pi benchmark coverage (v12)
+
+- Added canonical deterministic RNG support in
+  `../able-stdlib/src/random.able` with focused specs in
+  `../able-stdlib/tests/random.test.able`. The public `Random` API exposes
+  seeded/default construction plus `next_i32`, `next_i64`, and `next_f64`
+  over a Park-Miller recurrence.
+- Added the canonical Able benchmark source at
+  `v12/examples/benchmarks/monte_carlo_pi/monte_carlo_pi.able` and wired
+  `monte_carlo_pi` into `v12/bench_compare_external` as an opt-in target.
+  The benchmark keeps the Park-Miller state update inline in the hot loop so
+  current bytecode avoids per-coordinate RNG method-call/object-state churn.
+- External comparison results over `3/3` runs:
+  - compiled: `0.3233s` vs Go `0.1800s`, Ruby `1.4200s`, Python `1.6800s`
+  - bytecode: `18.7967s` vs Go `0.1800s`, Ruby `1.4200s`, Python `1.6800s`
+- Rejected source-level bytecode probes:
+  - Schrage Park-Miller with `i32` state preserved output but slowed bytecode
+    to `30.5300s`.
+  - Masked `u64` xorshift preserved verifier shape but slowed bytecode to
+    `60.8500s` with very high GC churn.
+- Generated-source audit: `approx_pi` lowers to native Go `int64`, `int32`,
+  and `float64` locals with checked arithmetic helpers for v12 overflow/divmod
+  semantics. The hot loop does not route through `runtime.Value`; only the
+  final `print(...)` boundary uses the normal runtime call path.
+- Verification:
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/able test tests/random.test.able`
+    from `../able-stdlib`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/ablebc test tests/random.test.able`
+    from `../able-stdlib`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 120 --modes compiled,bytecode --show-output --run-from ../benchmarks/monte_carlo_pi v12/examples/benchmarks/monte_carlo_pi/monte_carlo_pi.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks monte_carlo_pi --modes compiled,bytecode --runs 3 --timeout 120`
+- Next: benchmark coverage should move to `pidigits` and the BigInt/BigUint
+  stdlib blocker. Bytecode optimization should use Monte Carlo only as a
+  general primitive numeric-arithmetic profile; do not add a benchmark-specific
+  RNG opcode.
+
+# 2026-05-28 — Pidigits benchmark coverage with native BigInt refs (v12)
+
+- Added `../able-stdlib/src/numbers/bigint_native.able`, a reusable
+  host-backed mutable `BigIntRef` API over Go `math/big`. The low-level host
+  mutation calls return an ignored `i32` status so compiled codegen avoids the
+  current pure-void extern unused-result bug, while the public `BigIntRef`
+  methods remain `void`.
+- Added focused stdlib specs in
+  `../able-stdlib/tests/bigint_native.test.able` covering alias-safe mutation,
+  clone isolation, compare, set, small extraction, and formatting.
+- Added the canonical Able pidigits source at
+  `v12/examples/benchmarks/pidigits/pidigits.able` and wired `pidigits` into
+  `v12/bench_compare_external` as an opt-in target with the canonical `10000`
+  digit argument.
+- Output verification:
+  - compiled 10,000-digit output passed
+    `../benchmarks/pidigits/verify.rb`; direct smoke was `1.31s` wall.
+  - bytecode 10,000-digit output passed the same verifier; direct smoke was
+    `2.09s` wall through `go run ./cmd/able`.
+- External comparison over `3/3` runs:
+  - compiled: `1.3367s` vs best Go `0.7400s` (`go-1.26-gmp`) and Ruby
+    `9.1800s`
+  - bytecode: `2.0300s` vs best Go `0.7400s` (`go-1.26-gmp`) and Ruby
+    `9.1800s`
+  - against the pure Go `math/big` row (`go-1.26`, `1.1500s`), compiled is
+    about `1.16x` and bytecode about `1.77x`.
+- Verification:
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/able --exec-mode=treewalker test /home/david/sync/projects/able-stdlib/tests/bigint_native.test.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/able --exec-mode=bytecode test /home/david/sync/projects/able-stdlib/tests/bigint_native.test.able`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src v12/bench_perf --runs 1 --timeout 30 --modes compiled --run-from /home/david/sync/projects/benchmarks/pidigits --program-arg 30 --show-output /home/david/sync/projects/able/v12/examples/benchmarks/pidigits/pidigits.able`
+  - direct compiled and bytecode 10,000-digit verifier runs against
+    `../benchmarks/pidigits/verify.rb`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src v12/bench_compare_external --benchmarks pidigits --modes compiled,bytecode --runs 3 --timeout 120 --output-json /tmp/able-pidigits-external.json --output-md /tmp/able-pidigits-external.md`
+- Next: do not add pidigits-specific bytecode opcodes. Use pidigits only as a
+  general host-extern/native-boundary profile if needed. The next performance
+  tranche should return to VM-v2 fundamentals: typed primitive slots/registers
+  for quicksort and Monte Carlo numeric arithmetic, then external bytecode
+  binarytrees once quicksort completes.
+
+# 2026-05-28 — Quicksort tracked-array swap direct path (v12)
+
+- Added a direct tracked-array swap path for bracket-index
+  `ArrayIndexSwapSlot` and canonical `read_slot`/`write_slot`
+  `ArraySlotSwapSlot` when both indexes are in-bounds small integers. The
+  bracket-index path now records the proven `i32` cast target during lowering
+  and skips the generic cast call when both tracked values are already
+  internal/raw `i32`.
+- This preserves v12 fallback behavior: non-small indexes, out-of-bounds
+  indexes, sparse/grow `write_slot` cases, non-canonical arrays, non-`i32`
+  cast cases, and alias synchronization all stay on the existing paths.
+- Reduced in-tree quicksort moved from the refreshed `4.96-4.98ms/op`
+  baseline to `4.51ms/op`, `4.51ms/op`, and `4.57ms/op` over `500x`, with a
+  profiled confirmation at `4.57ms/op`. A later expanded validation band was
+  noisier but still centered lower: `5.00ms/op`, `4.67ms/op`, `4.71ms/op`,
+  `4.75ms/op`, and `4.62ms/op`.
+- Full external bytecode quicksort still timed out at `60s`, so this is a
+  reduced-hotloop keep rather than a scoreboard-level breakthrough.
+- Verification:
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsArrayIndexSwapSlotOpcode|LoweringEmitsArraySlotSwapSlotOpcode|ArrayIndexSwapSlotFastPath|ArrayIndexSwapSlotI32FastPathHandlesRawTrackedI32|ArraySlotSwapSlotFastPathReturnsVoid|ArraySlotSwapSlotTrackedFastPathMaterializesNil|ArrayIndexSwapSlotSyncsSharedAliases|ArrayIndexSwapSlotPreservesCastError|JumpIfArrayIndexSlotCompareSlotFalseFastPath|LoweringEmitsArrayIndexSlotCompareSlotJump)' -count=1 -timeout 120s`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=500x -count=3 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=500x -count=1 -cpuprofile /tmp/able-qsort-swap-direct.cpu.pprof -memprofile /tmp/able-qsort-swap-direct.mem.pprof -timeout 300s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/bench_perf --runs 1 --timeout 60 --modes bytecode-runtime --run-from /home/david/sync/projects/benchmarks/quicksort --program-arg numbers.txt --output-json /tmp/able-qsort-swap-direct-bytecode-runtime.json /home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 60s`
+- Next: profile the kept state and target the now-dominant reduced quicksort
+  edges: `JumpIfArrayIndexSlotCompareSlotFalse`, `execCallName` / recursive
+  call setup, and `execStoreSlotBinaryIntSlotConst`, or move to the real typed
+  `i32` register-frame design. Do not turn this into a nominal `Array.swap`
+  special case or a whole-loop quicksort kernel.
+
+# 2026-05-28 — Quicksort raw-immediate slot-const store path (v12)
+
+- Added a direct raw-immediate `i32` path inside
+  `StoreSlotBinaryIntSlotConst`. Lowered instructions that already carry both
+  typed immediate metadata and raw immediate metadata now compute the small
+  `i32` result before entering the older generic immediate/operator helper.
+  Unsupported shapes fall back unchanged.
+- Refactored the shared fast-result finish path so the new raw-immediate path
+  and the existing generic fast path share the same error wrapping, slot
+  update, slot-0 raw refresh, optional stack push, and IP increment behavior.
+- Reduced in-tree quicksort held a `4.55-4.69ms/op` kept band over `500x`,
+  then `4.54ms/op`, `4.64ms/op`, and `4.63ms/op` after the raw-metadata guard
+  was tightened. The profiled confirmation was `4.62ms/op`.
+- Profile movement: `execStoreSlotBinaryIntSlotConst` dropped from about
+  `210ms` cumulative in the fresh baseline profile to `170ms` cumulative.
+- Full external bytecode quicksort still timed out at `60s`, so this is a
+  reduced-hotloop keep rather than a scoreboard-level breakthrough.
+- Verification:
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -run 'TestBytecodeVM_(StoreSlotBinaryIntSlotConstRawImmediateFastPath|StoreSlotBinaryIntSlotConstFastPath|StoreSlotBinaryIntSlotConstDiscardResultFastPath|StoreSlotBinaryIntSlotConstModuloByZero|StoreSlotBinaryIntSlotConstFastPathOverflow|StoreSlotBinaryIntSlotConstSubtractFastPathOverflow|StoreSlotBinaryIntSlotConstMultiplyFastPathOverflow|SlotConstSelfAssignmentParity)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=500x -count=5 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=500x -count=1 -cpuprofile /tmp/able-qsort-raw-slotconst.cpu.pprof -memprofile /tmp/able-qsort-raw-slotconst.mem.pprof -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src go test ./pkg/interpreter -bench '^BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=500x -count=3 -timeout 300s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src /home/david/sync/projects/able/v12/bench_perf --runs 1 --timeout 60 --modes bytecode-runtime --run-from /home/david/sync/projects/benchmarks/quicksort --program-arg numbers.txt --output-json /tmp/able-qsort-raw-slotconst-bytecode-runtime.json /home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able`
+- Next: target the remaining larger wall in
+  `JumpIfArrayIndexSlotCompareSlotFalse` / raw i32 compare extraction,
+  `execCallName` / recursive call setup, or the real typed `i32`
+  register-frame design. Slot-const stores are no longer the best standalone
+  next edge unless a fresh profile says otherwise.
+
+# 2026-05-28 — Bytecode call-capable i32 register frames (v12)
+
+- Extended the leaf `i32` register-frame seed across bytecode call boundaries.
+  Full call frames, self-fast call frames, and compact self-fast frames now
+  detach active raw register arrays before entering a callee and restore them
+  on return/unwind. Saved raw frames are released through the register-frame
+  pool during run cleanup/reset.
+- `switchRunProgram(...)` now preserves a restored caller register frame
+  instead of rebuilding it from `[]runtime.Value` slots when returning to the
+  same program. This is required because discarded typed stores may leave the
+  caller's boxed slot empty while the raw lane remains authoritative.
+- Slot analysis now allows conservative direct named calls with register-safe
+  arguments, but still rejects recursive self-calls, member/index dispatch,
+  type-argument calls, async/resume/error-control boundaries, and untyped
+  declarations. `CallName` slot-argument setup now materializes through the
+  register-aware slot reader.
+- Added focused parity coverage proving that a raw `i32` local can be passed
+  through a slot-arg inline call and then used again after return.
+- Benchmarks:
+  - reduced `Fib30Bytecode`: `150.20ms/op`, `145.02ms/op`, `152.79ms/op`
+  - reduced in-tree quicksort guard: `5.16ms/op`, `5.01ms/op`, `5.15ms/op`
+- Verification:
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(I32RegisterFrameStoresDiscardedSlotOffValueFrame|I32RegisterFrameLoopParity|I32RegisterFrameSurvivesInlineCallNameSlotArgs|PushSelfFastMinimalCallFrameUsesMinimalStacks|SelfFastSlot0FrameRestoresCallerSlot|SelfFastSlot0RawLaneRestoresCallerSlot|FusedSelfCallSlot0FrameReusesCurrentSlots|FusedSelfCallSlot0RawLaneTracksCallee|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames)' -count=1 -timeout 120s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=100x -count=3 -timeout 180s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkFib30Bytecode$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+- Next: widen typed-register eligibility only where an explicit
+  materialization boundary exists. The best next candidates are more typed
+  non-leaf helper shapes or index/member materialization. Do not enable
+  untyped locals or recursive self-call register frames without a separate
+  profile proving save/restore cost and boxing behavior.
+
+# 2026-05-28 — Bytecode discarded typed-i32 call-result stores (v12)
+
+- Narrowed the typed non-leaf register-frame path after direct helper calls.
+  Generic `StoreSlot` / `StoreSlotNew` instructions for statement-position
+  typed `i32` assignments can now carry `discardResult`.
+- At runtime, a discarded typed `i32` store with an active register frame
+  consumes the boxed call result, preserves the existing typed
+  validation/coercion path, seeds the raw `i32` register lane, and leaves the
+  `[]runtime.Value` slot empty. Non-discarded assignment expressions and
+  non-`i32` stores keep the previous boxed slot behavior.
+- Added focused coverage for the direct VM boundary and for lowering
+  `y: i32 := helper(x)` after a `CallName` slot-arg helper call without a
+  following `Pop`.
+- Benchmarks:
+  - reduced quicksort guard: `4.93ms/op`, `4.93ms/op`, `5.15ms/op`
+  - reduced `Fib30Bytecode`: `144.95ms/op`, `148.52ms/op`, `146.77ms/op`
+- Verification:
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(TypedI32DiscardStoreSeedsRegisterFrame|I32RegisterFrameSurvivesInlineCallNameSlotArgs|I32RegisterFrameStoresDiscardedSlotOffValueFrame|I32RegisterFrameLoopParity|TypedIdentifierDeclarationUsesSlotLowering|LoweringKeepsFinalI32StoreSlotResult|StoreSlotI32DiscardResultStoresRawSlot)' -count=1 -timeout 120s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=100x -count=3 -timeout 180s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkFib30Bytecode$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+- Next: audit index/member materialization before widening register-frame
+  eligibility to those shapes. Look first for slot-backed array/member/index
+  opcodes that still read `vm.slots[...]` directly and route only proven
+  dynamic-boundary operands through the register-aware slot materializer.

@@ -30,6 +30,7 @@ type bytecodeFrameLayout struct {
 	firstParamSimple    string             // cached simple type name for first parameter (empty for non-simple)
 	slotKinds           []bytecodeCellKind // typed-cell kind by slot after lowering finalizes locals
 	hasTypedSlots       bool
+	i32RegisterFrame    bool
 }
 
 // analyzeFrameLayout inspects a function definition and returns a
@@ -92,6 +93,10 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		firstParamSimple = paramSimpleTypes[0]
 	}
 	returnSimpleType := cachedSimpleTypeName(def.ReturnType)
+	selfName := ""
+	if def.ID != nil {
+		selfName = def.ID.Name
+	}
 	return &bytecodeFrameLayout{
 		paramSlots:          len(def.Params),
 		paramTypes:          paramTypes,
@@ -113,6 +118,115 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		firstParamSimple:    firstParamSimple,
 		slotKinds:           append([]bytecodeCellKind(nil), paramKinds...),
 		hasTypedSlots:       hasTypedSlots,
+		i32RegisterFrame:    blockCanUseI32RegisterFrame(def.Body, selfName),
+	}
+}
+
+func blockCanUseI32RegisterFrame(block *ast.BlockExpression, selfName string) bool {
+	if block == nil {
+		return true
+	}
+	for _, stmt := range block.Body {
+		if !stmtCanUseI32RegisterFrame(stmt, selfName) {
+			return false
+		}
+	}
+	return true
+}
+
+func stmtCanUseI32RegisterFrame(stmt ast.Statement, selfName string) bool {
+	if stmt == nil {
+		return true
+	}
+	switch s := stmt.(type) {
+	case *ast.ReturnStatement:
+		return exprCanUseI32RegisterFrame(s.Argument, selfName)
+	case *ast.BreakStatement:
+		return exprCanUseI32RegisterFrame(s.Value, selfName)
+	case *ast.ContinueStatement:
+		return true
+	case *ast.WhileLoop:
+		return exprCanUseI32RegisterFrame(s.Condition, selfName) && blockCanUseI32RegisterFrame(s.Body, selfName)
+	case *ast.LoopExpression:
+		return blockCanUseI32RegisterFrame(s.Body, selfName)
+	case *ast.IfExpression:
+		return exprCanUseI32RegisterFrame(s.IfCondition, selfName) &&
+			blockCanUseI32RegisterFrame(s.IfBody, selfName) &&
+			elseIfClausesCanUseI32RegisterFrame(s.ElseIfClauses, selfName) &&
+			blockCanUseI32RegisterFrame(s.ElseBody, selfName)
+	case ast.Expression:
+		return exprCanUseI32RegisterFrame(s, selfName)
+	default:
+		return false
+	}
+}
+
+func elseIfClausesCanUseI32RegisterFrame(clauses []*ast.ElseIfClause, selfName string) bool {
+	for _, clause := range clauses {
+		if clause == nil {
+			continue
+		}
+		if !exprCanUseI32RegisterFrame(clause.Condition, selfName) || !blockCanUseI32RegisterFrame(clause.Body, selfName) {
+			return false
+		}
+	}
+	return true
+}
+
+func exprCanUseI32RegisterFrame(expr ast.Expression, selfName string) bool {
+	if expr == nil {
+		return true
+	}
+	switch n := expr.(type) {
+	case *ast.Identifier,
+		*ast.IntegerLiteral,
+		*ast.FloatLiteral,
+		*ast.BooleanLiteral,
+		*ast.StringLiteral,
+		*ast.CharLiteral,
+		*ast.NilLiteral:
+		return true
+	case *ast.BinaryExpression:
+		return exprCanUseI32RegisterFrame(n.Left, selfName) && exprCanUseI32RegisterFrame(n.Right, selfName)
+	case *ast.UnaryExpression:
+		return exprCanUseI32RegisterFrame(n.Operand, selfName)
+	case *ast.TypeCastExpression:
+		return exprCanUseI32RegisterFrame(n.Expression, selfName)
+	case *ast.AssignmentExpression:
+		if _, ok := resolveAssignmentTargetName(n.Left); !ok {
+			return false
+		}
+		if n.Operator == ast.AssignmentDeclare {
+			if _, typed := n.Left.(*ast.TypedPattern); !typed {
+				return false
+			}
+		}
+		return exprCanUseI32RegisterFrame(n.Right, selfName)
+	case *ast.FunctionCall:
+		if len(n.TypeArguments) > 0 {
+			return false
+		}
+		ident, ok := n.Callee.(*ast.Identifier)
+		if !ok || ident == nil {
+			return false
+		}
+		if selfName != "" && ident.Name == selfName {
+			return false
+		}
+		for _, arg := range n.Arguments {
+			if !exprCanUseI32RegisterFrame(arg, selfName) {
+				return false
+			}
+		}
+		return true
+	case *ast.BlockExpression:
+		return blockCanUseI32RegisterFrame(n, selfName)
+	case *ast.IfExpression:
+		return stmtCanUseI32RegisterFrame(n, selfName)
+	case *ast.LoopExpression:
+		return blockCanUseI32RegisterFrame(n.Body, selfName)
+	default:
+		return false
 	}
 }
 

@@ -46,12 +46,15 @@ func (vm *bytecodeVM) finishInlineReturn(program **bytecodeProgram, instructions
 		returnSlots := frame.slots
 		reusesSlots := frame.reusesSlots
 		returnSlot0 := frame.slot0
+		i32Program, i32Registers, i32Valid := frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid
 		frame.slot0 = nil
+		frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = nil, nil, nil
 		frame.reusesSlots = false
 		vm.restoreSelfFastSlot0I32(frame)
 		vm.selfFastMinimal = vm.selfFastMinimal[:idx]
 		vm.selfFastMinimalSuffix--
 		calleeSlots := vm.slots
+		vm.restoreI32RegisterFrame(i32Program, i32Registers, i32Valid)
 		vm.ip = returnIP
 		vm.slots = returnSlots
 		if reusesSlots {
@@ -159,11 +162,14 @@ func (vm *bytecodeVM) finishMinimalSelfFastReturnNoCoerce(val runtime.Value) boo
 	returnIP := frame.returnIP
 	returnSlots := frame.slots
 	returnSlot0 := frame.slot0
+	i32Program, i32Registers, i32Valid := frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid
 	frame.slot0 = nil
+	frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = nil, nil, nil
 	frame.reusesSlots = false
 	vm.restoreSelfFastSlot0I32(frame)
 	vm.selfFastMinimal = vm.selfFastMinimal[:idx]
 	vm.selfFastMinimalSuffix--
+	vm.restoreI32RegisterFrame(i32Program, i32Registers, i32Valid)
 	vm.ip = returnIP
 	vm.slots = returnSlots
 	returnSlots[0] = returnSlot0

@@ -764,6 +764,18 @@ func (vm *bytecodeVM) execJumpIfIntLessEqualSlotConstFalse(instr *bytecodeInstru
 		return fmt.Errorf("bytecode slot-const conditional missing integer immediate")
 	}
 	left := vm.slots[slot]
+	if vm.hasI32RegisterFrame() {
+		if raw, ok := vm.i32RegisterRaw(slot); ok && instr.hasIntRaw {
+			condValue := int64(raw) <= instr.intImmediateRaw
+			if !condValue {
+				vm.ip = instr.target
+				return nil
+			}
+			vm.ip++
+			return nil
+		}
+		left = vm.slotRuntimeValue(slot)
+	}
 	condKnown := false
 	condValue := false
 	if instr.hasIntRaw {
@@ -818,6 +830,19 @@ func (vm *bytecodeVM) execJumpIfIntCompareSlotConstFalse(instr *bytecodeInstruct
 		return fmt.Errorf("bytecode slot-const conditional missing integer immediate")
 	}
 	left := vm.slots[slot]
+	if vm.hasI32RegisterFrame() {
+		if raw, ok := vm.i32RegisterRaw(slot); ok && instr.hasIntRaw {
+			if condValue, ok := bytecodeCompareInt64(instr.operator, int64(raw), instr.intImmediateRaw); ok {
+				if !condValue {
+					vm.ip = instr.target
+					return nil
+				}
+				vm.ip++
+				return nil
+			}
+		}
+		left = vm.slotRuntimeValue(slot)
+	}
 	condKnown := false
 	condValue := false
 	if instr.hasIntRaw {
@@ -856,7 +881,23 @@ func (vm *bytecodeVM) execReturnIfIntLessEqualSlotConst(instr *bytecodeInstructi
 		return nil, false, fmt.Errorf("bytecode slot out of range")
 	}
 	if instr.target == conditionSlot && instr.hasIntImmediate {
+		if vm.hasI32RegisterFrame() {
+			if raw, ok := vm.i32RegisterRaw(conditionSlot); ok {
+				right := instr.intImmediate
+				rightRef := &right
+				if rightRef.IsSmallRef() {
+					if int64(raw) <= rightRef.Int64FastRef() {
+						return bytecodeBoxedIntegerI32Value(int64(raw)), true, nil
+					}
+					vm.ip++
+					return nil, false, nil
+				}
+			}
+		}
 		left := vm.slots[conditionSlot]
+		if vm.hasI32RegisterFrame() {
+			left = vm.slotRuntimeValue(conditionSlot)
+		}
 		right := instr.intImmediate
 		rightRef := &right
 		if rightRef.IsSmallRef() {
@@ -897,6 +938,9 @@ func (vm *bytecodeVM) execReturnIfIntLessEqualSlotConst(instr *bytecodeInstructi
 		return nil, false, fmt.Errorf("bytecode slot-const conditional missing integer immediate")
 	}
 	left := vm.slots[conditionSlot]
+	if vm.hasI32RegisterFrame() {
+		left = vm.slotRuntimeValue(conditionSlot)
+	}
 	condKnown := false
 	condValue := false
 	if instr.hasIntRaw {
@@ -931,6 +975,9 @@ func (vm *bytecodeVM) execReturnIfIntLessEqualSlotConst(instr *bytecodeInstructi
 		vm.ip++
 		return nil, false, nil
 	}
+	if vm.hasI32RegisterFrame() {
+		return vm.slotRuntimeValue(returnSlot), true, nil
+	}
 	return bytecodeSlotReadValue(vm.slots[returnSlot]), true, nil
 }
 
@@ -954,6 +1001,9 @@ func (vm *bytecodeVM) execReturnConstIfIntLessEqualSlotConst(instr *bytecodeInst
 		return nil, false, nil
 	}
 	left := vm.slots[conditionSlot]
+	if vm.hasI32RegisterFrame() {
+		left = vm.slotRuntimeValue(conditionSlot)
+	}
 	if instr.hasIntRaw {
 		if cmp, ok := bytecodeDirectIntegerLessEqualImmediateRaw(left, instr.intImmediateRaw); ok {
 			if cmp {

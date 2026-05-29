@@ -681,3 +681,76 @@ top and row-cache revision validation next. Matrix is now competitive with the
 current external Go reference; further matrix work should be justified by a
 broad VM-v2 target such as row-cache validation amortization or typed storage,
 not by chasing this benchmark in isolation.
+
+## Leaf i32 Register Frame Seed
+
+The first non-sidecar `i32` register-frame slice is landed for conservative
+leaf functions only. It deliberately does not try to save typed registers
+through inline calls yet: slot analysis enables the lane only when the function
+body stays inside local primitive arithmetic/control-flow and avoids call,
+member, index, async, propagation, match/rescue, and untyped-declaration
+boundaries.
+
+Discarded typed `i32` stores now keep raw values in a pooled register frame
+for those functions, with generic slot loads boxing through the same v12
+materialization boundary as the broader design requires. Reduced quicksort is
+neutral because its hot locals remain untyped and its functions cross
+call/index/member boundaries. The next real `i32` step is call-frame-capable
+typed register save/restore plus explicit materialization boundaries; do not
+retry active-frame sidecars or untyped-local inference as standalone slices.
+
+## Call-capable i32 Register Frames
+
+The follow-up `i32` register-frame slice makes the raw lane safe across
+bytecode inline-call boundaries. Full call frames, self-fast call frames, and
+compact self-fast frames now detach the active `i32` register arrays when
+entering a callee, restore them on return/unwind, and release saved arrays
+through the existing frame pool during run cleanup.
+
+Program switching now preserves a restored caller register frame instead of
+reinitializing it from `[]runtime.Value` slots. That is the important semantic
+boundary: a caller local may be live only in the raw lane after a discarded
+typed store, so return-to-caller must restore the lane before the next
+`LoadSlotI32` / generic materializing load observes the local.
+
+Slot analysis now permits conservative direct named calls with register-safe
+arguments, while still rejecting recursive self-calls, member/index dispatch,
+type-argument calls, async/resume/error-control boundaries, and untyped
+declarations. `CallName` slot-argument lowering materializes arguments through
+the register-aware slot reader, so passing a raw-lane local to a callee boxes
+exactly at the call boundary and nowhere earlier.
+
+This is still a structural keep, not the final quicksort win. Reduced
+`Fib30Bytecode` remained healthy at `150.20ms/op`, `145.02ms/op`, and
+`152.79ms/op`; reduced in-tree quicksort stayed in range at `5.16ms/op`,
+`5.01ms/op`, and `5.15ms/op`. The next VM-v2 slice should either widen the
+register eligibility proof to more typed non-leaf shapes, or add the explicit
+typed materialization needed around index/member paths. Do not enable untyped
+locals or recursive self-call register frames until their save/restore and
+materialization profiles are proven separately.
+
+## Discarded typed i32 call-result stores
+
+The next typed non-leaf slice narrows one of the remaining boxed boundaries
+after direct helper calls. Generic `StoreSlot` / `StoreSlotNew` instructions
+for statement-position typed `i32` assignments can now be marked
+`discardResult`. At runtime, when an `i32` register frame is active, such a
+store consumes the boxed call result, validates/coerces it through the normal
+typed-assignment path, seeds the raw register lane, and leaves the
+`[]runtime.Value` slot empty. Non-discarded assignment expressions still leave
+their result on the stack, and unsupported/non-`i32` stores keep the existing
+boxed slot behavior.
+
+This keeps the v12 materialization rule explicit: the helper call still boxes
+at the call boundary, but a statement-position typed local no longer retains
+that boxed value in the frame when the raw lane is authoritative. The follow-up
+guard runs stayed non-regressive: reduced `Fib30Bytecode` landed at
+`144.95ms/op`, `148.52ms/op`, and `146.77ms/op`; reduced in-tree quicksort
+landed at `4.93ms/op`, `4.93ms/op`, and `5.15ms/op`.
+
+The next widening point is not untyped locals. It is index/member
+materialization: audit every slot-backed array/member/index opcode that reads
+`vm.slots[...]` directly, route proven dynamic-boundary operands through the
+register-aware materializer where needed, then only enable register-frame
+eligibility for those AST shapes once the boundary is pinned by tests and a
+fresh profile.

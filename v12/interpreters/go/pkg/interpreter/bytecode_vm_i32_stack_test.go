@@ -258,6 +258,186 @@ func TestBytecodeVM_StoreSlotI32DiscardResultStoresRawSlot(t *testing.T) {
 	assertIntValue(t, vm.stack[0], runtime.IntegerI32, 37)
 }
 
+func TestBytecodeVM_I32RegisterFrameStoresDiscardedSlotOffValueFrame(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	program := &bytecodeProgram{frameLayout: &bytecodeFrameLayout{
+		slotCount:        1,
+		slotKinds:        []bytecodeCellKind{bytecodeCellKindI32},
+		hasTypedSlots:    true,
+		i32RegisterFrame: true,
+	}}
+	vm.slots = make([]runtime.Value, 1)
+	vm.activateI32RegisterFrame(program)
+	vm.pushI32(37)
+
+	if err := vm.execStoreSlotI32(&bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: 0, discardResult: true}); err != nil {
+		t.Fatalf("discarded i32 register store failed: %v", err)
+	}
+	if vm.slots[0] != nil {
+		t.Fatalf("discarded i32 register store should not write runtime slot, got %#v", vm.slots[0])
+	}
+	if raw, ok := vm.i32RegisterRaw(0); !ok || raw != 37 {
+		t.Fatalf("i32 register slot = %d/%v, want 37/true", raw, ok)
+	}
+	if err := vm.execLoadSlotI32(&bytecodeInstruction{op: bytecodeOpLoadSlotI32, target: 0}); err != nil {
+		t.Fatalf("load i32 register slot failed: %v", err)
+	}
+	raw, err := vm.popI32()
+	if err != nil {
+		t.Fatalf("pop i32 register load failed: %v", err)
+	}
+	if raw != 37 {
+		t.Fatalf("raw i32 register load = %d, want 37", raw)
+	}
+	if err := vm.execLoadSlotOpcode(&bytecodeInstruction{op: bytecodeOpLoadSlot, target: 0}); err != nil {
+		t.Fatalf("generic load i32 register slot failed: %v", err)
+	}
+	assertIntValue(t, vm.stack[len(vm.stack)-1], runtime.IntegerI32, 37)
+}
+
+func TestBytecodeVM_TypedI32DiscardStoreSeedsRegisterFrame(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	program := &bytecodeProgram{frameLayout: &bytecodeFrameLayout{
+		slotCount:        1,
+		slotKinds:        []bytecodeCellKind{bytecodeCellKindI32},
+		hasTypedSlots:    true,
+		i32RegisterFrame: true,
+	}}
+	vm.slots = make([]runtime.Value, 1)
+	vm.activateI32RegisterFrame(program)
+	vm.stack = append(vm.stack, runtime.NewSmallInt(44, runtime.IntegerI32))
+
+	instr := &bytecodeInstruction{
+		op:            bytecodeOpStoreSlotNew,
+		target:        0,
+		storeTyped:    true,
+		typeExpr:      ast.Ty("i32"),
+		discardResult: true,
+	}
+	if err := vm.execStoreSlot(instr); err != nil {
+		t.Fatalf("discarded typed i32 store failed: %v", err)
+	}
+	if len(vm.stack) != 0 {
+		t.Fatalf("discarded typed i32 store stack = %#v, want empty", vm.stack)
+	}
+	if vm.slots[0] != nil {
+		t.Fatalf("discarded typed i32 store should not retain boxed slot, got %#v", vm.slots[0])
+	}
+	if raw, ok := vm.i32RegisterRaw(0); !ok || raw != 44 {
+		t.Fatalf("discarded typed i32 store raw register = %d/%v, want 44/true", raw, ok)
+	}
+}
+
+func TestBytecodeVM_I32RegisterFrameLoopParity(t *testing.T) {
+	sum := ast.Fn(
+		"sum",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
+		[]ast.Statement{
+			ast.Assign(ast.TypedP(ast.ID("total"), ast.Ty("i32")), ast.Int(0)),
+			ast.Assign(ast.TypedP(ast.ID("i"), ast.Ty("i32")), ast.Int(0)),
+			ast.Loop(
+				ast.Iff(ast.Bin(">=", ast.ID("i"), ast.ID("n")), ast.Brk(nil, nil)),
+				ast.AssignOp(ast.AssignmentAssign, ast.ID("total"), ast.Bin("+", ast.ID("total"), ast.ID("i"))),
+				ast.AssignOp(ast.AssignmentAssign, ast.ID("i"), ast.Bin("+", ast.ID("i"), ast.Int(1))),
+			),
+			ast.ID("total"),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod([]ast.Statement{sum, ast.Call("sum", ast.Int(10))}, nil, nil)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(sum)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if program.frameLayout == nil || !program.frameLayout.i32RegisterFrame {
+		t.Fatalf("expected i32 register frame layout")
+	}
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModuleWithInterpreter(t, interp, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode i32 register loop mismatch: got=%#v want=%#v", got, want)
+	}
+	assertIntValue(t, got, runtime.IntegerI32, 45)
+}
+
+func TestBytecodeVM_I32RegisterFrameSurvivesInlineCallNameSlotArgs(t *testing.T) {
+	id := ast.Fn(
+		"id",
+		[]*ast.FunctionParameter{ast.Param("x", ast.Ty("i32"))},
+		[]ast.Statement{ast.ID("x")},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	caller := ast.Fn(
+		"caller",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
+		[]ast.Statement{
+			ast.Assign(ast.TypedP(ast.ID("x"), ast.Ty("i32")), ast.Bin("+", ast.ID("n"), ast.Int(1))),
+			ast.Assign(ast.TypedP(ast.ID("y"), ast.Ty("i32")), ast.Call("id", ast.ID("x"))),
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.Bin("+", ast.ID("x"), ast.ID("y"))),
+			ast.ID("x"),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod([]ast.Statement{id, caller, ast.Call("caller", ast.Int(10))}, nil, nil)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(caller)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if program.frameLayout == nil || !program.frameLayout.i32RegisterFrame {
+		t.Fatalf("expected direct-call caller to keep i32 register frame layout")
+	}
+	foundSlotArgCall := false
+	foundDiscardedTypedStore := false
+	for idx, instr := range program.instructions {
+		if instr.op == bytecodeOpCallName && instr.name == "id" && instr.slotArgs {
+			foundSlotArgCall = true
+		}
+		if instr.op == bytecodeOpStoreSlotNew && instr.name == "y" {
+			if !instr.storeTyped {
+				t.Fatalf("expected y store to stay typed")
+			}
+			if !instr.discardResult {
+				t.Fatalf("expected statement-position typed i32 call store to discard result")
+			}
+			if idx+1 < len(program.instructions) && program.instructions[idx+1].op == bytecodeOpPop {
+				t.Fatalf("discarded typed i32 call store should not need a following pop")
+			}
+			foundDiscardedTypedStore = true
+		}
+	}
+	if !foundSlotArgCall {
+		t.Fatalf("expected id(x) to lower to call-name slot args")
+	}
+	if !foundDiscardedTypedStore {
+		t.Fatalf("expected y: i32 := id(x) to lower to a discarded typed store")
+	}
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModuleWithInterpreter(t, interp, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode i32 register call-boundary mismatch: got=%#v want=%#v", got, want)
+	}
+	assertIntValue(t, got, runtime.IntegerI32, 22)
+}
+
 func TestBytecodeVM_LoweringEmitsI32CompoundAssignForTypedSlot(t *testing.T) {
 	def := ast.Fn(
 		"f",

@@ -14,7 +14,23 @@ func (vm *bytecodeVM) execJumpIfIntCompareSlotFalse(instr *bytecodeInstruction) 
 	if leftSlot < 0 || leftSlot >= len(vm.slots) || rightSlot < 0 || rightSlot >= len(vm.slots) {
 		return fmt.Errorf("bytecode slot compare slot out of range")
 	}
-	cond, err := vm.compareBytecodeCondition(instr.operator, vm.slots[leftSlot], vm.slots[rightSlot])
+	left, right := vm.slots[leftSlot], vm.slots[rightSlot]
+	if vm.hasI32RegisterFrame() {
+		if leftRaw, ok := vm.i32RegisterRaw(leftSlot); ok {
+			if rightRaw, ok := vm.i32RegisterRaw(rightSlot); ok {
+				if cond, ok := bytecodeCompareInt64(instr.operator, int64(leftRaw), int64(rightRaw)); ok {
+					if !cond {
+						vm.ip = instr.target
+						return nil
+					}
+					vm.ip++
+					return nil
+				}
+			}
+		}
+		left, right = vm.slotRuntimeValue(leftSlot), vm.slotRuntimeValue(rightSlot)
+	}
+	cond, err := vm.compareBytecodeCondition(instr.operator, left, right)
 	if err != nil {
 		return err
 	}

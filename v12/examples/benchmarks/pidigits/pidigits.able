@@ -1,0 +1,142 @@
+package pidigits_benchmark
+
+import able.numbers.bigint_native.{BigIntRef}
+import able.io
+import able.os
+
+fn parse_positive_i32(text: String) -> i32 {
+  result := 0
+  bytes := io.string_to_bytes(text)
+  idx := 0
+  loop {
+    if idx >= bytes.len() { break }
+    byte := bytes.read_slot(idx)
+    if byte < 48_u8 || byte > 57_u8 {
+      return result
+    }
+    result = result * 10 + ((byte - 48_u8) as i32)
+    idx = idx + 1
+  }
+  result
+}
+
+fn requested_digits() -> i32 {
+  args := os.args()
+  if args.len() > 0 {
+    count := parse_positive_i32(args.get(0)!)
+    if count > 0 { return count }
+  }
+  10000
+}
+
+fn next_term(
+  k: i64,
+  accum: BigIntRef,
+  denom: BigIntRef,
+  numer: BigIntRef,
+  tmp: BigIntRef
+) -> i64 {
+  next := k
+  loop {
+    next = next + 1_i64
+    y2 := next * 2_i64 + 1_i64
+
+    tmp.mul_i64(numer, 2_i64)
+    accum.add(accum, tmp)
+    accum.mul_i64(accum, y2)
+    denom.mul_i64(denom, y2)
+    numer.mul_i64(numer, next)
+
+    if accum.compare(numer) > 0 {
+      return next
+    }
+  }
+  next
+}
+
+fn extract_digit(
+  nth: i64,
+  accum: BigIntRef,
+  denom: BigIntRef,
+  numer: BigIntRef,
+  tmp1: BigIntRef,
+  tmp2: BigIntRef
+) -> i64 {
+  tmp1.mul_i64(numer, nth)
+  tmp2.add(tmp1, accum)
+  tmp1.div(tmp2, denom)
+  tmp1.to_i64()
+}
+
+fn eliminate_digit(
+  digit: i64,
+  accum: BigIntRef,
+  denom: BigIntRef,
+  numer: BigIntRef,
+  tmp: BigIntRef
+) -> void {
+  tmp.mul_i64(denom, digit)
+  accum.sub(accum, tmp)
+  accum.mul_i64(accum, 10_i64)
+  numer.mul_i64(numer, 10_i64)
+}
+
+fn print_final_line(line: String, line_count: i32, total: i32) -> void {
+  if line_count <= 0 { return }
+  padded := line
+  count := line_count
+  loop {
+    if count >= 10 { break }
+    padded = `${padded} `
+    count = count + 1
+  }
+  print(`${padded}	:${total}`)
+}
+
+fn main() {
+  target := requested_digits()
+
+  tmp1 := BigIntRef.zero()
+  tmp2 := BigIntRef.zero()
+  accum := BigIntRef.zero()
+  denom := BigIntRef.one()
+  numer := BigIntRef.one()
+
+  line := ""
+  line_count := 0
+  produced := 0
+  k := 0_i64
+
+  loop {
+    if produced >= target { break }
+
+    digit := 0_i64
+    loop {
+      k = next_term(k, accum, denom, numer, tmp1)
+      d3 := extract_digit(3_i64, accum, denom, numer, tmp1, tmp2)
+      d4 := extract_digit(4_i64, accum, denom, numer, tmp1, tmp2)
+      if d3 == d4 {
+        digit = d3
+        break
+      }
+    }
+
+    produced = produced + 1
+    line = `${line}${digit}`
+    line_count = line_count + 1
+    if line_count == 10 {
+      print(`${line}	:${produced}`)
+      line = ""
+      line_count = 0
+    }
+
+    eliminate_digit(digit, accum, denom, numer, tmp1)
+  }
+
+  print_final_line(line, line_count, produced)
+  tmp1.dispose()
+  tmp2.dispose()
+  accum.dispose()
+  denom.dispose()
+  numer.dispose()
+}

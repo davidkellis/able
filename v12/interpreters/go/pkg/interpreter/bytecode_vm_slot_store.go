@@ -14,7 +14,11 @@ func (vm *bytecodeVM) execLoadSlotOpcode(instr *bytecodeInstruction) error {
 	}
 	switch instr.op {
 	case bytecodeOpLoadSlot:
-		vm.stack = append(vm.stack, bytecodeSlotReadValue(vm.slots[instr.target]))
+		value := bytecodeSlotReadValue(vm.slots[instr.target])
+		if vm.hasI32RegisterFrame() {
+			value = vm.slotRuntimeValue(instr.target)
+		}
+		vm.stack = append(vm.stack, value)
 		vm.ip++
 		return nil
 	case bytecodeOpLoadSlotI32:
@@ -59,25 +63,11 @@ func (vm *bytecodeVM) execStoreSlotBinaryIntSlotConst(instr *bytecodeInstruction
 	if !hasImmediate {
 		return fmt.Errorf("bytecode slot-const store missing integer immediate")
 	}
+	if result, handled, err := vm.storeSlotBinaryIntSlotConstI32RawFastResult(instr, rightImmediate); handled {
+		return vm.finishStoreSlotBinaryIntSlotConstFastResult(instr, result, err)
+	}
 	if result, handled, err := vm.storeSlotBinaryIntSlotConstFastResult(instr, rightImmediate); handled {
-		if err != nil {
-			if vm.interp != nil {
-				err = vm.interp.wrapStandardRuntimeError(err)
-			}
-			if instr.node != nil && vm.interp != nil {
-				return vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
-			}
-			return err
-		}
-		vm.slots[instr.target] = result
-		if instr.target == 0 {
-			vm.setSelfFastSlot0I32Value(result)
-		}
-		if !instr.discardResult {
-			vm.stack = append(vm.stack, bytecodeSlotReadValue(result))
-		}
-		vm.ip++
-		return nil
+		return vm.finishStoreSlotBinaryIntSlotConstFastResult(instr, result, err)
 	}
 	binaryInstr := *instr
 	switch instr.operator {
@@ -104,7 +94,14 @@ func (vm *bytecodeVM) execStoreSlotBinaryIntSlotConst(instr *bytecodeInstruction
 		return fmt.Errorf("bytecode slot-const store was not handled")
 	}
 	result = bytecodeStackResultValue(result)
-	vm.slots[instr.target] = result
+	if raw, ok := result.(bytecodeRawI32SlotValue); ok && vm.hasI32RegisterFrame() && vm.setI32RegisterRaw(instr.target, int32(raw)) {
+		vm.slots[instr.target] = nil
+	} else {
+		vm.slots[instr.target] = result
+		if vm.hasI32RegisterFrame() {
+			vm.setI32RegisterValue(instr.target, result)
+		}
+	}
 	if instr.target == 0 {
 		vm.setSelfFastSlot0I32Value(result)
 	}
@@ -115,12 +112,61 @@ func (vm *bytecodeVM) execStoreSlotBinaryIntSlotConst(instr *bytecodeInstruction
 	return nil
 }
 
+func (vm *bytecodeVM) finishStoreSlotBinaryIntSlotConstFastResult(instr *bytecodeInstruction, result runtime.Value, err error) error {
+	if err != nil {
+		if vm.interp != nil {
+			err = vm.interp.wrapStandardRuntimeError(err)
+		}
+		if instr.node != nil && vm.interp != nil {
+			return vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+		}
+		return err
+	}
+	if raw, ok := result.(bytecodeRawI32SlotValue); ok && vm.hasI32RegisterFrame() && vm.setI32RegisterRaw(instr.target, int32(raw)) {
+		vm.slots[instr.target] = nil
+	} else {
+		vm.slots[instr.target] = result
+		if vm.hasI32RegisterFrame() {
+			vm.setI32RegisterValue(instr.target, result)
+		}
+	}
+	if instr.target == 0 {
+		vm.setSelfFastSlot0I32Value(result)
+	}
+	if !instr.discardResult {
+		vm.stack = append(vm.stack, bytecodeSlotReadValue(result))
+	}
+	vm.ip++
+	return nil
+}
+
+func (vm *bytecodeVM) storeSlotBinaryIntSlotConstI32RawFastResult(instr *bytecodeInstruction, right runtime.IntegerValue) (runtime.Value, bool, error) {
+	if instr == nil || !instr.hasIntImmediate || !instr.hasIntRaw || right.TypeSuffix != runtime.IntegerI32 {
+		return nil, false, nil
+	}
+	if vm.hasI32RegisterFrame() {
+		if leftRaw, ok := vm.i32RegisterRaw(instr.target); ok {
+			return storeSlotBinaryIntSlotConstI32RawResult(instr.operator, int64(leftRaw), instr.intImmediateRaw, instr.discardResult)
+		}
+	}
+	leftVal, ok := bytecodeDirectSmallI32Value(vm.slots[instr.target])
+	if !ok {
+		return nil, false, nil
+	}
+	return storeSlotBinaryIntSlotConstI32RawResult(instr.operator, leftVal, instr.intImmediateRaw, instr.discardResult)
+}
+
 func (vm *bytecodeVM) storeSlotBinaryIntSlotConstFastResult(instr *bytecodeInstruction, right runtime.IntegerValue) (runtime.Value, bool, error) {
 	rightRef := &right
 	if instr == nil || !rightRef.IsSmallRef() {
 		return nil, false, nil
 	}
 	if right.TypeSuffix == runtime.IntegerI32 {
+		if vm.hasI32RegisterFrame() {
+			if leftRaw, ok := vm.i32RegisterRaw(instr.target); ok {
+				return storeSlotBinaryIntSlotConstI32FastResult(instr.operator, int64(leftRaw), rightRef.Int64FastRef(), instr.discardResult)
+			}
+		}
 		if leftVal, ok := bytecodeDirectSmallI32Value(vm.slots[instr.target]); ok {
 			return storeSlotBinaryIntSlotConstI32FastResult(instr.operator, leftVal, rightRef.Int64FastRef(), instr.discardResult)
 		}
@@ -167,6 +213,10 @@ func (vm *bytecodeVM) storeSlotBinaryIntSlotConstFastResult(instr *bytecodeInstr
 }
 
 func storeSlotBinaryIntSlotConstI32FastResult(operator string, leftVal int64, rightVal int64, discardResult bool) (runtime.Value, bool, error) {
+	return storeSlotBinaryIntSlotConstI32RawResult(operator, leftVal, rightVal, discardResult)
+}
+
+func storeSlotBinaryIntSlotConstI32RawResult(operator string, leftVal int64, rightVal int64, discardResult bool) (runtime.Value, bool, error) {
 	var result int64
 	switch operator {
 	case "+":
@@ -209,8 +259,14 @@ func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 		} else {
 			vm.slots[instr.target] = val
 		}
+		if vm.hasI32RegisterFrame() {
+			vm.setI32RegisterValue(instr.target, vm.slots[instr.target])
+		}
 		if instr.target == 0 {
 			vm.setSelfFastSlot0I32Value(vm.slots[instr.target])
+		}
+		if instr.discardResult {
+			vm.stack = vm.stack[:len(vm.stack)-1]
 		}
 		vm.ip++
 		return nil
@@ -223,14 +279,32 @@ func (vm *bytecodeVM) execStoreSlot(instr *bytecodeInstruction) error {
 		return err
 	}
 	if shouldStore {
-		if fv, ok := storeVal.(runtime.FloatValue); ok {
-			vm.storeOwnedFloatSlot(instr.target, fv)
+		storedInRegister := false
+		if instr.discardResult && vm.hasI32RegisterFrame() && vm.setI32RegisterValue(instr.target, storeVal) {
+			vm.slots[instr.target] = nil
+			storedInRegister = true
 		} else {
-			vm.slots[instr.target] = storeVal
+			if fv, ok := storeVal.(runtime.FloatValue); ok {
+				vm.storeOwnedFloatSlot(instr.target, fv)
+			} else {
+				vm.slots[instr.target] = storeVal
+			}
+			if vm.hasI32RegisterFrame() {
+				vm.setI32RegisterValue(instr.target, vm.slots[instr.target])
+			}
 		}
 		if instr.target == 0 {
-			vm.setSelfFastSlot0I32Value(vm.slots[instr.target])
+			if storedInRegister {
+				vm.setSelfFastSlot0I32Value(storeVal)
+			} else {
+				vm.setSelfFastSlot0I32Value(vm.slots[instr.target])
+			}
 		}
+	}
+	if instr.discardResult {
+		vm.stack = vm.stack[:len(vm.stack)-1]
+		vm.ip++
+		return nil
 	}
 	if stackVal == nil {
 		stackVal = runtime.NilValue{}

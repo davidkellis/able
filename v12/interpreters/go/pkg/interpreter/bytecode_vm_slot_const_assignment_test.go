@@ -617,6 +617,35 @@ func TestBytecodeVM_StoreSlotBinaryIntSlotConstDiscardResultFastPath(t *testing.
 	}
 }
 
+func TestBytecodeVM_StoreSlotBinaryIntSlotConstRawImmediateFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	vm.slots = []runtime.Value{bytecodeRawI32SlotCachedValue(4)}
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpStoreSlotBinaryIntSlotConst,
+		target:          0,
+		operator:        "+",
+		intImmediate:    runtime.NewSmallInt(2, runtime.IntegerI32),
+		intImmediateRaw: 2,
+		hasIntImmediate: true,
+		hasIntRaw:       true,
+		discardResult:   true,
+	}
+	if err := vm.execStoreSlotBinaryIntSlotConst(instr, nil); err != nil {
+		t.Fatalf("unexpected raw-immediate store-slot fast-path error: %v", err)
+	}
+	got, ok := bytecodeDirectSmallI32Value(vm.slots[0])
+	if !ok || got != 6 {
+		t.Fatalf("stored slot = %#v, want raw/small i32 6", vm.slots[0])
+	}
+	if _, ok := vm.slots[0].(bytecodeRawI32SlotValue); !ok {
+		t.Fatalf("discarded raw-immediate update should keep raw i32 sentinel, got %#v", vm.slots[0])
+	}
+	if len(vm.stack) != 0 {
+		t.Fatalf("discarded raw-immediate assignment should not push stack value, got len=%d", len(vm.stack))
+	}
+}
+
 func TestBytecodeVM_StoreSlotBinaryIntSlotConstMultiplyFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())

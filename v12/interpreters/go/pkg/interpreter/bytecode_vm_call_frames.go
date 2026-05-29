@@ -36,6 +36,7 @@ func (vm *bytecodeVM) pushSelfFastMinimalCallFrame(returnIP int, slots []runtime
 	frame.returnIP = returnIP
 	frame.slots = slots
 	frame.slot0 = nil
+	frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = vm.detachActiveI32RegisterFrame()
 	vm.saveSelfFastSlot0I32(frame)
 	frame.reusesSlots = false
 	vm.clearSelfFastSlot0I32()
@@ -59,6 +60,7 @@ func (vm *bytecodeVM) pushSelfFastSlot0CallFrame(returnIP int) bool {
 	frame.returnIP = returnIP
 	frame.slots = vm.slots
 	frame.slot0 = vm.slots[0]
+	frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = vm.detachActiveI32RegisterFrame()
 	vm.saveSelfFastSlot0I32(frame)
 	frame.reusesSlots = true
 	vm.clearSelfFastSlot0I32()
@@ -106,6 +108,7 @@ func (vm *bytecodeVM) pushCallFrame(returnIP int, program *bytecodeProgram, slot
 		frame.returnIP = returnIP
 		frame.slots = slots
 		frame.returnGenericNames = returnGenericNames
+		frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = vm.detachActiveI32RegisterFrame()
 		frame.iterBase = iterBase
 		frame.loopBase = loopBase
 		frame.hasImplicitReceiver = hasImplicitReceiver
@@ -132,6 +135,7 @@ func (vm *bytecodeVM) pushCallFrame(returnIP int, program *bytecodeProgram, slot
 	frame.slots = slots
 	frame.env = env
 	frame.returnGenericNames = returnGenericNames
+	frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = vm.detachActiveI32RegisterFrame()
 	frame.iterBase = iterBase
 	frame.loopBase = loopBase
 	frame.hasImplicitReceiver = hasImplicitReceiver
@@ -173,7 +177,10 @@ func (vm *bytecodeVM) popCallFrameFields() (returnIP int, program *bytecodeProgr
 		frame := &vm.selfFastMinimal[idx]
 		returnIP = frame.returnIP
 		slots = frame.slots
+		i32Program, i32Registers, i32Valid := frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid
+		frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = nil, nil, nil
 		vm.restoreSelfFastMinimalFrameSlot0(frame, slots)
+		vm.restoreI32RegisterFrame(i32Program, i32Registers, i32Valid)
 		vm.selfFastMinimal = vm.selfFastMinimal[:idx]
 		vm.selfFastMinimalSuffix--
 		return returnIP, nil, slots, nil, 0, 0, false, true, true
@@ -190,7 +197,10 @@ func (vm *bytecodeVM) popCallFrameFields() (returnIP int, program *bytecodeProgr
 		frame := &vm.selfFastMinimal[idx]
 		returnIP = frame.returnIP
 		slots = frame.slots
+		i32Program, i32Registers, i32Valid := frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid
+		frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = nil, nil, nil
 		vm.restoreSelfFastMinimalFrameSlot0(frame, slots)
+		vm.restoreI32RegisterFrame(i32Program, i32Registers, i32Valid)
 		vm.selfFastMinimal = vm.selfFastMinimal[:idx]
 		return returnIP, nil, slots, nil, 0, 0, false, true, true
 	case bytecodeCallFrameKindSelfFast:
@@ -201,10 +211,13 @@ func (vm *bytecodeVM) popCallFrameFields() (returnIP int, program *bytecodeProgr
 		slots = frame.slots
 		env = vm.env
 		frame.returnGenericNames = nil
+		i32Program, i32Registers, i32Valid := frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid
+		frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = nil, nil, nil
 		iterBase = frame.iterBase
 		loopBase = frame.loopBase
 		hasImplicitReceiver = frame.hasImplicitReceiver
 		selfFast = true
+		vm.restoreI32RegisterFrame(i32Program, i32Registers, i32Valid)
 		vm.selfFastCallFrames = vm.selfFastCallFrames[:idx]
 		return returnIP, nil, slots, nil, iterBase, loopBase, hasImplicitReceiver, selfFast, true
 	default:
@@ -215,10 +228,13 @@ func (vm *bytecodeVM) popCallFrameFields() (returnIP int, program *bytecodeProgr
 		slots = frame.slots
 		env = frame.env
 		frame.returnGenericNames = nil
+		i32Program, i32Registers, i32Valid := frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid
+		frame.i32RegisterProgram, frame.i32Registers, frame.i32RegisterValid = nil, nil, nil
 		iterBase = frame.iterBase
 		loopBase = frame.loopBase
 		hasImplicitReceiver = frame.hasImplicitReceiver
 		selfFast = frame.selfFast
+		vm.restoreI32RegisterFrame(i32Program, i32Registers, i32Valid)
 		vm.callFrames = vm.callFrames[:idx]
 		return returnIP, program, slots, env, iterBase, loopBase, hasImplicitReceiver, selfFast, true
 	}

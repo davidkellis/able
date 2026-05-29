@@ -72,6 +72,7 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 		vm.releaseSlotFrame(vm.slots)
 		vm.slots = nil
 	}
+	vm.releaseActiveI32RegisterFrame()
 	if len(vm.callFrames) > 0 {
 		for idx := range vm.callFrames {
 			frame := &vm.callFrames[idx]
@@ -81,6 +82,10 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 			frame.slots = nil
 			frame.env = nil
 			frame.returnGenericNames = nil
+			vm.releaseI32RegisterFrame(frame.i32Registers, frame.i32RegisterValid)
+			frame.i32RegisterProgram = nil
+			frame.i32Registers = nil
+			frame.i32RegisterValid = nil
 			frame.iterBase = 0
 			frame.loopBase = 0
 			frame.hasImplicitReceiver = false
@@ -95,6 +100,10 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 			frame.returnIP = 0
 			frame.slots = nil
 			frame.returnGenericNames = nil
+			vm.releaseI32RegisterFrame(frame.i32Registers, frame.i32RegisterValid)
+			frame.i32RegisterProgram = nil
+			frame.i32Registers = nil
+			frame.i32RegisterValid = nil
 			frame.iterBase = 0
 			frame.loopBase = 0
 			frame.hasImplicitReceiver = false
@@ -110,6 +119,10 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 			frame.returnIP = 0
 			frame.slots = nil
 			frame.slot0 = nil
+			vm.releaseI32RegisterFrame(frame.i32Registers, frame.i32RegisterValid)
+			frame.i32RegisterProgram = nil
+			frame.i32Registers = nil
+			frame.i32RegisterValid = nil
 			frame.slot0I32Raw = 0
 			frame.slot0I32Valid = false
 			frame.reusesSlots = false

@@ -1,13 +1,15 @@
 # External Benchmark Scoreboard
 
-- Generated: `2026-05-08T03:15:05Z`
+- Generated: `2026-05-28T05:28:20Z`
 - External results: `../benchmarks/results.json`
 - External results generated: `2026-02-27T00:26:22Z`
 - Able measurement source: kept measurements recorded in `LOG.md`, `PLAN.md`,
-  and `v12/docs/performance-benchmarks.md` through 2026-05-07.
+  and `v12/docs/performance-benchmarks.md` through 2026-05-28.
 
 This is the checked-in current scoreboard for implemented external benchmark
 families. Ratios below `1.00x` mean Able is faster than that reference row.
+Tree-walker rows are retained only for semantic and historical context; new
+performance work targets compiled and bytecode.
 
 | Benchmark | Mode | Able status | Able real (s) | Go real (s) | Able/Go | Ruby real (s) | Able/Ruby | Python real (s) | Able/Python |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -29,3 +31,12 @@ families. Ratios below `1.00x` mean Able is faster than that reference row.
 | `i_before_e` | `compiled` | ok (5) | 0.0620 | 0.0500 | 1.24x | 0.1000 | 0.62x | 0.1300 | 0.48x |
 | `i_before_e` | `bytecode` | ok (5) | 0.4480 | 0.0500 | 8.96x | 0.1000 | 4.48x | 0.1300 | 3.45x |
 | `i_before_e` | `treewalker` | ok | 3.5400 | 0.0500 | 70.80x | 0.1000 | 35.40x | 0.1300 | 27.23x |
+| `base64` | `compiled` | ok (1) | 2.8600 | 2.2000 | 1.30x | 2.2100 | 1.29x | 3.3100 | 0.86x |
+| `base64` | `bytecode` | ok (1) | 8.4400 | 2.2000 | 3.84x | 2.2100 | 3.82x | 3.3100 | 2.55x |
+| `base64` | `treewalker` | ok (1) | 26.8400 | 2.2000 | 12.20x | 2.2100 | 12.14x | 3.3100 | 8.11x |
+| `json` | `compiled` | ok (3) | 0.6700 | 1.3600 | 0.49x | 1.5600 | 0.43x | 2.8700 | 0.23x |
+| `json` | `bytecode` | ok (3) | 0.7233 | 1.3600 | 0.53x | 1.5600 | 0.46x | 2.8700 | 0.25x |
+| `monte_carlo_pi` | `compiled` | ok (3) | 0.3233 | 0.1800 | 1.80x | 1.4200 | 0.23x | 1.6800 | 0.19x |
+| `monte_carlo_pi` | `bytecode` | ok (3) | 18.7967 | 0.1800 | 104.43x | 1.4200 | 13.24x | 1.6800 | 11.19x |
+| `pidigits` | `compiled` | ok (3) | 1.3367 | 0.7400 | 1.81x | 9.1800 | 0.15x | n/a | n/a |
+| `pidigits` | `bytecode` | ok (3) | 2.0300 | 0.7400 | 2.74x | 9.1800 | 0.22x | n/a | n/a |

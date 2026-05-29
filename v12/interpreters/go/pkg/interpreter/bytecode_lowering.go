@@ -304,8 +304,12 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		if n.IntegerType != nil {
 			suffix = runtime.IntegerType(*n.IntegerType)
 		}
+		if n.Value != nil && n.Value.IsInt64() {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NewSmallInt(n.Value.Int64(), suffix), node: n})
+			return nil
+		}
 		val := bigFromLiteral(n.Value)
-		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NewBigIntValue(val, suffix)})
+		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NewBigIntValue(val, suffix), node: n})
 		return nil
 	case *ast.FloatLiteral:
 		suffix := runtime.FloatF64
@@ -711,6 +715,9 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				if hasTypedStore {
 					instr.storeTyped = true
 					instr.typeExpr = typedPattern.TypeAnnotation
+					instr.discardResult = ctx.discardExpressionValue &&
+						ctx.discardExpressionNode == n &&
+						bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation) == bytecodeCellKindI32
 				}
 				ctx.emit(instr)
 			} else if slot, found := ctx.lookupSlot(name); found {
@@ -718,6 +725,9 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				if hasTypedStore {
 					instr.storeTyped = true
 					instr.typeExpr = typedPattern.TypeAnnotation
+					instr.discardResult = ctx.discardExpressionValue &&
+						ctx.discardExpressionNode == n &&
+						bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation) == bytecodeCellKindI32
 				}
 				ctx.emit(instr)
 			} else {

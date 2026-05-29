@@ -83,6 +83,18 @@ target_for() {
     matrixmultiply)
       printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/matrixmultiply.able"
       ;;
+    base64)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/base64/base64.able"
+      ;;
+    json)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/json/json.able"
+      ;;
+    monte_carlo_pi)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/monte_carlo_pi/monte_carlo_pi.able"
+      ;;
+    pidigits)
+      printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/pidigits/pidigits.able"
+      ;;
     i_before_e)
       printf '%s\n' "$SCRIPT_DIR/examples/benchmarks/i_before_e/i_before_e.able"
       ;;
@@ -102,6 +114,9 @@ program_args_for() {
   case "$1" in
     i_before_e)
       printf '%s\n' "wordlist.txt"
+      ;;
+    pidigits)
+      printf '%s\n' "10000"
       ;;
     *)
       return 0

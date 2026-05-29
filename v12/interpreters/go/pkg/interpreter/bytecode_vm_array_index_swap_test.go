@@ -39,6 +39,9 @@ func TestBytecodeVM_LoweringEmitsArrayIndexSwapSlotOpcode(t *testing.T) {
 			if instr.argCount != 0 || instr.loopBreak != 1 || instr.loopContinue != 2 {
 				t.Fatalf("swap slots = receiver %d first %d second %d, want 0/1/2", instr.argCount, instr.loopBreak, instr.loopContinue)
 			}
+			if instr.name != "i32" {
+				t.Fatalf("swap cast name = %q, want i32", instr.name)
+			}
 		case bytecodeOpArrayIndexGetSlot, bytecodeOpArrayIndexSetSlot, bytecodeOpIndexGet, bytecodeOpIndexSet:
 			t.Fatalf("swap pattern should avoid standalone index opcode %v", instr.op)
 		}
@@ -110,6 +113,7 @@ func TestBytecodeVM_ArrayIndexSwapSlotFastPath(t *testing.T) {
 		loopBreak:    1,
 		loopContinue: 2,
 		typeExpr:     ast.Ty("i32"),
+		name:         "i32",
 	}
 
 	if err := vm.execArrayIndexSwapSlot(instr); err != nil {
@@ -130,6 +134,43 @@ func TestBytecodeVM_ArrayIndexSwapSlotFastPath(t *testing.T) {
 	}
 	if got := state.Values[2].(runtime.IntegerValue).Int64Fast(); got != 1 {
 		t.Fatalf("slot 2 after swap = %d, want 1", got)
+	}
+}
+
+func TestBytecodeVM_ArrayIndexSwapSlotI32FastPathHandlesRawTrackedI32(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		bytecodeRawI32SlotValue(11),
+		runtime.NewSmallInt(22, runtime.IntegerI32),
+	}, 2)
+	if _, err := interp.ensureArrayState(arr, 0); err != nil {
+		t.Fatalf("ensure array state: %v", err)
+	}
+	vm.slots = []runtime.Value{
+		arr,
+		runtime.NewSmallInt(0, runtime.IntegerI32),
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+	}
+	if err := vm.execArrayIndexSwapSlot(&bytecodeInstruction{
+		op:           bytecodeOpArrayIndexSwapSlot,
+		argCount:     0,
+		loopBreak:    1,
+		loopContinue: 2,
+		typeExpr:     ast.Ty("i32"),
+		name:         "i32",
+	}); err != nil {
+		t.Fatalf("array index swap slot opcode failed: %v", err)
+	}
+	if got, ok := vm.stack[0].(runtime.IntegerValue); !ok || got.TypeSuffix != runtime.IntegerI32 || got.Int64Fast() != 11 {
+		t.Fatalf("swap result = %#v, want materialized i32 11", vm.stack[0])
+	}
+	state, err := interp.ensureArrayState(arr, 0)
+	if err != nil {
+		t.Fatalf("ensure array state after swap: %v", err)
+	}
+	if got, ok := state.Values[1].(runtime.IntegerValue); !ok || got.TypeSuffix != runtime.IntegerI32 || got.Int64Fast() != 11 {
+		t.Fatalf("slot 1 after swap = %#v, want materialized i32 11", state.Values[1])
 	}
 }
 
@@ -175,6 +216,33 @@ func TestBytecodeVM_ArraySlotSwapSlotFastPathReturnsVoid(t *testing.T) {
 	}
 	if got := state.Values[2].(runtime.IntegerValue).Int64Fast(); got != 1 {
 		t.Fatalf("slot 2 after swap = %d, want 1", got)
+	}
+}
+
+func TestBytecodeVM_ArraySlotSwapSlotTrackedFastPathMaterializesNil(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		nil,
+		runtime.NewSmallInt(9, runtime.IntegerI32),
+	}, 2)
+	state, err := interp.ensureArrayState(arr, 0)
+	if err != nil {
+		t.Fatalf("ensure array state: %v", err)
+	}
+	state.Values[0] = nil
+	handled, err := vm.resolveArraySlotSwapSlotFast(arr, runtime.NewSmallInt(0, runtime.IntegerI32), runtime.NewSmallInt(1, runtime.IntegerI32))
+	if err != nil {
+		t.Fatalf("array slot swap fast path failed: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected tracked slot swap fast path to handle in-bounds small indexes")
+	}
+	if got := state.Values[0].(runtime.IntegerValue).Int64Fast(); got != 9 {
+		t.Fatalf("slot 0 after swap = %d, want 9", got)
+	}
+	if _, ok := state.Values[1].(runtime.NilValue); !ok {
+		t.Fatalf("slot 1 after swap = %#v, want materialized nil", state.Values[1])
 	}
 }
 

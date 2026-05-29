@@ -88,6 +88,9 @@ func (vm *bytecodeVM) resolveDirectArrayIndexSwapSlot(instr *bytecodeInstruction
 }
 
 func (vm *bytecodeVM) resolveTrackedSmallArrayIndexSwapSlot(instr *bytecodeInstruction, arr *runtime.ArrayValue, state *runtime.ArrayState, first int, second int) (runtime.Value, error) {
+	if result, handled := vm.resolveTrackedSmallArrayIndexSwapSlotI32Fast(instr, arr, state, first, second); handled {
+		return result, nil
+	}
 	left := vm.trackedArrayIndexSwapSlotValue(state, first)
 	left, err := vm.castArrayIndexSwapSlotValue(instr, left)
 	if err != nil {
@@ -105,6 +108,48 @@ func (vm *bytecodeVM) resolveTrackedSmallArrayIndexSwapSlot(instr *bytecodeInstr
 	state.Values[second] = left
 	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, right, second, left)
 	return left, nil
+}
+
+func (vm *bytecodeVM) resolveTrackedSmallArrayIndexSwapSlotI32Fast(instr *bytecodeInstruction, arr *runtime.ArrayValue, state *runtime.ArrayState, first int, second int) (runtime.Value, bool) {
+	if instr == nil || instr.name != "i32" || arr == nil || state == nil {
+		return nil, false
+	}
+	if first < 0 || first >= len(state.Values) || second < 0 || second >= len(state.Values) {
+		return nil, false
+	}
+	left := state.Values[first]
+	right := state.Values[second]
+	if left == nil || right == nil {
+		return nil, false
+	}
+	left, ok := bytecodeNoOpI32ArrayIndexCast(left)
+	if !ok {
+		return nil, false
+	}
+	right, ok = bytecodeNoOpI32ArrayIndexCast(right)
+	if !ok {
+		return nil, false
+	}
+	state.Values[first] = right
+	state.Values[second] = left
+	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, right, second, left)
+	return left, true
+}
+
+func bytecodeNoOpI32ArrayIndexCast(value runtime.Value) (runtime.Value, bool) {
+	switch v := value.(type) {
+	case bytecodeRawI32SlotValue:
+		return bytecodeBoxRawI32Value(v), true
+	case runtime.IntegerValue:
+		if v.TypeSuffix == runtime.IntegerI32 {
+			return value, true
+		}
+	case *runtime.IntegerValue:
+		if v != nil && v.TypeSuffix == runtime.IntegerI32 {
+			return value, true
+		}
+	}
+	return nil, false
 }
 
 func (vm *bytecodeVM) trackedArrayIndexSwapSlotValue(state *runtime.ArrayState, idx int) runtime.Value {

@@ -6,6 +6,9 @@ func (vm *bytecodeVM) switchRunProgram(program **bytecodeProgram, instructions *
 	}
 	if program != nil && *program == next {
 		vm.currentProgram = next
+		if vm.i32RegisterProgram != next {
+			vm.activateI32RegisterFrame(next)
+		}
 		return
 	}
 	*program = next
@@ -13,4 +16,7 @@ func (vm *bytecodeVM) switchRunProgram(program **bytecodeProgram, instructions *
 	*validatedIntConsts = vm.validatedIntegerConstSlots(next)
 	*slotConstIntImmTable = vm.slotConstImmediateTable(next)
 	vm.currentProgram = next
+	if vm.i32RegisterProgram != next {
+		vm.activateI32RegisterFrame(next)
+	}
 }

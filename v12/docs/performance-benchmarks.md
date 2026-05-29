@@ -4220,3 +4220,341 @@ split across compare/cast/proof-control flow and residual uncached raw/affine
 allocations. The next quicksort tranche should start from a fresh profile and
 choose either a true raw i32 register-frame design or the parser/byte-array
 lane. Do not keep expanding the cache, and do not return to swap micro paths.
+
+The next kept parser-lane slice lowered bytecode integer literals that fit in
+`int64` as small `runtime.IntegerValue` constants instead of big-backed
+constants. This is representation-only: larger literals remain big-backed, and
+typed out-of-range literals still validate lazily when executed. On quicksort,
+the parser update `value = value * 10 + ((byte as i32) - 48)` now keeps the
+`48` literal on the small-int path, so the discarded affine update can stay on
+the raw i32 fast path instead of allocating through generic arithmetic. The
+fresh kept baseline was `800775979 ns/op`, `35272672 B/op`, and
+`1286585 allocs/op`. After one noisy slow experimental band, the confirming
+1MB prefix band landed at `763104452 ns/op`, `30156808 B/op`, and
+`1180529 allocs/op`; the profiled confirmation landed at `770806166 ns/op`,
+`30184704 B/op`, and `1180584 allocs/op`. Full external bytecode quicksort
+still timed out at `90s`. The next quicksort tranche should target remaining
+uncached raw i32 slot-write allocations with a typed opcode/register-frame
+design, or re-profile the parser byte-array lane before adding another narrow
+parser fusion.
+
+The next benchmark-coverage tranche moved out of VM micro-optimization and
+unlocked the external `base64` family. Canonical stdlib now exposes
+`able.encoding.base64` for string/byte-array encode/decode and
+`able.crypto.md5` for MD5 hex helpers, with Go and TypeScript extern bodies.
+The Able benchmark source lives at
+`v12/examples/benchmarks/base64/base64.able`, and
+`v12/bench_compare_external --benchmarks base64` can now measure it.
+
+The first aligned `base64` comparisons over `1/1` runs landed at:
+
+- compiled: `2.8600s` vs Go `2.2000s`, Ruby `2.2100s`, Python `3.3100s`
+- bytecode: `8.4400s` vs Go `2.2000s`, Ruby `2.2100s`, Python `3.3100s`
+- tree-walker: `26.8400s` vs Go `2.2000s`, Ruby `2.2100s`, Python `3.3100s`
+
+The compiled output passes the external verifier hashes and the generated
+source keeps the explicit Able loop compiled, while the large codec/hash work
+crosses the normal host-backed stdlib extern boundary. This is a coverage keep,
+not a bytecode optimization tranche. The next coverage tranche should unlock
+the JSON benchmark with a reusable `able.json` DOM surface; the next optional
+base64 cleanup is a string/byte-buffer convenience such as `String.repeat` so
+the source can express the initial one-million-character string without a
+manual byte-push loop.
+
+## 2026-05-27 — JSON benchmark stdlib coverage and `fs.read_text` fast path
+
+The next benchmark-coverage tranche added the reusable JSON surface and the
+canonical Able source for the external `json` family:
+
+- `../able-stdlib/src/json.able` now exposes `JsonValue` DOM structs,
+  `parse(...)`, typed `JsonObject` / `JsonArray` accessors, and
+  `f64_field_means(...)` for streaming numeric projections over an object array.
+- `v12/examples/benchmarks/json/json.able` reads `sample.json`, computes the
+  `x`/`y`/`z` means through `able.json`, and prints the three results.
+- `v12/bench_compare_external --benchmarks json` is now wired as an opt-in
+  target.
+- `../able-stdlib/src/fs.able` now has a host-backed `read_text` fast path.
+  This is the key performance fix: the first full JSON run before it was
+  compiled `34.7600s` and bytecode timed out at `180s`; after it, the benchmark
+  avoids converting the 110 MB file from host bytes through Able code.
+
+Aligned external JSON comparisons over `3/3` runs landed at:
+
+- compiled: `3.7033s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+- bytecode: `4.0267s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+
+This is a coverage and stdlib hot-API keep, not a finished JSON performance
+win. The remaining work is to close the roughly `2.7x-3.0x` gap to Go with a
+lower-allocation JSON parser/token or typed projection lane, while keeping the
+benchmark source expressed through reusable stdlib APIs. Tree-walker timing is
+not a performance target; it only needs to preserve v12 semantics.
+
+## 2026-05-27 — JSON fast numeric projection scanner
+
+The follow-up JSON tranche replaced the `encoding/json.Decoder` token loop
+inside `able.json.f64_field_means(...)` with a reusable Go fast scanner over
+the already-loaded text. The scanner still honors the public API
+(`array_key`, requested numeric `field_names`) and skips unrelated top-level
+values plus nested object/array fields such as the benchmark `opts` payload; it
+does not change the DOM `parse(...)` API.
+
+Aligned external JSON comparisons over `3/3` runs moved from the decoder
+projection baseline:
+
+- compiled: `3.7033s` -> `0.6700s`
+- bytecode: `4.0267s` -> `0.7233s`
+
+Against the checked-in external references, the kept band is:
+
+- compiled: `0.6700s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+- bytecode: `0.7233s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+
+This closes the JSON benchmark gap for compiled and bytecode without adding a
+benchmark-specific source rule. Tree-walker remains semantic-only. At this
+point, the remaining unimplemented coverage target was `pidigits`, which still
+needed a competitive BigInt/BigUint boundary before its later coverage tranche.
+
+## 2026-05-28 — Monte Carlo Pi benchmark coverage
+
+The next coverage tranche added deterministic RNG support and the canonical
+Able source for the external `monte_carlo_pi` family:
+
+- `../able-stdlib/src/random.able` exposes `Random.seeded(...)`,
+  `Random.default()`, `next_i32()`, `next_i64()`, and `next_f64()` using a
+  deterministic Park-Miller recurrence, with focused stdlib specs in
+  `../able-stdlib/tests/random.test.able`.
+- `v12/examples/benchmarks/monte_carlo_pi/monte_carlo_pi.able` implements the
+  external Monte Carlo sampling loop and prints the five sample sizes expected
+  by the verifier.
+- `v12/bench_compare_external --benchmarks monte_carlo_pi` is now wired as an
+  opt-in target.
+
+The benchmark source keeps the Park-Miller recurrence inline inside the hot
+loop instead of calling `Random.next_f64()` for each coordinate. That is a
+deliberate current-VM compromise: the public RNG API is the reusable stdlib
+surface, while the benchmark avoids bytecode method-call/object-state churn
+until the VM has a general primitive numeric slot representation.
+
+Aligned external comparisons over `3/3` runs landed at:
+
+- compiled: `0.3233s` vs Go `0.1800s`, Ruby `1.4200s`, Python `1.6800s`
+- bytecode: `18.7967s` vs Go `0.1800s`, Ruby `1.4200s`, Python `1.6800s`
+
+Two bytecode source-level numeric probes were rejected:
+
+- Schrage Park-Miller with `i32` state kept the same output but slowed
+  bytecode to `30.5300s`.
+- Masked `u64` xorshift avoided division but triggered heavy unsigned
+  bitwise allocation/GC, landing at `60.8500s`.
+
+So this tranche is a coverage keep and a compiled-path keep, not a bytecode
+competitiveness win. The next bytecode work should treat Monte Carlo as a
+general primitive numeric-arithmetic profile: boxed `i64`/`f64` arithmetic,
+casts, and slot updates need a typed/unboxed VM representation rather than a
+benchmark-specific RNG opcode.
+
+Generated-source audit: `approx_pi` lowers to native Go `int64`, `int32`, and
+`float64` locals with checked arithmetic helpers for v12 overflow/divmod
+semantics. The hot loop does not route through `runtime.Value`; only the final
+`print(...)` boundary uses the normal runtime call path.
+
+## 2026-05-28 — Pidigits benchmark coverage
+
+The next coverage tranche closed the `pidigits` stdlib blocker with a reusable
+host-backed BigInt reference API instead of a benchmark-specific compiler rule:
+
+- `../able-stdlib/src/numbers/bigint_native.able` exposes
+  `BigIntRef`, a mutable BigInt handle backed by Go `math/big`, with focused
+  arithmetic, comparison, cloning, extraction, and formatting operations.
+- `../able-stdlib/tests/bigint_native.test.able` pins alias-safe mutation,
+  clone isolation, compare, set, small extraction, and formatting in
+  tree-walker and bytecode.
+- `v12/examples/benchmarks/pidigits/pidigits.able` implements the benchmark
+  spigot loop with explicit term/extract/eliminate logic over `BigIntRef`.
+- `v12/bench_compare_external --benchmarks pidigits` is now wired as an
+  opt-in target and passes `10000` as the canonical digit count.
+
+Verification smoke:
+
+- compiled 10,000-digit output verified with
+  `../benchmarks/pidigits/verify.rb`; direct wall-clock smoke was `1.31s`
+  (`user 2.49s`, `sys 0.09s`).
+- bytecode 10,000-digit output also verified with the same verifier; direct
+  wall-clock smoke through `go run ./cmd/able` was `2.09s`
+  (`user 3.55s`, `sys 0.16s`).
+
+Aligned external comparisons over `3/3` runs landed at:
+
+- compiled: `1.3367s` vs best Go `0.7400s` (`go-1.26-gmp`) and Ruby
+  `9.1800s`
+- bytecode: `2.0300s` vs best Go `0.7400s` (`go-1.26-gmp`) and Ruby
+  `9.1800s`
+
+Against the pure Go `math/big` reference (`go-1.26`, `1.1500s`), compiled is
+about `1.16x` and bytecode about `1.77x`. The checked-in scoreboard still uses
+the external harness rule of comparing against the best successful Go-family
+row, which is the GMP variant for this benchmark.
+
+This is a benchmark-coverage and native-boundary keep. It should not be
+expanded into pidigits-specific bytecode opcodes. The next bytecode work should
+return to the broader VM-v2 plan: typed primitive slots/registers for quicksort
+and Monte Carlo numeric arithmetic, plus general host-extern call overhead if
+pidigits becomes a profiling target.
+
+## 2026-05-28 — Quicksort tracked-array swap direct path
+
+The next VM-v2 quicksort tranche stayed within the existing bytecode opcodes
+and removed generic swap work from the reduced hotloop. `ArrayIndexSwapSlot`
+now has a direct tracked-array path for in-bounds small indexes when lowering
+has proven the swap cast target is `i32`; tracked values that are already
+internal/raw `i32` skip the generic `castValueToType(...)` call. The canonical
+`read_slot`/`write_slot` `ArraySlotSwapSlot` path also swaps in-bounds tracked
+array values directly and syncs aliases through the same tracked-array write
+machinery.
+
+The fallback surface is unchanged: non-small indexes, out-of-bounds indexes,
+sparse/grow `write_slot` cases, non-canonical arrays, non-`i32` cast cases,
+and alias synchronization still use the existing paths. This is not a nominal
+`Array.swap` special case and not a whole-loop quicksort kernel.
+
+Reduced in-tree quicksort moved from the refreshed `4.96-4.98ms/op` profile
+band to:
+
+- `4.51ms/op`
+- `4.51ms/op`
+- `4.57ms/op`
+
+The profiled confirmation was `4.57ms/op`, and the CPU profile no longer shows
+the old generic `castArrayIndexSwapSlotValue(...)` edge. A later expanded
+validation band was noisier but still centered lower: `5.00ms/op`,
+`4.67ms/op`, `4.71ms/op`, `4.75ms/op`, and `4.62ms/op`. Full external
+bytecode `quicksort` still timed out at `60s`, so the next tranche should
+target the now-dominant compare/call/arithmetic wall:
+`JumpIfArrayIndexSlotCompareSlotFalse`, `execCallName` / recursive call setup,
+and `execStoreSlotBinaryIntSlotConst`, or move to the real typed `i32`
+register-frame design.
+
+## 2026-05-28 — Quicksort raw-immediate slot-const store path
+
+The follow-up quicksort tranche targeted the slot-const arithmetic edge from
+the reduced profile without changing lowering or v12 fallback behavior.
+`StoreSlotBinaryIntSlotConst` now checks for instructions that already carry
+both typed `i32` immediate metadata and raw immediate metadata, then computes
+the raw small-`i32` result directly before entering the older generic
+immediate/operator helper. Unsupported slot values, missing raw metadata,
+non-`i32` immediates, overflow, division by zero, and observable assignment
+results still use the same semantics as before.
+
+The fast-result finish path is shared by the raw-immediate path and the older
+generic fast path, so error wrapping, source-context attachment, slot writes,
+slot-0 raw-lane refresh, optional stack push, and IP advancement stay
+identical.
+
+Reduced in-tree quicksort held a kept `500x` band of:
+
+- `4.69ms/op`
+- `4.62ms/op`
+- `4.55ms/op`
+- `4.58ms/op`
+- `4.66ms/op`
+
+After tightening the metadata guard, the confirmation band was:
+
+- `4.54ms/op`
+- `4.64ms/op`
+- `4.63ms/op`
+
+The profiled confirmation was `4.62ms/op`. In the CPU profile,
+`execStoreSlotBinaryIntSlotConst` dropped from about `210ms` cumulative in the
+fresh baseline to `170ms` cumulative. Full external bytecode `quicksort` still
+timed out at `60s`, so this remains a reduced-hotloop keep. The next tranche
+should target the larger remaining wall in `JumpIfArrayIndexSlotCompareSlotFalse`
+/ raw i32 compare extraction, `execCallName` / recursive call setup, or the
+real typed `i32` register-frame design.
+
+## 2026-05-28 — Leaf i32 register-frame seed
+
+The next VM-v2 tranche lands the first conservative raw `i32` register-frame
+slice. Slot analysis enables it only for slot-eligible leaf functions that stay
+inside local primitive arithmetic/control-flow and avoid call/member/index,
+async, propagation, match/rescue, and untyped-declaration boundaries.
+
+When active, discarded `StoreSlotI32` and `CompoundAssignSlotI32` writes store
+raw values in a pooled `[]int32` register frame instead of writing raw
+sentinels into `[]runtime.Value`. `LoadSlotI32`, fused integer slot compares,
+slot-const checks, and generic `LoadSlot` can read/materialize that lane, but
+ordinary programs keep the old direct `[]runtime.Value` fast path when no
+register frame is active.
+
+This is a structural keep, not a quicksort win yet. Reduced quicksort stayed
+neutral/noisy because the current hot quicksort locals are untyped and the
+functions cross call/index/member boundaries:
+
+- first neutral guard: `4.78ms/op`, `4.60ms/op`, `4.67ms/op`
+- wider confirmation: `4.91ms/op`, `5.10ms/op`, `4.85ms/op`, `4.74ms/op`,
+  `4.70ms/op`
+
+The next tranche should make typed registers call-frame capable, with explicit
+save/restore and boxing boundaries, before trying to carry quicksort's `i`,
+`j`, parser counters, or similar hot locals through the raw lane. Do not
+return to active-frame sidecars or untyped-local inference without a real
+data-flow proof.
+
+## 2026-05-28 — Call-capable i32 register frames
+
+The next VM-v2 tranche makes the explicit typed `i32` register lane safe
+across bytecode inline calls. Call frames now detach the active raw register
+frame before entering a callee and restore it on return or unwind; run cleanup
+also releases any saved raw frames through the register-frame pool. Program
+switching preserves a restored caller frame instead of rebuilding it from
+boxed slots, which is required when a discarded typed store has left the caller
+slot live only in the raw lane.
+
+The eligibility gate is still conservative. It now allows direct named calls
+whose arguments are themselves register-safe, but still rejects recursive
+self-calls, member/index dispatch, type-argument calls, async/resume/error
+boundaries, and untyped declarations. `CallName` slot-argument materialization
+now reads through the register-aware slot boundary, so a raw local passed as an
+argument is boxed exactly at the call boundary.
+
+This is a structural keep rather than an immediate scoreboard win:
+
+- focused call-boundary parity stayed green
+- full `go test ./pkg/interpreter` passed with `ABLE_STDLIB_ROOT` unset
+- reduced `Fib30Bytecode`: `150.20ms/op`, `145.02ms/op`, `152.79ms/op`
+- reduced quicksort guard: `5.16ms/op`, `5.01ms/op`, `5.15ms/op`
+
+Next: widen the typed-register eligibility proof only where the VM has an
+explicit materialization boundary, most likely typed non-leaf helper shapes
+first and index/member paths after that. Do not enable untyped locals or
+recursive self-call register frames as part of this line until a fresh profile
+proves their save/restore cost and materialization behavior.
+
+## 2026-05-28 — Discarded typed i32 call-result stores
+
+The next VM-v2 typed-lane tranche keeps direct helper-call support conservative
+but removes a local boxed-retention boundary after typed `i32` call results.
+Generic `StoreSlot` / `StoreSlotNew` instructions for statement-position typed
+`i32` assignments can now be marked `discardResult`. When an `i32` register
+frame is active, the VM consumes the boxed result, runs the existing typed
+assignment validation/coercion, seeds the raw register lane, and leaves the
+runtime slot empty. Non-discarded assignment expressions and non-`i32` stores
+continue to use the existing boxed behavior.
+
+Focused coverage now proves both the direct VM boundary and lowering behavior:
+`y: i32 := helper(x)` lowers to a discarded typed store after the `CallName`
+slot-arg call, without a following `Pop`, and the caller can still use the raw
+register-backed value after return.
+
+Guard results:
+
+- full `go test ./pkg/interpreter` passed with `ABLE_STDLIB_ROOT` unset
+- reduced quicksort guard: `4.93ms/op`, `4.93ms/op`, `5.15ms/op`
+- reduced `Fib30Bytecode`: `144.95ms/op`, `148.52ms/op`, `146.77ms/op`
+
+Next: audit and pin index/member materialization boundaries before widening
+register-frame eligibility to those AST shapes. In practice that means finding
+slot-backed array/member/index opcodes that still read `vm.slots[...]`
+directly and routing only the proven dynamic-boundary operands through the
+register-aware slot materializer. Untyped locals and recursive self-call
+register frames remain out of scope until separately profiled.

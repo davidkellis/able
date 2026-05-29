@@ -51,6 +51,69 @@ func TestBytecodeVM_IntegerLiteralValidationRemainsLazy(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_IntegerLiteralLoweringUsesSmallIntWhenPossible(t *testing.T) {
+	def := ast.Fn(
+		"f",
+		nil,
+		[]ast.Statement{
+			ast.Assign(ast.ID("x"), ast.Int(48)),
+			ast.ID("x"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	program, err := NewBytecode().lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("lower small integer literal: %v", err)
+	}
+	var smallConst *bytecodeInstruction
+	for idx := range program.instructions {
+		if program.instructions[idx].op == bytecodeOpConst {
+			smallConst = &program.instructions[idx]
+			break
+		}
+	}
+	if smallConst == nil {
+		t.Fatalf("expected const instruction, got %#v", program.instructions)
+	}
+	intVal, ok := smallConst.value.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer const, got %#v", smallConst.value)
+	}
+	if !intVal.IsSmall() || intVal.Int64Fast() != 48 || intVal.TypeSuffix != runtime.IntegerI32 {
+		t.Fatalf("unexpected small integer const: %#v", intVal)
+	}
+
+	large, ok := new(big.Int).SetString("9223372036854775808", 10)
+	if !ok {
+		t.Fatalf("failed to build large integer literal")
+	}
+	largeDef := ast.Fn(
+		"g",
+		nil,
+		[]ast.Statement{ast.IntBig(large, nil)},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	largeProgram, err := NewBytecode().lowerFunctionDefinitionBytecode(largeDef)
+	if err != nil {
+		t.Fatalf("lower large integer literal: %v", err)
+	}
+	largeInt, ok := largeProgram.instructions[0].value.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected large integer const, got %#v", largeProgram.instructions[0].value)
+	}
+	if largeInt.IsSmall() || largeInt.Val == nil {
+		t.Fatalf("large integer literal should stay big-backed, got %#v", largeInt)
+	}
+}
+
 func TestBytecodeVM_ResetForRunPreservesConstCaches(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())

@@ -186,6 +186,7 @@ func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinitio
 			break
 		}
 	}
+	layout.i32RegisterFrame = layout.i32RegisterFrame && layout.hasTypedSlots
 	program := &bytecodeProgram{instructions: ctx.instructions, frameLayout: layout, f64DotLoops: ctx.f64DotLoops, f64MatrixRowLoops: ctx.f64MatrixRowLoops, f64AffineRowLoops: ctx.f64AffineRowLoops, f64TransposeRowLoops: ctx.f64TransposeRowLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}
 	program.i32RecurrenceKernel = bytecodeDetectI32RecurrenceKernel(program)
 	return program, nil

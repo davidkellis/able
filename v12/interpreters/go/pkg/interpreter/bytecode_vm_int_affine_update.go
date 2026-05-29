@@ -35,7 +35,15 @@ func (vm *bytecodeVM) execStoreSlotIntMulConstAdd(instr *bytecodeInstruction) er
 			return fmt.Errorf("bytecode stack underflow")
 		}
 		baseIdx = len(vm.stack) - 1
-		base = vm.slots[instr.target]
+		if vm.hasI32RegisterFrame() {
+			if raw, ok := vm.i32RegisterRaw(instr.target); ok {
+				base = bytecodeRawI32SlotCachedValue(raw)
+			} else {
+				base = vm.slots[instr.target]
+			}
+		} else {
+			base = vm.slots[instr.target]
+		}
 		addend = vm.stack[baseIdx]
 	default:
 		return fmt.Errorf("bytecode int affine slot update opcode %d unsupported", instr.op)
@@ -53,7 +61,11 @@ func (vm *bytecodeVM) execStoreSlotIntMulConstAdd(instr *bytecodeInstruction) er
 			}
 			result := bytecodeRawI32SlotCachedValue(raw)
 			vm.stack = vm.stack[:baseIdx]
-			vm.slots[instr.target] = result
+			if vm.hasI32RegisterFrame() && vm.setI32RegisterRaw(instr.target, raw) {
+				vm.slots[instr.target] = nil
+			} else {
+				vm.slots[instr.target] = result
+			}
 			if instr.target == 0 {
 				vm.setSelfFastSlot0I32Value(result)
 			}
@@ -73,7 +85,14 @@ func (vm *bytecodeVM) execStoreSlotIntMulConstAdd(instr *bytecodeInstruction) er
 	}
 	result = bytecodeStackResultValue(result)
 	vm.stack = vm.stack[:baseIdx]
-	vm.slots[instr.target] = result
+	if raw, ok := result.(bytecodeRawI32SlotValue); ok && vm.hasI32RegisterFrame() && vm.setI32RegisterRaw(instr.target, int32(raw)) {
+		vm.slots[instr.target] = nil
+	} else {
+		vm.slots[instr.target] = result
+		if vm.hasI32RegisterFrame() {
+			vm.setI32RegisterValue(instr.target, result)
+		}
+	}
 	if instr.target == 0 {
 		vm.setSelfFastSlot0I32Value(result)
 	}
@@ -113,7 +132,7 @@ func bytecodeIntMulConstAddFast(base runtime.Value, mulImmediate runtime.Integer
 				return nil, true, newOverflowError("integer overflow")
 			}
 			if _, rawBase := base.(bytecodeRawI32SlotValue); rawBase {
-				return bytecodeRawI32SlotValue(int32(result)), true, nil
+				return bytecodeRawI32SlotCachedValue(int32(result)), true, nil
 			}
 			return bytecodeBoxedIntegerI32Value(result), true, nil
 		}

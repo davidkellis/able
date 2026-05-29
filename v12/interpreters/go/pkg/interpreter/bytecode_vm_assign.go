@@ -107,6 +107,9 @@ func (vm *bytecodeVM) execCompoundAssignSlot(instr bytecodeInstruction) error {
 		return err
 	}
 	current := vm.slots[instr.target]
+	if vm.hasI32RegisterFrame() {
+		current = vm.slotRuntimeValue(instr.target)
+	}
 	computed, err := applyBinaryOperator(vm.interp, binaryOp, current, val)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
@@ -116,6 +119,9 @@ func (vm *bytecodeVM) execCompoundAssignSlot(instr bytecodeInstruction) error {
 		return err
 	}
 	vm.slots[instr.target] = computed
+	if vm.hasI32RegisterFrame() {
+		vm.setI32RegisterValue(instr.target, computed)
+	}
 	if instr.target == 0 {
 		vm.setSelfFastSlot0I32Value(computed)
 	}

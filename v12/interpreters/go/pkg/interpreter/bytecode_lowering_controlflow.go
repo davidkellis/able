@@ -341,9 +341,22 @@ func bytecodeDiscardTrailingBlockResult(ctx *bytecodeLoweringContext, start int)
 		bytecodeOpStoreSlotFloatAddMulArrayGet:
 		ctx.instructions[idx].discardResult = true
 		return true
+	case bytecodeOpStoreSlot, bytecodeOpStoreSlotNew:
+		if bytecodeCanDiscardGenericTypedI32StoreResult(&ctx.instructions[idx]) {
+			ctx.instructions[idx].discardResult = true
+			return true
+		}
+		return false
 	default:
 		return false
 	}
+}
+
+func bytecodeCanDiscardGenericTypedI32StoreResult(instr *bytecodeInstruction) bool {
+	return instr != nil &&
+		instr.storeTyped &&
+		instr.typeExpr != nil &&
+		bytecodeCellKindForTypeExpr(instr.typeExpr) == bytecodeCellKindI32
 }
 
 func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.WhileLoop) error {

@@ -1,0 +1,32 @@
+package monte_carlo_pi
+
+fn approx_pi(throws: i32) -> f64 {
+  state := 42_i64
+  inside := 0
+  i := 0
+  loop {
+    if i >= throws { break }
+    state = (state * 48271_i64) % 2147483647_i64
+    x := (state as f64) / 2147483647.0
+    state = (state * 48271_i64) % 2147483647_i64
+    y := (state as f64) / 2147483647.0
+
+    if (x * x + y * y) <= 1.0 {
+      inside = inside + 1
+    }
+    i = i + 1
+  }
+  4.0 * (inside as f64) / (throws as f64)
+}
+
+fn print_pi(samples: i32, value: f64) {
+  print(`${samples} samples: PI = ${value}`)
+}
+
+fn main() {
+  print_pi(1000, approx_pi(1000))
+  print_pi(10000, approx_pi(10000))
+  print_pi(100000, approx_pi(100000))
+  print_pi(1000000, approx_pi(1000000))
+  print_pi(10000000, approx_pi(10000000))
+}

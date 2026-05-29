@@ -43,12 +43,20 @@ type bytecodeProgram struct {
 	f64NestedGetPushes       map[int]bytecodeF64NestedArrayGetPushPlan
 }
 
+type bytecodeI32RegisterFrame struct {
+	values []int32
+	valid  []bool
+}
+
 type bytecodeCallFrame struct {
 	returnIP            int
 	program             *bytecodeProgram
 	slots               []runtime.Value
 	env                 *runtime.Environment
 	returnGenericNames  map[string]struct{}
+	i32RegisterProgram  *bytecodeProgram
+	i32Registers        []int32
+	i32RegisterValid    []bool
 	iterBase            int
 	loopBase            int
 	hasImplicitReceiver bool
@@ -67,24 +75,34 @@ type bytecodeSelfFastCallFrame struct {
 	returnIP            int
 	slots               []runtime.Value
 	returnGenericNames  map[string]struct{}
+	i32RegisterProgram  *bytecodeProgram
+	i32Registers        []int32
+	i32RegisterValid    []bool
 	iterBase            int
 	loopBase            int
 	hasImplicitReceiver bool
 }
 
 type bytecodeSelfFastMinimalCallFrame struct {
-	returnIP      int
-	slots         []runtime.Value
-	slot0         runtime.Value
-	slot0I32Raw   int32
-	slot0I32Valid bool
-	reusesSlots   bool
+	returnIP           int
+	slots              []runtime.Value
+	slot0              runtime.Value
+	i32RegisterProgram *bytecodeProgram
+	i32Registers       []int32
+	i32RegisterValid   []bool
+	slot0I32Raw        int32
+	slot0I32Valid      bool
+	reusesSlots        bool
 }
 
 type bytecodeVM struct {
 	interp                             *Interpreter
 	stack                              []runtime.Value
 	i32Stack                           []int32
+	i32RegisterProgram                 *bytecodeProgram
+	i32Registers                       []int32
+	i32RegisterValid                   []bool
+	i32RegisterFramePool               map[int][]bytecodeI32RegisterFrame
 	selfFastSlot0I32Raw                int32
 	selfFastSlot0I32Valid              bool
 	env                                *runtime.Environment

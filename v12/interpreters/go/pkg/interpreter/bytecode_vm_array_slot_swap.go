@@ -44,6 +44,9 @@ func (vm *bytecodeVM) resolveArraySlotSwapSlot(instr *bytecodeInstruction, progr
 }
 
 func (vm *bytecodeVM) resolveArraySlotSwapSlotFast(arr *runtime.ArrayValue, firstIdx runtime.Value, secondIdx runtime.Value) (bool, error) {
+	if handled := vm.resolveTrackedArraySlotSwapSlotFast(arr, firstIdx, secondIdx); handled {
+		return true, nil
+	}
 	left, _, handled, err := vm.readArraySlotValueFast(arr, firstIdx)
 	if err != nil || !handled {
 		return handled, err
@@ -57,6 +60,33 @@ func (vm *bytecodeVM) resolveArraySlotSwapSlotFast(arr *runtime.ArrayValue, firs
 	}
 	_, handled, err = vm.writeArraySlotValueFast(arr, secondIdx, left)
 	return handled, err
+}
+
+func (vm *bytecodeVM) resolveTrackedArraySlotSwapSlotFast(arr *runtime.ArrayValue, firstIdx runtime.Value, secondIdx runtime.Value) bool {
+	if arr == nil {
+		return false
+	}
+	state, tracked := bytecodeTrackedArrayState(arr)
+	if !tracked || state == nil {
+		return false
+	}
+	first, firstOK := arraySlotIndexSmall(firstIdx)
+	second, secondOK := arraySlotIndexSmall(secondIdx)
+	if !firstOK || !secondOK || first >= len(state.Values) || second >= len(state.Values) {
+		return false
+	}
+	left := state.Values[first]
+	right := state.Values[second]
+	if left == nil {
+		left = runtime.NilValue{}
+	}
+	if right == nil {
+		right = runtime.NilValue{}
+	}
+	state.Values[first] = right
+	state.Values[second] = left
+	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, right, second, left)
+	return true
 }
 
 func (vm *bytecodeVM) resolveArraySlotSwapSlotGeneric(receiver runtime.Value, firstIdx runtime.Value, secondIdx runtime.Value) error {

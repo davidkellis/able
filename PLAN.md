@@ -83,6 +83,12 @@ Goal:
 - grow `../able-stdlib` with normal reusable APIs needed by the benchmark
   suite, not benchmark-only compiler special cases.
 
+Vision / handoff document:
+- `v12/design/performance-competitiveness-vision.md` is the current concise
+  handoff for this program. It defines the compiler end state, bytecode VM v2
+  direction, stdlib workstreams, rejected paths not to repeat, and the
+  recommended assignment order for follow-on models.
+
 Current measured external snapshot:
 - Checked-in scoreboard artifact:
   `v12/docs/perf-baselines/external-scoreboard-current.{json,md}` joins the
@@ -136,6 +142,32 @@ Current measured external snapshot:
   no-fallback launchers stopped loading/parsing/evaluating source metadata;
   bytecode `0.4410s` on the latest string-digit interpolation confirmation;
   tree-walker `3.54s`.
+- `base64`: now implemented through `able.encoding.base64` and
+  `able.crypto.md5`; compiled `2.8600s` vs Go `2.2000s` on the first
+  external comparison, bytecode `8.4400s`, and tree-walker `26.8400s`.
+  Generated-source audit shows the benchmark loop stays compiled while
+  codec/hash work crosses the normal host-backed stdlib extern boundary.
+- `json`: now implemented through `able.json` plus a host-backed
+  `able.fs.read_text` fast path and reusable fast numeric projection scanner;
+  compiled `0.6700s` and bytecode `0.7233s` over `3/3` external runs vs Go
+  `1.3600s`. The baseline before `fs.read_text` was compiled `34.7600s` with
+  bytecode timing out at `180s`; the intermediate decoder projection was
+  compiled `3.7033s` and bytecode `4.0267s`.
+- `monte_carlo_pi`: now implemented through deterministic Park-Miller random
+  sampling. Canonical stdlib exposes `able.random.Random`; the benchmark keeps
+  the same recurrence inline in the hot loop so current bytecode avoids method
+  call/object-state churn. External comparison over `3/3` runs: compiled
+  `0.3233s` vs Go `0.1800s`, Ruby `1.4200s`, Python `1.6800s`; bytecode
+  `18.7967s`, which is functional but not competitive. Schrage `i32` and
+  masked `u64` xorshift probes were rejected for bytecode (`30.5300s` and
+  `60.8500s` respectively), so the remaining gap is VM numeric representation
+  and arithmetic dispatch, not benchmark source coverage.
+- `pidigits`: now implemented through `able.numbers.bigint_native.BigIntRef`,
+  a reusable host-backed mutable BigInt reference API over Go `math/big`.
+  External comparison over `3/3` runs: compiled `1.3367s` and bytecode
+  `2.0300s` vs best checked-in Go `0.7400s` (`go-1.26-gmp`) and Ruby
+  `9.1800s`; against pure Go `math/big` (`go-1.26`, `1.1500s`), compiled is
+  about `1.16x` and bytecode about `1.77x`. Tree-walker remains semantic-only.
 
 Guardrails:
 - Do not add compiler fast paths for named non-primitive containers or
@@ -155,29 +187,14 @@ Guardrails:
 #### Milestone A: Scoreboard And Coverage
 - [ ] Add Able benchmark implementations for missing external suites as the
       required stdlib surface lands:
-      - `base64`
-      - `json`
-      - `monte_carlo_pi`
-      - `pidigits`
       - `tapelang-alphabet` only after the language/runtime surface is
         intentionally selected.
 - [ ] Keep `v12/examples/benchmarks` as the canonical Able source location and
       treat `../benchmarks/*/able-v12-*` copies as harness packaging only.
 
 #### Milestone B: Stdlib Surface Needed For Benchmarks
-- [ ] Add `able.encoding.base64` with efficient encode/decode APIs over
-      strings and byte arrays.
-- [ ] Add `able.crypto.md5` or a general digest package with MD5 support for
-      the `base64` benchmark output checks.
 - [ ] Add a byte-buffer / string-builder surface that can build large strings
       and byte arrays without repeated UTF-8 validation or whole-string copies.
-- [ ] Add `able.json` with at least DOM parsing plus typed numeric/object/array
-      access for the `json` benchmark; prefer a streaming parser follow-up for
-      low-allocation compiled paths.
-- [ ] Finish host-backed or otherwise competitive `BigInt` / `BigUint`
-      operations needed by `pidigits`.
-- [ ] Add deterministic RNG and small numeric helpers needed by
-      `monte_carlo_pi`.
 - [ ] Tighten `able.fs`, `able.io`, and `able.text.string` hot APIs for
       benchmark-scale file reads, line iteration, splitting, numeric parsing,
       substring/search, and replacement.
@@ -188,9 +205,10 @@ Guardrails:
 - [ ] Keep the compiled scoreboard current while shifting new optimization
       work to bytecode VM v2 and stdlib coverage. The current compiled core
       pass is in Go range for `fib`, `binarytrees`, `matrixmultiply`,
-      `quicksort`, `sudoku`, and `i_before_e`; future compiled work should be
-      driven by new benchmark families or regression evidence, not by more
-      `fib` micro-slices.
+      `quicksort`, `sudoku`, `i_before_e`, and `pidigits` when compared to
+      the pure Go `math/big` row; future compiled work should be driven by new
+      benchmark families or regression evidence, not by more `fib`
+      micro-slices.
 
 #### Milestone D: Bytecode VM Competitiveness
 - Active direction: evolve the existing bytecode VM into VM v2 rather than
@@ -346,7 +364,74 @@ Guardrails:
   bytecode quicksort still timed out at `90s`. Do not keep tuning this cache
   without a fresh reason. The next quicksort tranche should profile the kept
   state and target either a real raw i32 register-frame design or the
-  parser/byte-array lane, not another swap or raw-cache micro-probe.
+  parser/byte-array lane, not another swap or raw-cache micro-probe. The next
+  parser-lane slice is now landed: bytecode integer literals that fit in
+  `int64` lower to small `runtime.IntegerValue` constants instead of
+  big-backed constants, while out-of-range typed literals still validate lazily
+  when executed. This lets the affine parser update
+  `value = value * 10 + ((byte as i32) - 48)` stay on the small-int/raw fast
+  path instead of falling back through generic `applyBinaryOperator`. After a
+  noisy first run, the warmed 1MB prefix band landed at `763104452 ns/op`,
+  `30156808 B/op`, and `1180529 allocs/op`, with a profiled confirmation at
+  `770806166 ns/op`, `30184704 B/op`, and `1180584 allocs/op`. Full external
+  bytecode quicksort still timed out at `90s`. The next quicksort tranche
+  should target the remaining uncached raw i32 slot-write allocations with a
+  typed opcode/register-frame design, or re-profile the parser byte-array lane
+  before adding another narrowly fused opcode. The latest kept reduced-hotloop
+  tranche adds a direct tracked-array swap path for both bracket-index
+  `ArrayIndexSwapSlot` and canonical `read_slot`/`write_slot`
+  `ArraySlotSwapSlot` when both indexes are in-bounds small integers. The
+  bracket-index path also caches the proven `i32` cast target on the lowered
+  instruction and skips the generic cast call when both tracked values are
+  already internal/raw `i32`. Reduced in-tree quicksort moved from the fresh
+  `4.96-4.98ms/op` profile band to `4.51ms/op`, `4.51ms/op`, and
+  `4.57ms/op` over `500x`, with a profiled confirmation at `4.57ms/op` and a
+  later noisier validation band of `5.00ms/op`, `4.67ms/op`, `4.71ms/op`,
+  `4.75ms/op`, and `4.62ms/op`.
+  Full external bytecode quicksort still timed out at `60s`. The next tranche
+  should target the now-dominant compare/call/arithmetic wall:
+  `JumpIfArrayIndexSlotCompareSlotFalse`, `execCallName` / recursive call
+  setup, and `execStoreSlotBinaryIntSlotConst`, or move to the real typed
+  `i32` register-frame design. Do not turn this into a nominal `Array.swap`
+  special case or a whole-loop quicksort kernel. The follow-up raw-immediate
+  slot-const tranche keeps the same `StoreSlotBinaryIntSlotConst` opcode but
+  routes instruction-local `i32` immediates with raw metadata through a direct
+  raw result helper before the generic immediate/operator path. Unsupported
+  values still fall back unchanged. Reduced quicksort held a `4.55-4.69ms/op`
+  kept band over `500x`, then `4.54ms/op`, `4.64ms/op`, and `4.63ms/op` after
+  the raw-metadata guard was tightened; the profiled confirmation was
+  `4.62ms/op`, and `execStoreSlotBinaryIntSlotConst` dropped from about
+  `210ms` to `170ms` cumulative. Full external bytecode quicksort still timed
+  out at `60s`. The next tranche should treat slot-const stores as less
+  dominant and target `JumpIfArrayIndexSlotCompareSlotFalse` / raw i32 compare
+  extraction, `execCallName` / recursive call setup, or the real typed `i32`
+  register-frame design. The first call-capable register-frame slice is now
+  landed: bytecode call frames detach/restore active `i32` register arrays,
+  run cleanup releases saved raw frames, `switchRunProgram(...)` preserves a
+  restored caller raw frame, and conservative direct named calls with
+  register-safe arguments can keep the register-frame lane. The focused
+  call-boundary proof covers a raw `i32` local passed through a slot-arg inline
+  call and then reused after return. Reduced `Fib30Bytecode` remained healthy
+  at `150.20ms/op`, `145.02ms/op`, and `152.79ms/op`; reduced quicksort stayed
+  in range at `5.16ms/op`, `5.01ms/op`, and `5.15ms/op`. The next typed-lane
+  tranche should widen eligibility only where a materialization boundary is
+  explicit, probably typed non-leaf helper shapes first and index/member paths
+  after that. Do not enable untyped locals or recursive self-call register
+  frames until their save/restore and boxing profiles are proven separately.
+  The first typed non-leaf follow-up is now landed: statement-position typed
+  `i32` `StoreSlot` / `StoreSlotNew` instructions that receive boxed helper
+  call results can be marked `discardResult`; with an active register frame
+  the VM consumes the boxed result, preserves the normal typed
+  validation/coercion path, seeds the raw register lane, and leaves the boxed
+  runtime slot empty. Focused coverage pins both the direct VM boundary and
+  lowering for `y: i32 := helper(x)` after a `CallName` slot-arg helper call.
+  Reduced `Fib30Bytecode` stayed healthy at `144.95ms/op`, `148.52ms/op`, and
+  `146.77ms/op`; reduced quicksort stayed in range at `4.93ms/op`,
+  `4.93ms/op`, and `5.15ms/op`. The next tranche should audit index/member
+  materialization boundaries before widening eligibility to those AST shapes:
+  find slot-backed array/member/index opcodes that still read `vm.slots[...]`
+  directly, route only proven dynamic-boundary operands through the
+  register-aware slot materializer, and keep untyped locals out of scope.
 - Current matrix VM-v2 state: guarded mono-f64 array storage is now landed for
   the proven matrix row shape. The affine `Array.push` fast path can promote
   unaliased dynamic rows to mono f64, the native dot loop reads mono f64 rows
@@ -391,7 +476,17 @@ Guardrails:
       First stack-only seed is landed: literal-only final `i32` add/sub
       expressions now run on a raw `i32` operand stack and box before return.
       Declared `i32` slot metadata plus `LoadSlotI32` / `StoreSlotI32` are now
-      landed for safe final arithmetic and typed local declarations. A parallel
+      landed for safe final arithmetic and typed local declarations. The first
+      conservative raw `i32` register-frame slice is now landed for
+      slot-eligible leaf functions whose bodies contain only local primitive
+      arithmetic/control-flow and no call/member/index/async boundary:
+      discarded typed `i32` stores live in a pooled raw register frame instead
+      of writing raw sentinels into `[]runtime.Value`, while generic slot loads
+      still box at the v12 boundary. Quicksort remains effectively neutral
+      because its current hot locals are untyped and its functions cross
+      call/index/member boundaries; extending this lane now requires
+      call-frame-capable typed registers, not another active-frame sidecar.
+      A parallel
       typed-slot side cache for recursive frames was tested and rejected on
       reduced `Fib30Bytecode`; the kept recursive-frame win is now compact
       two-slot self-fast frame reuse, which saves/restores slot 0 instead of
@@ -3851,6 +3946,16 @@ These items remain important, but they are not active priorities right now.
       raw integer locals into a typed opcode/register-frame design, or choose a
       fresh external-scale canonical array/member-dispatch edge. Do not broaden
       interface-sentinel writes or revive active-frame sidecar retrofits.
+    - kept follow-up: bytecode integer literals that fit in `int64` now lower
+      to small integer constants rather than big-backed constants, preserving
+      lazy overflow validation for typed out-of-range literals. On the 1MB
+      quicksort prefix this moved the warmed band to `763104452 ns/op`,
+      `30156808 B/op`, and `1180529 allocs/op`, with the affine parser update
+      no longer allocating through `storeSlotIntMulConstAddResult(...)`.
+    - next step: target remaining uncached raw i32 slot-write allocations with
+      a typed opcode/register-frame design, or take a fresh parser byte-array
+      profile before adding another parser-specific fusion. Full external
+      bytecode quicksort still times out at `90s`.
 - fixture exporter and other tooling cleanup
   - current state: the first cleanup slice is now landed
     - `cmd/fixture-exporter` has focused direct test coverage plus a
