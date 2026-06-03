@@ -3,7 +3,7 @@ package exec_07_10_bytecode_quicksort_hotloop
 import able.kernel.{Array}
 
 fn swap(arr: Array i32, a: i32, b: i32) {
-  tmp := arr[a] as i32
+  tmp: i32 := arr[a] as i32
   arr[a] = arr[b] as i32
   arr[b] = tmp
 }

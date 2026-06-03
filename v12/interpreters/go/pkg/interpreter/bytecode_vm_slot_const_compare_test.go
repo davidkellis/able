@@ -110,6 +110,67 @@ func TestBytecodeVM_LoweringEmitsTypedIntegerSlotConstCompareJump(t *testing.T) 
 	}
 }
 
+func TestBytecodeVM_LoweringEmitsConditionalJumpForIntCompareSlotConstConjunctionIf(t *testing.T) {
+	u8 := ast.IntegerTypeU8
+	cond := ast.Bin(
+		"&&",
+		ast.Bin(">=", ast.ID("byte"), ast.IntTyped(48, &u8)),
+		ast.Bin("<=", ast.ID("byte"), ast.IntTyped(57, &u8)),
+	)
+	ifExpr := ast.IfExpr(cond, ast.Block(ast.Int(1)))
+	ifExpr.ElseBody = ast.Block(ast.Int(0))
+	def := ast.Fn(
+		"is_digit",
+		[]*ast.FunctionParameter{ast.Param("byte", ast.Ty("u8"))},
+		[]ast.Statement{ifExpr},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	compareJumps := 0
+	lessEqualJumps := 0
+	for _, instr := range program.instructions {
+		switch instr.op {
+		case bytecodeOpJumpIfIntCompareSlotConstFalse:
+			compareJumps++
+			if instr.operator != ">=" {
+				t.Fatalf("unexpected lower-bound conjunction jump operator %q", instr.operator)
+			}
+			if !instr.hasIntImmediate || instr.intImmediate.TypeSuffix != runtime.IntegerU8 {
+				t.Fatalf("expected typed u8 immediate, got %#v", instr.intImmediate)
+			}
+		case bytecodeOpJumpIfIntLessEqualSlotConstFalse:
+			lessEqualJumps++
+			if instr.operator != "<=" {
+				t.Fatalf("unexpected upper-bound conjunction jump operator %q", instr.operator)
+			}
+			if !instr.hasIntImmediate || instr.intImmediate.TypeSuffix != runtime.IntegerU8 {
+				t.Fatalf("expected typed u8 immediate, got %#v", instr.intImmediate)
+			}
+		}
+	}
+	if compareJumps != 1 || lessEqualJumps != 1 {
+		t.Fatalf("expected one compare jump and one less-equal jump for conjunction, got compare=%d lessEqual=%d", compareJumps, lessEqualJumps)
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpDup) {
+		t.Fatalf("expected conjunction in if-position to skip generic dup-based && lowering")
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpJumpIfFalse) {
+		t.Fatalf("expected conjunction in if-position to skip generic jump-if-false lowering")
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntCompareSlotConst) {
+		t.Fatalf("expected conjunction in if-position to skip standalone bool-producing compare opcodes")
+	}
+}
+
 func TestBytecodeVM_JumpIfIntCompareSlotConstFalseFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
@@ -139,5 +200,35 @@ func TestBytecodeVM_JumpIfIntCompareSlotConstFalseFastPath(t *testing.T) {
 	}
 	if vm.ip != 7 {
 		t.Fatalf("false compare should jump to 7, got %d", vm.ip)
+	}
+}
+
+func TestBytecodeVM_IntCompareSlotConstConjunctionIfParity(t *testing.T) {
+	u8 := ast.IntegerTypeU8
+	cond := ast.Bin(
+		"&&",
+		ast.Bin(">=", ast.ID("byte"), ast.IntTyped(48, &u8)),
+		ast.Bin("<=", ast.ID("byte"), ast.IntTyped(57, &u8)),
+	)
+	ifExpr := ast.IfExpr(cond, ast.Block(ast.Int(1)))
+	ifExpr.ElseBody = ast.Block(ast.Int(0))
+	module := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"is_digit",
+			[]*ast.FunctionParameter{ast.Param("byte", ast.Ty("u8"))},
+			[]ast.Statement{ifExpr},
+			ast.Ty("i32"),
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Bin("+", ast.Call("is_digit", ast.IntTyped(52, &u8)), ast.Call("is_digit", ast.IntTyped(65, &u8))),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode digit-range conjunction parity mismatch: got=%#v want=%#v", got, want)
 	}
 }

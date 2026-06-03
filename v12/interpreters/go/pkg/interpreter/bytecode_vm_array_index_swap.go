@@ -23,15 +23,79 @@ func (vm *bytecodeVM) execArrayIndexSwapSlot(instr *bytecodeInstruction) error {
 		return fmt.Errorf("bytecode array index swap slot out of range")
 	}
 	obj := vm.slots[objSlot]
-	firstIdx := vm.slots[firstSlot]
-	secondIdx := vm.slots[secondSlot]
-	result, err := vm.resolveArrayIndexSwapSlot(instr, obj, firstIdx, secondIdx)
+	if !vm.hasI32RegisterFrame() {
+		firstIdx := vm.slots[firstSlot]
+		secondIdx := vm.slots[secondSlot]
+		result, err := vm.resolveArrayIndexSwapSlot(instr, obj, firstIdx, secondIdx)
+		if err != nil {
+			return vm.attachArrayIndexSwapSlotError(err, instr)
+		}
+		vm.stack = append(vm.stack, bytecodeStackResultValue(result))
+		vm.ip++
+		return nil
+	}
+	var (
+		result runtime.Value
+		err    error
+	)
+	if vm.interp.canUseDirectArrayIndexGetFastPath() && vm.interp.canUseDirectArrayIndexSetFastPath() {
+		if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
+			if value, handled, directErr := vm.resolveDirectArrayIndexSwapSlotAtSlots(instr, arr, firstSlot, secondSlot); handled || directErr != nil {
+				result, err = value, directErr
+			}
+		}
+	}
+	if result == nil && err == nil {
+		result, err = vm.resolveArrayIndexSwapSlot(instr, obj, vm.slotMaterializedValue(firstSlot), vm.slotMaterializedValue(secondSlot))
+	}
 	if err != nil {
 		return vm.attachArrayIndexSwapSlotError(err, instr)
 	}
 	vm.stack = append(vm.stack, bytecodeStackResultValue(result))
 	vm.ip++
 	return nil
+}
+
+func (vm *bytecodeVM) resolveDirectArrayIndexSwapSlotAtSlots(instr *bytecodeInstruction, arr *runtime.ArrayValue, firstSlot int, secondSlot int) (runtime.Value, bool, error) {
+	if first, ok := vm.slotDirectSmallArrayIndex(firstSlot); ok {
+		if second, ok := vm.slotDirectSmallArrayIndex(secondSlot); ok {
+			if state, tracked := bytecodeTrackedArrayState(arr); tracked {
+				result, err := vm.resolveTrackedSmallArrayIndexSwapSlot(instr, arr, state, first, second)
+				return result, true, err
+			}
+		}
+	}
+	first, ok, err := vm.slotDirectArrayIndex(firstSlot)
+	if err != nil || !ok {
+		return nil, ok, err
+	}
+	second, ok, err := vm.slotDirectArrayIndex(secondSlot)
+	if err != nil || !ok {
+		return nil, ok, err
+	}
+	left, err := vm.resolveDirectArrayIndexGetAt(arr, first)
+	if err != nil {
+		return nil, true, err
+	}
+	left, err = vm.castArrayIndexSwapSlotValue(instr, left)
+	if err != nil {
+		return nil, true, err
+	}
+	right, err := vm.resolveDirectArrayIndexGetAt(arr, second)
+	if err != nil {
+		return nil, true, err
+	}
+	right, err = vm.castArrayIndexSwapSlotValue(instr, right)
+	if err != nil {
+		return nil, true, err
+	}
+	if _, err := vm.resolveDirectArrayIndexSetAt(arr, first, right); err != nil {
+		return nil, true, err
+	}
+	if _, err := vm.resolveDirectArrayIndexSetAt(arr, second, left); err != nil {
+		return nil, true, err
+	}
+	return left, true, nil
 }
 
 func (vm *bytecodeVM) resolveArrayIndexSwapSlot(instr *bytecodeInstruction, obj runtime.Value, firstIdx runtime.Value, secondIdx runtime.Value) (runtime.Value, error) {

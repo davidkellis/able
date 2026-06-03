@@ -2,17 +2,21 @@ package runtime
 
 import "fmt"
 
-func ArrayStoreMonoValueFromU8String(text string) *ArrayValue {
+func ArrayStoreMonoValueFromU8Bytes(data []byte) *ArrayValue {
 	ensureArrayStore()
 	handle := allocateArrayHandle()
-	values := make([]uint8, len(text))
-	copy(values, text)
+	values := make([]uint8, len(data))
+	copy(values, data)
 	monoArrayU8States[handle] = &monoArrayU8State{
 		Values:   values,
 		Capacity: len(values),
 	}
 	arrayHandleKinds[handle] = monoArrayKindU8
 	return &ArrayValue{Handle: handle, TrackedHandle: handle}
+}
+
+func ArrayStoreMonoValueFromU8String(text string) *ArrayValue {
+	return ArrayStoreMonoValueFromU8Bytes([]byte(text))
 }
 
 func ArrayStoreMonoReadU8IfAvailable(handle int64, index int) (uint8, bool, error) {

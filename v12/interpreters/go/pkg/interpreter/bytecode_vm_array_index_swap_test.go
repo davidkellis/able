@@ -51,6 +51,34 @@ func TestBytecodeVM_LoweringEmitsArrayIndexSwapSlotOpcode(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_LoweringEmitsArrayIndexSwapSlotOpcodeForTypedTemp(t *testing.T) {
+	def := ast.Fn(
+		"swap",
+		[]*ast.FunctionParameter{
+			ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+			ast.Param("a", ast.Ty("i32")),
+			ast.Param("b", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.Assign(ast.TypedP(ast.ID("tmp"), ast.Ty("i32")), ast.NewTypeCastExpression(ast.Index(ast.ID("arr"), ast.ID("a")), ast.Ty("i32"))),
+			ast.AssignIndex(ast.ID("arr"), ast.ID("a"), ast.NewTypeCastExpression(ast.Index(ast.ID("arr"), ast.ID("b")), ast.Ty("i32"))),
+			ast.AssignIndex(ast.ID("arr"), ast.ID("b"), ast.ID("tmp")),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	program, err := NewBytecode().lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpArrayIndexSwapSlot) {
+		t.Fatalf("expected typed temp swap pattern to emit array index swap slot opcode")
+	}
+}
+
 func TestBytecodeVM_LoweringEmitsArraySlotSwapSlotOpcode(t *testing.T) {
 	def := ast.Fn(
 		"swap",
@@ -88,6 +116,34 @@ func TestBytecodeVM_LoweringEmitsArraySlotSwapSlotOpcode(t *testing.T) {
 	}
 	if !sawSwap {
 		t.Fatalf("expected lowering to emit array slot swap opcode")
+	}
+}
+
+func TestBytecodeVM_LoweringEmitsArraySlotSwapSlotOpcodeForTypedTemp(t *testing.T) {
+	def := ast.Fn(
+		"swap",
+		[]*ast.FunctionParameter{
+			ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+			ast.Param("a", ast.Ty("i32")),
+			ast.Param("b", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.Assign(ast.TypedP(ast.ID("tmp"), ast.Ty("i32")), ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.ID("a"))),
+			ast.CallExpr(ast.Member(ast.ID("arr"), "write_slot"), ast.ID("a"), ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.ID("b"))),
+			ast.CallExpr(ast.Member(ast.ID("arr"), "write_slot"), ast.ID("b"), ast.ID("tmp")),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	program, err := NewBytecode().lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpArraySlotSwapSlot) {
+		t.Fatalf("expected typed temp slot swap pattern to emit array slot swap opcode")
 	}
 }
 
@@ -134,6 +190,44 @@ func TestBytecodeVM_ArrayIndexSwapSlotFastPath(t *testing.T) {
 	}
 	if got := state.Values[2].(runtime.IntegerValue).Int64Fast(); got != 1 {
 		t.Fatalf("slot 2 after swap = %d, want 1", got)
+	}
+}
+
+func TestBytecodeVM_ArrayIndexSwapSlotUsesI32RegisterIndexes(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+		runtime.NewSmallInt(2, runtime.IntegerI32),
+		runtime.NewSmallInt(3, runtime.IntegerI32),
+	}, 3)
+	if _, err := interp.ensureArrayState(arr, 0); err != nil {
+		t.Fatalf("ensure array state: %v", err)
+	}
+	program := &bytecodeProgram{frameLayout: &bytecodeFrameLayout{
+		slotCount:        3,
+		slotKinds:        []bytecodeCellKind{bytecodeCellKindValue, bytecodeCellKindI32, bytecodeCellKindI32},
+		hasTypedSlots:    true,
+		i32RegisterFrame: true,
+	}}
+	vm.slots = []runtime.Value{arr, nil, nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(1, 0) || !vm.setI32RegisterRaw(2, 2) {
+		t.Fatalf("expected register frame to accept swap indexes")
+	}
+
+	if err := vm.execArrayIndexSwapSlot(&bytecodeInstruction{
+		op:           bytecodeOpArrayIndexSwapSlot,
+		argCount:     0,
+		loopBreak:    1,
+		loopContinue: 2,
+		typeExpr:     ast.Ty("i32"),
+		name:         "i32",
+	}); err != nil {
+		t.Fatalf("array index swap slot register-index opcode failed: %v", err)
+	}
+	if got := vm.stack[0].(runtime.IntegerValue).Int64Fast(); got != 1 {
+		t.Fatalf("swap result = %d, want original first value 1", got)
 	}
 }
 
@@ -243,6 +337,56 @@ func TestBytecodeVM_ArraySlotSwapSlotTrackedFastPathMaterializesNil(t *testing.T
 	}
 	if _, ok := state.Values[1].(runtime.NilValue); !ok {
 		t.Fatalf("slot 1 after swap = %#v, want materialized nil", state.Values[1])
+	}
+}
+
+func TestBytecodeVM_ArraySlotSwapSlotUsesI32RegisterIndexes(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+		runtime.NewSmallInt(2, runtime.IntegerI32),
+		runtime.NewSmallInt(3, runtime.IntegerI32),
+	}, 3)
+	if _, err := interp.ensureArrayState(arr, 0); err != nil {
+		t.Fatalf("ensure array state: %v", err)
+	}
+	program := &bytecodeProgram{
+		instructions: []bytecodeInstruction{{
+			op:           bytecodeOpArraySlotSwapSlot,
+			argCount:     0,
+			loopBreak:    1,
+			loopContinue: 2,
+		}},
+		frameLayout: &bytecodeFrameLayout{
+			slotCount:        3,
+			slotKinds:        []bytecodeCellKind{bytecodeCellKindValue, bytecodeCellKindI32, bytecodeCellKindI32},
+			hasTypedSlots:    true,
+			i32RegisterFrame: true,
+		},
+	}
+	vm.storeCachedCanonicalArraySlotCallForArray(program, 0, arr, bytecodeMemberMethodFastPathArrayReadWriteSlot)
+	vm.slots = []runtime.Value{arr, nil, nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(1, 0) || !vm.setI32RegisterRaw(2, 2) {
+		t.Fatalf("expected register frame to accept swap indexes")
+	}
+
+	if err := vm.execArraySlotSwapSlot(&program.instructions[0], program); err != nil {
+		t.Fatalf("array slot swap register-index opcode failed: %v", err)
+	}
+	if _, ok := vm.stack[0].(runtime.VoidValue); !ok {
+		t.Fatalf("slot swap result = %#v, want void", vm.stack[0])
+	}
+	state, err := interp.ensureArrayState(arr, 0)
+	if err != nil {
+		t.Fatalf("ensure array state after swap: %v", err)
+	}
+	if got := state.Values[0].(runtime.IntegerValue).Int64Fast(); got != 3 {
+		t.Fatalf("slot 0 after swap = %d, want 3", got)
+	}
+	if got := state.Values[2].(runtime.IntegerValue).Int64Fast(); got != 1 {
+		t.Fatalf("slot 2 after swap = %d, want 1", got)
 	}
 }
 

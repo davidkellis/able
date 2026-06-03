@@ -337,6 +337,11 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 			if value.Kind() != reflect.Slice {
 				return nil, fmt.Errorf("extern expected slice result")
 			}
+			if externIsArrayU8Type(t) {
+				if bytes, ok := externReflectU8SliceBytes(value); ok {
+					return i.newU8ArrayValueFromBytes(bytes), nil
+				}
+			}
 			if externIsArrayStringType(t) {
 				if result, ok := externReflectStringSliceResult(value); ok {
 					return result, nil

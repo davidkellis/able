@@ -469,3 +469,122 @@ func TestBytecodeVM_ArrayPushFastPathSkipsAdjacentPop(t *testing.T) {
 		t.Fatalf("push value = %#v, want %#v", state.Values[0], want)
 	}
 }
+
+func TestBytecodeVM_LoweringKeepsI32RegisterFrameForArraySlotReadWrite(t *testing.T) {
+	def := ast.Fn(
+		"copy_slot",
+		[]*ast.FunctionParameter{
+			ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+			ast.Param("i", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.Assign(ast.TypedP(ast.ID("idx"), ast.Ty("i32")), ast.ID("i")),
+			ast.Assign(
+				ast.TypedP(ast.ID("current"), ast.Ty("i32")),
+				ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.ID("idx")),
+			),
+			ast.CallExpr(ast.Member(ast.ID("arr"), "write_slot"), ast.ID("idx"), ast.ID("current")),
+			ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.ID("idx")),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	program, err := NewBytecode().lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if program.frameLayout == nil || !program.frameLayout.i32RegisterFrame {
+		t.Fatalf("expected array slot read/write helper to keep i32 register frame")
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpArrayReadSlot) {
+		t.Fatalf("expected read_slot helper to lower through array read slot opcode")
+	}
+	sawWriteSlot := false
+	for _, instr := range program.instructions {
+		if instr.op == bytecodeOpCallMemberArraySlot && instr.name == "write_slot" && instr.argCount == 2 {
+			sawWriteSlot = true
+		}
+		if instr.op == bytecodeOpCallMember && instr.name == "write_slot" {
+			t.Fatalf("expected canonical write_slot helper to avoid generic call-member opcode")
+		}
+	}
+	if !sawWriteSlot {
+		t.Fatalf("expected write_slot helper to lower through array-slot member opcode")
+	}
+}
+
+func TestBytecodeVM_I32RegisterFrameArraySlotReadWriteParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Methods(
+			ast.Gen(ast.Ty("Array"), ast.Ty("i32")),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"read_slot",
+					[]*ast.FunctionParameter{
+						ast.Param("self", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+						ast.Param("idx", ast.Ty("i32")),
+					},
+					[]ast.Statement{
+						ast.Ret(ast.NewTypeCastExpression(ast.Index(ast.ID("self"), ast.ID("idx")), ast.Ty("i32"))),
+					},
+					ast.Ty("i32"),
+					nil,
+					nil,
+					false,
+					false,
+				),
+				ast.Fn(
+					"write_slot",
+					[]*ast.FunctionParameter{
+						ast.Param("self", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+						ast.Param("idx", ast.Ty("i32")),
+						ast.Param("value", ast.Ty("i32")),
+					},
+					[]ast.Statement{
+						ast.AssignIndex(ast.ID("self"), ast.ID("idx"), ast.ID("value")),
+						ast.Ret(ast.Nil()),
+					},
+					ast.Ty("void"),
+					nil,
+					nil,
+					false,
+					false,
+				),
+			},
+			nil,
+			nil,
+		),
+		ast.Fn(
+			"copy_slot",
+			[]*ast.FunctionParameter{
+				ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+				ast.Param("i", ast.Ty("i32")),
+			},
+			[]ast.Statement{
+				ast.Assign(ast.TypedP(ast.ID("idx"), ast.Ty("i32")), ast.ID("i")),
+				ast.Assign(
+					ast.TypedP(ast.ID("current"), ast.Ty("i32")),
+					ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.ID("idx")),
+				),
+				ast.CallExpr(ast.Member(ast.ID("arr"), "write_slot"), ast.ID("idx"), ast.ID("current")),
+				ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.ID("idx")),
+			},
+			ast.Ty("i32"),
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Call("copy_slot", ast.Arr(ast.Int(4), ast.Int(5)), ast.Int(1)),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode array slot register-frame parity mismatch: got=%#v want=%#v", got, want)
+	}
+}

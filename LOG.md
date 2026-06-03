@@ -1,5 +1,167 @@
 # Able Project Log
 
+# 2026-05-31 — Rejected exact tracked-array compare micro-probe; kept ArrayReadSlot register-index repair (v12)
+
+- Tested a bounded quicksort-facing compare slice in
+  `bytecode_vm_array_slot_compare.go`: add one exact fast branch for the
+  tracked `Array i32` + small-index + small-rhs shape inside
+  `execJumpIfArrayIndexSlotCompareSlotFalse(...)` before the existing generic
+  `i32` compare helper.
+- Result: the focused compare/quicksort slice stayed green, but the reduced
+  quicksort signal was too noisy and too weak to defend as a real keep. The
+  exact tracked-array compare branch was reverted.
+- While verifying the tranche, the full package gate exposed a real VM-v2
+  correctness gap: `ArrayReadSlot` still read `vm.slots[indexSlot]` directly,
+  so typed `i32` register-frame programs could pass `<nil>` into canonical
+  `read_slot` fallback paths when the boxed slot cell was empty. Kept fix:
+  `execArrayReadSlot(...)` now materializes the index only when the slot cell
+  is empty and the raw `i32` lane is active. Added direct coverage in
+  `TestBytecodeVM_ArrayReadSlotOpcodeUsesI32RegisterIndex`, and the existing
+  `TestBytecodeVM_I32RegisterFrameArraySlotReadWriteParity` now passes again.
+- Verification:
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_I32RegisterFrameArraySlotReadWriteParity' -count=1 -timeout 300s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(JumpIfArrayIndexSlotCompareSlotFalseFastPath|JumpIfArrayReadSlotCompareSlotFalseFastPath|ArrayReadSlotOpcodeFastPath|ArrayReadSlotOpcodeUsesI32RegisterIndex|CallNameCacheRecordsDirectInlineShape|I32RegisterFramePreseedsInlineCallNameDirectSlotArgsFromCallerSlots|SelfCallWithArrayParamKeepsInlineFastPath)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - reduced quicksort sanity after revert: `5.86ms/op`
+- Next: do not spend another tranche on exact tracked-array compare branching.
+  The next bounded quicksort slice should target a correctness-safe hot path
+  that still dominates profile time after the call-name keeps, most likely the
+  remaining boxed slot-const store finish path or a broader typed call/member
+  boundary that avoids repeated materialization instead of shuffling compare
+  helpers.
+
+# 2026-05-31 — Bytecode direct slot-arg inline call-name setup (v12)
+
+- Narrowed the same VM-v2 helper-call boundary again. Cached direct `CallName`
+  helpers with slot arguments no longer materialize their arguments onto
+  `vm.stack` before inlining. Instead, the VM now:
+  - reads the caller arguments straight from the declared caller slots,
+  - materializes boxed values only for the callee semantic frame,
+  - seeds the callee raw `i32` register frame directly from caller
+    slots/registers during setup.
+- This keeps the v12 call boundary unchanged while removing the temporary
+  slot-arg staging path from the cached direct inline case. Unsupported
+  call-name shapes still use the existing stack-based path.
+- Added focused proof coverage showing that a direct cached slot-arg helper
+  can inline from a caller slot whose boxed cell is empty but whose raw `i32`
+  lane is live, while leaving the existing stack prefix untouched.
+- Benchmarks:
+  - reduced quicksort guard: `5.22ms/op`, `5.20ms/op`, `5.43ms/op`
+  - reduced `Fib30Bytecode`: `149.20ms/op`, `151.15ms/op`, `142.79ms/op`
+  - profiled reduced quicksort confirmation: `5.37ms/op`
+- Verification:
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(I32RegisterFramePreseedsInlineCallNameDirectCallee|I32RegisterFramePreseedsInlineCallNameDirectSlotArgsFromCallerSlots|I32RegisterFrameSurvivesInlineCallNameSlotArgs|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|SelfCallWithArrayParamKeepsInlineFastPath)' -count=1 -timeout 300s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=100x -count=3`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=200x -count=1 -cpuprofile /tmp/able-qsort-slotarg-direct.cpu.pprof`
+  - `go tool pprof -top /tmp/able-qsort-slotarg-direct.cpu.pprof`
+- Next: the quicksort profile no longer shows `pushCallNameSlotArgs(...)`;
+  the live wall is now `tryInlineCachedCallNameDirectFromSlots(...)` itself,
+  plus `slotMaterializedValue(...)` and residual callee-frame seed work.
+  The next bounded slice should specialize that slot-based helper for the
+  no-coercion typed lane before widening any new VM-v2 eligibility gate.
+
+# 2026-05-31 — Bytecode preseeded inline callee i32 register frames (v12)
+
+- Narrowed the VM-v2 helper-call boundary on the hot cached `CallName` inline
+  path. Inline call setup now allocates and seeds the callee raw `i32`
+  register frame while arguments are copied/coerced, then installs that frame
+  immediately after `pushCallFrame(...)` instead of waiting for
+  `switchRunProgram(...)` to rebuild it from boxed callee slots.
+- The keep covers the hot direct named-call path plus the generic inline
+  setup helpers in `bytecode_vm_calls.go`, so every already-proven direct
+  typed callee now enters with its raw lane live before the program switch.
+  Existing error paths release the temporary callee register frame through the
+  pool, and caller raw frames still detach into the saved call frame and
+  restore on unwind.
+- Added focused proof coverage showing that:
+  - a direct cached `CallName` inline helper pre-seeds its callee raw slot
+    before `switchRunProgram(...)`,
+  - corrupting the boxed callee slot copy does not matter because the switch
+    preserves the pre-seeded raw frame,
+  - the caller raw frame restores correctly after `popCallFrameFields()`.
+- Benchmarks:
+  - reduced quicksort guard: `5.47ms/op`, `5.23ms/op`, `5.23ms/op`
+  - reduced `Fib30Bytecode`: `141.50ms/op`, `143.73ms/op`, `144.42ms/op`
+  - profiled reduced quicksort confirmation: `5.28ms/op`
+- Verification:
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(I32RegisterFramePreseedsInlineCallNameDirectCallee|I32RegisterFrameSurvivesInlineCallNameSlotArgs|FinishRunResumableReleasesUnwoundMinimalSelfFastCallFrames|FinishRunResumableReleasesUnwoundSelfFastCallFrames|FinishRunResumableReleasesUnwoundCallFrames|SelfCallWithArrayParamKeepsInlineFastPath)' -count=1 -timeout 300s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=100x -count=3`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'Fib30Bytecode' -run '^$' -benchtime=5x -count=3`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=200x -count=1 -cpuprofile /tmp/able-qsort-inline-preseed.cpu.pprof`
+  - `go tool pprof -top /tmp/able-qsort-inline-preseed.cpu.pprof`
+- Next: stay on the same helper-call edge. The post-keep quicksort profile no
+  longer spends time in `activateI32RegisterFrame(...)`, but it still shows
+  `tryInlineCachedCallNameDirectFromStack(...)`, `pushCallNameSlotArgs(...)`,
+  and `seedInlineCalleeI32RegisterSlot(...)` as the live call-boundary wall.
+  The next bounded slice should bypass slot-arg boxing for cached direct
+  inline `CallName` helpers and seed the callee raw frame straight from caller
+  slots/registers.
+
+# 2026-05-31 — Typed quicksort swap temps preserve swap fusion (v12)
+
+- Kept a bounded follow-up to the rejected benchmark-source typing pass. The
+  broad attempt to type quicksort locals regressed the reduced bytecode guard
+  because typed declarations in functions that still miss the current VM-v2
+  lane add overhead, and typed `tmp` in `swap(...)` also broke the specialized
+  swap lowering.
+- Fix: `bytecodeArrayIndexSwapSlotInstruction(...)` and
+  `bytecodeArraySlotSwapSlotInstruction(...)` now accept typed temp
+  declarations on the first swap statement by resolving simple typed-pattern
+  targets the same way ordinary slot lowering already does.
+- Result: the canonical reduced quicksort fixture and external quicksort
+  benchmark source can keep `tmp: i32 := ...` in `swap(...)` while still
+  lowering to `ArrayIndexSwapSlot` / `ArraySlotSwapSlot` instead of falling
+  back to separate read/write opcodes.
+- Added focused lowering coverage for both typed-temp swap shapes:
+  - bracket-index `swap(arr, a, b)` with `tmp: i32 := arr[a] as i32`
+  - canonical slot-member `swap(arr, a, b)` with `tmp: i32 := arr.read_slot(a)`
+- Benchmarks:
+  - reduced quicksort guard: `5.19ms/op`, `5.32ms/op`, `5.24ms/op`
+  - external quicksort compiled validation: `1.73s` over `1/1`
+- Verification:
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsArrayIndexSwapSlotOpcode(ForTypedTemp)?|LoweringEmitsArraySlotSwapSlotOpcode(ForTypedTemp)?)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 120s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_perf --runs 1 --timeout 60 --modes compiled --run-from ../benchmarks/quicksort --program-arg numbers.txt v12/examples/benchmarks/quicksort/quicksort.able`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s` (passed on rerun after an unrelated async ordering flake)
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=100x -count=3 -timeout 180s`
+- Next: do not retry broad typed-local benchmark edits until typed declaration /
+  typed-store overhead is cheaper in functions that still miss the register
+  lane. The best next bounded slice is the runtime side of that problem:
+  profile and cut typed `i32` declaration/store overhead, or only widen source
+  typing where lowering already preserves a fused hot opcode.
+
+# 2026-05-31 — Bytecode canonical array-slot member i32 register-frame eligibility (v12)
+
+- Widened `exprCanUseI32RegisterFrame(...)` for the remaining proven canonical
+  array-slot member-call shapes:
+  - non-safe `arr.read_slot(idx)`
+  - non-safe `arr.write_slot(idx, value)`
+- The gate stays narrow. Receiver and argument expressions must already be
+  register-safe, and this does not enable general member dispatch, safe-member
+  calls, type-argument calls, untyped locals, or recursive self-calls.
+- Added focused lowering coverage proving a typed helper built from
+  `idx: i32`, `current: i32 := arr.read_slot(idx)`,
+  `arr.write_slot(idx, current)`, and a final `arr.read_slot(idx)` keeps
+  `program.frameLayout.i32RegisterFrame`. Added bytecode-vs-treewalker parity
+  for the same AST shape using local `Array i32` methods so the proof does not
+  depend on external stdlib package loading.
+- This is another enabling keep rather than a fresh benchmark win:
+  - reduced quicksort guard: `5.44ms/op`, `5.45ms/op`, `5.15ms/op`
+  - reduced `Fib30Bytecode`: `155.45ms/op`, `146.40ms/op`, `151.90ms/op`
+- Verification:
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringKeepsI32RegisterFrameForArraySlotReadWrite|I32RegisterFrameArraySlotReadWriteParity|LoweringKeepsI32RegisterFrameForArrayIndexReadWrite|I32RegisterFrameArrayIndexReadWriteParity|ArrayReadSlotOpcodeUsesI32RegisterIndex|ArraySlotSwapSlotUsesI32RegisterIndexes|ArrayIndexGetSlotUsesI32RegisterIndex|ArrayIndexSetSlotUsesI32RegisterIndex|JumpIfArrayReadSlotCompareSlotFalseUsesI32RegisterOperands|JumpIfArrayIndexSlotCompareSlotFalseUsesI32RegisterOperands)' -count=1 -timeout 120s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=100x -count=3 -timeout 180s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkFib30Bytecode$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+- Next: measure where the real hot benchmarks still fail to enter the register
+  lane. The current quicksort source still uses untyped locals for `value`,
+  `i`, `j`, `pivot`, `tmp`, and parser counters, so the next defensible slice
+  is explicit typed-local adoption in benchmark/hot helper code or another
+  separately-proven typed AST shape, not broad untyped-local inference or
+  general member-dispatch widening.
+
 # 2026-05-28 — Bytecode leaf i32 register-frame seed (v12)
 - Landed the first conservative VM-v2 raw `i32` register-frame slice. Slot
   analysis now enables an `i32` register frame only for slot-eligible leaf
@@ -17944,3 +18106,307 @@
   eligibility to those shapes. Look first for slot-backed array/member/index
   opcodes that still read `vm.slots[...]` directly and route only proven
   dynamic-boundary operands through the register-aware slot materializer.
+
+# 2026-05-31 — Bytecode raw i32 array/index slot operands (v12)
+
+- Added slot-specific operand readers for the bytecode array/index fast
+  opcodes so register-backed `i32` locals can cross those boundaries without
+  first boxing through the generic slot materializer.
+- `ArrayIndexGetSlot`, `ArrayIndexSetSlot`, `ArrayIndexSwapSlot`,
+  `ArrayReadSlot`, `ArraySlotSwapSlot`, and the fused array compare jumps now
+  have an active-register-frame path that:
+  - prefers the existing boxed `vm.slots[...]` cell when present,
+  - falls back to the raw `i32` register lane only when the slot is empty,
+  - keeps the non-register baseline on the exact old path.
+- Added focused direct-VM coverage proving register-backed operands work for:
+  - `ArrayIndexGetSlot`
+  - `ArrayIndexSetSlot`
+  - `JumpIfArrayIndexSlotCompareSlotFalse`
+  - `JumpIfArrayReadSlotCompareSlotFalse`
+  - `ArrayReadSlot`
+  - `ArrayIndexSwapSlot`
+  - `ArraySlotSwapSlot`
+- This is an enabling keep rather than a new benchmark step. The goal is to
+  pin the materialization boundary before widening slot-analysis eligibility
+  to bracket-index AST shapes.
+- Benchmarks:
+  - reduced quicksort guard: `5.24ms/op`, `5.37ms/op`, `5.11ms/op`
+  - reduced `Fib30Bytecode`: `157.92ms/op`, `145.81ms/op`, `140.38ms/op`
+- Verification:
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(ArrayIndexGetSlotUsesI32RegisterIndex|ArrayIndexSetSlotUsesI32RegisterIndex|JumpIfArrayIndexSlotCompareSlotFalseUsesI32RegisterOperands|JumpIfArrayReadSlotCompareSlotFalseUsesI32RegisterOperands|ArrayReadSlotOpcodeUsesI32RegisterIndex|ArrayIndexSwapSlotUsesI32RegisterIndexes|ArraySlotSwapSlotUsesI32RegisterIndexes)' -count=1 -timeout 120s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=100x -count=3 -timeout 180s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkFib30Bytecode$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+- Next: widen typed-register eligibility only for bracket-index read/write
+  shapes that already lower to these proven slot opcodes. Keep member-dispatch
+  materialization, untyped locals, and recursive self-call register frames
+  out of scope until they have their own bounded proof.
+
+# 2026-05-31 — Bytecode bracket-index i32 register-frame eligibility (v12)
+
+- Widened `exprCanUseI32RegisterFrame(...)` only for the slot-backed bracket
+  index shapes proven by the previous tranche:
+  - `IndexExpression`
+  - `arr[idx] = value` assignment targets with plain `=`
+- The gate is still conservative. Receiver/index/right-hand side expressions
+  must already be register-safe, and the widening still excludes compound
+  index assignment, member dispatch, untyped locals, type-arg calls, and
+  recursive self-calls.
+- Added focused lowering coverage proving a typed helper with bracket-index
+  read/write/readback keeps `program.frameLayout.i32RegisterFrame`, and added
+  bytecode-vs-treewalker parity for that helper shape.
+- This is a structural keep that finishes the bracket-index half of the
+  materialization work. The benchmark guards stayed in the same noisy band
+  rather than showing a new wall-clock win:
+  - reduced quicksort guard: `5.23ms/op`, `5.91ms/op`, `5.30ms/op`
+  - reduced quicksort confirmation: `5.31ms/op`, `5.40ms/op`, `5.72ms/op`
+  - reduced `Fib30Bytecode`: `156.63ms/op`, `160.61ms/op`, `151.01ms/op`
+  - reduced `Fib30Bytecode` confirmation: `157.06ms/op`, `173.05ms/op`, `142.47ms/op`
+- Verification:
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringKeepsI32RegisterFrameForArrayIndexReadWrite|I32RegisterFrameArrayIndexReadWriteParity|ArrayIndexGetSlotUsesI32RegisterIndex|ArrayIndexSetSlotUsesI32RegisterIndex|JumpIfArrayIndexSlotCompareSlotFalseUsesI32RegisterOperands|JumpIfArrayReadSlotCompareSlotFalseUsesI32RegisterOperands|ArrayReadSlotOpcodeUsesI32RegisterIndex|ArrayIndexSwapSlotUsesI32RegisterIndexes|ArraySlotSwapSlotUsesI32RegisterIndexes)' -count=1 -timeout 120s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkBytecodeQuicksortHotloopRuntime$' -run '^$' -benchtime=100x -count=3 -timeout 180s`
+  - `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench 'BenchmarkFib30Bytecode$' -run '^$' -benchtime=5x -count=3 -timeout 300s`
+  - second confirmation pass with the same quicksort/Fib30 benchmark commands
+- Next: widen typed-register eligibility only for slot-member
+  `arr.read_slot(idx)` / `arr.write_slot(idx, value)` AST shapes that lower to
+  the already-proven canonical array-slot opcodes. Leave general member
+  dispatch, untyped locals, and recursive self-call register frames out of
+  scope.
+
+# 2026-05-31 — Bytecode external `[]byte` -> `Array u8` host-return boundary (v12)
+
+- Added a canonical extern host-return fast path for `Array u8` results:
+  - `runtime.ArrayStoreMonoValueFromU8Bytes(data []byte)`
+  - `Interpreter.newU8ArrayValueFromBytes(...)`
+  - direct `Array u8` / `IOError | Array u8` handling in
+    `fromHostValue(...)`
+  - cached direct extern fast invoker support for `func(string) []byte` and
+    matching union signatures
+- Kept the mono-`u8` runtime representation instead of eagerly boxing the
+  whole slice. Adjusted the extern-array proof tests so they validate the
+  actual boundary we care about:
+  - `runtime.ArrayStoreRead(...)` still returns boxed small `u8` integers
+    directly from the mono handle
+  - `interp.ArrayElements(...)` still materializes the semantic boxed view
+    when required
+- This tranche must be evaluated against the canonical external stdlib, not
+  the stale installed cache. Verification used:
+  - `ABLE_HOME=/tmp/able-empty-home`
+  - `ABLE_PATH=/home/david/sync/projects/able-stdlib`
+  - `ABLE_MODULE_PATHS=`
+- Result: keep. On the canonical external-stdlib 1 MB quicksort prefix, the
+  restored baseline band
+  - `1339761372 ns/op`, `30168336 B/op`, `1180550 allocs/op`
+  - `1274955746 ns/op`, `30167304 B/op`, `1180521 allocs/op`
+  - `1266301329 ns/op`, `30167864 B/op`, `1180542 allocs/op`
+  moved to the kept band
+  - `821446016 ns/op`, `14435568 B/op`, `1180502 allocs/op`
+  - `823947705 ns/op`, `14435568 B/op`, `1180502 allocs/op`
+  - `821112360 ns/op`, `14435584 B/op`, `1180503 allocs/op`
+  and the profiled confirmation landed at
+  `945898904 ns/op`, `14465928 B/op`, `1180568 allocs/op`.
+- Full external `../benchmarks` quicksort bytecode still timed out at `90s`.
+  The keep is real, but it only removes the file-read/host-conversion wall;
+  it does not finish the benchmark.
+- Verification:
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run 'Test(ExternSmallUnsigned(ArrayElementsStaySmallInt|ResultsStaySmallInt|LargeU64StillFallsBackToBigInt)|FromHostValueArrayU8FastPath|FromHostValueUnionArrayU8FastPath|ExternModuleBuildsFastInvokerForUnionArrayU8Signature)' -count=1 -timeout 300s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able ABLE_BENCH_RUNTIME_RUN_FROM=/tmp/able-qsort-prefix.1MlwLW/quicksort GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=3 -timeout 600s`
+  - `ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= GOCACHE=/tmp/able-gocache ./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+- Next: stay external-scale and target the parser-to-array boundary rather
+  than the file-read boundary again. The best next bounded slice is either a
+  v12-safe `Array u8` -> parsed integer ingest lane or a typed `Array i32`
+  push/read path shared by the parser and the quicksort loop.
+
+# 2026-06-01 — External quicksort parser output preallocation (v12)
+
+- Kept a narrow source-level parser slice in
+  `v12/examples/benchmarks/quicksort/quicksort.able`: `parse_numbers(...)`
+  now reserves the output `Array i32` with
+  `Array.with_capacity(((count / 2) as i32) + 1)` before the ingest loop.
+- This is a benchmark-faithful change, not a VM semantic change. The parser
+  already knows the input byte length, and the benchmark is building a single
+  append-only output array. Reserving the likely upper bound removes repeated
+  `ArrayEnsureCapacity(...)` growth churn without changing v12 behavior.
+- The first attempt used `(count / 2) + 1` directly and correctly failed under
+  v12 semantics because `/` did not produce the required `i32` capacity shape.
+  The kept form is explicit about the cast boundary:
+  `((count / 2) as i32) + 1`.
+- Result: keep. On the canonical external-stdlib 1 MB quicksort prefix, the
+  post-`[]byte` host-return baseline moved from the earlier kept band
+  - `821446016 ns/op`, `14435568 B/op`, `1180502 allocs/op`
+  - `823947705 ns/op`, `14435568 B/op`, `1180502 allocs/op`
+  - `821112360 ns/op`, `14435584 B/op`, `1180503 allocs/op`
+  to the new kept band
+  - `794274467 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+  - `795402232 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+  - `806759619 ns/op`, `15308736 B/op`, `1180498 allocs/op`
+  and a restored spot-check on the current kept tree landed at
+  `816650212 ns/op`, `14465944 B/op`, `1180569 allocs/op` before the source
+  change, then `795506501 ns/op`, `14435568 B/op`, `1180502 allocs/op` after.
+- Full external `../benchmarks` quicksort bytecode still timed out at `90s`.
+  This is a real external-scale keep, but it is still only a parser-prefix
+  step, not the finish line.
+- Verification:
+  - `ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able ABLE_BENCH_RUNTIME_RUN_FROM=/tmp/able-qsort-prefix.1MlwLW/quicksort GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=3 -timeout 600s`
+  - `ABLE_STDLIB_ROOT=/home/david/sync/projects/able-stdlib/src ./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+- Next: stay on the parser boundary, not array-promotion again. The next
+  bounded slice should target the remaining byte-to-digit compare/update wall
+  or a typed ingest path that keeps parsed integers unboxed end-to-end.
+
+# 2026-06-01 — Parser digit-range conjunction lowering (v12)
+
+- Kept a bounded bytecode lowering slice in
+  `v12/interpreters/go/pkg/interpreter/bytecode_lowering_condition_jumps.go`
+  and `bytecode_lowering_controlflow.go`: control-flow-only `&&` conditions now
+  emit direct specialized false-jumps when every conjunct already matches the
+  existing slot-vs-int-const jump lowering.
+- The targeted shape is the parser-side digit range branch in external
+  quicksort:
+  - before: `byte >= 48_u8 && byte <= 57_u8` in `if` / `elsif` position
+    lowered through generic boolean expression code (`Dup`, `JumpIfFalse`,
+    standalone compare results)
+  - after: the same condition emits one `JumpIfIntCompareSlotConstFalse` for
+    the lower bound and one `JumpIfIntLessEqualSlotConstFalse` for the upper
+    bound, with no generic `&&` bool materialization in control-flow position
+- Semantics stay v12-safe because this is restricted to control-flow contexts
+  where the boolean value is consumed only for branching, and it only applies
+  when every conjunct is already a pure slot/constant comparison. All other
+  `&&` expressions keep the existing general lowering.
+- Focused coverage now pins both the lowering and behavior:
+  - typed `u8` conjunction lowering skips `Dup` / generic `JumpIfFalse`
+  - bytecode/tree-walker parity for a typed digit-range helper
+  - existing quicksort hotloop parity stays green
+- Result: keep. On the canonical external-stdlib 1 MB quicksort prefix, the
+  current-host warmed band landed at
+  - `833773118 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+  - `853190719 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+  - `887188361 ns/op`, `15308736 B/op`, `1180498 allocs/op`
+  with a profiled confirmation at
+  - `876787701 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+- This host was noisy, so those numbers are not a new global baseline. The
+  defensible part is narrower: on the same noisy machine, this tranche beat the
+  immediately preceding restored runs while removing the generic `&&`
+  materialization path from the parser digit-range branch.
+- Full external bytecode quicksort still timed out at `90s`.
+- Verification:
+  - `go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsConditionalJumpForIntCompareSlotConst(If|ConjunctionIf)|LoweringEmitsTypedIntegerSlotConstCompareJump|JumpIfIntCompareSlotConstFalseFastPath|IntCompareSlotConstConjunctionIfParity)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able ABLE_BENCH_RUNTIME_RUN_FROM=/tmp/able-qsort-prefix.1MlwLW/quicksort GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=3 -timeout 600s`
+  - `ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able ABLE_BENCH_RUNTIME_RUN_FROM=/tmp/able-qsort-prefix.1MlwLW/quicksort GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=1 -cpuprofile /tmp/able-qsort-prefix-cond-and.cpu.pprof -timeout 600s`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+- Next: stay on the parser byte boundary. Do not generalize this into a broad
+  boolean-expression optimizer. The next bounded quicksort tranche should
+  target the remaining digit decode / boxed integer update wall, especially the
+  `((byte as i32) - 48)` and `value = value * 10 + digit` side once it crosses
+  back into boxed `runtime.Value` boundaries.
+
+# 2026-06-01 — External quicksort extended `i32` static boxing window (v12)
+
+- Kept a bounded VM boxing slice in
+  `v12/interpreters/go/pkg/interpreter/bytecode_vm_small_int_boxing.go` and
+  `bytecode_vm_i32_fast.go`: `bytecodeBoxedIntegerI32Value(...)` now checks an
+  `i32`-only extended static cache for `16385..262143` before falling back to
+  the existing dynamic map/RWMutex cache.
+- This is intentionally narrower than widening every integer kind. The
+  external quicksort prefix hot path is dominated by boxed `i32` parser
+  counters and indices, so the keep extends only the `i32` lane and leaves the
+  existing shared small-int cache and out-of-range dynamic cache behavior
+  intact.
+- Added focused cache coverage in
+  `bytecode_vm_slot_const_immediates_test.go`:
+  - direct `i32` values inside the new extended static range hold stable
+    identity with zero allocations
+  - dynamic `i32` coverage now explicitly starts at
+    `bytecodeI32ExtendedBoxMax + 1`
+  - `u32` still proves the generic dynamic boxed-int cache path
+- Result: keep. On the canonical external-stdlib 1 MB quicksort prefix, a
+  refreshed restored baseline at
+  - `848512956 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+  moved to the kept `3/3` band
+  - `782731349 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+  - `839980574 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+  - `819652168 ns/op`, `15308736 B/op`, `1180498 allocs/op`
+  with a profiled confirmation at
+  - `858471480 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+- The useful profile evidence is sharper than the noisy wall-clock:
+  `bytecodeBoxedIntegerI32Value(...)` dropped from about `320ms` cumulative in
+  the refreshed baseline profile to about `70ms` after the keep, and the old
+  dynamic map/RWMutex path is no longer the main cost there.
+- Full external `../benchmarks` quicksort bytecode was not rerun for this
+  tranche; the last known status remains a `90s` timeout.
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(BoxedIntegerValueDynamicCache|BoxedIntegerI32Value(ExtendedStaticCache|DynamicCache)|BoxedSmallIntValueCache|SlotConstImmediateCacheBuildsAndRefreshes)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able ABLE_BENCH_RUNTIME_RUN_FROM=/tmp/able-qsort-prefix.1MlwLW/quicksort GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=3 -timeout 600s`
+  - `cd v12/interpreters/go && ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able ABLE_BENCH_RUNTIME_RUN_FROM=/tmp/able-qsort-prefix.1MlwLW/quicksort GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=1 -cpuprofile /tmp/able-qsort-boxext.cpu.pprof -timeout 600s`
+  - `cd v12/interpreters/go && go tool pprof -top /tmp/able-qsort-next.cpu.pprof`
+  - `cd v12/interpreters/go && go tool pprof -top /tmp/able-qsort-boxext.cpu.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+- Next: stop spending quicksort tranches on parser arithmetic micro-fusions.
+  The fresh external profile says the next bounded win, if there is one in
+  this lane, should target `arrayReadSlotValue(...)`,
+  `execJumpIfArrayReadSlotCompareSlotFalse(...)`,
+  `lookupCachedCanonicalArraySlotCallForArray(...)`, or
+  `compareBytecodeCondition(...)`.
+
+# 2026-06-01 — External quicksort tracked `Array i32` compare fast path (v12)
+
+- Kept a bounded quicksort-loop slice in
+  `v12/interpreters/go/pkg/interpreter/bytecode_vm_array_slot_compare.go` and
+  `bytecode_vm_array_slot_compare_test.go`: cached canonical
+  `JumpIfArrayReadSlotCompareSlotFalse` now checks one narrower fast path
+  before the old boxed path:
+  - receiver is a tracked `Array`
+  - the site is already the cached canonical `read_slot` shape
+  - index slot resolves directly to a small non-negative integer
+  - array element and right slot are direct small `i32` values
+- When that shape holds, the VM compares the tracked element and right slot as
+  raw `i32` values and skips the old `arrayReadSlotValue(...)` ->
+  `compareBytecodeCondition(...)` boxed path. Everything else still falls back
+  unchanged, so this remains a bounded runtime fast path rather than a new
+  semantic rule.
+- Focused coverage now pins:
+  - direct tracked-array raw `i32` extraction from a slot-backed index
+  - fallback when the tracked element is not exact `i32`
+  - behavior of the fused `JumpIfArrayReadSlotCompareSlotFalse` opcode over a
+    tracked `Array i32`
+- Result: keep. On the canonical external-stdlib 1 MB quicksort prefix, the
+  prior kept extended-boxing band
+  - `782731349 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+  - `839980574 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+  - `819652168 ns/op`, `15308736 B/op`, `1180498 allocs/op`
+  moved to the new kept band
+  - `754532197 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+  - `753549655 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+  - `736386560 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+  with a profiled confirmation at
+  - `771080932 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+- The profile movement is cleaner than the wall-clock alone:
+  - before: `arrayReadSlotValue(...)` about `350ms` cumulative,
+    `compareBytecodeCondition(...)` about `140ms`,
+    `execJumpIfArrayReadSlotCompareSlotFalse(...)` about `270ms`
+  - after: `arrayReadSlotValue(...)` about `160ms`,
+    `compareBytecodeCondition(...)` about `60ms`,
+    `execJumpIfArrayReadSlotCompareSlotFalse(...)` about `210ms`
+- Full external `../benchmarks` quicksort bytecode was not rerun for this
+  tranche; the last known status remains a `90s` timeout.
+- Verification:
+  - `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(JumpIfArrayReadSlotCompareSlotFalse(FastPath|TrackedI32FastPath)|ArrayReadSlotTrackedI32RawAtSlot|LoweringEmitsArrayReadSlotCompareSlotJump)|TestExecFixtureParity/07_10_bytecode_quicksort_hotloop' -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able ABLE_BENCH_RUNTIME_RUN_FROM=/tmp/able-qsort-prefix.1MlwLW/quicksort GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=3 -timeout 600s`
+  - `cd v12/interpreters/go && ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= ABLE_BENCH_RUNTIME_TARGET=/home/david/sync/projects/able/v12/examples/benchmarks/quicksort/quicksort.able ABLE_BENCH_RUNTIME_RUN_FROM=/tmp/able-qsort-prefix.1MlwLW/quicksort GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -bench '^BenchmarkBytecodeProgramRuntime$' -run '^$' -benchtime=1x -count=1 -cpuprofile /tmp/able-qsort-arrayreadcmp.cpu.pprof -timeout 600s`
+  - `cd v12/interpreters/go && env -u ABLE_STDLIB_ROOT GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -count=1 -timeout 300s`
+  - `cd v12/interpreters/go && go tool pprof -top /tmp/able-qsort-arrayreadcmp.cpu.pprof`
+  - `git diff --check`
+  - `git -C ../able-stdlib diff --check`
+- Next: stay on the same hot quicksort loop boundary. The next bounded slice
+  should target the remaining canonical array-slot cache lookup or tracked
+  array read overhead inside this path, not parser arithmetic fusion.

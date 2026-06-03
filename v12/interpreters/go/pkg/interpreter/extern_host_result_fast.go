@@ -41,6 +41,20 @@ func externReflectStringSliceResult(value reflect.Value) (runtime.Value, bool) {
 	return &runtime.ArrayValue{Elements: elements}, true
 }
 
+func externReflectU8SliceBytes(value reflect.Value) ([]byte, bool) {
+	value = externUnwrapHostReflectValue(value)
+	if !value.IsValid() || value.Kind() != reflect.Slice || value.Type().Elem().Kind() != reflect.Uint8 {
+		return nil, false
+	}
+	if bytes, ok := value.Interface().([]byte); ok {
+		return bytes, true
+	}
+	length := value.Len()
+	bytes := make([]byte, length)
+	reflect.Copy(reflect.ValueOf(bytes), value)
+	return bytes, true
+}
+
 func externIsArrayStringType(expr ast.TypeExpression) bool {
 	generic, ok := expr.(*ast.GenericTypeExpression)
 	if !ok || generic == nil {
@@ -51,6 +65,16 @@ func externIsArrayStringType(expr ast.TypeExpression) bool {
 		externSimpleTypeName(generic.Arguments[0]) == "String"
 }
 
+func externIsArrayU8Type(expr ast.TypeExpression) bool {
+	generic, ok := expr.(*ast.GenericTypeExpression)
+	if !ok || generic == nil {
+		return false
+	}
+	return externSimpleTypeName(generic.Base) == "Array" &&
+		len(generic.Arguments) == 1 &&
+		externSimpleTypeName(generic.Arguments[0]) == "u8"
+}
+
 func externUnionHasArrayStringMember(expr ast.TypeExpression) bool {
 	union, ok := expr.(*ast.UnionTypeExpression)
 	if !ok || union == nil {
@@ -58,6 +82,19 @@ func externUnionHasArrayStringMember(expr ast.TypeExpression) bool {
 	}
 	for _, member := range union.Members {
 		if externIsArrayStringType(member) {
+			return true
+		}
+	}
+	return false
+}
+
+func externUnionHasArrayU8Member(expr ast.TypeExpression) bool {
+	union, ok := expr.(*ast.UnionTypeExpression)
+	if !ok || union == nil {
+		return false
+	}
+	for _, member := range union.Members {
+		if externIsArrayU8Type(member) {
 			return true
 		}
 	}
@@ -83,6 +120,13 @@ func externUnionPreferredMemberForHostValue(union *ast.UnionTypeExpression, valu
 		if value.Type().Elem().Kind() == reflect.String {
 			for _, member := range union.Members {
 				if externIsArrayStringType(member) {
+					return member
+				}
+			}
+		}
+		if value.Type().Elem().Kind() == reflect.Uint8 {
+			for _, member := range union.Members {
+				if externIsArrayU8Type(member) {
 					return member
 				}
 			}

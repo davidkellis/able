@@ -266,6 +266,65 @@ func TestBytecodeVM_JumpIfArrayReadSlotCompareSlotFalseFastPath(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_ArrayReadSlotTrackedI32RawAtSlot(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(200000, runtime.IntegerI32),
+	}, 0)
+	vm.slots = []runtime.Value{arr, bytecodeRawI32SlotValue(0)}
+
+	raw, ok, err := vm.arrayReadSlotTrackedI32RawAtSlot(arr, 1)
+	if err != nil {
+		t.Fatalf("tracked i32 raw read failed: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected tracked i32 raw read fast path")
+	}
+	if raw != 200000 {
+		t.Fatalf("tracked i32 raw read = %d, want 200000", raw)
+	}
+}
+
+func TestBytecodeVM_JumpIfArrayReadSlotCompareSlotFalseTrackedI32FastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(200000, runtime.IntegerI32),
+	}, 0)
+	program := &bytecodeProgram{}
+	vm.storeCachedCanonicalArraySlotCall(program, 0, bytecodeInstruction{name: "read_slot", argCount: 1}, arr, bytecodeMemberMethodFastPathArrayReadSlot)
+	instr := &bytecodeInstruction{
+		op:           bytecodeOpJumpIfArrayReadSlotCompareSlotFalse,
+		argCount:     0,
+		loopBreak:    1,
+		loopContinue: 2,
+		target:       9,
+		operator:     ">=",
+	}
+	vm.slots = []runtime.Value{
+		arr,
+		bytecodeRawI32SlotValue(0),
+		runtime.NewSmallInt(199999, runtime.IntegerI32),
+	}
+
+	if err := vm.execJumpIfArrayReadSlotCompareSlotFalse(instr, program); err != nil {
+		t.Fatalf("tracked i32 raw compare jump failed: %v", err)
+	}
+	if vm.ip != 1 {
+		t.Fatalf("truthy tracked i32 compare should advance ip to 1, got %d", vm.ip)
+	}
+
+	vm.ip = 0
+	vm.slots[2] = runtime.NewSmallInt(200001, runtime.IntegerI32)
+	if err := vm.execJumpIfArrayReadSlotCompareSlotFalse(instr, program); err != nil {
+		t.Fatalf("tracked i32 raw compare false jump failed: %v", err)
+	}
+	if vm.ip != 9 {
+		t.Fatalf("false tracked i32 compare should jump to 9, got %d", vm.ip)
+	}
+}
+
 func TestBytecodeVM_ArrayReadSlotOpcodeFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
@@ -309,6 +368,46 @@ func TestBytecodeVM_ArrayReadSlotOpcodeFastPath(t *testing.T) {
 	_, err = vm.execArrayReadSlot(instr, program)
 	if err == nil || !strings.Contains(err.Error(), "array index must be non-negative") {
 		t.Fatalf("negative read_slot opcode err = %v, want non-negative index error", err)
+	}
+}
+
+func TestBytecodeVM_ArrayReadSlotOpcodeUsesI32RegisterIndex(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.StringValue{Val: "zero"},
+		runtime.StringValue{Val: "one"},
+	}, 0)
+	program := &bytecodeProgram{
+		frameLayout: &bytecodeFrameLayout{
+			slotCount:        2,
+			slotKinds:        []bytecodeCellKind{bytecodeCellKindValue, bytecodeCellKindI32},
+			hasTypedSlots:    true,
+			i32RegisterFrame: true,
+		},
+	}
+	vm.storeCachedCanonicalArraySlotCall(program, 0, bytecodeInstruction{name: "read_slot", argCount: 1}, arr, bytecodeMemberMethodFastPathArrayReadSlot)
+	vm.slots = []runtime.Value{arr, nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(1, 1) {
+		t.Fatalf("expected register frame to accept read_slot index")
+	}
+	instr := &bytecodeInstruction{
+		op:        bytecodeOpArrayReadSlot,
+		argCount:  0,
+		loopBreak: 1,
+		name:      "read_slot",
+	}
+
+	newProg, err := vm.execArrayReadSlot(instr, program)
+	if err != nil {
+		t.Fatalf("array read_slot register-index opcode failed: %v", err)
+	}
+	if newProg != nil {
+		t.Fatalf("array read_slot opcode should stay in current program")
+	}
+	if want := (runtime.StringValue{Val: "one"}); !valuesEqual(vm.stack[0], want) {
+		t.Fatalf("array read_slot register-index result = %#v, want %#v", vm.stack[0], want)
 	}
 }
 

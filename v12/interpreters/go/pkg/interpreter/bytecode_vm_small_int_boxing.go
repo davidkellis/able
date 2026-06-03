@@ -7,8 +7,10 @@ import (
 )
 
 const (
-	bytecodeSmallIntBoxMin int64 = -256
-	bytecodeSmallIntBoxMax int64 = 16384
+	bytecodeSmallIntBoxMin    int64 = -256
+	bytecodeSmallIntBoxMax    int64 = 16384
+	bytecodeI32ExtendedBoxMin int64 = bytecodeSmallIntBoxMax + 1
+	bytecodeI32ExtendedBoxMax int64 = 262143
 	// Bound dynamic boxed-int growth for out-of-range integer values. Keep this
 	// large enough that a single warmup pass can retain the common text-benchmark
 	// loop-index working set instead of re-boxing the same large values in the
@@ -17,18 +19,19 @@ const (
 )
 
 var (
-	bytecodeBoxedI8    []runtime.Value
-	bytecodeBoxedI16   []runtime.Value
-	bytecodeBoxedI32   []runtime.Value
-	bytecodeBoxedI64   []runtime.Value
-	bytecodeBoxedI128  []runtime.Value
-	bytecodeBoxedU8    []runtime.Value
-	bytecodeBoxedU16   []runtime.Value
-	bytecodeBoxedU32   []runtime.Value
-	bytecodeBoxedU64   []runtime.Value
-	bytecodeBoxedU128  []runtime.Value
-	bytecodeBoxedIsize []runtime.Value
-	bytecodeBoxedUsize []runtime.Value
+	bytecodeBoxedI8          []runtime.Value
+	bytecodeBoxedI16         []runtime.Value
+	bytecodeBoxedI32         []runtime.Value
+	bytecodeBoxedI32Extended []runtime.Value
+	bytecodeBoxedI64         []runtime.Value
+	bytecodeBoxedI128        []runtime.Value
+	bytecodeBoxedU8          []runtime.Value
+	bytecodeBoxedU16         []runtime.Value
+	bytecodeBoxedU32         []runtime.Value
+	bytecodeBoxedU64         []runtime.Value
+	bytecodeBoxedU128        []runtime.Value
+	bytecodeBoxedIsize       []runtime.Value
+	bytecodeBoxedUsize       []runtime.Value
 
 	bytecodeDynamicBoxedI8    map[int64]runtime.Value
 	bytecodeDynamicBoxedI16   map[int64]runtime.Value
@@ -54,6 +57,7 @@ func initBytecodeSmallIntBoxCache() {
 	bytecodeBoxedI8 = make([]runtime.Value, size)
 	bytecodeBoxedI16 = make([]runtime.Value, size)
 	bytecodeBoxedI32 = make([]runtime.Value, size)
+	bytecodeBoxedI32Extended = make([]runtime.Value, int(bytecodeI32ExtendedBoxMax-bytecodeI32ExtendedBoxMin)+1)
 	bytecodeBoxedI64 = make([]runtime.Value, size)
 	bytecodeBoxedI128 = make([]runtime.Value, size)
 	bytecodeBoxedU8 = make([]runtime.Value, size)
@@ -79,6 +83,9 @@ func initBytecodeSmallIntBoxCache() {
 			bytecodeBoxedU128[idx] = runtime.NewSmallInt(cur, runtime.IntegerU128)
 			bytecodeBoxedUsize[idx] = runtime.NewSmallInt(cur, runtime.IntegerUsize)
 		}
+	}
+	for cur := bytecodeI32ExtendedBoxMin; cur <= bytecodeI32ExtendedBoxMax; cur++ {
+		bytecodeBoxedI32Extended[int(cur-bytecodeI32ExtendedBoxMin)] = runtime.NewSmallInt(cur, runtime.IntegerI32)
 	}
 }
 
@@ -137,6 +144,13 @@ func boxedSmallIntValue(kind runtime.IntegerType, value int64) (runtime.Value, b
 
 func bytecodeBoxedSmallIntValue(kind runtime.IntegerType, value int64) (runtime.Value, bool) {
 	return boxedSmallIntValue(kind, value)
+}
+
+func boxedExtendedI32Value(value int64) (runtime.Value, bool) {
+	if value < bytecodeI32ExtendedBoxMin || value > bytecodeI32ExtendedBoxMax {
+		return nil, false
+	}
+	return bytecodeBoxedI32Extended[int(value-bytecodeI32ExtendedBoxMin)], true
 }
 
 func bytecodeDynamicIntBoxCache(kind runtime.IntegerType) map[int64]runtime.Value {
@@ -205,6 +219,11 @@ func setBytecodeDynamicIntBoxCache(kind runtime.IntegerType, cache map[int64]run
 func bytecodeBoxedIntegerValue(kind runtime.IntegerType, value int64) (runtime.Value, bool) {
 	if boxed, ok := boxedSmallIntValue(kind, value); ok {
 		return boxed, true
+	}
+	if kind == runtime.IntegerI32 {
+		if boxed, ok := boxedExtendedI32Value(value); ok {
+			return boxed, true
+		}
 	}
 	switch kind {
 	case runtime.IntegerI8, runtime.IntegerI16, runtime.IntegerI32, runtime.IntegerI64, runtime.IntegerI128,

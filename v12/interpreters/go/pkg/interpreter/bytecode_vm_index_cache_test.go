@@ -160,6 +160,77 @@ func TestBytecodeVM_LoweringEmitsArrayIndexSetSlotOpcode(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_LoweringKeepsI32RegisterFrameForArrayIndexReadWrite(t *testing.T) {
+	def := ast.Fn(
+		"bump",
+		[]*ast.FunctionParameter{
+			ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+			ast.Param("i", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.Assign(ast.TypedP(ast.ID("idx"), ast.Ty("i32")), ast.ID("i")),
+			ast.Assign(
+				ast.TypedP(ast.ID("current"), ast.Ty("i32")),
+				ast.NewTypeCastExpression(ast.Index(ast.ID("arr"), ast.ID("idx")), ast.Ty("i32")),
+			),
+			ast.AssignIndex(ast.ID("arr"), ast.ID("idx"), ast.ID("current")),
+			ast.NewTypeCastExpression(ast.Index(ast.ID("arr"), ast.ID("idx")), ast.Ty("i32")),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	program, err := NewBytecode().lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	if program.frameLayout == nil || !program.frameLayout.i32RegisterFrame {
+		t.Fatalf("expected array index read/write helper to keep i32 register frame")
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpArrayIndexGetSlot) {
+		t.Fatalf("expected index read helper to lower through array index slot opcode")
+	}
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpArrayIndexSetSlot) {
+		t.Fatalf("expected index write helper to lower through array index set slot opcode")
+	}
+}
+
+func TestBytecodeVM_I32RegisterFrameArrayIndexReadWriteParity(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"bump",
+			[]*ast.FunctionParameter{
+				ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("i32"))),
+				ast.Param("i", ast.Ty("i32")),
+			},
+			[]ast.Statement{
+				ast.Assign(ast.TypedP(ast.ID("idx"), ast.Ty("i32")), ast.ID("i")),
+				ast.Assign(
+					ast.TypedP(ast.ID("current"), ast.Ty("i32")),
+					ast.NewTypeCastExpression(ast.Index(ast.ID("arr"), ast.ID("idx")), ast.Ty("i32")),
+				),
+				ast.AssignIndex(ast.ID("arr"), ast.ID("idx"), ast.ID("current")),
+				ast.NewTypeCastExpression(ast.Index(ast.ID("arr"), ast.ID("idx")), ast.Ty("i32")),
+			},
+			ast.Ty("i32"),
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Call("bump", ast.Arr(ast.Int(4), ast.Int(5)), ast.Int(1)),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode array index register-frame parity mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
 func TestBytecodeVM_ArrayIndexGetSlotFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
@@ -197,6 +268,38 @@ func TestBytecodeVM_ArrayIndexGetSlotFastPath(t *testing.T) {
 	}
 	if _, ok := vm.stack[0].(runtime.ErrorValue); !ok {
 		t.Fatalf("negative array index slot result = %#v, want error value", vm.stack[0])
+	}
+}
+
+func TestBytecodeVM_ArrayIndexGetSlotUsesI32RegisterIndex(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.StringValue{Val: "zero"},
+		runtime.StringValue{Val: "one"},
+	}, 0)
+	program := &bytecodeProgram{frameLayout: &bytecodeFrameLayout{
+		slotCount:        2,
+		slotKinds:        []bytecodeCellKind{bytecodeCellKindValue, bytecodeCellKindI32},
+		hasTypedSlots:    true,
+		i32RegisterFrame: true,
+	}}
+	vm.slots = []runtime.Value{arr, nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(1, 1) {
+		t.Fatalf("expected register frame to accept i32 index")
+	}
+
+	instr := &bytecodeInstruction{
+		op:        bytecodeOpArrayIndexGetSlot,
+		argCount:  0,
+		loopBreak: 1,
+	}
+	if err := vm.execArrayIndexGetSlot(instr); err != nil {
+		t.Fatalf("array index slot register-index opcode failed: %v", err)
+	}
+	if want := (runtime.StringValue{Val: "one"}); !valuesEqual(vm.stack[0], want) {
+		t.Fatalf("array index slot register-index result = %#v, want %#v", vm.stack[0], want)
 	}
 }
 
@@ -259,6 +362,43 @@ func TestBytecodeVM_ArrayIndexSetSlotFastPath(t *testing.T) {
 	}
 	if !valuesEqual(arr.Elements[1], written) {
 		t.Fatalf("expected array element write, got %#v", arr.Elements[1])
+	}
+}
+
+func TestBytecodeVM_ArrayIndexSetSlotUsesI32RegisterIndex(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+		runtime.NewSmallInt(2, runtime.IntegerI32),
+	}, 2)
+	if _, err := interp.ensureArrayState(arr, 0); err != nil {
+		t.Fatalf("ensure array state: %v", err)
+	}
+	program := &bytecodeProgram{frameLayout: &bytecodeFrameLayout{
+		slotCount:        2,
+		slotKinds:        []bytecodeCellKind{bytecodeCellKindValue, bytecodeCellKindI32},
+		hasTypedSlots:    true,
+		i32RegisterFrame: true,
+	}}
+	written := runtime.NewSmallInt(9, runtime.IntegerI32)
+	vm.slots = []runtime.Value{arr, nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(1, 1) {
+		t.Fatalf("expected register frame to accept i32 index")
+	}
+	vm.stack = []runtime.Value{written}
+
+	instr := &bytecodeInstruction{
+		op:        bytecodeOpArrayIndexSetSlot,
+		argCount:  0,
+		loopBreak: 1,
+	}
+	if err := vm.execArrayIndexSetSlot(instr); err != nil {
+		t.Fatalf("array index set slot register-index opcode failed: %v", err)
+	}
+	if !valuesEqual(arr.Elements[1], written) {
+		t.Fatalf("expected array element write via register index, got %#v", arr.Elements[1])
 	}
 }
 

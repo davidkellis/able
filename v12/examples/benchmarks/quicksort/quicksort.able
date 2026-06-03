@@ -4,12 +4,12 @@ import able.kernel.{Array}
 import able.fs
 
 fn parse_numbers(bytes: Array u8) -> Array i32 {
-  nums: Array i32 := Array.new()
+  count: i32 := bytes.len()
+  nums: Array i32 := Array.with_capacity(((count / 2) as i32) + 1)
   value := 0
   negative := false
   in_number := false
   i := 0
-  count := bytes.len()
   loop {
     if i >= count { break }
     byte := bytes.read_slot(i)
@@ -36,7 +36,7 @@ fn parse_numbers(bytes: Array u8) -> Array i32 {
 }
 
 fn swap(arr: Array i32, a: i32, b: i32) {
-  tmp := arr.read_slot(a)
+  tmp: i32 := arr.read_slot(a)
   arr.write_slot(a, arr.read_slot(b))
   arr.write_slot(b, tmp)
 }

@@ -10,8 +10,8 @@ func bytecodeArrayIndexSwapSlotInstruction(ctx *bytecodeLoweringContext, body []
 	if !ok || first == nil || first.Operator != ast.AssignmentDeclare {
 		return bytecodeInstruction{}, false
 	}
-	temp, ok := first.Left.(*ast.Identifier)
-	if !ok || temp == nil || temp.Name == "" {
+	tempName, ok := resolveAssignmentTargetName(first.Left)
+	if !ok || tempName == "" {
 		return bytecodeInstruction{}, false
 	}
 	firstIndex, castTarget, ok := bytecodeArrayIndexSwapCast(first.Right)
@@ -39,7 +39,7 @@ func bytecodeArrayIndexSwapSlotInstruction(ctx *bytecodeLoweringContext, body []
 		return bytecodeInstruction{}, false
 	}
 	resultIdent, ok := secondAssign.Right.(*ast.Identifier)
-	if !ok || resultIdent == nil || resultIdent.Name != temp.Name {
+	if !ok || resultIdent == nil || resultIdent.Name != tempName {
 		return bytecodeInstruction{}, false
 	}
 	receiverSlot, firstSlot, ok := bytecodeArrayIndexSwapSlots(ctx, firstIndex)
@@ -121,8 +121,8 @@ func bytecodeArraySlotSwapSlotInstruction(ctx *bytecodeLoweringContext, body []a
 	if !ok || first == nil || first.Operator != ast.AssignmentDeclare {
 		return bytecodeInstruction{}, false
 	}
-	temp, ok := first.Left.(*ast.Identifier)
-	if !ok || temp == nil || temp.Name == "" {
+	tempName, ok := resolveAssignmentTargetName(first.Left)
+	if !ok || tempName == "" {
 		return bytecodeInstruction{}, false
 	}
 	receiver, firstIndex, ok := bytecodeArraySlotSwapReadCall(first.Right)
@@ -150,7 +150,7 @@ func bytecodeArraySlotSwapSlotInstruction(ctx *bytecodeLoweringContext, body []a
 		return bytecodeInstruction{}, false
 	}
 	resultIdent, ok := thirdValue.(*ast.Identifier)
-	if !ok || resultIdent == nil || resultIdent.Name != temp.Name {
+	if !ok || resultIdent == nil || resultIdent.Name != tempName {
 		return bytecodeInstruction{}, false
 	}
 	receiverSlot, ok := ctx.lookupSlot(receiver)

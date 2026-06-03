@@ -10,6 +10,9 @@ func bytecodeBoxedIntegerI32Value(value int64) runtime.Value {
 	if value >= bytecodeSmallIntBoxMin && value <= bytecodeSmallIntBoxMax {
 		return bytecodeBoxedI32[int(value-bytecodeSmallIntBoxMin)]
 	}
+	if value >= bytecodeI32ExtendedBoxMin && value <= bytecodeI32ExtendedBoxMax {
+		return bytecodeBoxedI32Extended[int(value-bytecodeI32ExtendedBoxMin)]
+	}
 
 	bytecodeIntBoxDynamicMu.RLock()
 	if bytecodeDynamicBoxedI32 != nil {

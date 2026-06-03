@@ -216,6 +216,91 @@ func (vm *bytecodeVM) execCachedCallName(entry *bytecodeCallNameCacheEntry, argB
 	return vm.finishCompletedCall(result, err, callNode, nil)
 }
 
+func bytecodeCallNameArgSlots(instr bytecodeInstruction) [3]int {
+	return [3]int{instr.target, instr.loopBreak, instr.loopContinue}
+}
+
+func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromSlots(entry *bytecodeCallNameCacheEntry, instr bytecodeInstruction, callNode *ast.FunctionCall, currentProgram *bytecodeProgram) (*bytecodeProgram, bool, error) {
+	if entry == nil || !entry.inlineDirect || !instr.slotArgs {
+		return nil, false, nil
+	}
+	if instr.argCount < 0 || instr.argCount > 3 {
+		return nil, true, fmt.Errorf("bytecode slot-arg call count invalid")
+	}
+	if callNode != nil && len(callNode.TypeArguments) > 0 {
+		return nil, false, nil
+	}
+	fn := entry.inlineFn
+	prog := entry.inlineProgram
+	layout := entry.inlineLayout
+	if fn == nil || prog == nil || layout == nil || instr.argCount != layout.paramSlots {
+		return nil, false, nil
+	}
+	argSlots := bytecodeCallNameArgSlots(instr)
+	slots := vm.acquireSlotFrame(layout.slotCount)
+	calleeI32Values, calleeI32Valid := vm.acquireInlineCalleeI32RegisterFrame(layout)
+	if !layout.anyParamCoercion {
+		for idx := 0; idx < instr.argCount; idx++ {
+			callerSlot := argSlots[idx]
+			if callerSlot < 0 || callerSlot >= len(vm.slots) {
+				vm.releaseSlotFrame(slots)
+				vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
+				return nil, true, fmt.Errorf("bytecode slot-arg call slot out of range")
+			}
+			arg := vm.slotMaterializedValue(callerSlot)
+			slots[idx] = arg
+			seedInlineCalleeI32RegisterSlotFromCallerSlot(vm, layout, calleeI32Values, calleeI32Valid, idx, callerSlot, arg)
+		}
+	} else {
+		for idx := 0; idx < layout.paramSlots; idx++ {
+			callerSlot := argSlots[idx]
+			if callerSlot < 0 || callerSlot >= len(vm.slots) {
+				vm.releaseSlotFrame(slots)
+				vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
+				return nil, true, fmt.Errorf("bytecode slot-arg call slot out of range")
+			}
+			arg := vm.slotMaterializedValue(callerSlot)
+			paramType := inlineParamType(layout, idx)
+			if inlineParamNeedsRuntimeCoercion(layout, idx, fn) && !inlineParamCoercionUnnecessary(layout, idx, paramType, arg) {
+				if coerced, ok, err := inlineCoerceValueBySimpleType(inlineParamSimpleType(layout, idx), arg); err != nil {
+					vm.releaseSlotFrame(slots)
+					vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
+					return nil, true, err
+				} else if ok {
+					arg = coerced
+				} else {
+					coerced, err := vm.interp.coerceValueToType(paramType, arg)
+					if err != nil {
+						vm.releaseSlotFrame(slots)
+						vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
+						return nil, true, err
+					}
+					arg = coerced
+				}
+			}
+			slots[idx] = arg
+			seedInlineCalleeI32RegisterSlot(layout, calleeI32Values, calleeI32Valid, idx, arg)
+		}
+	}
+	if layout.selfCallSlot >= 0 && layout.selfCallSlot < len(slots) {
+		slots[layout.selfCallSlot] = fn
+	}
+
+	hasImplicit := layout.paramSlots > 0 && layout.usesImplicitMember
+	if hasImplicit {
+		state := vm.interp.stateFromEnv(fn.Closure)
+		state.pushImplicitReceiver(vm.slotMaterializedValue(argSlots[0]))
+	}
+
+	selfFast := bytecodeCanUseSelfFastFrame(currentProgram, prog, vm.env, fn.Closure)
+	vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, entry.inlineReturnGenerics, len(vm.iterStack), len(vm.loopStack), hasImplicit, selfFast)
+	vm.slots = slots
+	vm.env = fn.Closure
+	vm.ip = 0
+	vm.installInlineCalleeI32RegisterFrame(prog, calleeI32Values, calleeI32Valid)
+	return prog, true, nil
+}
+
 func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromStack(entry *bytecodeCallNameCacheEntry, argBase int, argCount int, callNode *ast.FunctionCall, currentProgram *bytecodeProgram) (*bytecodeProgram, bool, error) {
 	if entry == nil || !entry.inlineDirect {
 		return nil, false, nil
@@ -233,8 +318,12 @@ func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromStack(entry *bytecodeCall
 		return nil, false, nil
 	}
 	slots := vm.acquireSlotFrame(layout.slotCount)
+	calleeI32Values, calleeI32Valid := vm.acquireInlineCalleeI32RegisterFrame(layout)
 	if !layout.anyParamCoercion {
 		inlineCopyArgsToSlots(slots, vm.stack[argBase:argBase+argCount], argCount)
+		for idx := 0; idx < argCount; idx++ {
+			seedInlineCalleeI32RegisterSlot(layout, calleeI32Values, calleeI32Valid, idx, vm.stack[argBase+idx])
+		}
 	} else {
 		for idx := 0; idx < layout.paramSlots; idx++ {
 			arg := vm.stack[argBase+idx]
@@ -242,6 +331,7 @@ func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromStack(entry *bytecodeCall
 			if inlineParamNeedsRuntimeCoercion(layout, idx, fn) && !inlineParamCoercionUnnecessary(layout, idx, paramType, arg) {
 				if coerced, ok, err := inlineCoerceValueBySimpleType(inlineParamSimpleType(layout, idx), arg); err != nil {
 					vm.releaseSlotFrame(slots)
+					vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
 					return nil, true, err
 				} else if ok {
 					arg = coerced
@@ -249,12 +339,14 @@ func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromStack(entry *bytecodeCall
 					coerced, err := vm.interp.coerceValueToType(paramType, arg)
 					if err != nil {
 						vm.releaseSlotFrame(slots)
+						vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
 						return nil, true, err
 					}
 					arg = coerced
 				}
 			}
 			slots[idx] = arg
+			seedInlineCalleeI32RegisterSlot(layout, calleeI32Values, calleeI32Valid, idx, arg)
 		}
 	}
 	if layout.selfCallSlot >= 0 && layout.selfCallSlot < len(slots) {
@@ -273,5 +365,6 @@ func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromStack(entry *bytecodeCall
 	vm.slots = slots
 	vm.env = fn.Closure
 	vm.ip = 0
+	vm.installInlineCalleeI32RegisterFrame(prog, calleeI32Values, calleeI32Valid)
 	return prog, true, nil
 }

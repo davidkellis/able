@@ -114,6 +114,44 @@ func (vm *bytecodeVM) activateI32RegisterFrame(program *bytecodeProgram) {
 	vm.i32RegisterProgram = program
 }
 
+func (vm *bytecodeVM) acquireInlineCalleeI32RegisterFrame(layout *bytecodeFrameLayout) ([]int32, []bool) {
+	if vm == nil || layout == nil || !layout.i32RegisterFrame || layout.slotCount <= 0 {
+		return nil, nil
+	}
+	return vm.acquireI32RegisterFrame(layout.slotCount)
+}
+
+func seedInlineCalleeI32RegisterSlot(layout *bytecodeFrameLayout, values []int32, valid []bool, slot int, value runtime.Value) {
+	if layout == nil || slot < 0 || slot >= len(values) || slot >= len(valid) {
+		return
+	}
+	if slot >= len(layout.slotKinds) || layout.slotKinds[slot] != bytecodeCellKindI32 {
+		return
+	}
+	if raw, ok := bytecodeRawI32Value(value); ok {
+		values[slot] = raw
+		valid[slot] = true
+	}
+}
+
+func seedInlineCalleeI32RegisterSlotFromCallerSlot(vm *bytecodeVM, layout *bytecodeFrameLayout, values []int32, valid []bool, slot int, callerSlot int, value runtime.Value) {
+	if vm != nil {
+		if raw, ok := vm.i32RegisterRaw(callerSlot); ok && layout != nil && slot >= 0 && slot < len(values) && slot < len(valid) && slot < len(layout.slotKinds) && layout.slotKinds[slot] == bytecodeCellKindI32 {
+			values[slot] = raw
+			valid[slot] = true
+			return
+		}
+	}
+	seedInlineCalleeI32RegisterSlot(layout, values, valid, slot, value)
+}
+
+func (vm *bytecodeVM) installInlineCalleeI32RegisterFrame(program *bytecodeProgram, values []int32, valid []bool) {
+	if vm == nil || len(values) == 0 || len(values) != len(valid) {
+		return
+	}
+	vm.restoreI32RegisterFrame(program, values, valid)
+}
+
 func (vm *bytecodeVM) i32RegisterRaw(slot int) (int32, bool) {
 	if vm == nil || slot < 0 || slot >= len(vm.i32Registers) || slot >= len(vm.i32RegisterValid) {
 		return 0, false

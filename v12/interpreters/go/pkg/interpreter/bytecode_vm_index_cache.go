@@ -442,14 +442,55 @@ func (vm *bytecodeVM) execArrayIndexGetSlot(instr *bytecodeInstruction) error {
 		return fmt.Errorf("bytecode array index slot out of range")
 	}
 	obj := vm.slots[objSlot]
-	idxVal := vm.slots[idxSlot]
+	if !vm.hasI32RegisterFrame() {
+		idxVal := vm.slots[idxSlot]
+		var (
+			result runtime.Value
+			err    error
+		)
+		if vm.interp.canUseDirectArrayIndexGetFastPath() {
+			if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
+				if idx, small := bytecodeDirectSmallArrayIndex(idxVal); small {
+					if state, tracked := bytecodeTrackedArrayState(arr); tracked {
+						if idx < 0 || idx >= len(state.Values) {
+							result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
+						} else if val := state.Values[idx]; val != nil {
+							result = val
+						} else {
+							result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
+						}
+						vm.stack = append(vm.stack, result)
+						vm.ip++
+						return nil
+					}
+					result, err = vm.resolveDirectArrayIndexGetAt(arr, idx)
+				} else if value, handled, directErr := vm.resolveDirectArrayIndexGet(arr, idxVal); handled {
+					result, err = value, directErr
+				}
+			}
+		}
+		if result == nil && err == nil {
+			result, err = vm.resolveIndexGet(obj, idxVal)
+		}
+		if err != nil {
+			err = vm.interp.wrapStandardRuntimeError(err)
+			if instr.node != nil {
+				err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+			}
+			return err
+		}
+		vm.stack = append(vm.stack, result)
+		vm.ip++
+		return nil
+	}
 	var (
 		result runtime.Value
 		err    error
+		idxVal runtime.Value
 	)
 	if vm.interp.canUseDirectArrayIndexGetFastPath() {
 		if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
-			if idx, small := bytecodeDirectSmallArrayIndex(idxVal); small {
+			if idx, small := vm.slotDirectSmallArrayIndex(idxSlot); small {
 				if state, tracked := bytecodeTrackedArrayState(arr); tracked {
 					if idx < 0 || idx >= len(state.Values) {
 						result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
@@ -463,12 +504,17 @@ func (vm *bytecodeVM) execArrayIndexGetSlot(instr *bytecodeInstruction) error {
 					return nil
 				}
 				result, err = vm.resolveDirectArrayIndexGetAt(arr, idx)
-			} else if value, handled, directErr := vm.resolveDirectArrayIndexGet(arr, idxVal); handled {
-				result, err = value, directErr
+			} else if idxVal = vm.slotMaterializedValue(idxSlot); idxVal != nil {
+				if value, handled, directErr := vm.resolveDirectArrayIndexGet(arr, idxVal); handled {
+					result, err = value, directErr
+				}
 			}
 		}
 	}
 	if result == nil && err == nil {
+		if idxVal == nil {
+			idxVal = vm.slotMaterializedValue(idxSlot)
+		}
 		result, err = vm.resolveIndexGet(obj, idxVal)
 	}
 	if err != nil {
@@ -497,24 +543,61 @@ func (vm *bytecodeVM) execArrayIndexSetSlot(instr *bytecodeInstruction) error {
 	valueIdx := len(vm.stack) - 1
 	value := vm.stack[valueIdx]
 	obj := vm.slots[objSlot]
-	idxVal := vm.slots[idxSlot]
+	if !vm.hasI32RegisterFrame() {
+		idxVal := vm.slots[idxSlot]
+		var (
+			result  runtime.Value
+			err     error
+			handled bool
+		)
+		if vm.interp.canUseDirectArrayIndexSetFastPath() {
+			if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
+				if idx, small := bytecodeDirectSmallArrayIndex(idxVal); small {
+					result, err = vm.resolveDirectArrayIndexSetAt(arr, idx, value)
+					handled = true
+				} else if directResult, directHandled, directErr := vm.resolveDirectArrayIndexSet(arr, idxVal, value, ast.AssignmentAssign, "", false); directHandled {
+					result, err = directResult, directErr
+					handled = true
+				}
+			}
+		}
+		if !handled && err == nil {
+			result, err = vm.resolveIndexSet(obj, idxVal, value, ast.AssignmentAssign, "", false)
+		}
+		if err != nil {
+			err = vm.interp.wrapStandardRuntimeError(err)
+			if instr.node != nil {
+				err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+			}
+			return err
+		}
+		vm.stack[valueIdx] = bytecodeStackResultValue(result)
+		vm.ip++
+		return nil
+	}
 	var (
 		result  runtime.Value
 		err     error
 		handled bool
+		idxVal  runtime.Value
 	)
 	if vm.interp.canUseDirectArrayIndexSetFastPath() {
 		if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
-			if idx, small := bytecodeDirectSmallArrayIndex(idxVal); small {
+			if idx, small := vm.slotDirectSmallArrayIndex(idxSlot); small {
 				result, err = vm.resolveDirectArrayIndexSetAt(arr, idx, value)
 				handled = true
-			} else if directResult, directHandled, directErr := vm.resolveDirectArrayIndexSet(arr, idxVal, value, ast.AssignmentAssign, "", false); directHandled {
-				result, err = directResult, directErr
-				handled = true
+			} else if idxVal = vm.slotMaterializedValue(idxSlot); idxVal != nil {
+				if directResult, directHandled, directErr := vm.resolveDirectArrayIndexSet(arr, idxVal, value, ast.AssignmentAssign, "", false); directHandled {
+					result, err = directResult, directErr
+					handled = true
+				}
 			}
 		}
 	}
 	if !handled && err == nil {
+		if idxVal == nil {
+			idxVal = vm.slotMaterializedValue(idxSlot)
+		}
 		result, err = vm.resolveIndexSet(obj, idxVal, value, ast.AssignmentAssign, "", false)
 	}
 	if err != nil {

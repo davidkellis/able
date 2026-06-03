@@ -274,6 +274,73 @@ Guardrails:
   `1230487621 ns/op` with no allocation win. Do not spend more quicksort time
   on array-slot cache-size tuning; any next canonical array/member-call tranche
   needs to remove per-hit version/check work rather than just enlarge the table.
+  The latest external-scale keep fixed the host-return boundary instead of the
+  VM body: canonical external stdlib `able.fs.read_bytes` already routes
+  through `fs_read_bytes_fast`, and the bytecode interpreter now keeps host
+  `[]byte` results as mono `Array u8` handles across both
+  `fromHostValue(...)` and the cached direct extern fast invoker. On the
+  canonical external-stdlib 1 MB quicksort prefix, that moved the restored
+  baseline from `1339761372 ns/op`, `30168336 B/op`, `1180550 allocs/op`
+  through `1266301329 ns/op`, `30167864 B/op`, `1180542 allocs/op` down to
+  a repeated kept band of `821446016 ns/op`, `14435568 B/op`, `1180502 allocs/op`,
+  `823947705 ns/op`, `14435568 B/op`, `1180502 allocs/op`, and
+  `821112360 ns/op`, `14435584 B/op`, `1180503 allocs/op`. The old
+  `Interpreter.fromHostValue` allocation wall disappeared from the profile.
+  Full external bytecode quicksort still timed out at `90s`, so the next
+  tranche should not revisit file-read host boundaries. Start from the new
+  canonical-stdlib external profile and target the remaining parser / compare
+  wall: either a v12-safe `Array u8` -> parsed integer ingest lane or a typed
+  `Array i32` push/read path for the parser/quicksort boundary. The latest
+  kept quicksort parser-source slice now reserves the parse output array up
+  front in `parse_numbers(...)` with `Array.with_capacity(((count / 2) as i32)
+  + 1)`. On the canonical external-stdlib 1 MB quicksort prefix, that moved
+  the post-`[]byte` host-return band from `821446016-823947705 ns/op` to
+  `794274467 ns/op`, `795402232 ns/op`, and `806759619 ns/op` over `3/3`.
+  Full external bytecode quicksort still timed out at `90s`, so the next
+  quicksort tranche should stay on the parser boundary itself: do not retry
+  mono-`i32` promotion, and prefer either a v12-safe byte-to-digit ingest lane
+  or a typed path that keeps parsed integers unboxed end-to-end. The latest
+  kept parser-control slice now lowers control-flow-only slot-const
+  conjunctions like `byte >= 48_u8 && byte <= 57_u8` as direct specialized
+  false-jumps instead of materializing the left boolean through the generic
+  `&&` expression path. On the canonical external 1 MB quicksort prefix, the
+  current-host warmed band landed at `833773118 ns/op`, `853190719 ns/op`, and
+  `887188361 ns/op`, with a profiled confirmation at `876787701 ns/op`. Keep
+  the control-flow-only conjunction lowering, but do not broaden it into a
+  generic boolean-expression rewrite. The next external quicksort tranche
+  should stay on the parser byte boundary and target the remaining digit
+  decode / boxed integer update path. That parser arithmetic direction was
+  then tested repeatedly and rejected across cast/subtract/affine probes. The
+  latest kept quicksort tranche instead narrowed the remaining boxed-integer
+  wall directly: `bytecodeBoxedIntegerI32Value(...)` now uses an `i32`-only
+  extended static cache for `16385..262143` before falling back to the old
+  dynamic map/RWMutex path. On the canonical external 1 MB quicksort prefix, a
+  refreshed restored baseline at `848512956 ns/op`, `15308704 B/op`, and
+  `1180496 allocs/op` moved to a kept `3/3` band of `782731349 ns/op`,
+  `839980574 ns/op`, and `819652168 ns/op`, while the fresh profile cut
+  `bytecodeBoxedIntegerI32Value(...)` from about `320ms` cumulative to about
+  `70ms`. Full external bytecode quicksort was not rerun for this keep; the
+  last known status remains a `90s` timeout. The next external quicksort
+  tranche should pivot away from parser arithmetic fusion and target the now
+  dominant array read / compare path directly:
+  `arrayReadSlotValue(...)`,
+  `execJumpIfArrayReadSlotCompareSlotFalse(...)`,
+  `lookupCachedCanonicalArraySlotCallForArray(...)`, and
+  `compareBytecodeCondition(...)`. The latest kept follow-up did exactly that
+  for the hot quicksort partition guard: cached canonical
+  `JumpIfArrayReadSlotCompareSlotFalse` over tracked `Array i32` now compares
+  the tracked element and right slot as raw `i32` values before falling back to
+  the old boxed path. On the canonical external 1 MB quicksort prefix, the
+  extended-boxing kept band of `782731349 ns/op`, `839980574 ns/op`, and
+  `819652168 ns/op` moved down to `754532197 ns/op`, `753549655 ns/op`, and
+  `736386560 ns/op`, with a profiled confirmation at `771080932 ns/op`. The
+  fresh profile moved `arrayReadSlotValue(...)` from about `350ms` cumulative
+  to about `160ms`, and `compareBytecodeCondition(...)` from about `140ms` to
+  about `60ms`. Full external bytecode quicksort was still not rerun, so the
+  last known status remains a `90s` timeout. The next external quicksort
+  tranche should stay on this same loop boundary and target the remaining
+  canonical array-slot cache lookup / tracked-read overhead rather than going
+  back to parser arithmetic fusion.
   The latest kept quicksort raw-i32 tranche stores discarded `i32` slot-const
   and affine update results as an internal `bytecodeRawI32SlotValue` sentinel
   and materializes it through explicit load/return/stack boundaries. It moved
@@ -431,7 +498,53 @@ Guardrails:
   materialization boundaries before widening eligibility to those AST shapes:
   find slot-backed array/member/index opcodes that still read `vm.slots[...]`
   directly, route only proven dynamic-boundary operands through the
-  register-aware slot materializer, and keep untyped locals out of scope.
+  register-aware slot materializer, and keep untyped locals out of scope. The
+  first half of that work is now landed too: slot-specific raw-`i32` operand
+  readers now sit behind `ArrayIndexGetSlot`, `ArrayIndexSetSlot`,
+  `ArrayIndexSwapSlot`, `ArrayReadSlot`, `ArraySlotSwapSlot`, and the fused
+  array compare jumps, but only when an active `i32` register frame exists.
+  Ordinary non-register programs keep the old `vm.slots[...]` fast path. This
+  is an enabling keep, not a fresh wall-clock win: focused direct-VM coverage
+  now proves register-backed get/set/compare/read_slot/swap behavior, while
+  reduced quicksort guards stayed roughly baseline-noisy at `5.24ms/op`,
+  `5.37ms/op`, and `5.11ms/op`, and reduced `Fib30Bytecode` stayed mixed but
+  healthy at `157.92ms/op`, `145.81ms/op`, and `140.38ms/op`. The next tranche
+  should widen eligibility only for the already-proven bracket-index read/write
+  shapes that lower to these opcodes; that tranche is now landed too.
+  `exprCanUseI32RegisterFrame(...)` now admits `IndexExpression` plus
+  `arr[idx] = value` assignment targets when the receiver/index/right-hand
+  side are themselves register-safe, and focused parity now pins a typed
+  `arr[idx]` read -> `arr[idx] = current` write -> `arr[idx]` readback helper.
+  This remains an enabling keep, not a new benchmark edge: reduced quicksort
+  stayed in the same noisy band at `5.23ms/op`, `5.91ms/op`, `5.30ms/op`,
+  then `5.31ms/op`, `5.40ms/op`, `5.72ms/op`; reduced `Fib30Bytecode`
+  remained mixed but healthy at `156.63ms/op`, `160.61ms/op`, `151.01ms/op`,
+  then `157.06ms/op`, `173.05ms/op`, `142.47ms/op`. That slot-member follow-up
+  is now landed too: non-safe canonical `arr.read_slot(idx)` /
+  `arr.write_slot(idx, value)` calls now count as register-safe when their
+  receiver and arguments are already register-safe, and focused parity pins the
+  same typed helper shape without relying on external stdlib imports. The
+  benchmark guards stayed in the same enabling band at `5.44ms/op`,
+  `5.45ms/op`, `5.15ms/op` for reduced quicksort and `155.45ms/op`,
+  `146.40ms/op`, `151.90ms/op` for reduced `Fib30Bytecode`. The real next step
+  is no longer another slot-member widening. The current canonical quicksort
+  source still uses untyped locals for `pivot`, `i`, `j`, `tmp`, parser
+  counters, and related state, so the next defensible tranche should either
+  adopt explicit typed locals in those benchmark/hot helper paths or prove
+  another bounded typed AST shape from a fresh profile. A follow-up source pass
+  clarified the guardrail: broad typed-local edits regressed reduced quicksort,
+  and even a typed `tmp` in `swap(...)` only became keepable once lowering was
+  taught to preserve `ArrayIndexSwapSlot` / `ArraySlotSwapSlot` for typed temp
+  declarations. The current kept state therefore types only the benchmark
+  `swap(...)` temp and keeps the specialized swap opcode. Do not broaden to
+  general member dispatch or untyped-local inference, and do not retry broad
+  benchmark-source typing until typed declaration/store overhead is cheaper in
+  functions that still miss the register lane. A follow-up exact tracked-array
+  `arr[idx] as i32 <op> rhs` compare micro-branch was also rejected on reduced
+  quicksort; keep only the narrower `ArrayReadSlot` register-index
+  materialization repair that restores typed register-frame parity, then pick
+  the next VM-v2 tranche from a fresh profile rather than more compare-helper
+  shuffling.
 - Current matrix VM-v2 state: guarded mono-f64 array storage is now landed for
   the proven matrix row shape. The affine `Array.push` fast path can promote
   unaliased dynamic rows to mono f64, the native dot loop reads mono f64 rows
@@ -3952,10 +4065,24 @@ These items remain important, but they are not active priorities right now.
       quicksort prefix this moved the warmed band to `763104452 ns/op`,
       `30156808 B/op`, and `1180529 allocs/op`, with the affine parser update
       no longer allocating through `storeSlotIntMulConstAddResult(...)`.
-    - next step: target remaining uncached raw i32 slot-write allocations with
-      a typed opcode/register-frame design, or take a fresh parser byte-array
-      profile before adding another parser-specific fusion. Full external
-      bytecode quicksort still times out at `90s`.
+    - current state: the VM-v2 `i32` register lane is now fully call-frame
+      capable across direct inline helpers, discarded typed call-result stores,
+      bracket-index reads/writes, canonical `arr.read_slot` /
+      `arr.write_slot`, and typed swap temps that preserve fused swap lowering.
+      The latest keep now goes one step further on the cached direct
+      `CallName` slot-arg edge: those helpers inline directly from caller
+      slots/registers without staging boxed args on `vm.stack`, and the callee
+      raw frame is seeded from the caller lane during setup. Reduced guards on
+      the current baseline are `5.22ms/op`, `5.20ms/op`, and `5.43ms/op` for
+      in-tree quicksort plus `149.20ms/op`, `151.15ms/op`, and `142.79ms/op`
+      for `Fib30Bytecode`.
+    - next step: keep shrinking `tryInlineCachedCallNameDirectFromSlots(...)`
+      itself. The post-keep quicksort profile no longer shows
+      `pushCallNameSlotArgs(...)`; the live call-boundary wall is now direct
+      slot materialization and callee-slot seeding inside the slot-based
+      helper. Target that path before widening any new eligibility gate. Keep
+      general member-dispatch materialization, untyped locals, and recursive
+      self-call register-frame widening out of scope.
 - fixture exporter and other tooling cleanup
   - current state: the first cleanup slice is now landed
     - `cmd/fixture-exporter` has focused direct test coverage plus a

@@ -176,6 +176,24 @@ func buildExternFastInvoker(def *ast.ExternFunctionBody, raw any) externHostInvo
 				}
 				return stringSliceCache.result(fn(value)), nil
 			}
+		case func(string) []byte:
+			base, ok := def.Signature.ReturnType.(*ast.GenericTypeExpression)
+			if !ok || externSimpleTypeName(base.Base) != "Array" || len(base.Arguments) != 1 || externSimpleTypeName(base.Arguments[0]) != "u8" {
+				return nil
+			}
+			return func(i *Interpreter, args []runtime.Value) (runtime.Value, error) {
+				if len(args) != 1 {
+					return nil, fmt.Errorf("extern fast invoker expects 1 arg, got %d", len(args))
+				}
+				value, ok := externStringArg(args[0])
+				if !ok {
+					return nil, fmt.Errorf("extern fast invoker expected String argument")
+				}
+				if i != nil {
+					return i.newU8ArrayValueFromBytes(fn(value)), nil
+				}
+				return runtime.ArrayStoreMonoValueFromU8Bytes(fn(value)), nil
+			}
 		case func(string) interface{}:
 			return func(i *Interpreter, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 1 {
@@ -189,6 +207,14 @@ func buildExternFastInvoker(def *ast.ExternFunctionBody, raw any) externHostInvo
 				if externUnionHasArrayStringMember(def.Signature.ReturnType) {
 					if lines, ok := result.([]string); ok {
 						return stringSliceCache.result(lines), nil
+					}
+				}
+				if externUnionHasArrayU8Member(def.Signature.ReturnType) {
+					if bytes, ok := externReflectU8SliceBytes(reflect.ValueOf(result)); ok {
+						if i != nil {
+							return i.newU8ArrayValueFromBytes(bytes), nil
+						}
+						return runtime.ArrayStoreMonoValueFromU8Bytes(bytes), nil
 					}
 				}
 				if i == nil {

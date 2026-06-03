@@ -81,6 +81,23 @@ func TestExternUnionPreferredMemberForStringSlice(t *testing.T) {
 	}
 }
 
+func TestExternUnionPreferredMemberForU8Slice(t *testing.T) {
+	union := &ast.UnionTypeExpression{
+		Members: []ast.TypeExpression{
+			ast.Ty("IOError"),
+			ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
+		},
+	}
+
+	member := externUnionPreferredMemberForHostValue(union, reflect.ValueOf([]byte{1, 2, 3}))
+	if member == nil {
+		t.Fatalf("expected preferred union member")
+	}
+	if !externIsArrayU8Type(member) {
+		t.Fatalf("expected Array u8 member, got %T", member)
+	}
+}
+
 func TestFromHostValueUnionArrayStringFastPath(t *testing.T) {
 	interp := New()
 	union := &ast.UnionTypeExpression{
@@ -100,6 +117,72 @@ func TestFromHostValueUnionArrayStringFastPath(t *testing.T) {
 	}
 	if len(arr.Elements) != 2 {
 		t.Fatalf("expected two elements, got %d", len(arr.Elements))
+	}
+}
+
+func TestFromHostValueArrayU8FastPath(t *testing.T) {
+	interp := New()
+
+	got, err := interp.fromHostValue(ast.Gen(ast.Ty("Array"), ast.Ty("u8")), reflect.ValueOf([]byte{4, 5, 6}))
+	if err != nil {
+		t.Fatalf("fromHostValue: %v", err)
+	}
+	arr, ok := got.(*runtime.ArrayValue)
+	if !ok {
+		t.Fatalf("expected array result, got %T", got)
+	}
+	for idx, want := range []uint8{4, 5, 6} {
+		raw, ok, err := runtime.ArrayStoreMonoReadU8IfAvailable(arr.Handle, idx)
+		if err != nil {
+			t.Fatalf("read mono u8[%d]: %v", idx, err)
+		}
+		if !ok || raw != want {
+			t.Fatalf("mono u8[%d] = %d/%v, want %d/true", idx, raw, ok, want)
+		}
+	}
+	elements, err := interp.ArrayElements(arr)
+	if err != nil {
+		t.Fatalf("materialize array elements: %v", err)
+	}
+	if len(elements) != 3 {
+		t.Fatalf("expected three materialized elements, got %d", len(elements))
+	}
+	for idx, want := range []int64{4, 5, 6} {
+		intVal, ok := elements[idx].(runtime.IntegerValue)
+		if !ok {
+			t.Fatalf("materialized element %d type = %T", idx, elements[idx])
+		}
+		if !intVal.IsSmall() || intVal.TypeSuffix != runtime.IntegerU8 || intVal.Int64Fast() != want {
+			t.Fatalf("unexpected materialized element %d %#v", idx, intVal)
+		}
+	}
+}
+
+func TestFromHostValueUnionArrayU8FastPath(t *testing.T) {
+	interp := New()
+	union := &ast.UnionTypeExpression{
+		Members: []ast.TypeExpression{
+			ast.Ty("IOError"),
+			ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
+		},
+	}
+
+	got, err := interp.fromHostValue(union, reflect.ValueOf([]byte{7, 8, 9}))
+	if err != nil {
+		t.Fatalf("fromHostValue: %v", err)
+	}
+	arr, ok := got.(*runtime.ArrayValue)
+	if !ok {
+		t.Fatalf("expected array result, got %T", got)
+	}
+	for idx, want := range []uint8{7, 8, 9} {
+		raw, ok, err := runtime.ArrayStoreMonoReadU8IfAvailable(arr.Handle, idx)
+		if err != nil {
+			t.Fatalf("read union mono u8[%d]: %v", idx, err)
+		}
+		if !ok || raw != want {
+			t.Fatalf("union mono u8[%d] = %d/%v, want %d/true", idx, raw, ok, want)
+		}
 	}
 }
 
@@ -213,6 +296,69 @@ func TestExternModuleBuildsFastInvokerForUnionArrayStringSignature(t *testing.T)
 	first, ok := arr.Elements[0].(runtime.StringValue)
 	if !ok || first.Val != "wordlist.txt" {
 		t.Fatalf("unexpected first element %#v", arr.Elements[0])
+	}
+}
+
+func TestExternModuleBuildsFastInvokerForUnionArrayU8Signature(t *testing.T) {
+	interp := New()
+	bytesSig := ast.Fn(
+		"bytes_like",
+		[]*ast.FunctionParameter{ast.Param("path", ast.Ty("String"))},
+		nil,
+		&ast.UnionTypeExpression{
+			Members: []ast.TypeExpression{
+				ast.Ty("IOError"),
+				ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
+			},
+		},
+		nil,
+		nil,
+		false,
+		false,
+	)
+	bytesExtern := ast.Extern(ast.HostTargetGo, bytesSig, `return []byte(path)`)
+	mod := ast.Mod([]ast.Statement{bytesExtern}, nil, ast.Pkg([]interface{}{"host"}, false))
+
+	if _, _, err := interp.EvaluateModule(mod); err != nil {
+		t.Fatalf("evaluate module: %v", err)
+	}
+
+	pkg := interp.externHostPackages["host"]
+	if pkg == nil {
+		t.Fatalf("expected extern host package")
+	}
+	state := pkg.targets[ast.HostTargetGo]
+	if state == nil {
+		t.Fatalf("expected go extern target state")
+	}
+	module, err := interp.ensureExternHostModule("host", ast.HostTargetGo, state, pkg)
+	if err != nil {
+		t.Fatalf("ensure extern host module: %v", err)
+	}
+
+	invoker, err := module.lookupInvoker(bytesExtern)
+	if err != nil {
+		t.Fatalf("lookup union bytes invoker: %v", err)
+	}
+	if invoker == nil {
+		t.Fatalf("expected fast invoker for bytes_like")
+	}
+	got, err := invoker(interp, []runtime.Value{runtime.StringValue{Val: "abc"}})
+	if err != nil {
+		t.Fatalf("run union bytes invoker: %v", err)
+	}
+	arr, ok := got.(*runtime.ArrayValue)
+	if !ok {
+		t.Fatalf("expected array result, got %T", got)
+	}
+	for idx, want := range []uint8{'a', 'b', 'c'} {
+		raw, ok, err := runtime.ArrayStoreMonoReadU8IfAvailable(arr.Handle, idx)
+		if err != nil {
+			t.Fatalf("read invoker mono u8[%d]: %v", idx, err)
+		}
+		if !ok || raw != want {
+			t.Fatalf("invoker mono u8[%d] = %d/%v, want %d/true", idx, raw, ok, want)
+		}
 	}
 }
 

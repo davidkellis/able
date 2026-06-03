@@ -87,15 +87,15 @@ func TestBytecodeVM_BoxedSmallIntValueCache(t *testing.T) {
 }
 
 func TestBytecodeVM_BoxedIntegerValueDynamicCache(t *testing.T) {
-	value := int64(200000)
-	if _, ok := bytecodeBoxedSmallIntValue(runtime.IntegerI32, value); ok {
+	i32Value := bytecodeI32ExtendedBoxMax + 1
+	if _, ok := bytecodeBoxedSmallIntValue(runtime.IntegerI32, i32Value); ok {
 		t.Fatalf("expected value outside fixed small-int cache")
 	}
-	first, ok := bytecodeBoxedIntegerValue(runtime.IntegerI32, value)
+	first, ok := bytecodeBoxedIntegerValue(runtime.IntegerI32, i32Value)
 	if !ok {
 		t.Fatalf("expected dynamic boxed i32 value")
 	}
-	second, ok := bytecodeBoxedIntegerValue(runtime.IntegerI32, value)
+	second, ok := bytecodeBoxedIntegerValue(runtime.IntegerI32, i32Value)
 	if !ok {
 		t.Fatalf("expected cached dynamic boxed i32 value")
 	}
@@ -103,13 +103,14 @@ func TestBytecodeVM_BoxedIntegerValueDynamicCache(t *testing.T) {
 		t.Fatalf("expected stable boxed value for dynamic cache lookup")
 	}
 	allocs := testing.AllocsPerRun(1000, func() {
-		if _, ok := bytecodeBoxedIntegerValue(runtime.IntegerI32, value); !ok {
+		if _, ok := bytecodeBoxedIntegerValue(runtime.IntegerI32, i32Value); !ok {
 			t.Fatalf("expected cached dynamic boxed i32 value")
 		}
 	})
 	if allocs != 0 {
 		t.Fatalf("expected zero allocations for cached dynamic boxed value, got %.2f", allocs)
 	}
+	value := int64(200000)
 	firstUnsigned, ok := bytecodeBoxedIntegerValue(runtime.IntegerU32, value)
 	if !ok {
 		t.Fatalf("expected dynamic boxed u32 value")
@@ -126,8 +127,25 @@ func TestBytecodeVM_BoxedIntegerValueDynamicCache(t *testing.T) {
 	}
 }
 
-func TestBytecodeVM_BoxedIntegerI32ValueDynamicCache(t *testing.T) {
+func TestBytecodeVM_BoxedIntegerI32ValueExtendedStaticCache(t *testing.T) {
 	value := int64(200000)
+	first := bytecodeBoxedIntegerI32Value(value)
+	second := bytecodeBoxedIntegerI32Value(value)
+	if first != second {
+		t.Fatalf("expected stable boxed value for direct i32 extended cache lookup")
+	}
+	allocs := testing.AllocsPerRun(1000, func() {
+		if got := bytecodeBoxedIntegerI32Value(value); got != first {
+			t.Fatalf("expected cached direct i32 extended boxed value")
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("expected zero allocations for extended direct i32 boxed value, got %.2f", allocs)
+	}
+}
+
+func TestBytecodeVM_BoxedIntegerI32ValueDynamicCache(t *testing.T) {
+	value := bytecodeI32ExtendedBoxMax + 1
 	first := bytecodeBoxedIntegerI32Value(value)
 	second := bytecodeBoxedIntegerI32Value(value)
 	if first != second {

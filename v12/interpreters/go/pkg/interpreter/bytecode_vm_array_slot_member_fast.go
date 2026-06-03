@@ -113,6 +113,22 @@ func (vm *bytecodeVM) readArraySlotValueFast(arr *runtime.ArrayValue, index runt
 	return result, "array_read_slot_fast", true, err
 }
 
+func (vm *bytecodeVM) readArraySlotValueFastAtSlot(arr *runtime.ArrayValue, indexSlot int) (runtime.Value, string, bool, error) {
+	if vm == nil || arr == nil {
+		return nil, "", false, nil
+	}
+	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
+		if idx, ok := vm.slotArraySlotIndexSmall(indexSlot); ok && idx < len(state.Values) {
+			result := state.Values[idx]
+			if result == nil {
+				return runtime.NilValue{}, "array_read_slot_tracked_fast", true, nil
+			}
+			return result, "array_read_slot_tracked_fast", true, nil
+		}
+	}
+	return vm.readArraySlotValueFast(arr, vm.slotMaterializedValue(indexSlot))
+}
+
 func (vm *bytecodeVM) execArrayReadSlotMemberFast(instr bytecodeInstruction, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
 	if vm == nil || instr.argCount != 1 || receiverIndex < 0 || receiverIndex >= len(vm.stack) || argBase < 0 || argBase >= len(vm.stack) {
 		return nil, false, nil
@@ -249,4 +265,28 @@ func (vm *bytecodeVM) writeArraySlotValueFast(arr *runtime.ArrayValue, indexVal 
 		}
 	}
 	return "array_write_slot_fast", true, err
+}
+
+func (vm *bytecodeVM) writeArraySlotValueFastAtSlot(arr *runtime.ArrayValue, indexSlot int, value runtime.Value) (string, bool, error) {
+	if vm == nil || arr == nil || vm.interp == nil {
+		return "", false, nil
+	}
+	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
+		if idx, ok := vm.slotArraySlotIndexSmall(indexSlot); ok {
+			switch length := len(state.Values); {
+			case idx == length:
+				vm.appendTrackedArrayValueFast(arr, state, value)
+			case idx > length:
+				runtime.ArrayEnsureCapacity(state, idx+1)
+				runtime.ArraySetLength(state, idx+1)
+				state.Values[idx] = value
+				vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+			default:
+				state.Values[idx] = value
+				vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+			}
+			return "array_write_slot_tracked_fast", true, nil
+		}
+	}
+	return vm.writeArraySlotValueFast(arr, vm.slotMaterializedValue(indexSlot), value)
 }

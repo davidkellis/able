@@ -379,10 +379,16 @@ func TestExternSmallUnsignedArrayElementsStaySmallInt(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected array result, got %T", value)
 	}
-	if len(arr.Elements) != 3 {
-		t.Fatalf("expected 3 elements, got %d", len(arr.Elements))
+	if size, err := runtime.ArrayStoreSize(arr.Handle); err != nil {
+		t.Fatalf("array size: %v", err)
+	} else if size != 3 {
+		t.Fatalf("expected 3 stored elements, got %d", size)
 	}
-	for idx, elem := range arr.Elements {
+	for idx, want := range []int64{1, 2, 3} {
+		elem, err := runtime.ArrayStoreRead(arr.Handle, idx)
+		if err != nil {
+			t.Fatalf("array read %d: %v", idx, err)
+		}
 		intVal, ok := elem.(runtime.IntegerValue)
 		if !ok {
 			t.Fatalf("element %d type = %T, want runtime.IntegerValue", idx, elem)
@@ -390,9 +396,16 @@ func TestExternSmallUnsignedArrayElementsStaySmallInt(t *testing.T) {
 		if !intVal.IsSmall() {
 			t.Fatalf("element %d should stay small-int, got %#v", idx, intVal)
 		}
-		if intVal.TypeSuffix != runtime.IntegerU8 || intVal.Int64Fast() != int64(idx+1) {
+		if intVal.TypeSuffix != runtime.IntegerU8 || intVal.Int64Fast() != want {
 			t.Fatalf("unexpected element %d value %#v", idx, intVal)
 		}
+	}
+	elements, err := interp.ArrayElements(arr)
+	if err != nil {
+		t.Fatalf("materialize array elements: %v", err)
+	}
+	if len(elements) != 3 {
+		t.Fatalf("expected 3 materialized elements, got %d", len(elements))
 	}
 }
 

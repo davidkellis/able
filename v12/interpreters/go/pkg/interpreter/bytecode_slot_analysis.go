@@ -193,6 +193,14 @@ func exprCanUseI32RegisterFrame(expr ast.Expression, selfName string) bool {
 	case *ast.TypeCastExpression:
 		return exprCanUseI32RegisterFrame(n.Expression, selfName)
 	case *ast.AssignmentExpression:
+		if indexExpr, ok := n.Left.(*ast.IndexExpression); ok {
+			if n.Operator != ast.AssignmentAssign {
+				return false
+			}
+			return exprCanUseI32RegisterFrame(indexExpr.Object, selfName) &&
+				exprCanUseI32RegisterFrame(indexExpr.Index, selfName) &&
+				exprCanUseI32RegisterFrame(n.Right, selfName)
+		}
 		if _, ok := resolveAssignmentTargetName(n.Left); !ok {
 			return false
 		}
@@ -205,6 +213,9 @@ func exprCanUseI32RegisterFrame(expr ast.Expression, selfName string) bool {
 	case *ast.FunctionCall:
 		if len(n.TypeArguments) > 0 {
 			return false
+		}
+		if member, ok := n.Callee.(*ast.MemberAccessExpression); ok && member != nil {
+			return canonicalArraySlotCallCanUseI32RegisterFrame(n, member, selfName)
 		}
 		ident, ok := n.Callee.(*ast.Identifier)
 		if !ok || ident == nil {
@@ -219,12 +230,38 @@ func exprCanUseI32RegisterFrame(expr ast.Expression, selfName string) bool {
 			}
 		}
 		return true
+	case *ast.IndexExpression:
+		return exprCanUseI32RegisterFrame(n.Object, selfName) &&
+			exprCanUseI32RegisterFrame(n.Index, selfName)
 	case *ast.BlockExpression:
 		return blockCanUseI32RegisterFrame(n, selfName)
 	case *ast.IfExpression:
 		return stmtCanUseI32RegisterFrame(n, selfName)
 	case *ast.LoopExpression:
 		return blockCanUseI32RegisterFrame(n.Body, selfName)
+	default:
+		return false
+	}
+}
+
+func canonicalArraySlotCallCanUseI32RegisterFrame(call *ast.FunctionCall, member *ast.MemberAccessExpression, selfName string) bool {
+	if call == nil || member == nil || member.Safe {
+		return false
+	}
+	switch bytecodeIdentifierMemberName(member.Member) {
+	case "read_slot":
+		if len(call.Arguments) != 1 {
+			return false
+		}
+		return exprCanUseI32RegisterFrame(member.Object, selfName) &&
+			exprCanUseI32RegisterFrame(call.Arguments[0], selfName)
+	case "write_slot":
+		if len(call.Arguments) != 2 {
+			return false
+		}
+		return exprCanUseI32RegisterFrame(member.Object, selfName) &&
+			exprCanUseI32RegisterFrame(call.Arguments[0], selfName) &&
+			exprCanUseI32RegisterFrame(call.Arguments[1], selfName)
 	default:
 		return false
 	}
